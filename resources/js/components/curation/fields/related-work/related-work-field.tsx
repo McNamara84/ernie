@@ -19,6 +19,8 @@ interface RelatedWorkFieldProps {
     activeIdentifierTypes?: string[];
 }
 
+const BULK_IMPORT_CITATION_HYDRATION_CONCURRENCY = 3;
+
 /**
  * RelatedWorkField Component
  *
@@ -143,6 +145,16 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         }
     };
 
+    const hydrateCitationLabelsForImportedItems = async (items: RelatedIdentifier[]) => {
+        const itemsNeedingHydration = items.filter((item) => item.identifier_type === 'DOI' && !item.citation_label?.trim());
+
+        for (let index = 0; index < itemsNeedingHydration.length; index += BULK_IMPORT_CITATION_HYDRATION_CONCURRENCY) {
+            const chunk = itemsNeedingHydration.slice(index, index + BULK_IMPORT_CITATION_HYDRATION_CONCURRENCY);
+
+            await Promise.all(chunk.map((item) => hydrateCitationLabel(item.identifier, item.identifier_type, item.relation_type)));
+        }
+    };
+
     // Update identifierType when identifier changes in simple mode (auto-detection)
     const handleIdentifierChange = (value: string, autoDetect: boolean = false) => {
         setIdentifier(value);
@@ -203,20 +215,24 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
         // Filter out duplicates from CSV import
         const combinedList = [...relatedWorks];
+        const importedItems: RelatedIdentifier[] = [];
         const skippedDuplicates: string[] = [];
 
         data.forEach((item) => {
             if (isDuplicate(item.identifier, item.identifierType, item.relationType, combinedList)) {
                 skippedDuplicates.push(`${item.identifier} (${item.relationType})`);
             } else {
-                combinedList.push({
+                const importedItem: RelatedIdentifier = {
                     identifier: item.identifier,
                     identifier_type: item.identifierType,
                     relation_type: item.relationType,
                     ...(item.relationTypeInformation ? { relation_type_information: item.relationTypeInformation } : {}),
                     ...(item.citationLabel ? { citation_label: item.citationLabel } : {}),
                     position: combinedList.length,
-                });
+                };
+
+                combinedList.push(importedItem);
+                importedItems.push(importedItem);
             }
         });
 
@@ -224,11 +240,7 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
         onChange(combinedList);
         setShowCsvImport(false);
 
-        combinedList.forEach((item) => {
-            if (!item.citation_label?.trim()) {
-                void hydrateCitationLabel(item.identifier, item.identifier_type, item.relation_type);
-            }
-        });
+        void hydrateCitationLabelsForImportedItems(importedItems);
 
         // Show warning if duplicates were skipped
         if (skippedDuplicates.length > 0) {
@@ -259,6 +271,8 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             return {
                 ...updatedItem,
                 citation_label: identifierChanged ? null : updatedItem.citation_label ?? null,
+                related_title: identifierChanged ? null : updatedItem.related_title ?? null,
+                related_metadata: identifierChanged ? null : updatedItem.related_metadata ?? null,
                 position: itemIndex,
             };
         });

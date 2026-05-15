@@ -123,6 +123,12 @@ vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
                     >
                         Edit first label only
                     </button>
+                    <button
+                        data-testid="edit-first-item-type"
+                        onClick={() => onItemChange(0, { ...items[0], identifier_type: 'URL', citation_label: 'Old citation' })}
+                    >
+                        Edit first type
+                    </button>
                 </>
             )}
             {items.length > 1 && (
@@ -429,7 +435,7 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
-    it('clears stale citation labels when an item identifier changes', async () => {
+    it('clears stale citation labels and resolved metadata when an item identifier changes', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         render(
             <RelatedWorkField
@@ -439,6 +445,8 @@ describe('RelatedWorkField', () => {
                         identifier_type: 'DOI',
                         relation_type: 'Cites',
                         citation_label: 'Old citation',
+                        related_title: 'Resolved title for old DOI',
+                        related_metadata: { publisher: 'GFZ' },
                         position: 0,
                     },
                 ]}
@@ -452,6 +460,40 @@ describe('RelatedWorkField', () => {
             expect.objectContaining({
                 identifier: '10.1234/updated',
                 citation_label: null,
+                related_title: null,
+                related_metadata: null,
+                position: 0,
+            }),
+        ]);
+    });
+
+    it('clears stale resolved metadata when only the identifier type changes', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    {
+                        identifier: '10.1234/original',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: 'Old citation',
+                        related_title: 'Resolved title for old DOI',
+                        related_metadata: { publisher: 'GFZ' },
+                        position: 0,
+                    },
+                ]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByTestId('edit-first-item-type'));
+
+        expect(onChange).toHaveBeenCalledWith([
+            expect.objectContaining({
+                identifier_type: 'URL',
+                citation_label: null,
+                related_title: null,
+                related_metadata: null,
                 position: 0,
             }),
         ]);
@@ -596,6 +638,33 @@ describe('RelatedWorkField', () => {
             }),
         ]);
         expect(screen.getByText(/skipped 1 duplicate/i)).toBeInTheDocument();
+    });
+
+    it('hydrates citation labels only for newly imported DOI rows', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            json: vi.fn().mockResolvedValue({}),
+        }) as unknown as typeof fetch;
+
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    {
+                        identifier: '10.1234/csv1',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        position: 0,
+                    },
+                ]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /import from csv/i }));
+        await user.click(screen.getByTestId('csv-import-submit'));
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('clears CSV duplicate warnings after eight seconds', async () => {
