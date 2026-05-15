@@ -4,6 +4,7 @@ WORKDIR /var/www/html
 
 # Install system dependencies needed for the PHP runtime and extension builds.
 RUN apt-get update && apt-get install -y \
+    libnghttp2-14 \
     git \
     curl \
     libpng-dev \
