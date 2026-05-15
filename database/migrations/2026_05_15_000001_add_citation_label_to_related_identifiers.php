@@ -11,7 +11,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('related_identifiers', function (Blueprint $table): void {
-            $table->text('citation_label')->nullable()->after('relation_type_information');
+            // MEDIUMTEXT keeps the 65,535-character validation ceiling safe
+            // under utf8mb4, where TEXT would otherwise cap at 65,535 bytes.
+            $table->mediumText('citation_label')->nullable()->after('relation_type_information');
         });
     }
 

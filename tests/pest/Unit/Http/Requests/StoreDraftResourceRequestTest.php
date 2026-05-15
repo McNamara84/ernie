@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Requests\StoreDraftResourceRequest;
+use App\Http\Requests\StoreResourceRequest;
+use App\Models\RelatedIdentifier;
 
 covers(StoreDraftResourceRequest::class);
 
@@ -64,8 +66,12 @@ it('normalizes related identifiers and keeps optional related-work fields only w
     ]);
 });
 
-it('limits related-work citation labels to the text-safe validation maximum', function (): void {
-    $request = new StoreDraftResourceRequest;
+it('keeps related-work citation label limits aligned between draft and store requests', function (): void {
+    $draftRequest = new StoreDraftResourceRequest;
+    $storeRequest = new StoreResourceRequest;
 
-    expect($request->rules()['relatedIdentifiers.*.citationLabel'])->toContain('max:65535');
+    expect($draftRequest->rules()['relatedIdentifiers.*.citationLabel'])
+        ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
+        ->and($storeRequest->rules()['relatedIdentifiers.*.citationLabel'])
+        ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS);
 });

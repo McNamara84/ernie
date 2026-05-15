@@ -37,6 +37,14 @@ class RelatedIdentifier extends Model
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
 
+    /**
+     * Upper bound advertised to form requests for manual citation labels.
+     *
+     * The backing column uses MEDIUMTEXT so this character limit remains safe
+     * under utf8mb4 multibyte storage.
+     */
+    public const MAX_CITATION_LABEL_CHARACTERS = 65535;
+
     protected $casts = [
         'position' => 'integer',
     ];

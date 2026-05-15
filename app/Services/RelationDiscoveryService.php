@@ -236,7 +236,8 @@ class RelationDiscoveryService
     /**
      * Accept a suggested relation: creates a RelatedIdentifier and syncs to DataCite.
      *
-    * Uses a DB transaction for atomicity and re-checks duplicates under lock.
+    * Uses a DB transaction for atomicity and re-checks duplicates under a
+    * resource-level lock before assigning the next position.
      *
      * @return array{success: bool, datacite_synced: bool, message: string}
      */
@@ -253,6 +254,11 @@ class RelationDiscoveryService
             : $this->resolveAcceptedSuggestionCitationLabel($suggestion);
 
         DB::transaction(function () use ($suggestion, $resource, $citationLabel) {
+            Resource::query()
+                ->whereKey($resource->getKey())
+                ->lockForUpdate()
+                ->first();
+
             $existingRelation = RelatedIdentifier::where('resource_id', $resource->id)
                 ->where('identifier', $suggestion->identifier)
                 ->where('relation_type_id', $suggestion->relation_type_id)
