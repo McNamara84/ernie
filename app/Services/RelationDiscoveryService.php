@@ -236,15 +236,23 @@ class RelationDiscoveryService
     /**
      * Accept a suggested relation: creates a RelatedIdentifier and syncs to DataCite.
      *
-     * Uses a DB transaction for atomicity and firstOrCreate for idempotency.
+    * Uses a DB transaction for atomicity and re-checks duplicates under lock.
      *
      * @return array{success: bool, datacite_synced: bool, message: string}
      */
     public function acceptRelation(SuggestedRelation $suggestion): array
     {
         $resource = $suggestion->resource;
+        $alreadyExists = RelatedIdentifier::where('resource_id', $resource->id)
+            ->where('identifier', $suggestion->identifier)
+            ->where('relation_type_id', $suggestion->relation_type_id)
+            ->exists();
 
-        DB::transaction(function () use ($suggestion, $resource) {
+        $citationLabel = $alreadyExists
+            ? null
+            : $this->resolveAcceptedSuggestionCitationLabel($suggestion);
+
+        DB::transaction(function () use ($suggestion, $resource, $citationLabel) {
             $existingRelation = RelatedIdentifier::where('resource_id', $resource->id)
                 ->where('identifier', $suggestion->identifier)
                 ->where('relation_type_id', $suggestion->relation_type_id)
@@ -260,8 +268,6 @@ class RelationDiscoveryService
             $maxPosition = RelatedIdentifier::where('resource_id', $resource->id)
                 ->lockForUpdate()
                 ->max('position') ?? -1;
-
-            $citationLabel = $this->resolveAcceptedSuggestionCitationLabel($suggestion);
 
             RelatedIdentifier::create([
                 'resource_id' => $resource->id,
