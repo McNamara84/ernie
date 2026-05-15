@@ -37,6 +37,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
 
         $relatedWorks = [];
         $instruments = [];
+        $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
         foreach ($relatedIdentifierElements as $index => $element) {
             $identifier = XmlElementHelpers::stringValue($element);
@@ -78,7 +79,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => is_string($relationTypeInformationRaw) && trim($relationTypeInformationRaw) !== '' ? trim($relationTypeInformationRaw) : null,
-                'citation_label' => $this->citationLabelService->resolve($identifier, $identifierType),
+                'citation_label' => $this->citationLabelService->resolveBestEffort($identifier, $identifierType, $citationResolutionDeadline),
                 'position' => count($relatedWorks),
             ];
         }

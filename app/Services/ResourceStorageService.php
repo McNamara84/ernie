@@ -149,6 +149,8 @@ class ResourceStorageService
             return $data;
         }
 
+        $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
+
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             if (! is_array($relatedIdentifier)) {
                 continue;
@@ -176,9 +178,10 @@ class ResourceStorageService
                 continue;
             }
 
-            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolve(
+            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
                 $identifier,
                 (string) ($relatedIdentifier['identifierType'] ?? ''),
+                $citationResolutionDeadline,
             );
 
             if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {

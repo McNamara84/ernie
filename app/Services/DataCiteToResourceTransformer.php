@@ -141,6 +141,8 @@ class DataCiteToResourceTransformer
             return $attributes;
         }
 
+        $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
+
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             if (! is_array($relatedIdentifier)) {
                 continue;
@@ -168,9 +170,10 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $resolvedCitationLabel = $this->citationLabelService()->resolve(
+            $resolvedCitationLabel = $this->citationLabelService()->resolveBestEffort(
                 $identifier,
                 (string) ($relatedIdentifier['relatedIdentifierType'] ?? ''),
+                $citationResolutionDeadline,
             );
 
             if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {

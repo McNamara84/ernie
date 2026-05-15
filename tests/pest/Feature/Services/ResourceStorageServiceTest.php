@@ -260,9 +260,9 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldReceive('resolve')
+        $mock->shouldReceive('resolveBestEffort')
             ->once()
-            ->with('10.5880/test.related', 'DOI')
+            ->with('10.5880/test.related', 'DOI', \Mockery::type('float'))
             ->andReturn('Doe, J. (2026): Auto-resolved citation.');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
@@ -327,7 +327,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldNotReceive('resolve');
+        $mock->shouldNotReceive('resolveBestEffort');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $service = app(ResourceStorageService::class);

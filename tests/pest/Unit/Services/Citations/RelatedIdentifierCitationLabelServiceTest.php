@@ -61,3 +61,25 @@ it('returns null when metadata lookup fails', function () {
 
     expect($service->resolve('10.1234/missing', 'DOI'))->toBeNull();
 });
+
+it('uses the provided timeout for best-effort resolution without caching transient failures', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldReceive('normalizeDoi')->once()->with('10.1234/example')->andReturn('10.1234/example');
+    $dataCite->shouldReceive('getMetadata')->once()->with('10.1234/example', 0.5, false)->andReturn(['title' => 'Example']);
+    $dataCite->shouldReceive('buildCitationFromMetadata')->once()->with(['title' => 'Example'])->andReturn('Doe, J. (2026): Example. Publisher.');
+
+    $service = new RelatedIdentifierCitationLabelService($dataCite);
+
+    expect($service->resolve('10.1234/example', 'DOI', 0.5))->toBe('Doe, J. (2026): Example. Publisher.');
+});
+
+it('skips best-effort resolution when the aggregate budget is exhausted', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadata');
+    $dataCite->shouldNotReceive('buildCitationFromMetadata');
+
+    $service = new RelatedIdentifierCitationLabelService($dataCite);
+
+    expect($service->resolveBestEffort('10.1234/example', 'DOI', microtime(true) - 1))->toBeNull();
+});

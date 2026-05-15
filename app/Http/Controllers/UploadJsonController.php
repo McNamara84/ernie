@@ -889,6 +889,7 @@ class UploadJsonController extends Controller
     {
         $relatedWorks = [];
         $instruments = [];
+        $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
         foreach ($relatedIdentifiers as $index => $ri) {
             $identifier = $ri['relatedIdentifier'] ?? '';
@@ -931,7 +932,7 @@ class UploadJsonController extends Controller
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => is_string($relationTypeInformation) && trim($relationTypeInformation) !== '' ? trim($relationTypeInformation) : null,
-                'citation_label' => $this->citationLabelService->resolve($identifier, $identifierType),
+                'citation_label' => $this->citationLabelService->resolveBestEffort($identifier, $identifierType, $citationResolutionDeadline),
                 'position' => count($relatedWorks),
             ];
         }

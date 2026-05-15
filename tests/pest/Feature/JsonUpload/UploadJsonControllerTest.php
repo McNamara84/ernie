@@ -292,9 +292,9 @@ describe('JSON Upload - DataCite JSON format', function () {
         $this->actingAs(User::factory()->create());
 
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldReceive('resolve')
+        $mock->shouldReceive('resolveBestEffort')
             ->once()
-            ->with('10.1234/related', 'DOI')
+            ->with('10.1234/related', 'DOI', Mockery::type('float'))
             ->andReturn('Doe, J. (2026): Imported citation. Publisher.');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 

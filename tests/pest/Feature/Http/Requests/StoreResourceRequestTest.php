@@ -398,9 +398,9 @@ describe('related identifiers validation', function () {
 
     it('auto-fills a missing citation label during save', function () {
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldReceive('resolve')
+        $mock->shouldReceive('resolveBestEffort')
             ->once()
-            ->with('10.1234/test', 'DOI')
+            ->with('10.1234/test', 'DOI', Mockery::type('float'))
             ->andReturn('Doe, J. (2026): Auto-filled. Publisher.');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
@@ -425,7 +425,7 @@ describe('related identifiers validation', function () {
 
     it('preserves a manually provided citation label during save', function () {
         $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $mock->shouldNotReceive('resolve');
+        $mock->shouldNotReceive('resolveBestEffort');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);

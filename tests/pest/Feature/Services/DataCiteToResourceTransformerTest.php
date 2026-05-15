@@ -109,9 +109,9 @@ describe('DataCiteToResourceTransformer', function (): void {
             $user = User::factory()->create();
 
             $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-            $mock->shouldReceive('resolve')
+            $mock->shouldReceive('resolveBestEffort')
                 ->once()
-                ->with('10.5880/import.related.2024.001', 'DOI')
+                ->with('10.5880/import.related.2024.001', 'DOI', Mockery::type('float'))
                 ->andReturn('Doe, J. (2024): Imported related work. GFZ. https://doi.org/10.5880/import.related.2024.001');
             $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 

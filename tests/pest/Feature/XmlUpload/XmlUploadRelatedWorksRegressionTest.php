@@ -129,9 +129,9 @@ test('xml upload canonicalizes human readable related work type values', functio
     withoutVite();
 
     $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-    $mock->shouldReceive('resolve')
+    $mock->shouldReceive('resolveBestEffort')
         ->once()
-        ->with('10.1000/readable.1', 'DOI')
+        ->with('10.1000/readable.1', 'DOI', Mockery::type('float'))
         ->andReturn('Doe, J. (2026): XML imported citation. Publisher.');
     $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
