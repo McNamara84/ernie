@@ -1155,16 +1155,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Adding Related Identifiers</h4>
                         <WorkflowSteps>
-                            <WorkflowSteps.Step number={1} title="Select Identifier Type">
-                                <p>Choose the type: DOI, URL, Handle, IGSN, URN, etc.</p>
+                            <WorkflowSteps.Step number={1} title="Enter the Identifier">
+                                <p>Paste a DOI, URL, Handle, IGSN, URN, or another supported identifier. ERNIE auto-detects the type and still lets you override it manually when needed.</p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={2} title="Enter Identifier">
-                                <p>Enter the identifier value (e.g., 10.1234/example for DOI).</p>
+                            <WorkflowSteps.Step number={2} title="Pick the Relation Type">
+                                <p>The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block, with the full schema available below it.</p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={3} title="Select Relation Type">
-                                <p>Choose how this resource relates: Cites, IsSupplementTo, IsPartOf, etc.</p>
+                            <WorkflowSteps.Step number={3} title="Refine the Card">
+                                <p>After adding an entry, edit the related-work card directly. You can adjust the identifier, change the relation type, add a custom citation label for landing pages, and review any resolved title metadata.</p>
+                            </WorkflowSteps.Step>
+                            <WorkflowSteps.Step number={4} title="Reorder the List">
+                                <p>Drag related-work cards into the order you want. This order is preserved in the editor and reused on the landing page.</p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+
+                        <h4>DOI Citation Labels</h4>
+                        <p>
+                            When you add a DOI, ERNIE tries to resolve a formatted citation label immediately and stores it with the related identifier.
+                            The same citation label is reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
+                            You can overwrite the label manually whenever you need a curated citation string.
+                        </p>
 
                         <h4>Common Relation Types</h4>
                         <ul className="list-inside list-disc space-y-1">

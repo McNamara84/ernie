@@ -2582,7 +2582,7 @@ export default function DataCiteForm({
                         <SectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."
-                            tooltip="DOIs, URLs, and Handles supported. Use Quick Add for common relation types."
+                            tooltip="DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them."
                             counter={{ current: relatedWorks.length, max: 100 }}
                         />
                         <RelatedWorkField

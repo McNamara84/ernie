@@ -8,19 +8,26 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
-import { getOppositeRelationType, MOST_USED_RELATION_TYPES, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
+import {
+    formatRelationTypeLabel,
+    getAllRelationTypes,
+    getOppositeRelationType,
+    MOST_USED_RELATION_TYPES,
+    RELATION_TYPE_DESCRIPTIONS,
+} from '@/lib/related-identifiers';
+import { identifierTypes } from '@/schemas/related-work.schema';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
 interface RelatedWorkQuickAddProps {
     onAdd: (data: RelatedIdentifierFormData) => void;
-    showAdvancedMode?: boolean;
-    onToggleAdvanced?: () => void;
     identifier: string;
     onIdentifierChange: (value: string) => void;
     identifierType: IdentifierType;
+    onIdentifierTypeChange: (value: IdentifierType) => void;
     relationType: RelationType;
     onRelationTypeChange: (value: RelationType) => void;
     activeRelationTypes?: string[];
+    activeIdentifierTypes?: string[];
 }
 
 /**
@@ -35,24 +42,44 @@ interface RelatedWorkQuickAddProps {
  */
 export default function RelatedWorkQuickAdd({
     onAdd,
-    showAdvancedMode = false,
-    onToggleAdvanced,
     identifier,
     onIdentifierChange,
     identifierType,
+    onIdentifierTypeChange,
     relationType,
     onRelationTypeChange,
     activeRelationTypes,
+    activeIdentifierTypes,
 }: RelatedWorkQuickAddProps) {
     const [showSuggestion, setShowSuggestion] = useState(false);
 
-    // Filter most-used relation types to only show active ones
-    const filteredRelationTypes = useMemo(
+    const filteredMostUsedRelationTypes = useMemo(
         () =>
             activeRelationTypes
                 ? MOST_USED_RELATION_TYPES.filter((t) => activeRelationTypes.includes(t))
                 : MOST_USED_RELATION_TYPES,
         [activeRelationTypes],
+    );
+
+    const filteredRelationTypes = useMemo(
+        () =>
+            activeRelationTypes
+                ? getAllRelationTypes().filter((t) => activeRelationTypes.includes(t))
+                : getAllRelationTypes(),
+        [activeRelationTypes],
+    );
+
+    const additionalRelationTypes = useMemo(
+        () => filteredRelationTypes.filter((type) => !filteredMostUsedRelationTypes.includes(type)),
+        [filteredMostUsedRelationTypes, filteredRelationTypes],
+    );
+
+    const filteredIdentifierTypes = useMemo(
+        () =>
+            activeIdentifierTypes
+                ? identifierTypes.filter((type) => activeIdentifierTypes.includes(type))
+                : [...identifierTypes],
+        [activeIdentifierTypes],
     );
 
     // Validate identifier with API
@@ -120,15 +147,15 @@ export default function RelatedWorkQuickAdd({
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
                 <p>
-                    Add relationships to other datasets, publications, or resources. Enter a DOI, URL, or other identifier and select the relationship
-                    type.
+                    Add relationships to other datasets, publications, or resources. Identifier types are auto-detected, and you can fine-tune citation
+                    labels directly in the cards below after adding an entry.
                 </p>
             </div>
 
             {/* Quick Add Form */}
             <div className="grid gap-4 md:grid-cols-12">
                 {/* Identifier Input */}
-                <div className="md:col-span-6">
+                <div className="md:col-span-5">
                     <Label htmlFor="related-identifier" className="sr-only">
                         Identifier (DOI, URL, etc.)
                     </Label>
@@ -171,12 +198,30 @@ export default function RelatedWorkQuickAdd({
                         <p className="mt-1 text-xs text-green-600">✓ {validation.metadata.title}</p>
                     )}
                     {validation.status === 'idle' && (
-                        <p className="mt-1 text-xs text-muted-foreground">Type will be auto-detected (DOI, URL, Handle)</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Type will be auto-detected. You can still override it manually.</p>
                     )}
                 </div>
 
+                <div className="md:col-span-2">
+                    <Label htmlFor="related-identifier-type" className="sr-only">
+                        Identifier Type
+                    </Label>
+                    <Select value={identifierType} onValueChange={(value) => onIdentifierTypeChange(value as IdentifierType)}>
+                        <SelectTrigger id="related-identifier-type">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {filteredIdentifierTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                    {type}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 {/* Relation Type Select */}
-                <div className="md:col-span-5">
+                <div className="md:col-span-4">
                     <Label htmlFor="relation-type" className="sr-only">
                         Relation Type
                     </Label>
@@ -185,12 +230,25 @@ export default function RelatedWorkQuickAdd({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
-                            {filteredRelationTypes.map((type) => (
+                            {filteredMostUsedRelationTypes.length > 0 && (
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
+                            )}
+                            {filteredMostUsedRelationTypes.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
-                                        <span>{type}</span>
+                                        <span>{formatRelationTypeLabel(type)}</span>
                                         <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type].substring(0, 50)}...</span>
+                                    </div>
+                                </SelectItem>
+                            ))}
+                            {additionalRelationTypes.length > 0 && (
+                                <div className="px-2 pt-3 pb-1.5 text-xs font-semibold text-muted-foreground">All relation types</div>
+                            )}
+                            {additionalRelationTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                    <div className="flex flex-col items-start">
+                                        <span>{formatRelationTypeLabel(type)}</span>
+                                        <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
                                     </div>
                                 </SelectItem>
                             ))}
@@ -227,15 +285,6 @@ export default function RelatedWorkQuickAdd({
                         </Button>
                     </AlertDescription>
                 </Alert>
-            )}
-
-            {/* Advanced Mode Toggle */}
-            {onToggleAdvanced && (
-                <div className="pt-2">
-                    <Button type="button" variant="ghost" size="sm" onClick={onToggleAdvanced} className="text-xs">
-                        {showAdvancedMode ? '← Simple mode' : 'Show all relation types →'}
-                    </Button>
-                </div>
             )}
         </div>
     );

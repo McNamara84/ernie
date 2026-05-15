@@ -156,6 +156,7 @@ class StoreResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string'],
 
             // Citation Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
@@ -763,11 +764,16 @@ class StoreResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['relationTypeInformation'])
                 : '';
 
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
             $relatedIdentifiers[] = [
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
+                ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
             ];
         }
 

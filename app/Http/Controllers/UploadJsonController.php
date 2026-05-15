@@ -8,8 +8,10 @@ use App\Enums\UploadErrorCode;
 use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
+use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\UploadLogService;
 use App\Support\GcmdUriHelper;
 use App\Support\UploadError;
@@ -20,39 +22,6 @@ use Illuminate\Support\Str;
 
 class UploadJsonController extends Controller
 {
-    /**
-     * Canonical DataCite related identifier types supported by ERNIE editor.
-     *
-     * @var string[]
-     */
-    private const RELATED_IDENTIFIER_TYPES = [
-        'DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK',
-        'arXiv', 'bibcode', 'CSTR', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID',
-        'PMID', 'RAiD', 'RRID', 'SWHID', 'UPC', 'w3id',
-    ];
-
-    /**
-     * Canonical DataCite relation types supported by ERNIE editor.
-     *
-     * @var string[]
-     */
-    private const RELATED_RELATION_TYPES = [
-        'Cites', 'IsCitedBy', 'References', 'IsReferencedBy',
-        'Documents', 'IsDocumentedBy', 'Describes', 'IsDescribedBy',
-        'IsNewVersionOf', 'IsPreviousVersionOf', 'HasVersion', 'IsVersionOf',
-        'HasTranslation', 'IsTranslationOf',
-        'Continues', 'IsContinuedBy', 'Obsoletes', 'IsObsoletedBy',
-        'IsVariantFormOf', 'IsOriginalFormOf', 'IsIdenticalTo',
-        'HasPart', 'IsPartOf', 'Compiles', 'IsCompiledBy',
-        'IsSourceOf', 'IsDerivedFrom',
-        'IsSupplementTo', 'IsSupplementedBy',
-        'Requires', 'IsRequiredBy',
-        'HasMetadata', 'IsMetadataFor',
-        'Reviews', 'IsReviewedBy',
-        'IsPublishedIn', 'Collects', 'IsCollectedBy',
-        'Other',
-    ];
-
     /**
      * Contributor role labels mapped from lowercased keys.
      *
@@ -109,6 +78,8 @@ class UploadJsonController extends Controller
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
         private readonly DataCiteJsonLdToJsonConverterService $jsonLdConverter,
+        private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
+        private readonly RelatedIdentifierCitationLabelService $citationLabelService,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse
@@ -916,18 +887,6 @@ class UploadJsonController extends Controller
      */
     private function extractRelatedWorksAndInstruments(array $relatedIdentifiers, string $filename): array
     {
-        /** @var array<string, string> $identifierTypeLookup */
-        $identifierTypeLookup = [];
-        foreach (self::RELATED_IDENTIFIER_TYPES as $name) {
-            $identifierTypeLookup[mb_strtolower($name)] = $name;
-        }
-
-        /** @var array<string, string> $relationTypeLookup */
-        $relationTypeLookup = [];
-        foreach (self::RELATED_RELATION_TYPES as $name) {
-            $relationTypeLookup[mb_strtolower($name)] = $name;
-        }
-
         $relatedWorks = [];
         $instruments = [];
 
@@ -941,12 +900,8 @@ class UploadJsonController extends Controller
                 continue;
             }
 
-            $identifierType = is_string($identifierTypeRaw)
-                ? ($identifierTypeLookup[mb_strtolower(trim($identifierTypeRaw))] ?? null)
-                : null;
-            $relationType = is_string($relationTypeRaw)
-                ? ($relationTypeLookup[mb_strtolower(trim($relationTypeRaw))] ?? null)
-                : null;
+            $identifierType = $this->relatedIdentifierTypeResolver->resolveIdentifierType($identifierTypeRaw);
+            $relationType = $this->relatedIdentifierTypeResolver->resolveRelationType($relationTypeRaw);
 
             if ($identifierType === null || $relationType === null) {
                 Log::warning('Skipping related identifier with unsupported type values during JSON upload', [
@@ -976,6 +931,7 @@ class UploadJsonController extends Controller
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => is_string($relationTypeInformation) && trim($relationTypeInformation) !== '' ? trim($relationTypeInformation) : null,
+                'citation_label' => $this->citationLabelService->resolve($identifier, $identifierType),
                 'position' => count($relatedWorks),
             ];
         }

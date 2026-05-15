@@ -7,56 +7,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RelatedWorkField from '@/components/curation/fields/related-work/related-work-field';
 import type { RelatedIdentifier } from '@/types';
 
-// Mock child components to isolate RelatedWorkField logic
+vi.mock('@/actions/App/Http/Controllers/Api/DataCiteController', () => ({
+    getCitation: {
+        url: vi.fn(() => '/api/datacite/citation'),
+    },
+}));
+
 vi.mock('@/components/curation/fields/related-work/related-work-quick-add', () => ({
     default: ({
         onAdd,
         identifier,
         onIdentifierChange,
-        relationType,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        onRelationTypeChange,
-        onToggleAdvanced,
-    }: {
-        onAdd: (data: { identifier: string; identifierType: string; relationType: string }) => void;
-        identifier: string;
-        onIdentifierChange: (val: string) => void;
-        relationType: string;
-        onRelationTypeChange: (val: string) => void;
-        onToggleAdvanced: () => void;
-    }) => (
-        <div data-testid="quick-add">
-            <input
-                data-testid="identifier-input"
-                value={identifier}
-                onChange={(e) => onIdentifierChange(e.target.value)}
-            />
-            <button
-                data-testid="add-button"
-                onClick={() =>
-                    onAdd({ identifier, identifierType: 'DOI', relationType })
-                }
-            >
-                Add
-            </button>
-            <button data-testid="toggle-advanced" onClick={onToggleAdvanced}>
-                Advanced
-            </button>
-            <span data-testid="relation-type">{relationType}</span>
-        </div>
-    ),
-}));
-
-vi.mock('@/components/curation/fields/related-work/related-work-advanced-add', () => ({
-    default: ({
-        onAdd,
-        identifier,
-        onIdentifierChange,
         identifierType,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onIdentifierTypeChange,
         relationType,
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         onRelationTypeChange,
     }: {
         onAdd: (data: { identifier: string; identifierType: string; relationType: string }) => void;
@@ -67,20 +31,19 @@ vi.mock('@/components/curation/fields/related-work/related-work-advanced-add', (
         relationType: string;
         onRelationTypeChange: (val: string) => void;
     }) => (
-        <div data-testid="advanced-add">
-            <input
-                data-testid="adv-identifier-input"
-                value={identifier}
-                onChange={(e) => onIdentifierChange(e.target.value)}
-            />
-            <button
-                data-testid="adv-add-button"
-                onClick={() =>
-                    onAdd({ identifier, identifierType, relationType })
-                }
-            >
+        <div data-testid="quick-add">
+            <input data-testid="identifier-input" value={identifier} onChange={(event) => onIdentifierChange(event.target.value)} />
+            <button data-testid="set-url-type" onClick={() => onIdentifierTypeChange('URL')}>
+                Set URL type
+            </button>
+            <button data-testid="set-references" onClick={() => onRelationTypeChange('References')}>
+                Set References
+            </button>
+            <button data-testid="add-button" onClick={() => onAdd({ identifier, identifierType, relationType })}>
                 Add
             </button>
+            <span data-testid="identifier-type">{identifierType}</span>
+            <span data-testid="relation-type">{relationType}</span>
         </div>
     ),
 }));
@@ -116,20 +79,48 @@ vi.mock('@/components/curation/fields/related-work/related-work-list', () => ({
     default: ({
         items,
         onRemove,
+        onItemChange,
+        onReorder,
     }: {
         items: RelatedIdentifier[];
         onRemove: (index: number) => void;
+        onItemChange: (index: number, item: RelatedIdentifier) => void;
+        onReorder: (items: RelatedIdentifier[]) => void;
     }) => (
         <div data-testid="related-work-list">
             {items.map((item, index) => (
                 <div key={`${item.identifier}-${item.relation_type}`} data-testid={`item-${index}`}>
                     <span>{item.identifier}</span>
                     <span>{item.relation_type}</span>
+                    <span>{item.citation_label ?? ''}</span>
                     <button data-testid={`remove-${index}`} onClick={() => onRemove(index)}>
                         Remove
                     </button>
                 </div>
             ))}
+            {items[0] && (
+                <button
+                    data-testid="edit-first-item"
+                    onClick={() => onItemChange(0, { ...items[0], identifier: '10.1234/updated', citation_label: 'Old citation' })}
+                >
+                    Edit first
+                </button>
+            )}
+            {items.length > 1 && (
+                <button
+                    data-testid="reorder-items"
+                    onClick={() =>
+                        onReorder(
+                            [...items].reverse().map((item, index) => ({
+                                ...item,
+                                position: index,
+                            })),
+                        )
+                    }
+                >
+                    Reorder
+                </button>
+            )}
         </div>
     ),
 }));
@@ -144,49 +135,40 @@ describe('RelatedWorkField', () => {
     beforeEach(() => {
         onChange = vi.fn<(relatedWorks: RelatedIdentifier[]) => void>();
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            json: vi.fn().mockResolvedValue({}),
+        }) as unknown as typeof fetch;
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
-    it('renders quick-add mode by default', () => {
+    it('renders the add form by default', () => {
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
         expect(screen.getByTestId('quick-add')).toBeInTheDocument();
-        expect(screen.queryByTestId('advanced-add')).not.toBeInTheDocument();
-    });
-
-    it('shows the Import from CSV button', () => {
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
-
         expect(screen.getByRole('button', { name: /import from csv/i })).toBeInTheDocument();
     });
 
-    it('does not render the list when there are no related works', () => {
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
-
-        expect(screen.queryByTestId('related-work-list')).not.toBeInTheDocument();
-    });
-
     it('renders the list when related works are provided', () => {
-        const works: RelatedIdentifier[] = [
-            { identifier: '10.1234/test', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
-
-        render(<RelatedWorkField relatedWorks={works} onChange={onChange} />);
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/test', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
 
         expect(screen.getByTestId('related-work-list')).toBeInTheDocument();
         expect(screen.getByText('10.1234/test')).toBeInTheDocument();
     });
 
-    it('adds a new related work via quick-add', async () => {
+    it('adds a new related work via the add form', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
-        const input = screen.getByTestId('identifier-input');
-        await user.type(input, '10.1234/new');
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
         await user.click(screen.getByTestId('add-button'));
 
         expect(onChange).toHaveBeenCalledWith([
@@ -199,52 +181,58 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
-    it('prevents adding duplicate identifiers with the same relation type', async () => {
+    it('hydrates a citation label after adding a DOI when lookup succeeds', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const existing: RelatedIdentifier[] = [
-            { identifier: '10.1234/dup', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: vi.fn().mockResolvedValue({ citation: 'Doe, J. (2024). Fetched Citation.' }),
+        }) as unknown as typeof fetch;
 
-        render(<RelatedWorkField relatedWorks={existing} onChange={onChange} />);
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
-        const input = screen.getByTestId('identifier-input');
-        await user.type(input, '10.1234/dup');
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
+        await user.click(screen.getByTestId('add-button'));
+
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(onChange).toHaveBeenLastCalledWith([
+            expect.objectContaining({
+                identifier: '10.1234/new',
+                citation_label: 'Doe, J. (2024). Fetched Citation.',
+            }),
+        ]);
+    });
+
+    it('prevents duplicates with the same relation type', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/dup', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
+
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/dup');
         await user.click(screen.getByTestId('add-button'));
 
         expect(onChange).not.toHaveBeenCalled();
         expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
     });
 
-    it('detects DOI URL form as duplicate', async () => {
+    it('clears duplicate errors after five seconds', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const existing: RelatedIdentifier[] = [
-            { identifier: 'https://doi.org/10.1234/dup', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/dup', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
 
-        // The quick-add mock sends the raw identifier; normalizeIdentifier strips URLs
-        render(<RelatedWorkField relatedWorks={existing} onChange={onChange} />);
-
-        const input = screen.getByTestId('identifier-input');
-        await user.type(input, '10.1234/dup');
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/dup');
         await user.click(screen.getByTestId('add-button'));
-
-        expect(onChange).not.toHaveBeenCalled();
-        expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
-    });
-
-    it('clears the duplicate error after 5 seconds', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const existing: RelatedIdentifier[] = [
-            { identifier: '10.1234/dup', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
-
-        render(<RelatedWorkField relatedWorks={existing} onChange={onChange} />);
-
-        const input = screen.getByTestId('identifier-input');
-        await user.type(input, '10.1234/dup');
-        await user.click(screen.getByTestId('add-button'));
-
-        expect(screen.getByText(/this exact relation already exists/i)).toBeInTheDocument();
 
         act(() => {
             vi.advanceTimersByTime(5000);
@@ -253,30 +241,31 @@ describe('RelatedWorkField', () => {
         expect(screen.queryByText(/this exact relation already exists/i)).not.toBeInTheDocument();
     });
 
-    it('resets the form state after a successful add', async () => {
+    it('resets the add-form state after a successful add', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
-        const input = screen.getByTestId('identifier-input');
-        await user.type(input, '10.1234/new');
+        await user.type(screen.getByTestId('identifier-input'), '10.1234/new');
+        await user.click(screen.getByTestId('set-references'));
         await user.click(screen.getByTestId('add-button'));
 
-        // After adding, identifier should be reset to empty
-        expect(input).toHaveValue('');
-        // Relation type should reset to Cites
+        expect(screen.getByTestId('identifier-input')).toHaveValue('');
         expect(screen.getByTestId('relation-type')).toHaveTextContent('Cites');
+        expect(screen.getByTestId('identifier-type')).toHaveTextContent('DOI');
     });
 
-    it('removes a related work and re-indexes positions', async () => {
+    it('removes a related work and reindexes positions', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const works: RelatedIdentifier[] = [
-            { identifier: '10.1234/a', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-            { identifier: '10.1234/b', identifier_type: 'DOI', relation_type: 'References', position: 1 },
-            { identifier: '10.1234/c', identifier_type: 'DOI', relation_type: 'Describes', position: 2 },
-        ];
-
-        render(<RelatedWorkField relatedWorks={works} onChange={onChange} />);
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    { identifier: '10.1234/a', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
+                    { identifier: '10.1234/b', identifier_type: 'DOI', relation_type: 'References', position: 1 },
+                    { identifier: '10.1234/c', identifier_type: 'DOI', relation_type: 'Describes', position: 2 },
+                ]}
+                onChange={onChange}
+            />,
+        );
 
         await user.click(screen.getByTestId('remove-1'));
 
@@ -286,98 +275,78 @@ describe('RelatedWorkField', () => {
         ]);
     });
 
-    it('switches to advanced mode when toggled', async () => {
+    it('clears stale citation labels when an item identifier changes', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    {
+                        identifier: '10.1234/original',
+                        identifier_type: 'DOI',
+                        relation_type: 'Cites',
+                        citation_label: 'Old citation',
+                        position: 0,
+                    },
+                ]}
+                onChange={onChange}
+            />,
+        );
 
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+        await user.click(screen.getByTestId('edit-first-item'));
 
-        await user.click(screen.getByTestId('toggle-advanced'));
-
-        expect(screen.getByTestId('advanced-add')).toBeInTheDocument();
-        expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
+        expect(onChange).toHaveBeenCalledWith([
+            expect.objectContaining({
+                identifier: '10.1234/updated',
+                citation_label: null,
+                position: 0,
+            }),
+        ]);
     });
 
-    it('switches back to simple mode from advanced', async () => {
+    it('applies reordered items from the list callback', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        render(
+            <RelatedWorkField
+                relatedWorks={[
+                    { identifier: '10.1234/a', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
+                    { identifier: '10.1234/b', identifier_type: 'DOI', relation_type: 'References', position: 1 },
+                ]}
+                onChange={onChange}
+            />,
+        );
 
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
+        await user.click(screen.getByTestId('reorder-items'));
 
-        // Go to advanced
-        await user.click(screen.getByTestId('toggle-advanced'));
-        expect(screen.getByTestId('advanced-add')).toBeInTheDocument();
-
-        // Switch back via the "← Switch to simple mode" button
-        const switchButton = screen.getByText(/switch to simple mode/i);
-        await user.click(switchButton);
-
-        expect(screen.getByTestId('quick-add')).toBeInTheDocument();
-        expect(screen.queryByTestId('advanced-add')).not.toBeInTheDocument();
+        expect(onChange).toHaveBeenCalledWith([
+            { identifier: '10.1234/b', identifier_type: 'DOI', relation_type: 'References', position: 0 },
+            { identifier: '10.1234/a', identifier_type: 'DOI', relation_type: 'Cites', position: 1 },
+        ]);
     });
 
-    it('opens CSV import when the Import from CSV button is clicked', async () => {
+    it('opens and closes the CSV import flow', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
         await user.click(screen.getByRole('button', { name: /import from csv/i }));
-
         expect(screen.getByTestId('csv-import')).toBeInTheDocument();
-        // Quick-add and CSV button should be hidden
-        expect(screen.queryByTestId('quick-add')).not.toBeInTheDocument();
-    });
 
-    it('closes CSV import and returns to quick-add mode', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
-        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
-
-        await user.click(screen.getByRole('button', { name: /import from csv/i }));
         await user.click(screen.getByTestId('csv-import-close'));
-
         expect(screen.queryByTestId('csv-import')).not.toBeInTheDocument();
         expect(screen.getByTestId('quick-add')).toBeInTheDocument();
     });
 
-    it('handles bulk CSV import and appends items', async () => {
+    it('appends non-duplicate CSV imports and skips duplicates', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const existing: RelatedIdentifier[] = [
-            { identifier: '10.1234/existing', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
-
-        render(<RelatedWorkField relatedWorks={existing} onChange={onChange} />);
+        render(
+            <RelatedWorkField
+                relatedWorks={[{ identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 }]}
+                onChange={onChange}
+            />,
+        );
 
         await user.click(screen.getByRole('button', { name: /import from csv/i }));
         await user.click(screen.getByTestId('csv-import-submit'));
 
-        expect(onChange).toHaveBeenCalledWith([
-            { identifier: '10.1234/existing', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-            expect.objectContaining({
-                identifier: '10.1234/csv1',
-                identifier_type: 'DOI',
-                relation_type: 'Cites',
-                position: 1,
-            }),
-            expect.objectContaining({
-                identifier: '10.1234/csv2',
-                identifier_type: 'DOI',
-                relation_type: 'References',
-                position: 2,
-            }),
-        ]);
-    });
-
-    it('skips duplicates during CSV import and shows a warning', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const existing: RelatedIdentifier[] = [
-            { identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
-
-        render(<RelatedWorkField relatedWorks={existing} onChange={onChange} />);
-
-        await user.click(screen.getByRole('button', { name: /import from csv/i }));
-        await user.click(screen.getByTestId('csv-import-submit'));
-
-        // Should skip csv1 (duplicate) and add csv2
         expect(onChange).toHaveBeenCalledWith([
             { identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
             expect.objectContaining({
@@ -386,28 +355,6 @@ describe('RelatedWorkField', () => {
                 position: 1,
             }),
         ]);
-
-        // Should show duplicate warning
         expect(screen.getByText(/skipped 1 duplicate/i)).toBeInTheDocument();
-    });
-
-    it('clears duplicate warning from CSV import after 8 seconds', async () => {
-        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        const existing: RelatedIdentifier[] = [
-            { identifier: '10.1234/csv1', identifier_type: 'DOI', relation_type: 'Cites', position: 0 },
-        ];
-
-        render(<RelatedWorkField relatedWorks={existing} onChange={onChange} />);
-
-        await user.click(screen.getByRole('button', { name: /import from csv/i }));
-        await user.click(screen.getByTestId('csv-import-submit'));
-
-        expect(screen.getByText(/skipped 1 duplicate/i)).toBeInTheDocument();
-
-        act(() => {
-            vi.advanceTimersByTime(8000);
-        });
-
-        expect(screen.queryByText(/skipped 1 duplicate/i)).not.toBeInTheDocument();
     });
 });

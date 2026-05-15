@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -120,5 +121,48 @@ XML;
             ->where('relatedWorks.1.identifier', '10.1000/original.1')
             ->where('relatedWorks.1.identifier_type', 'DOI')
             ->where('relatedWorks.1.relation_type', 'IsTranslationOf')
+        );
+});
+
+test('xml upload canonicalizes human readable related work type values', function () {
+    $this->actingAs(User::factory()->create());
+    withoutVite();
+
+    $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+    $mock->shouldReceive('resolve')
+        ->once()
+        ->with('10.1000/readable.1', 'DOI')
+        ->andReturn('Doe, J. (2026): XML imported citation. Publisher.');
+    $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <titles>
+        <title>Test</title>
+    </titles>
+    <publicationYear>2026</publicationYear>
+    <relatedIdentifiers>
+        <relatedIdentifier relatedIdentifierType="doi" relationType="Is Cited By">10.1000/readable.1</relatedIdentifier>
+    </relatedIdentifiers>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('human-readable-related-types.xml', $xml);
+
+    $uploadResponse = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $sessionKey = $uploadResponse->json('sessionKey');
+
+    $this->get(route('editor', ['xmlSession' => $sessionKey]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('editor')
+            ->has('relatedWorks', 1)
+            ->where('relatedWorks.0.identifier', '10.1000/readable.1')
+            ->where('relatedWorks.0.identifier_type', 'DOI')
+            ->where('relatedWorks.0.relation_type', 'IsCitedBy')
+            ->where('relatedWorks.0.citation_label', 'Doe, J. (2026): XML imported citation. Publisher.')
         );
 });

@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $identifier_type_id
  * @property int $relation_type_id
  * @property string|null $relation_type_information
+ * @property string|null $citation_label
  * @property string|null $resource_type_general
  * @property int $position
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -30,7 +31,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
-#[Fillable(['resource_id', 'identifier', 'identifier_type_id', 'relation_type_id', 'relation_type_information', 'resource_type_general', 'position'])]
+#[Fillable(['resource_id', 'identifier', 'identifier_type_id', 'relation_type_id', 'relation_type_information', 'citation_label', 'resource_type_general', 'position'])]
 class RelatedIdentifier extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */

@@ -1,31 +1,75 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkList from '@/components/curation/fields/related-work/related-work-list';
 import type { RelatedIdentifier } from '@/types';
 
-// Mock RelatedWorkItem component
+vi.mock('@dnd-kit/core', () => ({
+    closestCenter: vi.fn(),
+    DndContext: ({ children, onDragEnd }: { children: ReactNode; onDragEnd: (event: { active: { id: string }; over: { id: string } }) => void }) => (
+        <div>
+            <button data-testid="trigger-drag" onClick={() => onDragEnd({ active: { id: 'related-work-0' }, over: { id: 'related-work-1' } })}>
+                Trigger drag
+            </button>
+            {children}
+        </div>
+    ),
+    KeyboardSensor: vi.fn(),
+    PointerSensor: vi.fn(),
+    useSensor: vi.fn(() => ({})),
+    useSensors: vi.fn(() => []),
+}));
+
+vi.mock('@dnd-kit/sortable', () => ({
+    arrayMove: <T,>(items: T[], oldIndex: number, newIndex: number) => {
+        const next = [...items];
+        const [moved] = next.splice(oldIndex, 1);
+        next.splice(newIndex, 0, moved);
+        return next;
+    },
+    SortableContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    sortableKeyboardCoordinates: vi.fn(),
+    verticalListSortingStrategy: vi.fn(),
+}));
+
 vi.mock('@/components/curation/fields/related-work/related-work-item', () => ({
-    default: vi.fn(({ item, index, onRemove, validationStatus, validationMessage }) => (
-        <div data-testid={`related-work-item-${index}`}>
+    default: ({
+        item,
+        index,
+        onRemove,
+        onChange,
+        validationStatus,
+        validationMessage,
+    }: {
+        item: RelatedIdentifier;
+        index: number;
+        onRemove: (index: number) => void;
+        onChange: (item: RelatedIdentifier) => void;
+        validationStatus?: string;
+        validationMessage?: string;
+    }) => (
+        <div data-testid={`related-work-item-${index}`} role="listitem">
             <span>{item.identifier}</span>
-            <span>{item.relation_type}</span>
-            <span>{item.identifier_type}</span>
-            {validationStatus && <span data-testid="validation-status">{validationStatus}</span>}
-            {validationMessage && <span data-testid="validation-message">{validationMessage}</span>}
+            {validationStatus && <span data-testid={`validation-status-${index}`}>{validationStatus}</span>}
+            {validationMessage && <span data-testid={`validation-message-${index}`}>{validationMessage}</span>}
+            <button onClick={() => onChange({ ...item, identifier: `${item.identifier}-edited` })}>Edit</button>
             <button onClick={() => onRemove(index)}>Remove</button>
         </div>
-    )),
+    ),
 }));
 
 describe('RelatedWorkList', () => {
+    const mockOnItemChange = vi.fn();
     const mockOnRemove = vi.fn();
+    const mockOnReorder = vi.fn();
 
     const createItem = (overrides: Partial<RelatedIdentifier> = {}): RelatedIdentifier => ({
         identifier: '10.5880/test.2024.001',
         identifier_type: 'DOI',
         relation_type: 'Cites',
+        position: 0,
         ...overrides,
     });
 
@@ -33,114 +77,102 @@ describe('RelatedWorkList', () => {
         vi.clearAllMocks();
     });
 
-    describe('rendering', () => {
-        it('returns null when items array is empty', () => {
-            const { container } = render(<RelatedWorkList items={[]} onRemove={mockOnRemove} />);
+    it('returns null when no items are present', () => {
+        const { container } = render(
+            <RelatedWorkList items={[]} onItemChange={mockOnItemChange} onRemove={mockOnRemove} onReorder={mockOnReorder} />,
+        );
 
-            expect(container.firstChild).toBeNull();
-        });
-
-        it('renders the list when items are present', () => {
-            const items = [createItem()];
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.getByRole('list', { name: /related works/i })).toBeInTheDocument();
-        });
-
-        it('displays the correct count of items in header', () => {
-            const items = [createItem(), createItem({ identifier: '10.5880/test.2024.002' })];
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.getByText('Added Relations (2)')).toBeInTheDocument();
-        });
-
-        it('shows ordering hint when items are present', () => {
-            const items = [createItem()];
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.getByText('Ordered by addition')).toBeInTheDocument();
-        });
-
-        it('renders all items in the list', () => {
-            const items = [
-                createItem({ identifier: '10.5880/test.001' }),
-                createItem({ identifier: '10.5880/test.002' }),
-                createItem({ identifier: '10.5880/test.003' }),
-            ];
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.getByTestId('related-work-item-0')).toBeInTheDocument();
-            expect(screen.getByTestId('related-work-item-1')).toBeInTheDocument();
-            expect(screen.getByTestId('related-work-item-2')).toBeInTheDocument();
-        });
+        expect(container.firstChild).toBeNull();
     });
 
-    describe('accessibility', () => {
-        it('has accessible list with aria-label', () => {
-            const items = [createItem()];
+    it('renders the list header and accessibility roles', () => {
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
 
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.getByRole('list', { name: /related works/i })).toBeInTheDocument();
-        });
-
-        it('renders items as listitems', () => {
-            const items = [createItem()];
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.getByRole('listitem')).toBeInTheDocument();
-        });
+        expect(screen.getByText('Added Relations (2)')).toBeInTheDocument();
+        expect(screen.getByText('Drag cards to reorder them')).toBeInTheDocument();
+        expect(screen.getByRole('list', { name: /related works/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('listitem')).toHaveLength(2);
     });
 
-    describe('validation statuses', () => {
-        it('passes validation status to items', () => {
-            const items = [createItem(), createItem({ identifier: '10.5880/test.002' })];
-            const validationStatuses = new Map([
-                [0, { status: 'valid' as const }],
-                [1, { status: 'invalid' as const, message: 'Not found' }],
-            ]);
+    it('passes validation status and messages to items', () => {
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+                validationStatuses={new Map([
+                    [0, { status: 'valid', message: 'Looks good' }],
+                    [1, { status: 'invalid', message: 'Not found' }],
+                ])}
+            />,
+        );
 
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} validationStatuses={validationStatuses} />);
-
-            const statuses = screen.getAllByTestId('validation-status');
-            expect(statuses[0]).toHaveTextContent('valid');
-            expect(statuses[1]).toHaveTextContent('invalid');
-        });
-
-        it('passes validation message to items', () => {
-            const items = [createItem()];
-            const validationStatuses = new Map([[0, { status: 'warning' as const, message: 'Could not verify' }]]);
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} validationStatuses={validationStatuses} />);
-
-            expect(screen.getByTestId('validation-message')).toHaveTextContent('Could not verify');
-        });
-
-        it('works without validation statuses', () => {
-            const items = [createItem()];
-
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
-
-            expect(screen.queryByTestId('validation-status')).not.toBeInTheDocument();
-        });
+        expect(screen.getByTestId('validation-status-0')).toHaveTextContent('valid');
+        expect(screen.getByTestId('validation-message-1')).toHaveTextContent('Not found');
     });
 
-    describe('remove functionality', () => {
-        it('calls onRemove with correct index when remove button is clicked', async () => {
-            const user = userEvent.setup();
-            const items = [createItem({ identifier: 'first' }), createItem({ identifier: 'second' })];
+    it('forwards child edits to onItemChange', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkList
+                items={[createItem()]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
 
-            render(<RelatedWorkList items={items} onRemove={mockOnRemove} />);
+        await user.click(screen.getByRole('button', { name: 'Edit' }));
 
-            const removeButtons = screen.getAllByRole('button', { name: /remove/i });
-            await user.click(removeButtons[1]);
+        expect(mockOnItemChange).toHaveBeenCalledWith(
+            0,
+            expect.objectContaining({
+                identifier: '10.5880/test.2024.001-edited',
+            }),
+        );
+    });
 
-            expect(mockOnRemove).toHaveBeenCalledWith(1);
-        });
+    it('forwards remove actions to onRemove', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        const removeButtons = screen.getAllByRole('button', { name: 'Remove' });
+        await user.click(removeButtons[1]);
+
+        expect(mockOnRemove).toHaveBeenCalledWith(1);
+    });
+
+    it('calls onReorder when drag end moves an item', async () => {
+        const user = userEvent.setup();
+        render(
+            <RelatedWorkList
+                items={[createItem(), createItem({ identifier: '10.5880/test.2024.002', position: 1 })]}
+                onItemChange={mockOnItemChange}
+                onRemove={mockOnRemove}
+                onReorder={mockOnReorder}
+            />,
+        );
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockOnReorder).toHaveBeenCalledWith([
+            expect.objectContaining({ identifier: '10.5880/test.2024.002' }),
+            expect.objectContaining({ identifier: '10.5880/test.2024.001' }),
+        ]);
     });
 });

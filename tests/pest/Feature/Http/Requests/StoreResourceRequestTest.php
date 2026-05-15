@@ -5,10 +5,15 @@ declare(strict_types=1);
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\ContributorType;
 use App\Models\Datacenter;
+use App\Models\DescriptionType;
+use App\Models\IdentifierType;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 
 covers(StoreResourceRequest::class);
 
@@ -47,6 +52,22 @@ function validResourcePayload(int $resourceTypeId, string $licenseIdentifier): a
 beforeEach(function () {
     $this->user = User::factory()->create();
     TitleType::factory()->count(5)->create();
+    TitleType::firstOrCreate(
+        ['slug' => 'MainTitle'],
+        ['name' => 'MainTitle'],
+    );
+    DescriptionType::firstOrCreate(
+        ['slug' => 'Abstract'],
+        ['name' => 'Abstract'],
+    );
+    IdentifierType::firstOrCreate(
+        ['slug' => 'DOI'],
+        ['name' => 'DOI', 'is_active' => true],
+    );
+    RelationType::firstOrCreate(
+        ['slug' => 'Cites'],
+        ['name' => 'Cites', 'is_active' => true],
+    );
     $this->resourceType = ResourceType::factory()->create();
     $this->right = Right::factory()->create();
 
@@ -344,7 +365,7 @@ describe('related identifiers validation', function () {
     it('accepts valid related identifier', function () {
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
         $data['relatedIdentifiers'] = [
-            ['identifier' => '10.1234/test', 'identifierType' => 'DOI', 'relationType' => 'Cites'],
+            ['identifier' => '10.1234/test', 'identifierType' => 'DOI', 'relationType' => 'Cites', 'citationLabel' => 'Doe, J. (2026): Example. Publisher.'],
         ];
 
         $response = $this->actingAs($this->user)
@@ -354,7 +375,57 @@ describe('related identifiers validation', function () {
             'relatedIdentifiers.0.identifier',
             'relatedIdentifiers.0.identifierType',
             'relatedIdentifiers.0.relationType',
+            'relatedIdentifiers.0.citationLabel',
         ]);
+    });
+
+    it('auto-fills a missing citation label during save', function () {
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldReceive('resolve')
+            ->once()
+            ->with('10.1234/test', 'DOI')
+            ->andReturn('Doe, J. (2026): Auto-filled. Publisher.');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['relatedIdentifiers'] = [
+            ['identifier' => '10.1234/test', 'identifierType' => 'DOI', 'relationType' => 'Cites'],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertCreated();
+
+        $resourceId = $response->json('resource.id');
+
+        expect($resourceId)->toBeInt();
+
+        $related = RelatedIdentifier::query()->where('resource_id', $resourceId)->first();
+
+        expect($related)->not->toBeNull()
+            ->and($related?->citation_label)->toBe('Doe, J. (2026): Auto-filled. Publisher.');
+    });
+
+    it('preserves a manually provided citation label during save', function () {
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolve');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['relatedIdentifiers'] = [
+            ['identifier' => '10.1234/test', 'identifierType' => 'DOI', 'relationType' => 'Cites', 'citationLabel' => 'Manual citation text'],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertCreated();
+
+        $resourceId = $response->json('resource.id');
+
+        $related = RelatedIdentifier::query()->where('resource_id', $resourceId)->first();
+
+        expect($related)->not->toBeNull()
+            ->and($related?->citation_label)->toBe('Manual citation text');
     });
 });
 

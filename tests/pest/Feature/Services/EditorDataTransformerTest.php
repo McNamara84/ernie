@@ -1042,11 +1042,11 @@ describe('transformCoverages', function (): void {
 describe('transformRelatedIdentifiers', function (): void {
     it('transforms related identifiers sorted by position', function (): void {
         $identifierType = IdentifierType::firstOrCreate(
-            ['slug' => 'doi'],
+            ['slug' => 'DOI'],
             ['name' => 'DOI', 'is_active' => true]
         );
         $relationType = RelationType::firstOrCreate(
-            ['slug' => 'cites'],
+            ['slug' => 'Cites'],
             ['name' => 'Cites', 'is_active' => true]
         );
 
@@ -1055,6 +1055,7 @@ describe('transformRelatedIdentifiers', function (): void {
             'identifier' => '10.5880/test.2024.002',
             'identifier_type_id' => $identifierType->id,
             'relation_type_id' => $relationType->id,
+            'citation_label' => 'Doe, J. (2024): Second item. GFZ.',
             'position' => 2,
         ]);
         RelatedIdentifier::create([
@@ -1062,6 +1063,7 @@ describe('transformRelatedIdentifiers', function (): void {
             'identifier' => '10.5880/test.2024.001',
             'identifier_type_id' => $identifierType->id,
             'relation_type_id' => $relationType->id,
+            'citation_label' => 'Doe, J. (2024): First item. GFZ.',
             'position' => 1,
         ]);
 
@@ -1073,7 +1075,8 @@ describe('transformRelatedIdentifiers', function (): void {
             ->and($result[0]['identifier'])->toBe('10.5880/test.2024.001')
             ->and($result[1]['identifier'])->toBe('10.5880/test.2024.002')
             ->and($result[0]['identifier_type'])->toBe('DOI')
-            ->and($result[0]['relation_type'])->toBe('Cites');
+            ->and($result[0]['relation_type'])->toBe('Cites')
+            ->and($result[0]['citation_label'])->toBe('Doe, J. (2024): First item. GFZ.');
     });
 });
 

@@ -1,12 +1,13 @@
 import { FileUp } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { getCitation } from '@/actions/App/Http/Controllers/Api/DataCiteController';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { normalizeDOI } from '@/lib/doi-validation';
 import { detectIdentifierType } from '@/lib/identifier-type-detection';
 import type { IdentifierType, RelatedIdentifier, RelatedIdentifierFormData, RelationType } from '@/types';
 
-import RelatedWorkAdvancedAdd from './related-work-advanced-add';
 import RelatedWorkCsvImport from './related-work-csv-import';
 import RelatedWorkList from './related-work-list';
 import RelatedWorkQuickAdd from './related-work-quick-add';
@@ -61,15 +62,85 @@ function isDuplicate(identifier: string, identifierType: string, relationType: s
 }
 
 export default function RelatedWorkField({ relatedWorks, onChange, activeRelationTypes, activeIdentifierTypes }: RelatedWorkFieldProps) {
-    const [showAdvanced, setShowAdvanced] = useState(false);
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
+    const relatedWorksRef = useRef(relatedWorks);
 
     // Shared form state - persisted across mode switches
     const [identifier, setIdentifier] = useState('');
     const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
     const [relationType, setRelationType] = useState<RelationType>('Cites');
-    const [relationTypeInformation, setRelationTypeInformation] = useState('');
+
+    useEffect(() => {
+        relatedWorksRef.current = relatedWorks;
+    }, [relatedWorks]);
+
+    const assignPositions = (items: RelatedIdentifier[]) =>
+        items.map((item, index) => ({
+            ...item,
+            position: index,
+        }));
+
+    const hydrateCitationLabel = async (identifier: string, itemIdentifierType: string, itemRelationType: string) => {
+        if (itemIdentifierType !== 'DOI') {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                getCitation.url({
+                    query: {
+                        doi: normalizeDOI(identifier),
+                    },
+                }),
+                {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = (await response.json()) as { citation?: unknown };
+            const citationLabel = typeof payload.citation === 'string' ? payload.citation.trim() : '';
+
+            if (!citationLabel) {
+                return;
+            }
+
+            let didUpdate = false;
+
+            const updated = relatedWorksRef.current.map((item) => {
+                if (
+                    item.identifier === identifier
+                    && item.identifier_type === itemIdentifierType
+                    && item.relation_type === itemRelationType
+                    && !item.citation_label?.trim()
+                ) {
+                    didUpdate = true;
+
+                    return {
+                        ...item,
+                        citation_label: citationLabel,
+                    };
+                }
+
+                return item;
+            });
+
+            if (!didUpdate) {
+                return;
+            }
+
+            relatedWorksRef.current = updated;
+            onChange(updated);
+        } catch {
+            // Saving will backfill citation labels server-side when client-side lookup fails.
+        }
+    };
 
     // Update identifierType when identifier changes in simple mode (auto-detection)
     const handleIdentifierChange = (value: string, autoDetect: boolean = false) => {
@@ -99,16 +170,22 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             identifier_type: data.identifierType,
             relation_type: data.relationType,
             ...(data.relationTypeInformation ? { relation_type_information: data.relationTypeInformation } : {}),
+            ...(data.citationLabel ? { citation_label: data.citationLabel } : {}),
             position: relatedWorks.length,
         };
 
-        onChange([...relatedWorks, newItem]);
+        const updated = [...relatedWorks, newItem];
+        relatedWorksRef.current = updated;
+        onChange(updated);
+
+        if (!newItem.citation_label?.trim()) {
+            void hydrateCitationLabel(newItem.identifier, newItem.identifier_type, newItem.relation_type);
+        }
 
         // Reset form after successful add
         setIdentifier('');
         setIdentifierType('DOI');
         setRelationType('Cites');
-        setRelationTypeInformation('');
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
@@ -125,13 +202,21 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                     identifier_type: item.identifierType,
                     relation_type: item.relationType,
                     ...(item.relationTypeInformation ? { relation_type_information: item.relationTypeInformation } : {}),
+                    ...(item.citationLabel ? { citation_label: item.citationLabel } : {}),
                     position: combinedList.length,
                 });
             }
         });
 
+        relatedWorksRef.current = combinedList;
         onChange(combinedList);
         setShowCsvImport(false);
+
+        combinedList.forEach((item) => {
+            if (!item.citation_label?.trim()) {
+                void hydrateCitationLabel(item.identifier, item.identifier_type, item.relation_type);
+            }
+        });
 
         // Show warning if duplicates were skipped
         if (skippedDuplicates.length > 0) {
@@ -143,19 +228,38 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
     };
 
     const handleRemove = (index: number) => {
-        const updated = relatedWorks.filter((_, i) => i !== index);
+        const reindexed = assignPositions(relatedWorks.filter((_, i) => i !== index));
 
-        // Re-assign positions after removal
-        const reindexed = updated.map((item, i) => ({
-            ...item,
-            position: i,
-        }));
-
+        relatedWorksRef.current = reindexed;
         onChange(reindexed);
     };
 
-    const handleToggleAdvanced = () => {
-        setShowAdvanced(!showAdvanced);
+    const handleItemChange = (index: number, updatedItem: RelatedIdentifier) => {
+        const previousItem = relatedWorks[index];
+        const identifierChanged =
+            previousItem.identifier !== updatedItem.identifier || previousItem.identifier_type !== updatedItem.identifier_type;
+
+        const updated = relatedWorks.map((item, itemIndex) => {
+            if (itemIndex !== index) {
+                return item;
+            }
+
+            return {
+                ...updatedItem,
+                citation_label: identifierChanged ? null : updatedItem.citation_label ?? null,
+                position: itemIndex,
+            };
+        });
+
+        relatedWorksRef.current = updated;
+        onChange(updated);
+    };
+
+    const handleReorder = (items: RelatedIdentifier[]) => {
+        const reindexed = assignPositions(items);
+
+        relatedWorksRef.current = reindexed;
+        onChange(reindexed);
     };
 
     return (
@@ -179,45 +283,17 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
                 </div>
             ) : (
                 <>
-                    {/* Quick or Advanced Mode */}
-                    {!showAdvanced ? (
-                        <RelatedWorkQuickAdd
-                            onAdd={handleAdd}
-                            showAdvancedMode={showAdvanced}
-                            onToggleAdvanced={handleToggleAdvanced}
-                            identifier={identifier}
-                            onIdentifierChange={(value) => handleIdentifierChange(value, true)}
-                            identifierType={identifierType}
-                            relationType={relationType}
-                            onRelationTypeChange={setRelationType}
-                            activeRelationTypes={activeRelationTypes}
-                        />
-                    ) : (
-                        <>
-                            <RelatedWorkAdvancedAdd
-                                onAdd={handleAdd}
-                                identifier={identifier}
-                                onIdentifierChange={(value) => handleIdentifierChange(value, false)}
-                                identifierType={identifierType}
-                                onIdentifierTypeChange={setIdentifierType}
-                                relationType={relationType}
-                                onRelationTypeChange={setRelationType}
-                                relationTypeInformation={relationTypeInformation}
-                                onRelationTypeInformationChange={setRelationTypeInformation}
-                                activeRelationTypes={activeRelationTypes}
-                                activeIdentifierTypes={activeIdentifierTypes}
-                            />
-                            <div className="pt-2">
-                                <button
-                                    type="button"
-                                    onClick={handleToggleAdvanced}
-                                    className="text-xs text-muted-foreground underline hover:text-foreground"
-                                >
-                                    ← Switch to simple mode
-                                </button>
-                            </div>
-                        </>
-                    )}
+                    <RelatedWorkQuickAdd
+                        onAdd={handleAdd}
+                        identifier={identifier}
+                        onIdentifierChange={(value) => handleIdentifierChange(value, true)}
+                        identifierType={identifierType}
+                        onIdentifierTypeChange={setIdentifierType}
+                        relationType={relationType}
+                        onRelationTypeChange={setRelationType}
+                        activeRelationTypes={activeRelationTypes}
+                        activeIdentifierTypes={activeIdentifierTypes}
+                    />
 
                     {/* CSV Import Button */}
                     <div className="flex justify-end">
@@ -230,7 +306,16 @@ export default function RelatedWorkField({ relatedWorks, onChange, activeRelatio
             )}
 
             {/* List of Added Items */}
-            {relatedWorks.length > 0 && <RelatedWorkList items={relatedWorks} onRemove={handleRemove} />}
+            {relatedWorks.length > 0 && (
+                <RelatedWorkList
+                    items={relatedWorks}
+                    onItemChange={handleItemChange}
+                    onRemove={handleRemove}
+                    onReorder={handleReorder}
+                    activeRelationTypes={activeRelationTypes}
+                    activeIdentifierTypes={activeIdentifierTypes}
+                />
+            )}
         </div>
     );
 }

@@ -1,9 +1,8 @@
 import { ChevronDown, ChevronUp, ExternalLink, Network, Quote } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { LandingPageRelatedIdentifier, LandingPageRelatedItem, LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
@@ -18,18 +17,32 @@ interface RelatedWorkSectionProps {
     resource: LandingPageResource;
 }
 
-interface Citation {
-    citation: string;
-    loading: boolean;
-    error: boolean;
-}
-
 /**
  * Converts CamelCase to readable text with spaces.
  * e.g. "IsDocumentedBy" -> "Is Documented By"
  */
 function formatRelationType(type: string): string {
     return type.replace(/([A-Z])/g, ' $1').trim();
+}
+
+function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifier): string {
+    const citationLabel = relatedIdentifier.citation_label?.trim();
+
+    if (citationLabel) {
+        return citationLabel;
+    }
+
+    const relatedTitle = relatedIdentifier.related_title?.trim();
+
+    if (relatedTitle) {
+        return relatedTitle;
+    }
+
+    if (relatedIdentifier.identifier_type === 'DOI') {
+        return `DOI: ${normalizeDoiKey(relatedIdentifier.identifier) ?? relatedIdentifier.identifier}`;
+    }
+
+    return relatedIdentifier.identifier;
 }
 
 /** Number of renderable relations before collapsing on mobile */
@@ -42,7 +55,6 @@ const COLLAPSE_THRESHOLD = 9;
  * The first IsSupplementTo relation is excluded (shown in Model Description).
  */
 export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], resource }: RelatedWorkSectionProps) {
-    const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
     const [browserOpen, setBrowserOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
 
@@ -76,77 +88,23 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
     // Sort groups alphabetically
     const sortedTypes = useMemo(() => Object.keys(groupedByType).sort(), [groupedByType]);
 
-    useEffect(() => {
-        const controller = new AbortController();
-
-        // Deduplicate: only fetch DOIs that have a resolvable URL
-        const doisToFetch = new Set<string>();
-        filteredRelations.forEach((rel) => {
-            if (rel.identifier_type === 'DOI') {
-                const doi = normalizeDoiKey(rel.identifier);
-                if (doi && resolveIdentifierUrl(rel.identifier, rel.identifier_type)) {
-                    doisToFetch.add(doi);
-                }
-            }
-        });
-
-        // Fetch DOIs that are not yet successfully loaded.
-        // Includes loading entries so that a prop-change after abort can retry.
-        const newDois = new Set<string>();
-        doisToFetch.forEach((doi) => {
-            const existing = citations.get(doi);
-            if (!existing || existing.loading || existing.error) {
-                newDois.add(doi);
-            }
-        });
-
-        if (newDois.size === 0) {
-            return;
-        }
-
-        // Batch-initialize new DOIs as loading in a single state update
-        setCitations((prev) => {
-            const next = new Map(prev);
-            newDois.forEach((doi) => {
-                next.set(doi, { citation: '', loading: true, error: false });
-            });
-            return next;
-        });
-
-        // Fetch each new DOI citation, updating individually on resolve
-        newDois.forEach((doi) => {
-            fetch(`/api/datacite/citation?doi=${encodeURIComponent(doi)}`, { signal: controller.signal })
-                .then((response) => {
-                    if (response.ok) {
-                        return response.json();
-                    }
-                    throw new Error('Citation not found');
-                })
-                .then((data) => {
-                    setCitations((prev) => new Map(prev).set(doi, { citation: data.citation, loading: false, error: false }));
-                })
-                .catch((err: unknown) => {
-                    if (err instanceof Error && err.name === 'AbortError') {
-                        return;
-                    }
-                    setCitations((prev) => new Map(prev).set(doi, { citation: '', loading: false, error: true }));
-                });
-        });
-
-        return () => controller.abort();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [relatedIdentifiers]);
-
-    // Provide fully-loaded citation texts for the relation browser to avoid duplicate fetches
+    // Provide persisted citation texts for the relation browser.
     const citationTexts = useMemo(() => {
         const map = new Map<string, string>();
-        citations.forEach((v, k) => {
-            if (!v.loading && !v.error && v.citation) {
-                map.set(k, v.citation);
+        filteredRelations.forEach((relatedIdentifier) => {
+            if (relatedIdentifier.identifier_type !== 'DOI') {
+                return;
+            }
+
+            const citationLabel = relatedIdentifier.citation_label?.trim();
+            const doi = normalizeDoiKey(relatedIdentifier.identifier);
+
+            if (citationLabel && doi) {
+                map.set(doi, citationLabel);
             }
         });
         return map;
-    }, [citations]);
+    }, [filteredRelations]);
 
     // Only render if at least one relation has a resolvable URL
     const renderableRelations = useMemo(
@@ -241,49 +199,6 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
 
                                     const isHiddenOnMobile = hiddenItemIds.has(rel.id);
 
-                                    // DOI: show citation (fetched async)
-                                    if (rel.identifier_type === 'DOI') {
-                                        const doiKey = normalizeDoiKey(rel.identifier);
-                                        const citationData = citations.get(doiKey);
-                                        const isLoading = !citationData || citationData.loading;
-
-                                        return (
-                                            <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
-                                                {isLoading && (
-                                                    <div className="space-y-2 rounded-lg border border-gray-200 p-3 dark:border-gray-700" aria-busy="true">
-                                                        <Skeleton className="h-4 w-3/4" />
-                                                        <Skeleton className="h-4 w-1/2" />
-                                                    </div>
-                                                )}
-
-                                                {!isLoading && citationData?.citation && (
-                                                    <a
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50"
-                                                    >
-                                                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                                                        <span className="flex-1">{citationData.citation}</span>
-                                                    </a>
-                                                )}
-
-                                                {!isLoading && citationData?.error && (
-                                                    <a
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50"
-                                                    >
-                                                        <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                                                        <span className="flex-1">DOI: {doiKey}</span>
-                                                    </a>
-                                                )}
-                                            </li>
-                                        );
-                                    }
-
-                                    // Non-DOI: show identifier as link directly
                                     return (
                                         <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
                                             <a
@@ -293,7 +208,7 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                                 className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50"
                                             >
                                                 <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
-                                                <span className="flex-1">{rel.identifier}</span>
+                                                <span className="flex-1">{getRelatedIdentifierLabel(rel)}</span>
                                             </a>
                                         </li>
                                     );

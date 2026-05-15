@@ -161,6 +161,7 @@ class StoreDraftResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string'],
             'fundingReferences' => ['nullable', 'array', 'max:99'],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
@@ -660,11 +661,16 @@ class StoreDraftResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['relationTypeInformation'])
                 : '';
 
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
             $relatedIdentifiers[] = [
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
+                ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
             ];
         }
 

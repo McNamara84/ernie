@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Models\ResourceType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -290,6 +291,13 @@ describe('JSON Upload - DataCite JSON format', function () {
     test('extracts related identifiers and instruments', function () {
         $this->actingAs(User::factory()->create());
 
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldReceive('resolve')
+            ->once()
+            ->with('10.1234/related', 'DOI')
+            ->andReturn('Doe, J. (2026): Imported citation. Publisher.');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
         $json = dataCiteJson(minimalAttributes([
             'relatedIdentifiers' => [
                 [
@@ -314,6 +322,7 @@ describe('JSON Upload - DataCite JSON format', function () {
         expect($data['relatedWorks'][0]['identifier'])->toBe('10.1234/related');
         expect($data['relatedWorks'][0]['identifier_type'])->toBe('DOI');
         expect($data['relatedWorks'][0]['relation_type'])->toBe('Cites');
+        expect($data['relatedWorks'][0]['citation_label'])->toBe('Doe, J. (2026): Imported citation. Publisher.');
 
         expect($data['instruments'])->toHaveCount(1);
         expect($data['instruments'][0]['pid'])->toBe('http://hdl.handle.net/123/456');

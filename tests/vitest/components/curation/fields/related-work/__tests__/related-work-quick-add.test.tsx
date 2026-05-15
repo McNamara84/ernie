@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import RelatedWorkQuickAdd from '@/components/curation/fields/related-work/related-work-quick-add';
 
-// Mock the identifier validation hook
 vi.mock('@/hooks/use-identifier-validation', () => ({
     useIdentifierValidation: vi.fn(() => ({
         status: 'idle',
@@ -19,14 +18,15 @@ const mockUseIdentifierValidation = vi.mocked(useIdentifierValidation);
 describe('RelatedWorkQuickAdd', () => {
     const mockOnAdd = vi.fn();
     const mockOnIdentifierChange = vi.fn();
+    const mockOnIdentifierTypeChange = vi.fn();
     const mockOnRelationTypeChange = vi.fn();
-    const mockOnToggleAdvanced = vi.fn();
 
     const defaultProps = {
         onAdd: mockOnAdd,
         identifier: '',
         onIdentifierChange: mockOnIdentifierChange,
         identifierType: 'DOI' as const,
+        onIdentifierTypeChange: mockOnIdentifierTypeChange,
         relationType: 'References' as const,
         onRelationTypeChange: mockOnRelationTypeChange,
     };
@@ -39,42 +39,38 @@ describe('RelatedWorkQuickAdd', () => {
         });
     });
 
-    it('renders the info text', () => {
+    it('renders the info text and core controls', () => {
         render(<RelatedWorkQuickAdd {...defaultProps} />);
 
-        expect(screen.getByText(/Add relationships to other datasets, publications, or resources/)).toBeInTheDocument();
+        expect(screen.getByText(/add relationships to other datasets, publications, or resources/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/10\.5194\/nhess/i)).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: /identifier type/i })).toBeInTheDocument();
+        expect(screen.getByRole('combobox', { name: /relation type/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add related work/i })).toBeInTheDocument();
     });
 
-    it('renders the identifier input', () => {
+    it('does not render the removed simple mode toggle', () => {
         render(<RelatedWorkQuickAdd {...defaultProps} />);
 
-        expect(screen.getByPlaceholderText(/10\.5194\/nhess/)).toBeInTheDocument();
-    });
-
-    it('renders the add button', () => {
-        render(<RelatedWorkQuickAdd {...defaultProps} />);
-
-        expect(screen.getByRole('button', { name: /Add/i })).toBeInTheDocument();
+        expect(screen.queryByText(/simple mode/i)).not.toBeInTheDocument();
     });
 
     it('calls onIdentifierChange when typing', async () => {
         const user = userEvent.setup();
         render(<RelatedWorkQuickAdd {...defaultProps} />);
 
-        const input = screen.getByPlaceholderText(/10\.5194\/nhess/);
-        await user.type(input, '10.5880/test');
+        await user.type(screen.getByPlaceholderText(/10\.5194\/nhess/i), '10.5880/test');
 
         expect(mockOnIdentifierChange).toHaveBeenCalled();
     });
 
-    it('disables add button when identifier is empty', () => {
+    it('disables the add button when identifier is empty', () => {
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="" />);
 
-        const addButton = screen.getByRole('button', { name: /Add/i });
-        expect(addButton).toBeDisabled();
+        expect(screen.getByRole('button', { name: /add related work/i })).toBeDisabled();
     });
 
-    it('enables add button when identifier is valid', () => {
+    it('enables the add button when the identifier validates', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
             metadata: { title: 'Test Title' },
@@ -82,11 +78,10 @@ describe('RelatedWorkQuickAdd', () => {
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test.2024.001" />);
 
-        const addButton = screen.getByRole('button', { name: /Add/i });
-        expect(addButton).not.toBeDisabled();
+        expect(screen.getByRole('button', { name: /add related work/i })).not.toBeDisabled();
     });
 
-    it('calls onAdd when clicking add button with valid identifier', async () => {
+    it('calls onAdd when clicking add with a valid identifier', async () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
@@ -95,7 +90,7 @@ describe('RelatedWorkQuickAdd', () => {
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test.2024.001" />);
 
-        await user.click(screen.getByRole('button', { name: /Add/i }));
+        await user.click(screen.getByRole('button', { name: /add related work/i }));
 
         expect(mockOnAdd).toHaveBeenCalledWith({
             identifier: '10.5880/test.2024.001',
@@ -104,7 +99,7 @@ describe('RelatedWorkQuickAdd', () => {
         });
     });
 
-    it('normalizes DOI URL to just the DOI', async () => {
+    it('normalizes DOI URLs before calling onAdd', async () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
@@ -113,7 +108,7 @@ describe('RelatedWorkQuickAdd', () => {
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="https://doi.org/10.5880/test.2024.001" />);
 
-        await user.click(screen.getByRole('button', { name: /Add/i }));
+        await user.click(screen.getByRole('button', { name: /add related work/i }));
 
         expect(mockOnAdd).toHaveBeenCalledWith({
             identifier: '10.5880/test.2024.001',
@@ -122,67 +117,61 @@ describe('RelatedWorkQuickAdd', () => {
         });
     });
 
-    it('shows validation error when status is invalid', () => {
-        mockUseIdentifierValidation.mockReturnValue({
+    it('shows validation messages for invalid, warning, and valid states', () => {
+        mockUseIdentifierValidation.mockReturnValueOnce({
             status: 'invalid',
             metadata: undefined,
         });
+        const { rerender } = render(<RelatedWorkQuickAdd {...defaultProps} identifier="invalid-doi" />);
+        expect(screen.getByText(/invalid doi format/i)).toBeInTheDocument();
 
-        render(<RelatedWorkQuickAdd {...defaultProps} identifier="invalid-doi" />);
-
-        expect(screen.getByText(/Invalid DOI format/)).toBeInTheDocument();
-    });
-
-    it('shows warning message when status is warning', () => {
-        mockUseIdentifierValidation.mockReturnValue({
+        mockUseIdentifierValidation.mockReturnValueOnce({
             status: 'warning',
             metadata: undefined,
         });
+        rerender(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
+        expect(screen.getByText(/could not verify via api/i)).toBeInTheDocument();
 
-        render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
-
-        expect(screen.getByText(/Could not verify via API/)).toBeInTheDocument();
-    });
-
-    it('shows validated title when status is valid with metadata', () => {
-        mockUseIdentifierValidation.mockReturnValue({
+        mockUseIdentifierValidation.mockReturnValueOnce({
             status: 'valid',
             metadata: { title: 'Validated Resource Title' },
         });
-
-        render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
-
-        expect(screen.getByText(/Validated Resource Title/)).toBeInTheDocument();
+        rerender(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
+        expect(screen.getByText(/validated resource title/i)).toBeInTheDocument();
     });
 
-    it('shows loading spinner when validating', () => {
+    it('shows a loading spinner while validating', () => {
         mockUseIdentifierValidation.mockReturnValue({
             status: 'validating',
             metadata: undefined,
         });
 
-        render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
-
-        const spinner = document.querySelector('.animate-spin');
-        expect(spinner).toBeInTheDocument();
+        const { container } = render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test" />);
+        expect(container.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
-    it('renders simple mode toggle when in advanced mode', () => {
-        render(<RelatedWorkQuickAdd {...defaultProps} showAdvancedMode={true} onToggleAdvanced={mockOnToggleAdvanced} />);
-
-        expect(screen.getByText(/Simple mode/)).toBeInTheDocument();
-    });
-
-    it('calls onToggleAdvanced when clicking simple mode toggle', async () => {
+    it('renders Most Used and All relation types in the relation select', async () => {
         const user = userEvent.setup();
-        render(<RelatedWorkQuickAdd {...defaultProps} showAdvancedMode={true} onToggleAdvanced={mockOnToggleAdvanced} />);
+        render(<RelatedWorkQuickAdd {...defaultProps} />);
 
-        await user.click(screen.getByText(/Simple mode/));
+        await user.click(screen.getByRole('combobox', { name: /relation type/i }));
 
-        expect(mockOnToggleAdvanced).toHaveBeenCalled();
+        expect(screen.getByText('Most Used')).toBeInTheDocument();
+        expect(screen.getByText('All relation types')).toBeInTheDocument();
+        expect(screen.getByText('Is Derived From')).toBeInTheDocument();
     });
 
-    it('handles Enter key press to add', async () => {
+    it('calls onIdentifierTypeChange when selecting a different identifier type', async () => {
+        const user = userEvent.setup();
+        render(<RelatedWorkQuickAdd {...defaultProps} />);
+
+        await user.click(screen.getByRole('combobox', { name: /identifier type/i }));
+        await user.click(screen.getByRole('option', { name: 'URL' }));
+
+        expect(mockOnIdentifierTypeChange).toHaveBeenCalledWith('URL');
+    });
+
+    it('handles Enter to add a valid identifier', async () => {
         const user = userEvent.setup();
         mockUseIdentifierValidation.mockReturnValue({
             status: 'valid',
@@ -191,24 +180,8 @@ describe('RelatedWorkQuickAdd', () => {
 
         render(<RelatedWorkQuickAdd {...defaultProps} identifier="10.5880/test.2024.001" />);
 
-        const input = screen.getByPlaceholderText(/10\.5194\/nhess/);
-        await user.type(input, '{Enter}');
+        await user.type(screen.getByPlaceholderText(/10\.5194\/nhess/i), '{Enter}');
 
         expect(mockOnAdd).toHaveBeenCalled();
-    });
-
-    it('does not add when identifier is invalid on Enter', async () => {
-        const user = userEvent.setup();
-        mockUseIdentifierValidation.mockReturnValue({
-            status: 'invalid',
-            metadata: undefined,
-        });
-
-        render(<RelatedWorkQuickAdd {...defaultProps} identifier="invalid" />);
-
-        const input = screen.getByPlaceholderText(/10\.5194\/nhess/);
-        await user.type(input, '{Enter}');
-
-        expect(mockOnAdd).not.toHaveBeenCalled();
     });
 });

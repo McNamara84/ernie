@@ -22,6 +22,7 @@ use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ class ResourceStorageService
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
         protected RorLookupService $rorLookupService,
+        protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
     ) {}
 
@@ -973,11 +975,19 @@ class ResourceStorageService
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             // Only save if identifier is not empty
             if (! empty(trim($relatedIdentifier['identifier']))) {
+                $citationLabel = isset($relatedIdentifier['citationLabel']) && trim($relatedIdentifier['citationLabel']) !== ''
+                    ? trim($relatedIdentifier['citationLabel'])
+                    : $this->relatedIdentifierCitationLabelService->resolve(
+                        trim($relatedIdentifier['identifier']),
+                        (string) ($relatedIdentifier['identifierType'] ?? ''),
+                    );
+
                 $resource->relatedIdentifiers()->create([
                     'identifier' => trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,
+                    'citation_label' => $citationLabel,
                     'position' => $index,
                 ]);
             }

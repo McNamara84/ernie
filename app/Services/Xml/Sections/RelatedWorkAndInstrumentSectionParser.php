@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\RelatedIdentifierTypeResolverService;
 use App\Support\Xml\XmlElementHelpers;
 use Illuminate\Support\Facades\Log;
 use Saloon\XmlWrangler\XmlReader;
@@ -16,38 +18,10 @@ use Saloon\XmlWrangler\XmlReader;
  */
 final readonly class RelatedWorkAndInstrumentSectionParser
 {
-    /**
-     * Canonical DataCite related identifier types supported by ERNIE editor.
-     *
-     * @var string[]
-     */
-    private const RELATED_IDENTIFIER_TYPES = [
-        'DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK',
-        'arXiv', 'bibcode', 'CSTR', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID',
-        'PMID', 'RAiD', 'RRID', 'SWHID', 'UPC', 'w3id',
-    ];
-
-    /**
-     * Canonical DataCite relation types supported by ERNIE editor.
-     *
-     * @var string[]
-     */
-    private const RELATED_RELATION_TYPES = [
-        'Cites', 'IsCitedBy', 'References', 'IsReferencedBy',
-        'Documents', 'IsDocumentedBy', 'Describes', 'IsDescribedBy',
-        'IsNewVersionOf', 'IsPreviousVersionOf', 'HasVersion', 'IsVersionOf',
-        'HasTranslation', 'IsTranslationOf',
-        'Continues', 'IsContinuedBy', 'Obsoletes', 'IsObsoletedBy',
-        'IsVariantFormOf', 'IsOriginalFormOf', 'IsIdenticalTo',
-        'HasPart', 'IsPartOf', 'Compiles', 'IsCompiledBy',
-        'IsSourceOf', 'IsDerivedFrom',
-        'IsSupplementTo', 'IsSupplementedBy',
-        'Requires', 'IsRequiredBy',
-        'HasMetadata', 'IsMetadataFor',
-        'Reviews', 'IsReviewedBy',
-        'IsPublishedIn', 'Collects', 'IsCollectedBy',
-        'Other',
-    ];
+    public function __construct(
+        private RelatedIdentifierTypeResolverService $typeResolver,
+        private RelatedIdentifierCitationLabelService $citationLabelService,
+    ) {}
 
     /**
      * @return array{
@@ -60,18 +34,6 @@ final readonly class RelatedWorkAndInstrumentSectionParser
         $relatedIdentifierElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="relatedIdentifiers"]/*[local-name()="relatedIdentifier"]')
             ->get();
-
-        /** @var array<string, string> $identifierTypeLookup */
-        $identifierTypeLookup = [];
-        foreach (self::RELATED_IDENTIFIER_TYPES as $name) {
-            $identifierTypeLookup[mb_strtolower($name)] = $name;
-        }
-
-        /** @var array<string, string> $relationTypeLookup */
-        $relationTypeLookup = [];
-        foreach (self::RELATED_RELATION_TYPES as $name) {
-            $relationTypeLookup[mb_strtolower($name)] = $name;
-        }
 
         $relatedWorks = [];
         $instruments = [];
@@ -86,12 +48,8 @@ final readonly class RelatedWorkAndInstrumentSectionParser
                 continue;
             }
 
-            $identifierType = is_string($identifierTypeRaw)
-                ? ($identifierTypeLookup[mb_strtolower(trim($identifierTypeRaw))] ?? null)
-                : null;
-            $relationType = is_string($relationTypeRaw)
-                ? ($relationTypeLookup[mb_strtolower(trim($relationTypeRaw))] ?? null)
-                : null;
+            $identifierType = $this->typeResolver->resolveIdentifierType($identifierTypeRaw);
+            $relationType = $this->typeResolver->resolveRelationType($relationTypeRaw);
 
             if ($identifierType === null || $relationType === null) {
                 Log::warning('Skipping related identifier with unsupported type values during XML upload', [
@@ -120,6 +78,7 @@ final readonly class RelatedWorkAndInstrumentSectionParser
                 'identifier_type' => $identifierType,
                 'relation_type' => $relationType,
                 'relation_type_information' => is_string($relationTypeInformationRaw) && trim($relationTypeInformationRaw) !== '' ? trim($relationTypeInformationRaw) : null,
+                'citation_label' => $this->citationLabelService->resolve($identifier, $identifierType),
                 'position' => count($relatedWorks),
             ];
         }

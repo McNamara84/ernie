@@ -45,8 +45,8 @@ export const RELATION_TYPES_GROUPED: Record<string, RelationType[]> = {
  * - IsCitedBy: 0.6%
  * - IsVariantFormOf: 0.6%
  *
- * Version relations (IsNewVersionOf, IsPreviousVersionOf) added for easy access
- * in simple mode as they are commonly needed for dataset version management.
+ * Version relations (IsNewVersionOf, IsPreviousVersionOf) stay surfaced in the
+ * add form because they are commonly needed for dataset version management.
  */
 export const MOST_USED_RELATION_TYPES: RelationType[] = [
     'Cites',
@@ -119,6 +119,10 @@ export function getOppositeRelationType(relationType: RelationType): RelationTyp
  */
 export function getAllRelationTypes(): RelationType[] {
     return Object.values(RELATION_TYPES_GROUPED).flat();
+}
+
+export function formatRelationTypeLabel(relationType: string): string {
+    return relationType.replace(/([a-z0-9])([A-Z])/g, '$1 $2').trim();
 }
 
 /**
