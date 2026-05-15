@@ -16,6 +16,7 @@ import {
     MOST_USED_RELATION_TYPES,
     RELATION_TYPE_DESCRIPTIONS,
 } from '@/lib/related-identifiers';
+import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { identifierTypes } from '@/schemas/related-work.schema';
 import type { RelatedIdentifier, RelationType } from '@/types';
 
@@ -63,13 +64,11 @@ export default function RelatedWorkItem({
         ? identifierTypes.filter((type) => activeIdentifierTypes.includes(type))
         : [...identifierTypes];
 
-    const isClickable = item.identifier_type === 'DOI' || item.identifier_type === 'URL' || item.identifier_type === 'Handle';
-    const linkUrl =
-        item.identifier_type === 'DOI'
-            ? `https://doi.org/${item.identifier}`
-            : item.identifier_type === 'Handle'
-              ? `https://hdl.handle.net/${item.identifier}`
-              : item.identifier;
+    const previewLinkIdentifierTypes = new Set(['DOI', 'URL', 'Handle']);
+    const linkUrl = previewLinkIdentifierTypes.has(item.identifier_type)
+        ? resolveIdentifierUrl(item.identifier, item.identifier_type)
+        : null;
+    const isClickable = linkUrl !== null;
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,

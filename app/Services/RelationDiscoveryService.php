@@ -243,27 +243,34 @@ class RelationDiscoveryService
     public function acceptRelation(SuggestedRelation $suggestion): array
     {
         $resource = $suggestion->resource;
-        $citationLabel = $this->resolveAcceptedSuggestionCitationLabel($suggestion);
 
-        DB::transaction(function () use ($suggestion, $resource, $citationLabel) {
-            // Lock existing rows to prevent concurrent inserts from reading the same max
+        DB::transaction(function () use ($suggestion, $resource) {
+            $existingRelation = RelatedIdentifier::where('resource_id', $resource->id)
+                ->where('identifier', $suggestion->identifier)
+                ->where('relation_type_id', $suggestion->relation_type_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingRelation !== null) {
+                $suggestion->delete();
+
+                return;
+            }
+
             $maxPosition = RelatedIdentifier::where('resource_id', $resource->id)
                 ->lockForUpdate()
                 ->max('position') ?? -1;
 
-            // Create the new RelatedIdentifier (idempotent via firstOrCreate)
-            RelatedIdentifier::firstOrCreate(
-                [
-                    'resource_id' => $resource->id,
-                    'identifier' => $suggestion->identifier,
-                    'relation_type_id' => $suggestion->relation_type_id,
-                ],
-                [
-                    'identifier_type_id' => $suggestion->identifier_type_id,
-                    'citation_label' => $citationLabel,
-                    'position' => $maxPosition + 1,
-                ],
-            );
+            $citationLabel = $this->resolveAcceptedSuggestionCitationLabel($suggestion);
+
+            RelatedIdentifier::create([
+                'resource_id' => $resource->id,
+                'identifier' => $suggestion->identifier,
+                'identifier_type_id' => $suggestion->identifier_type_id,
+                'relation_type_id' => $suggestion->relation_type_id,
+                'citation_label' => $citationLabel,
+                'position' => $maxPosition + 1,
+            ]);
 
             // Delete the suggestion
             $suggestion->delete();

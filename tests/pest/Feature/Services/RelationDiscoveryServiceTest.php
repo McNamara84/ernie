@@ -161,10 +161,7 @@ describe('RelationDiscoveryService', function (): void {
             ->andReturn(DataCiteSyncResult::notRequired());
 
         $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
-        $citationLabelService->shouldReceive('resolveBestEffort')
-            ->once()
-            ->with('10.5880/related.2026.003', 'DOI', Mockery::type('float'))
-            ->andReturn('Resolved replacement that must not overwrite manual label');
+        $citationLabelService->shouldNotReceive('resolveBestEffort');
 
         $service = new RelationDiscoveryService(
             Mockery::mock(ScholExplorerService::class),

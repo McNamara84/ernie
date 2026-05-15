@@ -62,6 +62,22 @@ describe('RelatedWorkItem', () => {
         expect(screen.getByRole('combobox', { name: /relation type/i })).toHaveTextContent('Is Cited By');
     });
 
+    it('suppresses clickable preview links for non-http URL identifiers', () => {
+        render(
+            <RelatedWorkItem
+                {...defaultProps}
+                item={{
+                    identifier: 'javascript:alert(1)',
+                    identifier_type: 'URL',
+                    relation_type: 'IsCitedBy',
+                }}
+            />,
+        );
+
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(screen.getByText('javascript:alert(1)')).toBeInTheDocument();
+    });
+
     it('renders non-clickable identifier types as plain preview text', () => {
         render(
             <RelatedWorkItem
