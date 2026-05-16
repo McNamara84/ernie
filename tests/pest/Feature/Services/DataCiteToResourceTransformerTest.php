@@ -10,11 +10,14 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteToResourceTransformer;
 use Database\Seeders\ContributorTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
+use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\LanguageSeeder;
 use Database\Seeders\PublisherSeeder;
+use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Database\Seeders\TitleTypeSeeder;
 
@@ -24,8 +27,14 @@ beforeEach(function (): void {
     test()->seed(TitleTypeSeeder::class);
     test()->seed(DescriptionTypeSeeder::class);
     test()->seed(ContributorTypeSeeder::class);
+    test()->seed(IdentifierTypeSeeder::class);
     test()->seed(LanguageSeeder::class);
     test()->seed(PublisherSeeder::class);
+    test()->seed(RelationTypeSeeder::class);
+});
+
+afterEach(function (): void {
+    Mockery::close();
 });
 
 describe('DataCiteToResourceTransformer', function (): void {
@@ -94,6 +103,53 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($resource->version)->toBe('1.0.0')
                 ->and($resource->language_id)->not->toBeNull()
                 ->and($resource->resource_type_id)->not->toBeNull();
+        });
+
+        it('persists related identifiers with resolved citation labels during import', function (): void {
+            $user = User::factory()->create();
+
+            $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+            $mock->shouldReceive('resolveBestEffort')
+                ->once()
+                ->with('10.5880/import.related.2024.001', 'DOI', Mockery::type('float'))
+                ->andReturn('Doe, J. (2024): Imported related work. GFZ. https://doi.org/10.5880/import.related.2024.001');
+            $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/import.main.2024.001',
+                    'publicationYear' => 2024,
+                    'titles' => [
+                        ['title' => 'Imported dataset'],
+                    ],
+                    'creators' => [
+                        [
+                            'familyName' => 'Importer',
+                            'givenName' => 'Test',
+                            'nameType' => 'Personal',
+                        ],
+                    ],
+                    'relatedIdentifiers' => [
+                        [
+                            'relatedIdentifier' => '10.5880/import.related.2024.001',
+                            'relatedIdentifierType' => 'DOI',
+                            'relationType' => 'Cites',
+                            'relationTypeInformation' => 'Supporting publication',
+                        ],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $relatedIdentifier = $resource->relatedIdentifiers()->with('identifierType', 'relationType')->sole();
+
+            expect($relatedIdentifier->identifier)->toBe('10.5880/import.related.2024.001')
+                ->and($relatedIdentifier->identifierType?->slug)->toBe('DOI')
+                ->and($relatedIdentifier->relationType?->slug)->toBe('Cites')
+                ->and($relatedIdentifier->relation_type_information)->toBe('Supporting publication')
+                ->and($relatedIdentifier->citation_label)->toBe('Doe, J. (2024): Imported related work. GFZ. https://doi.org/10.5880/import.related.2024.001');
         });
 
     });

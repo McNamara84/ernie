@@ -1714,6 +1714,7 @@ export default function DataCiteForm({
                 identifierType: string;
                 relationType: string;
                 relationTypeInformation?: string;
+                citationLabel?: string;
             }[];
             fundingReferences: {
                 funderName: string;
@@ -1793,6 +1794,7 @@ export default function DataCiteForm({
                 identifierType: rw.identifier_type,
                 relationType: rw.relation_type,
                 ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
+                ...(rw.citation_label ? { citationLabel: rw.citation_label } : {}),
             })),
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
@@ -2582,7 +2584,7 @@ export default function DataCiteForm({
                         <SectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."
-                            tooltip="DOIs, URLs, and Handles supported. Use Quick Add for common relation types."
+                            tooltip="DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them."
                             counter={{ current: relatedWorks.length, max: 100 }}
                         />
                         <RelatedWorkField

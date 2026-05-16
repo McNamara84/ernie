@@ -21,6 +21,8 @@ class DataCiteApiService
 {
     use ChecksCacheTagging;
 
+    private const DEFAULT_TIMEOUT_SECONDS = 10.0;
+
     /** Sentinel value stored in cache to represent a confirmed 404. */
     private const CACHE_NULL_SENTINEL = '__NULL__';
 
@@ -60,7 +62,7 @@ class DataCiteApiService
      * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
      * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
      */
-    public function getMetadata(string $doi): ?array
+    public function getMetadata(string $doi, ?float $timeoutSeconds = null, bool $cacheTransientFailure = true): ?array
     {
         $cleanDoi = $this->normalizeDoi($doi);
 
@@ -81,14 +83,14 @@ class DataCiteApiService
             return $cached;
         }
 
-        $result = $this->fetchMetadataFromApi($cleanDoi, $doi);
+        $result = $this->fetchMetadataFromApi($cleanDoi, $doi, $timeoutSeconds ?? self::DEFAULT_TIMEOUT_SECONDS);
 
         if (is_array($result)) {
             $cache->put($cacheKey, $result, CacheKey::DOI_CITATION->ttl());
         } elseif ($result === self::CACHE_NULL_SENTINEL) {
             // Confirmed 404 — cache for full TTL
             $cache->put($cacheKey, self::CACHE_NULL_SENTINEL, CacheKey::DOI_CITATION->ttl());
-        } else {
+        } elseif ($cacheTransientFailure) {
             // Transient failure — cache for 5 minutes to avoid hammering the API
             $cache->put($cacheKey, self::CACHE_TRANSIENT_FAILURE, 300);
         }
@@ -104,12 +106,12 @@ class DataCiteApiService
      *
      * @return array<string, mixed>|string
      */
-    private function fetchMetadataFromApi(string $cleanDoi, string $originalDoi): array|string
+    private function fetchMetadataFromApi(string $cleanDoi, string $originalDoi, float $timeoutSeconds): array|string
     {
         try {
             $url = "https://doi.org/{$cleanDoi}";
 
-            $response = Http::timeout(10)
+            $response = Http::timeout($timeoutSeconds)
                 ->withHeaders([
                     'Accept' => 'application/vnd.citationstyles.csl+json',
                 ])

@@ -4339,5 +4339,64 @@ describe('DataCiteForm', () => {
                 }));
             });
         });
+
+        it('includes related work citation labels in the save payload', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
+                data: { message: 'Resource stored!' },
+                status: 200,
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenters={[1]}
+                    initialRelatedWorks={[
+                        {
+                            identifier: '10.1234/example',
+                            identifier_type: 'DOI',
+                            relation_type: 'IsReferencedBy',
+                            relation_type_information: null,
+                            citation_label: 'Doe, J. (2024): Manual citation. Publisher.',
+                        },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+            await fillRequiredAbstract(user);
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await user.click(saveButton);
+
+            const saveCall = getSaveAxiosCall();
+            expect(saveCall).toBeDefined();
+
+            const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+            expect(body.relatedIdentifiers).toEqual([
+                {
+                    identifier: '10.1234/example',
+                    identifierType: 'DOI',
+                    relationType: 'IsReferencedBy',
+                    citationLabel: 'Doe, J. (2024): Manual citation. Publisher.',
+                },
+            ]);
+        });
     });
 });

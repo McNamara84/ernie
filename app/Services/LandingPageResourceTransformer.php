@@ -90,8 +90,9 @@ final class LandingPageResourceTransformer
                 return [
                     'id' => $relatedId->id,
                     'identifier' => $relatedId->identifier,
-                    'identifier_type' => $identifierType !== null ? $identifierType->name : null,
-                    'relation_type' => $relationType !== null ? $relationType->name : null,
+                    'identifier_type' => $identifierType !== null ? $identifierType->slug : null,
+                    'relation_type' => $relationType !== null ? $relationType->slug : null,
+                    'citation_label' => $relatedId->citation_label,
                     'position' => $relatedId->position,
                 ];
             })

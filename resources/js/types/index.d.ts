@@ -167,6 +167,7 @@ export interface RelatedIdentifier {
     identifier_type: string;
     relation_type: string;
     relation_type_information?: string | null;
+    citation_label?: string | null;
     position?: number;
     related_title?: string | null;
     related_metadata?: Record<string, unknown> | null;
@@ -177,6 +178,7 @@ export interface RelatedIdentifierFormData {
     identifierType: string;
     relationType: string;
     relationTypeInformation?: string | null;
+    citationLabel?: string | null;
 }
 
 export type IdentifierType =

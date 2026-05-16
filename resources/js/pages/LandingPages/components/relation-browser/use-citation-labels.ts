@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo } from 'react';
 
 import { normalizeDoiKey } from '../../lib/resolveIdentifierUrl';
 import type { CitationLabel } from './graph-types';
@@ -6,6 +6,7 @@ import type { CitationLabel } from './graph-types';
 interface IdentifierInput {
     identifier: string;
     identifier_type: string;
+    citation_label?: string | null;
 }
 
 /**
@@ -45,99 +46,48 @@ export function useCitationLabels(
     identifiers: IdentifierInput[],
     citationTexts?: Map<string, string>,
 ): Map<string, CitationLabel> {
-    const [labels, setLabels] = useState<Map<string, CitationLabel>>(new Map());
-    const controllerRef = useRef<AbortController | null>(null);
-
-    useEffect(() => {
-        controllerRef.current?.abort();
-        const controller = new AbortController();
-        controllerRef.current = controller;
-
-        const newLabels = new Map<string, CitationLabel>();
-
-        const doisToFetch: string[] = [];
+    return useMemo(() => {
+        const labels = new Map<string, CitationLabel>();
 
         for (const item of identifiers) {
+            const persistedCitation = item.citation_label?.trim();
+
             if (item.identifier_type === 'DOI') {
                 const doi = normalizeDoiKey(item.identifier);
-                if (doi && !newLabels.has(doi)) {
-                    const provided = citationTexts?.get(doi);
-                    if (provided) {
-                        newLabels.set(doi, {
-                            shortLabel: extractAuthorYear(provided),
-                            fullCitation: provided,
-                            loading: false,
-                        });
-                    } else {
-                        newLabels.set(doi, {
-                            shortLabel: doi.length > 20 ? shortenIdentifier(doi) : doi,
-                            fullCitation: doi,
-                            loading: true,
-                        });
-                        doisToFetch.push(doi);
-                    }
+
+                if (!doi || labels.has(doi)) {
+                    continue;
+                }
+
+                const provided = persistedCitation || citationTexts?.get(doi);
+
+                if (provided) {
+                    labels.set(doi, {
+                        shortLabel: extractAuthorYear(provided),
+                        fullCitation: provided,
+                        loading: false,
+                    });
+                } else {
+                    labels.set(doi, {
+                        shortLabel: doi.length > 20 ? shortenIdentifier(doi) : doi,
+                        fullCitation: doi,
+                        loading: false,
+                    });
                 }
             } else {
                 const key = `${item.identifier_type}:${item.identifier}`;
-                if (!newLabels.has(key)) {
-                    newLabels.set(key, {
-                        shortLabel: `${item.identifier_type}: ${shortenIdentifier(item.identifier)}`,
-                        fullCitation: item.identifier,
+                if (!labels.has(key)) {
+                    labels.set(key, {
+                        shortLabel: persistedCitation ? extractAuthorYear(persistedCitation) : `${item.identifier_type}: ${shortenIdentifier(item.identifier)}`,
+                        fullCitation: persistedCitation || item.identifier,
                         loading: false,
                     });
                 }
             }
         }
 
-        setLabels(new Map(newLabels));
-
-        if (doisToFetch.length === 0) {
-            return () => controller.abort();
-        }
-
-        for (const doi of doisToFetch) {
-            fetch(`/api/datacite/citation?doi=${encodeURIComponent(doi)}`, {
-                signal: controller.signal,
-            })
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error('Citation not found');
-                    }
-                    return response.json();
-                })
-                .then((data) => {
-                    const shortLabel = extractAuthorYear(data.citation);
-                    setLabels((prev) => {
-                        const next = new Map(prev);
-                        next.set(doi, {
-                            shortLabel,
-                            fullCitation: data.citation,
-                            loading: false,
-                        });
-                        return next;
-                    });
-                })
-                .catch((err: unknown) => {
-                    if (err instanceof Error && err.name === 'AbortError') {
-                        return;
-                    }
-                    setLabels((prev) => {
-                        const next = new Map(prev);
-                        const existing = next.get(doi);
-                        next.set(doi, {
-                            shortLabel: existing?.shortLabel ?? doi,
-                            fullCitation: doi,
-                            loading: false,
-                        });
-                        return next;
-                    });
-                });
-        }
-
-        return () => controller.abort();
+        return labels;
     }, [identifiers, citationTexts]);
-
-    return labels;
 }
 
 export function getCitationKey(identifierType: string, identifier: string): string {

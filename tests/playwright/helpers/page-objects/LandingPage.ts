@@ -27,6 +27,9 @@ export class LandingPage {
   readonly abstractSection: Locator;
   readonly abstractText: Locator;
 
+  // Model Description section
+  readonly modelDescriptionSection: Locator;
+
   // Creators section
   readonly creatorsSection: Locator;
   readonly creatorsList: Locator;
@@ -72,6 +75,9 @@ export class LandingPage {
     // Abstract section
     this.abstractSection = page.locator('[data-testid="abstract-section"]').or(page.locator('section[aria-labelledby="heading-abstract"]'));
     this.abstractText = this.abstractSection.locator('p, [data-testid="abstract-text"]').first();
+
+    // Model Description section
+    this.modelDescriptionSection = page.locator('section[aria-labelledby="heading-model-description"]');
 
     // Creators section
     this.creatorsSection = page.locator('[data-testid="creators-section"]');
@@ -300,6 +306,15 @@ export class LandingPage {
    */
   async verifyRelatedWorkDoi(doi: string) {
     const doiLink = this.relatedWorksSection.locator(`a[href*="${doi}"]`);
+    await expect(doiLink).toBeVisible();
+  }
+
+  /**
+   * Verify a model description DOI is displayed and clickable
+   */
+  async verifyModelDescriptionDoi(doi: string) {
+    await expect(this.modelDescriptionSection).toBeVisible();
+    const doiLink = this.modelDescriptionSection.locator(`a[href*="${doi}"]`);
     await expect(doiLink).toBeVisible();
   }
 

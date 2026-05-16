@@ -476,7 +476,7 @@ class EditorDataTransformer
     /**
      * Transform related identifiers to frontend format.
      *
-     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null}>
+     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null}>
      */
     public function transformRelatedIdentifiers(Resource $resource): array
     {
@@ -484,9 +484,10 @@ class EditorDataTransformer
             ->sortBy('position')
             ->map(fn (\App\Models\RelatedIdentifier $relatedId): array => [
                 'identifier' => $relatedId->identifier,
-                'identifier_type' => $relatedId->identifierType->name,
-                'relation_type' => $relatedId->relationType->name,
+                'identifier_type' => $relatedId->identifierType->slug,
+                'relation_type' => $relatedId->relationType->slug,
                 'relation_type_information' => $relatedId->relation_type_information,
+                'citation_label' => $relatedId->citation_label,
             ])
             ->values()
             ->toArray();

@@ -159,6 +159,55 @@ test('transformation is null-safe for optional relationships', function () {
         ->and($data['contributors'][0]['contributor_types'])->toBeArray();
 });
 
+test('transforms related identifier slugs and citation label for landing pages', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $identifierType = new \App\Models\IdentifierType;
+    $identifierType->forceFill([
+        'id' => 1,
+        'name' => 'DOI',
+        'slug' => 'DOI',
+    ]);
+
+    $relationType = new RelationType;
+    $relationType->forceFill([
+        'id' => 1,
+        'name' => 'Is Supplement To',
+        'slug' => 'IsSupplementTo',
+    ]);
+
+    $related = new RelatedIdentifier;
+    $related->forceFill([
+        'id' => 1,
+        'identifier' => '10.1234/example',
+        'citation_label' => 'Doe, J. (2026): Example. GFZ.',
+        'position' => 1,
+    ]);
+    $related->setRelation('identifierType', $identifierType);
+    $related->setRelation('relationType', $relationType);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection([$related]));
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['related_identifiers'][0])->toMatchArray([
+        'identifier' => '10.1234/example',
+        'identifier_type' => 'DOI',
+        'relation_type' => 'IsSupplementTo',
+        'citation_label' => 'Doe, J. (2026): Example. GFZ.',
+    ]);
+});
+
 test('transforms rights to licenses with correct field mapping', function () {
     $transformer = new LandingPageResourceTransformer;
 

@@ -402,6 +402,7 @@ entity "related_identifiers" as related_identifiers {
     * identifier_type_id : BIGINT <<FK>>
     * relation_type_id : BIGINT <<FK>>
     relation_type_information : VARCHAR //DataCite 4.7//
+    citation_label : MEDIUMTEXT
     related_metadata_scheme : VARCHAR
     scheme_uri : VARCHAR(512)
     scheme_type : VARCHAR(100)

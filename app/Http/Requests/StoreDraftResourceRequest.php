@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
@@ -161,6 +162,7 @@ class StoreDraftResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
             'fundingReferences' => ['nullable', 'array', 'max:99'],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
@@ -660,11 +662,16 @@ class StoreDraftResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['relationTypeInformation'])
                 : '';
 
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
             $relatedIdentifiers[] = [
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
+                ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
             ];
         }
 

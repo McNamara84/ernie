@@ -23,6 +23,10 @@ beforeEach(function () {
 
     // Mock the transformer for isolated job testing
     $this->transformer = Mockery::mock(DataCiteToResourceTransformer::class);
+    $this->transformer
+        ->shouldReceive('prepareDoiData')
+        ->zeroOrMoreTimes()
+        ->andReturnUsing(fn (array $doiRecord): array => $doiRecord);
     $this->app->instance(DataCiteToResourceTransformer::class, $this->transformer);
 
     // Mock the metaworks service (returns empty result by default)

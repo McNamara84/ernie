@@ -326,6 +326,8 @@ export interface LandingPageRelatedIdentifier {
     identifier_type: string;
     /** Relation type (e.g., 'IsSupplementTo', 'References') */
     relation_type: string;
+    /** Persisted citation label for display without runtime DOI lookups */
+    citation_label?: string | null;
     /** General resource type (e.g., 'Dataset', 'Text') */
     resource_type_general?: string | null;
     /** Legacy: identifier value */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\ContributorType;
+use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
 use App\Models\ResourceType;
 use App\Models\TitleType;
@@ -156,6 +157,7 @@ class StoreResourceRequest extends FormRequest
                 ]),
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
+            'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
 
             // Citation Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
@@ -763,11 +765,16 @@ class StoreResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['relationTypeInformation'])
                 : '';
 
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
             $relatedIdentifiers[] = [
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
+                ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
             ];
         }
 

@@ -22,6 +22,7 @@ use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ class ResourceStorageService
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
         protected RorLookupService $rorLookupService,
+        protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
     ) {}
 
@@ -54,6 +56,8 @@ class ResourceStorageService
     #[\NoDiscard('Stored resource and update flag must be used')]
     public function store(array $data, ?int $userId = null): array
     {
+        $data = $this->prepareDataForStorage($data);
+
         return DB::transaction(function () use ($data, $userId): array {
             $languageId = null;
 
@@ -131,6 +135,67 @@ class ResourceStorageService
                 $isUpdate,
             ];
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function prepareDataForStorage(array $data): array
+    {
+        $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
+
+        if (! is_array($relatedIdentifiers)) {
+            return $data;
+        }
+
+        $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
+
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
+            }
+
+            $identifier = isset($relatedIdentifier['identifier'])
+                ? trim((string) $relatedIdentifier['identifier'])
+                : '';
+
+            if ($identifier === '') {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+
+                continue;
+            }
+
+            $relatedIdentifiers[$index]['identifier'] = $identifier;
+
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+
+                continue;
+            }
+
+            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
+                $identifier,
+                (string) ($relatedIdentifier['identifierType'] ?? ''),
+                $citationResolutionDeadline,
+            );
+
+            if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
+
+                continue;
+            }
+
+            unset($relatedIdentifiers[$index]['citationLabel']);
+        }
+
+        $data['relatedIdentifiers'] = $relatedIdentifiers;
+
+        return $data;
     }
 
     /**
@@ -973,11 +1038,16 @@ class ResourceStorageService
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             // Only save if identifier is not empty
             if (! empty(trim($relatedIdentifier['identifier']))) {
+                $citationLabel = isset($relatedIdentifier['citationLabel']) && trim($relatedIdentifier['citationLabel']) !== ''
+                    ? trim($relatedIdentifier['citationLabel'])
+                    : null;
+
                 $resource->relatedIdentifiers()->create([
                     'identifier' => trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,
+                    'citation_label' => $citationLabel,
                     'position' => $index,
                 ]);
             }
