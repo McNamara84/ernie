@@ -11,6 +11,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
@@ -22,6 +23,65 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     withoutVite();
     Cache::flush();
+    Storage::fake('local');
+
+    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-gnss',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ], [
+                    'id' => 'science-seismology',
+                    'text' => 'Seismology',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    Storage::disk('local')->put('private/gcmd-platforms.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'platforms-root',
+            'text' => 'Platforms',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Platforms',
+            'schemeURI' => 'https://example.test/platforms',
+            'description' => '',
+            'children' => [[
+                'id' => 'platforms-voyager',
+                'text' => 'VOYAGER 1',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Platforms',
+                'schemeURI' => 'https://example.test/platforms',
+                'description' => '',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
 
     $this->datasetType = ResourceType::factory()->create([
         'name' => 'Dataset',
@@ -37,7 +97,7 @@ beforeEach(function () {
 /**
  * Helper: Create a published resource with title and optional subjects.
  *
- * @param  array<int, array{value: string, subject_scheme?: string|null}>  $subjects
+ * @param  array<int, array{value: string, subject_scheme?: string|null, value_uri?: string|null}>  $subjects
  */
 function createPublishedResourceWithKeywords(
     ResourceType $type,
@@ -71,6 +131,7 @@ function createPublishedResourceWithKeywords(
             'resource_id' => $resource->id,
             'value' => $subjectData['value'],
             'subject_scheme' => $subjectData['subject_scheme'] ?? null,
+            'value_uri' => $subjectData['value_uri'] ?? null,
         ]);
     }
 
@@ -84,7 +145,7 @@ describe('Portal Keyword Filter', function () {
             'Seismic Analysis',
             [
                 ['value' => 'Seismology'],
-                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords'],
+                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
             ],
         );
 
@@ -92,7 +153,26 @@ describe('Portal Keyword Filter', function () {
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('keywordSuggestions')
-                ->has('keywordSuggestions', 2)
+                ->has('keywordSuggestions', 1)
+                ->where('keywordSuggestions.0.value', 'Seismology')
+            );
+    });
+
+    it('returns thesaurus facets with the portal page', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Controlled Study',
+            [
+                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+            ],
+        );
+
+        $this->get(route('portal'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('thesaurusFacets', 1)
+                ->where('thesaurusFacets.0.scheme', 'Science Keywords')
+                ->where('thesaurusFacets.0.roots.0.children.0.children.0.text', 'GNSS')
             );
     });
 
@@ -244,6 +324,88 @@ describe('Portal Keyword Filter', function () {
                 ->where('pagination.total', 1)
             );
     });
+
+    it('filters resources by a single free keyword', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Free Keyword Match',
+            [['value' => 'Seismology']],
+        );
+
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Controlled Keyword Match',
+            [['value' => 'Seismology', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-seismology']],
+        );
+
+        $this->get(route('portal', ['free_keywords' => ['Seismology']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 1)
+                ->where('resources.0.title', 'Free Keyword Match')
+                ->where('filters.freeKeywords', ['Seismology'])
+            );
+    });
+
+    it('filters resources by selected thesaurus parent nodes', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'GNSS Dataset',
+            [['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss']],
+        );
+
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Free GNSS Mention',
+            [['value' => 'GNSS']],
+        );
+
+        $this->get(route('portal', ['thesaurus_keywords' => ['science-earth']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 1)
+                ->where('resources.0.title', 'GNSS Dataset')
+                ->where('filters.thesaurusKeywords', ['science-earth'])
+            );
+    });
+
+    it('applies AND logic across selected thesaurus nodes', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Complete Controlled Study',
+            [
+                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+                ['value' => 'VOYAGER 1', 'subject_scheme' => 'Platforms', 'value_uri' => 'platforms-voyager'],
+            ],
+        );
+
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Only Science Study',
+            [['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss']],
+        );
+
+        $this->get(route('portal', ['thesaurus_keywords' => ['science-earth', 'platforms-root']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 1)
+                ->where('resources.0.title', 'Complete Controlled Study')
+            );
+    });
+
+    it('returns empty results for unknown thesaurus node IDs', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Any Controlled Study',
+            [['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss']],
+        );
+
+        $this->get(route('portal', ['thesaurus_keywords' => ['missing-node']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 0)
+            );
+    });
 });
 
 describe('Portal Keyword Suggestions', function () {
@@ -304,7 +466,7 @@ describe('Portal Keyword Suggestions', function () {
             'GCMD Study',
             [
                 ['value' => 'FreeKeyword'],
-                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords'],
+                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
                 ['value' => 'Geochemistry', 'subject_scheme' => 'EPOS MSL vocabulary'],
             ],
         );
@@ -312,7 +474,8 @@ describe('Portal Keyword Suggestions', function () {
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->has('keywordSuggestions', 3)
+                ->has('keywordSuggestions', 1)
+                ->where('keywordSuggestions.0.value', 'FreeKeyword')
             );
     });
 });

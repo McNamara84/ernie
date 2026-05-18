@@ -52,6 +52,14 @@ class PortalController extends Controller
                 (array) $request->query('keywords', []),
                 static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
             ), 0, 20),
+            'free_keywords' => array_slice(array_filter(
+                (array) $request->query('free_keywords', []),
+                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+            ), 0, 20),
+            'thesaurus_keywords' => array_slice(array_filter(
+                (array) $request->query('thesaurus_keywords', []),
+                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+            ), 0, 20),
             'datacenter' => array_values(array_slice(array_filter(
                 array_map(trim(...), array_filter(
                     (array) $request->query('datacenter', []),
@@ -94,11 +102,14 @@ class PortalController extends Controller
                 'type' => array_values($filters['type']),
                 'exclude_type' => $excludeType,
                 'keywords' => array_values($filters['keywords']),
+                'freeKeywords' => array_values($filters['free_keywords']),
+                'thesaurusKeywords' => array_values($filters['thesaurus_keywords']),
                 'datacenter' => $filters['datacenter'],
                 'bounds' => $filters['bounds'],
                 'temporal' => $filters['temporal'],
             ],
-            'keywordSuggestions' => $this->keywordService->getSuggestions(),
+            'keywordSuggestions' => $this->keywordService->getFreeKeywordSuggestions(),
+            'thesaurusFacets' => $this->keywordService->getThesaurusFacets(),
             'temporalRange' => $temporalRange,
             'resourceTypeFacets' => $resourceTypeFacets,
             'datacenterFacets' => $datacenterFacets,

@@ -32,6 +32,10 @@ class PortalSearchService
 {
     use ChecksCacheTagging;
 
+    public function __construct(
+        private readonly KeywordSuggestionService $keywordService,
+    ) {}
+
     private const DEFAULT_PER_PAGE = 20;
 
     private const MAX_PER_PAGE = 50;
@@ -72,6 +76,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+    *     free_keywords?: string[]|null,
+    *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -106,6 +112,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+    *     free_keywords?: string[]|null,
+    *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -128,6 +136,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+    *     free_keywords?: string[]|null,
+    *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -182,8 +192,14 @@ class PortalSearchService
         // Apply search query
         $this->applySearchQuery($query, $filters['query'] ?? null);
 
-        // Apply keyword filter
+        // Apply legacy exact keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
+
+        // Apply free keyword filter
+        $this->applyFreeKeywordFilter($query, $filters['free_keywords'] ?? null);
+
+        // Apply thesaurus keyword filter
+        $this->applyThesaurusKeywordFilter($query, $filters['thesaurus_keywords'] ?? null);
 
         // Apply datacenter filter
         $this->applyDatacenterFilter($query, $filters['datacenter'] ?? null);
@@ -391,6 +407,92 @@ class PortalSearchService
 
             $query->whereHas('subjects', function (Builder $q) use ($keyword): void {
                 $q->where('value', $keyword);
+            });
+        }
+    }
+
+    /**
+     * Apply free keyword filter with AND logic.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  string[]|null  $keywords
+     */
+    private function applyFreeKeywordFilter(Builder $query, ?array $keywords): void
+    {
+        if ($keywords === null || $keywords === []) {
+            return;
+        }
+
+        foreach ($keywords as $keyword) {
+            $keyword = trim($keyword);
+            if ($keyword === '') {
+                continue;
+            }
+
+            $query->whereHas('subjects', function (Builder $q) use ($keyword): void {
+                $q->whereNull('subject_scheme')
+                    ->where('value', $keyword);
+            });
+        }
+    }
+
+    /**
+     * Apply selected thesaurus node filters with AND logic.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  string[]|null  $selectedNodeIds
+     */
+    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds): void
+    {
+        if ($selectedNodeIds === null || $selectedNodeIds === []) {
+            return;
+        }
+
+        $normalizedIds = array_values(array_unique(array_filter(
+            array_map(trim(...), $selectedNodeIds),
+            static fn (string $value): bool => $value !== '',
+        )));
+
+        if ($normalizedIds === []) {
+            return;
+        }
+
+        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($normalizedIds);
+        if (count($resolvedNodes) !== count($normalizedIds)) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        foreach ($resolvedNodes as $resolvedNode) {
+            $descendantIds = $resolvedNode['descendant_ids'];
+            $descendantValues = $resolvedNode['descendant_values'];
+
+            if ($descendantIds === [] && $descendantValues === []) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+
+            $query->whereHas('subjects', function (Builder $q) use ($resolvedNode, $descendantIds, $descendantValues): void {
+                $q->where('subject_scheme', $resolvedNode['scheme'])
+                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues): void {
+                        if ($descendantIds !== []) {
+                            $subjectQuery->whereIn('value_uri', $descendantIds);
+                        }
+
+                        if ($descendantValues === []) {
+                            return;
+                        }
+
+                        if ($descendantIds !== []) {
+                            $subjectQuery->orWhereIn('value', $descendantValues);
+
+                            return;
+                        }
+
+                        $subjectQuery->whereIn('value', $descendantValues);
+                    });
             });
         }
     }

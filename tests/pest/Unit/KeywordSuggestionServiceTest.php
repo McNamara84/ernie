@@ -9,6 +9,7 @@ use App\Models\Subject;
 use App\Services\KeywordSuggestionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 covers(KeywordSuggestionService::class);
 
@@ -64,8 +65,8 @@ it('returns keywords from published resources', function () {
 
     $suggestions = $this->service->getSuggestions();
 
-    expect($suggestions)->toHaveCount(2);
-    expect(array_column($suggestions, 'value'))->toContain('Seismology', 'GNSS');
+    expect($suggestions)->toHaveCount(1);
+    expect(array_column($suggestions, 'value'))->toContain('Seismology');
 });
 
 it('excludes keywords from unpublished resources', function () {
@@ -118,16 +119,10 @@ it('includes subject scheme in suggestions', function () {
 
     $suggestions = $this->service->getSuggestions();
 
-    expect($suggestions)->toHaveCount(3);
+    expect($suggestions)->toHaveCount(1);
 
     $freeKeyword = collect($suggestions)->firstWhere('value', 'Free Keyword');
     expect($freeKeyword['scheme'])->toBeNull();
-
-    $gcmdKeyword = collect($suggestions)->firstWhere('value', 'GNSS');
-    expect($gcmdKeyword['scheme'])->toBe('Science Keywords');
-
-    $mslKeyword = collect($suggestions)->firstWhere('value', 'Geochemistry');
-    expect($mslKeyword['scheme'])->toBe('EPOS MSL vocabulary');
 });
 
 it('sorts suggestions alphabetically by value', function () {
@@ -152,6 +147,165 @@ it('distinguishes same keyword with different schemes', function () {
 
     $suggestions = $this->service->getSuggestions();
 
-    // Same keyword value with different schemes = two separate suggestions
-    expect($suggestions)->toHaveCount(2);
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['value'])->toBe('Geochemistry');
+    expect($suggestions[0]['scheme'])->toBeNull();
+});
+
+it('builds pruned thesaurus facets from published controlled keywords', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-gnss',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ], [
+                    'id' => 'science-unused',
+                    'text' => 'Unused child',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    Storage::disk('local')->put('private/msl-vocabulary.json', json_encode([[ 
+        'id' => 'msl-root',
+        'text' => 'Material',
+        'language' => 'en',
+        'scheme' => 'EPOS MSL vocabulary',
+        'schemeURI' => 'https://example.test/msl',
+        'description' => '',
+        'children' => [[
+            'id' => 'msl-rock',
+            'text' => 'Rock',
+            'language' => 'en',
+            'scheme' => 'EPOS MSL vocabulary',
+            'schemeURI' => 'https://example.test/msl',
+            'description' => '',
+            'children' => [],
+        ]],
+    ]], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+        ['value' => 'Rock', 'subject_scheme' => 'EPOS MSL vocabulary', 'value_uri' => 'msl-rock'],
+    ]);
+
+    $facets = $this->service->getThesaurusFacets();
+
+    expect($facets)->toHaveCount(2)
+        ->and($facets[0]['scheme'])->toBe('Science Keywords')
+        ->and($facets[0]['roots'][0]['children'][0]['children'])->toHaveCount(1)
+        ->and($facets[0]['roots'][0]['children'][0]['children'][0]['text'])->toBe('GNSS')
+        ->and($facets[1]['scheme'])->toBe('EPOS MSL vocabulary')
+        ->and($facets[1]['roots'][0]['children'][0]['text'])->toBe('Rock');
+});
+
+it('keeps ancestors when only descendant terms are used', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-platforms.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'platforms-root',
+            'text' => 'Platforms',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Platforms',
+            'schemeURI' => 'https://example.test/platforms',
+            'description' => '',
+            'children' => [[
+                'id' => 'platforms-space',
+                'text' => 'Space-based Platforms',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Platforms',
+                'schemeURI' => 'https://example.test/platforms',
+                'description' => '',
+                'children' => [[
+                    'id' => 'platforms-voyager',
+                    'text' => 'VOYAGER 1',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Platforms',
+                    'schemeURI' => 'https://example.test/platforms',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'VOYAGER 1', 'subject_scheme' => 'Platforms', 'value_uri' => 'platforms-voyager'],
+    ]);
+
+    $facets = $this->service->getThesaurusFacets();
+
+    expect($facets)->toHaveCount(1)
+        ->and($facets[0]['roots'][0]['text'])->toBe('Platforms')
+        ->and($facets[0]['roots'][0]['children'][0]['text'])->toBe('Space-based Platforms')
+        ->and($facets[0]['roots'][0]['children'][0]['children'][0]['text'])->toBe('VOYAGER 1');
+});
+
+it('resolves selected thesaurus nodes to descendant IDs and values', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-gnss',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+    ]);
+
+    $resolved = $this->service->resolveSelectedThesaurusNodes(['science-earth']);
+
+    expect($resolved)->toHaveCount(1)
+        ->and($resolved[0]['scheme'])->toBe('Science Keywords')
+        ->and($resolved[0]['descendant_ids'])->toBe(['science-earth', 'science-gnss'])
+        ->and($resolved[0]['descendant_values'])->toBe(['EARTH SCIENCE', 'GNSS']);
 });
