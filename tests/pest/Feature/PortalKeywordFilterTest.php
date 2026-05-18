@@ -25,7 +25,7 @@ beforeEach(function () {
     Cache::flush();
     Storage::fake('local');
 
-    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'science-root',
@@ -62,7 +62,7 @@ beforeEach(function () {
         ]],
     ], JSON_THROW_ON_ERROR));
 
-    Storage::disk('local')->put('private/gcmd-platforms.json', json_encode([
+    Storage::disk('local')->put('gcmd-platforms.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'platforms-root',
@@ -366,6 +366,21 @@ describe('Portal Keyword Filter', function () {
                 ->where('pagination.total', 1)
                 ->where('resources.0.title', 'GNSS Dataset')
                 ->where('filters.thesaurusKeywords', ['science-earth'])
+            );
+    });
+
+    it('matches imported thesaurus records that keep the original subject scheme string', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Imported GNSS Dataset',
+            [['value' => 'GNSS', 'subject_scheme' => 'NASA/GCMD Earth Science Keywords', 'value_uri' => 'science-gnss']],
+        );
+
+        $this->get(route('portal', ['thesaurus_keywords' => ['science-earth']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 1)
+                ->where('resources.0.title', 'Imported GNSS Dataset')
             );
     });
 

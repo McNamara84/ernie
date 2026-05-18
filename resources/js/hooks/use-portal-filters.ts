@@ -39,10 +39,15 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const query = newFilters.query !== undefined ? newFilters.query : filters.query;
             const type = newFilters.type !== undefined ? newFilters.type : filters.type;
             const datacenter = newFilters.datacenter !== undefined ? newFilters.datacenter : filters.datacenter;
-            const keywords = newFilters.keywords !== undefined ? newFilters.keywords : filters.keywords;
             const freeKeywords = newFilters.freeKeywords !== undefined ? newFilters.freeKeywords : (filters.freeKeywords ?? []);
             const thesaurusKeywords =
                 newFilters.thesaurusKeywords !== undefined ? newFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
+            const keywords =
+                newFilters.keywords !== undefined
+                    ? newFilters.keywords
+                    : freeKeywords.length > 0 || thesaurusKeywords.length > 0
+                      ? []
+                      : filters.keywords;
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
             const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
 

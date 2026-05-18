@@ -440,7 +440,7 @@ class PortalSearchService
      * Apply selected thesaurus node filters with AND logic.
      *
      * @param  Builder<Resource>  $query
-     * @param  string[]|null  $selectedNodeIds
+    * @param  string[]|null  $selectedNodeIds
      */
     private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds): void
     {
@@ -465,6 +465,7 @@ class PortalSearchService
         }
 
         foreach ($resolvedNodes as $resolvedNode) {
+            $subjectSchemes = $resolvedNode['subject_schemes'];
             $descendantIds = $resolvedNode['descendant_ids'];
             $descendantValues = $resolvedNode['descendant_values'];
 
@@ -474,8 +475,8 @@ class PortalSearchService
                 return;
             }
 
-            $query->whereHas('subjects', function (Builder $q) use ($resolvedNode, $descendantIds, $descendantValues): void {
-                $q->where('subject_scheme', $resolvedNode['scheme'])
+            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues): void {
+                $q->whereIn('subject_scheme', $subjectSchemes)
                     ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues): void {
                         if ($descendantIds !== []) {
                             $subjectQuery->whereIn('value_uri', $descendantIds);

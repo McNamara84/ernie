@@ -17,6 +17,21 @@ covers(KeywordSuggestionService::class);
 
 uses(RefreshDatabase::class);
 
+/**
+ * @param  array<int, string>  $tags
+ * @param  mixed  $value
+ */
+function putCacheValue(array $tags, string $key, mixed $value): void
+{
+    if (method_exists(Cache::getStore(), 'tags')) {
+        Cache::tags($tags)->put($key, $value);
+
+        return;
+    }
+
+    Cache::put($key, $value);
+}
+
 beforeEach(function () {
     Cache::flush();
     $this->service = app(KeywordSuggestionService::class);
@@ -113,7 +128,7 @@ it('deduplicates keywords and counts usage', function () {
     expect($suggestions[0]['count'])->toBe(2);
 });
 
-it('includes subject scheme in suggestions', function () {
+it('returns only free keyword suggestions when controlled schemes are also present', function () {
     createResourceWithSubjects($this->datasetType, [
         ['value' => 'Free Keyword'],
         ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords'],
@@ -142,7 +157,7 @@ it('sorts suggestions alphabetically by value', function () {
     expect($suggestions[2]['value'])->toBe('Zircon');
 });
 
-it('distinguishes same keyword with different schemes', function () {
+it('returns the free-keyword variant when the same value also exists as a controlled term', function () {
     createResourceWithSubjects($this->datasetType, [
         ['value' => 'Geochemistry', 'subject_scheme' => null],
         ['value' => 'Geochemistry', 'subject_scheme' => 'EPOS MSL vocabulary'],
@@ -157,7 +172,7 @@ it('distinguishes same keyword with different schemes', function () {
 
 it('builds pruned thesaurus facets from published controlled keywords', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'science-root',
@@ -194,7 +209,7 @@ it('builds pruned thesaurus facets from published controlled keywords', function
         ]],
     ], JSON_THROW_ON_ERROR));
 
-    Storage::disk('local')->put('private/msl-vocabulary.json', json_encode([[ 
+    Storage::disk('local')->put('msl-vocabulary.json', json_encode([[ 
         'id' => 'msl-root',
         'text' => 'Material',
         'language' => 'en',
@@ -229,7 +244,7 @@ it('builds pruned thesaurus facets from published controlled keywords', function
 
 it('keeps ancestors when only descendant terms are used', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-platforms.json', json_encode([
+    Storage::disk('local')->put('gcmd-platforms.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'platforms-root',
@@ -272,7 +287,7 @@ it('keeps ancestors when only descendant terms are used', function () {
 
 it('resolves selected thesaurus nodes to descendant IDs and values', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'science-root',
@@ -315,7 +330,7 @@ it('resolves selected thesaurus nodes to descendant IDs and values', function ()
 
 it('invalidates cached free keyword suggestions and thesaurus facets', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'science-root',
@@ -362,12 +377,13 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
         ['value' => 'ATMOSPHERE', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-atmosphere'],
     ]);
 
-    Cache::put(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(), [[
+    putCacheValue(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags(), CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(), [[
         'value' => 'Stale Keyword',
         'scheme' => null,
         'count' => 99,
     ]]);
-    Cache::put(CacheKey::PORTAL_THESAURUS_FACETS->key(), [[
+    CacheKey::PORTAL_THESAURUS_FACETS->forget();
+    putCacheValue(CacheKey::PORTAL_THESAURUS_FACETS->tags(), CacheKey::PORTAL_THESAURUS_FACETS->key(), [[
         'scheme' => 'Stale Scheme',
         'roots' => [],
     ]]);
@@ -386,7 +402,7 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
 
 it('normalizes additional thesaurus schemes and preserves notation values', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-instruments.json', json_encode([[
+    Storage::disk('local')->put('gcmd-instruments.json', json_encode([[
         'id' => 'instrument-root',
         'text' => 'Mass Spectrometer',
         'language' => 'en',
@@ -396,7 +412,7 @@ it('normalizes additional thesaurus schemes and preserves notation values', func
         'notation' => 101,
         'children' => [],
     ]], JSON_THROW_ON_ERROR));
-    Storage::disk('local')->put('private/chronostrat-timescale.json', json_encode([[
+    Storage::disk('local')->put('chronostrat-timescale.json', json_encode([[
         'id' => 'chrono-root',
         'text' => 'Holocene',
         'language' => 'en',
@@ -405,7 +421,7 @@ it('normalizes additional thesaurus schemes and preserves notation values', func
         'description' => '',
         'children' => [],
     ]], JSON_THROW_ON_ERROR));
-    Storage::disk('local')->put('private/gemet-thesaurus.json', json_encode([[
+    Storage::disk('local')->put('gemet-thesaurus.json', json_encode([[
         'id' => 'gemet-root',
         'text' => 'Soil',
         'language' => 'en',
@@ -414,7 +430,7 @@ it('normalizes additional thesaurus schemes and preserves notation values', func
         'description' => '',
         'children' => [],
     ]], JSON_THROW_ON_ERROR));
-    Storage::disk('local')->put('private/analytical-methods.json', json_encode([[
+    Storage::disk('local')->put('analytical-methods.json', json_encode([[
         'id' => 'analytical-root',
         'text' => 'Mass Spectrometry',
         'language' => 'en',
@@ -424,7 +440,7 @@ it('normalizes additional thesaurus schemes and preserves notation values', func
         'notation' => 'A-7',
         'children' => [],
     ]], JSON_THROW_ON_ERROR));
-    Storage::disk('local')->put('private/euroscivoc.json', json_encode([[
+    Storage::disk('local')->put('euroscivoc.json', json_encode([[
         'id' => 'euroscivoc-root',
         'text' => 'Mathematics',
         'language' => 'en',
@@ -458,11 +474,11 @@ it('normalizes additional thesaurus schemes and preserves notation values', func
 
 it('skips invalid vocabulary payloads and non-array roots', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-science-keywords.json', '{invalid json');
-    Storage::disk('local')->put('private/gcmd-platforms.json', json_encode([
+    Storage::disk('local')->put('gcmd-science-keywords.json', '{invalid json');
+    Storage::disk('local')->put('gcmd-platforms.json', json_encode([
         'data' => 'not-an-array',
     ], JSON_THROW_ON_ERROR));
-    Storage::disk('local')->put('private/gcmd-instruments.json', json_encode([
+    Storage::disk('local')->put('gcmd-instruments.json', json_encode([
         'data' => [
             'skip-me',
             [
@@ -472,7 +488,7 @@ it('skips invalid vocabulary payloads and non-array roots', function () {
                 'scheme' => 'GCMD Instrument Concepts',
                 'schemeURI' => 'https://example.test/instruments',
                 'description' => '',
-                'children' => [],
+                'children' => 'not-an-array',
             ],
         ],
     ], JSON_THROW_ON_ERROR));
@@ -490,7 +506,7 @@ it('skips invalid vocabulary payloads and non-array roots', function () {
 
 it('ignores blank selected thesaurus node ids while resolving descendants', function () {
     Storage::fake('local');
-    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
         'lastUpdated' => now()->toIso8601String(),
         'data' => [[
             'id' => 'science-root',
@@ -519,4 +535,38 @@ it('ignores blank selected thesaurus node ids while resolving descendants', func
 
     expect($resolved)->toHaveCount(1)
         ->and($resolved[0]['id'])->toBe('science-earth');
+});
+
+it('resolves selected thesaurus nodes with matching raw subject scheme aliases', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-gnss',
+                'text' => 'GNSS',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'GNSS', 'subject_scheme' => 'NASA/GCMD Earth Science Keywords', 'value_uri' => 'science-gnss'],
+    ]);
+
+    $resolved = $this->service->resolveSelectedThesaurusNodes(['science-gnss']);
+
+    expect($resolved)->toHaveCount(1)
+        ->and($resolved[0]['scheme'])->toBe('Science Keywords')
+        ->and($resolved[0]['subject_schemes'])->toContain('NASA/GCMD Earth Science Keywords');
 });

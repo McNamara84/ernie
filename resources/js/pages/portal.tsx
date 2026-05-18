@@ -193,6 +193,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
     const handlePageChange = useCallback(
         (page: number) => {
             const params = new URLSearchParams();
+            const hasSplitKeywordFilters = (filters.freeKeywords?.length ?? 0) > 0 || (filters.thesaurusKeywords?.length ?? 0) > 0;
 
             if (filters.query && filters.query.trim() !== '') {
                 params.set('q', filters.query.trim());
@@ -208,7 +209,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 params.set('type', 'doi');
             }
 
-            if (filters.keywords && filters.keywords.length > 0) {
+            if (!hasSplitKeywordFilters && filters.keywords && filters.keywords.length > 0) {
                 filters.keywords.forEach((kw) => {
                     params.append('keywords[]', kw);
                 });
@@ -259,7 +260,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
             <Head title="Data Portal" />
 
             <div className="flex min-h-0 flex-1 flex-col">
-                <div className="border-b bg-background/80 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/70 md:px-6">
+                <div className="border-b bg-background/80 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
                             <h2 className="text-lg font-semibold text-foreground">Explore published records</h2>

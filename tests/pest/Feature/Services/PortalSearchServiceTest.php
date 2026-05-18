@@ -49,24 +49,30 @@ function createPublishedResourceForSearch(string $title, TitleType $titleType, ?
 }
 
 /**
- * @param  array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
+ * @param  array<int, array{id: string, scheme: string, subject_schemes?: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
  */
 function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNodes): PortalSearchService
 {
     return new PortalSearchService(new class($resolvedNodes) extends KeywordSuggestionService
     {
         /**
-         * @param  array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
+         * @param  array<int, array{id: string, scheme: string, subject_schemes?: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
          */
         public function __construct(private array $resolvedNodes) {}
 
         /**
          * @param  array<int, string>  $selectedNodeIds
-         * @return array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
+         * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
          */
         public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
         {
-            return $this->resolvedNodes;
+            return array_map(
+                static fn (array $resolvedNode): array => [
+                    ...$resolvedNode,
+                    'subject_schemes' => $resolvedNode['subject_schemes'] ?? [$resolvedNode['scheme']],
+                ],
+                $this->resolvedNodes,
+            );
         }
     });
 }

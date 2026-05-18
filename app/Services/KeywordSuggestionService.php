@@ -6,9 +6,8 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\Subject;
-use App\Support\AnalyticalMethodsVocabularyParser;
-use App\Support\ChronostratVocabularyParser;
 use App\Support\GemetVocabularyParser;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
@@ -21,6 +20,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class KeywordSuggestionService
 {
+    use ChecksCacheTagging;
+
     private const SCHEME_ICS_CHRONOSTRAT = 'International Chronostratigraphic Chart';
 
     private const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
@@ -60,11 +61,12 @@ class KeywordSuggestionService
     public function getFreeKeywordSuggestions(): array
     {
         /** @var array<int, array{value: string, scheme: null, count: int}> */
-        return Cache::remember(
-            CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(),
-            CacheKey::PORTAL_KEYWORD_SUGGESTIONS->ttl(),
-            fn (): array => $this->fetchFreeKeywordSuggestions(),
-        );
+        return $this->getCacheInstance(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags())
+            ->remember(
+                CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(),
+                CacheKey::PORTAL_KEYWORD_SUGGESTIONS->ttl(),
+                fn (): array => $this->fetchFreeKeywordSuggestions(),
+            );
     }
 
     /**
@@ -75,11 +77,12 @@ class KeywordSuggestionService
     public function getThesaurusFacets(): array
     {
         /** @var array<int, array{scheme: string, roots: array<int, array<string, mixed>>}> */
-        return Cache::remember(
-            CacheKey::PORTAL_THESAURUS_FACETS->key(),
-            CacheKey::PORTAL_THESAURUS_FACETS->ttl(),
-            fn (): array => $this->fetchThesaurusFacets(),
-        );
+        return $this->getCacheInstance(CacheKey::PORTAL_THESAURUS_FACETS->tags())
+            ->remember(
+                CacheKey::PORTAL_THESAURUS_FACETS->key(),
+                CacheKey::PORTAL_THESAURUS_FACETS->ttl(),
+                fn (): array => $this->fetchThesaurusFacets(),
+            );
     }
 
     /**
@@ -87,7 +90,7 @@ class KeywordSuggestionService
      * used for query building.
      *
      * @param  array<int, string>  $selectedNodeIds
-     * @return array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
+    * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
      */
     public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
     {
@@ -108,6 +111,7 @@ class KeywordSuggestionService
             }
         }
 
+        $usedSubjects = $this->buildUsedControlledSubjectIndex();
         $resolved = [];
 
         foreach ($normalizedIds as $nodeId) {
@@ -115,7 +119,15 @@ class KeywordSuggestionService
                 continue;
             }
 
-            $resolved[] = $index[$nodeId];
+            $resolvedNode = $index[$nodeId];
+            $subjectSchemes = array_keys($usedSubjects[$resolvedNode['scheme']]['schemes'] ?? []);
+
+            if ($subjectSchemes === []) {
+                $subjectSchemes = [$resolvedNode['scheme']];
+            }
+
+            $resolvedNode['subject_schemes'] = $subjectSchemes;
+            $resolved[] = $resolvedNode;
         }
 
         return $resolved;
@@ -126,8 +138,8 @@ class KeywordSuggestionService
      */
     public function invalidateCache(): void
     {
-        Cache::forget(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key());
-        Cache::forget(CacheKey::PORTAL_THESAURUS_FACETS->key());
+        CacheKey::PORTAL_KEYWORD_SUGGESTIONS->forget();
+        CacheKey::PORTAL_THESAURUS_FACETS->forget();
     }
 
     /**
@@ -201,7 +213,7 @@ class KeywordSuggestionService
     }
 
     /**
-     * @return array<string, array{ids: array<string, true>, values: array<string, true>}>
+    * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
      */
     private function buildUsedControlledSubjectIndex(): array
     {
@@ -222,7 +234,12 @@ class KeywordSuggestionService
                     return;
                 }
 
-                $usedSubjects[$scheme] ??= ['ids' => [], 'values' => []];
+                $usedSubjects[$scheme] ??= ['ids' => [], 'values' => [], 'schemes' => []];
+
+                $rawScheme = trim((string) $subject->subject_scheme);
+                if ($rawScheme !== '') {
+                    $usedSubjects[$scheme]['schemes'][$rawScheme] = true;
+                }
 
                 $trimmedValue = trim($subject->value);
                 if ($trimmedValue !== '') {
@@ -243,12 +260,11 @@ class KeywordSuggestionService
      */
     private function loadVocabularyRoots(string $fileName, string $fallbackScheme): array
     {
-        $path = 'private/' . $fileName;
-        if (! Storage::disk('local')->exists($path)) {
+        if (! Storage::disk('local')->exists($fileName)) {
             return [];
         }
 
-        $contents = Storage::disk('local')->get($path);
+        $contents = Storage::disk('local')->get($fileName);
         if (! is_string($contents)) {
             return [];
         }
@@ -282,8 +298,13 @@ class KeywordSuggestionService
     private function normalizeVocabularyNode(array $node, string $fallbackScheme): array
     {
         $children = [];
+        $rawChildren = $node['children'] ?? [];
 
-        foreach (($node['children'] ?? []) as $child) {
+        if (! is_array($rawChildren)) {
+            $rawChildren = [];
+        }
+
+        foreach ($rawChildren as $child) {
             if (! is_array($child)) {
                 continue;
             }
@@ -312,7 +333,7 @@ class KeywordSuggestionService
     {
         $children = [];
 
-        foreach ($node['children'] as $child) {
+        foreach ($this->childrenOfNode($node) as $child) {
             if (! is_array($child)) {
                 continue;
             }
@@ -375,7 +396,7 @@ class KeywordSuggestionService
             ];
         }
 
-        foreach ($node['children'] as $child) {
+        foreach ($this->childrenOfNode($node) as $child) {
             if (! is_array($child)) {
                 continue;
             }
@@ -401,13 +422,24 @@ class KeywordSuggestionService
             $descendantValues[] = $nodeText;
         }
 
-        foreach ($node['children'] as $child) {
+        foreach ($this->childrenOfNode($node) as $child) {
             if (! is_array($child)) {
                 continue;
             }
 
             $this->collectDescendants($child, $descendantIds, $descendantValues);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @return array<int, mixed>
+     */
+    private function childrenOfNode(array $node): array
+    {
+        $children = $node['children'] ?? [];
+
+        return is_array($children) ? $children : [];
     }
 
     private function normalizeScheme(?string $scheme): ?string

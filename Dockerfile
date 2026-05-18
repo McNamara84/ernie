@@ -3,7 +3,7 @@ FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc
 WORKDIR /var/www/html
 
 # Install system dependencies needed for the PHP runtime and extension builds.
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN apt-get update && apt-get install -y \
     libnghttp2-14 \
     git \
     curl \
@@ -20,6 +20,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     netcat-traditional \
     ca-certificates \
     gnupg \
+    && apt-get install -y --only-upgrade libcap2 libsystemd0 libudev1 linux-libc-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

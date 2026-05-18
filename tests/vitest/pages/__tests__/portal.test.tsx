@@ -319,6 +319,33 @@ describe('Portal', () => {
         expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
     });
 
+    it('drops legacy keywords on page change when split keyword filters are active', async () => {
+        const user = userEvent.setup();
+        const propsWithMixedKeywordFilters = {
+            ...defaultProps,
+            filters: {
+                query: '',
+                type: [] as string[],
+                keywords: ['Legacy Keyword'],
+                freeKeywords: ['Seismology'],
+                thesaurusKeywords: ['earth-science'],
+                datacenter: [],
+                bounds: null,
+                temporal: null,
+            },
+        };
+
+        render(<Portal {...propsWithMixedKeywordFilters} />);
+
+        const nextButtons = screen.getAllByTestId('next-page');
+        await user.click(nextButtons[0]);
+
+        const calledUrl = routerMock.get.mock.calls[0][0] as string;
+        expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+        expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
+        expect(calledUrl).not.toContain('keywords%5B%5D=Legacy+Keyword');
+    });
+
     it('persists map collapsed state to localStorage', async () => {
         render(<Portal {...defaultProps} />);
         expect(localStorage.getItem('portal-map-collapsed')).toBe('false');

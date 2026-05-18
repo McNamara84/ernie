@@ -44,22 +44,30 @@ class PortalController extends Controller
         // emits ?type=doi (preserving the exclusion on pagination/navigation).
         $typeSlugs = $isLegacyDoi ? [] : $this->normalizeTypeSlugs($rawType);
 
+        $legacyKeywords = array_slice(array_filter(
+            (array) $request->query('keywords', []),
+            static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+        ), 0, 20);
+        $freeKeywords = array_slice(array_filter(
+            (array) $request->query('free_keywords', []),
+            static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+        ), 0, 20);
+        $thesaurusKeywords = array_slice(array_filter(
+            (array) $request->query('thesaurus_keywords', []),
+            static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
+        ), 0, 20);
+
+        if ($freeKeywords !== [] || $thesaurusKeywords !== []) {
+            $legacyKeywords = [];
+        }
+
         $filters = [
             'query' => $request->query('q'),
             'type' => $typeSlugs,
             'exclude_type' => $excludeType,
-            'keywords' => array_slice(array_filter(
-                (array) $request->query('keywords', []),
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ), 0, 20),
-            'free_keywords' => array_slice(array_filter(
-                (array) $request->query('free_keywords', []),
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ), 0, 20),
-            'thesaurus_keywords' => array_slice(array_filter(
-                (array) $request->query('thesaurus_keywords', []),
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ), 0, 20),
+            'keywords' => $legacyKeywords,
+            'free_keywords' => $freeKeywords,
+            'thesaurus_keywords' => $thesaurusKeywords,
             'datacenter' => array_values(array_slice(array_filter(
                 array_map(trim(...), array_filter(
                     (array) $request->query('datacenter', []),

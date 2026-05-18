@@ -185,7 +185,7 @@ enum CacheKey: string
 
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
 
-            self::PORTAL_THESAURUS_FACETS => ['portal', 'thesauri'],
+            self::PORTAL_THESAURUS_FACETS => ['portal', 'thesauri', 'vocabularies'],
 
             self::PORTAL_TEMPORAL_RANGE => ['portal', 'temporal'],
 

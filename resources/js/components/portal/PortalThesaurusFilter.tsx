@@ -70,16 +70,17 @@ function ThesaurusTreeNode({ node, level = 0, selectedNodeIds, onToggleNode }: T
                     aria-label={`Select thesaurus keyword ${node.text}`}
                 />
 
-                <button
+                <Button
                     type="button"
+                    variant="ghost"
                     className={cn(
-                        'min-w-0 flex-1 truncate text-left text-sm',
+                        'h-auto min-w-0 flex-1 justify-start px-0 py-0 text-left text-sm hover:bg-transparent',
                         isSelected ? 'font-medium text-foreground' : 'text-muted-foreground',
                     )}
                     onClick={() => onToggleNode(node.id)}
                 >
-                    {node.text}
-                </button>
+                    <span className="block min-w-0 truncate">{node.text}</span>
+                </Button>
             </div>
 
             {hasChildren && isExpanded && (
