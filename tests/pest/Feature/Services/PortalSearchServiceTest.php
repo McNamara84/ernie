@@ -485,6 +485,37 @@ describe('thesaurus keyword filtering edge cases', function () {
             ->and($results->items()[0]->id)->toBe($matching->id);
     });
 
+    it('matches thesaurus keywords stored as breadcrumb paths when resolved descendants have no ids', function () {
+        $matching = createPublishedResourceForSearch('Controlled Seismology', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+            'subject_scheme' => 'GCMD Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-solid-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords', 'GCMD Science Keywords'],
+            'descendant_ids' => [],
+            'descendant_values' => [
+                'EARTH SCIENCE > SOLID EARTH',
+                'SOLID EARTH',
+                'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+                'SOLID EARTH > SEISMOLOGY',
+                'SEISMOLOGY',
+            ],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-solid-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
     it('returns no results when a resolved thesaurus node has no matchable descendants', function () {
         createPublishedResourceForSearch('Published Resource', $this->titleType);
 

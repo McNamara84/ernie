@@ -242,6 +242,58 @@ it('builds pruned thesaurus facets from published controlled keywords', function
         ->and($facets[1]['roots'][0]['children'][0]['text'])->toBe('Rock');
 });
 
+it('builds pruned thesaurus facets from breadcrumb controlled keywords without value uri', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-solid-earth',
+                    'text' => 'SOLID EARTH',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [[
+                        'id' => 'science-seismology',
+                        'text' => 'SEISMOLOGY',
+                        'language' => 'en',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'schemeURI' => 'https://example.test/science',
+                        'description' => '',
+                        'children' => [],
+                    ]],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY', 'subject_scheme' => 'GCMD Science Keywords', 'value_uri' => null],
+    ]);
+
+    $facets = $this->service->getThesaurusFacets();
+
+    expect($facets)->toHaveCount(1)
+        ->and($facets[0]['scheme'])->toBe('Science Keywords')
+        ->and($facets[0]['roots'][0]['children'][0]['text'])->toBe('EARTH SCIENCE')
+        ->and($facets[0]['roots'][0]['children'][0]['children'][0]['text'])->toBe('SOLID EARTH')
+        ->and($facets[0]['roots'][0]['children'][0]['children'][0]['children'][0]['text'])->toBe('SEISMOLOGY');
+});
+
 it('keeps ancestors when only descendant terms are used', function () {
     Storage::fake('local');
     Storage::disk('local')->put('gcmd-platforms.json', json_encode([
@@ -325,7 +377,13 @@ it('resolves selected thesaurus nodes to descendant IDs and values', function ()
     expect($resolved)->toHaveCount(1)
         ->and($resolved[0]['scheme'])->toBe('Science Keywords')
         ->and($resolved[0]['descendant_ids'])->toBe(['science-earth', 'science-gnss'])
-        ->and($resolved[0]['descendant_values'])->toBe(['EARTH SCIENCE', 'GNSS']);
+        ->and($resolved[0]['descendant_values'])->toBe([
+            'Science Keywords > EARTH SCIENCE',
+            'EARTH SCIENCE',
+            'Science Keywords > EARTH SCIENCE > GNSS',
+            'EARTH SCIENCE > GNSS',
+            'GNSS',
+        ]);
 });
 
 it('invalidates cached free keyword suggestions and thesaurus facets', function () {
@@ -569,4 +627,50 @@ it('resolves selected thesaurus nodes with matching raw subject scheme aliases',
     expect($resolved)->toHaveCount(1)
         ->and($resolved[0]['scheme'])->toBe('Science Keywords')
         ->and($resolved[0]['subject_schemes'])->toContain('NASA/GCMD Earth Science Keywords');
+});
+
+it('invalidates the cached controlled subject index together with thesaurus facets', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-gnss',
+                'text' => 'GNSS',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+    ]);
+
+    CacheKey::PORTAL_THESAURUS_FACETS->forget();
+    putCacheValue(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->tags(), CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->key(), [
+        'Science Keywords' => [
+            'ids' => ['science-missing' => true],
+            'values' => [],
+            'schemes' => ['Science Keywords' => true],
+        ],
+    ]);
+
+    expect($this->service->getThesaurusFacets())->toBe([]);
+
+    $this->service->invalidateCache();
+
+    $facets = $this->service->getThesaurusFacets();
+
+    expect($facets)->toHaveCount(1)
+        ->and($facets[0]['roots'][0]['children'][0]['text'])->toBe('GNSS');
 });

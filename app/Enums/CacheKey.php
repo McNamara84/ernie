@@ -43,6 +43,7 @@ enum CacheKey: string
     // Portal cache keys
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
     case PORTAL_THESAURUS_FACETS = 'portal:thesaurus_facets';
+    case PORTAL_THESAURUS_SUBJECT_INDEX = 'portal:thesaurus_subject_index';
     case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
@@ -125,7 +126,8 @@ enum CacheKey: string
 
             // Portal keyword facets - 1 hour
             self::PORTAL_KEYWORD_SUGGESTIONS,
-            self::PORTAL_THESAURUS_FACETS => 3600,
+            self::PORTAL_THESAURUS_FACETS,
+            self::PORTAL_THESAURUS_SUBJECT_INDEX => 3600,
 
             // Portal temporal range - 1 hour (year boundaries change infrequently)
             self::PORTAL_TEMPORAL_RANGE => 3600,
@@ -185,7 +187,8 @@ enum CacheKey: string
 
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
 
-            self::PORTAL_THESAURUS_FACETS => ['portal', 'thesauri', 'vocabularies'],
+            self::PORTAL_THESAURUS_FACETS,
+            self::PORTAL_THESAURUS_SUBJECT_INDEX => ['portal', 'thesauri', 'vocabularies'],
 
             self::PORTAL_TEMPORAL_RANGE => ['portal', 'temporal'],
 

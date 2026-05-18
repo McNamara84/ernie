@@ -22,6 +22,8 @@ class KeywordSuggestionService
 {
     use ChecksCacheTagging;
 
+    private const BREADCRUMB_SEPARATOR = ' > ';
+
     private const SCHEME_ICS_CHRONOSTRAT = 'International Chronostratigraphic Chart';
 
     private const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
@@ -111,7 +113,7 @@ class KeywordSuggestionService
             }
         }
 
-        $usedSubjects = $this->buildUsedControlledSubjectIndex();
+        $usedSubjects = $this->getUsedControlledSubjectIndex();
         $resolved = [];
 
         foreach ($normalizedIds as $nodeId) {
@@ -140,6 +142,7 @@ class KeywordSuggestionService
     {
         CacheKey::PORTAL_KEYWORD_SUGGESTIONS->forget();
         CacheKey::PORTAL_THESAURUS_FACETS->forget();
+        CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->forget();
     }
 
     /**
@@ -179,7 +182,7 @@ class KeywordSuggestionService
      */
     private function fetchThesaurusFacets(): array
     {
-        $usedSubjects = $this->buildUsedControlledSubjectIndex();
+        $usedSubjects = $this->getUsedControlledSubjectIndex();
         $facets = [];
 
         foreach (self::THESAURUS_SOURCES as $source) {
@@ -213,7 +216,21 @@ class KeywordSuggestionService
     }
 
     /**
-    * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
+     * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
+     */
+    private function getUsedControlledSubjectIndex(): array
+    {
+        /** @var array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}> */
+        return $this->getCacheInstance(CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->tags())
+            ->remember(
+                CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->key(),
+                CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->ttl(),
+                fn (): array => $this->buildUsedControlledSubjectIndex(),
+            );
+    }
+
+    /**
+     * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
      */
     private function buildUsedControlledSubjectIndex(): array
     {
@@ -241,9 +258,9 @@ class KeywordSuggestionService
                     $usedSubjects[$scheme]['schemes'][$rawScheme] = true;
                 }
 
-                $trimmedValue = trim($subject->value);
-                if ($trimmedValue !== '') {
-                    $usedSubjects[$scheme]['values'][mb_strtolower($trimmedValue)] = true;
+                $normalizedValue = $this->normalizeControlledSubjectValue($subject->value);
+                if ($normalizedValue !== null) {
+                    $usedSubjects[$scheme]['values'][mb_strtolower($normalizedValue)] = true;
                 }
 
                 $valueUri = trim((string) $subject->value_uri);
@@ -327,10 +344,12 @@ class KeywordSuggestionService
     /**
      * @param  array<string, mixed>|null  $lookup
      * @param  array<string, mixed>  $node
+        * @param  array<int, string>  $pathSegments
      * @return array<string, mixed>|null
      */
-    private function pruneVocabularyNode(array $node, ?array $lookup): ?array
+    private function pruneVocabularyNode(array $node, ?array $lookup, array $pathSegments = []): ?array
     {
+        $currentPathSegments = $this->extendPathSegments($pathSegments, $node);
         $children = [];
 
         foreach ($this->childrenOfNode($node) as $child) {
@@ -338,13 +357,13 @@ class KeywordSuggestionService
                 continue;
             }
 
-            $prunedChild = $this->pruneVocabularyNode($child, $lookup);
+            $prunedChild = $this->pruneVocabularyNode($child, $lookup, $currentPathSegments);
             if ($prunedChild !== null) {
                 $children[] = $prunedChild;
             }
         }
 
-        if (! $this->isVocabularyNodeUsed($node, $lookup) && $children === []) {
+        if (! $this->isVocabularyNodeUsed($node, $lookup, $currentPathSegments) && $children === []) {
             return null;
         }
 
@@ -356,8 +375,9 @@ class KeywordSuggestionService
     /**
      * @param  array<string, mixed>|null  $lookup
      * @param  array<string, mixed>  $node
+        * @param  array<int, string>  $pathSegments
      */
-    private function isVocabularyNodeUsed(array $node, ?array $lookup): bool
+    private function isVocabularyNodeUsed(array $node, ?array $lookup, array $pathSegments): bool
     {
         if ($lookup === null) {
             return false;
@@ -368,23 +388,26 @@ class KeywordSuggestionService
             return true;
         }
 
-        $nodeText = trim((string) ($node['text'] ?? ''));
-        if ($nodeText === '') {
-            return false;
+        foreach ($this->buildBreadcrumbMatchValues($pathSegments) as $matchValue) {
+            if (isset($lookup['values'][mb_strtolower($matchValue)])) {
+                return true;
+            }
         }
 
-        return isset($lookup['values'][mb_strtolower($nodeText)]);
+        return false;
     }
 
     /**
      * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
      * @param  array<string, mixed>  $node
+        * @param  array<int, string>  $pathSegments
      */
-    private function indexFacetNode(array $node, array &$index): void
+    private function indexFacetNode(array $node, array &$index, array $pathSegments = []): void
     {
+        $currentPathSegments = $this->extendPathSegments($pathSegments, $node);
         $descendantIds = [];
         $descendantValues = [];
-        $this->collectDescendants($node, $descendantIds, $descendantValues);
+        $this->collectDescendants($node, $descendantIds, $descendantValues, $pathSegments);
 
         $nodeId = trim((string) ($node['id'] ?? ''));
         if ($nodeId !== '') {
@@ -401,7 +424,7 @@ class KeywordSuggestionService
                 continue;
             }
 
-            $this->indexFacetNode($child, $index);
+            $this->indexFacetNode($child, $index, $currentPathSegments);
         }
     }
 
@@ -409,17 +432,18 @@ class KeywordSuggestionService
      * @param  array<int, string>  $descendantIds
      * @param  array<int, string>  $descendantValues
      * @param  array<string, mixed>  $node
+        * @param  array<int, string>  $pathSegments
      */
-    private function collectDescendants(array $node, array &$descendantIds, array &$descendantValues): void
+    private function collectDescendants(array $node, array &$descendantIds, array &$descendantValues, array $pathSegments = []): void
     {
+        $currentPathSegments = $this->extendPathSegments($pathSegments, $node);
         $nodeId = trim((string) ($node['id'] ?? ''));
         if ($nodeId !== '') {
             $descendantIds[] = $nodeId;
         }
 
-        $nodeText = trim((string) ($node['text'] ?? ''));
-        if ($nodeText !== '') {
-            $descendantValues[] = $nodeText;
+        foreach ($this->buildBreadcrumbMatchValues($currentPathSegments) as $matchValue) {
+            $descendantValues[] = $matchValue;
         }
 
         foreach ($this->childrenOfNode($node) as $child) {
@@ -427,8 +451,51 @@ class KeywordSuggestionService
                 continue;
             }
 
-            $this->collectDescendants($child, $descendantIds, $descendantValues);
+            $this->collectDescendants($child, $descendantIds, $descendantValues, $currentPathSegments);
         }
+    }
+
+    /**
+     * @param  array<int, string>  $pathSegments
+     * @param  array<string, mixed>  $node
+     * @return array<int, string>
+     */
+    private function extendPathSegments(array $pathSegments, array $node): array
+    {
+        $nodeText = trim((string) ($node['text'] ?? ''));
+        if ($nodeText === '') {
+            return $pathSegments;
+        }
+
+        $pathSegments[] = $nodeText;
+
+        return $pathSegments;
+    }
+
+    /**
+     * @param  array<int, string>  $pathSegments
+     * @return array<int, string>
+     */
+    private function buildBreadcrumbMatchValues(array $pathSegments): array
+    {
+        if ($pathSegments === []) {
+            return [];
+        }
+
+        $variants = [];
+        $segmentCount = count($pathSegments);
+
+        for ($offset = 0; $offset < $segmentCount; $offset++) {
+            $variant = $this->normalizeControlledSubjectValue(
+                implode(self::BREADCRUMB_SEPARATOR, array_slice($pathSegments, $offset)),
+            );
+
+            if ($variant !== null) {
+                $variants[] = $variant;
+            }
+        }
+
+        return array_values(array_unique($variants));
     }
 
     /**
@@ -440,6 +507,20 @@ class KeywordSuggestionService
         $children = $node['children'] ?? [];
 
         return is_array($children) ? $children : [];
+    }
+
+    private function normalizeControlledSubjectValue(?string $value): ?string
+    {
+        $trimmed = trim((string) $value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        $normalizedSeparators = preg_replace('/\s*>\s*/u', self::BREADCRUMB_SEPARATOR, $trimmed) ?? $trimmed;
+        $normalizedWhitespace = preg_replace('/\s+/u', ' ', $normalizedSeparators) ?? $normalizedSeparators;
+        $normalizedValue = trim($normalizedWhitespace);
+
+        return $normalizedValue === '' ? null : $normalizedValue;
     }
 
     private function normalizeScheme(?string $scheme): ?string
