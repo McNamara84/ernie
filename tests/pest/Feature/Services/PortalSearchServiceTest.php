@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Cache;
 covers(PortalSearchService::class);
 
 beforeEach(function () {
-    $this->service = new PortalSearchService;
+    $this->service = app(PortalSearchService::class);
     $this->titleType = TitleType::factory()->create(['name' => 'Main Title', 'slug' => 'main-title']);
 });
 

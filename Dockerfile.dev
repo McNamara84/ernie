@@ -14,7 +14,7 @@ WORKDIR /var/www/html
 
 # Install system dependencies and Node.js in a single layer for efficiency.
 # Node.js 24 LTS is installed from NodeSource, which includes npm.
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     git \
     curl \
     libpng-dev \
