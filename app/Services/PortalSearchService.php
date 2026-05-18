@@ -430,8 +430,10 @@ class PortalSearchService
             }
 
             $query->whereHas('subjects', function (Builder $q) use ($keyword): void {
-                $q->whereNull('subject_scheme')
-                    ->where('value', $keyword);
+                $q->where(function (Builder $subjectQuery): void {
+                    $subjectQuery->whereNull('subject_scheme')
+                        ->orWhere('subject_scheme', '');
+                })->where('value', $keyword);
             });
         }
     }

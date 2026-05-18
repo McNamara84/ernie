@@ -7,6 +7,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Subject;
+use App\Models\ThesaurusSetting;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -174,6 +175,27 @@ describe('Portal Keyword Filter', function () {
                 ->where('thesaurusFacets.0.scheme', 'Science Keywords')
                 ->where('thesaurusFacets.0.roots.0.children.0.children.0.text', 'GNSS')
             );
+    });
+
+    it('does not return disabled thesaurus facets with the portal page', function () {
+        ThesaurusSetting::create([
+            'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+            'display_name' => 'Science Keywords',
+            'is_active' => false,
+            'is_elmo_active' => true,
+        ]);
+
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Controlled Study',
+            [
+                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+            ],
+        );
+
+        $this->get(route('portal'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('thesaurusFacets', 0));
     });
 
     it('filters resources by a single keyword', function () {
@@ -347,6 +369,53 @@ describe('Portal Keyword Filter', function () {
             );
     });
 
+    it('filters resources by a single free keyword when the subject scheme is empty', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Imported Free Keyword Match',
+            [['value' => 'Seismology', 'subject_scheme' => '']],
+        );
+
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Controlled Keyword Match',
+            [['value' => 'Seismology', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-seismology']],
+        );
+
+        $this->get(route('portal', ['free_keywords' => ['Seismology']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 1)
+                ->where('resources.0.title', 'Imported Free Keyword Match')
+                ->where('filters.freeKeywords', ['Seismology'])
+            );
+    });
+
+    it('normalizes and deduplicates split keyword filters before returning them to the frontend', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Normalized Split Match',
+            [
+                ['value' => 'Seismology'],
+                ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+            ],
+        );
+
+        $this->get(route('portal', [
+            'keywords' => [' Legacy Keyword ', 'Legacy Keyword'],
+            'free_keywords' => ['  Seismology  ', 'Seismology', ''],
+            'thesaurus_keywords' => [' science-earth ', 'science-earth', ''],
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pagination.total', 1)
+                ->where('resources.0.title', 'Normalized Split Match')
+                ->where('filters.keywords', [])
+                ->where('filters.freeKeywords', ['Seismology'])
+                ->where('filters.thesaurusKeywords', ['science-earth'])
+            );
+    });
+
     it('filters resources by selected thesaurus parent nodes', function () {
         createPublishedResourceWithKeywords(
             $this->datasetType,
@@ -449,6 +518,21 @@ describe('Portal Keyword Suggestions', function () {
             ->assertInertia(fn (Assert $page) => $page
                 ->has('keywordSuggestions', 1)
                 ->where('keywordSuggestions.0.value', 'PublishedKeyword')
+            );
+    });
+
+    it('includes empty-string subject schemes in free keyword suggestions', function () {
+        createPublishedResourceWithKeywords(
+            $this->datasetType,
+            'Imported Study',
+            [['value' => 'ImportedFreeKeyword', 'subject_scheme' => '']],
+        );
+
+        $this->get(route('portal'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('keywordSuggestions', 1)
+                ->where('keywordSuggestions.0.value', 'ImportedFreeKeyword')
             );
     });
 

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\Subject;
+use App\Models\ThesaurusSetting;
 use App\Support\GemetVocabularyParser;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
@@ -29,17 +30,17 @@ class KeywordSuggestionService
     private const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
 
     /**
-     * @var list<array{file: string, fallback_scheme: string}>
+     * @var list<array{file: string, fallback_scheme: string, setting_type: string|null}>
      */
     private const THESAURUS_SOURCES = [
-        ['file' => 'gcmd-science-keywords.json', 'fallback_scheme' => 'Science Keywords'],
-        ['file' => 'gcmd-platforms.json', 'fallback_scheme' => 'Platforms'],
-        ['file' => 'gcmd-instruments.json', 'fallback_scheme' => 'Instruments'],
-        ['file' => 'msl-vocabulary.json', 'fallback_scheme' => 'EPOS MSL vocabulary'],
-        ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => self::SCHEME_ICS_CHRONOSTRAT],
-        ['file' => 'gemet-thesaurus.json', 'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE],
-        ['file' => 'analytical-methods.json', 'fallback_scheme' => self::SCHEME_ANALYTICAL_METHODS],
-        ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)'],
+        ['file' => 'gcmd-science-keywords.json', 'fallback_scheme' => 'Science Keywords', 'setting_type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS],
+        ['file' => 'gcmd-platforms.json', 'fallback_scheme' => 'Platforms', 'setting_type' => ThesaurusSetting::TYPE_PLATFORMS],
+        ['file' => 'gcmd-instruments.json', 'fallback_scheme' => 'Instruments', 'setting_type' => ThesaurusSetting::TYPE_INSTRUMENTS],
+        ['file' => 'msl-vocabulary.json', 'fallback_scheme' => 'EPOS MSL vocabulary', 'setting_type' => null],
+        ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => self::SCHEME_ICS_CHRONOSTRAT, 'setting_type' => ThesaurusSetting::TYPE_CHRONOSTRAT],
+        ['file' => 'gemet-thesaurus.json', 'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE, 'setting_type' => ThesaurusSetting::TYPE_GEMET],
+        ['file' => 'analytical-methods.json', 'fallback_scheme' => self::SCHEME_ANALYTICAL_METHODS, 'setting_type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS],
+        ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)', 'setting_type' => ThesaurusSetting::TYPE_EUROSCIVOC],
     ];
 
     /**
@@ -156,9 +157,9 @@ class KeywordSuggestionService
     private function fetchFreeKeywordSuggestions(): array
     {
         return Subject::query()
+            ->freeText()
             ->select('value')
             ->selectRaw('COUNT(DISTINCT resource_id) as usage_count')
-            ->whereNull('subject_scheme')
             ->whereHas('resource', function ($query): void {
                 $query->whereHas('landingPage', function ($q): void {
                     $q->where('is_published', true);
@@ -185,7 +186,7 @@ class KeywordSuggestionService
         $usedSubjects = $this->getUsedControlledSubjectIndex();
         $facets = [];
 
-        foreach (self::THESAURUS_SOURCES as $source) {
+        foreach ($this->getEnabledThesaurusSources() as $source) {
             $roots = $this->loadVocabularyRoots($source['file'], $source['fallback_scheme']);
             if ($roots === []) {
                 continue;
@@ -216,6 +217,29 @@ class KeywordSuggestionService
     }
 
     /**
+     * @return list<array{file: string, fallback_scheme: string, setting_type: string|null}>
+     */
+    private function getEnabledThesaurusSources(): array
+    {
+        /** @var array<string, bool> $activeSettings */
+        $activeSettings = ThesaurusSetting::query()
+            ->pluck('is_active', 'type')
+            ->map(static fn (mixed $isActive): bool => (bool) $isActive)
+            ->all();
+
+        return array_values(array_filter(
+            self::THESAURUS_SOURCES,
+            static function (array $source) use ($activeSettings): bool {
+                $settingType = $source['setting_type'];
+
+                return $settingType === null
+                    || ! array_key_exists($settingType, $activeSettings)
+                    || $activeSettings[$settingType];
+            },
+        ));
+    }
+
+    /**
      * @return array<string, array{ids: array<string, true>, values: array<string, true>, schemes: array<string, true>}>
      */
     private function getUsedControlledSubjectIndex(): array
@@ -237,8 +261,8 @@ class KeywordSuggestionService
         $usedSubjects = [];
 
         Subject::query()
+            ->controlled()
             ->select('subject_scheme', 'value', 'value_uri')
-            ->whereNotNull('subject_scheme')
             ->whereHas('resource', function ($query): void {
                 $query->whereHas('landingPage', function ($q): void {
                     $q->where('is_published', true);
@@ -342,9 +366,9 @@ class KeywordSuggestionService
     }
 
     /**
-     * @param  array<string, mixed>|null  $lookup
-     * @param  array<string, mixed>  $node
-        * @param  array<int, string>  $pathSegments
+      * @param  array<string, mixed>|null  $lookup
+      * @param  array<string, mixed>  $node
+      * @param  array<int, string>  $pathSegments
      * @return array<string, mixed>|null
      */
     private function pruneVocabularyNode(array $node, ?array $lookup, array $pathSegments = []): ?array
@@ -373,9 +397,9 @@ class KeywordSuggestionService
     }
 
     /**
-     * @param  array<string, mixed>|null  $lookup
-     * @param  array<string, mixed>  $node
-        * @param  array<int, string>  $pathSegments
+      * @param  array<string, mixed>|null  $lookup
+      * @param  array<string, mixed>  $node
+      * @param  array<int, string>  $pathSegments
      */
     private function isVocabularyNodeUsed(array $node, ?array $lookup, array $pathSegments): bool
     {
@@ -398,9 +422,9 @@ class KeywordSuggestionService
     }
 
     /**
-     * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
-     * @param  array<string, mixed>  $node
-        * @param  array<int, string>  $pathSegments
+      * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
+      * @param  array<string, mixed>  $node
+      * @param  array<int, string>  $pathSegments
      */
     private function indexFacetNode(array $node, array &$index, array $pathSegments = []): void
     {
@@ -429,10 +453,10 @@ class KeywordSuggestionService
     }
 
     /**
-     * @param  array<int, string>  $descendantIds
-     * @param  array<int, string>  $descendantValues
-     * @param  array<string, mixed>  $node
-        * @param  array<int, string>  $pathSegments
+      * @param  array<int, string>  $descendantIds
+      * @param  array<int, string>  $descendantValues
+      * @param  array<string, mixed>  $node
+      * @param  array<int, string>  $pathSegments
      */
     private function collectDescendants(array $node, array &$descendantIds, array &$descendantValues, array $pathSegments = []): void
     {

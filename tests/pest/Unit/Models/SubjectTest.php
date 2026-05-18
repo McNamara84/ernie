@@ -43,6 +43,12 @@ describe('isControlled', function () {
         expect($model->isControlled())->toBeTrue();
     });
 
+    it('returns false when subject_scheme is an empty string', function () {
+        $model = new Subject(['subject_scheme' => '']);
+
+        expect($model->isControlled())->toBeFalse();
+    });
+
     it('returns false when subject_scheme is null', function () {
         $model = new Subject(['subject_scheme' => null]);
 
@@ -53,6 +59,12 @@ describe('isControlled', function () {
 describe('isFreeText', function () {
     it('returns true when subject_scheme is null', function () {
         $model = new Subject(['subject_scheme' => null]);
+
+        expect($model->isFreeText())->toBeTrue();
+    });
+
+    it('returns true when subject_scheme is an empty string', function () {
+        $model = new Subject(['subject_scheme' => '']);
 
         expect($model->isFreeText())->toBeTrue();
     });

@@ -7,6 +7,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Subject;
+use App\Models\ThesaurusSetting;
 use App\Services\KeywordSuggestionService;
 use App\Support\GemetVocabularyParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -170,6 +171,18 @@ it('returns the free-keyword variant when the same value also exists as a contro
     expect($suggestions[0]['scheme'])->toBeNull();
 });
 
+it('treats empty subject schemes as free keyword suggestions', function () {
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'Imported Free Keyword', 'subject_scheme' => ''],
+    ]);
+
+    $suggestions = $this->service->getFreeKeywordSuggestions();
+
+    expect($suggestions)->toHaveCount(1)
+        ->and($suggestions[0]['value'])->toBe('Imported Free Keyword')
+        ->and($suggestions[0]['scheme'])->toBeNull();
+});
+
 it('builds pruned thesaurus facets from published controlled keywords', function () {
     Storage::fake('local');
     Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
@@ -240,6 +253,43 @@ it('builds pruned thesaurus facets from published controlled keywords', function
         ->and($facets[0]['roots'][0]['children'][0]['children'][0]['text'])->toBe('GNSS')
         ->and($facets[1]['scheme'])->toBe('EPOS MSL vocabulary')
         ->and($facets[1]['roots'][0]['children'][0]['text'])->toBe('Rock');
+});
+
+it('skips disabled thesaurus sources when building portal facets', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-gnss',
+                'text' => 'GNSS',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    ThesaurusSetting::create([
+        'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
+        'display_name' => 'Science Keywords',
+        'is_active' => false,
+        'is_elmo_active' => true,
+    ]);
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+    ]);
+
+    expect($this->service->getThesaurusFacets())->toBe([]);
 });
 
 it('builds pruned thesaurus facets from breadcrumb controlled keywords without value uri', function () {
