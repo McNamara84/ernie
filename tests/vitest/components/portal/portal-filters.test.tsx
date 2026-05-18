@@ -108,6 +108,35 @@ describe('PortalFilters', () => {
             expect(screen.getByText('Thesaurus Keywords')).toBeInTheDocument();
             expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
         });
+
+        it('uses default thesaurus props when the optional values are omitted', () => {
+            const propsWithoutOptionalThesaurus = { ...defaultProps };
+            Reflect.deleteProperty(propsWithoutOptionalThesaurus, 'onThesaurusKeywordsChange');
+            Reflect.deleteProperty(propsWithoutOptionalThesaurus, 'thesaurusFacets');
+
+            render(<PortalFilters {...propsWithoutOptionalThesaurus} />);
+
+            expect(screen.getByText('No thesaurus keywords available.')).toBeInTheDocument();
+        });
+    });
+
+    describe('Thesaurus Filter Interaction', () => {
+        it('forwards thesaurus node selections to the parent handler', async () => {
+            const user = userEvent.setup();
+            const onThesaurusKeywordsChange = vi.fn();
+
+            render(
+                <PortalFilters
+                    {...defaultProps}
+                    thesaurusFacets={defaultThesaurusFacets}
+                    onThesaurusKeywordsChange={onThesaurusKeywordsChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select thesaurus keyword EARTH SCIENCE'));
+
+            expect(onThesaurusKeywordsChange).toHaveBeenCalledWith(['earth-science']);
+        });
     });
 
     describe('Search Interaction', () => {

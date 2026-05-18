@@ -13,6 +13,7 @@ use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Support\Facades\Cache;
 
@@ -45,6 +46,29 @@ function createPublishedResourceForSearch(string $title, TitleType $titleType, ?
     ]);
 
     return $resource;
+}
+
+/**
+ * @param  array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
+ */
+function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNodes): PortalSearchService
+{
+    return new PortalSearchService(new class($resolvedNodes) extends KeywordSuggestionService
+    {
+        /**
+         * @param  array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
+         */
+        public function __construct(private array $resolvedNodes) {}
+
+        /**
+         * @param  array<int, string>  $selectedNodeIds
+         * @return array<int, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
+         */
+        public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
+        {
+            return $this->resolvedNodes;
+        }
+    });
 }
 
 // =========================================================================
@@ -366,6 +390,108 @@ describe('type filtering', function () {
         $results = $this->service->search(['type' => ['dataset', 'software']]);
 
         expect($results->total())->toBe(2);
+    });
+
+    it('supports the legacy doi type string and keeps untyped resources', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        $softwareType = ResourceType::factory()->create([
+            'name' => 'Software', 'slug' => 'software',
+        ]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        $dataset = createPublishedResourceForSearch('Dataset DOI', $this->titleType, $datasetType);
+        $software = createPublishedResourceForSearch('Software DOI', $this->titleType, $softwareType);
+        $untyped = createPublishedResourceForSearch('Untyped DOI', $this->titleType);
+        createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
+
+        $results = $this->service->search(['type' => 'doi']);
+
+        expect($results->total())->toBe(3)
+            ->and(array_map(static fn (Resource $resource): int => $resource->id, $results->items()))
+            ->toEqualCanonicalizing([$dataset->id, $software->id, $untyped->id]);
+    });
+
+    it('supports the legacy igsn type string', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        createPublishedResourceForSearch('Dataset DOI', $this->titleType, $datasetType);
+        $igsn = createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
+
+        $results = $this->service->search(['type' => 'igsn']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($igsn->id);
+    });
+});
+
+describe('legacy type mapping', function () {
+    it('maps legacy values to the expected resource type filters', function () {
+        ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        ResourceType::factory()->create([
+            'name' => 'Software', 'slug' => 'software',
+        ]);
+        ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        expect(PortalSearchService::mapLegacyTypeValue(''))->toBeNull();
+        expect(PortalSearchService::mapLegacyTypeValue('all'))->toBeNull();
+        expect(PortalSearchService::mapLegacyTypeValue('igsn'))->toBe(['physical-object']);
+        expect(PortalSearchService::mapLegacyTypeValue('custom-type'))->toBe(['custom-type']);
+        expect(PortalSearchService::mapLegacyTypeValue('doi'))
+            ->toEqualCanonicalizing(['dataset', 'software']);
+    });
+});
+
+describe('thesaurus keyword filtering edge cases', function () {
+    it('matches thesaurus keywords by value when resolved descendants have no ids', function () {
+        $matching = createPublishedResourceForSearch('Controlled GNSS', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-earth',
+            'scheme' => 'Science Keywords',
+            'descendant_ids' => [],
+            'descendant_values' => ['GNSS'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('returns no results when a resolved thesaurus node has no matchable descendants', function () {
+        createPublishedResourceForSearch('Published Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-empty',
+            'scheme' => 'Science Keywords',
+            'descendant_ids' => [],
+            'descendant_values' => [],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-empty']]);
+
+        expect($results->total())->toBe(0);
     });
 });
 

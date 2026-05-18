@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Services\KeywordSuggestionService;
+use App\Support\GemetVocabularyParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +30,7 @@ beforeEach(function () {
 /**
  * Create a published resource with subjects for testing.
  *
- * @param  array<int, array{value: string, subject_scheme?: string|null}>  $subjects
+ * @param  array<int, array{value: string, subject_scheme?: string|null, value_uri?: string|null}>  $subjects
  */
 function createResourceWithSubjects(ResourceType $type, array $subjects): Resource
 {
@@ -45,6 +47,7 @@ function createResourceWithSubjects(ResourceType $type, array $subjects): Resour
             'resource_id' => $resource->id,
             'value' => $subjectData['value'],
             'subject_scheme' => $subjectData['subject_scheme'] ?? null,
+            'value_uri' => $subjectData['value_uri'] ?? null,
         ]);
     }
 
@@ -308,4 +311,212 @@ it('resolves selected thesaurus nodes to descendant IDs and values', function ()
         ->and($resolved[0]['scheme'])->toBe('Science Keywords')
         ->and($resolved[0]['descendant_ids'])->toBe(['science-earth', 'science-gnss'])
         ->and($resolved[0]['descendant_values'])->toBe(['EARTH SCIENCE', 'GNSS']);
+});
+
+it('invalidates cached free keyword suggestions and thesaurus facets', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-gnss',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ], [
+                    'id' => 'science-atmosphere',
+                    'text' => 'ATMOSPHERE',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'Free A'],
+        ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss'],
+    ]);
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'Free B'],
+        ['value' => 'ATMOSPHERE', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-atmosphere'],
+    ]);
+
+    Cache::put(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(), [[
+        'value' => 'Stale Keyword',
+        'scheme' => null,
+        'count' => 99,
+    ]]);
+    Cache::put(CacheKey::PORTAL_THESAURUS_FACETS->key(), [[
+        'scheme' => 'Stale Scheme',
+        'roots' => [],
+    ]]);
+
+    expect(array_column($this->service->getFreeKeywordSuggestions(), 'value'))->toBe(['Stale Keyword'])
+        ->and($this->service->getThesaurusFacets()[0]['scheme'])->toBe('Stale Scheme');
+
+    $this->service->invalidateCache();
+
+    $updatedSuggestions = $this->service->getFreeKeywordSuggestions();
+    $updatedFacets = $this->service->getThesaurusFacets();
+
+    expect(array_column($updatedSuggestions, 'value'))->toEqualCanonicalizing(['Free A', 'Free B'])
+        ->and($updatedFacets[0]['roots'][0]['children'][0]['children'])->toHaveCount(2);
+});
+
+it('normalizes additional thesaurus schemes and preserves notation values', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-instruments.json', json_encode([[
+        'id' => 'instrument-root',
+        'text' => 'Mass Spectrometer',
+        'language' => 'en',
+        'scheme' => 'GCMD Instrument Concepts',
+        'schemeURI' => 'https://example.test/instruments',
+        'description' => '',
+        'notation' => 101,
+        'children' => [],
+    ]], JSON_THROW_ON_ERROR));
+    Storage::disk('local')->put('private/chronostrat-timescale.json', json_encode([[
+        'id' => 'chrono-root',
+        'text' => 'Holocene',
+        'language' => 'en',
+        'scheme' => 'Chronostrat Timescale',
+        'schemeURI' => 'https://example.test/chronostrat',
+        'description' => '',
+        'children' => [],
+    ]], JSON_THROW_ON_ERROR));
+    Storage::disk('local')->put('private/gemet-thesaurus.json', json_encode([[
+        'id' => 'gemet-root',
+        'text' => 'Soil',
+        'language' => 'en',
+        'scheme' => 'GEMET thesaurus',
+        'schemeURI' => 'https://example.test/gemet',
+        'description' => '',
+        'children' => [],
+    ]], JSON_THROW_ON_ERROR));
+    Storage::disk('local')->put('private/analytical-methods.json', json_encode([[
+        'id' => 'analytical-root',
+        'text' => 'Mass Spectrometry',
+        'language' => 'en',
+        'scheme' => 'Analytical Method Vocabulary',
+        'schemeURI' => 'https://example.test/analytical',
+        'description' => '',
+        'notation' => 'A-7',
+        'children' => [],
+    ]], JSON_THROW_ON_ERROR));
+    Storage::disk('local')->put('private/euroscivoc.json', json_encode([[
+        'id' => 'euroscivoc-root',
+        'text' => 'Mathematics',
+        'language' => 'en',
+        'scheme' => 'EuroSciVoc',
+        'schemeURI' => 'https://example.test/euroscivoc',
+        'description' => '',
+        'children' => [],
+    ]], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'Mass Spectrometer', 'subject_scheme' => 'Instruments', 'value_uri' => 'instrument-root'],
+        ['value' => 'Holocene', 'subject_scheme' => 'International Chronostratigraphic Chart', 'value_uri' => 'chrono-root'],
+        ['value' => 'Soil', 'subject_scheme' => GemetVocabularyParser::SCHEME_TITLE, 'value_uri' => 'gemet-root'],
+        ['value' => 'Mass Spectrometry', 'subject_scheme' => 'Analytical Methods for Geochemistry and Cosmochemistry', 'value_uri' => 'analytical-root'],
+        ['value' => 'Mathematics', 'subject_scheme' => 'European Science Vocabulary (EuroSciVoc)', 'value_uri' => 'euroscivoc-root'],
+    ]);
+
+    $facetsByScheme = collect($this->service->getThesaurusFacets())->keyBy('scheme');
+
+    expect($facetsByScheme->keys()->all())->toEqualCanonicalizing([
+        'Instruments',
+        'International Chronostratigraphic Chart',
+        GemetVocabularyParser::SCHEME_TITLE,
+        'Analytical Methods for Geochemistry and Cosmochemistry',
+        'European Science Vocabulary (EuroSciVoc)',
+    ]);
+
+    expect($facetsByScheme->get('Instruments')['roots'][0]['notation'])->toBe('101')
+        ->and($facetsByScheme->get('Analytical Methods for Geochemistry and Cosmochemistry')['roots'][0]['notation'])->toBe('A-7');
+});
+
+it('skips invalid vocabulary payloads and non-array roots', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-science-keywords.json', '{invalid json');
+    Storage::disk('local')->put('private/gcmd-platforms.json', json_encode([
+        'data' => 'not-an-array',
+    ], JSON_THROW_ON_ERROR));
+    Storage::disk('local')->put('private/gcmd-instruments.json', json_encode([
+        'data' => [
+            'skip-me',
+            [
+                'id' => 'instrument-root',
+                'text' => 'Instrument Node',
+                'language' => 'en',
+                'scheme' => 'GCMD Instrument Concepts',
+                'schemeURI' => 'https://example.test/instruments',
+                'description' => '',
+                'children' => [],
+            ],
+        ],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'Instrument Node', 'subject_scheme' => 'Instruments', 'value_uri' => 'instrument-root'],
+    ]);
+
+    $facets = $this->service->getThesaurusFacets();
+
+    expect($facets)->toHaveCount(1)
+        ->and($facets[0]['scheme'])->toBe('Instruments')
+        ->and($facets[0]['roots'][0]['text'])->toBe('Instrument Node');
+});
+
+it('ignores blank selected thesaurus node ids while resolving descendants', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('private/gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'EARTH SCIENCE', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-earth'],
+    ]);
+
+    $resolved = $this->service->resolveSelectedThesaurusNodes([' science-earth ', '', 'science-earth', '   ']);
+
+    expect($resolved)->toHaveCount(1)
+        ->and($resolved[0]['id'])->toBe('science-earth');
 });

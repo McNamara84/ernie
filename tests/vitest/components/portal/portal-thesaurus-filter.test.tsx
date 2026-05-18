@@ -37,6 +37,43 @@ const defaultFacets: PortalThesaurusFacet[] = [
     },
 ];
 
+const nestedFacets: PortalThesaurusFacet[] = [
+    {
+        scheme: 'Science Keywords',
+        roots: [
+            {
+                id: 'earth-science',
+                text: 'EARTH SCIENCE',
+                language: 'en',
+                scheme: 'Science Keywords',
+                schemeURI: 'https://example.test/science',
+                description: '',
+                children: [
+                    {
+                        id: 'solid-earth',
+                        text: 'SOLID EARTH',
+                        language: 'en',
+                        scheme: 'Science Keywords',
+                        schemeURI: 'https://example.test/science',
+                        description: '',
+                        children: [
+                            {
+                                id: 'bedrock',
+                                text: 'BEDROCK',
+                                language: 'en',
+                                scheme: 'Science Keywords',
+                                schemeURI: 'https://example.test/science',
+                                description: '',
+                                children: [],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+];
+
 describe('PortalThesaurusFilter', () => {
     const defaultProps = {
         facets: defaultFacets,
@@ -93,5 +130,77 @@ describe('PortalThesaurusFilter', () => {
         await user.click(screen.getByLabelText('Remove thesaurus keyword EARTH SCIENCE'));
 
         expect(onSelectionChange).toHaveBeenCalledWith([]);
+    });
+
+    it('toggles nested branches open and closed', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <PortalThesaurusFilter
+                facets={nestedFacets}
+                selectedNodeIds={[]}
+                onSelectionChange={vi.fn()}
+            />,
+        );
+
+        expect(screen.queryByText('BEDROCK')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Expand SOLID EARTH' }));
+        expect(screen.getByText('BEDROCK')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Collapse SOLID EARTH' }));
+        expect(screen.queryByText('BEDROCK')).not.toBeInTheDocument();
+    });
+
+    it('auto-expands ancestors of selected descendants and shows the selected count', () => {
+        render(
+            <PortalThesaurusFilter
+                facets={nestedFacets}
+                selectedNodeIds={['bedrock']}
+                onSelectionChange={vi.fn()}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: 'BEDROCK' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Collapse SOLID EARTH' })).toBeInTheDocument();
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+    });
+
+    it('toggles a node when its label button is clicked', async () => {
+        const user = userEvent.setup();
+        const onSelectionChange = vi.fn();
+
+        render(
+            <PortalThesaurusFilter
+                {...defaultProps}
+                onSelectionChange={onSelectionChange}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'EARTH SCIENCE' }));
+
+        expect(onSelectionChange).toHaveBeenCalledWith(['earth-science']);
+    });
+
+    it('falls back to the raw node id when a selected label is missing from the tree', () => {
+        render(
+            <PortalThesaurusFilter
+                {...defaultProps}
+                selectedNodeIds={['missing-node']}
+            />,
+        );
+
+        expect(screen.getByText('missing-node')).toBeInTheDocument();
+        expect(screen.getByLabelText('Remove thesaurus keyword missing-node')).toBeInTheDocument();
+    });
+
+    it('supports omitted optional props without crashing', async () => {
+        const user = userEvent.setup();
+
+        render(<PortalThesaurusFilter facets={defaultFacets} />);
+
+        await user.click(screen.getByRole('button', { name: 'EARTH SCIENCE' }));
+
+        expect(screen.getByText('Thesaurus Keywords')).toBeInTheDocument();
     });
 });
