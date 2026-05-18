@@ -81,7 +81,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
             <Label className="text-sm font-medium">
                 <span className="flex items-center gap-1.5">
                     <Tag className="h-3.5 w-3.5" />
-                    Keywords
+                    Free Keywords
                 </span>
             </Label>
 
@@ -161,7 +161,7 @@ export function PortalKeywordFilter({ suggestions, selectedKeywords, onKeywordsC
                 </PopoverContent>
             </Popover>
 
-            <p className="text-xs text-muted-foreground">Filter by free keywords or controlled vocabularies (GCMD, MSL, GEMET, ICS)</p>
+            <p className="text-xs text-muted-foreground">Filter by free-text keywords used in published records.</p>
         </div>
     );
 }

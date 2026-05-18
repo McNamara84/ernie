@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-15",
+        "date": "2026-05-18",
         "features": [
             {
                 "title": "Single DOI Import for GFZ Legacy Resources",
@@ -93,6 +93,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Split Portal Keyword Filters into Free and Thesaurus Search",
+                "description": "The public Data Portal now separates plain free-form keywords from controlled thesaurus terms. Free keywords remain available as the compact searchable multi-select, while controlled vocabularies are filtered in a dedicated hierarchical tree per thesaurus. Unused vocabulary branches are hidden automatically, selecting a parent term includes matching descendants, and multiple thesaurus selections are combined consistently with AND logic."
+            },
             {
                 "title": "Related Work editor, import, and landing-page citation flow",
                 "description": "Related Work now uses a single inline add form with auto-detected identifier types, a pinned 'Most used' relation-type block, editable cards, and drag-and-drop reordering. DOI-based related identifiers now resolve and persist citation labels during add, save, and import, while XML/JSON import also normalizes human-readable relation-type variants to the canonical DataCite values. Landing pages and the relation browser now reuse these persisted citation labels instead of fetching third-party citation data at runtime, reducing traffic and keeping related-work output stable even when external APIs are unavailable."

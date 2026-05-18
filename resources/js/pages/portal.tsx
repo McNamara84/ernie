@@ -18,7 +18,7 @@ const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
+export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, thesaurusFacets = [], temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
     const { isNavigating: isRefreshing } = useNavigationStatus('results');
 
@@ -60,7 +60,18 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
     }, []);
 
-    const { setSearch, setType, setDatacenter, setKeywords, setBounds, clearBounds, setTemporal, clearFilters, hasActiveFilters } = usePortalFilters({
+    const {
+        setSearch,
+        setType,
+        setDatacenter,
+        setFreeKeywords,
+        setThesaurusKeywords,
+        setBounds,
+        clearBounds,
+        setTemporal,
+        clearFilters,
+        hasActiveFilters,
+    } = usePortalFilters({
         filters,
         currentPage: pagination.current_page,
     });
@@ -203,6 +214,18 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                 });
             }
 
+            if (filters.freeKeywords && filters.freeKeywords.length > 0) {
+                filters.freeKeywords.forEach((kw) => {
+                    params.append('free_keywords[]', kw);
+                });
+            }
+
+            if (filters.thesaurusKeywords && filters.thesaurusKeywords.length > 0) {
+                filters.thesaurusKeywords.forEach((nodeId) => {
+                    params.append('thesaurus_keywords[]', nodeId);
+                });
+            }
+
             if (filters.datacenter && filters.datacenter.length > 0) {
                 filters.datacenter.forEach((name) => {
                     params.append('datacenter[]', name);
@@ -236,7 +259,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
             <Head title="Data Portal" />
 
             <div className="flex min-h-0 flex-1 flex-col">
-                <div className="border-b bg-background/80 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
+                <div className="border-b bg-background/80 px-4 py-4 backdrop-blur supports-backdrop-filter:bg-background/70 md:px-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
                             <h2 className="text-lg font-semibold text-foreground">Explore published records</h2>
@@ -262,13 +285,15 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         onSearchChange={setSearch}
                         onTypeChange={setType}
                         onDatacenterChange={setDatacenter}
-                        onKeywordsChange={setKeywords}
+                        onKeywordsChange={setFreeKeywords}
+                        onThesaurusKeywordsChange={setThesaurusKeywords}
                         onClearFilters={handleClearAllFilters}
                         hasActiveFilters={hasActiveFilters}
                         isCollapsed={isFilterCollapsed}
                         onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
                         totalResults={pagination.total}
                         keywordSuggestions={keywordSuggestions}
+                        thesaurusFacets={thesaurusFacets}
                         geoFilterEnabled={geoFilterEnabled}
                         onGeoFilterToggle={handleGeoFilterToggle}
                         onBoundsChange={handleBoundsChange}

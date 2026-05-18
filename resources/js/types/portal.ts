@@ -75,6 +75,8 @@ export interface PortalFilters {
     type: string[];
     exclude_type?: string | null;
     keywords: string[];
+    freeKeywords?: string[];
+    thesaurusKeywords?: string[];
     datacenter: string[];
     bounds: GeoBounds | null;
     temporal: TemporalFilterValue | null;
@@ -117,6 +119,14 @@ export interface KeywordSuggestion {
 }
 
 /**
+ * Thesaurus tree data used by the portal filter sidebar.
+ */
+export interface PortalThesaurusFacet {
+    scheme: string;
+    roots: import('@/types/vocabulary').VocabularyKeyword[];
+}
+
+/**
  * Props for the portal page.
  */
 export interface PortalPageProps {
@@ -125,6 +135,7 @@ export interface PortalPageProps {
     pagination: PortalPagination;
     filters: PortalFilters;
     keywordSuggestions: KeywordSuggestion[];
+    thesaurusFacets?: PortalThesaurusFacet[];
     temporalRange: TemporalRange;
     resourceTypeFacets: ResourceTypeFacet[];
     datacenterFacets: DatacenterFacet[];

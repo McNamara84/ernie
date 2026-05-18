@@ -23,6 +23,12 @@ export const SCHEME_GEMET = 'GEMET - GEneral Multilingual Environmental Thesauru
 /** ICS International Chronostratigraphic Chart scheme identifier */
 export const SCHEME_ICS_CHRONOSTRAT = 'International Chronostratigraphic Chart';
 
+/** Analytical methods scheme identifier */
+export const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
+
+/** EuroSciVoc scheme identifier */
+export const SCHEME_EUROSCIVOC = 'European Science Vocabulary (EuroSciVoc)';
+
 /** User-friendly display labels for each scheme */
 export const SCHEME_LABELS: Record<string, string> = {
     '': 'Free Keywords',
@@ -32,6 +38,8 @@ export const SCHEME_LABELS: Record<string, string> = {
     [SCHEME_MSL]: 'MSL Vocabularies',
     [SCHEME_GEMET]: 'GEMET Thesaurus',
     [SCHEME_ICS_CHRONOSTRAT]: 'ICS Chronostratigraphy',
+    [SCHEME_ANALYTICAL_METHODS]: 'Analytical Methods',
+    [SCHEME_EUROSCIVOC]: 'EuroSciVoc',
 };
 
 /**

@@ -6,12 +6,22 @@ import { PortalGeoFilter } from '@/components/portal/PortalGeoFilter';
 import { PortalKeywordFilter } from '@/components/portal/PortalKeywordFilter';
 import { PortalResourceTypeFilter } from '@/components/portal/PortalResourceTypeFilter';
 import { PortalTemporalFilter } from '@/components/portal/PortalTemporalFilter';
+import { PortalThesaurusFilter } from '@/components/portal/PortalThesaurusFilter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { DatacenterFacet, GeoBounds, KeywordSuggestion, PortalFilters, ResourceTypeFacet, TemporalFilterValue, TemporalRange } from '@/types/portal';
+import type {
+    DatacenterFacet,
+    GeoBounds,
+    KeywordSuggestion,
+    PortalFilters,
+    PortalThesaurusFacet,
+    ResourceTypeFacet,
+    TemporalFilterValue,
+    TemporalRange,
+} from '@/types/portal';
 
 interface PortalFiltersProps {
     filters: PortalFilters;
@@ -19,12 +29,14 @@ interface PortalFiltersProps {
     onTypeChange: (type: string[]) => void;
     onDatacenterChange: (datacenter: string[]) => void;
     onKeywordsChange: (keywords: string[]) => void;
+    onThesaurusKeywordsChange?: (nodeIds: string[]) => void;
     onClearFilters: () => void;
     hasActiveFilters: boolean;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
     totalResults: number;
     keywordSuggestions: KeywordSuggestion[];
+    thesaurusFacets?: PortalThesaurusFacet[];
     geoFilterEnabled: boolean;
     onGeoFilterToggle: (enabled: boolean) => void;
     onBoundsChange: (bounds: GeoBounds | null) => void;
@@ -42,12 +54,14 @@ export function PortalFilters({
     onTypeChange,
     onDatacenterChange,
     onKeywordsChange,
+    onThesaurusKeywordsChange = () => undefined,
     onClearFilters,
     hasActiveFilters,
     isCollapsed,
     onToggleCollapse,
     totalResults,
     keywordSuggestions,
+    thesaurusFacets = [],
     geoFilterEnabled,
     onGeoFilterToggle,
     onBoundsChange,
@@ -163,8 +177,14 @@ export function PortalFilters({
                     {/* Keyword Filter */}
                     <PortalKeywordFilter
                         suggestions={keywordSuggestions}
-                        selectedKeywords={filters.keywords ?? []}
+                        selectedKeywords={filters.freeKeywords ?? []}
                         onKeywordsChange={onKeywordsChange}
+                    />
+
+                    <PortalThesaurusFilter
+                        facets={thesaurusFacets}
+                        selectedNodeIds={filters.thesaurusKeywords ?? []}
+                        onSelectionChange={onThesaurusKeywordsChange}
                     />
 
                     {/* Temporal Filter */}

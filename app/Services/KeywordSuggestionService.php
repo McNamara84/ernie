@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\Storage;
  */
 class KeywordSuggestionService
 {
+    private const SCHEME_ICS_CHRONOSTRAT = 'International Chronostratigraphic Chart';
+
+    private const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
+
     /**
      * @var list<array{file: string, fallback_scheme: string}>
      */
@@ -29,9 +33,9 @@ class KeywordSuggestionService
         ['file' => 'gcmd-platforms.json', 'fallback_scheme' => 'Platforms'],
         ['file' => 'gcmd-instruments.json', 'fallback_scheme' => 'Instruments'],
         ['file' => 'msl-vocabulary.json', 'fallback_scheme' => 'EPOS MSL vocabulary'],
-        ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => 'International Chronostratigraphic Chart'],
+        ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => self::SCHEME_ICS_CHRONOSTRAT],
         ['file' => 'gemet-thesaurus.json', 'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE],
-        ['file' => 'analytical-methods.json', 'fallback_scheme' => 'Analytical Methods for Geochemistry and Cosmochemistry'],
+        ['file' => 'analytical-methods.json', 'fallback_scheme' => self::SCHEME_ANALYTICAL_METHODS],
         ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)'],
     ];
 
@@ -55,7 +59,7 @@ class KeywordSuggestionService
      */
     public function getFreeKeywordSuggestions(): array
     {
-        /** @var array<int, array{value: string, scheme: string|null, count: int}> */
+        /** @var array<int, array{value: string, scheme: null, count: int}> */
         return Cache::remember(
             CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(),
             CacheKey::PORTAL_KEYWORD_SUGGESTIONS->ttl(),
@@ -244,7 +248,12 @@ class KeywordSuggestionService
             return [];
         }
 
-        $decoded = json_decode(Storage::disk('local')->get($path), true);
+        $contents = Storage::disk('local')->get($path);
+        if (! is_string($contents)) {
+            return [];
+        }
+
+        $decoded = json_decode($contents, true);
         if (! is_array($decoded)) {
             return [];
         }
@@ -416,9 +425,9 @@ class KeywordSuggestionService
             str_contains($normalized, 'instrument') => 'Instruments',
             str_contains($normalized, 'epos msl'),
             str_contains($normalized, 'msl vocabulary') => 'EPOS MSL vocabulary',
-            str_contains($normalized, 'chronostrat') => ChronostratVocabularyParser::SCHEME_TITLE,
+            str_contains($normalized, 'chronostrat') => self::SCHEME_ICS_CHRONOSTRAT,
             str_contains($normalized, 'gemet') => GemetVocabularyParser::SCHEME_TITLE,
-            str_contains($normalized, 'analytical') && str_contains($normalized, 'method') => AnalyticalMethodsVocabularyParser::SCHEME_TITLE,
+            str_contains($normalized, 'analytical') && str_contains($normalized, 'method') => self::SCHEME_ANALYTICAL_METHODS,
             str_contains($normalized, 'euroscivoc'),
             str_contains($normalized, 'european science vocabulary') => 'European Science Vocabulary (EuroSciVoc)',
             default => $trimmed,

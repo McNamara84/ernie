@@ -294,6 +294,31 @@ describe('Portal', () => {
         expect(routerMock.get).toHaveBeenCalledWith(expect.stringContaining('type%5B%5D=dataset'), { page: 2 }, expect.any(Object));
     });
 
+    it('preserves free keyword and thesaurus params on page change', async () => {
+        const user = userEvent.setup();
+        const propsWithSplitKeywords = {
+            ...defaultProps,
+            filters: {
+                query: '',
+                type: [] as string[],
+                keywords: [],
+                freeKeywords: ['Seismology'],
+                thesaurusKeywords: ['earth-science'],
+                datacenter: [],
+                bounds: null,
+                temporal: null,
+            },
+        };
+        render(<Portal {...propsWithSplitKeywords} />);
+
+        const nextButtons = screen.getAllByTestId('next-page');
+        await user.click(nextButtons[0]);
+
+        const calledUrl = routerMock.get.mock.calls[0][0] as string;
+        expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+        expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
+    });
+
     it('persists map collapsed state to localStorage', async () => {
         render(<Portal {...defaultProps} />);
         expect(localStorage.getItem('portal-map-collapsed')).toBe('false');

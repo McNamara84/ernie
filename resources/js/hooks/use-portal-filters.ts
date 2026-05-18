@@ -16,6 +16,8 @@ interface UsePortalFiltersReturn {
     setKeywords: (keywords: string[]) => void;
     addKeyword: (keyword: string) => void;
     removeKeyword: (keyword: string) => void;
+    setFreeKeywords: (keywords: string[]) => void;
+    setThesaurusKeywords: (nodeIds: string[]) => void;
     setBounds: (bounds: GeoBounds | null) => void;
     clearBounds: () => void;
     setTemporal: (temporal: TemporalFilterValue | null) => void;
@@ -38,6 +40,9 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             const type = newFilters.type !== undefined ? newFilters.type : filters.type;
             const datacenter = newFilters.datacenter !== undefined ? newFilters.datacenter : filters.datacenter;
             const keywords = newFilters.keywords !== undefined ? newFilters.keywords : filters.keywords;
+            const freeKeywords = newFilters.freeKeywords !== undefined ? newFilters.freeKeywords : (filters.freeKeywords ?? []);
+            const thesaurusKeywords =
+                newFilters.thesaurusKeywords !== undefined ? newFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
             const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
             const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
 
@@ -71,6 +76,18 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             if (keywords && keywords.length > 0) {
                 keywords.forEach((kw) => {
                     params.append('keywords[]', kw);
+                });
+            }
+
+            if (freeKeywords.length > 0) {
+                freeKeywords.forEach((kw) => {
+                    params.append('free_keywords[]', kw);
+                });
+            }
+
+            if (thesaurusKeywords.length > 0) {
+                thesaurusKeywords.forEach((nodeId) => {
+                    params.append('thesaurus_keywords[]', nodeId);
                 });
             }
 
@@ -145,6 +162,20 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         [updateFilters, filters.keywords],
     );
 
+    const setFreeKeywords = useCallback(
+        (freeKeywords: string[]) => {
+            updateFilters({ freeKeywords }, true);
+        },
+        [updateFilters],
+    );
+
+    const setThesaurusKeywords = useCallback(
+        (thesaurusKeywords: string[]) => {
+            updateFilters({ thesaurusKeywords }, true);
+        },
+        [updateFilters],
+    );
+
     const setBounds = useCallback(
         (bounds: GeoBounds | null) => {
             updateFilters({ bounds }, true);
@@ -174,6 +205,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
             filters.exclude_type != null ||
             (filters.datacenter !== undefined && filters.datacenter.length > 0) ||
             (filters.keywords !== undefined && filters.keywords.length > 0) ||
+            (filters.freeKeywords !== undefined && filters.freeKeywords.length > 0) ||
+            (filters.thesaurusKeywords !== undefined && filters.thesaurusKeywords.length > 0) ||
             filters.bounds !== null ||
             filters.temporal !== null
         );
@@ -187,6 +220,8 @@ export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptio
         setKeywords,
         addKeyword,
         removeKeyword,
+        setFreeKeywords,
+        setThesaurusKeywords,
         setBounds,
         clearBounds,
         setTemporal,
