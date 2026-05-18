@@ -20,28 +20,22 @@ interface PortalThesaurusFilterProps {
 interface ThesaurusTreeNodeProps {
     node: VocabularyKeyword;
     level?: number;
-    selectedNodeIds: string[];
+    expandedAncestorIds: ReadonlySet<string>;
+    selectedNodeIdSet: ReadonlySet<string>;
     onToggleNode: (nodeId: string) => void;
 }
 
-function hasSelectedDescendant(node: VocabularyKeyword, selectedNodeIds: string[]): boolean {
-    if (selectedNodeIds.includes(node.id)) {
-        return true;
-    }
-
-    return node.children.some((child) => hasSelectedDescendant(child, selectedNodeIds));
-}
-
-function ThesaurusTreeNode({ node, level = 0, selectedNodeIds, onToggleNode }: ThesaurusTreeNodeProps) {
+function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeIdSet, onToggleNode }: ThesaurusTreeNodeProps) {
     const hasChildren = node.children.length > 0;
-    const [isExpanded, setIsExpanded] = useState(level === 0 || hasSelectedDescendant(node, selectedNodeIds));
-    const isSelected = selectedNodeIds.includes(node.id);
+    const shouldExpand = level === 0 || expandedAncestorIds.has(node.id);
+    const [isExpanded, setIsExpanded] = useState(shouldExpand);
+    const isSelected = selectedNodeIdSet.has(node.id);
 
     useEffect(() => {
-        if (hasSelectedDescendant(node, selectedNodeIds)) {
+        if (shouldExpand) {
             setIsExpanded(true);
         }
-    }, [node, selectedNodeIds]);
+    }, [shouldExpand]);
 
     return (
         <div>
@@ -90,7 +84,8 @@ function ThesaurusTreeNode({ node, level = 0, selectedNodeIds, onToggleNode }: T
                             key={child.id}
                             node={child}
                             level={level + 1}
-                            selectedNodeIds={selectedNodeIds}
+                            expandedAncestorIds={expandedAncestorIds}
+                            selectedNodeIdSet={selectedNodeIdSet}
                             onToggleNode={onToggleNode}
                         />
                     ))}
@@ -101,34 +96,58 @@ function ThesaurusTreeNode({ node, level = 0, selectedNodeIds, onToggleNode }: T
 }
 
 export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSelectionChange = () => undefined }: PortalThesaurusFilterProps) {
+    const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
+
     const toggleNode = useCallback(
         (nodeId: string) => {
             onSelectionChange(
-                selectedNodeIds.includes(nodeId)
+                selectedNodeIdSet.has(nodeId)
                     ? selectedNodeIds.filter((selectedId) => selectedId !== nodeId)
                     : [...selectedNodeIds, nodeId],
             );
         },
-        [onSelectionChange, selectedNodeIds],
+        [onSelectionChange, selectedNodeIdSet, selectedNodeIds],
     );
 
-    const selectedNodes = useMemo(() => {
+    const { expandedAncestorIds, selectedCountByScheme, selectedNodes } = useMemo(() => {
         const labels = new Map<string, string>();
-
-        const visit = (node: VocabularyKeyword) => {
-            labels.set(node.id, node.text);
-            node.children.forEach(visit);
-        };
+        const expandedAncestors = new Set<string>();
+        const countsByScheme = new Map<string, number>();
 
         facets.forEach((facet) => {
-            facet.roots.forEach(visit);
+            let selectedCount = 0;
+
+            const visitWithCount = (node: VocabularyKeyword): boolean => {
+                labels.set(node.id, node.text);
+
+                let hasSelectedNode = selectedNodeIdSet.has(node.id);
+                if (hasSelectedNode) {
+                    selectedCount += 1;
+                }
+
+                for (const child of node.children) {
+                    if (visitWithCount(child)) {
+                        expandedAncestors.add(node.id);
+                        hasSelectedNode = true;
+                    }
+                }
+
+                return hasSelectedNode;
+            };
+
+            facet.roots.forEach(visitWithCount);
+            countsByScheme.set(facet.scheme, selectedCount);
         });
 
-        return selectedNodeIds.map((nodeId) => ({
-            id: nodeId,
-            label: labels.get(nodeId) ?? nodeId,
-        }));
-    }, [facets, selectedNodeIds]);
+        return {
+            expandedAncestorIds: expandedAncestors,
+            selectedCountByScheme: countsByScheme,
+            selectedNodes: selectedNodeIds.map((nodeId) => ({
+                id: nodeId,
+                label: labels.get(nodeId) ?? nodeId,
+            })),
+        };
+    }, [facets, selectedNodeIdSet, selectedNodeIds]);
 
     return (
         <div className="space-y-3">
@@ -164,14 +183,7 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
             ) : (
                 <div className="space-y-2">
                     {facets.map((facet) => {
-                        const selectedCount = facet.roots.reduce((count, root) => {
-                            const visit = (node: VocabularyKeyword): number => {
-                                const ownCount = selectedNodeIds.includes(node.id) ? 1 : 0;
-                                return ownCount + node.children.reduce((childCount, child) => childCount + visit(child), 0);
-                            };
-
-                            return count + visit(root);
-                        }, 0);
+                        const selectedCount = selectedCountByScheme.get(facet.scheme) ?? 0;
 
                         return (
                             <div key={facet.scheme} className="rounded-lg border bg-background/80">
@@ -185,7 +197,8 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
                                             <ThesaurusTreeNode
                                                 key={root.id}
                                                 node={root}
-                                                selectedNodeIds={selectedNodeIds}
+                                                expandedAncestorIds={expandedAncestorIds}
+                                                selectedNodeIdSet={selectedNodeIdSet}
                                                 onToggleNode={toggleNode}
                                             />
                                         ))}

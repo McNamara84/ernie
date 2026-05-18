@@ -14,6 +14,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\Subject;
 use App\Models\Title;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
@@ -430,10 +431,8 @@ class PortalSearchService
             }
 
             $query->whereHas('subjects', function (Builder $q) use ($keyword): void {
-                $q->where(function (Builder $subjectQuery): void {
-                    $subjectQuery->whereNull('subject_scheme')
-                        ->orWhere('subject_scheme', '');
-                })->where('value', $keyword);
+                /** @var Builder<Subject> $q */
+                $q->freeText()->where('value', $keyword);
             });
         }
     }

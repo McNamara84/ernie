@@ -11,6 +11,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
+import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
 
 const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
@@ -210,63 +211,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
 
     const handlePageChange = useCallback(
         (page: number) => {
-            const params = new URLSearchParams();
-            const hasSplitKeywordFilters = (filters.freeKeywords?.length ?? 0) > 0 || (filters.thesaurusKeywords?.length ?? 0) > 0;
-
-            if (filters.query && filters.query.trim() !== '') {
-                params.set('q', filters.query.trim());
-            }
-
-            if (filters.type && filters.type.length > 0) {
-                filters.type.forEach((slug) => {
-                    params.append('type[]', slug);
-                });
-            } else if (filters.exclude_type) {
-                // Legacy DOI filter: preserve ?type=doi so the backend
-                // can reconstruct the exclude constraint on pagination.
-                params.set('type', 'doi');
-            }
-
-            if (!hasSplitKeywordFilters && filters.keywords && filters.keywords.length > 0) {
-                filters.keywords.forEach((kw) => {
-                    params.append('keywords[]', kw);
-                });
-            }
-
-            if (filters.freeKeywords && filters.freeKeywords.length > 0) {
-                filters.freeKeywords.forEach((kw) => {
-                    params.append('free_keywords[]', kw);
-                });
-            }
-
-            if (filters.thesaurusKeywords && filters.thesaurusKeywords.length > 0) {
-                filters.thesaurusKeywords.forEach((nodeId) => {
-                    params.append('thesaurus_keywords[]', nodeId);
-                });
-            }
-
-            if (filters.datacenter && filters.datacenter.length > 0) {
-                filters.datacenter.forEach((name) => {
-                    params.append('datacenter[]', name);
-                });
-            }
-
-            if (filters.bounds) {
-                params.set('north', filters.bounds.north.toFixed(6));
-                params.set('south', filters.bounds.south.toFixed(6));
-                params.set('east', filters.bounds.east.toFixed(6));
-                params.set('west', filters.bounds.west.toFixed(6));
-            }
-
-            if (filters.temporal) {
-                params.set('date_type', filters.temporal.dateType);
-                params.set('year_from', String(filters.temporal.yearFrom));
-                params.set('year_to', String(filters.temporal.yearTo));
-            }
-
-            // Page is passed as Inertia data, not URL parameter
-            const queryString = params.toString();
-            const url = queryString ? `/portal?${queryString}` : '/portal';
+            const url = buildPortalFilterUrl(filters);
 
             router.get(url, { page }, { preserveState: true, preserveScroll: false });
         },

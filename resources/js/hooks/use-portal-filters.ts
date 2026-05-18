@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
 
+import { buildPortalFilterUrl, mergePortalFilters } from '@/lib/portal-filter-url';
 import type { GeoBounds, PortalFilters, TemporalFilterValue } from '@/types/portal';
 
 interface UsePortalFiltersOptions {
@@ -34,87 +35,8 @@ interface UsePortalFiltersReturn {
 export function usePortalFilters({ filters, currentPage }: UsePortalFiltersOptions): UsePortalFiltersReturn {
     const updateFilters = useCallback(
         (newFilters: Partial<PortalFilters>, resetPage = true) => {
-            const params = new URLSearchParams();
-
-            const query = newFilters.query !== undefined ? newFilters.query : filters.query;
-            const type = newFilters.type !== undefined ? newFilters.type : filters.type;
-            const datacenter = newFilters.datacenter !== undefined ? newFilters.datacenter : filters.datacenter;
-            const freeKeywords = newFilters.freeKeywords !== undefined ? newFilters.freeKeywords : (filters.freeKeywords ?? []);
-            const thesaurusKeywords =
-                newFilters.thesaurusKeywords !== undefined ? newFilters.thesaurusKeywords : (filters.thesaurusKeywords ?? []);
-            const keywords =
-                newFilters.keywords !== undefined
-                    ? newFilters.keywords
-                    : freeKeywords.length > 0 || thesaurusKeywords.length > 0
-                      ? []
-                      : filters.keywords;
-            const bounds = newFilters.bounds !== undefined ? newFilters.bounds : filters.bounds;
-            const temporal = newFilters.temporal !== undefined ? newFilters.temporal : filters.temporal;
-
-            // Only preserve exclude_type when the caller did not explicitly
-            // clear type. setType([]) means "show all types" — it must drop
-            // the legacy DOI constraint so the URL no longer emits ?type=doi.
-            const excludeType =
-                newFilters.type !== undefined && newFilters.type.length === 0 ? null : filters.exclude_type;
-
-            if (query && query.trim() !== '') {
-                params.set('q', query.trim());
-            }
-
-            if (type && type.length > 0) {
-                type.forEach((slug) => {
-                    params.append('type[]', slug);
-                });
-            } else if (excludeType) {
-                // Legacy DOI filter: no explicit slugs but an active
-                // exclusion — preserve the legacy ?type=doi param so
-                // the backend can reconstruct the exclude constraint.
-                params.set('type', 'doi');
-            }
-
-            if (datacenter && datacenter.length > 0) {
-                datacenter.forEach((name) => {
-                    params.append('datacenter[]', name);
-                });
-            }
-
-            if (keywords && keywords.length > 0) {
-                keywords.forEach((kw) => {
-                    params.append('keywords[]', kw);
-                });
-            }
-
-            if (freeKeywords.length > 0) {
-                freeKeywords.forEach((kw) => {
-                    params.append('free_keywords[]', kw);
-                });
-            }
-
-            if (thesaurusKeywords.length > 0) {
-                thesaurusKeywords.forEach((nodeId) => {
-                    params.append('thesaurus_keywords[]', nodeId);
-                });
-            }
-
-            if (bounds) {
-                params.set('north', bounds.north.toFixed(6));
-                params.set('south', bounds.south.toFixed(6));
-                params.set('east', bounds.east.toFixed(6));
-                params.set('west', bounds.west.toFixed(6));
-            }
-
-            if (temporal) {
-                params.set('date_type', temporal.dateType);
-                params.set('year_from', String(temporal.yearFrom));
-                params.set('year_to', String(temporal.yearTo));
-            }
-
-            if (!resetPage && currentPage > 1) {
-                params.set('page', String(currentPage));
-            }
-
-            const queryString = params.toString();
-            const url = queryString ? `/portal?${queryString}` : '/portal';
+            const resolvedFilters = mergePortalFilters(filters, newFilters);
+            const url = buildPortalFilterUrl(resolvedFilters, !resetPage && currentPage > 1 ? currentPage : null);
 
             router.get(url, {}, { preserveState: true, preserveScroll: true });
         },

@@ -303,6 +303,27 @@ describe('keyword filtering', function () {
         expect($results->total())->toBe(2);
     });
 
+    it('treats empty subject schemes as free-text keywords', function () {
+        $matching = createPublishedResourceForSearch('Matching Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'Seismology',
+            'subject_scheme' => '',
+        ]);
+
+        $controlledOnly = createPublishedResourceForSearch('Controlled Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $controlledOnly->id,
+            'value' => 'Seismology',
+            'subject_scheme' => 'Science Keywords',
+        ]);
+
+        $results = $this->service->search(['free_keywords' => ['Seismology']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
     it('combines keyword filter with text search', function () {
         // Resource matching both query and keyword
         $matching = createPublishedResourceForSearch('Seismic Activity', $this->titleType);

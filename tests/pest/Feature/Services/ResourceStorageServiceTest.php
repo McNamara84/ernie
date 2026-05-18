@@ -3,14 +3,17 @@
 declare(strict_types=1);
 
 use App\Models\IdentifierType;
+use App\Models\LandingPage;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\KeywordSuggestionService;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -254,6 +257,112 @@ describe('ResourceStorageService', function () {
         expect($resource->subjects()->count())->toBe(3);
         $keywords = $resource->subjects->pluck('value')->all();
         expect($keywords)->toContain('keyword1', 'keyword2', 'keyword3');
+    });
+
+    it('invalidates cached thesaurus facets after a subject-only update', function () {
+        Storage::fake('local');
+        Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+            'lastUpdated' => now()->toIso8601String(),
+            'data' => [[
+                'id' => 'earth-science',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-gnss',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        $resourceType = ResourceType::first();
+
+        $initialData = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Controlled Keyword Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'gcmdKeywords' => [
+                [
+                    'id' => 'science-gnss',
+                    'text' => 'GNSS',
+                    'scheme' => 'Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($initialData, $this->user->id);
+
+        LandingPage::factory()->create([
+            'resource_id' => $resource->id,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $keywordService = app(KeywordSuggestionService::class);
+
+        expect($keywordService->getThesaurusFacets())->not->toBe([]);
+
+        $updateData = [
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Controlled Keyword Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'gcmdKeywords' => [],
+        ];
+
+        [$updatedResource, $wasUpdate] = $this->service->store($updateData, $this->user->id);
+
+        expect($wasUpdate)->toBeTrue()
+            ->and($updatedResource->id)->toBe($resource->id);
+
+        expect($keywordService->getThesaurusFacets())->toBe([]);
     });
 
     it('stores related identifiers with resolved citation labels and trimmed relation details', function () {

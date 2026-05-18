@@ -13,11 +13,13 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
+use App\Models\Subject;
 use App\Models\User;
 use App\Observers\LandingPageObserver;
 use App\Observers\ResourceAssessmentObserver;
 use App\Observers\ResourceObserver;
 use App\Observers\ResourceTypeObserver;
+use App\Observers\SubjectObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\RorLookupService;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         ResourceAssessment::observe(ResourceAssessmentObserver::class);
         ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);
+        Subject::observe(SubjectObserver::class);
 
         // Configure rate limiters
         $this->configureRateLimiting();

@@ -111,6 +111,12 @@ class ResourceStorageService
             $this->storeDescriptions($resource, $data, $isUpdate);
             $this->storeDates($resource, $data, $isUpdate);
             $this->storeSubjects($resource, $data, $isUpdate);
+            // Subject updates can happen without a dirty Resource model update,
+            // and relation->delete() bypasses Subject model events. Invalidate
+            // portal keyword/thesaurus caches after the transaction commits.
+            DB::afterCommit(static function (): void {
+                app(KeywordSuggestionService::class)->invalidateCache();
+            });
             $this->storeGeoLocations($resource, $data, $isUpdate);
             $this->storeRelatedIdentifiers($resource, $data, $isUpdate);
             $this->storeRelatedItems($resource, $data, $isUpdate);
