@@ -64,6 +64,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         setSearch,
         setType,
         setDatacenter,
+        setKeywords,
         setFreeKeywords,
         setThesaurusKeywords,
         setBounds,
@@ -75,6 +76,10 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         filters,
         currentPage: pagination.current_page,
     });
+    const hasLegacyKeywordFilters =
+        (filters.keywords?.length ?? 0) > 0 &&
+        (filters.freeKeywords?.length ?? 0) === 0 &&
+        (filters.thesaurusKeywords?.length ?? 0) === 0;
 
     // Geo filter toggle state – initialized from URL params
     const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
@@ -171,6 +176,19 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
             }
         },
         [setTemporal],
+    );
+
+    const handleKeywordChange = useCallback(
+        (keywords: string[]) => {
+            if (hasLegacyKeywordFilters) {
+                setKeywords(keywords);
+
+                return;
+            }
+
+            setFreeKeywords(keywords);
+        },
+        [hasLegacyKeywordFilters, setKeywords, setFreeKeywords],
     );
 
     // Extended clear that also resets geo and temporal filters
@@ -286,7 +304,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         onSearchChange={setSearch}
                         onTypeChange={setType}
                         onDatacenterChange={setDatacenter}
-                        onKeywordsChange={setFreeKeywords}
+                        onKeywordsChange={handleKeywordChange}
                         onThesaurusKeywordsChange={setThesaurusKeywords}
                         onClearFilters={handleClearAllFilters}
                         hasActiveFilters={hasActiveFilters}

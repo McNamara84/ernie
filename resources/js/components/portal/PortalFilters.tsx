@@ -73,6 +73,7 @@ export function PortalFilters({
     datacenterFacets,
 }: PortalFiltersProps) {
     const [searchInput, setSearchInput] = useState(filters.query ?? '');
+    const selectedKeywordValues = (filters.freeKeywords?.length ?? 0) > 0 ? (filters.freeKeywords ?? []) : filters.keywords;
 
     // Sync local state when filters change externally
     useEffect(() => {
@@ -177,7 +178,7 @@ export function PortalFilters({
                     {/* Keyword Filter */}
                     <PortalKeywordFilter
                         suggestions={keywordSuggestions}
-                        selectedKeywords={filters.freeKeywords ?? []}
+                        selectedKeywords={selectedKeywordValues}
                         onKeywordsChange={onKeywordsChange}
                     />
 

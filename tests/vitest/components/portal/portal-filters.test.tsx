@@ -118,6 +118,15 @@ describe('PortalFilters', () => {
 
             expect(screen.getByText('No thesaurus keywords available.')).toBeInTheDocument();
         });
+
+        it('shows legacy keywords in the free keyword control when split filters are not set', () => {
+            const filters: PortalFiltersType = { ...defaultFilters, keywords: ['Seismology'] };
+
+            render(<PortalFilters {...defaultProps} filters={filters} />);
+
+            expect(screen.getByText('Seismology')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /remove keyword "Seismology"/i })).toBeInTheDocument();
+        });
     });
 
     describe('Thesaurus Filter Interaction', () => {
