@@ -25,6 +25,7 @@ interface AuthorListProps {
     onAdd: () => void;
     onRemove: (index: number) => void;
     onAuthorChange: (index: number, author: AuthorEntry) => void;
+    onReorder: (authors: AuthorEntry[]) => void;
     onBulkAdd?: (authors: AuthorEntry[]) => void;
     affiliationSuggestions: AffiliationSuggestion[];
 }
@@ -32,7 +33,7 @@ interface AuthorListProps {
 /**
  * AuthorList - Manages the list of authors with empty state and drag & drop reordering
  */
-export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, onBulkAdd, affiliationSuggestions }: AuthorListProps) {
+export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, onReorder, onBulkAdd, affiliationSuggestions }: AuthorListProps) {
     // State for CSV import dialog
     const [csvDialogOpen, setCsvDialogOpen] = useState(false);
 
@@ -96,18 +97,18 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (over && active.id !== over.id) {
-            const oldIndex = authors.findIndex((author) => author.id === active.id);
-            const newIndex = authors.findIndex((author) => author.id === over.id);
-
-            if (oldIndex !== -1 && newIndex !== -1) {
-                const reorderedAuthors = arrayMove(authors, oldIndex, newIndex);
-                // Update all authors with new order
-                reorderedAuthors.forEach((author, index) => {
-                    onAuthorChange(index, author);
-                });
-            }
+        if (!over || active.id === over.id) {
+            return;
         }
+
+        const oldIndex = authors.findIndex((author) => author.id === active.id);
+        const newIndex = authors.findIndex((author) => author.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) {
+            return;
+        }
+
+        onReorder(arrayMove(authors, oldIndex, newIndex));
     };
 
     // Helper: Handle type change

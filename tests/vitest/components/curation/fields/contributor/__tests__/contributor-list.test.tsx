@@ -2,14 +2,29 @@ import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ContributorList from '@/components/curation/fields/contributor/contributor-list';
 import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
 
+const dndState = vi.hoisted(() => ({
+    event: {
+        active: { id: 'c1' },
+        over: { id: 'c2' } as { id: string } | null,
+    },
+}));
+
 // Mock DnD kit — simplified to just render children
 vi.mock('@dnd-kit/core', () => ({
-    DndContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    DndContext: ({ children, onDragEnd }: { children: ReactNode; onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void }) => (
+        <div>
+            <button data-testid="trigger-drag" onClick={() => onDragEnd(dndState.event)}>
+                Trigger drag
+            </button>
+            {children}
+        </div>
+    ),
     closestCenter: vi.fn(),
     KeyboardSensor: vi.fn(),
     PointerSensor: vi.fn(),
@@ -18,7 +33,13 @@ vi.mock('@dnd-kit/core', () => ({
 }));
 
 vi.mock('@dnd-kit/sortable', () => ({
-    SortableContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    arrayMove: <T,>(items: T[], oldIndex: number, newIndex: number) => {
+        const next = [...items];
+        const [moved] = next.splice(oldIndex, 1);
+        next.splice(newIndex, 0, moved);
+        return next;
+    },
+    SortableContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     sortableKeyboardCoordinates: vi.fn(),
     verticalListSortingStrategy: 'vertical',
 }));
@@ -128,6 +149,7 @@ describe('ContributorList', () => {
     let onAdd = vi.fn<() => void>();
     let onRemove = vi.fn<(index: number) => void>();
     let onContributorChange = vi.fn<(index: number, contributor: ContributorEntry) => void>();
+    let onReorder = vi.fn<(contributors: ContributorEntry[]) => void>();
     let onBulkAdd = vi.fn<(contributors: ContributorEntry[]) => void>();
 
     const defaultProps = {
@@ -140,7 +162,12 @@ describe('ContributorList', () => {
         onAdd = vi.fn<() => void>();
         onRemove = vi.fn<(index: number) => void>();
         onContributorChange = vi.fn<(index: number, contributor: ContributorEntry) => void>();
+        onReorder = vi.fn<(contributors: ContributorEntry[]) => void>();
         onBulkAdd = vi.fn<(contributors: ContributorEntry[]) => void>();
+        dndState.event = {
+            active: { id: 'c1' },
+            over: { id: 'c2' },
+        };
     });
 
     describe('empty state', () => {
@@ -151,6 +178,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     onBulkAdd={onBulkAdd}
                     {...defaultProps}
                 />,
@@ -167,6 +195,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -184,6 +213,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -199,6 +229,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     onBulkAdd={onBulkAdd}
                     {...defaultProps}
                 />,
@@ -221,6 +252,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -240,6 +272,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -256,6 +289,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -273,6 +307,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -294,6 +329,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -322,6 +358,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -351,6 +388,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -372,6 +410,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -395,6 +434,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -415,6 +455,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     {...defaultProps}
                 />,
             );
@@ -440,6 +481,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     onBulkAdd={onBulkAdd}
                     {...defaultProps}
                 />,
@@ -476,6 +518,7 @@ describe('ContributorList', () => {
                     onAdd={onAdd}
                     onRemove={onRemove}
                     onContributorChange={onContributorChange}
+                    onReorder={onReorder}
                     onBulkAdd={onBulkAdd}
                     {...defaultProps}
                 />,
@@ -490,6 +533,117 @@ describe('ContributorList', () => {
                     expect.objectContaining({ value: 'MIT', rorId: null }),
                 ]),
             );
+        });
+    });
+
+    describe('reordering', () => {
+        it('calls onReorder with the fully reordered contributor array after drag end', async () => {
+            const user = userEvent.setup();
+            const contributors = [
+                createPersonContributor({ id: 'c1', firstName: 'Alice', lastName: 'Johnson' }),
+                createInstitutionContributor({ id: 'c2', institutionName: 'CERN' }),
+            ];
+
+            render(
+                <ContributorList
+                    contributors={contributors}
+                    onAdd={onAdd}
+                    onRemove={onRemove}
+                    onContributorChange={onContributorChange}
+                    onReorder={onReorder}
+                    {...defaultProps}
+                />,
+            );
+
+            await user.click(screen.getByTestId('trigger-drag'));
+
+            expect(onReorder).toHaveBeenCalledTimes(1);
+            expect(onReorder).toHaveBeenCalledWith([
+                expect.objectContaining({ id: 'c2', institutionName: 'CERN' }),
+                expect.objectContaining({ id: 'c1', firstName: 'Alice', lastName: 'Johnson' }),
+            ]);
+            expect(onContributorChange).not.toHaveBeenCalled();
+        });
+
+        it('does not call onReorder when the drop target is missing', async () => {
+            const user = userEvent.setup();
+            dndState.event = {
+                active: { id: 'c1' },
+                over: null,
+            };
+
+            render(
+                <ContributorList
+                    contributors={[
+                        createPersonContributor({ id: 'c1' }),
+                        createInstitutionContributor({ id: 'c2' }),
+                    ]}
+                    onAdd={onAdd}
+                    onRemove={onRemove}
+                    onContributorChange={onContributorChange}
+                    onReorder={onReorder}
+                    {...defaultProps}
+                />,
+            );
+
+            await user.click(screen.getByTestId('trigger-drag'));
+
+            expect(onReorder).not.toHaveBeenCalled();
+            expect(onContributorChange).not.toHaveBeenCalled();
+        });
+
+        it('does not call onReorder when a contributor is dropped onto itself', async () => {
+            const user = userEvent.setup();
+            dndState.event = {
+                active: { id: 'c1' },
+                over: { id: 'c1' },
+            };
+
+            render(
+                <ContributorList
+                    contributors={[
+                        createPersonContributor({ id: 'c1' }),
+                        createInstitutionContributor({ id: 'c2' }),
+                    ]}
+                    onAdd={onAdd}
+                    onRemove={onRemove}
+                    onContributorChange={onContributorChange}
+                    onReorder={onReorder}
+                    {...defaultProps}
+                />,
+            );
+
+            await user.click(screen.getByTestId('trigger-drag'));
+
+            expect(onReorder).not.toHaveBeenCalled();
+            expect(onContributorChange).not.toHaveBeenCalled();
+        });
+
+        it('does not call onReorder when sortable ids cannot be resolved', async () => {
+            const user = userEvent.setup();
+            dndState.event = {
+                active: { id: 'c-missing' },
+                over: { id: 'c2' },
+            };
+
+            render(
+                <ContributorList
+                    contributors={[
+                        createPersonContributor({ id: 'c1' }),
+                        createInstitutionContributor({ id: 'c2' }),
+                    ]}
+                    onAdd={onAdd}
+                    onRemove={onRemove}
+                    onContributorChange={onContributorChange}
+                    onReorder={onReorder}
+                    {...defaultProps}
+                />,
+            );
+
+            await user.click(screen.getByTestId('trigger-drag'));
+
+            expect(onReorder).not.toHaveBeenCalled();
+            expect(onContributorChange).not.toHaveBeenCalled();
         });
     });
 });

@@ -208,6 +208,10 @@
         ],
         "fixes": [
             {
+                "title": "Author and Contributor Reordering No Longer Overwrites Entries",
+                "description": "Dragging authors in the Data Editor now preserves each card's full content instead of overwriting neighbouring entries. The reorder flow was corrected to replace the full author list in one step, and the same fix was applied to contributors because both sections shared the same drag-and-drop update pattern. Focused regression tests now cover list-level drag handling and the parent field wrappers so author names, institution names, ORCID data, roles, and affiliations remain attached to the correct person or institution after reordering."
+            },
+            {
                 "title": "ORCID Affiliation Suggestions No Longer Disappear After Selection",
                 "description": "In the Data Editor, selecting an ORCID result now keeps affiliation suggestions available for curator review instead of dropping them during the immediate form rerender. ORCID, first name, and last name are still filled as before, while current ORCID affiliations such as 'GFZ Helmholtz Centre for Geosciences' remain accessible through the ORCID Suggestions workflow until the curator accepts or discards them."
             },
