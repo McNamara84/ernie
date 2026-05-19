@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-18",
+        "date": "2026-05-19",
         "features": [
             {
                 "title": "Single DOI Import for GFZ Legacy Resources",
@@ -207,6 +207,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "ORCID Affiliation Suggestions No Longer Disappear After Selection",
+                "description": "In the Data Editor, selecting an ORCID result now keeps affiliation suggestions available for curator review instead of dropping them during the immediate form rerender. ORCID, first name, and last name are still filled as before, while current ORCID affiliations such as 'GFZ Helmholtz Centre for Geosciences' remain accessible through the ORCID Suggestions workflow until the curator accepts or discards them."
+            },
             {
                 "title": "Publication Year Range Filters No Longer Reload Mid-Entry",
                 "description": "The Publication Year range filters on both /resources and /old-datasets now wait for an explicit Apply action instead of refreshing the list on every keystroke. Users can enter both year boundaries first, review the draft range inside the popover, and clear draft values without triggering a premature reload."

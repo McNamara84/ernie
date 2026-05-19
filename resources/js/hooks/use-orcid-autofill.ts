@@ -402,9 +402,15 @@ export function useOrcidAutofill<T extends BaseEntry>({
 
     // Pending ORCID data for curator review
     const [pendingOrcidData, setPendingOrcidData] = useState<PendingOrcidData | null>(null);
+    const pendingDataOrcidRef = useRef<string | null>(null);
 
     // Track retry trigger
     const [retryTrigger, setRetryTrigger] = useState(0);
+
+    const updatePendingOrcidData = useCallback((data: PendingOrcidData | null, sourceOrcid: string | null = null) => {
+        pendingDataOrcidRef.current = data && sourceOrcid ? sourceOrcid : null;
+        setPendingOrcidData(data);
+    }, []);
 
     const clearError = useCallback(() => {
         setVerificationError(null);
@@ -412,12 +418,13 @@ export function useOrcidAutofill<T extends BaseEntry>({
         setCanRetry(false);
     }, []);
     const hideSuggestions = useCallback(() => setShowSuggestions(false), []);
-    const clearPendingOrcidData = useCallback(() => setPendingOrcidData(null), []);
+    const clearPendingOrcidData = useCallback(() => updatePendingOrcidData(null), [updatePendingOrcidData]);
 
     // Clear stale pending data and verification state when ORCID value or entry type changes
     const orcidValue = isPersonEntry(entry) ? entry.orcid : null;
     const entryType = entry.type;
     const prevOrcidRef = useRef(orcidValue);
+    const prevEntryTypeRef = useRef(entryType);
     const entryRef = useRef(entry);
     const onEntryChangeRef = useRef(onEntryChange);
     // Mirror isVerifying so the auto-verify effect can check it without
@@ -434,18 +441,25 @@ export function useOrcidAutofill<T extends BaseEntry>({
     onEntryChangeRef.current = onEntryChange;
     isVerifyingRef.current = isVerifying;
     useEffect(() => {
-        setPendingOrcidData(null);
+        const orcidChanged = prevOrcidRef.current !== orcidValue;
+        const entryTypeChanged = prevEntryTypeRef.current !== entryType;
+
+        if (entryTypeChanged || (orcidChanged && pendingDataOrcidRef.current !== orcidValue)) {
+            updatePendingOrcidData(null);
+        }
+
         // Reset verified state when the ORCID value actually changes so the new value can be re-verified
         const currentEntry = entryRef.current;
-        if (prevOrcidRef.current !== orcidValue && isPersonEntry(currentEntry) && currentEntry.orcidVerified) {
+        if (orcidChanged && isPersonEntry(currentEntry) && currentEntry.orcidVerified) {
             onEntryChangeRef.current({ ...currentEntry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
         }
-        if (prevOrcidRef.current !== orcidValue) {
+        if (orcidChanged) {
             // A fresh ORCID value always deserves a new verification attempt.
             lastAttemptedSignatureRef.current = null;
         }
         prevOrcidRef.current = orcidValue;
-    }, [orcidValue, entryType]);
+        prevEntryTypeRef.current = entryType;
+    }, [orcidValue, entryType, updatePendingOrcidData]);
 
     // Check if current ORCID has valid format and checksum (offline validation)
     const isFormatValid = useMemo(() => {
@@ -460,14 +474,14 @@ export function useOrcidAutofill<T extends BaseEntry>({
         if (!isPersonEntry(entry) || !entry.orcid?.trim()) return;
         clearError();
         // Clear stale data from prior verification runs
-        setPendingOrcidData(null);
+        updatePendingOrcidData(null);
         setOrcidSuggestions([]);
         // Reset verified state so the auto-verify effect can run again
         if (entry.orcidVerified) {
             onEntryChange({ ...entry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
         }
         setRetryTrigger((prev) => prev + 1);
-    }, [entry, clearError, onEntryChange]);
+    }, [entry, clearError, onEntryChange, updatePendingOrcidData]);
 
     /**
      * Apply selected pending data to the entry
@@ -526,9 +540,9 @@ export function useOrcidAutofill<T extends BaseEntry>({
             }
 
             onEntryChange(updatedEntry);
-            setPendingOrcidData(null);
+            updatePendingOrcidData(null);
         },
-        [entry, pendingOrcidData, onEntryChange],
+        [entry, pendingOrcidData, onEntryChange, updatePendingOrcidData],
     );
 
     /**
@@ -538,7 +552,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         async (orcid: string) => {
             if (!isPersonEntry(entry)) return;
 
-            setPendingOrcidData(null);
+            updatePendingOrcidData(null);
             setVerificationError(null);
             setIsVerifying(true);
 
@@ -554,7 +568,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 // Update ORCID field on the entry for selection
                 const entryWithOrcid = { ...entry, orcid } as T & PersonEntry;
                 const { updatedEntry, pendingData } = await processOrcidData(entryWithOrcid, response.data, includeEmail);
-                setPendingOrcidData(pendingData);
+                updatePendingOrcidData(pendingData, orcid);
                 onEntryChange(updatedEntry);
             } catch (error) {
                 console.error('ORCID fetch error:', error);
@@ -563,7 +577,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 setIsVerifying(false);
             }
         },
-        [entry, onEntryChange, includeEmail],
+        [entry, onEntryChange, includeEmail, updatePendingOrcidData],
     );
 
     /**
@@ -750,7 +764,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 }
 
                 const { updatedEntry, pendingData } = await processOrcidData(personEntry, response.data, includeEmail);
-                setPendingOrcidData(pendingData);
+                updatePendingOrcidData(pendingData, personEntry.orcid);
                 onEntryChange(updatedEntry);
             } catch (error) {
                 console.error('Auto-verify ORCID error:', error);
@@ -766,7 +780,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         const timeoutId = setTimeout(autoVerifyOrcid, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [entry, onEntryChange, includeEmail, retryTrigger, hasUserInteracted]);
+    }, [entry, onEntryChange, includeEmail, retryTrigger, hasUserInteracted, updatePendingOrcidData]);
 
     return {
         isVerifying,
