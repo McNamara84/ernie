@@ -73,6 +73,10 @@ export default function AuthorField({ authors, onChange, affiliationSuggestions 
         onChange(updated);
     };
 
+    const handleReorder = (reorderedAuthors: AuthorEntry[]) => {
+        onChange(reorderedAuthors);
+    };
+
     const handleBulkAdd = (newAuthors: AuthorEntry[]) => {
         // Check if adding would exceed max limit
         const totalAfterAdd = authors.length + newAuthors.length;
@@ -98,6 +102,7 @@ export default function AuthorField({ authors, onChange, affiliationSuggestions 
                 onAdd={() => handleAdd('person')}
                 onRemove={handleRemove}
                 onAuthorChange={handleAuthorChange}
+                onReorder={handleReorder}
                 onBulkAdd={handleBulkAdd}
                 affiliationSuggestions={affiliationSuggestions}
             />

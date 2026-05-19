@@ -4,14 +4,29 @@
 
 import userEvent from '@testing-library/user-event';
 import { cleanup, render, screen } from '@tests/vitest/utils/render';
+import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorList from '@/components/curation/fields/author/author-list';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';
 
+const dndState = vi.hoisted(() => ({
+    event: {
+        active: { id: 'author-1' },
+        over: { id: 'author-2' } as { id: string } | null,
+    },
+}));
+
 // Mock Drag & Drop
 vi.mock('@dnd-kit/core', () => ({
-    DndContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    DndContext: ({ children, onDragEnd }: { children: ReactNode; onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void }) => (
+        <div>
+            <button data-testid="trigger-drag" onClick={() => onDragEnd(dndState.event)}>
+                Trigger drag
+            </button>
+            {children}
+        </div>
+    ),
     closestCenter: vi.fn(),
     PointerSensor: vi.fn(),
     KeyboardSensor: vi.fn(),
@@ -75,11 +90,16 @@ describe('AuthorList Component', () => {
         onAdd: vi.fn(),
         onRemove: vi.fn(),
         onAuthorChange: vi.fn(),
+        onReorder: vi.fn(),
         affiliationSuggestions: [],
     };
 
     beforeEach(() => {
         vi.clearAllMocks();
+        dndState.event = {
+            active: { id: 'author-1' },
+            over: { id: 'author-2' },
+        };
     });
 
     afterEach(async () => {
@@ -153,5 +173,65 @@ describe('AuthorList Component', () => {
         
         // CSV import is tested separately in author-csv-import.test.tsx
         expect(screen.getByLabelText('Import authors from CSV file')).toBeInTheDocument();
+    });
+
+    it('calls onReorder with the fully reordered author array after drag end', async () => {
+        const user = userEvent.setup({ delay: null });
+
+        render(<AuthorList authors={mockAuthors} {...mockProps} />);
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockProps.onReorder).toHaveBeenCalledTimes(1);
+        expect(mockProps.onReorder).toHaveBeenCalledWith([
+            expect.objectContaining({ id: 'author-2', institutionName: 'Test University' }),
+            expect.objectContaining({ id: 'author-1', firstName: 'John', lastName: 'Doe' }),
+        ]);
+        expect(mockProps.onAuthorChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onReorder when the drop target is missing', async () => {
+        const user = userEvent.setup({ delay: null });
+        dndState.event = {
+            active: { id: 'author-1' },
+            over: null,
+        };
+
+        render(<AuthorList authors={mockAuthors} {...mockProps} />);
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockProps.onReorder).not.toHaveBeenCalled();
+        expect(mockProps.onAuthorChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onReorder when an author is dropped onto itself', async () => {
+        const user = userEvent.setup({ delay: null });
+        dndState.event = {
+            active: { id: 'author-1' },
+            over: { id: 'author-1' },
+        };
+
+        render(<AuthorList authors={mockAuthors} {...mockProps} />);
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockProps.onReorder).not.toHaveBeenCalled();
+        expect(mockProps.onAuthorChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onReorder when sortable ids cannot be resolved', async () => {
+        const user = userEvent.setup({ delay: null });
+        dndState.event = {
+            active: { id: 'author-missing' },
+            over: { id: 'author-2' },
+        };
+
+        render(<AuthorList authors={mockAuthors} {...mockProps} />);
+
+        await user.click(screen.getByTestId('trigger-drag'));
+
+        expect(mockProps.onReorder).not.toHaveBeenCalled();
+        expect(mockProps.onAuthorChange).not.toHaveBeenCalled();
     });
 });

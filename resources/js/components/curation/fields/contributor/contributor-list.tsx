@@ -25,6 +25,7 @@ interface ContributorListProps {
     onAdd: () => void;
     onRemove: (index: number) => void;
     onContributorChange: (index: number, contributor: ContributorEntry) => void;
+    onReorder: (contributors: ContributorEntry[]) => void;
     onBulkAdd?: (contributors: ContributorEntry[]) => void;
     affiliationSuggestions: AffiliationSuggestion[];
     personRoleOptions: readonly string[];
@@ -39,6 +40,7 @@ export default function ContributorList({
     onAdd,
     onRemove,
     onContributorChange,
+    onReorder,
     onBulkAdd,
     affiliationSuggestions,
     personRoleOptions,
@@ -110,18 +112,18 @@ export default function ContributorList({
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
-        if (over && active.id !== over.id) {
-            const oldIndex = contributors.findIndex((contributor) => contributor.id === active.id);
-            const newIndex = contributors.findIndex((contributor) => contributor.id === over.id);
-
-            if (oldIndex !== -1 && newIndex !== -1) {
-                const reorderedContributors = arrayMove(contributors, oldIndex, newIndex);
-                // Update all contributors with new order
-                reorderedContributors.forEach((contributor, index) => {
-                    onContributorChange(index, contributor);
-                });
-            }
+        if (!over || active.id === over.id) {
+            return;
         }
+
+        const oldIndex = contributors.findIndex((contributor) => contributor.id === active.id);
+        const newIndex = contributors.findIndex((contributor) => contributor.id === over.id);
+
+        if (oldIndex === -1 || newIndex === -1) {
+            return;
+        }
+
+        onReorder(arrayMove(contributors, oldIndex, newIndex));
     };
 
     // Helper: Handle type change

@@ -84,6 +84,10 @@ export default function ContributorField({
         onChange(updated);
     };
 
+    const handleReorder = (reorderedContributors: ContributorEntry[]) => {
+        onChange(reorderedContributors);
+    };
+
     const handleBulkAdd = (newContributors: ContributorEntry[]) => {
         const remainingSlots = MAX_CONTRIBUTORS - contributors.length;
 
@@ -108,6 +112,7 @@ export default function ContributorField({
                 onAdd={() => handleAdd('person')}
                 onRemove={handleRemove}
                 onContributorChange={handleContributorChange}
+                onReorder={handleReorder}
                 onBulkAdd={handleBulkAdd}
                 affiliationSuggestions={affiliationSuggestions}
                 personRoleOptions={personRoleOptions}
