@@ -195,7 +195,7 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
                                     {selectedCount > 0 && <Badge variant="outline">{selectedCount} selected</Badge>}
                                 </div>
                                 <ScrollArea className="max-h-72">
-                                    <ul role="tree" aria-label={`${getSchemeLabel(facet.scheme)} thesaurus hierarchy`} className="py-2">
+                                    <ul role="tree" aria-label={`${getSchemeLabel(facet.scheme)} thesaurus hierarchy`} aria-multiselectable={true} className="py-2">
                                         {facet.roots.map((root) => (
                                             <ThesaurusTreeNode
                                                 key={root.id}

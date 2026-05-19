@@ -165,6 +165,7 @@ describe('PortalThesaurusFilter', () => {
 
         const tree = screen.getByRole('tree', { name: 'GCMD Science Keywords thesaurus hierarchy' });
         expect(tree).toBeInTheDocument();
+        expect(tree).toHaveAttribute('aria-multiselectable', 'true');
 
         const earthScienceItem = screen.getByRole('button', { name: 'EARTH SCIENCE' }).closest('[role="treeitem"]');
         const solidEarthItem = screen.getByRole('button', { name: 'SOLID EARTH' }).closest('[role="treeitem"]');
