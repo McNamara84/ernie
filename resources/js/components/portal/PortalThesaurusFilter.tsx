@@ -25,6 +25,8 @@ interface ThesaurusTreeNodeProps {
     onToggleNode: (nodeId: string) => void;
 }
 
+function noopSelectionChange(): void {}
+
 function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeIdSet, onToggleNode }: ThesaurusTreeNodeProps) {
     const hasChildren = node.children.length > 0;
     const shouldExpand = level === 0 || expandedAncestorIds.has(node.id);
@@ -96,7 +98,7 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
     );
 }
 
-export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSelectionChange = () => undefined }: PortalThesaurusFilterProps) {
+export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSelectionChange = noopSelectionChange }: PortalThesaurusFilterProps) {
     const selectedNodeIdSet = useMemo(() => new Set(selectedNodeIds), [selectedNodeIds]);
 
     const toggleNode = useCallback(
