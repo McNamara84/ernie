@@ -7,8 +7,8 @@ namespace App\Observers;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
-use App\Services\KeywordSuggestionService;
 use App\Services\OaiPmh\OaiPmhSetService;
+use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
@@ -27,7 +27,7 @@ class ResourceObserver
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService,
-        private readonly KeywordSuggestionService $keywordService,
+        private readonly PortalKeywordCacheInvalidationService $cacheInvalidationService,
         private readonly OaiPmhSetService $oaiPmhSetService,
     ) {}
 
@@ -40,7 +40,7 @@ class ResourceObserver
     public function created(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        $this->keywordService->invalidateCache();
+        $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
     }
 
@@ -68,7 +68,7 @@ class ResourceObserver
     public function updated(Resource $resource): void
     {
         $this->cacheService->invalidateResourceCache($resource->id);
-        $this->keywordService->invalidateCache();
+        $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
 
         if ($resource->wasChanged('resource_type_id') && $resource->resourceAssessment()->exists()) {
@@ -202,7 +202,7 @@ class ResourceObserver
     public function deleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        $this->keywordService->invalidateCache();
+        $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
 
         if ($resource->relationLoaded('resourceAssessment') && $resource->resourceAssessment !== null) {
@@ -221,7 +221,7 @@ class ResourceObserver
     public function forceDeleted(Resource $resource): void
     {
         $this->cacheService->invalidateAllResourceCaches();
-        $this->keywordService->invalidateCache();
+        $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
     }
 

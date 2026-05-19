@@ -277,14 +277,16 @@ class KeywordSuggestionService
                     $usedSubjects[$scheme]['schemes'][$rawScheme] = true;
                 }
 
-                $normalizedValue = PortalSubjectNormalizer::normalizeControlledSubjectValue($subject->value);
-                if ($normalizedValue !== null) {
-                    $usedSubjects[$scheme]['values'][mb_strtolower($normalizedValue)] = true;
-                }
-
                 $valueUri = trim((string) $subject->value_uri);
                 if ($valueUri !== '') {
                     $usedSubjects[$scheme]['ids'][$valueUri] = true;
+
+                    return;
+                }
+
+                $normalizedValue = PortalSubjectNormalizer::normalizeControlledSubjectValue($subject->value);
+                if ($normalizedValue !== null) {
+                    $usedSubjects[$scheme]['values'][mb_strtolower($normalizedValue)] = true;
                 }
             });
 

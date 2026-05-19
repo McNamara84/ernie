@@ -5,26 +5,21 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Models\Subject;
-use App\Services\KeywordSuggestionService;
-use Illuminate\Support\Facades\DB;
+use App\Services\PortalKeywordCacheInvalidationService;
 
 class SubjectObserver
 {
     public function __construct(
-        private readonly KeywordSuggestionService $keywordSuggestionService,
+        private readonly PortalKeywordCacheInvalidationService $cacheInvalidationService,
     ) {}
 
     public function saved(Subject $subject): void
     {
-        DB::afterCommit(function (): void {
-            $this->keywordSuggestionService->invalidateCache();
-        });
+        $this->cacheInvalidationService->scheduleAfterCommit();
     }
 
     public function deleted(Subject $subject): void
     {
-        DB::afterCommit(function (): void {
-            $this->keywordSuggestionService->invalidateCache();
-        });
+        $this->cacheInvalidationService->scheduleAfterCommit();
     }
 }

@@ -8,8 +8,8 @@ use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Observers\ResourceObserver;
-use App\Services\KeywordSuggestionService;
 use App\Services\OaiPmh\OaiPmhSetService;
+use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use App\Enums\CacheKey;
 use Illuminate\Support\Facades\Cache;
@@ -18,9 +18,9 @@ covers(ResourceObserver::class);
 
 beforeEach(function () {
     $this->cacheService = Mockery::mock(ResourceCacheService::class); // @phpstan-ignore variable.undefined
-    $this->keywordService = Mockery::mock(KeywordSuggestionService::class); // @phpstan-ignore variable.undefined
+    $this->cacheInvalidationService = Mockery::mock(PortalKeywordCacheInvalidationService::class); // @phpstan-ignore variable.undefined
     $this->oaiPmhSetService = Mockery::mock(OaiPmhSetService::class); // @phpstan-ignore variable.undefined
-    $this->observer = new ResourceObserver($this->cacheService, $this->keywordService, $this->oaiPmhSetService);
+    $this->observer = new ResourceObserver($this->cacheService, $this->cacheInvalidationService, $this->oaiPmhSetService);
 });
 
 // =========================================================================
@@ -33,7 +33,7 @@ describe('created', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
 
         $this->observer->created($resource);
@@ -51,7 +51,7 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
 
         $this->observer->updated($resource);
@@ -81,7 +81,7 @@ describe('updated', function () {
         $this->cacheService->shouldReceive('invalidateResourceCache')
             ->once()
             ->with($resource->id);
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
 
         $this->observer->updated($resource);
@@ -134,7 +134,7 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
         $this->oaiPmhSetService->shouldReceive('getSetsForResource')
             ->andReturn([]);
@@ -158,7 +158,7 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
         $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
 
@@ -172,7 +172,7 @@ describe('deleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
         $this->oaiPmhSetService->shouldNotReceive('getSetsForResource');
 
@@ -192,7 +192,7 @@ describe('forceDeleted', function () {
 
         $this->cacheService->shouldReceive('invalidateAllResourceCaches')
             ->once();
-        $this->keywordService->shouldReceive('invalidateCache')
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')
             ->once();
 
         $this->observer->forceDeleted($resource);

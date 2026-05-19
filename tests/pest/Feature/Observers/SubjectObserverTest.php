@@ -4,56 +4,31 @@ declare(strict_types=1);
 
 use App\Models\Subject;
 use App\Observers\SubjectObserver;
-use App\Services\KeywordSuggestionService;
-use Illuminate\Support\Facades\DB;
+use App\Services\PortalKeywordCacheInvalidationService;
 
 covers(SubjectObserver::class);
 
 beforeEach(function () {
-    $this->keywordService = Mockery::spy(KeywordSuggestionService::class); // @phpstan-ignore variable.undefined
-    $this->observer = new SubjectObserver($this->keywordService);
+    $this->cacheInvalidationService = Mockery::mock(PortalKeywordCacheInvalidationService::class); // @phpstan-ignore variable.undefined
+    $this->observer = new SubjectObserver($this->cacheInvalidationService);
 });
 
 describe('saved', function () {
-    it('invalidates portal keyword caches after commit', function () {
+    it('schedules portal keyword cache invalidation after commit', function () {
         $subject = new Subject();
 
-        DB::beginTransaction();
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
 
-        try {
-            $this->observer->saved($subject);
-
-            $this->keywordService->shouldNotHaveReceived('invalidateCache');
-
-            DB::commit();
-        } finally {
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-        }
-
-        $this->keywordService->shouldHaveReceived('invalidateCache')->once();
+        $this->observer->saved($subject);
     });
 });
 
 describe('deleted', function () {
-    it('invalidates portal keyword caches after commit', function () {
+    it('schedules portal keyword cache invalidation after commit', function () {
         $subject = new Subject();
 
-        DB::beginTransaction();
+        $this->cacheInvalidationService->shouldReceive('scheduleAfterCommit')->once();
 
-        try {
-            $this->observer->deleted($subject);
-
-            $this->keywordService->shouldNotHaveReceived('invalidateCache');
-
-            DB::commit();
-        } finally {
-            if (DB::transactionLevel() > 0) {
-                DB::rollBack();
-            }
-        }
-
-        $this->keywordService->shouldHaveReceived('invalidateCache')->once();
+        $this->observer->deleted($subject);
     });
 });

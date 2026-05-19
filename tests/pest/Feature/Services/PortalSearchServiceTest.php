@@ -589,6 +589,46 @@ describe('thesaurus keyword filtering edge cases', function () {
             ->and($results->items()[0]->id)->toBe($matching->id);
     });
 
+    it('does not match duplicate labels via fallback when a different value uri is stored', function () {
+        $uriMatch = createPublishedResourceForSearch('URI Match', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $uriMatch->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => 'science-gnss',
+        ]);
+
+        $uriLessFallback = createPublishedResourceForSearch('URI-less Fallback Match', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $uriLessFallback->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        $differentUri = createPublishedResourceForSearch('Different URI Duplicate Label', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $differentUri->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => 'science-other-gnss',
+        ]);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords'],
+            'descendant_ids' => ['science-gnss'],
+            'descendant_values' => ['GNSS'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-earth']]);
+        $resultIds = array_map(static fn (Resource $resource): int => $resource->id, $results->items());
+
+        expect($resultIds)->toEqualCanonicalizing([$uriMatch->id, $uriLessFallback->id])
+            ->and($resultIds)->not->toContain($differentUri->id);
+    });
+
     it('returns no results when a resolved thesaurus node has no matchable descendants', function () {
         createPublishedResourceForSearch('Published Resource', $this->titleType);
 

@@ -22,6 +22,7 @@ use App\Observers\ResourceTypeObserver;
 use App\Observers\SubjectObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\RorLookupService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -43,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
 
         // RorLookupService is a singleton so the ROR JSON file is loaded at most once per request
         $this->app->singleton(RorLookupService::class);
+        $this->app->singleton(PortalKeywordCacheInvalidationService::class);
     }
 
     /**

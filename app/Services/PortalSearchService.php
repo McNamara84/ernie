@@ -494,10 +494,13 @@ class PortalSearchService
                         }
 
                         if ($descendantIds !== []) {
-                            $subjectQuery->orWhereRaw(...$this->buildInRawCondition(
-                                $normalizedValueSql,
-                                $descendantValues,
-                            ));
+                            $subjectQuery->orWhere(function (Builder $fallbackQuery) use ($normalizedValueSql, $descendantValues): void {
+                                $fallbackQuery->whereRaw("TRIM(COALESCE(value_uri, '')) = ''")
+                                    ->whereRaw(...$this->buildInRawCondition(
+                                        $normalizedValueSql,
+                                        $descendantValues,
+                                    ));
+                            });
 
                             return;
                         }

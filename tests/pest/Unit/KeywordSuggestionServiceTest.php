@@ -344,6 +344,55 @@ it('builds pruned thesaurus facets from breadcrumb controlled keywords without v
         ->and($facets[0]['roots'][0]['children'][0]['children'][0]['children'][0]['text'])->toBe('SEISMOLOGY');
 });
 
+it('does not expose duplicate-label branches when a precise value uri exists', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'language' => 'en',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'schemeURI' => 'https://example.test/science',
+            'description' => '',
+            'children' => [[
+                'id' => 'science-earth',
+                'text' => 'EARTH SCIENCE',
+                'language' => 'en',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'schemeURI' => 'https://example.test/science',
+                'description' => '',
+                'children' => [[
+                    'id' => 'science-gnss-primary',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ], [
+                    'id' => 'science-gnss-secondary',
+                    'text' => 'GNSS',
+                    'language' => 'en',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'schemeURI' => 'https://example.test/science',
+                    'description' => '',
+                    'children' => [],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'GNSS', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-gnss-primary'],
+    ]);
+
+    $facets = $this->service->getThesaurusFacets();
+    $gnssChildren = $facets[0]['roots'][0]['children'][0]['children'];
+
+    expect(array_column($gnssChildren, 'id'))->toBe(['science-gnss-primary']);
+});
+
 it('keeps ancestors when only descendant terms are used', function () {
     Storage::fake('local');
     Storage::disk('local')->put('gcmd-platforms.json', json_encode([

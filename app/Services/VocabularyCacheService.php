@@ -148,6 +148,10 @@ class VocabularyCacheService
         } else {
             Cache::forget($key->key());
         }
+
+        if ($this->shouldInvalidatePortalThesaurusFacets($key)) {
+            CacheKey::PORTAL_THESAURUS_FACETS->forget();
+        }
     }
 
     /**
@@ -178,5 +182,19 @@ class VocabularyCacheService
         }
 
         return $results;
+    }
+
+    private function shouldInvalidatePortalThesaurusFacets(CacheKey $key): bool
+    {
+        return in_array($key, [
+            CacheKey::GCMD_SCIENCE_KEYWORDS,
+            CacheKey::GCMD_PLATFORMS,
+            CacheKey::GCMD_INSTRUMENTS,
+            CacheKey::MSL_KEYWORDS,
+            CacheKey::CHRONOSTRAT_TIMESCALE,
+            CacheKey::GEMET_THESAURUS,
+            CacheKey::ANALYTICAL_METHODS,
+            CacheKey::EUROSCIVOC,
+        ], true);
     }
 }
