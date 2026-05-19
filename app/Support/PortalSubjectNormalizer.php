@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\DB;
+
 final class PortalSubjectNormalizer
 {
     public const BREADCRUMB_SEPARATOR = ' > ';
@@ -50,12 +52,13 @@ final class PortalSubjectNormalizer
         };
     }
 
-    public static function normalizedControlledSubjectValueSql(string $column): string
+    public static function normalizedControlledSubjectValueSql(string $column, ?string $driverName = null): string
     {
+        $characterFunction = self::characterCodeSqlFunction($driverName);
         $expression = self::trimmedSql($column);
-        $expression = "REPLACE({$expression}, CHAR(13), ' ')";
-        $expression = "REPLACE({$expression}, CHAR(10), ' ')";
-        $expression = "REPLACE({$expression}, CHAR(9), ' ')";
+        $expression = "REPLACE({$expression}, {$characterFunction}(13), ' ')";
+        $expression = "REPLACE({$expression}, {$characterFunction}(10), ' ')";
+        $expression = "REPLACE({$expression}, {$characterFunction}(9), ' ')";
         $expression = "REPLACE(REPLACE(REPLACE({$expression}, ' > ', '>'), ' >', '>'), '> ', '>')";
         $expression = "REPLACE({$expression}, '>', ' > ')";
 
@@ -89,5 +92,12 @@ SQL, $lowered, $trimmed);
     private static function trimmedSql(string $column): string
     {
         return "TRIM(COALESCE({$column}, ''))";
+    }
+
+    private static function characterCodeSqlFunction(?string $driverName = null): string
+    {
+        return ($driverName ?? DB::connection()->getDriverName()) === 'pgsql'
+            ? 'CHR'
+            : 'CHAR';
     }
 }

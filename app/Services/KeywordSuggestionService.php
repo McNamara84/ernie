@@ -14,11 +14,11 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service for providing keyword suggestions from published resources.
+ * Service for providing portal keyword filter data from published resources.
  *
- * Returns deduplicated keywords (Free Keywords + Thesaurus Keywords)
- * that are actually used by published resources, suitable for
- * autocomplete/filter UI in the public portal.
+ * Returns deduplicated free keyword suggestions for autocomplete and
+ * pruned thesaurus facets for controlled-vocabulary filtering in the
+ * public portal.
  */
 class KeywordSuggestionService
 {
