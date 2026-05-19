@@ -105,7 +105,8 @@ export const yearSchema = z
 
 export const versionSchema = z
     .string()
-    .regex(/^\d+(\.\d+)*$/, 'Version must follow semantic versioning (e.g., 1.0.0)')
+    .trim()
+    .max(50, 'Version must not exceed 50 characters')
     .optional()
     .or(z.literal(''));
 

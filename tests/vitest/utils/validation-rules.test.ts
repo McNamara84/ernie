@@ -7,9 +7,9 @@ import {
     validateEmail,
     validateORCID,
     validateRequired,
-    validateSemanticVersion,
     validateTextLength,
     validateTitleUniqueness,
+    validateVersion,
     validateYear,
 } from '@/utils/validation-rules';
 
@@ -163,50 +163,45 @@ describe('Validation Rules Utilities', () => {
         });
     });
 
-    describe('validateSemanticVersion', () => {
-        it('should validate basic semantic version', () => {
-            const result = validateSemanticVersion('1.2.3');
+    describe('validateVersion', () => {
+        it('should validate semantic version', () => {
+            const result = validateVersion('1.2.3');
             expect(result.isValid).toBe(true);
         });
 
-        it('should validate version with pre-release', () => {
-            const result = validateSemanticVersion('1.0.0-alpha');
+        it('should validate DataCite example version', () => {
+            const result = validateVersion('1.0');
             expect(result.isValid).toBe(true);
         });
 
-        it('should validate version with build metadata', () => {
-            const result = validateSemanticVersion('1.0.0+20130313144700');
+        it('should validate simple version number', () => {
+            const result = validateVersion('1');
             expect(result.isValid).toBe(true);
         });
 
-        it('should validate complex version', () => {
-            const result = validateSemanticVersion('1.0.0-beta.1+exp.sha.5114f85');
+        it('should validate free-form DataCite-compatible version text', () => {
+            const result = validateVersion('2026 official release');
             expect(result.isValid).toBe(true);
         });
 
         it('should allow empty version (optional field)', () => {
-            const result = validateSemanticVersion('');
-            expect(result.isValid).toBe(true);
-        });
-
-        it('should reject invalid format', () => {
-            const result = validateSemanticVersion('1.2');
-            expect(result.isValid).toBe(false);
-            expect(result.error).toContain('Invalid semantic version');
-        });
-
-        it('should reject version with leading zeros', () => {
-            const result = validateSemanticVersion('01.2.3');
-            expect(result.isValid).toBe(false);
-        });
-
-        it('should validate version 0.0.0', () => {
-            const result = validateSemanticVersion('0.0.0');
+            const result = validateVersion('');
             expect(result.isValid).toBe(true);
         });
 
         it('should trim whitespace', () => {
-            const result = validateSemanticVersion('  1.2.3  ');
+            const result = validateVersion('  1.2.3  ');
+            expect(result.isValid).toBe(true);
+        });
+
+        it('should reject values longer than 50 characters', () => {
+            const result = validateVersion('123456789012345678901234567890123456789012345678901');
+            expect(result.isValid).toBe(false);
+            expect(result.error).toContain('50 characters');
+        });
+
+        it('should validate version 0.0.0', () => {
+            const result = validateVersion('0.0.0');
             expect(result.isValid).toBe(true);
         });
     });

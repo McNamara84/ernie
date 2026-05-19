@@ -120,11 +120,11 @@ export function validateYear(year: string | number): {
 }
 
 /**
- * Semantic Versioning Validation
- * Format: MAJOR.MINOR.PATCH (e.g., 1.2.3)
- * Optional pre-release and build metadata allowed
+ * Version Validation
+ * DataCite allows free-form version strings. We mirror the backend contract:
+ * optional value, trimmed input, maximum length of 50 characters.
  */
-export function validateSemanticVersion(version: string): {
+export function validateVersion(version: string): {
     isValid: boolean;
     error?: string;
 } {
@@ -132,14 +132,10 @@ export function validateSemanticVersion(version: string): {
         return { isValid: true }; // Version is optional
     }
 
-    // Semantic versioning pattern (strict)
-    const semverPattern =
-        /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
-
-    if (!semverPattern.test(version.trim())) {
+    if (version.trim().length > 50) {
         return {
             isValid: false,
-            error: 'Invalid semantic version. Use format: MAJOR.MINOR.PATCH (e.g., 1.2.3)',
+            error: 'Version must not exceed 50 characters',
         };
     }
 

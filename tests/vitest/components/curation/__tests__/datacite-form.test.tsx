@@ -1387,6 +1387,60 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Version')).toHaveValue('1.5');
     });
 
+    it('accepts DataCite-style version 1.0 without inline validation errors', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const versionInput = screen.getByLabelText('Version');
+
+        fireEvent.change(versionInput, { target: { value: '1.0' } });
+        fireEvent.blur(versionInput);
+
+        await waitFor(() => {
+            expect(versionInput).toHaveValue('1.0');
+        });
+
+        expect(screen.queryByText('Version must not exceed 50 characters')).not.toBeInTheDocument();
+    });
+
+    it('shows an inline validation error when Version exceeds 50 characters', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const versionInput = screen.getByLabelText('Version');
+
+        fireEvent.change(versionInput, {
+            target: { value: '123456789012345678901234567890123456789012345678901' },
+        });
+        fireEvent.blur(versionInput);
+
+        expect(await screen.findByText('Version must not exceed 50 characters')).toBeInTheDocument();
+    });
+
     it('prefills authors when initialAuthors are provided', async () => {
         const user = userEvent.setup();
 

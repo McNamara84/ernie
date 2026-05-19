@@ -262,6 +262,10 @@
             {
                 "title": "First-Time Login After Welcome Password Setup",
                 "description": "Fixed a critical bug where new users could not log in after setting their password through the welcome link. The signed URL parameters were not forwarded during the password submission, causing the server to reject the request silently. Additionally, error messages from expired or invalid welcome links are now displayed on the login page."
+            },
+            {
+                "title": "Data Editor Accepts DataCite Version Numbers Like 1.0",
+                "description": "Fixed the Version field in the Data Editor so it no longer enforces strict MAJOR.MINOR.PATCH semantic versioning on the client side. Version values are now aligned with DataCite Metadata Schema 4.7 and the backend request rules, which means common inputs such as 1.0, 2.1, 1.0.0, and other valid free-form version strings are accepted. The field tooltip and shared frontend schema were updated accordingly, while the 50-character length guard remains enforced."
             }
         ]
     },

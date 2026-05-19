@@ -155,12 +155,16 @@ describe('Common Schemas', () => {
             expect(versionSchema.safeParse('1.0.0').success).toBe(true);
         });
 
-        it('accepts simple version', () => {
-            expect(versionSchema.safeParse('1').success).toBe(true);
+        it('accepts DataCite example version', () => {
+            expect(versionSchema.safeParse('1.0').success).toBe(true);
         });
 
-        it('rejects version with text', () => {
-            expect(versionSchema.safeParse('v1.0.0').success).toBe(false);
+        it('accepts free-form version text', () => {
+            expect(versionSchema.safeParse('2026 official release').success).toBe(true);
+        });
+
+        it('rejects values longer than 50 characters', () => {
+            expect(versionSchema.safeParse('123456789012345678901234567890123456789012345678901').success).toBe(false);
         });
 
         it('accepts empty string', () => {
