@@ -1415,7 +1415,7 @@ describe('DataCiteForm', () => {
         expect(screen.queryByText('Version must not exceed 50 characters')).not.toBeInTheDocument();
     });
 
-    it('shows an inline validation error when Version exceeds 50 characters', async () => {
+    it('applies the native 50 character limit on the Version input', async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -1433,12 +1433,7 @@ describe('DataCiteForm', () => {
 
         const versionInput = screen.getByLabelText('Version');
 
-        fireEvent.change(versionInput, {
-            target: { value: '123456789012345678901234567890123456789012345678901' },
-        });
-        fireEvent.blur(versionInput);
-
-        expect(await screen.findByText('Version must not exceed 50 characters')).toBeInTheDocument();
+        expect(versionInput).toHaveAttribute('maxLength', '50');
     });
 
     it('prefills authors when initialAuthors are provided', async () => {

@@ -84,15 +84,19 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.expectValidationSuccess(formPage.doiInput);
     });
     
-    test('validates DataCite-aligned version input', async ({ page }) => {
+    test('limits version input to 50 characters and accepts DataCite-style values', async ({ page }) => {
       await formPage.expandAccordion(formPage.resourceInfoAccordion);
+
+      const maxLengthVersion = '1234567890'.repeat(5);
+      const overlongVersion = `${maxLengthVersion}1`;
       
-      // Invalid version: exceeds backend and frontend max length
-      await formPage.versionInput.fill('123456789012345678901234567890123456789012345678901');
+      // Browser input is capped at 50 characters via maxlength.
+      await formPage.versionInput.fill(overlongVersion);
       await formPage.versionInput.blur();
       await page.waitForTimeout(400);
       
-      await formPage.expectValidationError(formPage.versionInput);
+      await expect(formPage.versionInput).toHaveValue(maxLengthVersion);
+      await formPage.expectValidationSuccess(formPage.versionInput);
       
       // Valid version: DataCite-style major.minor value
       await formPage.versionInput.clear();
