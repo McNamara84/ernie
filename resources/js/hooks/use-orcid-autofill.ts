@@ -425,6 +425,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
     const entryType = entry.type;
     const prevOrcidRef = useRef(orcidValue);
     const prevEntryTypeRef = useRef(entryType);
+    const verifiedOrcidRef = useRef<string | null>(isPersonEntry(entry) && entry.orcidVerified && entry.orcid ? entry.orcid : null);
     const entryRef = useRef(entry);
     const onEntryChangeRef = useRef(onEntryChange);
     // Mirror isVerifying so the auto-verify effect can check it without
@@ -448,9 +449,15 @@ export function useOrcidAutofill<T extends BaseEntry>({
             updatePendingOrcidData(null);
         }
 
+        if (entryTypeChanged) {
+            verifiedOrcidRef.current = null;
+        }
+
         // Reset verified state when the ORCID value actually changes so the new value can be re-verified
         const currentEntry = entryRef.current;
-        if (orcidChanged && isPersonEntry(currentEntry) && currentEntry.orcidVerified) {
+        const hasFreshVerifiedState = isPersonEntry(currentEntry) && verifiedOrcidRef.current === orcidValue;
+        if (orcidChanged && isPersonEntry(currentEntry) && currentEntry.orcidVerified && !hasFreshVerifiedState) {
+            verifiedOrcidRef.current = null;
             onEntryChangeRef.current({ ...currentEntry, orcidVerified: false, orcidVerifiedAt: undefined } as T);
         }
         if (orcidChanged) {
@@ -475,6 +482,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
         clearError();
         // Clear stale data from prior verification runs
         updatePendingOrcidData(null);
+        verifiedOrcidRef.current = null;
         setOrcidSuggestions([]);
         // Reset verified state so the auto-verify effect can run again
         if (entry.orcidVerified) {
@@ -568,6 +576,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 // Update ORCID field on the entry for selection
                 const entryWithOrcid = { ...entry, orcid } as T & PersonEntry;
                 const { updatedEntry, pendingData } = await processOrcidData(entryWithOrcid, response.data, includeEmail);
+                verifiedOrcidRef.current = orcid;
                 updatePendingOrcidData(pendingData, orcid);
                 onEntryChange(updatedEntry);
             } catch (error) {
@@ -764,6 +773,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
                 }
 
                 const { updatedEntry, pendingData } = await processOrcidData(personEntry, response.data, includeEmail);
+                verifiedOrcidRef.current = personEntry.orcid;
                 updatePendingOrcidData(pendingData, personEntry.orcid);
                 onEntryChange(updatedEntry);
             } catch (error) {

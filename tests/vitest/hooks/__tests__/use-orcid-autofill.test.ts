@@ -150,6 +150,40 @@ describe('useOrcidAutofill', () => {
             );
         });
 
+        it('keeps the verified status after the parent rerenders with a selected ORCID', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const { result } = renderHook(() => {
+                const [entry, setEntry] = useState(createPersonEntry());
+                const hook = useOrcidAutofill({
+                    entry,
+                    onEntryChange: setEntry,
+                    hasUserInteracted: false,
+                });
+
+                return { ...hook, entry };
+            });
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.entry.orcid).toBe('0000-0001-2345-6789');
+            expect(result.current.entry.orcidVerified).toBe(true);
+            expect(result.current.entry.orcidVerifiedAt).toBeTruthy();
+        });
+
         it('handles fetch error', async () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: false,
@@ -618,6 +652,46 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Smith',
                 }),
             );
+        });
+
+        it('keeps the verified status after auto-verify updates the parent entry', async () => {
+            vi.mocked(OrcidService.isValidFormat).mockReturnValue(true);
+            vi.mocked(OrcidService.validateChecksum).mockReturnValue(true);
+            vi.mocked(OrcidService.validateOrcid).mockResolvedValue({
+                success: true,
+                data: { valid: true, exists: true, message: 'Valid', errorType: null },
+            });
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const { result } = renderHook(() => {
+                const [entry, setEntry] = useState(createPersonEntry({ orcid: '0000-0001-2345-6789' }));
+                const hook = useOrcidAutofill({
+                    entry,
+                    onEntryChange: setEntry,
+                    hasUserInteracted: true,
+                });
+
+                return { ...hook, entry };
+            });
+
+            await act(async () => {
+                vi.advanceTimersByTime(600);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(result.current.entry.orcidVerified).toBe(true);
+            expect(result.current.entry.orcidVerifiedAt).toBeTruthy();
         });
 
         it('sets checksum error when checksum validation fails', async () => {
