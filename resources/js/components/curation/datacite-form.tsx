@@ -28,9 +28,9 @@ import {
     validateDate,
     validateDOIFormat,
     validateRequired,
-    validateSemanticVersion,
     validateTextLength,
     validateTitleUniqueness,
+    validateVersion,
     validateYear,
 } from '@/utils/validation-rules';
 
@@ -516,14 +516,14 @@ export default function DataCiteForm({
         },
     ];
 
-    // Version validation rules (optional but must be semantic if provided)
+    // Version validation rules (optional, aligned with DataCite/backend limits)
     const versionValidationRules: ValidationRule[] = [
         {
             validate: (value) => {
                 if (!value || String(value).trim() === '') {
                     return null; // Version is optional
                 }
-                const result = validateSemanticVersion(String(value));
+                const result = validateVersion(String(value));
                 if (!result.isValid) {
                     return { severity: 'error', message: result.error! };
                 }
@@ -2254,7 +2254,8 @@ export default function DataCiteForm({
                                 validationMessages={getFieldState('version').messages}
                                 touched={getFieldState('version').touched}
                                 placeholder="1.0"
-                                labelTooltip="Semantic versioning (e.g., 1.2.3)"
+                                labelTooltip="Version number (e.g., 1.0, 2.1, 1.0.0)"
+                                maxLength={50}
                                 className="min-w-0 md:col-span-1"
                             />
                             <SelectField

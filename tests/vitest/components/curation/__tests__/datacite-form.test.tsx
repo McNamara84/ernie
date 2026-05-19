@@ -1387,6 +1387,55 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Version')).toHaveValue('1.5');
     });
 
+    it('accepts DataCite-style version 1.0 without inline validation errors', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const versionInput = screen.getByLabelText('Version');
+
+        fireEvent.change(versionInput, { target: { value: '1.0' } });
+        fireEvent.blur(versionInput);
+
+        await waitFor(() => {
+            expect(versionInput).toHaveValue('1.0');
+        });
+
+        expect(screen.queryByText('Version must not exceed 50 characters')).not.toBeInTheDocument();
+    });
+
+    it('applies the native 50 character limit on the Version input', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const versionInput = screen.getByLabelText('Version');
+
+        expect(versionInput).toHaveAttribute('maxLength', '50');
+    });
+
     it('prefills authors when initialAuthors are provided', async () => {
         const user = userEvent.setup();
 
