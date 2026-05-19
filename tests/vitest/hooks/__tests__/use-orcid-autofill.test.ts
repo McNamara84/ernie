@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type PersonEntry, useOrcidAutofill } from '@/hooks/use-orcid-autofill';
@@ -147,6 +148,40 @@ describe('useOrcidAutofill', () => {
                     email: 'jane@example.com',
                 }),
             );
+        });
+
+        it('keeps the verified status after the parent rerenders with a selected ORCID', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const { result } = renderHook(() => {
+                const [entry, setEntry] = useState(createPersonEntry());
+                const hook = useOrcidAutofill({
+                    entry,
+                    onEntryChange: setEntry,
+                    hasUserInteracted: false,
+                });
+
+                return { ...hook, entry };
+            });
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0000-0001-2345-6789');
+            });
+
+            expect(result.current.entry.orcid).toBe('0000-0001-2345-6789');
+            expect(result.current.entry.orcidVerified).toBe(true);
+            expect(result.current.entry.orcidVerifiedAt).toBeTruthy();
         });
 
         it('handles fetch error', async () => {
@@ -340,6 +375,51 @@ describe('useOrcidAutofill', () => {
             expect(result.current.pendingOrcidData?.affiliations).toHaveLength(2);
         });
 
+        it('keeps pending affiliations after the parent rerenders with the selected ORCID', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0009-0003-4793-2913',
+                    firstName: 'Tatjana',
+                    lastName: 'Antipanova',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'GFZ Helmholtz Centre for Geosciences',
+                            role: null,
+                            department: '5.1 Data and Information Management',
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const { result } = renderHook(() => {
+                const [entry, setEntry] = useState(createPersonEntry());
+
+                return useOrcidAutofill({
+                    entry,
+                    onEntryChange: setEntry,
+                    hasUserInteracted: false,
+                });
+            });
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0009-0003-4793-2913');
+            });
+
+            expect(result.current.pendingOrcidData?.affiliations).toEqual([
+                expect.objectContaining({
+                    value: 'GFZ Helmholtz Centre for Geosciences',
+                    rorId: 'https://ror.org/04z8jg394',
+                    status: 'new',
+                }),
+            ]);
+        });
+
         it('does not add existing affiliations to pending data', async () => {
             vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
                 success: true,
@@ -378,6 +458,61 @@ describe('useOrcidAutofill', () => {
             expect(call.affiliations).toEqual([{ value: 'Same University', rorId: null }]);
 
             // No pending data since affiliation already exists
+            expect(result.current.pendingOrcidData).toBeNull();
+        });
+
+        it('clears pending affiliations when the entry later switches to a different ORCID', async () => {
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0009-0003-4793-2913',
+                    firstName: 'Tatjana',
+                    lastName: 'Antipanova',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [
+                        {
+                            type: 'employment',
+                            name: 'GFZ Helmholtz Centre for Geosciences',
+                            role: null,
+                            department: '5.1 Data and Information Management',
+                            rorId: 'https://ror.org/04z8jg394',
+                        },
+                    ],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            let updateEntry: ((entry: PersonEntry | ((currentEntry: PersonEntry) => PersonEntry)) => void) | null = null;
+
+            const { result } = renderHook(() => {
+                const [entry, setEntry] = useState(createPersonEntry());
+                updateEntry = setEntry;
+
+                return useOrcidAutofill({
+                    entry,
+                    onEntryChange: setEntry,
+                    hasUserInteracted: false,
+                });
+            });
+
+            await act(async () => {
+                await result.current.handleOrcidSelect('0009-0003-4793-2913');
+            });
+
+            expect(result.current.pendingOrcidData?.affiliations).toEqual([
+                expect.objectContaining({
+                    value: 'GFZ Helmholtz Centre for Geosciences',
+                }),
+            ]);
+
+            await act(async () => {
+                updateEntry?.((currentEntry) => ({
+                    ...currentEntry,
+                    orcid: '0000-0002-1825-0097',
+                }));
+            });
+
             expect(result.current.pendingOrcidData).toBeNull();
         });
     });
@@ -517,6 +652,46 @@ describe('useOrcidAutofill', () => {
                     lastName: 'Smith',
                 }),
             );
+        });
+
+        it('keeps the verified status after auto-verify updates the parent entry', async () => {
+            vi.mocked(OrcidService.isValidFormat).mockReturnValue(true);
+            vi.mocked(OrcidService.validateChecksum).mockReturnValue(true);
+            vi.mocked(OrcidService.validateOrcid).mockResolvedValue({
+                success: true,
+                data: { valid: true, exists: true, message: 'Valid', errorType: null },
+            });
+            vi.mocked(OrcidService.fetchOrcidRecord).mockResolvedValue({
+                success: true,
+                data: {
+                    orcid: '0000-0001-2345-6789',
+                    firstName: 'Jane',
+                    lastName: 'Smith',
+                    creditName: null,
+                    emails: [],
+                    affiliations: [],
+                    verifiedAt: new Date().toISOString(),
+                },
+            });
+
+            const { result } = renderHook(() => {
+                const [entry, setEntry] = useState(createPersonEntry({ orcid: '0000-0001-2345-6789' }));
+                const hook = useOrcidAutofill({
+                    entry,
+                    onEntryChange: setEntry,
+                    hasUserInteracted: true,
+                });
+
+                return { ...hook, entry };
+            });
+
+            await act(async () => {
+                vi.advanceTimersByTime(600);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(result.current.entry.orcidVerified).toBe(true);
+            expect(result.current.entry.orcidVerifiedAt).toBeTruthy();
         });
 
         it('sets checksum error when checksum validation fails', async () => {
