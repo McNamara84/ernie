@@ -84,19 +84,19 @@ test.describe('DataCite Form Validation UX', () => {
       await formPage.expectValidationSuccess(formPage.doiInput);
     });
     
-    test('validates semantic version format', async ({ page }) => {
+    test('validates DataCite-aligned version input', async ({ page }) => {
       await formPage.expandAccordion(formPage.resourceInfoAccordion);
       
-      // Invalid version
-      await formPage.versionInput.fill('v1.2');
+      // Invalid version: exceeds backend and frontend max length
+      await formPage.versionInput.fill('123456789012345678901234567890123456789012345678901');
       await formPage.versionInput.blur();
       await page.waitForTimeout(400);
       
       await formPage.expectValidationError(formPage.versionInput);
       
-      // Valid version
+      // Valid version: DataCite-style major.minor value
       await formPage.versionInput.clear();
-      await formPage.versionInput.fill('1.2.3');
+      await formPage.versionInput.fill('1.0');
       await formPage.versionInput.blur();
       await page.waitForTimeout(400);
       
