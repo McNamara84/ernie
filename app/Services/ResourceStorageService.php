@@ -39,6 +39,7 @@ class ResourceStorageService
         protected PersonService $personService,
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
+        protected PortalKeywordCacheInvalidationService $portalKeywordCacheInvalidationService,
         protected RorLookupService $rorLookupService,
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
@@ -111,6 +112,10 @@ class ResourceStorageService
             $this->storeDescriptions($resource, $data, $isUpdate);
             $this->storeDates($resource, $data, $isUpdate);
             $this->storeSubjects($resource, $data, $isUpdate);
+            // Subject updates can happen without a dirty Resource model update,
+            // and relation->delete() bypasses Subject model events. Schedule
+            // one shared portal keyword/thesaurus cache invalidation after commit.
+            $this->portalKeywordCacheInvalidationService->scheduleAfterCommit();
             $this->storeGeoLocations($resource, $data, $isUpdate);
             $this->storeRelatedIdentifiers($resource, $data, $isUpdate);
             $this->storeRelatedItems($resource, $data, $isUpdate);

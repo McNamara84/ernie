@@ -11,6 +11,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useNavigationStatus } from '@/hooks/use-navigation-status';
 import { usePortalFilters } from '@/hooks/use-portal-filters';
 import PortalLayout from '@/layouts/portal-layout';
+import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { GeoBounds, PortalPageProps, TemporalFilterValue } from '@/types/portal';
 
 const STORAGE_KEY_COLLAPSED = 'portal-map-collapsed';
@@ -18,7 +19,7 @@ const STORAGE_KEY_LAYOUT = 'portal-panel-layout';
 const DEFAULT_RESULTS_SIZE = 55;
 const DEFAULT_MAP_SIZE = 45;
 
-export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
+export default function Portal({ resources, mapData, pagination, filters, keywordSuggestions, thesaurusFacets = [], temporalRange, resourceTypeFacets, datacenterFacets }: PortalPageProps) {
     const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
     const { isNavigating: isRefreshing } = useNavigationStatus('results');
 
@@ -60,10 +61,26 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         localStorage.setItem(STORAGE_KEY_LAYOUT, JSON.stringify({ results: resultsSize, map: mapSize }));
     }, []);
 
-    const { setSearch, setType, setDatacenter, setKeywords, setBounds, clearBounds, setTemporal, clearFilters, hasActiveFilters } = usePortalFilters({
+    const {
+        setSearch,
+        setType,
+        setDatacenter,
+        setKeywords,
+        setFreeKeywords,
+        setThesaurusKeywords,
+        setBounds,
+        clearBounds,
+        setTemporal,
+        clearFilters,
+        hasActiveFilters,
+    } = usePortalFilters({
         filters,
         currentPage: pagination.current_page,
     });
+    const hasLegacyKeywordFilters =
+        (filters.keywords?.length ?? 0) > 0 &&
+        (filters.freeKeywords?.length ?? 0) === 0 &&
+        (filters.thesaurusKeywords?.length ?? 0) === 0;
 
     // Geo filter toggle state – initialized from URL params
     const [geoFilterEnabled, setGeoFilterEnabled] = useState(() => filters.bounds !== null);
@@ -162,6 +179,19 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
         [setTemporal],
     );
 
+    const handleKeywordChange = useCallback(
+        (keywords: string[]) => {
+            if (hasLegacyKeywordFilters) {
+                setKeywords(keywords);
+
+                return;
+            }
+
+            setFreeKeywords(keywords);
+        },
+        [hasLegacyKeywordFilters, setKeywords, setFreeKeywords],
+    );
+
     // Extended clear that also resets geo and temporal filters
     const handleClearAllFilters = useCallback(() => {
         if (viewportTimerRef.current) {
@@ -181,50 +211,7 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
 
     const handlePageChange = useCallback(
         (page: number) => {
-            const params = new URLSearchParams();
-
-            if (filters.query && filters.query.trim() !== '') {
-                params.set('q', filters.query.trim());
-            }
-
-            if (filters.type && filters.type.length > 0) {
-                filters.type.forEach((slug) => {
-                    params.append('type[]', slug);
-                });
-            } else if (filters.exclude_type) {
-                // Legacy DOI filter: preserve ?type=doi so the backend
-                // can reconstruct the exclude constraint on pagination.
-                params.set('type', 'doi');
-            }
-
-            if (filters.keywords && filters.keywords.length > 0) {
-                filters.keywords.forEach((kw) => {
-                    params.append('keywords[]', kw);
-                });
-            }
-
-            if (filters.datacenter && filters.datacenter.length > 0) {
-                filters.datacenter.forEach((name) => {
-                    params.append('datacenter[]', name);
-                });
-            }
-
-            if (filters.bounds) {
-                params.set('north', filters.bounds.north.toFixed(6));
-                params.set('south', filters.bounds.south.toFixed(6));
-                params.set('east', filters.bounds.east.toFixed(6));
-                params.set('west', filters.bounds.west.toFixed(6));
-            }
-
-            if (filters.temporal) {
-                params.set('date_type', filters.temporal.dateType);
-                params.set('year_from', String(filters.temporal.yearFrom));
-                params.set('year_to', String(filters.temporal.yearTo));
-            }
-
-            // Page is passed as Inertia data, not URL parameter
-            const queryString = params.toString();
-            const url = queryString ? `/portal?${queryString}` : '/portal';
+            const url = buildPortalFilterUrl(filters);
 
             router.get(url, { page }, { preserveState: true, preserveScroll: false });
         },
@@ -262,13 +249,15 @@ export default function Portal({ resources, mapData, pagination, filters, keywor
                         onSearchChange={setSearch}
                         onTypeChange={setType}
                         onDatacenterChange={setDatacenter}
-                        onKeywordsChange={setKeywords}
+                        onKeywordsChange={handleKeywordChange}
+                        onThesaurusKeywordsChange={setThesaurusKeywords}
                         onClearFilters={handleClearAllFilters}
                         hasActiveFilters={hasActiveFilters}
                         isCollapsed={isFilterCollapsed}
                         onToggleCollapse={() => setIsFilterCollapsed(!isFilterCollapsed)}
                         totalResults={pagination.total}
                         keywordSuggestions={keywordSuggestions}
+                        thesaurusFacets={thesaurusFacets}
                         geoFilterEnabled={geoFilterEnabled}
                         onGeoFilterToggle={handleGeoFilterToggle}
                         onBoundsChange={handleBoundsChange}

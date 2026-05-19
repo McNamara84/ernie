@@ -41,7 +41,10 @@ enum CacheKey: string
     case DOCS_EDITOR_SETTINGS = 'docs:editor_settings';
 
     // Portal cache keys
+    case PORTAL_FREE_KEYWORD_SUGGESTIONS = 'portal:free_keyword_suggestions';
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
+    case PORTAL_THESAURUS_FACETS = 'portal:thesaurus_facets';
+    case PORTAL_THESAURUS_SUBJECT_INDEX = 'portal:thesaurus_subject_index';
     case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
@@ -122,8 +125,11 @@ enum CacheKey: string
             // Editor settings for docs - 1 hour (settings rarely change)
             self::DOCS_EDITOR_SETTINGS => 3600,
 
-            // Portal keyword suggestions - 1 hour
-            self::PORTAL_KEYWORD_SUGGESTIONS => 3600,
+            // Portal keyword facets - 1 hour
+            self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
+            self::PORTAL_KEYWORD_SUGGESTIONS,
+            self::PORTAL_THESAURUS_FACETS,
+            self::PORTAL_THESAURUS_SUBJECT_INDEX => 3600,
 
             // Portal temporal range - 1 hour (year boundaries change infrequently)
             self::PORTAL_TEMPORAL_RANGE => 3600,
@@ -181,7 +187,11 @@ enum CacheKey: string
 
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
 
+            self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
+
+            self::PORTAL_THESAURUS_FACETS,
+            self::PORTAL_THESAURUS_SUBJECT_INDEX => ['portal', 'thesauri', 'vocabularies'],
 
             self::PORTAL_TEMPORAL_RANGE => ['portal', 'temporal'],
 

@@ -14,6 +14,8 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\Subject;
+use App\Support\PortalSubjectNormalizer;
 use App\Models\Title;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
@@ -31,6 +33,10 @@ use Illuminate\Support\Facades\DB;
 class PortalSearchService
 {
     use ChecksCacheTagging;
+
+    public function __construct(
+        private readonly KeywordSuggestionService $keywordService,
+    ) {}
 
     private const DEFAULT_PER_PAGE = 20;
 
@@ -72,6 +78,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+    *     free_keywords?: string[]|null,
+    *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -106,6 +114,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+    *     free_keywords?: string[]|null,
+    *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -128,6 +138,8 @@ class PortalSearchService
      *     type?: string|string[]|null,
      *     exclude_type?: string|null,
      *     keywords?: string[]|null,
+    *     free_keywords?: string[]|null,
+    *     thesaurus_keywords?: string[]|null,
      *     datacenter?: string[]|null,
      *     bounds?: array{north: float, south: float, east: float, west: float}|null,
      *     temporal?: array{dateType: string, yearFrom: int, yearTo: int}|null,
@@ -182,8 +194,14 @@ class PortalSearchService
         // Apply search query
         $this->applySearchQuery($query, $filters['query'] ?? null);
 
-        // Apply keyword filter
+        // Apply legacy exact keyword filter
         $this->applyKeywordFilter($query, $filters['keywords'] ?? null);
+
+        // Apply free keyword filter
+        $this->applyFreeKeywordFilter($query, $filters['free_keywords'] ?? null);
+
+        // Apply thesaurus keyword filter
+        $this->applyThesaurusKeywordFilter($query, $filters['thesaurus_keywords'] ?? null);
 
         // Apply datacenter filter
         $this->applyDatacenterFilter($query, $filters['datacenter'] ?? null);
@@ -393,6 +411,154 @@ class PortalSearchService
                 $q->where('value', $keyword);
             });
         }
+    }
+
+    /**
+     * Apply free keyword filter with AND logic.
+     *
+     * @param  Builder<Resource>  $query
+     * @param  string[]|null  $keywords
+     */
+    private function applyFreeKeywordFilter(Builder $query, ?array $keywords): void
+    {
+        if ($keywords === null || $keywords === []) {
+            return;
+        }
+
+        foreach ($keywords as $keyword) {
+            $keyword = trim($keyword);
+            if ($keyword === '') {
+                continue;
+            }
+
+            $query->whereHas('subjects', function (Builder $q) use ($keyword): void {
+                /** @var Builder<Subject> $q */
+                $q->freeText()->where('value', $keyword);
+            });
+        }
+    }
+
+    /**
+     * Apply selected thesaurus node filters with AND logic.
+     *
+     * @param  Builder<Resource>  $query
+    * @param  string[]|null  $selectedNodeIds
+     */
+    private function applyThesaurusKeywordFilter(Builder $query, ?array $selectedNodeIds): void
+    {
+        if ($selectedNodeIds === null || $selectedNodeIds === []) {
+            return;
+        }
+
+        $normalizedIds = array_values(array_unique(array_filter(
+            array_map(trim(...), $selectedNodeIds),
+            static fn (string $value): bool => $value !== '',
+        )));
+
+        if ($normalizedIds === []) {
+            return;
+        }
+
+        $resolvedNodes = $this->keywordService->resolveSelectedThesaurusNodes($normalizedIds);
+        if (count($resolvedNodes) !== count($normalizedIds)) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        foreach ($resolvedNodes as $resolvedNode) {
+            $subjectSchemes = $this->normalizeResolvedSubjectSchemes($resolvedNode['subject_schemes']);
+            $descendantIds = $resolvedNode['descendant_ids'];
+            $descendantValues = $this->normalizeResolvedDescendantValues($resolvedNode['descendant_values']);
+
+            if ($subjectSchemes === [] || ($descendantIds === [] && $descendantValues === [])) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+
+            /** @var literal-string $normalizedSchemeSql */
+            $normalizedSchemeSql = PortalSubjectNormalizer::normalizedSchemeSql('subject_scheme');
+            /** @var literal-string $normalizedValueSql */
+            $normalizedValueSql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql('value');
+
+            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues, $normalizedSchemeSql, $normalizedValueSql): void {
+                $q->whereRaw(...$this->buildInRawCondition($normalizedSchemeSql, $subjectSchemes))
+                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues, $normalizedValueSql): void {
+                        if ($descendantIds !== []) {
+                            $subjectQuery->whereIn('value_uri', $descendantIds);
+                        }
+
+                        if ($descendantValues === []) {
+                            return;
+                        }
+
+                        if ($descendantIds !== []) {
+                            $subjectQuery->orWhere(function (Builder $fallbackQuery) use ($normalizedValueSql, $descendantValues): void {
+                                $fallbackQuery->whereRaw("TRIM(COALESCE(value_uri, '')) = ''")
+                                    ->whereRaw(...$this->buildInRawCondition(
+                                        $normalizedValueSql,
+                                        $descendantValues,
+                                    ));
+                            });
+
+                            return;
+                        }
+
+                        $subjectQuery->whereRaw(...$this->buildInRawCondition(
+                            $normalizedValueSql,
+                            $descendantValues,
+                        ));
+                    });
+            });
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $subjectSchemes
+     * @return array<int, string>
+     */
+    private function normalizeResolvedSubjectSchemes(array $subjectSchemes): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static function (string $subjectScheme): ?string {
+                $normalized = PortalSubjectNormalizer::normalizeScheme($subjectScheme);
+
+                return $normalized !== null ? mb_strtolower($normalized) : null;
+            },
+            $subjectSchemes,
+        ))));
+    }
+
+    /**
+     * @param  array<int, string>  $descendantValues
+     * @return array<int, string>
+     */
+    private function normalizeResolvedDescendantValues(array $descendantValues): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static function (string $descendantValue): ?string {
+                $normalized = PortalSubjectNormalizer::normalizeControlledSubjectValue($descendantValue);
+
+                return $normalized !== null ? mb_strtolower($normalized) : null;
+            },
+            $descendantValues,
+        ))));
+    }
+
+    /**
+     * @param  literal-string  $expression
+     * @param  array<int, scalar>  $values
+     * @return array{0: literal-string, 1: array<int, scalar>}
+     */
+    private function buildInRawCondition(string $expression, array $values): array
+    {
+        $placeholders = implode(', ', array_fill(0, count($values), '?'));
+
+        /** @var literal-string $sql */
+        $sql = "{$expression} IN ({$placeholders})";
+
+        return [$sql, $values];
     }
 
     /**

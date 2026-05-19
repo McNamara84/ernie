@@ -20,6 +20,7 @@ use App\Models\Right;
 use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
+use App\Services\KeywordSuggestionService;
 use App\Services\Pid4instStatusService;
 use App\Services\RorStatusService;
 use App\Services\ThesaurusStatusService;
@@ -34,6 +35,7 @@ class EditorSettingsController extends Controller
         private readonly ThesaurusStatusService $thesaurusStatusService,
         private readonly Pid4instStatusService $pid4instStatusService,
         private readonly RorStatusService $rorStatusService,
+        private readonly KeywordSuggestionService $keywordSuggestionService,
     ) {}
 
     public function index(): Response
@@ -195,6 +197,7 @@ class EditorSettingsController extends Controller
     public function update(UpdateSettingsRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $hasThesaurusUpdates = isset($validated['thesauri']);
 
         // Wrap all updates in a single transaction for atomicity and performance
         // Using direct DB updates instead of Eloquent for efficiency
@@ -410,6 +413,10 @@ class EditorSettingsController extends Controller
                 }
             }
         });
+
+        if ($hasThesaurusUpdates) {
+            $this->keywordSuggestionService->invalidateCache();
+        }
 
         return back()->with('success', 'Settings updated');
     }

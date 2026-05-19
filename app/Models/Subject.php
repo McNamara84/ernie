@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,32 @@ class Subject extends Model
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
 
+    /**
+     * Scope free-text subjects, treating NULL and an empty scheme as equivalent.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeFreeText(Builder $query): Builder
+    {
+        return $query->where(function (Builder $subjectQuery): void {
+            $subjectQuery->whereNull('subject_scheme')
+                ->orWhere('subject_scheme', '');
+        });
+    }
+
+    /**
+     * Scope controlled-vocabulary subjects.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeControlled(Builder $query): Builder
+    {
+        return $query->whereNotNull('subject_scheme')
+            ->where('subject_scheme', '!=', '');
+    }
+
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo
     {
@@ -58,7 +85,7 @@ class Subject extends Model
      */
     public function isControlled(): bool
     {
-        return $this->subject_scheme !== null;
+        return $this->subject_scheme !== null && $this->subject_scheme !== '';
     }
 
     /**
@@ -66,7 +93,7 @@ class Subject extends Model
      */
     public function isFreeText(): bool
     {
-        return $this->subject_scheme === null;
+        return $this->subject_scheme === null || $this->subject_scheme === '';
     }
 
     /**

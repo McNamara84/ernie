@@ -44,21 +44,22 @@ class PortalController extends Controller
         // emits ?type=doi (preserving the exclusion on pagination/navigation).
         $typeSlugs = $isLegacyDoi ? [] : $this->normalizeTypeSlugs($rawType);
 
+        $legacyKeywords = $this->normalizeStringFilters($request->query('keywords', []));
+        $freeKeywords = $this->normalizeStringFilters($request->query('free_keywords', []));
+        $thesaurusKeywords = $this->normalizeStringFilters($request->query('thesaurus_keywords', []));
+
+        if ($freeKeywords !== [] || $thesaurusKeywords !== []) {
+            $legacyKeywords = [];
+        }
+
         $filters = [
             'query' => $request->query('q'),
             'type' => $typeSlugs,
             'exclude_type' => $excludeType,
-            'keywords' => array_slice(array_filter(
-                (array) $request->query('keywords', []),
-                static fn (mixed $v): bool => is_string($v) && trim($v) !== '',
-            ), 0, 20),
-            'datacenter' => array_values(array_slice(array_filter(
-                array_map(trim(...), array_filter(
-                    (array) $request->query('datacenter', []),
-                    static fn (mixed $v): bool => is_string($v),
-                )),
-                static fn (string $v): bool => $v !== '',
-            ), 0, 20)),
+            'keywords' => $legacyKeywords,
+            'free_keywords' => $freeKeywords,
+            'thesaurus_keywords' => $thesaurusKeywords,
+            'datacenter' => $this->normalizeStringFilters($request->query('datacenter', [])),
             'bounds' => $this->parseBounds($request),
             'temporal' => $this->parseTemporal($request, $temporalRange),
             'page' => (int) $request->query('page', 1),
@@ -94,11 +95,14 @@ class PortalController extends Controller
                 'type' => array_values($filters['type']),
                 'exclude_type' => $excludeType,
                 'keywords' => array_values($filters['keywords']),
+                'freeKeywords' => array_values($filters['free_keywords']),
+                'thesaurusKeywords' => array_values($filters['thesaurus_keywords']),
                 'datacenter' => $filters['datacenter'],
                 'bounds' => $filters['bounds'],
                 'temporal' => $filters['temporal'],
             ],
-            'keywordSuggestions' => $this->keywordService->getSuggestions(),
+            'keywordSuggestions' => $this->keywordService->getFreeKeywordSuggestions(),
+            'thesaurusFacets' => $this->keywordService->getThesaurusFacets(),
             'temporalRange' => $temporalRange,
             'resourceTypeFacets' => $resourceTypeFacets,
             'datacenterFacets' => $datacenterFacets,
@@ -255,5 +259,25 @@ class PortalController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Normalize multi-value string filters from query parameters.
+     *
+     * Trims values, removes blanks and duplicates, and caps the result length.
+     *
+     * @return array<int, string>
+     */
+    private function normalizeStringFilters(mixed $raw, int $limit = 20): array
+    {
+        $normalized = array_map(
+            static fn (mixed $value): string => is_string($value) ? trim($value) : '',
+            (array) $raw,
+        );
+
+        return array_values(array_slice(array_unique(array_filter(
+            $normalized,
+            static fn (string $value): bool => $value !== '',
+        )), 0, $limit));
     }
 }

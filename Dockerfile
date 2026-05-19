@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     ca-certificates \
     gnupg \
+    && apt-get install -y --only-upgrade libcap2 libsystemd0 libudev1 linux-libc-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

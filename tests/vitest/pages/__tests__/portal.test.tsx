@@ -21,6 +21,9 @@ vi.mock('@/layouts/portal-layout', () => ({
 
 const setSearchMock = vi.fn();
 const setTypeMock = vi.fn();
+const setKeywordsMock = vi.fn();
+const setFreeKeywordsMock = vi.fn();
+const setThesaurusKeywordsMock = vi.fn();
 const clearFiltersMock = vi.fn();
 const setBoundsMock = vi.fn();
 const clearBoundsMock = vi.fn();
@@ -32,9 +35,11 @@ vi.mock('@/hooks/use-portal-filters', () => ({
         setSearch: setSearchMock,
         setType: setTypeMock,
         setDatacenter: vi.fn(),
-        setKeywords: vi.fn(),
+        setKeywords: setKeywordsMock,
         addKeyword: vi.fn(),
         removeKeyword: vi.fn(),
+        setFreeKeywords: setFreeKeywordsMock,
+        setThesaurusKeywords: setThesaurusKeywordsMock,
         setBounds: setBoundsMock,
         clearBounds: clearBoundsMock,
         setTemporal: setTemporalMock,
@@ -53,6 +58,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         filters,
         totalResults,
         onSearchChange,
+        onKeywordsChange,
         onClearFilters,
         geoFilterEnabled,
         onGeoFilterToggle,
@@ -64,6 +70,7 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         filters: PortalPageProps['filters'];
         totalResults: number;
         onSearchChange: (s: string) => void;
+        onKeywordsChange?: (keywords: string[]) => void;
         onClearFilters: () => void;
         geoFilterEnabled?: boolean;
         onGeoFilterToggle?: (enabled: boolean) => void;
@@ -75,6 +82,11 @@ vi.mock('@/components/portal/PortalFilters', () => ({
         <div data-testid="portal-filters">
             <span data-testid="total-results">{totalResults}</span>
             <input data-testid="search-input" onChange={(e) => onSearchChange(e.target.value)} />
+            {onKeywordsChange && (
+                <button data-testid="keyword-change" onClick={() => onKeywordsChange(['Updated Keyword'])}>
+                    Keyword Change
+                </button>
+            )}
             <button data-testid="clear-filters" onClick={onClearFilters}>
                 Clear
             </button>
@@ -292,6 +304,94 @@ describe('Portal', () => {
         await user.click(nextButtons[0]);
 
         expect(routerMock.get).toHaveBeenCalledWith(expect.stringContaining('type%5B%5D=dataset'), { page: 2 }, expect.any(Object));
+    });
+
+    it('preserves free keyword and thesaurus params on page change', async () => {
+        const user = userEvent.setup();
+        const propsWithSplitKeywords = {
+            ...defaultProps,
+            filters: {
+                query: '',
+                type: [] as string[],
+                keywords: [],
+                freeKeywords: ['Seismology'],
+                thesaurusKeywords: ['earth-science'],
+                datacenter: [],
+                bounds: null,
+                temporal: null,
+            },
+        };
+        render(<Portal {...propsWithSplitKeywords} />);
+
+        const nextButtons = screen.getAllByTestId('next-page');
+        await user.click(nextButtons[0]);
+
+        const calledUrl = routerMock.get.mock.calls[0][0] as string;
+        expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+        expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
+    });
+
+    it('drops legacy keywords on page change when split keyword filters are active', async () => {
+        const user = userEvent.setup();
+        const propsWithMixedKeywordFilters = {
+            ...defaultProps,
+            filters: {
+                query: '',
+                type: [] as string[],
+                keywords: ['Legacy Keyword'],
+                freeKeywords: ['Seismology'],
+                thesaurusKeywords: ['earth-science'],
+                datacenter: [],
+                bounds: null,
+                temporal: null,
+            },
+        };
+
+        render(<Portal {...propsWithMixedKeywordFilters} />);
+
+        const nextButtons = screen.getAllByTestId('next-page');
+        await user.click(nextButtons[0]);
+
+        const calledUrl = routerMock.get.mock.calls[0][0] as string;
+        expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+        expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
+        expect(calledUrl).not.toContain('keywords%5B%5D=Legacy+Keyword');
+    });
+
+    it('routes legacy keyword edits through setKeywords for old bookmarked URLs', async () => {
+        const user = userEvent.setup();
+        const propsWithLegacyKeywords = {
+            ...defaultProps,
+            filters: {
+                ...defaultProps.filters,
+                keywords: ['Legacy Keyword'],
+            },
+        };
+
+        render(<Portal {...propsWithLegacyKeywords} />);
+
+        await user.click(screen.getByTestId('keyword-change'));
+
+        expect(setKeywordsMock).toHaveBeenCalledWith(['Updated Keyword']);
+        expect(setFreeKeywordsMock).not.toHaveBeenCalled();
+    });
+
+    it('routes modern free keyword edits through setFreeKeywords', async () => {
+        const user = userEvent.setup();
+        const propsWithFreeKeywords = {
+            ...defaultProps,
+            filters: {
+                ...defaultProps.filters,
+                freeKeywords: ['Seismology'],
+            },
+        };
+
+        render(<Portal {...propsWithFreeKeywords} />);
+
+        await user.click(screen.getByTestId('keyword-change'));
+
+        expect(setFreeKeywordsMock).toHaveBeenCalledWith(['Updated Keyword']);
+        expect(setKeywordsMock).not.toHaveBeenCalled();
     });
 
     it('persists map collapsed state to localStorage', async () => {

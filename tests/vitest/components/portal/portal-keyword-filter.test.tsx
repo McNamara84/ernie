@@ -38,10 +38,10 @@ describe('PortalKeywordFilter', () => {
     });
 
     describe('rendering', () => {
-        it('renders the Keywords label', () => {
+        it('renders the Free Keywords label', () => {
             render(<PortalKeywordFilter {...defaultProps} />);
 
-            expect(screen.getByText('Keywords')).toBeInTheDocument();
+            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
         });
 
         it('renders the combobox trigger button', () => {
@@ -71,7 +71,7 @@ describe('PortalKeywordFilter', () => {
         it('renders the helper text', () => {
             render(<PortalKeywordFilter {...defaultProps} />);
 
-            expect(screen.getByText('Filter by free keywords or controlled vocabularies (GCMD, MSL, GEMET, ICS)')).toBeInTheDocument();
+            expect(screen.getByText('Filter by free-text keywords used in published records.')).toBeInTheDocument();
         });
     });
 
@@ -140,7 +140,7 @@ describe('PortalKeywordFilter', () => {
 
             await user.click(screen.getByRole('combobox'));
 
-            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
+            expect(screen.getAllByText('Free Keywords')).toHaveLength(2);
             expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
             expect(screen.getByText('GCMD Platforms')).toBeInTheDocument();
             expect(screen.getByText('GCMD Instruments')).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe('PortalKeywordFilter', () => {
             await user.click(screen.getByRole('combobox'));
 
             // Verify Free Keywords heading appears before GCMD headings
-            const freeKeywordsHeading = screen.getByText('Free Keywords');
+            const freeKeywordsHeading = screen.getAllByText('Free Keywords')[1];
             const gcmdHeading = screen.getByText('GCMD Science Keywords');
 
             // Free Keywords should appear before GCMD Science Keywords in the DOM
@@ -248,7 +248,7 @@ describe('PortalKeywordFilter', () => {
 
             await user.click(screen.getByRole('combobox'));
 
-            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
+            expect(screen.getAllByText('Free Keywords')).toHaveLength(2);
             expect(screen.getByText('MyFreeKeyword')).toBeInTheDocument();
         });
 
@@ -278,7 +278,7 @@ describe('PortalKeywordFilter', () => {
             await user.click(screen.getByRole('combobox'));
 
             // Only the MSL group should be rendered (higher count wins)
-            expect(screen.queryByText('Free Keywords')).not.toBeInTheDocument();
+            expect(screen.getAllByText('Free Keywords')).toHaveLength(1);
             expect(screen.getByText('MSL Vocabularies')).toBeInTheDocument();
 
             // "Geochemistry" should appear only once
@@ -303,7 +303,7 @@ describe('PortalKeywordFilter', () => {
             await user.click(screen.getByRole('combobox'));
 
             // Only the Free Keywords group should be rendered (higher count wins)
-            expect(screen.getByText('Free Keywords')).toBeInTheDocument();
+            expect(screen.getAllByText('Free Keywords')).toHaveLength(2);
             expect(screen.queryByText('MSL Vocabularies')).not.toBeInTheDocument();
 
             const items = screen.getAllByText('Geochemistry');

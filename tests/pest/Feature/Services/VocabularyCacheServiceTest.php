@@ -116,6 +116,21 @@ it('invalidates specific vocabulary cache', function () {
     expect(Cache::tags(['vocabularies'])->has(CacheKey::GCMD_INSTRUMENTS->key()))->toBeTrue();
 });
 
+it('invalidates portal thesaurus facets when a thesaurus vocabulary cache is invalidated', function () {
+    Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags())->put(
+        CacheKey::PORTAL_THESAURUS_FACETS->key(),
+        [['scheme' => 'Stale Scheme', 'roots' => []]],
+        3600,
+    );
+    Cache::tags(['vocabularies'])->put(CacheKey::ANALYTICAL_METHODS->key(), 'data', 3600);
+
+    expect(Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags())->has(CacheKey::PORTAL_THESAURUS_FACETS->key()))->toBeTrue();
+
+    $this->cacheService->invalidateVocabularyCache(CacheKey::ANALYTICAL_METHODS);
+
+    expect(Cache::tags(CacheKey::PORTAL_THESAURUS_FACETS->tags())->has(CacheKey::PORTAL_THESAURUS_FACETS->key()))->toBeFalse();
+});
+
 it('returns cached data on subsequent calls', function () {
     $callCount = 0;
 

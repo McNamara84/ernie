@@ -13,13 +13,14 @@ use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Support\Facades\Cache;
 
 covers(PortalSearchService::class);
 
 beforeEach(function () {
-    $this->service = new PortalSearchService;
+    $this->service = app(PortalSearchService::class);
     $this->titleType = TitleType::factory()->create(['name' => 'Main Title', 'slug' => 'main-title']);
 });
 
@@ -45,6 +46,35 @@ function createPublishedResourceForSearch(string $title, TitleType $titleType, ?
     ]);
 
     return $resource;
+}
+
+/**
+ * @param  array<int, array{id: string, scheme: string, subject_schemes?: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
+ */
+function createPortalSearchServiceWithResolvedThesaurusNodes(array $resolvedNodes): PortalSearchService
+{
+    return new PortalSearchService(new class($resolvedNodes) extends KeywordSuggestionService
+    {
+        /**
+         * @param  array<int, array{id: string, scheme: string, subject_schemes?: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $resolvedNodes
+         */
+        public function __construct(private array $resolvedNodes) {}
+
+        /**
+         * @param  array<int, string>  $selectedNodeIds
+         * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
+         */
+        public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
+        {
+            return array_map(
+                static fn (array $resolvedNode): array => [
+                    ...$resolvedNode,
+                    'subject_schemes' => $resolvedNode['subject_schemes'] ?? [$resolvedNode['scheme']],
+                ],
+                $this->resolvedNodes,
+            );
+        }
+    });
 }
 
 // =========================================================================
@@ -273,6 +303,27 @@ describe('keyword filtering', function () {
         expect($results->total())->toBe(2);
     });
 
+    it('treats empty subject schemes as free-text keywords', function () {
+        $matching = createPublishedResourceForSearch('Matching Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'Seismology',
+            'subject_scheme' => '',
+        ]);
+
+        $controlledOnly = createPublishedResourceForSearch('Controlled Paper', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $controlledOnly->id,
+            'value' => 'Seismology',
+            'subject_scheme' => 'Science Keywords',
+        ]);
+
+        $results = $this->service->search(['free_keywords' => ['Seismology']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
     it('combines keyword filter with text search', function () {
         // Resource matching both query and keyword
         $matching = createPublishedResourceForSearch('Seismic Activity', $this->titleType);
@@ -366,6 +417,231 @@ describe('type filtering', function () {
         $results = $this->service->search(['type' => ['dataset', 'software']]);
 
         expect($results->total())->toBe(2);
+    });
+
+    it('supports the legacy doi type string and keeps untyped resources', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        $softwareType = ResourceType::factory()->create([
+            'name' => 'Software', 'slug' => 'software',
+        ]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        $dataset = createPublishedResourceForSearch('Dataset DOI', $this->titleType, $datasetType);
+        $software = createPublishedResourceForSearch('Software DOI', $this->titleType, $softwareType);
+        $untyped = createPublishedResourceForSearch('Untyped DOI', $this->titleType);
+        createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
+
+        $results = $this->service->search(['type' => 'doi']);
+
+        expect($results->total())->toBe(3)
+            ->and(array_map(static fn (Resource $resource): int => $resource->id, $results->items()))
+            ->toEqualCanonicalizing([$dataset->id, $software->id, $untyped->id]);
+    });
+
+    it('supports the legacy igsn type string', function () {
+        $datasetType = ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        $physicalObjectType = ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        createPublishedResourceForSearch('Dataset DOI', $this->titleType, $datasetType);
+        $igsn = createPublishedResourceForSearch('IGSN Sample', $this->titleType, $physicalObjectType);
+
+        $results = $this->service->search(['type' => 'igsn']);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($igsn->id);
+    });
+});
+
+describe('legacy type mapping', function () {
+    it('maps legacy values to the expected resource type filters', function () {
+        ResourceType::factory()->create([
+            'name' => 'Dataset', 'slug' => 'dataset',
+        ]);
+        ResourceType::factory()->create([
+            'name' => 'Software', 'slug' => 'software',
+        ]);
+        ResourceType::factory()->create([
+            'name' => 'PhysicalObject', 'slug' => 'physical-object',
+        ]);
+
+        expect(PortalSearchService::mapLegacyTypeValue(''))->toBeNull();
+        expect(PortalSearchService::mapLegacyTypeValue('all'))->toBeNull();
+        expect(PortalSearchService::mapLegacyTypeValue('igsn'))->toBe(['physical-object']);
+        expect(PortalSearchService::mapLegacyTypeValue('custom-type'))->toBe(['custom-type']);
+        expect(PortalSearchService::mapLegacyTypeValue('doi'))
+            ->toEqualCanonicalizing(['dataset', 'software']);
+    });
+});
+
+describe('thesaurus keyword filtering edge cases', function () {
+    it('matches thesaurus keywords by value when resolved descendants have no ids', function () {
+        $matching = createPublishedResourceForSearch('Controlled GNSS', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-earth',
+            'scheme' => 'Science Keywords',
+            'descendant_ids' => [],
+            'descendant_values' => ['GNSS'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('matches thesaurus keywords stored as breadcrumb paths when resolved descendants have no ids', function () {
+        $matching = createPublishedResourceForSearch('Controlled Seismology', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+            'subject_scheme' => 'GCMD Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-solid-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords', 'GCMD Science Keywords'],
+            'descendant_ids' => [],
+            'descendant_values' => [
+                'EARTH SCIENCE > SOLID EARTH',
+                'SOLID EARTH',
+                'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+                'SOLID EARTH > SEISMOLOGY',
+                'SEISMOLOGY',
+            ],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-solid-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('matches thesaurus keywords when stored values use different casing and separator spacing', function () {
+        $matching = createPublishedResourceForSearch('Normalized Breadcrumb Path', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => '  earth science> solid   earth > seismology  ',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-solid-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords'],
+            'descendant_ids' => [],
+            'descendant_values' => [
+                'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+            ],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-solid-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('matches thesaurus keywords when stored schemes normalize to the selected scheme', function () {
+        $matching = createPublishedResourceForSearch('Normalized Scheme Alias', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'GNSS',
+            'subject_scheme' => ' NASA/GCMD Earth Science Keywords  ',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords'],
+            'descendant_ids' => [],
+            'descendant_values' => ['GNSS'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('does not match duplicate labels via fallback when a different value uri is stored', function () {
+        $uriMatch = createPublishedResourceForSearch('URI Match', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $uriMatch->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => 'science-gnss',
+        ]);
+
+        $uriLessFallback = createPublishedResourceForSearch('URI-less Fallback Match', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $uriLessFallback->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        $differentUri = createPublishedResourceForSearch('Different URI Duplicate Label', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $differentUri->id,
+            'value' => 'GNSS',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => 'science-other-gnss',
+        ]);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords'],
+            'descendant_ids' => ['science-gnss'],
+            'descendant_values' => ['GNSS'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-earth']]);
+        $resultIds = array_map(static fn (Resource $resource): int => $resource->id, $results->items());
+
+        expect($resultIds)->toEqualCanonicalizing([$uriMatch->id, $uriLessFallback->id])
+            ->and($resultIds)->not->toContain($differentUri->id);
+    });
+
+    it('returns no results when a resolved thesaurus node has no matchable descendants', function () {
+        createPublishedResourceForSearch('Published Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-empty',
+            'scheme' => 'Science Keywords',
+            'descendant_ids' => [],
+            'descendant_values' => [],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-empty']]);
+
+        expect($results->total())->toBe(0);
     });
 });
 

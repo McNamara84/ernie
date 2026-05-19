@@ -43,10 +43,22 @@ describe('isControlled', function () {
         expect($model->isControlled())->toBeTrue();
     });
 
+    it('returns false when subject_scheme is an empty string', function () {
+        $model = new Subject(['subject_scheme' => '']);
+
+        expect($model->isControlled())->toBeFalse();
+    });
+
     it('returns false when subject_scheme is null', function () {
         $model = new Subject(['subject_scheme' => null]);
 
         expect($model->isControlled())->toBeFalse();
+    });
+
+    it('returns true when subject_scheme is the string 0', function () {
+        $model = new Subject(['subject_scheme' => '0']);
+
+        expect($model->isControlled())->toBeTrue();
     });
 });
 
@@ -57,8 +69,20 @@ describe('isFreeText', function () {
         expect($model->isFreeText())->toBeTrue();
     });
 
+    it('returns true when subject_scheme is an empty string', function () {
+        $model = new Subject(['subject_scheme' => '']);
+
+        expect($model->isFreeText())->toBeTrue();
+    });
+
     it('returns false when subject_scheme is set', function () {
         $model = new Subject(['subject_scheme' => 'GCMD Science Keywords']);
+
+        expect($model->isFreeText())->toBeFalse();
+    });
+
+    it('returns false when subject_scheme is the string 0', function () {
+        $model = new Subject(['subject_scheme' => '0']);
 
         expect($model->isFreeText())->toBeFalse();
     });

@@ -777,4 +777,92 @@ describe('usePortalFilters', () => {
             expect(result.current.hasActiveFilters).toBe(false);
         });
     });
+
+    describe('setFreeKeywords', () => {
+        it('navigates with free_keywords[] URL params', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
+            );
+
+            act(() => {
+                result.current.setFreeKeywords(['Seismology', 'Geology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+            expect(calledUrl).toContain('free_keywords%5B%5D=Geology');
+        });
+
+        it('drops legacy keywords when free keywords are applied', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { ...defaultFilters, keywords: ['Legacy Keyword'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setFreeKeywords(['Seismology']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('free_keywords%5B%5D=Seismology');
+            expect(calledUrl).not.toContain('keywords%5B%5D=Legacy+Keyword');
+        });
+
+        it('reports active filters when free keywords are set', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { ...defaultFilters, freeKeywords: ['Seismology'] },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+    });
+
+    describe('setThesaurusKeywords', () => {
+        it('navigates with thesaurus_keywords[] URL params', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({ filters: defaultFilters, currentPage: 1 }),
+            );
+
+            act(() => {
+                result.current.setThesaurusKeywords(['earth-science', 'solid-earth']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
+            expect(calledUrl).toContain('thesaurus_keywords%5B%5D=solid-earth');
+        });
+
+        it('drops legacy keywords when thesaurus keywords are applied', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { ...defaultFilters, keywords: ['Legacy Keyword'] },
+                    currentPage: 1,
+                }),
+            );
+
+            act(() => {
+                result.current.setThesaurusKeywords(['earth-science']);
+            });
+
+            const calledUrl = routerMock.get.mock.calls[0][0] as string;
+            expect(calledUrl).toContain('thesaurus_keywords%5B%5D=earth-science');
+            expect(calledUrl).not.toContain('keywords%5B%5D=Legacy+Keyword');
+        });
+
+        it('reports active filters when thesaurus keywords are set', () => {
+            const { result } = renderHook(() =>
+                usePortalFilters({
+                    filters: { ...defaultFilters, thesaurusKeywords: ['earth-science'] },
+                    currentPage: 1,
+                }),
+            );
+
+            expect(result.current.hasActiveFilters).toBe(true);
+        });
+    });
 });

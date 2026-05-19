@@ -13,13 +13,16 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
+use App\Models\Subject;
 use App\Models\User;
 use App\Observers\LandingPageObserver;
 use App\Observers\ResourceAssessmentObserver;
 use App\Observers\ResourceObserver;
 use App\Observers\ResourceTypeObserver;
+use App\Observers\SubjectObserver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
+use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\RorLookupService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -41,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
 
         // RorLookupService is a singleton so the ROR JSON file is loaded at most once per request
         $this->app->singleton(RorLookupService::class);
+        $this->app->singleton(PortalKeywordCacheInvalidationService::class);
     }
 
     /**
@@ -53,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
         ResourceAssessment::observe(ResourceAssessmentObserver::class);
         ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);
+        Subject::observe(SubjectObserver::class);
 
         // Configure rate limiters
         $this->configureRateLimiting();

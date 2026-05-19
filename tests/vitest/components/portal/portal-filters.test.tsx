@@ -12,10 +12,29 @@ describe('PortalFilters', () => {
         query: '',
         type: [],
         keywords: [],
+        freeKeywords: [],
+        thesaurusKeywords: [],
         datacenter: [],
         bounds: null,
         temporal: null,
     };
+
+    const defaultThesaurusFacets = [
+        {
+            scheme: 'Science Keywords',
+            roots: [
+                {
+                    id: 'earth-science',
+                    text: 'EARTH SCIENCE',
+                    language: 'en',
+                    scheme: 'Science Keywords',
+                    schemeURI: 'https://example.test/science',
+                    description: '',
+                    children: [],
+                },
+            ],
+        },
+    ];
 
     const defaultFacets = [
         { slug: 'dataset', name: 'Dataset', count: 42 },
@@ -29,12 +48,14 @@ describe('PortalFilters', () => {
         onTypeChange: vi.fn(),
         onDatacenterChange: vi.fn(),
         onKeywordsChange: vi.fn(),
+        onThesaurusKeywordsChange: vi.fn(),
         onClearFilters: vi.fn(),
         hasActiveFilters: false,
         isCollapsed: false,
         onToggleCollapse: vi.fn(),
         totalResults: 42,
         keywordSuggestions: [],
+        thesaurusFacets: [],
         geoFilterEnabled: false,
         onGeoFilterToggle: vi.fn(),
         onBoundsChange: vi.fn(),
@@ -79,6 +100,51 @@ describe('PortalFilters', () => {
             render(<PortalFilters {...defaultProps} filters={filters} />);
 
             expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
+        });
+
+        it('renders the thesaurus keyword section when facets are available', () => {
+            render(<PortalFilters {...defaultProps} thesaurusFacets={defaultThesaurusFacets} />);
+
+            expect(screen.getByText('Thesaurus Keywords')).toBeInTheDocument();
+            expect(screen.getByText('GCMD Science Keywords')).toBeInTheDocument();
+        });
+
+        it('uses default thesaurus props when the optional values are omitted', () => {
+            const propsWithoutOptionalThesaurus = { ...defaultProps };
+            Reflect.deleteProperty(propsWithoutOptionalThesaurus, 'onThesaurusKeywordsChange');
+            Reflect.deleteProperty(propsWithoutOptionalThesaurus, 'thesaurusFacets');
+
+            render(<PortalFilters {...propsWithoutOptionalThesaurus} />);
+
+            expect(screen.getByText('No thesaurus keywords available.')).toBeInTheDocument();
+        });
+
+        it('shows legacy keywords in the free keyword control when split filters are not set', () => {
+            const filters: PortalFiltersType = { ...defaultFilters, keywords: ['Seismology'] };
+
+            render(<PortalFilters {...defaultProps} filters={filters} />);
+
+            expect(screen.getByText('Seismology')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /remove keyword "Seismology"/i })).toBeInTheDocument();
+        });
+    });
+
+    describe('Thesaurus Filter Interaction', () => {
+        it('forwards thesaurus node selections to the parent handler', async () => {
+            const user = userEvent.setup();
+            const onThesaurusKeywordsChange = vi.fn();
+
+            render(
+                <PortalFilters
+                    {...defaultProps}
+                    thesaurusFacets={defaultThesaurusFacets}
+                    onThesaurusKeywordsChange={onThesaurusKeywordsChange}
+                />,
+            );
+
+            await user.click(screen.getByLabelText('Select thesaurus keyword EARTH SCIENCE'));
+
+            expect(onThesaurusKeywordsChange).toHaveBeenCalledWith(['earth-science']);
         });
     });
 

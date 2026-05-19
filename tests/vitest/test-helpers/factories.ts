@@ -317,6 +317,8 @@ export function createMockPortalFilters(overrides?: Partial<PortalFilters>): Por
         query: null,
         type: [],
         keywords: [],
+        freeKeywords: [],
+        thesaurusKeywords: [],
         datacenter: [],
         bounds: null,
         temporal: null,
@@ -343,6 +345,7 @@ export function createMockPortalPageProps(overrides?: {
         }),
         filters: createMockPortalFilters(overrides?.filters),
         keywordSuggestions: [],
+        thesaurusFacets: [],
         temporalRange: {},
         resourceTypeFacets: [],
     };

@@ -836,6 +836,46 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'portal-search',
+                title: 'Data Portal Search',
+                icon: Globe,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Searching Published Records in the Portal</h3>
+                        <p>
+                            The public Data Portal at <code>/portal</code> lets you explore published datasets and physical samples with text,
+                            spatial, temporal, datacenter, and keyword filters. Every filter state is stored in the URL, so filtered views can be
+                            bookmarked and shared.
+                        </p>
+
+                        <h4>Free Keywords</h4>
+                        <p>
+                            The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as plain
+                            text during curation. Select one or more values to require exact matches on those free-form terms.
+                        </p>
+
+                        <h4>Thesaurus Keywords</h4>
+                        <p>
+                            Controlled vocabulary terms are now filtered separately in the <strong>Thesaurus Keywords</strong> section. ERNIE shows a
+                            dedicated tree for each thesaurus and hides unused branches automatically, so you only browse terms that are already used
+                            by published records.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Select a parent node to include matching descendant terms automatically</li>
+                            <li>Select multiple thesaurus nodes to combine them with AND logic</li>
+                            <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
+                        </ul>
+
+                        <h4>Other Portal Filters</h4>
+                        <p>
+                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
+                            filters. When the result set refreshes, the current results stay visible until the new response arrives.
+                        </p>
+                    </>
+                ),
+            },
+            {
                 id: 'titles-descriptions',
                 title: 'Titles & Descriptions',
                 icon: Type,
