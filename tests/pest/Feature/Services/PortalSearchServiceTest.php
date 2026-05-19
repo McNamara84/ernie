@@ -537,6 +537,58 @@ describe('thesaurus keyword filtering edge cases', function () {
             ->and($results->items()[0]->id)->toBe($matching->id);
     });
 
+    it('matches thesaurus keywords when stored values use different casing and separator spacing', function () {
+        $matching = createPublishedResourceForSearch('Normalized Breadcrumb Path', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => '  earth science> solid   earth > seismology  ',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-solid-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords'],
+            'descendant_ids' => [],
+            'descendant_values' => [
+                'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+            ],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-solid-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
+    it('matches thesaurus keywords when stored schemes normalize to the selected scheme', function () {
+        $matching = createPublishedResourceForSearch('Normalized Scheme Alias', $this->titleType);
+        Subject::factory()->create([
+            'resource_id' => $matching->id,
+            'value' => 'GNSS',
+            'subject_scheme' => ' NASA/GCMD Earth Science Keywords  ',
+            'value_uri' => null,
+        ]);
+
+        createPublishedResourceForSearch('Unrelated Resource', $this->titleType);
+
+        $service = createPortalSearchServiceWithResolvedThesaurusNodes([[
+            'id' => 'science-earth',
+            'scheme' => 'Science Keywords',
+            'subject_schemes' => ['Science Keywords'],
+            'descendant_ids' => [],
+            'descendant_values' => ['GNSS'],
+        ]]);
+
+        $results = $service->search(['thesaurus_keywords' => ['science-earth']]);
+
+        expect($results->total())->toBe(1)
+            ->and($results->items()[0]->id)->toBe($matching->id);
+    });
+
     it('returns no results when a resolved thesaurus node has no matchable descendants', function () {
         createPublishedResourceForSearch('Published Resource', $this->titleType);
 

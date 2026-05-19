@@ -6,6 +6,7 @@ namespace App\Observers;
 
 use App\Models\Subject;
 use App\Services\KeywordSuggestionService;
+use Illuminate\Support\Facades\DB;
 
 class SubjectObserver
 {
@@ -15,11 +16,15 @@ class SubjectObserver
 
     public function saved(Subject $subject): void
     {
-        $this->keywordSuggestionService->invalidateCache();
+        DB::afterCommit(function (): void {
+            $this->keywordSuggestionService->invalidateCache();
+        });
     }
 
     public function deleted(Subject $subject): void
     {
-        $this->keywordSuggestionService->invalidateCache();
+        DB::afterCommit(function (): void {
+            $this->keywordSuggestionService->invalidateCache();
+        });
     }
 }

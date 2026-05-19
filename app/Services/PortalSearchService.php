@@ -15,6 +15,7 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
+use App\Support\PortalSubjectNormalizer;
 use App\Models\Title;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
@@ -466,19 +467,24 @@ class PortalSearchService
         }
 
         foreach ($resolvedNodes as $resolvedNode) {
-            $subjectSchemes = $resolvedNode['subject_schemes'];
+            $subjectSchemes = $this->normalizeResolvedSubjectSchemes($resolvedNode['subject_schemes']);
             $descendantIds = $resolvedNode['descendant_ids'];
-            $descendantValues = $resolvedNode['descendant_values'];
+            $descendantValues = $this->normalizeResolvedDescendantValues($resolvedNode['descendant_values']);
 
-            if ($descendantIds === [] && $descendantValues === []) {
+            if ($subjectSchemes === [] || ($descendantIds === [] && $descendantValues === [])) {
                 $query->whereRaw('1 = 0');
 
                 return;
             }
 
-            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues): void {
-                $q->whereIn('subject_scheme', $subjectSchemes)
-                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues): void {
+            /** @var literal-string $normalizedSchemeSql */
+            $normalizedSchemeSql = PortalSubjectNormalizer::normalizedSchemeSql('subject_scheme');
+            /** @var literal-string $normalizedValueSql */
+            $normalizedValueSql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql('value');
+
+            $query->whereHas('subjects', function (Builder $q) use ($subjectSchemes, $descendantIds, $descendantValues, $normalizedSchemeSql, $normalizedValueSql): void {
+                $q->whereRaw(...$this->buildInRawCondition($normalizedSchemeSql, $subjectSchemes))
+                    ->where(function (Builder $subjectQuery) use ($descendantIds, $descendantValues, $normalizedValueSql): void {
                         if ($descendantIds !== []) {
                             $subjectQuery->whereIn('value_uri', $descendantIds);
                         }
@@ -488,15 +494,68 @@ class PortalSearchService
                         }
 
                         if ($descendantIds !== []) {
-                            $subjectQuery->orWhereIn('value', $descendantValues);
+                            $subjectQuery->orWhereRaw(...$this->buildInRawCondition(
+                                $normalizedValueSql,
+                                $descendantValues,
+                            ));
 
                             return;
                         }
 
-                        $subjectQuery->whereIn('value', $descendantValues);
+                        $subjectQuery->whereRaw(...$this->buildInRawCondition(
+                            $normalizedValueSql,
+                            $descendantValues,
+                        ));
                     });
             });
         }
+    }
+
+    /**
+     * @param  array<int, string>  $subjectSchemes
+     * @return array<int, string>
+     */
+    private function normalizeResolvedSubjectSchemes(array $subjectSchemes): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static function (string $subjectScheme): ?string {
+                $normalized = PortalSubjectNormalizer::normalizeScheme($subjectScheme);
+
+                return $normalized !== null ? mb_strtolower($normalized) : null;
+            },
+            $subjectSchemes,
+        ))));
+    }
+
+    /**
+     * @param  array<int, string>  $descendantValues
+     * @return array<int, string>
+     */
+    private function normalizeResolvedDescendantValues(array $descendantValues): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static function (string $descendantValue): ?string {
+                $normalized = PortalSubjectNormalizer::normalizeControlledSubjectValue($descendantValue);
+
+                return $normalized !== null ? mb_strtolower($normalized) : null;
+            },
+            $descendantValues,
+        ))));
+    }
+
+    /**
+     * @param  literal-string  $expression
+     * @param  array<int, scalar>  $values
+     * @return array{0: literal-string, 1: array<int, scalar>}
+     */
+    private function buildInRawCondition(string $expression, array $values): array
+    {
+        $placeholders = implode(', ', array_fill(0, count($values), '?'));
+
+        /** @var literal-string $sql */
+        $sql = "{$expression} IN ({$placeholders})";
+
+        return [$sql, $values];
     }
 
     /**

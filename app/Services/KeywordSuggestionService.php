@@ -8,6 +8,7 @@ use App\Enums\CacheKey;
 use App\Models\Subject;
 use App\Models\ThesaurusSetting;
 use App\Support\GemetVocabularyParser;
+use App\Support\PortalSubjectNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -23,12 +24,6 @@ class KeywordSuggestionService
 {
     use ChecksCacheTagging;
 
-    private const BREADCRUMB_SEPARATOR = ' > ';
-
-    private const SCHEME_ICS_CHRONOSTRAT = 'International Chronostratigraphic Chart';
-
-    private const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
-
     /**
      * @var list<array{file: string, fallback_scheme: string, setting_type: string|null}>
      */
@@ -37,9 +32,9 @@ class KeywordSuggestionService
         ['file' => 'gcmd-platforms.json', 'fallback_scheme' => 'Platforms', 'setting_type' => ThesaurusSetting::TYPE_PLATFORMS],
         ['file' => 'gcmd-instruments.json', 'fallback_scheme' => 'Instruments', 'setting_type' => ThesaurusSetting::TYPE_INSTRUMENTS],
         ['file' => 'msl-vocabulary.json', 'fallback_scheme' => 'EPOS MSL vocabulary', 'setting_type' => null],
-        ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => self::SCHEME_ICS_CHRONOSTRAT, 'setting_type' => ThesaurusSetting::TYPE_CHRONOSTRAT],
+        ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ICS_CHRONOSTRAT, 'setting_type' => ThesaurusSetting::TYPE_CHRONOSTRAT],
         ['file' => 'gemet-thesaurus.json', 'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE, 'setting_type' => ThesaurusSetting::TYPE_GEMET],
-        ['file' => 'analytical-methods.json', 'fallback_scheme' => self::SCHEME_ANALYTICAL_METHODS, 'setting_type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS],
+        ['file' => 'analytical-methods.json', 'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS, 'setting_type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS],
         ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)', 'setting_type' => ThesaurusSetting::TYPE_EUROSCIVOC],
     ];
 
@@ -282,7 +277,7 @@ class KeywordSuggestionService
                     $usedSubjects[$scheme]['schemes'][$rawScheme] = true;
                 }
 
-                $normalizedValue = $this->normalizeControlledSubjectValue($subject->value);
+                $normalizedValue = PortalSubjectNormalizer::normalizeControlledSubjectValue($subject->value);
                 if ($normalizedValue !== null) {
                     $usedSubjects[$scheme]['values'][mb_strtolower($normalizedValue)] = true;
                 }
@@ -511,7 +506,7 @@ class KeywordSuggestionService
 
         for ($offset = 0; $offset < $segmentCount; $offset++) {
             $variant = $this->normalizeControlledSubjectValue(
-                implode(self::BREADCRUMB_SEPARATOR, array_slice($pathSegments, $offset)),
+                implode(PortalSubjectNormalizer::BREADCRUMB_SEPARATOR, array_slice($pathSegments, $offset)),
             );
 
             if ($variant !== null) {
@@ -533,41 +528,13 @@ class KeywordSuggestionService
         return is_array($children) ? $children : [];
     }
 
-    private function normalizeControlledSubjectValue(?string $value): ?string
-    {
-        $trimmed = trim((string) $value);
-        if ($trimmed === '') {
-            return null;
-        }
-
-        $normalizedSeparators = preg_replace('/\s*>\s*/u', self::BREADCRUMB_SEPARATOR, $trimmed) ?? $trimmed;
-        $normalizedWhitespace = preg_replace('/\s+/u', ' ', $normalizedSeparators) ?? $normalizedSeparators;
-        $normalizedValue = trim($normalizedWhitespace);
-
-        return $normalizedValue === '' ? null : $normalizedValue;
-    }
-
     private function normalizeScheme(?string $scheme): ?string
     {
-        $trimmed = trim((string) $scheme);
-        if ($trimmed === '') {
-            return null;
-        }
+        return PortalSubjectNormalizer::normalizeScheme($scheme);
+    }
 
-        $normalized = mb_strtolower($trimmed);
-
-        return match (true) {
-            str_contains($normalized, 'science keywords') => 'Science Keywords',
-            str_contains($normalized, 'platform') => 'Platforms',
-            str_contains($normalized, 'instrument') => 'Instruments',
-            str_contains($normalized, 'epos msl'),
-            str_contains($normalized, 'msl vocabulary') => 'EPOS MSL vocabulary',
-            str_contains($normalized, 'chronostrat') => self::SCHEME_ICS_CHRONOSTRAT,
-            str_contains($normalized, 'gemet') => GemetVocabularyParser::SCHEME_TITLE,
-            str_contains($normalized, 'analytical') && str_contains($normalized, 'method') => self::SCHEME_ANALYTICAL_METHODS,
-            str_contains($normalized, 'euroscivoc'),
-            str_contains($normalized, 'european science vocabulary') => 'European Science Vocabulary (EuroSciVoc)',
-            default => $trimmed,
-        };
+    private function normalizeControlledSubjectValue(?string $value): ?string
+    {
+        return PortalSubjectNormalizer::normalizeControlledSubjectValue($value);
     }
 }
