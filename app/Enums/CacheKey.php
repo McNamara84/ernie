@@ -41,6 +41,7 @@ enum CacheKey: string
     case DOCS_EDITOR_SETTINGS = 'docs:editor_settings';
 
     // Portal cache keys
+    case PORTAL_FREE_KEYWORD_SUGGESTIONS = 'portal:free_keyword_suggestions';
     case PORTAL_KEYWORD_SUGGESTIONS = 'portal:keyword_suggestions';
     case PORTAL_THESAURUS_FACETS = 'portal:thesaurus_facets';
     case PORTAL_THESAURUS_SUBJECT_INDEX = 'portal:thesaurus_subject_index';
@@ -125,6 +126,7 @@ enum CacheKey: string
             self::DOCS_EDITOR_SETTINGS => 3600,
 
             // Portal keyword facets - 1 hour
+            self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS,
             self::PORTAL_THESAURUS_FACETS,
             self::PORTAL_THESAURUS_SUBJECT_INDEX => 3600,
@@ -185,6 +187,7 @@ enum CacheKey: string
 
             self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
 
+            self::PORTAL_FREE_KEYWORD_SUGGESTIONS,
             self::PORTAL_KEYWORD_SUGGESTIONS => ['portal', 'keywords'],
 
             self::PORTAL_THESAURUS_FACETS,

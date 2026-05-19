@@ -54,3 +54,9 @@ it('resets the scheduled flag when the transaction rolls back', function () {
 
     $this->keywordService->shouldHaveReceived('invalidateCache')->once();
 });
+
+it('invalidates immediately when no transaction is open', function () {
+    $this->service->scheduleAfterCommit();
+
+    $this->keywordService->shouldHaveReceived('invalidateCache')->once();
+});

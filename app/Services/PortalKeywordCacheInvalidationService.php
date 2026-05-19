@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class PortalKeywordCacheInvalidationService
 {
@@ -20,15 +22,36 @@ class PortalKeywordCacheInvalidationService
             return;
         }
 
-        $this->invalidateCacheScheduled = true;
+        $databaseManager = DB::getFacadeRoot();
 
-        DB::afterCommit(function (): void {
+        if (! $databaseManager instanceof DatabaseManager) {
+            $this->keywordSuggestionService->invalidateCache();
+
+            return;
+        }
+
+        try {
+            $connection = $databaseManager->connection();
+
+            if ($connection->transactionLevel() === 0) {
+                $this->keywordSuggestionService->invalidateCache();
+
+                return;
+            }
+
+            $this->invalidateCacheScheduled = true;
+
+            $connection->afterCommit(function (): void {
+                $this->invalidateCacheScheduled = false;
+                $this->keywordSuggestionService->invalidateCache();
+            });
+
+            $connection->afterRollBack(function (): void {
+                $this->invalidateCacheScheduled = false;
+            });
+        } catch (Throwable) {
             $this->invalidateCacheScheduled = false;
             $this->keywordSuggestionService->invalidateCache();
-        });
-
-        DB::afterRollBack(function (): void {
-            $this->invalidateCacheScheduled = false;
-        });
+        }
     }
 }

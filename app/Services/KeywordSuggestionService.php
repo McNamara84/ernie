@@ -59,10 +59,10 @@ class KeywordSuggestionService
     public function getFreeKeywordSuggestions(): array
     {
         /** @var array<int, array{value: string, scheme: null, count: int}> */
-        return $this->getCacheInstance(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags())
+        return $this->getCacheInstance(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->tags())
             ->remember(
-                CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(),
-                CacheKey::PORTAL_KEYWORD_SUGGESTIONS->ttl(),
+                CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->key(),
+                CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->ttl(),
                 fn (): array => $this->fetchFreeKeywordSuggestions(),
             );
     }
@@ -132,10 +132,15 @@ class KeywordSuggestionService
     }
 
     /**
-     * Invalidate the cached keyword suggestions.
+     * Invalidate all cached portal keyword and thesaurus data.
+     *
+     * Clears the current free-keyword suggestions cache, the legacy mixed
+     * keyword suggestions cache key, the pruned thesaurus facets, and the
+     * controlled-subject index used to resolve selected thesaurus nodes.
      */
     public function invalidateCache(): void
     {
+        CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->forget();
         CacheKey::PORTAL_KEYWORD_SUGGESTIONS->forget();
         CacheKey::PORTAL_THESAURUS_FACETS->forget();
         CacheKey::PORTAL_THESAURUS_SUBJECT_INDEX->forget();
@@ -350,16 +355,21 @@ class KeywordSuggestionService
             $children[] = $this->normalizeVocabularyNode($child, $fallbackScheme);
         }
 
-        return [
+        $normalizedNode = [
             'id' => (string) ($node['id'] ?? ''),
             'text' => trim((string) ($node['text'] ?? '')),
             'language' => (string) ($node['language'] ?? 'en'),
             'scheme' => $this->normalizeScheme((string) ($node['scheme'] ?? $fallbackScheme)) ?? $fallbackScheme,
             'schemeURI' => (string) ($node['schemeURI'] ?? ''),
             'description' => (string) ($node['description'] ?? ''),
-            'notation' => isset($node['notation']) ? (string) $node['notation'] : null,
             'children' => $children,
         ];
+
+        if (isset($node['notation'])) {
+            $normalizedNode['notation'] = (string) $node['notation'];
+        }
+
+        return $normalizedNode;
     }
 
     /**

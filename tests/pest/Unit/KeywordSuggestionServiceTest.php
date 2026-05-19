@@ -534,10 +534,15 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
         ['value' => 'ATMOSPHERE', 'subject_scheme' => 'Science Keywords', 'value_uri' => 'science-atmosphere'],
     ]);
 
-    putCacheValue(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags(), CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(), [[
+    putCacheValue(CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->tags(), CacheKey::PORTAL_FREE_KEYWORD_SUGGESTIONS->key(), [[
         'value' => 'Stale Keyword',
         'scheme' => null,
         'count' => 99,
+    ]]);
+    putCacheValue(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags(), CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key(), [[
+        'value' => 'Legacy Controlled Keyword',
+        'scheme' => 'Science Keywords',
+        'count' => 77,
     ]]);
     CacheKey::PORTAL_THESAURUS_FACETS->forget();
     putCacheValue(CacheKey::PORTAL_THESAURUS_FACETS->tags(), CacheKey::PORTAL_THESAURUS_FACETS->key(), [[
@@ -554,6 +559,7 @@ it('invalidates cached free keyword suggestions and thesaurus facets', function 
     $updatedFacets = $this->service->getThesaurusFacets();
 
     expect(array_column($updatedSuggestions, 'value'))->toEqualCanonicalizing(['Free A', 'Free B'])
+        ->and(Cache::tags(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->tags())->has(CacheKey::PORTAL_KEYWORD_SUGGESTIONS->key()))->toBeFalse()
         ->and($updatedFacets[0]['roots'][0]['children'][0]['children'])->toHaveCount(2);
 });
 
@@ -658,7 +664,8 @@ it('skips invalid vocabulary payloads and non-array roots', function () {
 
     expect($facets)->toHaveCount(1)
         ->and($facets[0]['scheme'])->toBe('Instruments')
-        ->and($facets[0]['roots'][0]['text'])->toBe('Instrument Node');
+        ->and($facets[0]['roots'][0]['text'])->toBe('Instrument Node')
+        ->and($facets[0]['roots'][0])->not->toHaveKey('notation');
 });
 
 it('ignores blank selected thesaurus node ids while resolving descendants', function () {

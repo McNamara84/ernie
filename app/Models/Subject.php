@@ -85,7 +85,7 @@ class Subject extends Model
      */
     public function isControlled(): bool
     {
-        return ! empty($this->subject_scheme);
+        return $this->subject_scheme !== null && $this->subject_scheme !== '';
     }
 
     /**
@@ -93,7 +93,7 @@ class Subject extends Model
      */
     public function isFreeText(): bool
     {
-        return empty($this->subject_scheme);
+        return $this->subject_scheme === null || $this->subject_scheme === '';
     }
 
     /**
