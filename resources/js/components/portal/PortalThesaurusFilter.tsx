@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Network, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
     const shouldExpand = level === 0 || expandedAncestorIds.has(node.id);
     const [isExpanded, setIsExpanded] = useState(shouldExpand);
     const isSelected = selectedNodeIdSet.has(node.id);
+    const labelId = useId();
 
     useEffect(() => {
         if (shouldExpand) {
@@ -38,7 +39,7 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
     }, [shouldExpand]);
 
     return (
-        <div>
+        <li role="treeitem" aria-level={level + 1} aria-expanded={hasChildren ? isExpanded : undefined} aria-selected={isSelected} aria-labelledby={labelId}>
             <div
                 className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1 hover:bg-muted/60"
                 style={{ paddingLeft: `${level * 1.25 + 0.5}rem` }}
@@ -73,12 +74,12 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
                     )}
                     onClick={() => onToggleNode(node.id)}
                 >
-                    <span className="block min-w-0 truncate">{node.text}</span>
+                    <span id={labelId} className="block min-w-0 truncate">{node.text}</span>
                 </Button>
             </div>
 
             {hasChildren && isExpanded && (
-                <div>
+                <ul role="group">
                     {node.children.map((child) => (
                         <ThesaurusTreeNode
                             key={child.id}
@@ -89,9 +90,9 @@ function ThesaurusTreeNode({ node, level = 0, expandedAncestorIds, selectedNodeI
                             onToggleNode={onToggleNode}
                         />
                     ))}
-                </div>
+                </ul>
             )}
-        </div>
+        </li>
     );
 }
 
@@ -192,7 +193,7 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
                                     {selectedCount > 0 && <Badge variant="outline">{selectedCount} selected</Badge>}
                                 </div>
                                 <ScrollArea className="max-h-72">
-                                    <div className="py-2">
+                                    <ul role="tree" aria-label={`${getSchemeLabel(facet.scheme)} thesaurus hierarchy`} className="py-2">
                                         {facet.roots.map((root) => (
                                             <ThesaurusTreeNode
                                                 key={root.id}
@@ -202,7 +203,7 @@ export function PortalThesaurusFilter({ facets = [], selectedNodeIds = [], onSel
                                                 onToggleNode={toggleNode}
                                             />
                                         ))}
-                                    </div>
+                                    </ul>
                                 </ScrollArea>
                             </div>
                         );

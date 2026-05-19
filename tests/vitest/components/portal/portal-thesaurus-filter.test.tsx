@@ -152,6 +152,36 @@ describe('PortalThesaurusFilter', () => {
         expect(screen.queryByText('BEDROCK')).not.toBeInTheDocument();
     });
 
+    it('exposes tree semantics with hierarchy and expanded state metadata', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <PortalThesaurusFilter
+                facets={nestedFacets}
+                selectedNodeIds={['bedrock']}
+                onSelectionChange={vi.fn()}
+            />,
+        );
+
+        const tree = screen.getByRole('tree', { name: 'GCMD Science Keywords thesaurus hierarchy' });
+        expect(tree).toBeInTheDocument();
+
+        const earthScienceItem = screen.getByRole('button', { name: 'EARTH SCIENCE' }).closest('[role="treeitem"]');
+        const solidEarthItem = screen.getByRole('button', { name: 'SOLID EARTH' }).closest('[role="treeitem"]');
+        const bedrockItem = screen.getByRole('button', { name: 'BEDROCK' }).closest('[role="treeitem"]');
+
+        expect(earthScienceItem).toHaveAttribute('aria-level', '1');
+        expect(earthScienceItem).toHaveAttribute('aria-expanded', 'true');
+        expect(solidEarthItem).toHaveAttribute('aria-level', '2');
+        expect(solidEarthItem).toHaveAttribute('aria-expanded', 'true');
+        expect(bedrockItem).toHaveAttribute('aria-level', '3');
+        expect(bedrockItem).toHaveAttribute('aria-selected', 'true');
+
+        await user.click(screen.getByRole('button', { name: 'Collapse SOLID EARTH' }));
+
+        expect(solidEarthItem).toHaveAttribute('aria-expanded', 'false');
+    });
+
     it('auto-expands ancestors of selected descendants and shows the selected count', () => {
         render(
             <PortalThesaurusFilter
