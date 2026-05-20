@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-19",
+        "date": "2026-05-20",
         "features": [
             {
                 "title": "Single DOI Import for GFZ Legacy Resources",
@@ -93,6 +93,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "HTML Formatting for Landing Page Descriptions",
+                "description": "Descriptions such as Abstract, Methods, Technical Information, Table of Contents, Series Information, and Other can now contain a limited HTML subset for landing-page display. ERNIE stores the formatted landing-page version separately from the canonical plain-text description, renders the sanitized markup on public and preview landing pages, and continues to use plain text only for DataCite registration, metadata updates, XML export, JSON export, JSON-LD export, and Schema.org output."
+            },
             {
                 "title": "Split Portal Keyword Filters into Free and Thesaurus Search",
                 "description": "The public Data Portal now separates plain free-form keywords from controlled thesaurus terms. Free keywords remain available as the compact searchable multi-select, while controlled vocabularies are filtered in a dedicated hierarchical tree per thesaurus. Unused vocabulary branches are hidden automatically, selecting a parent term includes matching descendants, and multiple thesaurus selections are combined consistently with AND logic."

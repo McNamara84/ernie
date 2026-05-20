@@ -912,6 +912,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3 className="mt-8">Descriptions</h3>
                         <p>Provide detailed information about your dataset with different description types:</p>
 
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
+                                only: <code>&lt;p&gt;</code>, <code>&lt;br&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>,{' '}
+                                <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>, <code>&lt;a&gt;</code>, <code>&lt;sub&gt;</code>,{' '}
+                                <code>&lt;sup&gt;</code>, and <code>&lt;code&gt;</code>. ERNIE stores and shows this formatting on landing pages, but
+                                all exports and DataCite submissions remain plain text.
+                            </p>
+                        </div>
+
                         <h4>Description Types</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>

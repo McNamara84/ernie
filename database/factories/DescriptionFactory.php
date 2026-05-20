@@ -32,6 +32,7 @@ class DescriptionFactory extends Factory
         return [
             'resource_id' => Resource::factory(),
             'value' => fake()->paragraphs(2, true),
+            'landing_page_html' => null,
             'description_type_id' => $descriptionType->id,
             'language' => 'en',
         ];

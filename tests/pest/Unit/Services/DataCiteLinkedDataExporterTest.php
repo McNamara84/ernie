@@ -228,6 +228,23 @@ describe('descriptions', function () {
         expect($desc)->toHaveKey('attrs');
         expect($desc['attrs']['descriptionType'])->toBe('Abstract');
     });
+
+    it('keeps linked data descriptions plain text when landing page html exists', function () {
+        $resource = createResourceWithTitle();
+
+        $abstractType = DescriptionType::where('slug', 'Abstract')->first();
+        $resource->descriptions()->create([
+            'value' => 'Plain JSON-LD description',
+            'landing_page_html' => '<p>Plain <strong>JSON-LD</strong> description</p>',
+            'description_type_id' => $abstractType?->id,
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $desc = $result['descriptions']['description'];
+
+        expect($desc['value'])->toBe('Plain JSON-LD description')
+            ->and($desc['value'])->not->toContain('<strong>');
+    });
 });
 
 describe('geoLocations', function () {

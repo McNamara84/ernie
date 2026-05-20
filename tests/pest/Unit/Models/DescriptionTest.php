@@ -13,6 +13,7 @@ describe('fillable', function () {
         expect($model->getFillable())->toBe([
             'resource_id',
             'value',
+            'landing_page_html',
             'description_type_id',
             'language',
         ]);

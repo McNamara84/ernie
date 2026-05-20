@@ -313,6 +313,27 @@ describe('DataCiteJsonExporter - Descriptions', function () {
 
         expect($descriptions[0]['descriptionType'])->toBeIn(['Methods', 'methods']);
     });
+
+    test('exports plain text descriptions even when landing page html exists', function () {
+        $resource = Resource::factory()->create();
+        $abstractType = DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract']
+        );
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Plain export description.',
+            'landing_page_html' => '<p>Plain <strong>export</strong> description.</p>',
+            'description_type_id' => $abstractType->id,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $descriptions = $result['data']['attributes']['descriptions'];
+
+        expect($descriptions[0]['description'])->toBe('Plain export description.')
+            ->and($descriptions[0]['description'])->not->toContain('<strong>');
+    });
 });
 
 describe('DataCiteJsonExporter - Resource Types', function () {

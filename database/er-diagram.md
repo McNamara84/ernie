@@ -329,6 +329,7 @@ erDiagram
         bigint resource_id FK
         bigint description_type_id FK
         text value
+        longtext landing_page_html
         varchar language
         timestamp created_at
         timestamp updated_at

@@ -293,6 +293,7 @@ export interface LandingPageTitle {
 export interface LandingPageDescription {
     id: number;
     value: string;
+    landing_page_html?: string | null;
     description_type: string | null;
 }
 

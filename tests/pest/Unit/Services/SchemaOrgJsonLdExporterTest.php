@@ -210,6 +210,22 @@ describe('descriptions', function () {
 
         expect($result)->not->toHaveKey('description');
     });
+
+    it('keeps schema org description plain text when landing page html exists', function () {
+        $resource = createSchemaOrgResource();
+
+        $abstractType = DescriptionType::where('slug', 'Abstract')->first();
+        $resource->descriptions()->create([
+            'value' => 'Schema.org plain text abstract',
+            'landing_page_html' => '<p>Schema.org <strong>formatted</strong> abstract</p>',
+            'description_type_id' => $abstractType?->id,
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+
+        expect($result['description'])->toBe('Schema.org plain text abstract')
+            ->and($result['description'])->not->toContain('<strong>');
+    });
 });
 
 describe('dates', function () {

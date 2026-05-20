@@ -422,6 +422,27 @@ describe('DataCiteXmlExporter - Descriptions', function () {
         expect($xml)->toContain('descriptionType="Methods"')
             ->and($xml)->toContain('Methodology used in data collection.</description>');
     });
+
+    test('exports plain text descriptions when landing page html exists', function () {
+        $resource = Resource::factory()->create();
+
+        $abstractType = DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract', 'slug' => 'Abstract', 'is_active' => true]
+        );
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Plain XML description.',
+            'landing_page_html' => '<p>Plain <strong>XML</strong> description.</p>',
+            'description_type_id' => $abstractType->id,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('Plain XML description.</description>')
+            ->and($xml)->not->toContain('<strong>XML</strong>');
+    });
 });
 
 describe('DataCiteXmlExporter - Subjects', function () {
