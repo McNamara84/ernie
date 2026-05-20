@@ -33,6 +33,11 @@ describe('DownloadMetadataSection', () => {
 
     it('renders DataCite logo', () => {
         render(<DownloadMetadataSection resourceId={42} />);
-        expect(screen.getByAltText('DataCite')).toBeInTheDocument();
+
+        const logo = screen.getByAltText('DataCite');
+        expect(logo).toBeInTheDocument();
+        expect(logo).toHaveAttribute('src', '/images/datacite-logo.png');
+        expect(logo).toHaveClass('h-8');
+        expect(logo.closest('picture')?.querySelector('source')).toHaveAttribute('srcset', '/images/datacite-logo-light.svg');
     });
 });

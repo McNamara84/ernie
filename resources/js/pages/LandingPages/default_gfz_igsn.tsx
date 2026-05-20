@@ -75,7 +75,7 @@ export default function DefaultGfzIgsnTemplate() {
     const locationIndex = rightOrder.indexOf('location');
     const renderLocationBeforeMetadata = locationIndex !== -1 && (firstMetadataIndex === -1 || locationIndex < firstMetadataIndex);
 
-    const logoSrc = customLogoUrl ?? '/images/gfz-ds-logo.png';
+    const defaultHeaderLogoClassName = 'h-24 dark:grayscale dark:invert dark:mix-blend-screen';
 
     const rightSectionRegistry = useMemo((): { metadata: ReactNode; location: ReactNode } => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;
@@ -179,7 +179,11 @@ export default function DefaultGfzIgsnTemplate() {
                             </a>
                         </div>
                         <div className="flex justify-center">
-                            <img src={logoSrc} alt="GFZ Data Services" className="h-24 dark:brightness-200 dark:invert" />
+                            {customLogoUrl ? (
+                                <img src={customLogoUrl} alt="GFZ Data Services" className="h-24" />
+                            ) : (
+                                <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className={defaultHeaderLogoClassName} />
+                            )}
                         </div>
                     </header>
 
@@ -214,7 +218,12 @@ export default function DefaultGfzIgsnTemplate() {
                                 <DarkModeImage lightSrc="/images/gfz-logo-en.gif" darkSrc="/images/gfz-logo_en.svg" alt="GFZ" className="h-12" />
                             </a>
                             <a href="https://www.helmholtz.de" target="_blank" rel="noopener noreferrer">
-                                <img src="/images/helmholtz-logo-blue.png" alt="Helmholtz" className="h-8 dark:brightness-200 dark:invert" />
+                                <DarkModeImage
+                                    lightSrc="/images/helmholtz-logo-blue.png"
+                                    darkSrc="/images/helmholtz-logo-white.svg"
+                                    alt="Helmholtz"
+                                    className="h-8"
+                                />
                             </a>
                         </div>
                     </footer>

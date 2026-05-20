@@ -84,7 +84,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             const logo = screen.getByAltText('GFZ Data Services');
             expect(logo).toBeInTheDocument();
             expect(logo).toHaveAttribute('src', '/images/gfz-ds-logo.png');
-            expect(logo).toHaveClass('h-24');
+            expect(logo).toHaveClass('h-24', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
         });
 
         it('renders the Legal Notice link', () => {
@@ -117,10 +117,12 @@ describe('DefaultGfzIgsnTemplate', () => {
             const gfzLogo = screen.getByAltText('GFZ');
             expect(gfzLogo).toBeInTheDocument();
             expect(gfzLogo.closest('a')).toHaveAttribute('href', 'https://www.gfz.de');
+            expect(gfzLogo.closest('picture')?.querySelector('source')).toHaveAttribute('srcset', '/images/gfz-logo_en.svg');
 
             const helmholtzLogo = screen.getByAltText('Helmholtz');
             expect(helmholtzLogo).toBeInTheDocument();
             expect(helmholtzLogo.closest('a')).toHaveAttribute('href', 'https://www.helmholtz.de');
+            expect(helmholtzLogo.closest('picture')?.querySelector('source')).toHaveAttribute('srcset', '/images/helmholtz-logo-white.svg');
         });
     });
 
@@ -479,10 +481,16 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute(
+            const logo = screen.getByAltText('GFZ Data Services');
+
+            expect(logo).toHaveAttribute(
                 'src',
                 'https://cdn.example/custom.png',
             );
+            expect(logo).toHaveClass('h-24');
+            expect(logo).not.toHaveClass('dark:grayscale');
+            expect(logo).not.toHaveClass('dark:invert');
+            expect(logo).not.toHaveClass('dark:mix-blend-screen');
         });
 
         it('respects sectionOrder.leftColumn override', () => {
