@@ -1372,6 +1372,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before DOI
                             registration.
                         </p>
+                        <p>
+                            Controlled thesaurus keywords on GFZ-hosted landing pages keep their hierarchy. ERNIE shows a compact breadcrumb on the
+                            badge, exposes the full path on hover, and opens the matching <strong>Thesaurus Keywords</strong> filter in the public portal
+                            when the badge is clicked.
+                        </p>
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Navigate to Resources">

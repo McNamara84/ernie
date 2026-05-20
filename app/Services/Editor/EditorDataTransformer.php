@@ -16,6 +16,7 @@ use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
+use App\Support\SubjectBreadcrumbPath;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -378,10 +379,12 @@ class EditorDataTransformer
             ->filter(fn ($subject): bool => ! empty($subject->subject_scheme)
                 && $subject->subject_scheme !== GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
+                $path = SubjectBreadcrumbPath::preferredPath($subject->breadcrumb_path, $subject->value) ?? $subject->value;
+
                 return [
                     'id' => $subject->value_uri ?? $subject->classification_code ?? '',
-                    'text' => $subject->value,
-                    'path' => $subject->value,
+                    'text' => SubjectBreadcrumbPath::leaf($path, $subject->value) ?? $subject->value,
+                    'path' => $path,
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',
@@ -400,10 +403,12 @@ class EditorDataTransformer
         return $resource->subjects
             ->filter(fn ($subject): bool => $subject->subject_scheme === GemetVocabularyParser::SCHEME_TITLE)
             ->map(function ($subject): array {
+                $path = SubjectBreadcrumbPath::preferredPath($subject->breadcrumb_path, $subject->value) ?? $subject->value;
+
                 return [
                     'id' => $subject->value_uri ?? $subject->classification_code ?? '',
-                    'text' => $subject->value,
-                    'path' => $subject->value,
+                    'text' => SubjectBreadcrumbPath::leaf($path, $subject->value) ?? $subject->value,
+                    'path' => $path,
                     'scheme' => $subject->subject_scheme ?? '',
                     'schemeURI' => $subject->scheme_uri ?? '',
                     'language' => 'en',

@@ -14,15 +14,18 @@ const freeKeyword = (id: number, subject: string): LandingPageSubject => ({
     scheme_uri: null,
     value_uri: null,
     classification_code: null,
+    breadcrumb_path: null,
 });
 
-const gcmdKeyword = (id: number, subject: string): LandingPageSubject => ({
+const gcmdKeyword = (id: number, subject: string, overrides: Partial<LandingPageSubject> = {}): LandingPageSubject => ({
     id,
     subject,
     subject_scheme: 'Science Keywords',
     scheme_uri: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-    value_uri: null,
+    value_uri: 'https://gcmd.earthdata.nasa.gov/kms/concept/science-seismology',
     classification_code: null,
+    breadcrumb_path: null,
+    ...overrides,
 });
 
 describe('KeywordsSection', () => {
@@ -53,8 +56,63 @@ describe('KeywordsSection', () => {
     it('keyword badges link to portal', () => {
         render(<KeywordsSection subjects={[freeKeyword(1, 'geology')]} />);
         const link = screen.getByText('geology').closest('a');
-        expect(link).toHaveAttribute('href', '/portal?keywords[]=geology');
+        expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=geology');
         expect(link).toHaveAttribute('target', '_blank');
+    });
+
+    it('links controlled keywords through the portal thesaurus filter', () => {
+        render(<KeywordsSection subjects={[gcmdKeyword(1, 'SEISMOLOGY')]} />);
+
+        const link = screen.getByRole('link', { name: /SEISMOLOGY/i });
+
+        expect(link).toHaveAttribute(
+            'href',
+            '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
+        );
+    });
+
+    it('renders full breadcrumb paths with three segments without omission', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'SEISMOLOGY', {
+                        breadcrumb_path: 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY')).toBeInTheDocument();
+    });
+
+    it('renders compact breadcrumb labels with an omission marker for deeper paths', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'ROCK GLACIERS', {
+                        breadcrumb_path: 'EARTH SCIENCE > CRYOSPHERE > FROZEN GROUND > ROCK GLACIERS',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('EARTH SCIENCE > ... > FROZEN GROUND > ROCK GLACIERS')).toBeInTheDocument();
+    });
+
+    it('stores the full breadcrumb path on hover via the title attribute', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'SEISMOLOGY', {
+                        breadcrumb_path: 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+                    }),
+                ]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: /SEISMOLOGY/i });
+
+        expect(link).toHaveAttribute('title', 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
     });
 
     it('does not show expand button when under threshold', () => {

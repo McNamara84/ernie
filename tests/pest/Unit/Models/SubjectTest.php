@@ -17,6 +17,7 @@ describe('fillable', function () {
             'scheme_uri',
             'value_uri',
             'classification_code',
+            'breadcrumb_path',
             'language_id',
         ]);
     });

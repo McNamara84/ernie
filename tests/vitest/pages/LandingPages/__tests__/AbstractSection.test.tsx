@@ -79,6 +79,7 @@ const createSubject = (overrides: Partial<{
     scheme_uri: string | null;
     value_uri: string | null;
     classification_code: string | null;
+    breadcrumb_path: string | null;
 }> = {}) => ({
     id: 1,
     subject: 'Geophysics',
@@ -86,7 +87,11 @@ const createSubject = (overrides: Partial<{
     scheme_uri: null,
     value_uri: null,
     classification_code: null,
+    breadcrumb_path: null,
     ...overrides,
+    value_uri: overrides.value_uri ?? (overrides.subject_scheme !== undefined && overrides.subject_scheme !== null && overrides.subject_scheme !== ''
+        ? `https://example.test/concept/${overrides.id ?? 1}`
+        : null),
 });
 
 const defaultProps = {
@@ -576,7 +581,7 @@ describe('AbstractSection', () => {
             );
             
             const link = screen.getByRole('link', { name: /Geophysics/i });
-            expect(link).toHaveAttribute('href', '/portal?keywords[]=Geophysics');
+            expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Geophysics');
             expect(link).toHaveAttribute('target', '_blank');
             expect(link).toHaveAttribute('rel', 'noopener noreferrer');
         });
@@ -592,7 +597,7 @@ describe('AbstractSection', () => {
             );
             
             const link = screen.getByRole('link', { name: /Rock & Soil/i });
-            expect(link).toHaveAttribute('href', '/portal?keywords[]=Rock%20%26%20Soil');
+            expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Rock+%26+Soil');
         });
 
         it('renders thesauri keywords as badges', () => {
@@ -633,13 +638,36 @@ describe('AbstractSection', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
-                    subjects={[createSubject({ subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' })]}
+                    subjects={[createSubject({
+                        subject: 'EARTH SCIENCE',
+                        subject_scheme: 'Science Keywords',
+                        value_uri: 'https://gcmd.earthdata.nasa.gov/kms/concept/science-earth',
+                    })]}
                 />
             );
             
             const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
-            expect(link).toHaveAttribute('href', '/portal?keywords[]=EARTH%20SCIENCE');
+            expect(link).toHaveAttribute(
+                'href',
+                '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-earth',
+            );
             expect(link).toHaveAttribute('target', '_blank');
+        });
+
+        it('renders compact breadcrumb labels for controlled keywords on landing pages', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({
+                        subject: 'SEISMOLOGY',
+                        subject_scheme: 'Science Keywords',
+                        value_uri: 'https://gcmd.earthdata.nasa.gov/kms/concept/science-seismology',
+                        breadcrumb_path: 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+                    })]}
+                />
+            );
+
+            expect(screen.getByText('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY')).toBeInTheDocument();
         });
 
         it('renders separator when both thesauri and free keywords exist', () => {
