@@ -601,7 +601,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>REST API</h3>
-                        <p>ERNIE provides a comprehensive REST API following OpenAPI 3.1 specifications.</p>
+                        <p>ERNIE provides a comprehensive REST API following OpenAPI 3.2 specifications.</p>
+
+                        <p>The published specification is linted and validated with Redocly during local quality checks and CI runs.</p>
 
                         <h4>Interactive Documentation</h4>
                         <p className="my-4">

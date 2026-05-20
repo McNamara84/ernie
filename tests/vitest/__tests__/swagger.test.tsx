@@ -15,7 +15,11 @@ describe('renderSwagger', () => {
   it('renders the API title', async () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
-    const spec = { openapi: '3.1.0', info: { title: 'Example API', version: '1.0.0' } };
+    const spec = {
+      openapi: '3.2.0',
+      info: { title: 'Example API', summary: 'OpenAPI 3.2 test document', version: '1.0.0' },
+      security: [],
+    };
 
     await act(async () => {
       renderSwagger(spec, el);

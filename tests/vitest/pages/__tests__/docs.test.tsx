@@ -125,6 +125,13 @@ describe('Docs page', () => {
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
+    it('mentions the OpenAPI 3.2 API documentation', () => {
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+
+        expect(screen.getByText(/OpenAPI 3\.2 specifications/i)).toBeInTheDocument();
+        expect(screen.getByText(/validated with Redocly/i)).toBeInTheDocument();
+    });
+
     it('hides controlled keywords section when GCMD is disabled', () => {
         const settingsWithoutGcmd: EditorSettings = {
             ...defaultEditorSettings,

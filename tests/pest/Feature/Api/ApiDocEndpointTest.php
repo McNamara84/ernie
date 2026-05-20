@@ -5,6 +5,25 @@ use Illuminate\Support\Facades\File;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
 
+function containsArrayKeyRecursively(mixed $value, string $key): bool
+{
+    if (! is_array($value)) {
+        return false;
+    }
+
+    if (array_key_exists($key, $value)) {
+        return true;
+    }
+
+    foreach ($value as $nestedValue) {
+        if (containsArrayKeyRecursively($nestedValue, $key)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 it('renders the API documentation with Swagger UI', function () {
     get('/api/v1/doc')
         ->assertOk()
@@ -19,9 +38,13 @@ it('renders the API documentation with Swagger UI', function () {
 it('returns the OpenAPI documentation as JSON', function () {
     getJson('/api/v1/doc')
         ->assertOk()
-        ->assertJsonPath('openapi', '3.1.0')
+        ->assertJsonPath('openapi', '3.2.0')
+        ->assertJsonPath('info.summary', 'Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.')
+        ->assertJsonPath('servers.0.name', 'Current ERNIE deployment')
+        ->assertJsonPath('security', [])
         ->assertJsonPath('tags.0.name', 'Editor Configuration')
         ->assertJsonPath('tags.1.name', 'Vocabularies')
+        ->assertJsonPath('tags.0.summary', 'Metadata types and editor option endpoints')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.tags.0', 'Editor Configuration')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.security.0.ElmoApiKey', [])
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.tags.0', 'Editor Configuration')
@@ -107,10 +130,26 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string')
         ->assertJsonPath('components.schemas.TitleType.properties.slug.type', 'string')
         ->assertJsonPath('components.schemas.Language.properties.code.type', 'string')
+        ->assertJsonPath('paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.type.0', 'string')
+        ->assertJsonPath('paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.type.1', 'null')
+        ->assertJsonPath('components.schemas.DateType.properties.description.type.0', 'string')
+        ->assertJsonPath('components.schemas.DateType.properties.description.type.1', 'null')
+        ->assertJsonMissingPath('paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.nullable')
+        ->assertJsonMissingPath('components.schemas.DateType.properties.description.nullable')
         ->assertJsonPath('components.schemas.GcmdScienceKeywords.description', 'GCMD Science Keywords from NASA Knowledge Management System')
         ->assertJsonPath('components.schemas.GcmdPlatforms.description', 'GCMD Platforms from NASA Knowledge Management System')
         ->assertJsonPath('components.schemas.GcmdInstruments.description', 'GCMD Instruments from NASA Knowledge Management System');
 });
+
+    it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
+        $spec = getJson('/api/v1/doc')
+        ->assertOk()
+        ->json();
+
+        expect($spec['openapi'])->toBe('3.2.0')
+        ->and($spec['info']['license'])->not->toHaveKey('url')
+        ->and(containsArrayKeyRecursively($spec, 'nullable'))->toBeFalse();
+    });
 
 it('returns 500 when the OpenAPI file is missing (JSON)', function () {
     File::shouldReceive('exists')

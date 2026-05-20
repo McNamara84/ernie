@@ -42,6 +42,9 @@ jobs:
       - name: Lint Frontend
         run: npm run lint
 
+      - name: Validate OpenAPI
+        run: npm run openapi:check
+
   phpstan:
     runs-on: ubuntu-latest
     steps:

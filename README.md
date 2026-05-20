@@ -26,7 +26,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - **XML Import** – Automatic metadata extraction from DataCite XML / ELMO exports
 - **Legacy Dataset Browser** – Import metadata from previous database systems
 - **Landing Page Management** – Create, preview, and publish dataset landing pages
-- **REST API** – OpenAPI 3.1 specification with interactive Swagger UI at `/api/v1/doc`
+- **REST API** – OpenAPI 3.2 specification with interactive Swagger UI at `/api/v1/doc`
 - **Accessible Design** – WCAG 2.1 AA compliant with Radix UI and Axe-core testing
 
 📖 **[View detailed user documentation at /docs](/docs)**
@@ -492,9 +492,11 @@ Notes:
 
 ## API Documentation
 
-ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO.
+ERNIE provides a **read-only REST API** (OpenAPI 3.2.0) for integration with external systems like ELMO.
 
 📖 **[View Interactive API Documentation](https://ernie.rz-vm182.gfz.de/api/v1/doc)**
+
+The specification is validated with Redocly CLI in local checks and CI.
 
 The API includes:
 - Metadata types (resource types, title types, licenses, languages, roles)
