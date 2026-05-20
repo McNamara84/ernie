@@ -580,10 +580,11 @@ describe('AbstractSection', () => {
                 />
             );
             
-            const link = screen.getByRole('link', { name: /Geophysics/i });
+            const link = screen.getByRole('link', { name: /^Geophysics$/i });
+            const searchLink = screen.getByRole('link', { name: /Search for Geophysics in the portal/i });
             expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Geophysics');
-            expect(link).toHaveAttribute('target', '_blank');
-            expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+            expect(link).not.toHaveAttribute('target');
+            expect(searchLink).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Geophysics');
         });
 
         it('encodes special characters in keyword portal links', () => {
@@ -596,7 +597,7 @@ describe('AbstractSection', () => {
                 />
             );
             
-            const link = screen.getByRole('link', { name: /Rock & Soil/i });
+            const link = screen.getByRole('link', { name: /^Rock & Soil$/i });
             expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=Rock+%26+Soil');
         });
 
@@ -646,12 +647,12 @@ describe('AbstractSection', () => {
                 />
             );
             
-            const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
+            const link = screen.getByRole('link', { name: /^EARTH SCIENCE$/i });
             expect(link).toHaveAttribute(
                 'href',
                 '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-earth',
             );
-            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).not.toHaveAttribute('target');
         });
 
         it('renders compact breadcrumb labels for controlled keywords on landing pages', () => {
@@ -729,7 +730,7 @@ describe('AbstractSection', () => {
             expect(thesauriList.compareDocumentPosition(freeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
 
-        it('applies distinct badge color for GCMD Science Keywords', () => {
+        it('applies the linked keyword color for GCMD Science Keywords', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -737,12 +738,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /EARTH SCIENCE/i });
-            expect(link.className).toContain('bg-blue-600');
-            expect(link.className).toContain('text-white');
+            const link = screen.getByRole('link', { name: /^EARTH SCIENCE$/i });
+            expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies distinct badge color for GCMD Platforms', () => {
+        it('applies the linked keyword color for GCMD Platforms', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -750,12 +751,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /SATELLITES/i });
-            expect(link.className).toContain('bg-emerald-600');
-            expect(link.className).toContain('text-white');
+            const link = screen.getByRole('link', { name: /^SATELLITES$/i });
+            expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies distinct badge color for GCMD Instruments', () => {
+        it('applies the linked keyword color for GCMD Instruments', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -763,12 +764,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /GPS RECEIVERS/i });
-            expect(link.className).toContain('bg-amber-600');
-            expect(link.className).toContain('text-white');
+            const link = screen.getByRole('link', { name: /^GPS RECEIVERS$/i });
+            expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies distinct badge color for MSL Vocabularies', () => {
+        it('applies the linked keyword color for MSL Vocabularies', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -776,12 +777,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /Rock mechanics/i });
-            expect(link.className).toContain('bg-purple-600');
-            expect(link.className).toContain('text-white');
+            const link = screen.getByRole('link', { name: /^Rock mechanics$/i });
+            expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies distinct badge color for GEMET keywords', () => {
+        it('applies the linked keyword color for GEMET keywords', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -789,12 +790,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /Air pollution/i });
-            expect(link.className).toContain('bg-rose-600');
-            expect(link.className).toContain('text-white');
+            const link = screen.getByRole('link', { name: /^Air pollution$/i });
+            expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies distinct badge color for ICS Chronostratigraphic keywords', () => {
+        it('applies the linked keyword color for ICS Chronostratigraphic keywords', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -802,12 +803,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /Cenozoic/i });
-            expect(link.className).toContain('bg-teal-600');
-            expect(link.className).toContain('text-white');
+            const link = screen.getByRole('link', { name: /^Cenozoic$/i });
+            expect(link.className).toContain('bg-gfz-primary');
+            expect(link.className).toContain('text-gfz-primary-foreground');
         });
 
-        it('applies GFZ primary color and semantic text token for free keywords', () => {
+        it('applies a light blue color for free keywords', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -815,12 +816,12 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /my-keyword/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const link = screen.getByRole('link', { name: /^my-keyword$/i });
+            expect(link.className).toContain('bg-sky-100');
+            expect(link.className).toContain('text-sky-900');
         });
 
-        it('applies GFZ primary color and semantic text token for free keywords with empty string scheme', () => {
+        it('applies a light blue color for free keywords with empty string scheme', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -828,9 +829,9 @@ describe('AbstractSection', () => {
                 />
             );
 
-            const link = screen.getByRole('link', { name: /another-keyword/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const link = screen.getByRole('link', { name: /^another-keyword$/i });
+            expect(link.className).toContain('bg-sky-100');
+            expect(link.className).toContain('text-sky-900');
         });
 
         it('renders only thesauri-keywords-list when no free keywords exist', () => {
@@ -873,7 +874,7 @@ describe('AbstractSection', () => {
             );
 
             const thesauriList = screen.getByTestId('thesauri-keywords-list');
-            const badges = thesauriList.querySelectorAll('a');
+            const badges = thesauriList.querySelectorAll('a:not([aria-label])');
             
             // Order: Science Keywords → Platforms → Instruments → MSL → GEMET → ICS
             expect(badges[0]).toHaveTextContent('EARTH SCIENCE');

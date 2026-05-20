@@ -1374,8 +1374,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             Controlled thesaurus keywords on GFZ-hosted landing pages keep their hierarchy. ERNIE shows a compact breadcrumb on the
-                            badge, exposes the full path on hover, and opens the matching <strong>Thesaurus Keywords</strong> filter in the public portal
-                            when the badge is clicked.
+                            label, exposes the full path on hover, uses darker linked badges for controlled terms and lighter blue badges for free
+                            keywords, and opens the matching portal filter either from the label itself or from the dedicated magnifying-glass action.
                         </p>
 
                         <WorkflowSteps>

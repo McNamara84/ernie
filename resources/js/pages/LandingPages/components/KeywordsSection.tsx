@@ -1,8 +1,6 @@
-import { Clock, ExternalLink, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite } from 'lucide-react';
+import { Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite, Search } from 'lucide-react';
 
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-    getSchemeLabel,
     SCHEME_GCMD_INSTRUMENTS,
     SCHEME_GCMD_PLATFORMS,
     SCHEME_GCMD_SCIENCE,
@@ -17,19 +15,28 @@ import type { PortalFilters } from '@/types/portal';
 import { CollapsibleList } from './CollapsibleList';
 
 /** Single source of truth: ordered thesaurus definitions with badge styling and icons */
-const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon; bgClass: string; textClass: string }[] = [
-    { scheme: SCHEME_GCMD_SCIENCE, icon: Globe, bgClass: 'bg-blue-600 dark:bg-blue-500', textClass: 'text-white' },
-    { scheme: SCHEME_GCMD_PLATFORMS, icon: Satellite, bgClass: 'bg-emerald-700 dark:bg-emerald-600', textClass: 'text-white' },
-    { scheme: SCHEME_GCMD_INSTRUMENTS, icon: Microscope, bgClass: 'bg-amber-700 dark:bg-amber-600', textClass: 'text-white' },
-    { scheme: SCHEME_MSL, icon: FlaskConical, bgClass: 'bg-purple-600 dark:bg-purple-500', textClass: 'text-white' },
-    { scheme: SCHEME_GEMET, icon: Leaf, bgClass: 'bg-rose-600 dark:bg-rose-500', textClass: 'text-white' },
-    { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock, bgClass: 'bg-teal-700 dark:bg-teal-600', textClass: 'text-white' },
+const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon }[] = [
+    { scheme: SCHEME_GCMD_SCIENCE, icon: Globe },
+    { scheme: SCHEME_GCMD_PLATFORMS, icon: Satellite },
+    { scheme: SCHEME_GCMD_INSTRUMENTS, icon: Microscope },
+    { scheme: SCHEME_MSL, icon: FlaskConical },
+    { scheme: SCHEME_GEMET, icon: Leaf },
+    { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock },
 ];
 
 const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
-const SCHEME_CONFIG = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass, icon: d.icon }]));
+const SCHEME_CONFIG = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { icon: d.icon }]));
 
-const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
+const LINKED_KEYWORD_STYLE = {
+    bg: 'bg-gfz-primary',
+    text: 'text-gfz-primary-foreground',
+    divider: 'border-white/20',
+};
+const FREE_KEYWORD_STYLE = {
+    bg: 'bg-sky-100 dark:bg-sky-900/40',
+    text: 'text-sky-900 dark:text-sky-100',
+    divider: 'border-sky-300/70 dark:border-sky-700/60',
+};
 const EMPTY_PORTAL_FILTERS: PortalFilters = {
     query: null,
     type: [],
@@ -90,57 +97,57 @@ function getPortalUrl(subject: LandingPageSubject): string | null {
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject, style, icon: Icon }: { subject: LandingPageSubject; style?: { bg: string; text: string }; icon?: LucideIcon }) {
+function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: { bg: string; text: string; divider: string } }) {
     const portalUrl = getPortalUrl(subject);
     const config = SCHEME_CONFIG[subject.subject_scheme ?? ''];
-    const { bg, text } = style ?? config ?? FREE_KEYWORD_STYLE;
-    const BadgeIcon = Icon ?? config?.icon;
-    const schemeLabel = getSchemeLabel(subject.subject_scheme ?? null);
+    const { bg, text, divider } = style;
+    const BadgeIcon = config?.icon;
     const fullPath = getFullPath(subject);
     const displayLabel = getDisplayLabel(subject);
-    const accessibleLabel = `${fullPath ?? displayLabel} (${schemeLabel})`;
-    const badgeClass = `inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${portalUrl ? 'transition-opacity hover:opacity-80' : 'cursor-default'} ${bg} ${text}`;
+    const searchPrompt = `Search for ${displayLabel} in the portal`;
+    const labelClass = `inline-flex items-center gap-1 px-3 py-1 text-xs font-medium ${portalUrl ? 'rounded-l-full transition-opacity hover:opacity-85 focus-visible:opacity-85' : 'rounded-full cursor-default'} ${bg} ${text}`;
+    const actionClass = `inline-flex items-center rounded-r-full border-l px-2 py-1 text-xs font-medium transition-opacity hover:opacity-85 focus-visible:opacity-85 ${bg} ${text} ${divider}`;
 
     const badgeContent = (
         <>
             {BadgeIcon && <BadgeIcon className="h-3 w-3" aria-hidden="true" />}
             {displayLabel}
-            {portalUrl && <ExternalLink className="h-3 w-3 opacity-70" aria-hidden="true" />}
         </>
     );
 
-    const badge = portalUrl ? (
+    const label = portalUrl ? (
         <a
             href={portalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={badgeClass}
-            title={fullPath ?? `Search for "${subject.subject}" in the portal`}
-            aria-label={accessibleLabel}
+            className={labelClass}
+            title={fullPath ?? undefined}
         >
             {badgeContent}
         </a>
     ) : (
         <span
-            className={badgeClass}
-            title={fullPath ?? displayLabel}
-            aria-label={accessibleLabel}
+            className={labelClass}
+            title={fullPath ?? undefined}
         >
             {badgeContent}
         </span>
     );
 
-    if (!fullPath) {
-        return badge;
+    if (!portalUrl) {
+        return label;
     }
 
     return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>{badge}</TooltipTrigger>
-                <TooltipContent className="max-w-sm text-center">{fullPath}</TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <span className="inline-flex items-center">
+            {label}
+            <a
+                href={portalUrl}
+                className={actionClass}
+                title={searchPrompt}
+                aria-label={searchPrompt}
+            >
+                <Search className="h-3 w-3" aria-hidden="true" />
+            </a>
+        </span>
     );
 }
 
@@ -190,7 +197,7 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                 itemLabel="keywords"
                 renderItem={(item) => (
                     <li key={item.subject.id}>
-                        <KeywordBadge subject={item.subject} style={item.group === 'free' ? FREE_KEYWORD_STYLE : undefined} />
+                        <KeywordBadge subject={item.subject} style={item.group === 'free' ? FREE_KEYWORD_STYLE : LINKED_KEYWORD_STYLE} />
                     </li>
                 )}
                 wrapper={(children) => {

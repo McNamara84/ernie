@@ -99,7 +99,7 @@
             },
             {
                 "title": "Hierarchical Thesaurus Keywords on Landing Pages",
-                "description": "Controlled thesaurus keywords on GFZ-hosted landing pages now preserve their full vocabulary path instead of collapsing to the leaf term only. Keyword badges show a compact breadcrumb label, reveal the complete path on hover, and link directly to the matching thesaurus filter in the public portal. Existing records are backfilled automatically where stable thesaurus identifiers are available."
+                "description": "Controlled thesaurus keywords on GFZ-hosted landing pages now preserve their full vocabulary path instead of collapsing to the leaf term only. Keyword badges show a compact breadcrumb label, reveal the complete path on hover, use a darker linked style for controlled terms and a lighter blue style for free keywords, and expose a magnifying-glass search action that opens the matching portal filter. Existing records are backfilled automatically where stable thesaurus identifiers are available."
             },
             {
                 "title": "HTML Formatting for Landing Page Descriptions",

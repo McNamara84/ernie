@@ -55,20 +55,31 @@ describe('KeywordsSection', () => {
 
     it('keyword badges link to portal', () => {
         render(<KeywordsSection subjects={[freeKeyword(1, 'geology')]} />);
-        const link = screen.getByText('geology').closest('a');
+        const link = screen.getByRole('link', { name: 'geology' });
+        const searchLink = screen.getByRole('link', { name: /Search for geology in the portal/i });
+
         expect(link).toHaveAttribute('href', '/portal?free_keywords%5B%5D=geology');
-        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).not.toHaveAttribute('target');
+        expect(searchLink).toHaveAttribute('href', '/portal?free_keywords%5B%5D=geology');
     });
 
     it('links controlled keywords through the portal thesaurus filter', () => {
         render(<KeywordsSection subjects={[gcmdKeyword(1, 'SEISMOLOGY')]} />);
 
-        const link = screen.getByRole('link', { name: /SEISMOLOGY/i });
+        const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
 
         expect(link).toHaveAttribute(
             'href',
             '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
         );
+    });
+
+    it('shows a search prompt on the magnifying-glass action', () => {
+        render(<KeywordsSection subjects={[gcmdKeyword(1, 'SEISMOLOGY')]} />);
+
+        const searchLink = screen.getByRole('link', { name: /Search for SEISMOLOGY in the portal/i });
+
+        expect(searchLink).toHaveAttribute('title', 'Search for SEISMOLOGY in the portal');
     });
 
     it('renders full breadcrumb paths with three segments without omission', () => {
@@ -110,7 +121,7 @@ describe('KeywordsSection', () => {
             />,
         );
 
-        const link = screen.getByRole('link', { name: /SEISMOLOGY/i });
+        const link = screen.getByRole('link', { name: /^EARTH SCIENCE > SOLID EARTH > SEISMOLOGY$/i });
 
         expect(link).toHaveAttribute('title', 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
     });
