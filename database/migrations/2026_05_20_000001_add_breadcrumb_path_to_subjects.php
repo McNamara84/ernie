@@ -44,6 +44,8 @@ return new class extends Migration
             })
             ->orderBy('id')
             ->chunkById(100, function ($subjects) use ($resolver): void {
+                $updates = [];
+
                 foreach ($subjects as $subject) {
                     $breadcrumbPath = $resolver->resolve(
                         subjectScheme: is_string($subject->subject_scheme ?? null) ? $subject->subject_scheme : null,
@@ -56,9 +58,30 @@ return new class extends Migration
                         continue;
                     }
 
-                    DB::table('subjects')
-                        ->where('id', $subject->id)
-                        ->update(['breadcrumb_path' => $breadcrumbPath]);
+                    $updates[] = [
+                        'id' => $subject->id,
+                        'breadcrumb_path' => $breadcrumbPath,
+                    ];
+                }
+
+                if ($updates !== []) {
+                    $caseSegments = implode(' ', array_fill(0, count($updates), 'WHEN ? THEN ?'));
+                    $wherePlaceholders = implode(', ', array_fill(0, count($updates), '?'));
+                    $bindings = [];
+
+                    foreach ($updates as $update) {
+                        $bindings[] = $update['id'];
+                        $bindings[] = $update['breadcrumb_path'];
+                    }
+
+                    foreach ($updates as $update) {
+                        $bindings[] = $update['id'];
+                    }
+
+                    DB::update(
+                        "UPDATE subjects SET breadcrumb_path = CASE id {$caseSegments} END WHERE id IN ({$wherePlaceholders})",
+                        $bindings,
+                    );
                 }
             });
     }

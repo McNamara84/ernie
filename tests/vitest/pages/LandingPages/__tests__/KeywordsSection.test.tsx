@@ -74,6 +74,45 @@ describe('KeywordsSection', () => {
         );
     });
 
+    it('links controlled keywords through a scheme-scoped classification code when value_uri is missing', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'SEISMOLOGY', {
+                        value_uri: null,
+                        classification_code: '310607',
+                    }),
+                ]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
+
+        expect(link).toHaveAttribute(
+            'href',
+            '/portal?thesaurus_keywords%5B%5D=Science+Keywords%3A%3A310607',
+        );
+    });
+
+    it('falls back to the legacy keyword filter when a controlled keyword has no stable identifier', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'SEISMOLOGY', {
+                        value_uri: null,
+                        classification_code: null,
+                    }),
+                ]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
+        const searchLink = screen.getByRole('link', { name: /Search for SEISMOLOGY in the portal/i });
+
+        expect(link).toHaveAttribute('href', '/portal?keywords%5B%5D=SEISMOLOGY');
+        expect(searchLink).toHaveAttribute('href', '/portal?keywords%5B%5D=SEISMOLOGY');
+    });
+
     it('shows a search prompt on the magnifying-glass action', () => {
         render(<KeywordsSection subjects={[gcmdKeyword(1, 'SEISMOLOGY')]} />);
 

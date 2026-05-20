@@ -35,7 +35,8 @@ final class SubjectBreadcrumbPathResolverService
     /** @var array<string, array<string, true>> */
     private array $ambiguousLeafKeys = [];
 
-    private bool $indexesBuilt = false;
+    /** @var array<string, true> */
+    private array $indexedSchemes = [];
 
     public function resolve(?string $subjectScheme, ?string $valueUri, ?string $classificationCode, ?string $subjectValue): ?string
     {
@@ -49,7 +50,7 @@ final class SubjectBreadcrumbPathResolverService
             return null;
         }
 
-        $this->buildIndexes();
+        $this->buildIndexesForScheme($normalizedScheme);
 
         $nodeId = trim((string) $valueUri);
         if ($nodeId !== '' && isset($this->pathsById[$normalizedScheme][$nodeId])) {
@@ -69,19 +70,22 @@ final class SubjectBreadcrumbPathResolverService
         return null;
     }
 
-    private function buildIndexes(): void
+    private function buildIndexesForScheme(string $scheme): void
     {
-        if ($this->indexesBuilt) {
+        if (isset($this->indexedSchemes[$scheme])) {
             return;
         }
 
-        foreach (self::SOURCES as $scheme => $source) {
-            foreach ($this->loadVocabularyRoots($source['file'], $source['fallback_scheme']) as $root) {
-                $this->indexNode($root, $scheme, []);
-            }
+        $this->indexedSchemes[$scheme] = true;
+
+        $source = self::SOURCES[$scheme] ?? null;
+        if ($source === null) {
+            return;
         }
 
-        $this->indexesBuilt = true;
+        foreach ($this->loadVocabularyRoots($source['file'], $source['fallback_scheme']) as $root) {
+            $this->indexNode($root, $scheme, []);
+        }
     }
 
     /**

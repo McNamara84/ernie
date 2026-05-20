@@ -45,6 +45,7 @@ const EMPTY_PORTAL_FILTERS: PortalFilters = {
     bounds: null,
     temporal: null,
 };
+const THESAURUS_NOTATION_DELIMITER = '::';
 
 function getFullPath(subject: LandingPageSubject): string | null {
     if (!subject.subject_scheme || subject.subject_scheme === '') {
@@ -75,6 +76,22 @@ function getDisplayLabel(subject: LandingPageSubject): string {
     return `${topLevel} > ... > ${broader} > ${narrow}`;
 }
 
+function getThesaurusKeywordToken(subject: LandingPageSubject): string | null {
+    const valueUri = subject.value_uri?.trim();
+    if (valueUri) {
+        return valueUri;
+    }
+
+    const subjectScheme = subject.subject_scheme?.trim();
+    const classificationCode = subject.classification_code?.trim();
+
+    if (!subjectScheme || !classificationCode) {
+        return null;
+    }
+
+    return `${subjectScheme}${THESAURUS_NOTATION_DELIMITER}${classificationCode}`;
+}
+
 function getPortalUrl(subject: LandingPageSubject): string | null {
     if (!subject.subject_scheme || subject.subject_scheme === '') {
         return buildPortalFilterUrl({
@@ -83,14 +100,17 @@ function getPortalUrl(subject: LandingPageSubject): string | null {
         });
     }
 
-    const valueUri = subject.value_uri?.trim();
-    if (!valueUri) {
-        return null;
+    const thesaurusKeyword = getThesaurusKeywordToken(subject);
+    if (thesaurusKeyword) {
+        return buildPortalFilterUrl({
+            ...EMPTY_PORTAL_FILTERS,
+            thesaurusKeywords: [thesaurusKeyword],
+        });
     }
 
     return buildPortalFilterUrl({
         ...EMPTY_PORTAL_FILTERS,
-        thesaurusKeywords: [valueUri],
+        keywords: [subject.subject],
     });
 }
 

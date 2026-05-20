@@ -197,6 +197,67 @@ it('reuses cached indexes on subsequent lookups', function (): void {
     ))->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
 });
 
+it('loads only the vocabulary file for the requested scheme', function (): void {
+    $disk = new class
+    {
+        /** @var array<int, string> */
+        public array $requests = [];
+
+        public function exists(string $fileName): bool
+        {
+            $this->requests[] = "exists:{$fileName}";
+
+            return $fileName === 'gcmd-science-keywords.json';
+        }
+
+        public function get(string $fileName): string
+        {
+            $this->requests[] = "get:{$fileName}";
+
+            return json_encode([
+                'data' => [[
+                    'id' => 'science-root',
+                    'text' => 'Science Keywords',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'children' => [[
+                        'id' => 'earth-science',
+                        'text' => 'EARTH SCIENCE',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'children' => [[
+                            'id' => 'solid-earth',
+                            'text' => 'SOLID EARTH',
+                            'scheme' => 'NASA/GCMD Earth Science Keywords',
+                            'children' => [[
+                                'id' => 'science-seismology',
+                                'text' => 'SEISMOLOGY',
+                                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                                'children' => [],
+                            ]],
+                        ]],
+                    ]],
+                ]],
+            ], JSON_THROW_ON_ERROR);
+        }
+    };
+
+    Storage::shouldReceive('disk')
+        ->with('local')
+        ->andReturn($disk);
+
+    $resolver = new SubjectBreadcrumbPathResolverService;
+
+    expect($resolver->resolve(
+        subjectScheme: 'NASA/GCMD Earth Science Keywords',
+        valueUri: 'science-seismology',
+        classificationCode: null,
+        subjectValue: 'SEISMOLOGY',
+    ))->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY')
+        ->and($disk->requests)->toBe([
+            'exists:gcmd-science-keywords.json',
+            'get:gcmd-science-keywords.json',
+        ]);
+});
+
 it('returns null when a node cannot produce any breadcrumb segments', function (): void {
     Storage::disk('local')->put('gcmd-platforms.json', json_encode([
         'data' => [[
