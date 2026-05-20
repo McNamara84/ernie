@@ -435,7 +435,7 @@ export default function LandingPageTemplatesPage() {
                 {/* Template Cards */}
                 <div className="grid gap-4 md:grid-cols-2">
                     {templates.map((tmpl) => (
-                        <Card key={tmpl.id} className={tmpl.is_default ? 'border-primary/30' : ''}>
+                        <Card key={tmpl.id} className={tmpl.is_default ? 'border-primary/30 bg-muted/20' : ''}>
                             <CardHeader className="pb-3">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-2">

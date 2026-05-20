@@ -94,6 +94,10 @@
         ],
         "improvements": [
             {
+                "title": "Clearer Landing Page Template Ordering",
+                "description": "Landing Page Template Management now keeps the built-in Resource and IGSN defaults pinned at the top of the template list, with cloned templates grouped below them by type and sorted alphabetically within each group. Default templates are also shown with a subtle muted background so administrators and group leaders can distinguish the immutable built-ins from editable clones more quickly."
+            },
+            {
                 "title": "HTML Formatting for Landing Page Descriptions",
                 "description": "Descriptions such as Abstract, Methods, Technical Information, Table of Contents, Series Information, and Other can now contain a limited HTML subset for landing-page display. ERNIE stores the formatted landing-page version separately from the canonical plain-text description, renders the sanitized markup on public and preview landing pages, and continues to use plain text only for DataCite registration, metadata updates, XML export, JSON export, JSON-LD export, and Schema.org output."
             },

@@ -246,6 +246,16 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getByText('Default')).toBeInTheDocument();
         });
 
+        it('uses a subtle muted background for default template cards', () => {
+            render(<LandingPageTemplatesPage />);
+
+            const defaultCard = screen.getByText('Default GFZ Data Services').closest('[data-slot="card"]');
+            const customCard = screen.getByText('Geophysics Template').closest('[data-slot="card"]');
+
+            expect(defaultCard).toHaveClass('bg-muted/20');
+            expect(customCard).not.toHaveClass('bg-muted/20');
+        });
+
         it('shows usage count badges', () => {
             render(<LandingPageTemplatesPage />);
             expect(screen.getByText('5 pages')).toBeInTheDocument();

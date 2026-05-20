@@ -248,6 +248,26 @@ class LandingPageTemplate extends Model
     }
 
     /**
+     * Apply the canonical display ordering for template listings.
+     *
+     * Defaults stay on top, resource templates come before IGSN templates,
+     * and names are sorted alphabetically within each bucket.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeOrderedForDisplay(Builder $query): Builder
+    {
+        return $query
+            ->orderByDesc('is_default')
+            ->orderByRaw(
+                'case template_type when ? then 0 when ? then 1 else 2 end',
+                [self::TEMPLATE_TYPE_RESOURCE, self::TEMPLATE_TYPE_IGSN],
+            )
+            ->orderBy('name');
+    }
+
+    /**
      * Validate that a section order array contains exactly the valid keys.
      *
      * @param  array<int, string>  $order

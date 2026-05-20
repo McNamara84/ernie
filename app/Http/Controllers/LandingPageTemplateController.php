@@ -30,11 +30,9 @@ class LandingPageTemplateController extends Controller
         LandingPageTemplate::ensureSystemTemplatesExist();
 
         $templates = LandingPageTemplate::query()
+            ->orderedForDisplay()
             ->with('creator:id,name')
             ->withCount('landingPages')
-            ->orderBy('template_type')
-            ->orderByDesc('is_default')
-            ->orderBy('name')
             ->get();
 
         return Inertia::render('landing-page-templates', [
@@ -236,9 +234,7 @@ class LandingPageTemplateController extends Controller
         LandingPageTemplate::ensureSystemTemplatesExist();
 
         $templates = LandingPageTemplate::query()
-            ->orderBy('template_type')
-            ->orderByDesc('is_default')
-            ->orderBy('name')
+            ->orderedForDisplay()
             ->get([
                 'id',
                 'name',
