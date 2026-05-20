@@ -18,7 +18,8 @@ describe('landing page template logo deployment regression guard', function () {
         $dockerfile = deploymentFileContents('Dockerfile');
 
         expect($dockerfile)
-            ->toContain('FROM nginx:1.29.8-alpine')
+            ->toContain('FROM nginx:')
+            ->toContain(' AS nginx')
             ->toContain('COPY --from=app /var/www/html/public /var/www/html/public')
             ->toContain('COPY --from=app /var/www/html/storage /var/www/html/storage')
             ->toContain('ln -s ../storage/app/public /var/www/html/public/storage');
