@@ -26,7 +26,10 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Right;
+use App\Models\Subject;
 use App\Models\Title;
+use App\Support\PortalSubjectNormalizer;
+use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\Eloquent\Collection;
 
 final class LandingPageResourceTransformer
@@ -279,14 +282,19 @@ final class LandingPageResourceTransformer
             ->all();
 
         $resourceData['subjects'] = $resource->subjects
-            ->map(static fn ($subject): array => [
-                'id' => $subject->id,
-                'subject' => $subject->value,
-                'subject_scheme' => $subject->subject_scheme,
-                'scheme_uri' => $subject->scheme_uri,
-                'value_uri' => $subject->value_uri,
-                'classification_code' => $subject->classification_code,
-            ])
+            ->map(function (Subject $subject): array {
+                $breadcrumbPath = SubjectBreadcrumbPath::preferredPath($subject->breadcrumb_path, $subject->value);
+
+                return [
+                    'id' => $subject->id,
+                    'subject' => SubjectBreadcrumbPath::leaf($breadcrumbPath, $subject->value) ?? $subject->value,
+                    'subject_scheme' => PortalSubjectNormalizer::normalizeScheme($subject->subject_scheme),
+                    'scheme_uri' => $subject->scheme_uri,
+                    'value_uri' => $subject->value_uri,
+                    'classification_code' => $subject->classification_code,
+                    'breadcrumb_path' => $breadcrumbPath,
+                ];
+            })
             ->all();
 
         $resourceData['geo_locations'] = $resource->geoLocations

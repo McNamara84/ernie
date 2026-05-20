@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
     getSchemeLabel,
+    normalizeKeywordScheme,
+    SCHEME_ANALYTICAL_METHODS,
+    SCHEME_EUROSCIVOC,
     SCHEME_GCMD_INSTRUMENTS,
     SCHEME_GCMD_PLATFORMS,
     SCHEME_GCMD_SCIENCE,
@@ -49,5 +52,21 @@ describe('getSchemeLabel', () => {
 
     it('returns the scheme string itself for unknown schemes', () => {
         expect(getSchemeLabel('Unknown Scheme')).toBe('Unknown Scheme');
+    });
+});
+
+describe('normalizeKeywordScheme', () => {
+    it('normalizes known thesaurus aliases to canonical scheme keys', () => {
+        expect(normalizeKeywordScheme('NASA/GCMD Earth Science Keywords')).toBe(SCHEME_GCMD_SCIENCE);
+        expect(normalizeKeywordScheme('GCMD Science Keywords')).toBe(SCHEME_GCMD_SCIENCE);
+        expect(normalizeKeywordScheme('MSL Vocabulary')).toBe(SCHEME_MSL);
+        expect(normalizeKeywordScheme('Analytical Method Vocabulary')).toBe(SCHEME_ANALYTICAL_METHODS);
+        expect(normalizeKeywordScheme('EuroSciVoc')).toBe(SCHEME_EUROSCIVOC);
+    });
+
+    it('returns null for blank schemes and preserves unknown schemes', () => {
+        expect(normalizeKeywordScheme('   ')).toBeNull();
+        expect(normalizeKeywordScheme(null)).toBeNull();
+        expect(normalizeKeywordScheme('Unknown Scheme')).toBe('Unknown Scheme');
     });
 });

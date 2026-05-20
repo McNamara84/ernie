@@ -345,6 +345,7 @@ entity "subjects" as subjects {
     scheme_uri : VARCHAR(512)
     value_uri : VARCHAR(512)
     classification_code : VARCHAR
+    breadcrumb_path : TEXT
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }

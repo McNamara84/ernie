@@ -515,6 +515,7 @@ describe('ResourceStorageService', function () {
                 [
                     'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid',
                     'text' => 'Test GCMD Keyword',
+                    'path' => 'EARTH SCIENCE > SOLID EARTH > Test GCMD Keyword',
                     'scheme' => 'Science Keywords',
                     'schemeURI' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
                 ],
@@ -527,7 +528,8 @@ describe('ResourceStorageService', function () {
         $subject = $resource->subjects->first();
         expect($subject->value)->toBe('Test GCMD Keyword')
             ->and($subject->subject_scheme)->toBe('Science Keywords')
-            ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid');
+            ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid')
+            ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > SOLID EARTH > Test GCMD Keyword');
     });
 
     it('stores classificationCode for controlled keywords', function () {
@@ -561,6 +563,7 @@ describe('ResourceStorageService', function () {
                 [
                     'id' => '310607',
                     'text' => 'Nanobiotechnology',
+                    'path' => 'Natural Sciences > Biological Sciences > Nanobiotechnology',
                     'scheme' => 'ANZSRC Fields of Research',
                     'schemeURI' => 'https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc',
                     'classificationCode' => '310607',
@@ -575,7 +578,8 @@ describe('ResourceStorageService', function () {
         expect($subject->value)->toBe('Nanobiotechnology')
             ->and($subject->subject_scheme)->toBe('ANZSRC Fields of Research')
             ->and($subject->classification_code)->toBe('310607')
-            ->and($subject->value_uri)->toBeNull();
+            ->and($subject->value_uri)->toBeNull()
+            ->and($subject->breadcrumb_path)->toBe('Natural Sciences > Biological Sciences > Nanobiotechnology');
     });
 });
 

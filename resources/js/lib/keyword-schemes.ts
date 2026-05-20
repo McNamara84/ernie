@@ -43,6 +43,52 @@ export const SCHEME_LABELS: Record<string, string> = {
 };
 
 /**
+ * Normalize stored subject-scheme aliases to the canonical frontend scheme keys.
+ */
+export function normalizeKeywordScheme(scheme: string | null): string | null {
+    const trimmed = scheme?.trim() ?? '';
+    if (trimmed === '') {
+        return null;
+    }
+
+    const normalized = trimmed.toLowerCase();
+
+    if (normalized.includes('science keywords')) {
+        return SCHEME_GCMD_SCIENCE;
+    }
+
+    if (normalized.includes('platform')) {
+        return SCHEME_GCMD_PLATFORMS;
+    }
+
+    if (normalized.includes('instrument')) {
+        return SCHEME_GCMD_INSTRUMENTS;
+    }
+
+    if (normalized.includes('epos msl') || normalized.includes('msl vocabulary')) {
+        return SCHEME_MSL;
+    }
+
+    if (normalized.includes('chronostrat')) {
+        return SCHEME_ICS_CHRONOSTRAT;
+    }
+
+    if (normalized.includes('gemet')) {
+        return SCHEME_GEMET;
+    }
+
+    if (normalized.includes('analytical') && normalized.includes('method')) {
+        return SCHEME_ANALYTICAL_METHODS;
+    }
+
+    if (normalized.includes('euroscivoc') || normalized.includes('european science vocabulary')) {
+        return SCHEME_EUROSCIVOC;
+    }
+
+    return trimmed;
+}
+
+/**
  * Get a user-friendly label for a keyword scheme.
  */
 export function getSchemeLabel(scheme: string | null): string {

@@ -735,6 +735,49 @@ it('resolves selected thesaurus nodes with matching raw subject scheme aliases',
         ->and($resolved[0]['subject_schemes'])->toContain('NASA/GCMD Earth Science Keywords');
 });
 
+it('resolves selected thesaurus nodes from a scheme-scoped classification code token', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('analytical-methods.json', json_encode([
+        'lastUpdated' => now()->toIso8601String(),
+        'data' => [[
+            'id' => 'urn:mass-spectrometry',
+            'text' => 'Mass Spectrometry',
+            'language' => 'en',
+            'scheme' => 'Analytical Method Vocabulary',
+            'schemeURI' => 'https://example.test/analytical',
+            'description' => '',
+            'notation' => 'MS',
+            'children' => [[
+                'id' => 'urn:icp-ms',
+                'text' => 'ICP-MS',
+                'language' => 'en',
+                'scheme' => 'Analytical Method Vocabulary',
+                'schemeURI' => 'https://example.test/analytical',
+                'description' => '',
+                'notation' => 'ICP-MS',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    createResourceWithSubjects($this->datasetType, [
+        ['value' => 'ICP-MS', 'subject_scheme' => 'Analytical Methods for Geochemistry and Cosmochemistry', 'value_uri' => null],
+    ]);
+
+    $resolved = $this->service->resolveSelectedThesaurusNodes([
+        'Analytical Methods for Geochemistry and Cosmochemistry::ICP-MS',
+    ]);
+
+    expect($resolved)->toHaveCount(1)
+        ->and($resolved[0]['id'])->toBe('urn:icp-ms')
+        ->and($resolved[0]['scheme'])->toBe('Analytical Methods for Geochemistry and Cosmochemistry')
+        ->and($resolved[0]['descendant_ids'])->toBe(['urn:icp-ms'])
+        ->and($resolved[0]['descendant_values'])->toBe([
+            'Mass Spectrometry > ICP-MS',
+            'ICP-MS',
+        ]);
+});
+
 it('invalidates the cached controlled subject index together with thesaurus facets', function () {
     Storage::fake('local');
     Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([

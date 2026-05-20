@@ -308,6 +308,7 @@ erDiagram
         varchar scheme_uri
         varchar value_uri
         varchar classification_code
+        text breadcrumb_path
         timestamp created_at
         timestamp updated_at
     }

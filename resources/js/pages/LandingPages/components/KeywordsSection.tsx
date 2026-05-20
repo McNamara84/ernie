@@ -1,7 +1,9 @@
-import { Clock, ExternalLink, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite } from 'lucide-react';
+import { BookOpen, Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite, Search } from 'lucide-react';
 
 import {
-    getSchemeLabel,
+    normalizeKeywordScheme,
+    SCHEME_ANALYTICAL_METHODS,
+    SCHEME_EUROSCIVOC,
     SCHEME_GCMD_INSTRUMENTS,
     SCHEME_GCMD_PLATFORMS,
     SCHEME_GCMD_SCIENCE,
@@ -9,48 +11,171 @@ import {
     SCHEME_ICS_CHRONOSTRAT,
     SCHEME_MSL,
 } from '@/lib/keyword-schemes';
+import { buildPortalFilterUrl } from '@/lib/portal-filter-url';
 import type { LandingPageSubject } from '@/types/landing-page';
+import type { PortalFilters } from '@/types/portal';
 
 import { CollapsibleList } from './CollapsibleList';
 
 /** Single source of truth: ordered thesaurus definitions with badge styling and icons */
-const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon; bgClass: string; textClass: string }[] = [
-    { scheme: SCHEME_GCMD_SCIENCE, icon: Globe, bgClass: 'bg-blue-600 dark:bg-blue-500', textClass: 'text-white' },
-    { scheme: SCHEME_GCMD_PLATFORMS, icon: Satellite, bgClass: 'bg-emerald-700 dark:bg-emerald-600', textClass: 'text-white' },
-    { scheme: SCHEME_GCMD_INSTRUMENTS, icon: Microscope, bgClass: 'bg-amber-700 dark:bg-amber-600', textClass: 'text-white' },
-    { scheme: SCHEME_MSL, icon: FlaskConical, bgClass: 'bg-purple-600 dark:bg-purple-500', textClass: 'text-white' },
-    { scheme: SCHEME_GEMET, icon: Leaf, bgClass: 'bg-rose-600 dark:bg-rose-500', textClass: 'text-white' },
-    { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock, bgClass: 'bg-teal-700 dark:bg-teal-600', textClass: 'text-white' },
+const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon }[] = [
+    { scheme: SCHEME_GCMD_SCIENCE, icon: Globe },
+    { scheme: SCHEME_GCMD_PLATFORMS, icon: Satellite },
+    { scheme: SCHEME_GCMD_INSTRUMENTS, icon: Microscope },
+    { scheme: SCHEME_MSL, icon: FlaskConical },
+    { scheme: SCHEME_GEMET, icon: Leaf },
+    { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock },
+    { scheme: SCHEME_ANALYTICAL_METHODS, icon: FlaskConical },
+    { scheme: SCHEME_EUROSCIVOC, icon: BookOpen },
 ];
 
 const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));
-const SCHEME_CONFIG = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { bg: d.bgClass, text: d.textClass, icon: d.icon }]));
+const SCHEME_CONFIG = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.scheme, { icon: d.icon }]));
 
-const FREE_KEYWORD_STYLE = { bg: 'bg-gfz-primary', text: 'text-gfz-primary-foreground' };
+const LINKED_KEYWORD_STYLE = {
+    bg: 'bg-gfz-primary',
+    text: 'text-gfz-primary-foreground',
+    actionTone: 'text-white/80 hover:text-white focus-visible:text-white',
+};
+const FREE_KEYWORD_STYLE = {
+    bg: 'bg-sky-100 dark:bg-sky-900/40',
+    text: 'text-sky-900 dark:text-sky-100',
+    actionTone: 'text-sky-900/75 hover:text-sky-900 focus-visible:text-sky-900 dark:text-sky-100/80 dark:hover:text-sky-100 dark:focus-visible:text-sky-100',
+};
+const EMPTY_PORTAL_FILTERS: PortalFilters = {
+    query: null,
+    type: [],
+    keywords: [],
+    datacenter: [],
+    bounds: null,
+    temporal: null,
+};
+const THESAURUS_NOTATION_DELIMITER = '::';
+
+function getFullPath(subject: LandingPageSubject): string | null {
+    if (!subject.subject_scheme || subject.subject_scheme === '') {
+        return null;
+    }
+
+    const breadcrumbPath = subject.breadcrumb_path?.trim();
+
+    return breadcrumbPath ? breadcrumbPath : null;
+}
+
+function getDisplayLabel(subject: LandingPageSubject): string {
+    const fullPath = getFullPath(subject);
+    if (!fullPath) {
+        return subject.subject;
+    }
+
+    const segments = fullPath.split(' > ').map((segment) => segment.trim()).filter((segment) => segment !== '');
+
+    if (segments.length <= 3) {
+        return segments.join(' > ');
+    }
+
+    const topLevel = segments[0];
+    const broader = segments.at(-2) ?? segments[segments.length - 1];
+    const narrow = segments.at(-1) ?? subject.subject;
+
+    return `${topLevel} > ... > ${broader} > ${narrow}`;
+}
+
+function getThesaurusKeywordToken(subject: LandingPageSubject): string | null {
+    const valueUri = subject.value_uri?.trim();
+    if (valueUri) {
+        return valueUri;
+    }
+
+    const subjectScheme = normalizeKeywordScheme(subject.subject_scheme) ?? subject.subject_scheme?.trim();
+    const classificationCode = subject.classification_code?.trim();
+
+    if (!subjectScheme || !classificationCode) {
+        return null;
+    }
+
+    return `${subjectScheme}${THESAURUS_NOTATION_DELIMITER}${classificationCode}`;
+}
+
+function getPortalUrl(subject: LandingPageSubject): string | null {
+    if (!subject.subject_scheme || subject.subject_scheme === '') {
+        return buildPortalFilterUrl({
+            ...EMPTY_PORTAL_FILTERS,
+            freeKeywords: [subject.subject],
+        });
+    }
+
+    const thesaurusKeyword = getThesaurusKeywordToken(subject);
+    if (thesaurusKeyword) {
+        return buildPortalFilterUrl({
+            ...EMPTY_PORTAL_FILTERS,
+            thesaurusKeywords: [thesaurusKeyword],
+        });
+    }
+
+    return buildPortalFilterUrl({
+        ...EMPTY_PORTAL_FILTERS,
+        keywords: [subject.subject],
+    });
+}
 
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject, style, icon: Icon }: { subject: LandingPageSubject; style?: { bg: string; text: string }; icon?: LucideIcon }) {
-    const portalUrl = `/portal?keywords[]=${encodeURIComponent(subject.subject)}`;
-    const config = SCHEME_CONFIG[subject.subject_scheme ?? ''];
-    const { bg, text } = style ?? config ?? FREE_KEYWORD_STYLE;
-    const BadgeIcon = Icon ?? config?.icon;
-    const schemeLabel = getSchemeLabel(subject.subject_scheme ?? null);
+function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: { bg: string; text: string; actionTone: string } }) {
+    const portalUrl = getPortalUrl(subject);
+    const normalizedScheme = normalizeKeywordScheme(subject.subject_scheme);
+    const config = normalizedScheme ? SCHEME_CONFIG[normalizedScheme] : undefined;
+    const { bg, text, actionTone } = style;
+    const BadgeIcon = config?.icon;
+    const fullPath = getFullPath(subject);
+    const displayLabel = getDisplayLabel(subject);
+    const searchPrompt = `Search for ${displayLabel} in the portal`;
+    const linkedBadgeClass = `inline-flex items-center rounded-full ${bg} ${text} shadow-sm`;
+    const labelClass = `inline-flex items-center gap-1 px-3 py-1 text-xs font-medium ${portalUrl ? 'pe-1 transition-opacity hover:opacity-85 focus-visible:opacity-85' : `rounded-full cursor-default ${bg} ${text}`}`;
+    const actionClass = `inline-flex items-center justify-center px-1.5 py-1 text-xs transition-colors ${actionTone}`;
 
-    return (
+    const badgeContent = (
+        <>
+            {BadgeIcon && <BadgeIcon className="h-3 w-3" aria-hidden="true" />}
+            {displayLabel}
+        </>
+    );
+
+    const label = portalUrl ? (
         <a
             href={portalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${bg} ${text}`}
-            title={`Search for "${subject.subject}" in the portal`}
-            aria-label={`${subject.subject} (${schemeLabel})`}
+            className={labelClass}
+            title={fullPath ?? undefined}
         >
-            {BadgeIcon && <BadgeIcon className="h-3 w-3" aria-hidden="true" />}
-            {subject.subject}
-            <ExternalLink className="h-3 w-3 opacity-70" aria-hidden="true" />
+            {badgeContent}
         </a>
+    ) : (
+        <span
+            className={labelClass}
+            title={fullPath ?? undefined}
+        >
+            {badgeContent}
+        </span>
+    );
+
+    if (!portalUrl) {
+        return label;
+    }
+
+    return (
+        <span className={linkedBadgeClass} data-slot="keyword-badge">
+            {label}
+            <a
+                href={portalUrl}
+                className={actionClass}
+                title={searchPrompt}
+                aria-label={searchPrompt}
+                data-slot="keyword-badge-action"
+            >
+                <Search className="h-3 w-3" aria-hidden="true" />
+            </a>
+        </span>
     );
 }
 
@@ -66,14 +191,16 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
     const schemeGroups = new Map<string, LandingPageSubject[]>();
     const freeKeywords: LandingPageSubject[] = [];
     for (const s of subjects) {
-        if (!s.subject_scheme || s.subject_scheme === '') {
+        const normalizedScheme = normalizeKeywordScheme(s.subject_scheme);
+
+        if (normalizedScheme === null) {
             freeKeywords.push(s);
-        } else if (THESAURUS_SCHEMES.has(s.subject_scheme)) {
-            const group = schemeGroups.get(s.subject_scheme);
+        } else if (THESAURUS_SCHEMES.has(normalizedScheme)) {
+            const group = schemeGroups.get(normalizedScheme);
             if (group) {
                 group.push(s);
             } else {
-                schemeGroups.set(s.subject_scheme, [s]);
+                schemeGroups.set(normalizedScheme, [s]);
             }
         }
     }
@@ -100,7 +227,7 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
                 itemLabel="keywords"
                 renderItem={(item) => (
                     <li key={item.subject.id}>
-                        <KeywordBadge subject={item.subject} style={item.group === 'free' ? FREE_KEYWORD_STYLE : undefined} />
+                        <KeywordBadge subject={item.subject} style={item.group === 'free' ? FREE_KEYWORD_STYLE : LINKED_KEYWORD_STYLE} />
                     </li>
                 )}
                 wrapper={(children) => {

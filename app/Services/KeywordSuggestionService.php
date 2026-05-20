@@ -24,6 +24,8 @@ class KeywordSuggestionService
 {
     use ChecksCacheTagging;
 
+    private const THESAURUS_NOTATION_DELIMITER = '::';
+
     /**
      * @var list<array{file: string, fallback_scheme: string, setting_type: string|null}>
      */
@@ -88,7 +90,7 @@ class KeywordSuggestionService
      * used for query building.
      *
      * @param  array<int, string>  $selectedNodeIds
-    * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
+     * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
      */
     public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
     {
@@ -102,10 +104,11 @@ class KeywordSuggestionService
         }
 
         $index = [];
+        $notationIndex = [];
 
         foreach ($this->getThesaurusFacets() as $facet) {
             foreach ($facet['roots'] as $root) {
-                $this->indexFacetNode($root, $index);
+                $this->indexFacetNode($root, $index, $notationIndex);
             }
         }
 
@@ -113,11 +116,11 @@ class KeywordSuggestionService
         $resolved = [];
 
         foreach ($normalizedIds as $nodeId) {
-            if (! isset($index[$nodeId])) {
+            $resolvedNode = $index[$nodeId] ?? $this->resolveSchemeScopedNotationSelection($nodeId, $notationIndex);
+            if ($resolvedNode === null) {
                 continue;
             }
 
-            $resolvedNode = $index[$nodeId];
             $subjectSchemes = array_keys($usedSubjects[$resolvedNode['scheme']]['schemes'] ?? []);
 
             if ($subjectSchemes === []) {
@@ -373,9 +376,9 @@ class KeywordSuggestionService
     }
 
     /**
-      * @param  array<string, mixed>|null  $lookup
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
+     * @param  array<string, mixed>|null  $lookup
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
      * @return array<string, mixed>|null
      */
     private function pruneVocabularyNode(array $node, ?array $lookup, array $pathSegments = []): ?array
@@ -404,9 +407,9 @@ class KeywordSuggestionService
     }
 
     /**
-      * @param  array<string, mixed>|null  $lookup
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
+     * @param  array<string, mixed>|null  $lookup
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
      */
     private function isVocabularyNodeUsed(array $node, ?array $lookup, array $pathSegments): bool
     {
@@ -429,11 +432,12 @@ class KeywordSuggestionService
     }
 
     /**
-      * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
+     * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
+     * @param  array<string, array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>>  $notationIndex
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
      */
-    private function indexFacetNode(array $node, array &$index, array $pathSegments = []): void
+    private function indexFacetNode(array $node, array &$index, array &$notationIndex, array $pathSegments = []): void
     {
         $currentPathSegments = $this->extendPathSegments($pathSegments, $node);
         $descendantIds = [];
@@ -442,12 +446,20 @@ class KeywordSuggestionService
 
         $nodeId = trim((string) ($node['id'] ?? ''));
         if ($nodeId !== '') {
-            $index[$nodeId] = [
+            $resolvedNode = [
                 'id' => $nodeId,
                 'scheme' => (string) $node['scheme'],
                 'descendant_ids' => array_values(array_unique($descendantIds)),
                 'descendant_values' => array_values(array_unique($descendantValues)),
             ];
+
+            $index[$nodeId] = $resolvedNode;
+
+            $notation = trim((string) ($node['notation'] ?? ''));
+            $normalizedScheme = $this->normalizeScheme((string) ($node['scheme'] ?? null));
+            if ($notation !== '' && $normalizedScheme !== null) {
+                $notationIndex[$normalizedScheme][$notation] = $resolvedNode;
+            }
         }
 
         foreach ($this->childrenOfNode($node) as $child) {
@@ -455,15 +467,37 @@ class KeywordSuggestionService
                 continue;
             }
 
-            $this->indexFacetNode($child, $index, $currentPathSegments);
+            $this->indexFacetNode($child, $index, $notationIndex, $currentPathSegments);
         }
     }
 
     /**
-      * @param  array<int, string>  $descendantIds
-      * @param  array<int, string>  $descendantValues
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
+     * @param  array<string, array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>>  $notationIndex
+     * @return array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}|null
+     */
+    private function resolveSchemeScopedNotationSelection(string $selectedNodeId, array $notationIndex): ?array
+    {
+        if (! str_contains($selectedNodeId, self::THESAURUS_NOTATION_DELIMITER)) {
+            return null;
+        }
+
+        [$scheme, $notation] = explode(self::THESAURUS_NOTATION_DELIMITER, $selectedNodeId, 2);
+
+        $normalizedScheme = $this->normalizeScheme($scheme);
+        $normalizedNotation = trim($notation);
+
+        if ($normalizedScheme === null || $normalizedNotation === '') {
+            return null;
+        }
+
+        return $notationIndex[$normalizedScheme][$normalizedNotation] ?? null;
+    }
+
+    /**
+     * @param  array<int, string>  $descendantIds
+     * @param  array<int, string>  $descendantValues
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
      */
     private function collectDescendants(array $node, array &$descendantIds, array &$descendantValues, array $pathSegments = []): void
     {

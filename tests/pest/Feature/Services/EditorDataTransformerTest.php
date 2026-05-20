@@ -927,6 +927,40 @@ describe('transformGcmdKeywords', function (): void {
         expect($result)->toHaveCount(1)
             ->and($result[0])->not->toHaveKey('classificationCode');
     });
+
+    it('prefers breadcrumb_path for editor path while keeping the narrow label', function (): void {
+        Subject::factory()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'Seismology',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/uuid-seismology',
+            'breadcrumb_path' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+        ]);
+        $this->resource->load('subjects');
+
+        $result = $this->transformer->transformGcmdKeywords($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['text'])->toBe('SEISMOLOGY')
+            ->and($result[0]['path'])->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
+    });
+
+    it('derives path and narrow label from legacy full-path values when breadcrumb_path is missing', function (): void {
+        Subject::factory()->create([
+            'resource_id' => $this->resource->id,
+            'value' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+            'subject_scheme' => 'Science Keywords',
+            'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/uuid-seismology',
+            'breadcrumb_path' => null,
+        ]);
+        $this->resource->load('subjects');
+
+        $result = $this->transformer->transformGcmdKeywords($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['text'])->toBe('SEISMOLOGY')
+            ->and($result[0]['path'])->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
+    });
 });
 
 describe('transformGemetKeywords', function (): void {

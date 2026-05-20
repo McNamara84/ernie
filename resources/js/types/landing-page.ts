@@ -435,6 +435,7 @@ export interface LandingPageSubject {
     scheme_uri: string | null;
     value_uri: string | null;
     classification_code: string | null;
+    breadcrumb_path?: string | null;
 }
 
 /**

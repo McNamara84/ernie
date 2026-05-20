@@ -24,6 +24,7 @@ use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
+use App\Support\SubjectBreadcrumbPath;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -825,6 +826,9 @@ class ResourceStorageService
                     'scheme_uri' => $keyword['schemeURI'] ?? null,
                     'value_uri' => $valueUri,
                     'classification_code' => $classificationCode,
+                    'breadcrumb_path' => SubjectBreadcrumbPath::normalize(
+                        is_string($keyword['path'] ?? null) ? $keyword['path'] : null,
+                    ),
                 ];
             }
         }

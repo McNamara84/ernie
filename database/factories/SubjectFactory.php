@@ -30,6 +30,7 @@ class SubjectFactory extends Factory
             'scheme_uri' => null,
             'value_uri' => null,
             'classification_code' => null,
+            'breadcrumb_path' => null,
         ];
     }
 
