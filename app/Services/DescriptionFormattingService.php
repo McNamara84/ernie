@@ -92,7 +92,7 @@ class DescriptionFormattingService
 
         $loaded = $document->loadHTML(
             '<?xml encoding="utf-8" ?><div id="description-wrapper">'.$html.'</div>',
-            LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED
+            LIBXML_HTML_NODEFDTD | LIBXML_HTML_NOIMPLIED | LIBXML_NONET
         );
 
         libxml_clear_errors();

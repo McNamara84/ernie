@@ -1,4 +1,4 @@
-FROM php:8.5.6-fpm-trixie@sha256:447f007e804ecf183feefd1202f732ccf2d4998263f9ddc478cf999d12861ee1 AS app-base
+FROM php:8.5.6-fpm-trixie@sha256:fc0e3fbbc15926f27d1213b83abfc8a8665a09cf870c441d425f8805522196ad AS app-base
 
 WORKDIR /var/www/html
 
