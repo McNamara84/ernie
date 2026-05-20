@@ -37,3 +37,10 @@ it('drops unsupported links from landing page html while preserving link text', 
     expect($result['landingPageHtml'])->toBe('<p>FTP resource</p>')
         ->and($result['plainText'])->toBe('FTP resource');
 });
+
+it('treats formatting-only html as empty content', function (): void {
+    $result = $this->service->formatForStorage('<p><br></p>');
+
+    expect($result['landingPageHtml'])->toBeNull()
+        ->and($result['plainText'])->toBe('');
+});

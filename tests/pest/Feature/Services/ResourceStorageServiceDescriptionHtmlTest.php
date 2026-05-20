@@ -81,4 +81,15 @@ describe('ResourceStorageService – Description HTML handling', function () {
 
         (void) $this->service->store($data, $this->user->id);
     })->throws(ValidationException::class);
+
+    it('rejects descriptions that only contain formatting wrappers after sanitization', function (): void {
+        $data = ($this->buildResourceData)([
+            [
+                'descriptionType' => 'other',
+                'description' => '<p><br></p>',
+            ],
+        ]);
+
+        (void) $this->service->store($data, $this->user->id);
+    })->throws(ValidationException::class);
 });

@@ -42,6 +42,13 @@ class DescriptionFormattingService
         $sanitizedHtml = $this->sanitizeHtml($trimmedInput);
         $plainText = $this->plainTextFromHtml($sanitizedHtml);
 
+        if ($plainText === '') {
+            return [
+                'plainText' => '',
+                'landingPageHtml' => null,
+            ];
+        }
+
         return [
             'plainText' => $plainText,
             'landingPageHtml' => $sanitizedHtml !== '' ? $sanitizedHtml : null,

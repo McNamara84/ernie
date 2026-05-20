@@ -659,7 +659,7 @@ class ResourceStorageService
 
             $formattedDescription = $this->descriptionFormattingService->formatForStorage((string) ($description['description'] ?? ''));
 
-            if ($formattedDescription['plainText'] === '' && $formattedDescription['landingPageHtml'] === null) {
+            if ($formattedDescription['plainText'] === '') {
                 throw ValidationException::withMessages([
                     'descriptions' => ["Description type {$displayType} does not contain any supported content after HTML sanitization."],
                 ]);
