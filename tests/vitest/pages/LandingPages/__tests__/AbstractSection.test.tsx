@@ -913,8 +913,10 @@ describe('AbstractSection', () => {
 
         it('renders DataCite logo', () => {
             render(<AbstractSection {...defaultProps} />);
-            
-            expect(screen.getByAltText('DataCite')).toBeInTheDocument();
+
+            const logo = screen.getByAltText('DataCite');
+            expect(logo).toBeInTheDocument();
+            expect(logo.closest('picture')?.querySelector('source')).toHaveAttribute('srcset', '/images/datacite-logo-light.svg');
         });
 
         it('renders XML download link with correct href', () => {

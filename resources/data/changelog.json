@@ -213,7 +213,7 @@
         "fixes": [
             {
                 "title": "Landing Page Logos Stay Readable in Dark Mode",
-                "description": "The default GFZ landing page templates now render the Helmholtz footer logo with a dedicated white dark-mode asset instead of color inversion, and the built-in GFZ Data Services header logo uses a safer dark-mode filter that avoids the previous orange or red tint. Uploaded custom template logos remain unchanged so third-party branding is not recolored unexpectedly."
+                "description": "The default GFZ landing page templates now render the Helmholtz footer logo and the DataCite download-metadata logo with dedicated dark-mode assets instead of color inversion, while the built-in GFZ Data Services header logo uses a safer dark-mode treatment that avoids the previous orange, red, or solid white artifact. Uploaded custom template logos remain unchanged so third-party branding is not recolored unexpectedly."
             },
             {
                 "title": "Author and Contributor Reordering No Longer Overwrites Entries",
