@@ -212,6 +212,10 @@
         ],
         "fixes": [
             {
+                "title": "Landing Page Logos Stay Readable in Dark Mode",
+                "description": "The default GFZ landing page templates now render the Helmholtz footer logo with a dedicated white dark-mode asset instead of color inversion, and the built-in GFZ Data Services header logo uses a safer dark-mode filter that avoids the previous orange or red tint. Uploaded custom template logos remain unchanged so third-party branding is not recolored unexpectedly."
+            },
+            {
                 "title": "Author and Contributor Reordering No Longer Overwrites Entries",
                 "description": "Dragging authors in the Data Editor now preserves each card's full content instead of overwriting neighbouring entries. The reorder flow was corrected to replace the full author list in one step, and the same fix was applied to contributors because both sections shared the same drag-and-drop update pattern. Focused regression tests now cover list-level drag handling and the parent field wrappers so author names, institution names, ORCID data, roles, and affiliations remain attached to the correct person or institution after reordering."
             },
