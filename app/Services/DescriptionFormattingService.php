@@ -82,7 +82,14 @@ class DescriptionFormattingService
             $htmlDetectionTags,
         ));
 
-        return preg_match('/<\s*\/?\s*(?:'.$detectedTagsPattern.')(?=[\s>\/])/i', $input) === 1;
+        if (preg_match('/<\/?(?:'.$detectedTagsPattern.')(?=[\s>\/])/i', $input) === 1) {
+            return true;
+        }
+
+        return preg_match('/<([A-Za-z][A-Za-z0-9:-]*)\b[^>]*>.*<\/\1\s*>/is', $input) === 1
+            || preg_match('/<[A-Za-z][A-Za-z0-9:-]*\b[^>]*\/>/i', $input) === 1
+            || preg_match('/<[A-Za-z][A-Za-z0-9:-]*\b[^>]*\s+[A-Za-z_:][A-Za-z0-9:._-]*\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s"\'=<>`]+)[^>]*>/i', $input) === 1
+            || preg_match('/<\/[A-Za-z][A-Za-z0-9:-]*\s*>/i', $input) === 1;
     }
 
     private function parseFragment(string $html): DOMElement

@@ -51,3 +51,10 @@ it('keeps literal angle-bracketed plain text untouched when no supported html ta
     expect($result['landingPageHtml'])->toBeNull()
         ->and($result['plainText'])->toBe('Use placeholder <x> in the formula and keep it literal.');
 });
+
+it('sanitizes unsupported html wrappers into plain text content', function (): void {
+    $result = $this->service->formatForStorage('<span>Inline <mark>formatting</mark></span>');
+
+    expect($result['landingPageHtml'])->toBe('Inline formatting')
+        ->and($result['plainText'])->toBe('Inline formatting');
+});
