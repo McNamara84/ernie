@@ -92,6 +92,33 @@ describe('KeywordsSection', () => {
         );
     });
 
+    it('renders Analytical Methods and EuroSciVoc as controlled landing page keywords', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'ICP-MS', {
+                        subject_scheme: 'Analytical Method Vocabulary',
+                        value_uri: 'https://example.test/analytical/icp-ms',
+                    }),
+                    gcmdKeyword(2, 'Mathematics', {
+                        subject_scheme: 'EuroSciVoc',
+                        value_uri: 'https://example.test/euroscivoc/mathematics',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /^ICP-MS$/i })).toHaveAttribute(
+            'href',
+            '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fexample.test%2Fanalytical%2Ficp-ms',
+        );
+        expect(screen.getByRole('link', { name: /^Mathematics$/i })).toHaveAttribute(
+            'href',
+            '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fexample.test%2Feuroscivoc%2Fmathematics',
+        );
+    });
+
     it('links controlled keywords through a scheme-scoped classification code when value_uri is missing', () => {
         render(
             <KeywordsSection

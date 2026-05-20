@@ -1,7 +1,9 @@
-import { Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite, Search } from 'lucide-react';
+import { BookOpen, Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite, Search } from 'lucide-react';
 
 import {
     normalizeKeywordScheme,
+    SCHEME_ANALYTICAL_METHODS,
+    SCHEME_EUROSCIVOC,
     SCHEME_GCMD_INSTRUMENTS,
     SCHEME_GCMD_PLATFORMS,
     SCHEME_GCMD_SCIENCE,
@@ -23,6 +25,8 @@ const THESAURUS_DEFINITIONS: { scheme: string; icon: LucideIcon }[] = [
     { scheme: SCHEME_MSL, icon: FlaskConical },
     { scheme: SCHEME_GEMET, icon: Leaf },
     { scheme: SCHEME_ICS_CHRONOSTRAT, icon: Clock },
+    { scheme: SCHEME_ANALYTICAL_METHODS, icon: FlaskConical },
+    { scheme: SCHEME_EUROSCIVOC, icon: BookOpen },
 ];
 
 const THESAURUS_SCHEMES = new Set(THESAURUS_DEFINITIONS.map((d) => d.scheme));

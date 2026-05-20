@@ -220,6 +220,10 @@
         ],
         "fixes": [
             {
+                "title": "Landing Pages Keep All Supported Controlled Keyword Schemes Visible",
+                "description": "GFZ landing pages now render Analytical Methods and EuroSciVoc keywords alongside the existing GCMD, MSL, GEMET, and Chronostrat thesauri. Stored scheme aliases are normalized consistently in the backend payload and frontend grouping logic so controlled keyword badges and portal search links no longer disappear when legacy scheme names are present."
+            },
+            {
                 "title": "Landing Page Logos Stay Readable in Dark Mode",
                 "description": "The default GFZ landing page templates now render the Helmholtz footer logo and the DataCite download-metadata logo with dedicated dark-mode assets instead of color inversion, while the built-in GFZ Data Services header logo uses a safer dark-mode treatment that avoids the previous orange, red, or solid white artifact. Uploaded custom template logos remain unchanged so third-party branding is not recolored unexpectedly."
             },

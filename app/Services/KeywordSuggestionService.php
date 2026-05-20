@@ -90,7 +90,7 @@ class KeywordSuggestionService
      * used for query building.
      *
      * @param  array<int, string>  $selectedNodeIds
-    * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
+     * @return array<int, array{id: string, scheme: string, subject_schemes: array<int, string>, descendant_ids: array<int, string>, descendant_values: array<int, string>}>
      */
     public function resolveSelectedThesaurusNodes(array $selectedNodeIds): array
     {
@@ -376,9 +376,9 @@ class KeywordSuggestionService
     }
 
     /**
-      * @param  array<string, mixed>|null  $lookup
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
+     * @param  array<string, mixed>|null  $lookup
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
      * @return array<string, mixed>|null
      */
     private function pruneVocabularyNode(array $node, ?array $lookup, array $pathSegments = []): ?array
@@ -407,9 +407,9 @@ class KeywordSuggestionService
     }
 
     /**
-      * @param  array<string, mixed>|null  $lookup
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
+     * @param  array<string, mixed>|null  $lookup
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
      */
     private function isVocabularyNodeUsed(array $node, ?array $lookup, array $pathSegments): bool
     {
@@ -431,13 +431,13 @@ class KeywordSuggestionService
         return false;
     }
 
-        /**
-         * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
-         * @param  array<string, array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>>  $notationIndex
-         * @param  array<string, mixed>  $node
-         * @param  array<int, string>  $pathSegments
-         */
-        private function indexFacetNode(array $node, array &$index, array &$notationIndex, array $pathSegments = []): void
+    /**
+     * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
+     * @param  array<string, array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>>  $notationIndex
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
+     */
+    private function indexFacetNode(array $node, array &$index, array &$notationIndex, array $pathSegments = []): void
     {
         $currentPathSegments = $this->extendPathSegments($pathSegments, $node);
         $descendantIds = [];
@@ -493,12 +493,12 @@ class KeywordSuggestionService
         return $notationIndex[$normalizedScheme][$normalizedNotation] ?? null;
     }
 
-        /**
-         * @param  array<int, string>  $descendantIds
-         * @param  array<int, string>  $descendantValues
-         * @param  array<string, mixed>  $node
-         * @param  array<int, string>  $pathSegments
-         */
+    /**
+     * @param  array<int, string>  $descendantIds
+     * @param  array<int, string>  $descendantValues
+     * @param  array<string, mixed>  $node
+     * @param  array<int, string>  $pathSegments
+     */
     private function collectDescendants(array $node, array &$descendantIds, array &$descendantValues, array $pathSegments = []): void
     {
         $currentPathSegments = $this->extendPathSegments($pathSegments, $node);

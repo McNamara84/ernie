@@ -903,12 +903,14 @@ describe('AbstractSection', () => {
                 <AbstractSection
                     {...defaultProps}
                     subjects={[
-                        createSubject({ id: 1, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' }),
-                        createSubject({ id: 2, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' }),
-                        createSubject({ id: 3, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' }),
-                        createSubject({ id: 4, subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' }),
-                        createSubject({ id: 5, subject: 'SATELLITES', subject_scheme: 'Platforms' }),
-                        createSubject({ id: 6, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' }),
+                        createSubject({ id: 1, subject: 'Mathematics', subject_scheme: 'EuroSciVoc' }),
+                        createSubject({ id: 2, subject: 'ICP-MS', subject_scheme: 'Analytical Method Vocabulary' }),
+                        createSubject({ id: 3, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' }),
+                        createSubject({ id: 4, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' }),
+                        createSubject({ id: 5, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' }),
+                        createSubject({ id: 6, subject: 'GPS RECEIVERS', subject_scheme: 'Instruments' }),
+                        createSubject({ id: 7, subject: 'SATELLITES', subject_scheme: 'Platforms' }),
+                        createSubject({ id: 8, subject: 'EARTH SCIENCE', subject_scheme: 'Science Keywords' }),
                     ]}
                 />
             );
@@ -916,16 +918,18 @@ describe('AbstractSection', () => {
             const thesauriList = screen.getByTestId('thesauri-keywords-list');
             const badges = thesauriList.querySelectorAll('a:not([aria-label])');
             
-            // Order: Science Keywords → Platforms → Instruments → MSL → GEMET → ICS
+            // Order: Science Keywords → Platforms → Instruments → MSL → GEMET → ICS → Analytical Methods → EuroSciVoc
             expect(badges[0]).toHaveTextContent('EARTH SCIENCE');
             expect(badges[1]).toHaveTextContent('SATELLITES');
             expect(badges[2]).toHaveTextContent('GPS RECEIVERS');
             expect(badges[3]).toHaveTextContent('Rock mechanics');
             expect(badges[4]).toHaveTextContent('Air pollution');
             expect(badges[5]).toHaveTextContent('Cenozoic');
+            expect(badges[6]).toHaveTextContent('ICP-MS');
+            expect(badges[7]).toHaveTextContent('Mathematics');
         });
 
-        it('renders all six thesaurus types and free keywords together', () => {
+        it('renders all eight thesaurus types and free keywords together', () => {
             render(
                 <AbstractSection
                     {...defaultProps}
@@ -936,7 +940,9 @@ describe('AbstractSection', () => {
                         createSubject({ id: 4, subject: 'Rock mechanics', subject_scheme: 'EPOS MSL vocabulary' }),
                         createSubject({ id: 5, subject: 'Air pollution', subject_scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus' }),
                         createSubject({ id: 6, subject: 'Cenozoic', subject_scheme: 'International Chronostratigraphic Chart' }),
-                        createSubject({ id: 7, subject: 'my-free-keyword', subject_scheme: null }),
+                        createSubject({ id: 7, subject: 'ICP-MS', subject_scheme: 'Analytical Method Vocabulary' }),
+                        createSubject({ id: 8, subject: 'Mathematics', subject_scheme: 'EuroSciVoc' }),
+                        createSubject({ id: 9, subject: 'my-free-keyword', subject_scheme: null }),
                     ]}
                 />
             );
@@ -948,6 +954,8 @@ describe('AbstractSection', () => {
             expect(screen.getByText('Rock mechanics')).toBeInTheDocument();
             expect(screen.getByText('Air pollution')).toBeInTheDocument();
             expect(screen.getByText('Cenozoic')).toBeInTheDocument();
+            expect(screen.getByText('ICP-MS')).toBeInTheDocument();
+            expect(screen.getByText('Mathematics')).toBeInTheDocument();
             expect(screen.getByText('my-free-keyword')).toBeInTheDocument();
 
             // Both lists present
