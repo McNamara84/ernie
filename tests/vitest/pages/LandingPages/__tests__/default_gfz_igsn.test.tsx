@@ -481,12 +481,16 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             render(<DefaultGfzIgsnTemplate />);
 
-            expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute(
+            const logo = screen.getByAltText('GFZ Data Services');
+
+            expect(logo).toHaveAttribute(
                 'src',
                 'https://cdn.example/custom.png',
             );
-            expect(screen.getByAltText('GFZ Data Services')).toHaveClass('h-24');
-            expect(screen.getByAltText('GFZ Data Services')).not.toHaveClass('dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
+            expect(logo).toHaveClass('h-24');
+            expect(logo).not.toHaveClass('dark:grayscale');
+            expect(logo).not.toHaveClass('dark:invert');
+            expect(logo).not.toHaveClass('dark:mix-blend-screen');
         });
 
         it('respects sectionOrder.leftColumn override', () => {

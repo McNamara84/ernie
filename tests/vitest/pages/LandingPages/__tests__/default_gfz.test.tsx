@@ -499,9 +499,13 @@ describe('DefaultGfzTemplate', () => {
 
             render(<DefaultGfzTemplate />);
 
-            expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute('src', 'https://cdn.example/custom-logo.png');
-            expect(screen.getByAltText('GFZ Data Services')).toHaveClass('h-24');
-            expect(screen.getByAltText('GFZ Data Services')).not.toHaveClass('dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
+            const logo = screen.getByAltText('GFZ Data Services');
+
+            expect(logo).toHaveAttribute('src', 'https://cdn.example/custom-logo.png');
+            expect(logo).toHaveClass('h-24');
+            expect(logo).not.toHaveClass('dark:grayscale');
+            expect(logo).not.toHaveClass('dark:invert');
+            expect(logo).not.toHaveClass('dark:mix-blend-screen');
         });
 
         it('handles a right column order that only contains location', () => {
