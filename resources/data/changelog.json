@@ -220,6 +220,10 @@
         ],
         "fixes": [
             {
+                "title": "Custom Landing Page Template Logos Render",
+                "description": "Uploading a header logo to a cloned landing page template now works reliably beyond local development. The deployment images for Stage and Production now preserve Laravel's `/storage/...` asset path inside the webserver container, so uploaded custom logos appear again in template management cards as well as on preview and published landing pages that use the cloned template."
+            },
+            {
                 "title": "Landing Pages Keep All Supported Controlled Keyword Schemes Visible",
                 "description": "GFZ landing pages now render Analytical Methods and EuroSciVoc keywords alongside the existing GCMD, MSL, GEMET, and Chronostrat thesauri. Stored scheme aliases are normalized consistently in the backend payload and frontend grouping logic so controlled keyword badges and portal search links no longer disappear when legacy scheme names are present."
             },
