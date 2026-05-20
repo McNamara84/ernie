@@ -7,6 +7,7 @@ use App\Models\Right;
 use App\Models\User;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
@@ -92,4 +93,21 @@ describe('ResourceStorageService – Description HTML handling', function () {
 
         (void) $this->service->store($data, $this->user->id);
     })->throws(ValidationException::class);
+
+    it('returns a neutral validation message for plain whitespace descriptions', function (): void {
+        $data = ($this->buildResourceData)([
+            [
+                'descriptionType' => 'other',
+                'description' => '   ',
+            ],
+        ]);
+
+        try {
+            (void) $this->service->store($data, $this->user->id);
+            $this->fail('Expected validation exception was not thrown.');
+        } catch (ValidationException $exception) {
+            expect(Arr::first($exception->errors()['descriptions'] ?? []))
+                ->toBe('Description type other does not contain any content after trimming and sanitization.');
+        }
+    });
 });

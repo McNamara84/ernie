@@ -661,7 +661,7 @@ class ResourceStorageService
 
             if ($formattedDescription['plainText'] === '') {
                 throw ValidationException::withMessages([
-                    'descriptions' => ["Description type {$displayType} does not contain any supported content after HTML sanitization."],
+                    'descriptions' => ["Description type {$displayType} does not contain any content after trimming and sanitization."],
                 ]);
             }
 

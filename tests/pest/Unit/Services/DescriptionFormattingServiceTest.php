@@ -44,3 +44,10 @@ it('treats formatting-only html as empty content', function (): void {
     expect($result['landingPageHtml'])->toBeNull()
         ->and($result['plainText'])->toBe('');
 });
+
+it('keeps literal angle-bracketed plain text untouched when no supported html tag exists', function (): void {
+    $result = $this->service->formatForStorage('Use placeholder <x> in the formula and keep it literal.');
+
+    expect($result['landingPageHtml'])->toBeNull()
+        ->and($result['plainText'])->toBe('Use placeholder <x> in the formula and keep it literal.');
+});

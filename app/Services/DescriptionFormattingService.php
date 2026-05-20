@@ -76,7 +76,13 @@ class DescriptionFormattingService
 
     private function containsHtml(string $input): bool
     {
-        return preg_match('/<\s*\/?\s*[a-zA-Z][^>]*>/', $input) === 1;
+        $htmlDetectionTags = [...self::ALLOWED_TAGS, ...self::DROP_WITH_CONTENT_TAGS];
+        $detectedTagsPattern = implode('|', array_map(
+            static fn (string $tagName): string => preg_quote($tagName, '/'),
+            $htmlDetectionTags,
+        ));
+
+        return preg_match('/<\s*\/?\s*(?:'.$detectedTagsPattern.')(?=[\s>\/])/i', $input) === 1;
     }
 
     private function parseFragment(string $html): DOMElement
