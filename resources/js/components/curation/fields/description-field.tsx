@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -150,11 +151,13 @@ export default function DescriptionField({
 
     return (
         <div className="space-y-4">
-            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-                Landing pages support a limited HTML subset in descriptions: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;,
-                &lt;ol&gt;, &lt;li&gt;, &lt;a&gt;, &lt;sub&gt;, &lt;sup&gt;, and &lt;code&gt;. ERNIE stores a plain-text version for DataCite,
-                XML, JSON, and JSON-LD exports.
-            </div>
+            <Alert className="bg-muted/40">
+                <AlertDescription>
+                    Landing pages support a limited HTML subset in descriptions: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;,
+                    &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, &lt;a&gt;, &lt;sub&gt;, &lt;sup&gt;, and &lt;code&gt;. ERNIE stores a plain-text version
+                    for DataCite, XML, JSON, and JSON-LD exports.
+                </AlertDescription>
+            </Alert>
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DescriptionType)}>
                 <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${visibleTypes.length}, minmax(0, 1fr))` }}>
                     {visibleTypes.map((type) => {

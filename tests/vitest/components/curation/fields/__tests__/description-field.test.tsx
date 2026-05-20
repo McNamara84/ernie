@@ -48,6 +48,15 @@ describe('DescriptionField', () => {
         expect(abstractTab).toHaveAttribute('aria-selected', 'true');
     });
 
+    it('renders the formatting notice as an alert', () => {
+        render(<DescriptionField {...defaultProps} />);
+
+        const notice = screen.getByRole('alert');
+
+        expect(notice).toHaveTextContent(/Landing pages support a limited HTML subset in descriptions/i);
+        expect(notice).toHaveTextContent(/DataCite, XML, JSON, and JSON-LD exports/i);
+    });
+
     it('renders Abstract textarea with placeholder', () => {
         render(<DescriptionField {...defaultProps} />);
 

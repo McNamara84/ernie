@@ -188,15 +188,17 @@ final class LandingPageResourceTransformer
             })
             ->all();
 
+        $descriptionFormattingService = new DescriptionFormattingService;
+
         $resourceData['descriptions'] = $resource->descriptions
-            ->map(static function (Description $desc): array {
+            ->map(function (Description $desc) use ($descriptionFormattingService): array {
                 /** @var DescriptionType|null $descriptionType */
                 $descriptionType = $desc->descriptionType;
 
                 return [
                     'id' => $desc->id,
                     'value' => $desc->value,
-                    'landing_page_html' => $desc->landing_page_html,
+                    'landing_page_html' => $this->sanitizeLandingPageHtml($desc->landing_page_html, $descriptionFormattingService),
                     'description_type' => $descriptionType !== null ? $descriptionType->name : null,
                 ];
             })
@@ -484,5 +486,16 @@ final class LandingPageResourceTransformer
         }
 
         return $resourceData;
+    }
+
+    private function sanitizeLandingPageHtml(?string $html, DescriptionFormattingService $descriptionFormattingService): ?string
+    {
+        if ($html === null || trim($html) === '') {
+            return null;
+        }
+
+        $sanitizedHtml = $descriptionFormattingService->sanitizeHtml($html);
+
+        return $sanitizedHtml !== '' ? $sanitizedHtml : null;
     }
 }

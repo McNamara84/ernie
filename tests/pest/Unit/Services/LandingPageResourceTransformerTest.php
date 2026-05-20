@@ -201,6 +201,45 @@ test('transforms landing page html alongside plain text descriptions', function 
     ]);
 });
 
+test('sanitizes landing page html before exposing it to the client', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $descriptionType = new DescriptionType;
+    $descriptionType->forceFill([
+        'id' => 1,
+        'name' => 'Abstract',
+        'slug' => 'Abstract',
+    ]);
+
+    $description = new Description;
+    $description->forceFill([
+        'id' => 1,
+        'value' => 'Safe abstract text',
+        'landing_page_html' => '<script>alert(1)</script><p>Safe <strong>abstract</strong></p><span> extra</span>',
+    ]);
+    $description->setRelation('descriptionType', $descriptionType);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection([$description]));
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['descriptions'][0])->toMatchArray([
+        'value' => 'Safe abstract text',
+        'landing_page_html' => '<p>Safe <strong>abstract</strong></p> extra',
+        'description_type' => 'Abstract',
+    ]);
+});
+
 test('transforms related identifier slugs and citation label for landing pages', function () {
     $transformer = new LandingPageResourceTransformer;
 
