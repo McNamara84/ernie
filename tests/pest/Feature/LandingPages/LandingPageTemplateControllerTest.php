@@ -116,6 +116,42 @@ describe('Index', function (): void {
                 ->has('templates', 4) // resource default + IGSN default + 2 custom
             );
     });
+
+    it('orders defaults first and keeps resource templates ahead of igsn templates', function (): void {
+        LandingPageTemplate::factory()->create([
+            'name' => 'Zulu Resource Clone',
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+            'created_by' => $this->admin->id,
+        ]);
+
+        LandingPageTemplate::factory()->create([
+            'name' => 'Alpha Resource Clone',
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+            'created_by' => $this->admin->id,
+        ]);
+
+        LandingPageTemplate::factory()->igsn()->create([
+            'name' => 'Zulu IGSN Clone',
+            'created_by' => $this->admin->id,
+        ]);
+
+        LandingPageTemplate::factory()->igsn()->create([
+            'name' => 'Alpha IGSN Clone',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get('/landing-pages')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('templates.0.name', LandingPageTemplate::DEFAULT_TEMPLATE_NAME)
+                ->where('templates.1.name', LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME)
+                ->where('templates.2.name', 'Alpha Resource Clone')
+                ->where('templates.3.name', 'Zulu Resource Clone')
+                ->where('templates.4.name', 'Alpha IGSN Clone')
+                ->where('templates.5.name', 'Zulu IGSN Clone')
+            );
+    });
 });
 
 // ─── Clone (Store) ───────────────────────────────────────────────────────────
@@ -543,6 +579,45 @@ describe('API List', function (): void {
                         'left_column_order',
                     ],
                 ],
+            ]);
+    });
+
+    it('returns defaults first and sorts resource templates ahead of igsn templates', function (): void {
+        LandingPageTemplate::factory()->create([
+            'name' => 'Zulu Resource Clone',
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+            'created_by' => $this->admin->id,
+        ]);
+
+        LandingPageTemplate::factory()->create([
+            'name' => 'Alpha Resource Clone',
+            'template_type' => LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+            'created_by' => $this->admin->id,
+        ]);
+
+        LandingPageTemplate::factory()->igsn()->create([
+            'name' => 'Zulu IGSN Clone',
+            'created_by' => $this->admin->id,
+        ]);
+
+        LandingPageTemplate::factory()->igsn()->create([
+            'name' => 'Alpha IGSN Clone',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->curator)
+            ->getJson('/api/landing-page-templates');
+
+        $response->assertOk();
+
+        expect(array_column($response->json('templates'), 'name'))
+            ->toBe([
+                LandingPageTemplate::DEFAULT_TEMPLATE_NAME,
+                LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_NAME,
+                'Alpha Resource Clone',
+                'Zulu Resource Clone',
+                'Alpha IGSN Clone',
+                'Zulu IGSN Clone',
             ]);
     });
 

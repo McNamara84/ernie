@@ -1482,7 +1482,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Admins and Group Leaders can create custom landing page templates to control the layout and branding of landing pages.
                             Custom templates are cloned from the immutable <strong>Default GFZ</strong> template and allow customization of section
-                            order and header logo.
+                            order and header logo. In template management, the built-in Resource and IGSN defaults stay pinned at the top and are
+                            subtly highlighted so cloned templates are easier to distinguish.
                         </p>
 
                         <WorkflowSteps>
