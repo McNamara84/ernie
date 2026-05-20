@@ -3,13 +3,35 @@
 declare(strict_types=1);
 
 use App\Models\Subject;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+
+function loadSubjectBreadcrumbPathMigration(): Migration
+{
+    return require database_path('migrations/2026_05_20_000001_add_breadcrumb_path_to_subjects.php');
+}
 
 function runSubjectBreadcrumbPathMigration(): void
 {
-    $migration = require database_path('migrations/2026_05_20_000001_add_breadcrumb_path_to_subjects.php');
+    $migration = loadSubjectBreadcrumbPathMigration();
     $migration->up();
 }
+
+it('adds the breadcrumb_path column when missing and removes it on rollback', function (): void {
+    $migration = loadSubjectBreadcrumbPathMigration();
+
+    expect(Schema::hasColumn('subjects', 'breadcrumb_path'))->toBeTrue();
+
+    $migration->down();
+
+    expect(Schema::hasColumn('subjects', 'breadcrumb_path'))->toBeFalse();
+
+    $migration = loadSubjectBreadcrumbPathMigration();
+    $migration->up();
+
+    expect(Schema::hasColumn('subjects', 'breadcrumb_path'))->toBeTrue();
+});
 
 it('backfills breadcrumb_path from stable vocabulary identifiers', function (): void {
     Storage::fake('local');
