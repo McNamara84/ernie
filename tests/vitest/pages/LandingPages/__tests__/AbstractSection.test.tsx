@@ -82,9 +82,11 @@ const createSubject = (overrides: Partial<{
     breadcrumb_path: string | null;
 }> = {}) => {
     const hasControlledScheme = overrides.subject_scheme !== undefined && overrides.subject_scheme !== null && overrides.subject_scheme !== '';
-    const resolvedValueUri = overrides.value_uri ?? (hasControlledScheme
-        ? `https://example.test/concept/${overrides.id ?? 1}`
-        : null);
+    const resolvedValueUri = overrides.value_uri !== undefined
+        ? overrides.value_uri
+        : hasControlledScheme
+          ? `https://example.test/concept/${overrides.id ?? 1}`
+          : null;
 
     return {
         id: 1,
@@ -657,6 +659,24 @@ describe('AbstractSection', () => {
                 '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-earth',
             );
             expect(link).not.toHaveAttribute('target');
+        });
+
+        it('preserves an explicit null value_uri for controlled keywords in test fixtures', () => {
+            render(
+                <AbstractSection
+                    {...defaultProps}
+                    subjects={[createSubject({
+                        subject: 'SEISMOLOGY',
+                        subject_scheme: 'Science Keywords',
+                        value_uri: null,
+                        classification_code: null,
+                    })]}
+                />
+            );
+
+            const link = screen.getByRole('link', { name: /^SEISMOLOGY$/i });
+
+            expect(link).toHaveAttribute('href', '/portal?keywords%5B%5D=SEISMOLOGY');
         });
 
         it('renders compact breadcrumb labels for controlled keywords on landing pages', () => {

@@ -276,6 +276,40 @@ test('transforms controlled subjects with breadcrumb_path and narrow labels for 
     ]);
 });
 
+test('normalizes subject scheme aliases in landing page subject payloads', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $subject = new Subject;
+    $subject->forceFill([
+        'id' => 1,
+        'value' => 'Seismology',
+        'subject_scheme' => 'NASA/GCMD Earth Science Keywords',
+        'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+        'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/uuid-seismology',
+        'classification_code' => null,
+        'breadcrumb_path' => 'EARTH SCIENCE > SOLID EARTH > SEISMOLOGY',
+    ]);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection([$subject]));
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['subjects'][0])->toMatchArray([
+        'subject' => 'SEISMOLOGY',
+        'subject_scheme' => 'Science Keywords',
+    ]);
+});
+
 test('derives landing page breadcrumb_path from legacy full-path subject values', function () {
     $transformer = new LandingPageResourceTransformer;
 

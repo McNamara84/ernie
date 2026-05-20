@@ -74,6 +74,24 @@ describe('KeywordsSection', () => {
         );
     });
 
+    it('renders known thesaurus aliases under their canonical landing page group', () => {
+        render(
+            <KeywordsSection
+                subjects={[
+                    gcmdKeyword(1, 'SEISMOLOGY', {
+                        subject_scheme: 'NASA/GCMD Earth Science Keywords',
+                    }),
+                ]}
+            />,
+        );
+
+        expect(screen.getByTestId('thesauri-keywords-list')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /^SEISMOLOGY$/i })).toHaveAttribute(
+            'href',
+            '/portal?thesaurus_keywords%5B%5D=https%3A%2F%2Fgcmd.earthdata.nasa.gov%2Fkms%2Fconcept%2Fscience-seismology',
+        );
+    });
+
     it('links controlled keywords through a scheme-scoped classification code when value_uri is missing', () => {
         render(
             <KeywordsSection

@@ -431,12 +431,12 @@ class KeywordSuggestionService
         return false;
     }
 
-    /**
-      * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
-            * @param  array<string, array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>>  $notationIndex
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
-     */
+        /**
+         * @param  array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>  $index
+         * @param  array<string, array<string, array{id: string, scheme: string, descendant_ids: array<int, string>, descendant_values: array<int, string>}>>  $notationIndex
+         * @param  array<string, mixed>  $node
+         * @param  array<int, string>  $pathSegments
+         */
         private function indexFacetNode(array $node, array &$index, array &$notationIndex, array $pathSegments = []): void
     {
         $currentPathSegments = $this->extendPathSegments($pathSegments, $node);
@@ -493,12 +493,12 @@ class KeywordSuggestionService
         return $notationIndex[$normalizedScheme][$normalizedNotation] ?? null;
     }
 
-    /**
-      * @param  array<int, string>  $descendantIds
-      * @param  array<int, string>  $descendantValues
-      * @param  array<string, mixed>  $node
-      * @param  array<int, string>  $pathSegments
-     */
+        /**
+         * @param  array<int, string>  $descendantIds
+         * @param  array<int, string>  $descendantValues
+         * @param  array<string, mixed>  $node
+         * @param  array<int, string>  $pathSegments
+         */
     private function collectDescendants(array $node, array &$descendantIds, array &$descendantValues, array $pathSegments = []): void
     {
         $currentPathSegments = $this->extendPathSegments($pathSegments, $node);

@@ -1,6 +1,7 @@
 import { Clock, FlaskConical, Globe, Leaf, type LucideIcon, Microscope, Satellite, Search } from 'lucide-react';
 
 import {
+    normalizeKeywordScheme,
     SCHEME_GCMD_INSTRUMENTS,
     SCHEME_GCMD_PLATFORMS,
     SCHEME_GCMD_SCIENCE,
@@ -82,7 +83,7 @@ function getThesaurusKeywordToken(subject: LandingPageSubject): string | null {
         return valueUri;
     }
 
-    const subjectScheme = subject.subject_scheme?.trim();
+    const subjectScheme = normalizeKeywordScheme(subject.subject_scheme) ?? subject.subject_scheme?.trim();
     const classificationCode = subject.classification_code?.trim();
 
     if (!subjectScheme || !classificationCode) {
@@ -119,7 +120,8 @@ function getPortalUrl(subject: LandingPageSubject): string | null {
  */
 function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: { bg: string; text: string; actionTone: string } }) {
     const portalUrl = getPortalUrl(subject);
-    const config = SCHEME_CONFIG[subject.subject_scheme ?? ''];
+    const normalizedScheme = normalizeKeywordScheme(subject.subject_scheme);
+    const config = normalizedScheme ? SCHEME_CONFIG[normalizedScheme] : undefined;
     const { bg, text, actionTone } = style;
     const BadgeIcon = config?.icon;
     const fullPath = getFullPath(subject);
@@ -185,14 +187,16 @@ export function KeywordsSection({ subjects }: KeywordsSectionProps) {
     const schemeGroups = new Map<string, LandingPageSubject[]>();
     const freeKeywords: LandingPageSubject[] = [];
     for (const s of subjects) {
-        if (!s.subject_scheme || s.subject_scheme === '') {
+        const normalizedScheme = normalizeKeywordScheme(s.subject_scheme);
+
+        if (normalizedScheme === null) {
             freeKeywords.push(s);
-        } else if (THESAURUS_SCHEMES.has(s.subject_scheme)) {
-            const group = schemeGroups.get(s.subject_scheme);
+        } else if (THESAURUS_SCHEMES.has(normalizedScheme)) {
+            const group = schemeGroups.get(normalizedScheme);
             if (group) {
                 group.push(s);
             } else {
-                schemeGroups.set(s.subject_scheme, [s]);
+                schemeGroups.set(normalizedScheme, [s]);
             }
         }
     }
