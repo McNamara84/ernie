@@ -96,3 +96,6 @@ WORKDIR /var/www/html
 COPY docker/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=app /var/www/html/public /var/www/html/public
 COPY --from=app /var/www/html/storage /var/www/html/storage
+RUN mkdir -p /var/www/html/public \
+    && rm -rf /var/www/html/public/storage \
+    && ln -s ../storage/app/public /var/www/html/public/storage
