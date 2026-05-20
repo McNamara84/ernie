@@ -73,7 +73,7 @@ export default function DefaultGfzTemplate() {
     const locationIndex = rightOrder.indexOf('location');
     const renderLocationBeforeMetadata = locationIndex !== -1 && (firstMetadataIndex === -1 || locationIndex < firstMetadataIndex);
 
-    const defaultHeaderLogoClassName = 'h-24 dark:brightness-0 dark:invert';
+    const defaultHeaderLogoClassName = 'h-24 dark:grayscale dark:invert dark:mix-blend-screen';
 
     // Section registry: map section keys to React elements
     const rightSectionRegistry = useMemo((): { metadata: ReactNode; location: ReactNode } => {

@@ -75,7 +75,7 @@ export default function DefaultGfzIgsnTemplate() {
     const locationIndex = rightOrder.indexOf('location');
     const renderLocationBeforeMetadata = locationIndex !== -1 && (firstMetadataIndex === -1 || locationIndex < firstMetadataIndex);
 
-    const defaultHeaderLogoClassName = 'h-24 dark:brightness-0 dark:invert';
+    const defaultHeaderLogoClassName = 'h-24 dark:grayscale dark:invert dark:mix-blend-screen';
 
     const rightSectionRegistry = useMemo((): { metadata: ReactNode; location: ReactNode } => {
         const jsonLdExportUrl = landingPage?.public_url ? `${landingPage.public_url}/jsonld` : undefined;

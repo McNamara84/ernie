@@ -84,7 +84,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             const logo = screen.getByAltText('GFZ Data Services');
             expect(logo).toBeInTheDocument();
             expect(logo).toHaveAttribute('src', '/images/gfz-ds-logo.png');
-            expect(logo).toHaveClass('h-24', 'dark:brightness-0', 'dark:invert');
+            expect(logo).toHaveClass('h-24', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
         });
 
         it('renders the Legal Notice link', () => {
@@ -486,7 +486,7 @@ describe('DefaultGfzIgsnTemplate', () => {
                 'https://cdn.example/custom.png',
             );
             expect(screen.getByAltText('GFZ Data Services')).toHaveClass('h-24');
-            expect(screen.getByAltText('GFZ Data Services')).not.toHaveClass('dark:brightness-0', 'dark:invert');
+            expect(screen.getByAltText('GFZ Data Services')).not.toHaveClass('dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
         });
 
         it('respects sectionOrder.leftColumn override', () => {

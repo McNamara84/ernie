@@ -99,7 +99,7 @@ describe('DefaultGfzTemplate', () => {
         const logo = screen.getByAltText('GFZ Data Services');
         expect(logo).toBeInTheDocument();
         expect(logo).toHaveAttribute('src', '/images/gfz-ds-logo.png');
-        expect(logo).toHaveClass('h-24', 'dark:brightness-0', 'dark:invert');
+        expect(logo).toHaveClass('h-24', 'dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
     });
 
     it('renders the Legal Notice link', () => {
@@ -391,7 +391,7 @@ describe('DefaultGfzTemplate', () => {
             render(<DefaultGfzTemplate />);
 
             const dsLogo = screen.getByAltText('GFZ Data Services');
-            expect(dsLogo).toHaveClass('dark:brightness-0', 'dark:invert');
+            expect(dsLogo).toHaveClass('dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
 
             // GFZ footer logo uses DarkModeImage (<picture>) instead of CSS filter
             const gfzLogo = screen.getByAltText('GFZ');
@@ -501,7 +501,7 @@ describe('DefaultGfzTemplate', () => {
 
             expect(screen.getByAltText('GFZ Data Services')).toHaveAttribute('src', 'https://cdn.example/custom-logo.png');
             expect(screen.getByAltText('GFZ Data Services')).toHaveClass('h-24');
-            expect(screen.getByAltText('GFZ Data Services')).not.toHaveClass('dark:brightness-0', 'dark:invert');
+            expect(screen.getByAltText('GFZ Data Services')).not.toHaveClass('dark:grayscale', 'dark:invert', 'dark:mix-blend-screen');
         });
 
         it('handles a right column order that only contains location', () => {
