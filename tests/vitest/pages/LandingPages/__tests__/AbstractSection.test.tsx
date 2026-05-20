@@ -80,19 +80,23 @@ const createSubject = (overrides: Partial<{
     value_uri: string | null;
     classification_code: string | null;
     breadcrumb_path: string | null;
-}> = {}) => ({
-    id: 1,
-    subject: 'Geophysics',
-    subject_scheme: null,
-    scheme_uri: null,
-    value_uri: null,
-    classification_code: null,
-    breadcrumb_path: null,
-    ...overrides,
-    value_uri: overrides.value_uri ?? (overrides.subject_scheme !== undefined && overrides.subject_scheme !== null && overrides.subject_scheme !== ''
+}> = {}) => {
+    const hasControlledScheme = overrides.subject_scheme !== undefined && overrides.subject_scheme !== null && overrides.subject_scheme !== '';
+    const resolvedValueUri = overrides.value_uri ?? (hasControlledScheme
         ? `https://example.test/concept/${overrides.id ?? 1}`
-        : null),
-});
+        : null);
+
+    return {
+        id: 1,
+        subject: 'Geophysics',
+        subject_scheme: null,
+        scheme_uri: null,
+        classification_code: null,
+        breadcrumb_path: null,
+        ...overrides,
+        value_uri: resolvedValueUri,
+    };
+};
 
 const defaultProps = {
     descriptions: [createDescription()],
@@ -739,8 +743,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^EARTH SCIENCE$/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-gfz-primary');
+            expect(badge?.className).toContain('text-gfz-primary-foreground');
         });
 
         it('applies the linked keyword color for GCMD Platforms', () => {
@@ -752,8 +758,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^SATELLITES$/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-gfz-primary');
+            expect(badge?.className).toContain('text-gfz-primary-foreground');
         });
 
         it('applies the linked keyword color for GCMD Instruments', () => {
@@ -765,8 +773,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^GPS RECEIVERS$/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-gfz-primary');
+            expect(badge?.className).toContain('text-gfz-primary-foreground');
         });
 
         it('applies the linked keyword color for MSL Vocabularies', () => {
@@ -778,8 +788,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^Rock mechanics$/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-gfz-primary');
+            expect(badge?.className).toContain('text-gfz-primary-foreground');
         });
 
         it('applies the linked keyword color for GEMET keywords', () => {
@@ -791,8 +803,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^Air pollution$/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-gfz-primary');
+            expect(badge?.className).toContain('text-gfz-primary-foreground');
         });
 
         it('applies the linked keyword color for ICS Chronostratigraphic keywords', () => {
@@ -804,8 +818,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^Cenozoic$/i });
-            expect(link.className).toContain('bg-gfz-primary');
-            expect(link.className).toContain('text-gfz-primary-foreground');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-gfz-primary');
+            expect(badge?.className).toContain('text-gfz-primary-foreground');
         });
 
         it('applies a light blue color for free keywords', () => {
@@ -817,8 +833,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^my-keyword$/i });
-            expect(link.className).toContain('bg-sky-100');
-            expect(link.className).toContain('text-sky-900');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-sky-100');
+            expect(badge?.className).toContain('text-sky-900');
         });
 
         it('applies a light blue color for free keywords with empty string scheme', () => {
@@ -830,8 +848,10 @@ describe('AbstractSection', () => {
             );
 
             const link = screen.getByRole('link', { name: /^another-keyword$/i });
-            expect(link.className).toContain('bg-sky-100');
-            expect(link.className).toContain('text-sky-900');
+            const badge = link.closest('[data-slot="keyword-badge"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.className).toContain('bg-sky-100');
+            expect(badge?.className).toContain('text-sky-900');
         });
 
         it('renders only thesauri-keywords-list when no free keywords exist', () => {

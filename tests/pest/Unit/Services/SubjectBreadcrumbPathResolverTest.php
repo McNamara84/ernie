@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Services\SubjectBreadcrumbPathResolver;
+use App\Services\SubjectBreadcrumbPathResolverService;
 use App\Support\GemetVocabularyParser;
 use Illuminate\Support\Facades\Storage;
 
-covers(SubjectBreadcrumbPathResolver::class);
+covers(SubjectBreadcrumbPathResolverService::class);
 
 beforeEach(function (): void {
     Storage::fake('local');
@@ -37,7 +37,7 @@ it('resolves a GCMD breadcrumb path by value_uri and drops the synthetic scheme 
         ]],
     ], JSON_THROW_ON_ERROR));
 
-    $resolver = new SubjectBreadcrumbPathResolver;
+    $resolver = new SubjectBreadcrumbPathResolverService;
 
     expect($resolver->resolve(
         subjectScheme: 'NASA/GCMD Earth Science Keywords',
@@ -64,7 +64,7 @@ it('resolves a breadcrumb path from classification codes when the vocabulary pro
         ]],
     ], JSON_THROW_ON_ERROR));
 
-    $resolver = new SubjectBreadcrumbPathResolver;
+    $resolver = new SubjectBreadcrumbPathResolverService;
 
     expect($resolver->resolve(
         subjectScheme: 'International Chronostratigraphic Chart',
@@ -75,7 +75,7 @@ it('resolves a breadcrumb path from classification codes when the vocabulary pro
 });
 
 it('keeps an embedded hierarchical subject value as the breadcrumb path', function (): void {
-    $resolver = new SubjectBreadcrumbPathResolver;
+    $resolver = new SubjectBreadcrumbPathResolverService;
 
     expect($resolver->resolve(
         subjectScheme: 'Science Keywords',
@@ -110,7 +110,7 @@ it('does not guess a breadcrumb path from ambiguous leaf labels without a stable
         ]],
     ], JSON_THROW_ON_ERROR));
 
-    $resolver = new SubjectBreadcrumbPathResolver;
+    $resolver = new SubjectBreadcrumbPathResolverService;
 
     expect($resolver->resolve(
         subjectScheme: GemetVocabularyParser::SCHEME_TITLE,

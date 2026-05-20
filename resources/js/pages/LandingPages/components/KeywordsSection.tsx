@@ -30,12 +30,12 @@ const SCHEME_CONFIG = Object.fromEntries(THESAURUS_DEFINITIONS.map((d) => [d.sch
 const LINKED_KEYWORD_STYLE = {
     bg: 'bg-gfz-primary',
     text: 'text-gfz-primary-foreground',
-    divider: 'border-white/20',
+    actionTone: 'text-white/80 hover:text-white focus-visible:text-white',
 };
 const FREE_KEYWORD_STYLE = {
     bg: 'bg-sky-100 dark:bg-sky-900/40',
     text: 'text-sky-900 dark:text-sky-100',
-    divider: 'border-sky-300/70 dark:border-sky-700/60',
+    actionTone: 'text-sky-900/75 hover:text-sky-900 focus-visible:text-sky-900 dark:text-sky-100/80 dark:hover:text-sky-100 dark:focus-visible:text-sky-100',
 };
 const EMPTY_PORTAL_FILTERS: PortalFilters = {
     query: null,
@@ -97,16 +97,17 @@ function getPortalUrl(subject: LandingPageSubject): string | null {
 /**
  * Renders a keyword badge that links to the portal with the keyword as filter.
  */
-function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: { bg: string; text: string; divider: string } }) {
+function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: { bg: string; text: string; actionTone: string } }) {
     const portalUrl = getPortalUrl(subject);
     const config = SCHEME_CONFIG[subject.subject_scheme ?? ''];
-    const { bg, text, divider } = style;
+    const { bg, text, actionTone } = style;
     const BadgeIcon = config?.icon;
     const fullPath = getFullPath(subject);
     const displayLabel = getDisplayLabel(subject);
     const searchPrompt = `Search for ${displayLabel} in the portal`;
-    const labelClass = `inline-flex items-center gap-1 px-3 py-1 text-xs font-medium ${portalUrl ? 'rounded-l-full transition-opacity hover:opacity-85 focus-visible:opacity-85' : 'rounded-full cursor-default'} ${bg} ${text}`;
-    const actionClass = `inline-flex items-center rounded-r-full border-l px-2 py-1 text-xs font-medium transition-opacity hover:opacity-85 focus-visible:opacity-85 ${bg} ${text} ${divider}`;
+    const linkedBadgeClass = `inline-flex items-center rounded-full ${bg} ${text} shadow-sm`;
+    const labelClass = `inline-flex items-center gap-1 px-3 py-1 text-xs font-medium ${portalUrl ? 'pe-1 transition-opacity hover:opacity-85 focus-visible:opacity-85' : `rounded-full cursor-default ${bg} ${text}`}`;
+    const actionClass = `inline-flex items-center justify-center px-1.5 py-1 text-xs transition-colors ${actionTone}`;
 
     const badgeContent = (
         <>
@@ -137,13 +138,14 @@ function KeywordBadge({ subject, style }: { subject: LandingPageSubject; style: 
     }
 
     return (
-        <span className="inline-flex items-center">
+        <span className={linkedBadgeClass} data-slot="keyword-badge">
             {label}
             <a
                 href={portalUrl}
                 className={actionClass}
                 title={searchPrompt}
                 aria-label={searchPrompt}
+                data-slot="keyword-badge-action"
             >
                 <Search className="h-3 w-3" aria-hidden="true" />
             </a>

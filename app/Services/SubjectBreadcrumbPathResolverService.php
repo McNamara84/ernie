@@ -9,7 +9,7 @@ use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Support\Facades\Storage;
 
-final class SubjectBreadcrumbPathResolver
+final class SubjectBreadcrumbPathResolverService
 {
     /** @var array<string, array{file: string, fallback_scheme: string}> */
     private const SOURCES = [

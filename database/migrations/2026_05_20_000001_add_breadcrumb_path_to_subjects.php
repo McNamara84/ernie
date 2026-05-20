@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\SubjectBreadcrumbPathResolver;
+use App\Services\SubjectBreadcrumbPathResolverService;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +32,7 @@ return new class extends Migration
 
     private function backfillBreadcrumbPaths(): void
     {
-        $resolver = new SubjectBreadcrumbPathResolver;
+        $resolver = new SubjectBreadcrumbPathResolverService;
 
         DB::table('subjects')
             ->select(['id', 'value', 'subject_scheme', 'value_uri', 'classification_code', 'breadcrumb_path'])
