@@ -40,7 +40,7 @@ const DESCRIPTION_TYPE_META: Record<
         placeholder: 'Enter a brief summary of the resource...',
         required: true,
         helpText:
-            'A brief description of the resource and the context in which the resource was created. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
+            'A brief description of the resource and the context in which the resource was created.',
     },
     Methods: {
         label: 'Methods',
@@ -58,7 +58,7 @@ const DESCRIPTION_TYPE_META: Record<
         label: 'Table of Contents',
         placeholder: 'Enter the table of contents...',
         helpText:
-            'A listing of the Table of Contents. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
+            'A listing of the Table of Contents.',
     },
     TechnicalInfo: {
         label: 'Technical Info',
@@ -150,6 +150,11 @@ export default function DescriptionField({
 
     return (
         <div className="space-y-4">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+                Landing pages support a limited HTML subset in descriptions: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;,
+                &lt;ol&gt;, &lt;li&gt;, &lt;a&gt;, &lt;sub&gt;, &lt;sup&gt;, and &lt;code&gt;. ERNIE stores a plain-text version for DataCite,
+                XML, JSON, and JSON-LD exports.
+            </div>
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DescriptionType)}>
                 <TabsList className={`grid w-full`} style={{ gridTemplateColumns: `repeat(${visibleTypes.length}, minmax(0, 1fr))` }}>
                     {visibleTypes.map((type) => {

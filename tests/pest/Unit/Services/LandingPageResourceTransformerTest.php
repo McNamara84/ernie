@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
@@ -106,6 +107,7 @@ test('transformation is null-safe for optional relationships', function () {
     $description->forceFill([
         'id' => 1,
         'value' => 'Some description',
+        'landing_page_html' => '<p>Some <strong>description</strong></p>',
     ]);
     $description->setRelation('descriptionType', null);
 
@@ -151,12 +153,52 @@ test('transformation is null-safe for optional relationships', function () {
     expect($data['descriptions'][0])
         ->toMatchArray([
             'value' => 'Some description',
+            'landing_page_html' => '<p>Some <strong>description</strong></p>',
             'description_type' => null,
         ]);
 
     expect($data['contributors'][0])
         ->toHaveKey('contributor_types')
         ->and($data['contributors'][0]['contributor_types'])->toBeArray();
+});
+
+test('transforms landing page html alongside plain text descriptions', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $descriptionType = new DescriptionType;
+    $descriptionType->forceFill([
+        'id' => 1,
+        'name' => 'Abstract',
+        'slug' => 'Abstract',
+    ]);
+
+    $description = new Description;
+    $description->forceFill([
+        'id' => 1,
+        'value' => 'Formatted abstract',
+        'landing_page_html' => '<p>Formatted <strong>abstract</strong></p>',
+    ]);
+    $description->setRelation('descriptionType', $descriptionType);
+
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection([$description]));
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['descriptions'][0])->toMatchArray([
+        'value' => 'Formatted abstract',
+        'landing_page_html' => '<p>Formatted <strong>abstract</strong></p>',
+        'description_type' => 'Abstract',
+    ]);
 });
 
 test('transforms related identifier slugs and citation label for landing pages', function () {

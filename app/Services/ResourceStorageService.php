@@ -36,6 +36,7 @@ class ResourceStorageService
     private ?array $contactPersonNames = null;
 
     public function __construct(
+        protected DescriptionFormattingService $descriptionFormattingService,
         protected PersonService $personService,
         protected InstitutionService $institutionService,
         protected AffiliationService $affiliationService,
@@ -642,13 +643,13 @@ class ResourceStorageService
 
         foreach ($descriptions as $description) {
             $rawType = (string) ($description['descriptionType'] ?? '');
+            $displayType = $rawType !== '' ? $rawType : 'empty';
             $descTypeKey = Str::kebab($rawType);
             $descTypeId = $descriptionTypeLookup[$descTypeKey] ?? null;
 
             if ($descTypeId === null) {
                 // Throw validation exception for unknown description type to prevent silent data loss.
                 // This matches the date type handling behavior for consistency.
-                $displayType = $rawType !== '' ? $rawType : 'empty';
                 Log::warning('Unknown description type slug: '.$displayType);
 
                 throw ValidationException::withMessages([
@@ -656,9 +657,18 @@ class ResourceStorageService
                 ]);
             }
 
+            $formattedDescription = $this->descriptionFormattingService->formatForStorage((string) ($description['description'] ?? ''));
+
+            if ($formattedDescription['plainText'] === '' && $formattedDescription['landingPageHtml'] === null) {
+                throw ValidationException::withMessages([
+                    'descriptions' => ["Description type {$displayType} does not contain any supported content after HTML sanitization."],
+                ]);
+            }
+
             $resource->descriptions()->create([
                 'description_type_id' => $descTypeId,
-                'value' => $description['description'],
+                'value' => $formattedDescription['plainText'],
+                'landing_page_html' => $formattedDescription['landingPageHtml'],
                 'language' => $description['language'] ?? null,
             ]);
         }

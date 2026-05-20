@@ -47,4 +47,23 @@ describe('DescriptionSection', () => {
         render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
         expect(screen.getByTestId('abstract-text')).toBeInTheDocument();
     });
+
+    it('renders stored landing page html instead of plain text fallback', () => {
+        const descriptions = [
+            {
+                id: 1,
+                value: 'Plain text fallback',
+                landing_page_html: '<p>Formatted <strong>abstract</strong> with <a href="https://example.org">link</a>.</p>',
+                description_type: 'Abstract',
+            },
+        ];
+
+        render(<DescriptionSection descriptions={descriptions} sectionKey="abstract" />);
+
+        const block = screen.getByTestId('abstract-text');
+        expect(block.querySelector('strong')).toHaveTextContent('abstract');
+        expect(block.querySelector('a')).toHaveAttribute('href', 'https://example.org');
+        expect(block).toHaveTextContent('Formatted abstract with link.');
+        expect(block).not.toHaveTextContent('Plain text fallback');
+    });
 });

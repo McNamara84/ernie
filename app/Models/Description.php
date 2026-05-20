@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $resource_id
  * @property string $value
+ * @property string|null $landing_page_html
  * @property int $description_type_id
  * @property string|null $language
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/description/
  */
-#[Fillable(['resource_id', 'value', 'description_type_id', 'language'])]
+#[Fillable(['resource_id', 'value', 'landing_page_html', 'description_type_id', 'language'])]
 class Description extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */

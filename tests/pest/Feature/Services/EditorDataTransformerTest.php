@@ -687,6 +687,22 @@ describe('transformDescriptions', function (): void {
         expect($result[0]['language'])->toBe('fr')
             ->and($result[1]['language'])->toBeNull();
     });
+
+    it('prefers landing page html for editor round-trips when available', function (): void {
+        $abstractType = DescriptionType::where('slug', 'Abstract')->first();
+
+        Description::create([
+            'resource_id' => $this->resource->id,
+            'description_type_id' => $abstractType->id,
+            'value' => 'Plain text fallback',
+            'landing_page_html' => '<p>Plain text <strong>with formatting</strong></p>',
+        ]);
+        $this->resource->load('descriptions.descriptionType');
+
+        $result = $this->transformer->transformDescriptions($this->resource);
+
+        expect($result[0]['description'])->toBe('<p>Plain text <strong>with formatting</strong></p>');
+    });
 });
 
 // =========================================================================

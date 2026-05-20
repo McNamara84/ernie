@@ -368,6 +368,7 @@ entity "descriptions" as descriptions {
     * resource_id : BIGINT <<FK>>
     * description_type_id : BIGINT <<FK>>
     * value : TEXT
+    landing_page_html : LONGTEXT
     language : VARCHAR(10)
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

@@ -196,6 +196,7 @@ final class LandingPageResourceTransformer
                 return [
                     'id' => $desc->id,
                     'value' => $desc->value,
+                    'landing_page_html' => $desc->landing_page_html,
                     'description_type' => $descriptionType !== null ? $descriptionType->name : null,
                 ];
             })

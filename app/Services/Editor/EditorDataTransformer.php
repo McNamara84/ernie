@@ -281,10 +281,11 @@ class EditorDataTransformer
             // @phpstan-ignore nullCoalesce.expr (defensive coding)
             $typeSlug = Str::kebab($description->descriptionType?->slug ?? 'other');
             $frontendType = self::DESCRIPTION_TYPE_MAP[$typeSlug] ?? 'Other';
+            $editableDescription = $description->landing_page_html ?? $description->value;
 
             return [
                 'type' => $frontendType,
-                'description' => $description->value,
+                'description' => $editableDescription,
                 'language' => $description->language,
             ];
         })->toArray();
