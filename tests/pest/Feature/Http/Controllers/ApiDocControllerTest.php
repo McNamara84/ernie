@@ -22,11 +22,12 @@ describe('JSON response', function () {
 
     it('contains app URL in server configuration', function () {
         $response = getJson('/api/v1/doc');
+        $appUrl = rtrim((string) config('app.url'), '/');
 
         $response->assertOk();
         $data = $response->json();
 
-        expect($data['servers'][0]['url'])->toBe(config('app.url'));
+        expect($data['servers'][0]['url'])->toBe($appUrl);
         expect($data['servers'][0]['name'])->toBe('Current ERNIE deployment');
     });
 
