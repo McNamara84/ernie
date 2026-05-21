@@ -225,15 +225,15 @@ export function AppSidebar() {
 
     const curationSections = filterSections([
         { items: dashboardItems },
-        { label: 'Data Curation', items: dataCurationItems, showSeparator: true },
-        { label: 'IGSN Curation', items: igsnCurationItems, showSeparator: true },
+        { label: 'Data Curation', items: dataCurationItems },
+        { label: 'IGSN Curation', items: igsnCurationItems },
     ]);
 
     const administrationSections = filterSections([
         { label: 'Team', items: teamItems },
-        { label: 'Configuration', items: configurationItems, showSeparator: true },
-        { label: 'Operations', items: operationsItems, showSeparator: true },
-        { label: 'Legacy', items: legacyItems, showSeparator: true },
+        { label: 'Configuration', items: configurationItems },
+        { label: 'Operations', items: operationsItems },
+        { label: 'Legacy', items: legacyItems },
     ]);
 
     const workspacePaths = {

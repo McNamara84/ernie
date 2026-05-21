@@ -235,6 +235,26 @@ describe('AppSidebar', () => {
         expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics (old)']);
     });
 
+    it('does not render a leading separator when the team section is filtered out', () => {
+        mockUrl = '/settings';
+        setMockUser({
+            role: 'admin',
+            can_access_users: false,
+            can_access_logs: true,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_editor_settings: true,
+            can_manage_landing_page_templates: false,
+        });
+
+        render(<AppSidebar />);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        expect(sectionCalls.map((call) => call[0].label)).toEqual(['Configuration', 'Operations']);
+        expect(sectionCalls[0][0].showSeparator).toBe(false);
+        expect(sectionCalls[1][0].showSeparator).toBe(true);
+    });
+
     it('shows the assistance badge with warning tone in the administration workspace', () => {
         mockUrl = '/assistance';
         setMockUser({ can_access_assistance: true });
