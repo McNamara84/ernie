@@ -771,7 +771,7 @@ npm run test:e2e:stage                        # Stage - only for bug reproductio
 
 ## OpenAPI Documentation
 
-**MANDATORY:** The file `resources/data/openapi.json` contains the OpenAPI 3.1 specification for all public API endpoints. This documentation **MUST** be kept in sync with the actual API routes.
+**MANDATORY:** The file `resources/data/openapi.json` contains the OpenAPI 3.2 specification for all public API endpoints. This documentation **MUST** be kept in sync with the actual API routes.
 
 When making API changes, update `resources/data/openapi.json` accordingly:
 - **New endpoints:** Add path entry with summary, description, security (if ELMO), request/response schemas

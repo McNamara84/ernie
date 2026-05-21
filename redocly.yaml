@@ -1,0 +1,10 @@
+apis:
+  ernie:
+    root: ./resources/data/openapi.json
+
+extends:
+  - recommended
+
+rules:
+  operation-4xx-response: off
+  operation-operationId: off

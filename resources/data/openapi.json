@@ -1,7 +1,8 @@
 {
-    "openapi": "3.1.0",
+    "openapi": "3.2.0",
     "info": {
         "title": "ERNIE API",
+        "summary": "Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.",
         "version": "1.0.0",
         "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems.",
         "termsOfService": "https://ernie.rz-vm182.gfz.de/legal-notice",
@@ -11,9 +12,8 @@
             "email": "ehrmann@gfz.de"
         },
         "license": {
-            "name": "GPL-3.0-or-later",
-            "identifier": "GPL-3.0-or-later",
-            "url": "https://www.gnu.org/licenses/gpl-3.0.html"
+            "name": "GNU General Public License v3.0 or later",
+            "identifier": "GPL-3.0-or-later"
         }
     },
     "externalDocs": {
@@ -22,24 +22,29 @@
     },
     "servers": [
         {
+            "name": "Current ERNIE deployment",
             "url": "https://ernie.rz-vm182.gfz.de",
-            "description": "Production server"
+            "description": "The currently configured ERNIE instance"
         }
     ],
     "tags": [
         {
             "name": "Editor Configuration",
+            "summary": "Metadata types and editor option endpoints",
             "description": "Endpoints for retrieving metadata types and roles configuration used by external editors like ELMO"
         },
         {
             "name": "Vocabularies",
+            "summary": "Controlled vocabularies and availability endpoints",
             "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst), and ROR (Research Organization Registry)"
         },
         {
             "name": "DataCite",
+            "summary": "Citation and DOI metadata lookup endpoints",
             "description": "Endpoints for retrieving citation metadata and author information for DOIs via the DataCite API and doi.org Content Negotiation"
         }
     ],
+    "security": [],
     "paths": {
         "/api/v1/resource-types/elmo": {
             "get": {
@@ -1085,15 +1090,15 @@
                                         },
                                         "identifier": { "type": "string", "example": "10.1029/2018JB016456" },
                                         "identifier_type": { "type": "string", "example": "DOI" },
-                                        "related_item_type": { "type": "string", "nullable": true, "example": "JournalArticle" },
-                                        "title": { "type": "string", "nullable": true },
-                                        "subtitle": { "type": "string", "nullable": true },
-                                        "publication_year": { "type": "integer", "nullable": true, "example": 2019 },
-                                        "publisher": { "type": "string", "nullable": true },
-                                        "volume": { "type": "string", "nullable": true },
-                                        "issue": { "type": "string", "nullable": true },
-                                        "first_page": { "type": "string", "nullable": true },
-                                        "last_page": { "type": "string", "nullable": true },
+                                        "related_item_type": { "type": ["string", "null"], "example": "JournalArticle" },
+                                        "title": { "type": ["string", "null"] },
+                                        "subtitle": { "type": ["string", "null"] },
+                                        "publication_year": { "type": ["integer", "null"], "example": 2019 },
+                                        "publisher": { "type": ["string", "null"] },
+                                        "volume": { "type": ["string", "null"] },
+                                        "issue": { "type": ["string", "null"] },
+                                        "first_page": { "type": ["string", "null"] },
+                                        "last_page": { "type": ["string", "null"] },
                                         "creators": {
                                             "type": "array",
                                             "items": {
@@ -1101,10 +1106,10 @@
                                                 "properties": {
                                                     "name_type": { "type": "string", "enum": ["Personal", "Organizational"] },
                                                     "name": { "type": "string" },
-                                                    "given_name": { "type": "string", "nullable": true },
-                                                    "family_name": { "type": "string", "nullable": true },
-                                                    "name_identifier": { "type": "string", "nullable": true },
-                                                    "name_identifier_scheme": { "type": "string", "nullable": true }
+                                                    "given_name": { "type": ["string", "null"] },
+                                                    "family_name": { "type": ["string", "null"] },
+                                                    "name_identifier": { "type": ["string", "null"] },
+                                                    "name_identifier_scheme": { "type": ["string", "null"] }
                                                 }
                                             }
                                         }
@@ -1253,23 +1258,19 @@
                                                 "type": "object",
                                                 "properties": {
                                                     "given_name": {
-                                                        "type": "string",
-                                                        "nullable": true,
+                                                        "type": ["string", "null"],
                                                         "example": "John"
                                                     },
                                                     "family_name": {
-                                                        "type": "string",
-                                                        "nullable": true,
+                                                        "type": ["string", "null"],
                                                         "example": "Smith"
                                                     },
                                                     "name": {
-                                                        "type": "string",
-                                                        "nullable": true,
+                                                        "type": ["string", "null"],
                                                         "description": "Full name for organizational authors"
                                                     },
                                                     "orcid": {
-                                                        "type": "string",
-                                                        "nullable": true,
+                                                        "type": ["string", "null"],
                                                         "example": "0000-0002-1234-5678"
                                                     },
                                                     "type": {
@@ -1278,8 +1279,7 @@
                                                         "example": "Person"
                                                     },
                                                     "ror_id": {
-                                                        "type": "string",
-                                                        "nullable": true,
+                                                        "type": ["string", "null"],
                                                         "example": "https://ror.org/04z8jg394"
                                                     },
                                                     "affiliations": {
@@ -1292,13 +1292,11 @@
                                                                     "example": "GFZ Helmholtz Centre"
                                                                 },
                                                                 "identifier": {
-                                                                    "type": "string",
-                                                                    "nullable": true,
+                                                                    "type": ["string", "null"],
                                                                     "example": "https://ror.org/04z8jg394"
                                                                 },
                                                                 "identifier_scheme": {
-                                                                    "type": "string",
-                                                                    "nullable": true,
+                                                                    "type": ["string", "null"],
                                                                     "example": "ROR"
                                                                 }
                                                             }
@@ -1471,8 +1469,7 @@
                         "example": "accepted"
                     },
                     "description": {
-                        "type": "string",
-                        "nullable": true,
+                        "type": ["string", "null"],
                         "example": "The date that the publisher accepted the resource into their system."
                     }
                 },
