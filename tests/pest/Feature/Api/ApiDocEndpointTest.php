@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Support\Facades\File;
 
 use function Pest\Laravel\get;
@@ -36,8 +38,12 @@ it('renders the API documentation with Swagger UI', function () {
 });
 
 it('returns the OpenAPI documentation as JSON', function () {
-    getJson('/api/v1/doc')
-        ->assertOk()
+    $response = getJson('/api/v1/doc')
+        ->assertOk();
+
+    $spec = $response->json();
+
+    $response
         ->assertJsonPath('openapi', '3.2.0')
         ->assertJsonPath('info.summary', 'Read-only metadata, vocabulary, and citation endpoints for ERNIE integrations.')
         ->assertJsonPath('servers.0.name', 'Current ERNIE deployment')
@@ -130,15 +136,19 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string')
         ->assertJsonPath('components.schemas.TitleType.properties.slug.type', 'string')
         ->assertJsonPath('components.schemas.Language.properties.code.type', 'string')
-        ->assertJsonPath('paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.type.0', 'string')
-        ->assertJsonPath('paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.type.1', 'null')
-        ->assertJsonPath('components.schemas.DateType.properties.description.type.0', 'string')
-        ->assertJsonPath('components.schemas.DateType.properties.description.type.1', 'null')
         ->assertJsonMissingPath('paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.nullable')
         ->assertJsonMissingPath('components.schemas.DateType.properties.description.nullable')
         ->assertJsonPath('components.schemas.GcmdScienceKeywords.description', 'GCMD Science Keywords from NASA Knowledge Management System')
         ->assertJsonPath('components.schemas.GcmdPlatforms.description', 'GCMD Platforms from NASA Knowledge Management System')
         ->assertJsonPath('components.schemas.GcmdInstruments.description', 'GCMD Instruments from NASA Knowledge Management System');
+
+    expect(data_get($spec, 'paths./api/v1/citation-lookup.get.responses.200.content.application/json.schema.properties.subtitle.type'))
+        ->toBeArray()
+        ->toContain('string', 'null');
+
+    expect(data_get($spec, 'components.schemas.DateType.properties.description.type'))
+        ->toBeArray()
+        ->toContain('string', 'null');
 });
 
     it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
