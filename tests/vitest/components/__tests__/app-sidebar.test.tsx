@@ -100,7 +100,7 @@ const NavFooterMock = vi.hoisted(() =>
 const NavUserMock = vi.hoisted(() => vi.fn(() => <div data-testid="nav-user" />));
 
 const NavSectionMock = vi.hoisted(() =>
-    vi.fn(({ items, label }: { items: NavItem[]; label?: string }) => (
+    vi.fn(({ items, label }: { items: NavItem[]; label?: string; showSeparator?: boolean }) => (
         <nav data-testid="nav-section">
             {label && <div>{label}</div>}
             {items.map((item) => {

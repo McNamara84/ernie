@@ -69,8 +69,7 @@ class CitationLookupService
         //     persist a DataCite `not_found` for a DOI that does exist in
         //     Crossref, locking users out for the full TTL.
         //   - Errors: never cache (transient upstream failure).
-        $shouldCache = $result->error === null
-            && ($result->found || ! $primaryErrored);
+        $shouldCache = $result->error === null;
 
         if ($shouldCache) {
             $cache->put($cacheKey, $result, $ttl);
