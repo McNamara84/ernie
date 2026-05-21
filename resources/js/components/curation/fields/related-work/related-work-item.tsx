@@ -134,7 +134,7 @@ export default function RelatedWorkItem({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="mt-0.5 h-8 w-8 flex-shrink-0 cursor-grab text-muted-foreground"
+                            className="mt-0.5 h-8 w-8 shrink-0 cursor-grab text-muted-foreground"
                             aria-label={`Reorder related work ${index + 1}`}
                             {...attributes}
                             {...listeners}
@@ -163,7 +163,7 @@ export default function RelatedWorkItem({
                         size="icon"
                         onClick={() => onRemove(index)}
                         aria-label="Remove related work"
-                        className="h-8 w-8 flex-shrink-0"
+                        className="h-8 w-8 shrink-0"
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
@@ -212,7 +212,7 @@ export default function RelatedWorkItem({
                             <SelectTrigger id={`related-work-${index}-relation-type`}>
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="max-h-[400px]">
+                            <SelectContent className="max-h-100">
                                 {filteredMostUsedRelationTypes.length > 0 && (
                                     <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
                                 )}
@@ -251,7 +251,7 @@ export default function RelatedWorkItem({
                                 className="group inline-flex min-w-0 items-center gap-1 text-primary hover:underline"
                             >
                                 <span className="break-all">{item.identifier}</span>
-                                <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                                <ExternalLink className="h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                             </a>
                         ) : (
                             <span className="break-all text-muted-foreground">{item.identifier}</span>
@@ -260,8 +260,8 @@ export default function RelatedWorkItem({
                     <p className="text-xs text-muted-foreground">{description}</p>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-12">
-                    <div className="md:col-span-8">
+                <div className="mt-4">
+                    <div>
                         <Label htmlFor={`related-work-${index}-citation-label`}>Citation label</Label>
                         <Textarea
                             id={`related-work-${index}-citation-label`}
@@ -273,19 +273,6 @@ export default function RelatedWorkItem({
                         <p className="mt-1 text-xs text-muted-foreground">
                             This text is preferred on landing pages and in relation graphs. Leave it empty to let the backend resolve a DOI citation.
                         </p>
-                    </div>
-
-                    <div className="md:col-span-4">
-                        <p id={`related-work-${index}-resolved-title-label`} className="text-sm font-medium leading-none">
-                            Resolved title
-                        </p>
-                        <div
-                            id={`related-work-${index}-resolved-title`}
-                            aria-labelledby={`related-work-${index}-resolved-title-label`}
-                            className="min-h-24 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
-                        >
-                            {item.related_title?.trim() ? item.related_title : 'No resolved title available yet.'}
-                        </div>
                     </div>
                 </div>
 

@@ -1227,7 +1227,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block, with the full schema available below it.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Refine the Card">
-                                <p>After adding an entry, edit the related-work card directly. You can adjust the identifier, change the relation type, add a custom citation label for landing pages, and review any resolved title metadata.</p>
+                                <p>After adding an entry, edit the related-work card directly. You can adjust the identifier, change the relation type, and add a custom citation label for landing pages.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Reorder the List">
                                 <p>Drag related-work cards into the order you want. This order is preserved in the editor and reused on the landing page.</p>
