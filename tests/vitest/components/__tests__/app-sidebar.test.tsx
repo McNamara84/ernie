@@ -294,6 +294,17 @@ describe('AppSidebar', () => {
         expect(configurationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings', 'Landing Pages']);
     });
 
+    it('restores the stored administration workspace on global routes without rendering an open-page section', () => {
+        mockUrl = '/docs';
+        window.localStorage.setItem(SIDEBAR_WORKSPACE_STORAGE_KEY, 'administration');
+
+        render(<AppSidebar />);
+
+        expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
+        expect(screen.queryByText('Open Page')).not.toBeInTheDocument();
+        expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Operations', 'Legacy']);
+    });
+
     it('shows an open-page section when an admin manually switches away from the current workspace', () => {
         render(<AppSidebar />);
 
@@ -329,6 +340,64 @@ describe('AppSidebar', () => {
         const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
         expect(operationsSection).toBeDefined();
         expect(operationsSection?.[0].items[0].badge).toBe(0);
+    });
+
+    it('appends tools and administration sections for roles without the workspace switcher', () => {
+        setMockUser({
+            role: 'curator',
+            can_manage_users: false,
+            can_access_users: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_assistance: true,
+            can_access_assessment: true,
+            can_access_logs: true,
+            can_access_editor_settings: true,
+            can_manage_landing_page_templates: true,
+        });
+        setMockSharedProps({
+            assessmentAverageSummary: {
+                resources: 8.2,
+                igsns: 4.6,
+                formatted: '8.2 / 4.6',
+            },
+        });
+
+        render(<AppSidebar />);
+
+        expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
+        expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([
+            undefined,
+            'Data Curation',
+            'IGSN Curation',
+            'Tools',
+            'Administration',
+        ]);
+
+        const toolsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Tools');
+        const administrationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Administration');
+
+        expect(toolsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
+        expect(administrationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Logs', 'Editor Settings', 'Landing Pages']);
+    });
+
+    it('hides the workspace switcher when privileged users have no administration destinations', () => {
+        setMockUser({
+            role: 'admin',
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
+            can_manage_landing_page_templates: false,
+            can_access_assistance: false,
+            can_access_assessment: false,
+        });
+
+        render(<AppSidebar />);
+
+        expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
+        expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([undefined, 'Data Curation', 'IGSN Curation']);
     });
 
     it('does not render the workspace switcher for beginner users', () => {
