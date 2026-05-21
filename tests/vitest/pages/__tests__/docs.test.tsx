@@ -107,6 +107,22 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents the admin and group leader workspace switcher', () => {
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Admins and Group Leaders now see a Curation / Administration switcher at the top of the sidebar.');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('displays beginner role indicator in header', () => {
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
         // The header shows the user's role (may appear multiple times)

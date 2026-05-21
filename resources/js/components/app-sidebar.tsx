@@ -18,19 +18,57 @@ import {
     Users,
 } from 'lucide-react';
 
+import { AppSidebarWorkspaceSwitcher } from '@/components/app-sidebar-workspace-switcher';
 import { NavFooter } from '@/components/nav-footer';
 import { NavSection } from '@/components/nav-section';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { useEditorPrefetch } from '@/hooks/use-editor-prefetch';
+import {
+    pathMatchesSidebarItem,
+    useSidebarWorkspace,
+} from '@/hooks/use-sidebar-workspace';
 import { dashboard, settings } from '@/routes';
-import { type NavItem, type SharedData, type User as AuthUser } from '@/types';
+import { type NavItem, type SharedData, type SidebarWorkspace, type User as AuthUser } from '@/types';
 
 import AppLogo from './app-logo';
 
+interface SidebarSection {
+    items: NavItem[];
+    label?: string;
+    showSeparator?: boolean;
+}
+
+function getNavHref(item: NavItem): string {
+    return typeof item.href === 'string' ? item.href : item.href.url;
+}
+
+function filterSections(sections: SidebarSection[]): SidebarSection[] {
+    return sections.filter((section) => section.items.length > 0);
+}
+
+function findMatchingNavItem(sections: SidebarSection[], currentPath: string): NavItem | null {
+    const matchedSection = sections.find((section) =>
+        section.items.some((item) => pathMatchesCurrentLocation(currentPath, getNavHref(item))),
+    );
+
+    if (!matchedSection) {
+        return null;
+    }
+
+    return matchedSection.items.find((item) => pathMatchesCurrentLocation(currentPath, getNavHref(item))) ?? null;
+}
+
+function pathMatchesCurrentLocation(currentPath: string, href: string): boolean {
+    return pathMatchesSidebarItem(currentPath, href);
+}
+
 export function AppSidebar() {
-    const { auth, dataResourceCount, igsnCount, pendingAssistanceTotalCount, assessmentAverageSummary } = usePage<{ auth: { user: AuthUser } } & SharedData>().props;
+    const page = usePage<{ auth: { user: AuthUser } } & SharedData>();
+    const { auth, dataResourceCount, igsnCount, pendingAssistanceTotalCount, assessmentAverageSummary } = page.props;
     const prefetchEditor = useEditorPrefetch();
+    const currentPath = page.url ?? '';
+    const isWorkspaceSwitcherEnabled = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
 
     // Dashboard - always visible
     const dashboardItems: NavItem[] = [
@@ -87,78 +125,148 @@ export function AppSidebar() {
         },
     ];
 
-    // ADMINISTRATION section - dynamically built based on granular permissions (Issue #379)
+    const teamItems: NavItem[] = [];
+    const configurationItems: NavItem[] = [];
+    const operationsItems: NavItem[] = [];
+    const legacyItems: NavItem[] = [];
     const administrationItems: NavItem[] = [];
-
-    // TOOLS section - dynamically built based on permissions
     const toolsItems: NavItem[] = [];
 
     if (auth.user?.can_access_assistance) {
-        toolsItems.push({
+        const assistanceItem: NavItem = {
             title: 'Assistance',
             href: '/assistance',
             icon: Sparkles,
             badge: pendingAssistanceTotalCount ?? 0,
             badgeTone: (pendingAssistanceTotalCount ?? 0) > 0 ? 'warning' : 'default',
-        });
+        };
+
+        toolsItems.push(assistanceItem);
+        operationsItems.push(assistanceItem);
     }
 
     if (auth.user?.can_access_assessment) {
-        toolsItems.push({
+        const assessmentItem: NavItem = {
             title: 'Assessment',
             href: '/assessment',
             icon: ClipboardCheck,
             badge: assessmentAverageSummary?.formatted ?? undefined,
-        });
+        };
+
+        toolsItems.push(assessmentItem);
+        operationsItems.push(assessmentItem);
     }
 
     if (auth.user?.can_access_old_datasets) {
-        administrationItems.push({
+        const oldDatasetsItem: NavItem = {
             title: 'Old Datasets',
             href: '/old-datasets',
             icon: Database,
-        });
+        };
+
+        administrationItems.push(oldDatasetsItem);
+        legacyItems.push(oldDatasetsItem);
     }
 
     if (auth.user?.can_access_statistics) {
-        administrationItems.push({
+        const statisticsItem: NavItem = {
             title: 'Statistics (old)',
             href: '/old-statistics',
             icon: BarChart3,
-        });
+        };
+
+        administrationItems.push(statisticsItem);
+        legacyItems.push(statisticsItem);
     }
 
     if (auth.user?.can_access_users) {
-        administrationItems.push({
+        const usersItem: NavItem = {
             title: 'Users',
             href: '/users',
             icon: Users,
-        });
+        };
+
+        administrationItems.push(usersItem);
+        teamItems.push(usersItem);
     }
 
     if (auth.user?.can_access_logs) {
-        administrationItems.push({
+        const logsItem: NavItem = {
             title: 'Logs',
             href: '/logs',
             icon: ScrollText,
-        });
+        };
+
+        administrationItems.push(logsItem);
+        operationsItems.push(logsItem);
     }
 
     if (auth.user?.can_access_editor_settings) {
-        administrationItems.push({
+        const editorSettingsItem: NavItem = {
             title: 'Editor Settings',
             href: settings(),
             icon: Settings,
-        });
+        };
+
+        administrationItems.push(editorSettingsItem);
+        configurationItems.push(editorSettingsItem);
     }
 
     if (auth.user?.can_manage_landing_page_templates) {
-        administrationItems.push({
+        const landingPagesItem: NavItem = {
             title: 'Landing Pages',
             href: '/landing-pages',
             icon: LayoutTemplate,
-        });
+        };
+
+        administrationItems.push(landingPagesItem);
+        configurationItems.push(landingPagesItem);
     }
+
+    const curationSections = filterSections([
+        { items: dashboardItems },
+        { label: 'Data Curation', items: dataCurationItems, showSeparator: true },
+        { label: 'IGSN Curation', items: igsnCurationItems, showSeparator: true },
+    ]);
+
+    const administrationSections = filterSections([
+        { label: 'Team', items: teamItems },
+        { label: 'Configuration', items: configurationItems, showSeparator: true },
+        { label: 'Operations', items: operationsItems, showSeparator: true },
+        { label: 'Legacy', items: legacyItems, showSeparator: true },
+    ]);
+
+    const workspacePaths = {
+        administration: administrationSections.flatMap((section) => section.items.map((item) => getNavHref(item))),
+        curation: curationSections.flatMap((section) => section.items.map((item) => getNavHref(item))),
+    };
+
+    const { workspace, setWorkspace, currentPageWorkspace, isCurrentPageOutsideWorkspace } = useSidebarWorkspace({
+        currentPath,
+        enabled: isWorkspaceSwitcherEnabled && administrationSections.length > 0,
+        workspacePaths,
+    });
+
+    const currentPageItem = findMatchingNavItem([...curationSections, ...administrationSections], currentPath);
+
+    const currentPageSections: SidebarSection[] =
+        isCurrentPageOutsideWorkspace && currentPageWorkspace !== null && currentPageItem !== null
+            ? [{ label: 'Open Page', items: [currentPageItem] }]
+            : [];
+
+    const visibleWorkspaceSections = isWorkspaceSwitcherEnabled
+        ? workspace === 'administration'
+            ? administrationSections
+            : curationSections
+        : [
+              ...curationSections,
+              ...(toolsItems.length > 0 ? [{ label: 'Tools', items: toolsItems, showSeparator: true }] : []),
+              ...(administrationItems.length > 0 ? [{ label: 'Administration', items: administrationItems, showSeparator: true }] : []),
+          ];
+
+    const renderedSections = isWorkspaceSwitcherEnabled
+        ? [...currentPageSections, ...visibleWorkspaceSections]
+        : visibleWorkspaceSections;
 
     // Footer navigation contains only informational links.
     const footerNavItems: NavItem[] = [];
@@ -189,14 +297,20 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                {isWorkspaceSwitcherEnabled && administrationSections.length > 0 && (
+                    <AppSidebarWorkspaceSwitcher value={workspace as SidebarWorkspace} onValueChange={setWorkspace} />
+                )}
             </SidebarHeader>
 
             <SidebarContent>
-                <NavSection items={dashboardItems} />
-                <NavSection label="Data Curation" items={dataCurationItems} showSeparator />
-                <NavSection label="IGSN Curation" items={igsnCurationItems} showSeparator />
-                {toolsItems.length > 0 && <NavSection label="Tools" items={toolsItems} showSeparator />}
-                {administrationItems.length > 0 && <NavSection label="Administration" items={administrationItems} showSeparator />}
+                {renderedSections.map((section, index) => (
+                    <NavSection
+                        key={`${section.label ?? 'section'}-${index}`}
+                        items={section.items}
+                        label={section.label}
+                        showSeparator={section.showSeparator ?? index > 0}
+                    />
+                ))}
             </SidebarContent>
 
             <SidebarFooter>

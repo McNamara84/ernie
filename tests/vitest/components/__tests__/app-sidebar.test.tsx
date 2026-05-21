@@ -1,11 +1,13 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SIDEBAR_WORKSPACE_STORAGE_KEY } from '@/hooks/use-sidebar-workspace';
 import type { AssessmentAverageSummary, NavItem } from '@/types';
 
-// Configurable mock user - can be changed per test
+let mockUrl = '/dashboard';
+
 let mockUser = {
     id: 1,
     name: 'Test User',
@@ -24,20 +26,19 @@ let mockUser = {
 };
 
 type MockSharedProps = {
+    assessmentAverageSummary: AssessmentAverageSummary | null;
     dataResourceCount: number | undefined;
     igsnCount: number | undefined;
     pendingAssistanceTotalCount: number | undefined;
-    assessmentAverageSummary: AssessmentAverageSummary | null;
 };
 
 let mockSharedProps: MockSharedProps = {
+    assessmentAverageSummary: null,
     dataResourceCount: 12,
     igsnCount: 5,
     pendingAssistanceTotalCount: 0,
-    assessmentAverageSummary: null,
 };
 
-// Helper to set mock user for each test
 const setMockUser = (
     overrides: Partial<{
         role: string;
@@ -50,7 +51,7 @@ const setMockUser = (
         can_manage_landing_page_templates: boolean;
         can_access_assistance: boolean;
         can_access_assessment: boolean;
-    }> = {}
+    }> = {},
 ) => {
     mockUser = {
         id: 1,
@@ -71,32 +72,15 @@ const setMockUser = (
     };
 };
 
-const setMockSharedProps = (
-    overrides: Partial<MockSharedProps> = {}
-) => {
+const setMockSharedProps = (overrides: Partial<MockSharedProps> = {}) => {
     mockSharedProps = {
+        assessmentAverageSummary: null,
         dataResourceCount: 12,
         igsnCount: 5,
         pendingAssistanceTotalCount: 0,
-        assessmentAverageSummary: null,
         ...overrides,
     };
 };
-
-const NavMainMock = vi.hoisted(() =>
-    vi.fn(({ items }: { items: NavItem[] }) => (
-        <nav data-testid="nav-main">
-            {items.map((item) => {
-                const href = typeof item.href === 'string' ? item.href : item.href.url;
-                return (
-                    <div key={item.title}>
-                        {item.disabled ? <span>{item.title}</span> : <a href={href}>{item.title}</a>}
-                    </div>
-                );
-            })}
-        </nav>
-    ))
-);
 
 const NavFooterMock = vi.hoisted(() =>
     vi.fn(({ items, className }: { items: NavItem[]; className?: string }) => (
@@ -110,7 +94,7 @@ const NavFooterMock = vi.hoisted(() =>
                 );
             })}
         </footer>
-    ))
+    )),
 );
 
 const NavUserMock = vi.hoisted(() => vi.fn(() => <div data-testid="nav-user" />));
@@ -122,19 +106,28 @@ const NavSectionMock = vi.hoisted(() =>
             {items.map((item) => {
                 const href = typeof item.href === 'string' ? item.href : item.href.url;
                 return (
-                    <div key={item.title}>
+                    <div key={item.title} data-badge={item.badge ?? ''} data-badge-tone={item.badgeTone ?? ''}>
                         {item.disabled ? <span>{item.title}</span> : <a href={href}>{item.title}</a>}
                     </div>
                 );
             })}
         </nav>
-    ))
+    )),
 );
 
-vi.mock('@/components/nav-main', () => ({ NavMain: NavMainMock }));
+const AppSidebarWorkspaceSwitcherMock = vi.hoisted(() =>
+    vi.fn(({ value, onValueChange }: { value: 'curation' | 'administration'; onValueChange: (value: 'curation' | 'administration') => void }) => (
+        <div data-testid="workspace-switcher" data-value={value}>
+            <button type="button" onClick={() => onValueChange('curation')}>Switch to Curation</button>
+            <button type="button" onClick={() => onValueChange('administration')}>Switch to Administration</button>
+        </div>
+    )),
+);
+
 vi.mock('@/components/nav-section', () => ({ NavSection: NavSectionMock }));
 vi.mock('@/components/nav-footer', () => ({ NavFooter: NavFooterMock }));
 vi.mock('@/components/nav-user', () => ({ NavUser: NavUserMock }));
+vi.mock('@/components/app-sidebar-workspace-switcher', () => ({ AppSidebarWorkspaceSwitcher: AppSidebarWorkspaceSwitcherMock }));
 vi.mock('@/components/ui/sidebar', () => ({
     Sidebar: ({ children }: { children?: React.ReactNode }) => <aside>{children}</aside>,
     SidebarHeader: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -148,9 +141,9 @@ vi.mock('@/components/ui/sidebar', () => ({
     SidebarSeparator: () => <hr />,
 }));
 
-// Use a getter function so mockUser changes are reflected
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
+
     return {
         ...actual,
         Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
@@ -161,6 +154,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                 },
                 ...mockSharedProps,
             },
+            url: mockUrl,
         }),
     };
 });
@@ -174,22 +168,57 @@ vi.mock('@/routes', () => ({
     settings: () => ({ url: '/settings' }),
 }));
 
-// Import component once - mocks are already set up
 import { AppSidebar } from '@/components/app-sidebar';
 
 describe('AppSidebar', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Reset to admin user by default
+        window.localStorage.clear();
+        mockUrl = '/dashboard';
         setMockUser();
         setMockSharedProps();
     });
 
-    it('renders navigation sections with correct items for admin user', () => {
+    it('renders the curation workspace by default for admin users on curation pages', () => {
+        render(<AppSidebar />);
+
+        expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'curation');
+        expect(NavSectionMock).toHaveBeenCalledTimes(3);
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        expect(sectionCalls[0][0].label).toBeUndefined();
+        expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Dashboard']);
+        expect(sectionCalls[1][0].label).toBe('Data Curation');
+        expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Data Editor', 'Resources']);
+        expect(sectionCalls[2][0].label).toBe('IGSN Curation');
+        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
+
+        const footer = screen.getByTestId('nav-footer');
+        expect(within(footer).getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/changelog');
+        expect(within(footer).getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/docs');
+    });
+
+    it('renders the administration workspace automatically on administration routes for admin users', () => {
+        mockUrl = '/users';
+
+        render(<AppSidebar />);
+
+        expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
+
+        const sectionCalls = NavSectionMock.mock.calls;
+        expect(sectionCalls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Operations', 'Legacy']);
+        expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Users']);
+        expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings']);
+        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Logs']);
+        expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Old Datasets', 'Statistics (old)']);
+    });
+
+    it('renders the reduced administration workspace for group leaders', () => {
+        mockUrl = '/users';
         setMockUser({
-            role: 'admin',
-            can_access_logs: true,
-            can_access_old_datasets: true,
+            role: 'group_leader',
+            can_access_logs: false,
+            can_access_old_datasets: false,
             can_access_statistics: true,
             can_access_users: true,
             can_access_editor_settings: true,
@@ -197,210 +226,32 @@ describe('AppSidebar', () => {
 
         render(<AppSidebar />);
 
-        // Should render NavSection components (4 sections for admin)
-        expect(NavSectionMock).toHaveBeenCalled();
-        expect(NavSectionMock).toHaveBeenCalledTimes(4);
+        expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
 
-        // Get all NavSection calls
         const sectionCalls = NavSectionMock.mock.calls;
-
-        // Section 1: Dashboard (no label)
-        expect(sectionCalls[0][0].items.map((i: NavItem) => i.title)).toEqual(['Dashboard']);
-        expect(sectionCalls[0][0].label).toBeUndefined();
-        expect(sectionCalls[0][0].items[0].tourId).toBe('sidebar-dashboard');
-
-        // Section 2: Data Curation
-        expect(sectionCalls[1][0].items.map((i: NavItem) => i.title)).toEqual(['Data Editor', 'Resources']);
-        expect(sectionCalls[1][0].label).toBe('Data Curation');
-        expect(sectionCalls[1][0].items[0].tourId).toBe('sidebar-data-editor');
-        expect(sectionCalls[1][0].items[1].tourId).toBe('sidebar-resources');
-        expect(sectionCalls[1][0].items[1].badge).toBe(12);
-        expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
-        expect(sectionCalls[1][0].items[1].badgeTone).toBe('primary');
-
-        // Section 3: IGSN Curation
-        expect(sectionCalls[2][0].items.map((i: NavItem) => i.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
-        expect(sectionCalls[2][0].label).toBe('IGSN Curation');
-        expect(sectionCalls[2][0].items[0].tourId).toBe('sidebar-igsns-list');
-        expect(sectionCalls[2][0].items[1].tourId).toBe('sidebar-igsns-map');
-        expect(sectionCalls[2][0].items[0].badge).toBe(5);
-        expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
-        expect(sectionCalls[2][0].items[0].badgeTone).toBe('primary');
-
-        // Section 4: Administration (only for admins)
-        expect(sectionCalls[3][0].items.map((i: NavItem) => i.title)).toEqual([
-            'Old Datasets',
-            'Statistics (old)',
-            'Users',
-            'Logs',
-            'Editor Settings',
-        ]);
-        expect(sectionCalls[3][0].label).toBe('Administration');
-
-        // Check footer navigation
-        expect(NavFooterMock).toHaveBeenCalled();
-        const footerArgs = NavFooterMock.mock.calls[0][0];
-        expect(footerArgs.items.map((i: NavItem) => i.title)).toEqual(['Changelog', 'Documentation']);
-        expect(footerArgs.items[1].tourId).toBe('sidebar-documentation');
-        expect(footerArgs.className).toBe('mt-auto');
-
-        // Check nav sections render links
-        const navSections = screen.getAllByTestId('nav-section');
-        expect(navSections.length).toBeGreaterThanOrEqual(3);
-
-        // Verify links are present
-        expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/dashboard');
-        expect(screen.getByRole('link', { name: /^data editor$/i })).toHaveAttribute('href', '/editor');
-        expect(screen.getByRole('link', { name: /resources/i })).toHaveAttribute('href', '/resources');
-
-        // Check footer links
-        const navFooter = screen.getByTestId('nav-footer');
-        expect(within(navFooter).getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/changelog');
-        expect(within(navFooter).getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/docs');
-
-        // Check user section
-        expect(screen.getByTestId('nav-user')).toBeInTheDocument();
+        expect(sectionCalls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Legacy']);
+        expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Users']);
+        expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings']);
+        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics (old)']);
     });
 
-    it('does not render Administration section for non-admin users (beginner)', () => {
-        // Mock beginner user without administration access (Issue #379)
-        setMockUser({
-            role: 'beginner',
-            can_manage_users: false,
-            can_access_logs: false,
-            can_access_old_datasets: false,
-            can_access_statistics: false,
-            can_access_users: false,
-            can_access_editor_settings: false,
-        });
-
-        render(<AppSidebar />);
-
-        // Should render NavSection components (3 sections for non-admin - no Administration)
-        expect(NavSectionMock).toHaveBeenCalled();
-        expect(NavSectionMock).toHaveBeenCalledTimes(3);
-
-        // Verify Administration section is NOT rendered
-        const sectionCalls = NavSectionMock.mock.calls;
-        const sectionLabels = sectionCalls.map((call) => call[0].label);
-        expect(sectionLabels).not.toContain('Administration');
-
-        // Verify the other sections are present
-        expect(sectionLabels).toContain('Data Curation');
-        expect(sectionLabels).toContain('IGSN Curation');
-
-        // Verify Editor Settings is NOT in footer (Issue #379)
-        const footerArgs = NavFooterMock.mock.calls[0][0];
-        const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
-        expect(footerTitles).not.toContain('Editor Settings');
-        expect(footerTitles).toContain('Changelog');
-        expect(footerTitles).toContain('Documentation');
-    });
-
-    it('marks assistance badges as warning when pending suggestions exist', () => {
+    it('shows the assistance badge with warning tone in the administration workspace', () => {
+        mockUrl = '/assistance';
         setMockUser({ can_access_assistance: true });
         setMockSharedProps({ pendingAssistanceTotalCount: 7 });
 
         render(<AppSidebar />);
 
-        const sectionCalls = NavSectionMock.mock.calls;
-        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
-        expect(toolsSection).toBeDefined();
-        expect(toolsSection?.[0].items[0].title).toBe('Assistance');
-        expect(toolsSection?.[0].items[0].badge).toBe(7);
-        expect(toolsSection?.[0].items[0].badgeTone).toBe('warning');
+        const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
+        expect(operationsSection).toBeDefined();
+        expect(operationsSection?.[0].items[0].title).toBe('Assistance');
+        expect(operationsSection?.[0].items[0].badge).toBe(7);
+        expect(operationsSection?.[0].items[0].badgeTone).toBe('warning');
     });
 
-    it('does not render Administration section for curator users', () => {
-        // Mock curator user without administration access (Issue #379)
-        setMockUser({
-            role: 'curator',
-            can_manage_users: false,
-            can_access_logs: false,
-            can_access_old_datasets: false,
-            can_access_statistics: false,
-            can_access_users: false,
-            can_access_editor_settings: false,
-        });
-
-        render(<AppSidebar />);
-
-        // Should render NavSection components (3 sections for curator - no Administration)
-        expect(NavSectionMock).toHaveBeenCalled();
-        expect(NavSectionMock).toHaveBeenCalledTimes(3);
-
-        // Verify Administration section is NOT rendered
-        const sectionCalls = NavSectionMock.mock.calls;
-        const sectionLabels = sectionCalls.map((call) => call[0].label);
-        expect(sectionLabels).not.toContain('Administration');
-
-        // Verify Editor Settings is NOT in footer (Issue #379)
-        const footerArgs = NavFooterMock.mock.calls[0][0];
-        const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
-        expect(footerTitles).not.toContain('Editor Settings');
-    });
-
-    it('renders partial Administration section for group leader (Issue #379)', () => {
-        // Mock group leader user with partial administration access
-        setMockUser({
-            role: 'group_leader',
-            can_manage_users: true,
-            can_access_logs: false,
-            can_access_old_datasets: false,
-            can_access_statistics: true,
-            can_access_users: true,
-            can_access_editor_settings: true,
-        });
-
-        render(<AppSidebar />);
-
-        // Should render NavSection components (4 sections for group leader with partial admin)
-        expect(NavSectionMock).toHaveBeenCalled();
-        expect(NavSectionMock).toHaveBeenCalledTimes(4);
-
-        // Verify Administration section IS rendered
-        const sectionCalls = NavSectionMock.mock.calls;
-        const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
-        expect(adminSection).toBeDefined();
-
-        // Verify only Statistics and Users are shown (not Logs or Old Datasets)
-        const adminItems = adminSection![0].items.map((i: NavItem) => i.title);
-        expect(adminItems).toContain('Statistics (old)');
-        expect(adminItems).toContain('Users');
-        expect(adminItems).toContain('Editor Settings');
-        expect(adminItems).not.toContain('Logs');
-        expect(adminItems).not.toContain('Old Datasets');
-
-        // Verify footer only contains informational links
-        const footerArgs = NavFooterMock.mock.calls[0][0];
-        const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
-        expect(footerTitles).not.toContain('Editor Settings');
-        expect(footerTitles).toEqual(['Changelog', 'Documentation']);
-    });
-
-    it('renders the Assessment tool when the permission is present', () => {
-        setMockUser({
-            can_access_assistance: true,
-            can_access_assessment: true,
-        });
-        setMockSharedProps({ pendingAssistanceTotalCount: 7 });
-
-        render(<AppSidebar />);
-
-        expect(NavSectionMock).toHaveBeenCalledTimes(5);
-
-        const sectionCalls = NavSectionMock.mock.calls;
-        expect(sectionCalls[3][0].label).toBe('Tools');
-        expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
-        expect(sectionCalls[3][0].items[0].badge).toBe(7);
-        expect(sectionCalls[3][0].items[1].href).toBe('/assessment');
-        expect(sectionCalls[3][0].items[1].badge).toBeUndefined();
-    });
-
-    it('passes formatted FAIR averages to the Assessment sidebar item', () => {
-        setMockUser({
-            can_access_assessment: true,
-        });
+    it('shows assessment metrics in the administration workspace', () => {
+        mockUrl = '/assessment';
+        setMockUser({ can_access_assessment: true });
         setMockSharedProps({
             assessmentAverageSummary: {
                 resources: 6.9,
@@ -411,15 +262,13 @@ describe('AppSidebar', () => {
 
         render(<AppSidebar />);
 
-        const sectionCalls = NavSectionMock.mock.calls;
-        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
-
-        expect(toolsSection).toBeDefined();
-        expect(toolsSection?.[0].items[0].title).toBe('Assessment');
-        expect(toolsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
+        const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
+        expect(operationsSection).toBeDefined();
+        expect(operationsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assessment', 'Logs']);
+        expect(operationsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
     });
 
-    it('passes visible zero badges for Resources and IGSNs List', () => {
+    it('preserves visible zero badges in the curation workspace', () => {
         setMockSharedProps({
             dataResourceCount: 0,
             igsnCount: 0,
@@ -428,87 +277,39 @@ describe('AppSidebar', () => {
         render(<AppSidebar />);
 
         const sectionCalls = NavSectionMock.mock.calls;
-
         expect(sectionCalls[1][0].items[1].badge).toBe(0);
         expect(sectionCalls[1][0].items[1].showZeroBadge).toBe(true);
         expect(sectionCalls[2][0].items[0].badge).toBe(0);
         expect(sectionCalls[2][0].items[0].showZeroBadge).toBe(true);
     });
 
-    it('shows Landing Pages in Administration when user has permission', () => {
-        setMockUser({
-            role: 'admin',
-            can_manage_landing_page_templates: true,
-        });
+    it('shows Landing Pages inside the administration configuration section when permitted', () => {
+        mockUrl = '/landing-pages';
+        setMockUser({ can_manage_landing_page_templates: true });
 
         render(<AppSidebar />);
 
-        const sectionCalls = NavSectionMock.mock.calls;
-        const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
-        expect(adminSection).toBeDefined();
-
-        const items = adminSection![0].items.map((i: NavItem) => i.title);
-        expect(items).toContain('Landing Pages');
+        const configurationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Configuration');
+        expect(configurationSection).toBeDefined();
+        expect(configurationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings', 'Landing Pages']);
     });
 
-    it('does not show Landing Pages when user lacks permission', () => {
-        setMockUser({
-            role: 'curator',
-            can_manage_landing_page_templates: false,
-            can_manage_users: false,
-            can_access_logs: false,
-            can_access_old_datasets: false,
-            can_access_statistics: false,
-            can_access_users: false,
-            can_access_editor_settings: false,
-        });
-
+    it('shows an open-page section when an admin manually switches away from the current workspace', () => {
         render(<AppSidebar />);
 
-        const sectionCalls = NavSectionMock.mock.calls;
-        const dataCurationSection = sectionCalls.find((call) => call[0].label === 'Data Curation');
-        expect(dataCurationSection).toBeDefined();
+        fireEvent.click(screen.getByRole('button', { name: /switch to administration/i }));
 
-        const dataCurationItems = dataCurationSection![0].items.map((i: NavItem) => i.title);
-        expect(dataCurationItems).not.toContain('Landing Pages');
-
-        // Also should not appear in Administration (since curator has no admin items)
-        const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
-        expect(adminSection).toBeUndefined();
+        expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
+        expect(window.localStorage.getItem(SIDEBAR_WORKSPACE_STORAGE_KEY)).toBe('administration');
+        expect(screen.getByText('Open Page')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/dashboard');
+        expect(screen.getByRole('link', { name: /^users$/i })).toHaveAttribute('href', '/users');
     });
 
-    it('shows Assistance in Tools with the pending suggestion count', () => {
+    it('falls back to zero badges for assistance when shared counts are missing', () => {
+        mockUrl = '/assistance';
         setMockUser({
             role: 'group_leader',
-            can_manage_users: false,
-            can_access_logs: false,
-            can_access_old_datasets: false,
-            can_access_statistics: false,
-            can_access_users: false,
-            can_access_editor_settings: false,
-            can_manage_landing_page_templates: false,
-            can_access_assistance: true,
-        });
-        setMockSharedProps({
-            pendingAssistanceTotalCount: 7,
-        });
-
-        render(<AppSidebar />);
-
-        expect(NavSectionMock).toHaveBeenCalledTimes(4);
-
-        const sectionCalls = NavSectionMock.mock.calls;
-        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
-
-        expect(toolsSection).toBeDefined();
-        expect(toolsSection![0].items.map((i: NavItem) => i.title)).toEqual(['Assistance']);
-        expect(toolsSection![0].items[0].badge).toBe(7);
-    });
-
-    it('falls back to zero badges when shared counts are missing', () => {
-        setMockUser({
-            role: 'group_leader',
-            can_manage_users: false,
             can_access_logs: false,
             can_access_old_datasets: false,
             can_access_statistics: false,
@@ -525,12 +326,50 @@ describe('AppSidebar', () => {
 
         render(<AppSidebar />);
 
-        const sectionCalls = NavSectionMock.mock.calls;
-        const toolsSection = sectionCalls.find((call) => call[0].label === 'Tools');
+        const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
+        expect(operationsSection).toBeDefined();
+        expect(operationsSection?.[0].items[0].badge).toBe(0);
+    });
 
-        expect(sectionCalls[1][0].items[1].badge).toBe(0);
-        expect(sectionCalls[2][0].items[0].badge).toBe(0);
-        expect(toolsSection).toBeDefined();
-        expect(toolsSection![0].items[0].badge).toBe(0);
+    it('does not render the workspace switcher for beginner users', () => {
+        setMockUser({
+            role: 'beginner',
+            can_manage_users: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
+            can_manage_landing_page_templates: false,
+            can_access_assistance: false,
+            can_access_assessment: false,
+        });
+
+        render(<AppSidebar />);
+
+        expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
+        expect(NavSectionMock).toHaveBeenCalledTimes(3);
+        expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([undefined, 'Data Curation', 'IGSN Curation']);
+    });
+
+    it('does not render the workspace switcher for curator users', () => {
+        setMockUser({
+            role: 'curator',
+            can_manage_users: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
+            can_manage_landing_page_templates: false,
+            can_access_assistance: false,
+            can_access_assessment: false,
+        });
+
+        render(<AppSidebar />);
+
+        expect(screen.queryByTestId('workspace-switcher')).not.toBeInTheDocument();
+        expect(NavSectionMock).toHaveBeenCalledTimes(3);
+        expect(NavSectionMock.mock.calls.map((call) => call[0].label)).toEqual([undefined, 'Data Curation', 'IGSN Curation']);
     });
 });
