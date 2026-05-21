@@ -143,10 +143,11 @@ describe('RelatedWorkItem', () => {
         );
     });
 
-    it('shows a fallback message when no resolved title is available', () => {
+    it('does not render the removed resolved title helper UI', () => {
         render(<RelatedWorkItem {...defaultProps} />);
 
-        expect(screen.getByText('No resolved title available yet.')).toBeInTheDocument();
+        expect(screen.queryByText('Resolved title')).not.toBeInTheDocument();
+        expect(screen.queryByText('No resolved title available yet.')).not.toBeInTheDocument();
     });
 
     it('renders validation tooltips for valid items', async () => {
@@ -179,7 +180,7 @@ describe('RelatedWorkItem', () => {
         expect((await screen.findAllByText('Validation warning')).length).toBeGreaterThan(0);
     });
 
-    it('shows the resolved title helper when related_title is available', () => {
+    it('does not surface related_title metadata in the editor card', () => {
         render(
             <RelatedWorkItem
                 {...defaultProps}
@@ -190,14 +191,9 @@ describe('RelatedWorkItem', () => {
             />,
         );
 
-        expect(screen.getByText('Related Research Paper Title')).toBeInTheDocument();
-    });
-
-    it('associates the resolved title content with its visible heading', () => {
-        render(<RelatedWorkItem {...defaultProps} />);
-
-        expect(screen.getByText('Resolved title')).toBeInTheDocument();
-        expect(screen.getByText('No resolved title available yet.')).toHaveAttribute('aria-labelledby', 'related-work-0-resolved-title-label');
+        expect(screen.queryByText('Resolved title')).not.toBeInTheDocument();
+        expect(screen.queryByText('Related Research Paper Title')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Citation label')).toBeInTheDocument();
     });
 
     it('shows the relation type information field for Other', () => {
