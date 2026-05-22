@@ -7,7 +7,6 @@
     "npm": ">=10"
   },
   "scripts": {
-    "preinstall": "node ./scripts/check-node-version.mjs",
     "build": "vite build",
     "build:ssr": "vite build && vite build --ssr",
     "dev": "vite",
