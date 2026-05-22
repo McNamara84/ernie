@@ -201,7 +201,10 @@ FROM app AS vite
 WORKDIR /var/www/html
 
 # Install dependencies that might be needed for native modules
-RUN apk add --no-cache python3 make g++
+RUN apt-get update \
+    && apt-get install -y python3 make \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create startup script that ensures dependencies are installed
 RUN echo '#!/bin/sh' > /usr/local/bin/vite-entrypoint.sh && \
