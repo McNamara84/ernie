@@ -667,6 +667,47 @@ export default function DataCiteForm({
         analytical_methods: true,
         euroscivoc: true,
     });
+    const [pid4instAvailability, setPid4instAvailability] = useState<'checking' | 'available' | 'unavailable'>('checking');
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const loadPidAvailability = async () => {
+            try {
+                const response = await fetch('/api/v1/vocabularies/pid-availability');
+
+                if (!response.ok) {
+                    if (!isCancelled) {
+                        setPid4instAvailability('available');
+                    }
+                    return;
+                }
+
+                const availabilityData = (await response.json()) as {
+                    pid4inst?: {
+                        available?: boolean;
+                    };
+                };
+
+                if (!isCancelled) {
+                    setPid4instAvailability(availabilityData.pid4inst?.available === false ? 'unavailable' : 'available');
+                }
+            } catch (error) {
+                if (!isCancelled) {
+                    setPid4instAvailability('available');
+                    console.warn('Failed to check PID availability, keeping PID-dependent fields visible', error);
+                }
+            }
+        };
+
+        void loadPidAvailability();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
+    const shouldShowUsedInstrumentsSection = pid4instAvailability === 'available';
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
     useEffect(() => {
@@ -2611,23 +2652,25 @@ export default function DataCiteForm({
                         <CitationsField resourceId={resolvedResourceId} />
                     </AccordionContent>
                 </AccordionItem>
-                <AccordionItem value="used-instruments" data-testid="used-instruments-section">
-                    <AccordionTrigger data-testid="used-instruments-accordion-trigger">
-                        <div className="flex items-center gap-2">
-                            <span>Used Instruments</span>
-                            {renderStatusBadge(instrumentsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent data-testid="used-instruments-accordion-content">
-                        <SectionHeader
-                            label="Used Instruments"
-                            description="Research instruments used for data collection."
-                            tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
-                            counter={{ current: instruments.length, max: 100 }}
-                        />
-                        <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
-                    </AccordionContent>
-                </AccordionItem>
+                {shouldShowUsedInstrumentsSection && (
+                    <AccordionItem value="used-instruments" data-testid="used-instruments-section">
+                        <AccordionTrigger data-testid="used-instruments-accordion-trigger">
+                            <div className="flex items-center gap-2">
+                                <span>Used Instruments</span>
+                                {renderStatusBadge(instrumentsStatus)}
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent data-testid="used-instruments-accordion-content">
+                            <SectionHeader
+                                label="Used Instruments"
+                                description="Research instruments used for data collection."
+                                tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
+                                counter={{ current: instruments.length, max: 100 }}
+                            />
+                            <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
+                        </AccordionContent>
+                    </AccordionItem>
+                )}
                 <AccordionItem value="funding-references">
                     <AccordionTrigger>
                         <div className="flex items-center gap-2">

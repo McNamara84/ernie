@@ -232,6 +232,10 @@
         ],
         "fixes": [
             {
+                "title": "Hide Used Instruments When PID4INST Is Disabled",
+                "description": "When administrators or group leaders deactivate PID4INST in Settings, the Data Editor now hides the entire 'Used Instruments' form group instead of showing it with a misleading 'Unable to load instrument data' error."
+            },
+            {
                 "title": "PID4INST Registry Update Works with Current b2inst API",
                 "description": "The 'Check for Updates' and 'Update Now' flow in Editor Settings now works again for PID4INST instrument data. ERNIE no longer sends the outdated sort=mostrecent query parameter when downloading the b2inst registry, so the initial download and later refreshes no longer fail with 'Command exited with code 1' after the remote count check succeeds."
             },
