@@ -667,7 +667,7 @@ export default function DataCiteForm({
         analytical_methods: true,
         euroscivoc: true,
     });
-    const [isPid4instAvailable, setIsPid4instAvailable] = useState(false);
+    const [pid4instAvailability, setPid4instAvailability] = useState<'checking' | 'available' | 'unavailable'>('checking');
 
     useEffect(() => {
         let isCancelled = false;
@@ -677,6 +677,9 @@ export default function DataCiteForm({
                 const response = await fetch('/api/v1/vocabularies/pid-availability');
 
                 if (!response.ok) {
+                    if (!isCancelled) {
+                        setPid4instAvailability('available');
+                    }
                     return;
                 }
 
@@ -687,10 +690,13 @@ export default function DataCiteForm({
                 };
 
                 if (!isCancelled) {
-                    setIsPid4instAvailable(availabilityData.pid4inst?.available === true);
+                    setPid4instAvailability(availabilityData.pid4inst?.available === false ? 'unavailable' : 'available');
                 }
             } catch {
-                console.warn('Failed to check PID availability, hiding PID-dependent fields');
+                if (!isCancelled) {
+                    setPid4instAvailability('available');
+                }
+                console.warn('Failed to check PID availability, keeping PID-dependent fields visible');
             }
         };
 
@@ -700,6 +706,9 @@ export default function DataCiteForm({
             isCancelled = true;
         };
     }, []);
+
+    const shouldShowUsedInstrumentsSection = pid4instAvailability !== 'unavailable';
+    const canLoadUsedInstrumentsField = pid4instAvailability === 'available';
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
     useEffect(() => {
@@ -2644,7 +2653,7 @@ export default function DataCiteForm({
                         <CitationsField resourceId={resolvedResourceId} />
                     </AccordionContent>
                 </AccordionItem>
-                {isPid4instAvailable && (
+                {shouldShowUsedInstrumentsSection && (
                     <AccordionItem value="used-instruments" data-testid="used-instruments-section">
                         <AccordionTrigger data-testid="used-instruments-accordion-trigger">
                             <div className="flex items-center gap-2">
@@ -2659,7 +2668,11 @@ export default function DataCiteForm({
                                 tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
                                 counter={{ current: instruments.length, max: 100 }}
                             />
-                            <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
+                            {canLoadUsedInstrumentsField ? (
+                                <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Checking PID4INST availability...</p>
+                            )}
                         </AccordionContent>
                     </AccordionItem>
                 )}

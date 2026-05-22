@@ -713,6 +713,94 @@ describe('DataCiteForm', () => {
         expect(screen.queryByText('Unable to load instrument data')).not.toBeInTheDocument();
     });
 
+    it('keeps the used instruments section visible when the PID availability check returns non-OK', async () => {
+        vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+            const url = input.toString();
+
+            if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                return Promise.resolve({
+                    ok: false,
+                    status: 500,
+                    json: () => Promise.resolve({}),
+                } as Response);
+            }
+
+            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
+            }
+
+            if (url.includes('/vocabularies/msl')) {
+                return Promise.resolve(createJsonResponse([]));
+            }
+
+            if (url.includes('/vocabularies/')) {
+                return Promise.resolve(createJsonResponse({ data: [] }));
+            }
+
+            return Promise.resolve(createJsonResponse([]));
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                descriptionTypes={descriptionTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        expect(await screen.findByTestId('used-instruments-section')).toBeInTheDocument();
+        expect(await screen.findByText('Add Instrument')).toBeInTheDocument();
+    });
+
+    it('keeps the used instruments section visible when the PID availability check throws', async () => {
+        vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+            const url = input.toString();
+
+            if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                return Promise.reject(new Error('network down'));
+            }
+
+            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
+            }
+
+            if (url.includes('/vocabularies/msl')) {
+                return Promise.resolve(createJsonResponse([]));
+            }
+
+            if (url.includes('/vocabularies/')) {
+                return Promise.resolve(createJsonResponse({ data: [] }));
+            }
+
+            return Promise.resolve(createJsonResponse([]));
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                descriptionTypes={descriptionTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        expect(await screen.findByTestId('used-instruments-section')).toBeInTheDocument();
+        expect(await screen.findByText('Add Instrument')).toBeInTheDocument();
+    });
+
     it(
         'shows validation error list when saving with missing required fields (Issue #538)',
         { timeout: 60000 },
