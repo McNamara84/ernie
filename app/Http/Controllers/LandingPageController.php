@@ -12,6 +12,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
+use App\Support\UrlNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -587,6 +588,38 @@ class LandingPageController extends Controller
     }
 
     /**
+     * Return grouped download URL suggestions for the landing page setup modal.
+     *
+     * Suggestions are derived from real download sources only:
+     * - landing_pages.ftp_url
+     * - landing_page_files.url
+     *
+     * External landing page domains are intentionally excluded unless they also
+     * appear as actual download URLs.
+     */
+    public function downloadUrlSuggestions(): JsonResponse
+    {
+        /** @var list<string> $sourceUrls */
+        $sourceUrls = [
+            ...DB::table('landing_pages')
+                ->whereNotNull('ftp_url')
+                ->pluck('ftp_url')
+                ->filter(static fn (mixed $url): bool => is_string($url))
+                ->values()
+                ->all(),
+            ...DB::table('landing_page_files')
+                ->pluck('url')
+                ->filter(static fn (mixed $url): bool => is_string($url))
+                ->values()
+                ->all(),
+        ];
+
+        return response()->json([
+            'suggestions' => self::buildDownloadUrlSuggestionPayload($sourceUrls),
+        ]);
+    }
+
+    /**
      * Return the normalized landing page contract exposed to API consumers.
      *
      * Legacy Physical Object pages may still be stored with the old default
@@ -631,6 +664,118 @@ class LandingPageController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * @param  list<string>  $sourceUrls
+     * @return array{
+     *     domains: list<array{value: string, usage_count: int}>,
+     *     urls: list<array{value: string, usage_count: int}>
+     * }
+     */
+    private static function buildDownloadUrlSuggestionPayload(array $sourceUrls): array
+    {
+        /** @var array<string, int> $domainCounts */
+        $domainCounts = [];
+        /** @var array<string, int> $urlCounts */
+        $urlCounts = [];
+
+        foreach ($sourceUrls as $sourceUrl) {
+            $normalizedUrl = self::normalizeDownloadSuggestionUrl($sourceUrl);
+
+            if ($normalizedUrl === null) {
+                continue;
+            }
+
+            $urlCounts[$normalizedUrl] = ($urlCounts[$normalizedUrl] ?? 0) + 1;
+
+            $domain = self::extractDownloadSuggestionDomain($normalizedUrl);
+
+            if ($domain !== null) {
+                $domainCounts[$domain] = ($domainCounts[$domain] ?? 0) + 1;
+            }
+        }
+
+        return [
+            'domains' => self::sortDownloadSuggestionCounts($domainCounts),
+            'urls' => self::sortDownloadSuggestionCounts($urlCounts),
+        ];
+    }
+
+    private static function normalizeDownloadSuggestionUrl(string $url): ?string
+    {
+        $normalizedUrl = UrlNormalizer::normalizeAppUrl($url);
+
+        if ($normalizedUrl === null) {
+            return null;
+        }
+
+        $parts = parse_url($normalizedUrl);
+
+        if ($parts === false) {
+            return null;
+        }
+
+        /** @var array<string, int|string> $parts */
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+            return null;
+        }
+
+        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
+        $path = (string) ($parts['path'] ?? '');
+        $query = isset($parts['query']) ? '?'.(string) $parts['query'] : '';
+
+        return sprintf('%s://%s%s%s%s', $scheme, $host, $port, $path !== '' ? $path : '/', $query);
+    }
+
+    private static function extractDownloadSuggestionDomain(string $normalizedUrl): ?string
+    {
+        $parts = parse_url($normalizedUrl);
+
+        if ($parts === false) {
+            return null;
+        }
+
+        /** @var array<string, int|string> $parts */
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+            return null;
+        }
+
+        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
+
+        return sprintf('%s://%s%s/', $scheme, $host, $port);
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @return list<array{value: string, usage_count: int}>
+     */
+    private static function sortDownloadSuggestionCounts(array $counts): array
+    {
+        $suggestions = [];
+
+        foreach ($counts as $value => $usageCount) {
+            $suggestions[] = [
+                'value' => $value,
+                'usage_count' => $usageCount,
+            ];
+        }
+
+        usort(
+            $suggestions,
+            static fn (array $left, array $right): int => ($right['usage_count'] <=> $left['usage_count'])
+                ?: ($left['value'] <=> $right['value'])
+        );
+
+        return array_slice($suggestions, 0, 20);
     }
 
     /**

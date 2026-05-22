@@ -736,3 +736,70 @@ describe('Landing Page GET Endpoint', function () {
             ->assertJsonPath('landing_page.landing_page_template_id', null);
     });
 });
+
+describe('Landing Page Download URL Suggestions', function () {
+    test('aggregates domain and url suggestions from existing download sources', function () {
+        $duplicateUrl = 'https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW';
+
+        $draftLandingPage = LandingPage::factory()->draft()->create([
+            'ftp_url' => $duplicateUrl,
+        ]);
+
+        LandingPage::factory()->published()->create([
+            'ftp_url' => 'https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.003-ZZZZZ',
+        ]);
+
+        LandingPage::factory()->published()->create([
+            'ftp_url' => $duplicateUrl,
+        ]);
+
+        LandingPage::factory()->draft()->create([
+            'ftp_url' => '   ',
+        ]);
+
+        $externalOnlyDomain = LandingPageDomain::factory()->withDomain('https://external-only.example.org/')->create();
+
+        LandingPage::factory()->published()->external()->create([
+            'external_domain_id' => $externalOnlyDomain->id,
+            'external_path' => 'dataset/should-not-appear',
+        ]);
+
+        $draftLandingPage->files()->createMany([
+            [
+                'url' => 'https://datapub.gfz.de/download/supporting-file.csv',
+                'position' => 0,
+            ],
+            [
+                'url' => 'https://archive.gfz.de/files/supplement.pdf',
+                'position' => 1,
+            ],
+        ]);
+
+        $response = $this->getJson('/api/landing-page-download-url-suggestions');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/')
+            ->assertJsonPath('suggestions.domains.0.usage_count', 4)
+            ->assertJsonPath('suggestions.urls.0.value', $duplicateUrl)
+            ->assertJsonPath('suggestions.urls.0.usage_count', 2);
+
+        $domainSuggestions = collect($response->json('suggestions.domains'));
+        $urlSuggestions = collect($response->json('suggestions.urls'));
+
+        expect($domainSuggestions->pluck('value')->all())
+            ->toContain('https://archive.gfz.de/')
+            ->not->toContain('https://external-only.example.org/');
+
+        expect($urlSuggestions->pluck('value')->all())
+            ->toContain('https://archive.gfz.de/files/supplement.pdf')
+            ->not->toContain('');
+    });
+
+    test('requires authentication for download url suggestions', function () {
+        auth()->logout();
+
+        $this->getJson('/api/landing-page-download-url-suggestions')
+            ->assertUnauthorized();
+    });
+});

@@ -8,7 +8,7 @@ import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
-import type { LandingPageConfig } from '@/types/landing-page';
+import type { LandingPageConfig, LandingPageDownloadUrlSuggestions } from '@/types/landing-page';
 
 // Mock dependencies
 vi.mock('axios', () => {
@@ -59,6 +59,17 @@ describe('SetupLandingPageModal', () => {
         { id: 2, domain: 'https://resources.example.org/' },
     ];
 
+    const mockDownloadUrlSuggestions: LandingPageDownloadUrlSuggestions = {
+        domains: [
+            { value: 'https://datapub.gfz.de/', usage_count: 4 },
+            { value: 'https://archive.gfz.de/', usage_count: 1 },
+        ],
+        urls: [
+            { value: 'https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW', usage_count: 2 },
+            { value: 'https://archive.gfz.de/files/supplement.pdf', usage_count: 1 },
+        ],
+    };
+
     const mockResource = {
         id: 123,
         doi: '10.5880/GFZ.TEST.2025.001',
@@ -86,6 +97,47 @@ describe('SetupLandingPageModal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
+
+    const mockModalGetRequests = ({
+        landingPage = null,
+        downloadSuggestions = mockDownloadUrlSuggestions,
+        downloadSuggestionsError,
+    }: {
+        landingPage?: LandingPageConfig | null;
+        downloadSuggestions?: LandingPageDownloadUrlSuggestions;
+        downloadSuggestionsError?: unknown;
+    } = {}) => {
+        mockedAxiosGet.mockImplementation((url: string) => {
+            if (url.includes(`/resources/${mockResource.id}/landing-page`)) {
+                if (landingPage === null) {
+                    return Promise.reject({
+                        isAxiosError: true,
+                        response: { status: 404 },
+                    });
+                }
+
+                return Promise.resolve({ data: { landing_page: landingPage } });
+            }
+
+            if (url === '/api/landing-page-domains/list') {
+                return Promise.resolve({ data: { domains: mockDomains } });
+            }
+
+            if (url === '/api/landing-page-templates') {
+                return Promise.resolve({ data: { templates: [] } });
+            }
+
+            if (url === '/api/landing-page-download-url-suggestions') {
+                if (downloadSuggestionsError) {
+                    return Promise.reject(downloadSuggestionsError);
+                }
+
+                return Promise.resolve({ data: { suggestions: downloadSuggestions } });
+            }
+
+            return Promise.reject(new Error(`Unexpected GET request: ${url}`));
+        });
+    };
 
     describe('Rendering', () => {
         it('renders modal when open', async () => {
@@ -235,6 +287,155 @@ describe('SetupLandingPageModal', () => {
                 const ftpInput = screen.getByLabelText(/Download URL \(FTP\)/i) as HTMLInputElement;
                 expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
             });
+        });
+
+        it('shows grouped download url suggestions when the field receives focus', async () => {
+            mockModalGetRequests();
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+            await user.click(ftpInput);
+
+            await waitFor(() => {
+                expect(axios.get).toHaveBeenCalledWith('/api/landing-page-download-url-suggestions');
+            });
+
+            expect(screen.getByText('Suggested domains')).toBeInTheDocument();
+            expect(screen.getByText('Previously used full URLs')).toBeInTheDocument();
+            expect(screen.getByText('https://datapub.gfz.de/')).toBeInTheDocument();
+            expect(screen.getByText('https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW')).toBeInTheDocument();
+        });
+
+        it('filters suggestions and lets the user keep editing after choosing a domain', async () => {
+            mockModalGetRequests();
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+
+            await user.click(ftpInput);
+            await user.type(ftpInput, 'archive');
+
+            expect(screen.queryByText('https://datapub.gfz.de/')).not.toBeInTheDocument();
+            expect(screen.getByText('https://archive.gfz.de/')).toBeInTheDocument();
+
+            await user.clear(ftpInput);
+            await user.click(screen.getByText('https://datapub.gfz.de/'));
+
+            expect(ftpInput).toHaveValue('https://datapub.gfz.de/');
+
+            await user.type(ftpInput, 'download/custom-file');
+
+            expect(ftpInput).toHaveValue('https://datapub.gfz.de/download/custom-file');
+        });
+
+        it('inserts the full url when a full-url suggestion is selected', async () => {
+            mockModalGetRequests();
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+
+            await user.click(ftpInput);
+            await user.click(screen.getByText('https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW'));
+
+            expect(ftpInput).toHaveValue('https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW');
+        });
+
+        it('does not fetch suggestions when imported files disable the ftp field', async () => {
+            mockModalGetRequests({
+                landingPage: {
+                    ...mockExistingConfig,
+                    files: [
+                        {
+                            id: 1,
+                            url: 'https://legacy.gfz.de/download/file-one.zip',
+                            position: 0,
+                        },
+                    ],
+                },
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    existingConfig={{
+                        ...mockExistingConfig,
+                        files: [
+                            {
+                                id: 1,
+                                url: 'https://legacy.gfz.de/download/file-one.zip',
+                                position: 0,
+                            },
+                        ],
+                    }}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+            expect(ftpInput).toBeDisabled();
+
+            await user.click(ftpInput);
+
+            expect(axios.get).not.toHaveBeenCalledWith('/api/landing-page-download-url-suggestions');
+        });
+
+        it('keeps the modal usable when loading download url suggestions fails', async () => {
+            mockModalGetRequests({
+                downloadSuggestionsError: new Error('Network error'),
+            });
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+            await user.click(ftpInput);
+
+            await waitFor(() => {
+                expect(axios.get).toHaveBeenCalledWith('/api/landing-page-download-url-suggestions');
+            });
+
+            expect(mockedToastError).not.toHaveBeenCalled();
+            expect(screen.getByText('No matching suggestions.')).toBeInTheDocument();
+
+            await user.type(ftpInput, 'https://manual.example.org/file.zip');
+            expect(ftpInput).toHaveValue('https://manual.example.org/file.zip');
         });
 
         it('normalizes a legacy Physical Object config passed via props to the IGSN template', async () => {

@@ -116,6 +116,31 @@ export interface LandingPageDomain {
 }
 
 /**
+ * Download URL suggestion item.
+ *
+ * Used by the Setup Landing Page modal to suggest frequently reused base
+ * domains and full download URLs.
+ */
+export interface LandingPageDownloadUrlSuggestionItem {
+    /** Suggested domain or full URL value */
+    value: string;
+
+    /** Number of existing landing pages/files using this value */
+    usage_count: number;
+}
+
+/**
+ * Grouped download URL suggestions returned by the landing page API.
+ */
+export interface LandingPageDownloadUrlSuggestions {
+    /** Base domain suggestions such as https://datapub.gfz.de/ */
+    domains: LandingPageDownloadUrlSuggestionItem[];
+
+    /** Full previously used download URLs */
+    urls: LandingPageDownloadUrlSuggestionItem[];
+}
+
+/**
  * Landing Page File
  *
  * Represents a download file entry from the landing_page_files table.
