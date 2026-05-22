@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\PidSetting;
 use App\Services\Pid4instStatusService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
@@ -102,6 +103,16 @@ describe('Pid4instStatusService', function () {
             $result = $this->service->getRemoteCount();
 
             expect($result)->toBe(500);
+
+            Http::assertSent(function (Request $request): bool {
+                parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+                return $request->method() === 'GET'
+                    && str_starts_with($request->url(), 'https://b2inst.gwdg.de/api/records?')
+                    && ($query['size'] ?? null) === '1'
+                    && ($query['page'] ?? null) === '1'
+                    && ! array_key_exists('sort', $query);
+            });
         });
 
         it('throws RuntimeException on API failure', function () {
