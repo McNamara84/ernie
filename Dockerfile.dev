@@ -13,7 +13,7 @@ FROM php:8.5.6-fpm-trixie@sha256:fc0e3fbbc15926f27d1213b83abfc8a8665a09cf870c441
 WORKDIR /var/www/html
 
 # Install system dependencies and Node.js in a single layer for efficiency.
-# The Node.js major version is sourced from .node-version and installed from NodeSource.
+# The Node.js version is sourced from .node-version; NodeSource only needs the numeric major.
 COPY .node-version /tmp/.node-version
 RUN apt-get update && apt-get install -y \
     git \
@@ -124,7 +124,10 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     # Install Node.js from NodeSource. This package includes npm,
     # so no separate npm installation is needed.
-    && NODE_MAJOR="$(tr -d '\r\n' < /tmp/.node-version)" \
+    && NODE_VERSION="$(tr -d '\r\n' < /tmp/.node-version)" \
+    && NODE_VERSION="${NODE_VERSION#v}" \
+    && NODE_MAJOR="${NODE_VERSION%%.*}" \
+    && case "$NODE_MAJOR" in ''|*[!0-9]*) echo "Expected .node-version to start with a numeric Node.js major version, got: $NODE_VERSION" >&2; exit 1 ;; esac \
     && apt-get install -y --only-upgrade libcap2 libsystemd0 libudev1 linux-libc-dev \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
