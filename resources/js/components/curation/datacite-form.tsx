@@ -667,6 +667,39 @@ export default function DataCiteForm({
         analytical_methods: true,
         euroscivoc: true,
     });
+    const [isPid4instAvailable, setIsPid4instAvailable] = useState(false);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const loadPidAvailability = async () => {
+            try {
+                const response = await fetch('/api/v1/vocabularies/pid-availability');
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const availabilityData = (await response.json()) as {
+                    pid4inst?: {
+                        available?: boolean;
+                    };
+                };
+
+                if (!isCancelled) {
+                    setIsPid4instAvailable(availabilityData.pid4inst?.available === true);
+                }
+            } catch {
+                console.warn('Failed to check PID availability, hiding PID-dependent fields');
+            }
+        };
+
+        void loadPidAvailability();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
     useEffect(() => {
@@ -2611,23 +2644,25 @@ export default function DataCiteForm({
                         <CitationsField resourceId={resolvedResourceId} />
                     </AccordionContent>
                 </AccordionItem>
-                <AccordionItem value="used-instruments" data-testid="used-instruments-section">
-                    <AccordionTrigger data-testid="used-instruments-accordion-trigger">
-                        <div className="flex items-center gap-2">
-                            <span>Used Instruments</span>
-                            {renderStatusBadge(instrumentsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent data-testid="used-instruments-accordion-content">
-                        <SectionHeader
-                            label="Used Instruments"
-                            description="Research instruments used for data collection."
-                            tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
-                            counter={{ current: instruments.length, max: 100 }}
-                        />
-                        <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
-                    </AccordionContent>
-                </AccordionItem>
+                {isPid4instAvailable && (
+                    <AccordionItem value="used-instruments" data-testid="used-instruments-section">
+                        <AccordionTrigger data-testid="used-instruments-accordion-trigger">
+                            <div className="flex items-center gap-2">
+                                <span>Used Instruments</span>
+                                {renderStatusBadge(instrumentsStatus)}
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent data-testid="used-instruments-accordion-content">
+                            <SectionHeader
+                                label="Used Instruments"
+                                description="Research instruments used for data collection."
+                                tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
+                                counter={{ current: instruments.length, max: 100 }}
+                            />
+                            <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
+                        </AccordionContent>
+                    </AccordionItem>
+                )}
                 <AccordionItem value="funding-references">
                     <AccordionTrigger>
                         <div className="flex items-center gap-2">

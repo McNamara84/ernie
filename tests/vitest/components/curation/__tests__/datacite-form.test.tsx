@@ -53,6 +53,21 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
 
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
+    const createJsonResponse = (body: unknown): Response =>
+        ({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(body),
+        }) as Response;
+    const thesauriAvailabilityResponse = {
+        science_keywords: { available: true },
+        platforms: { available: true },
+        instruments: { available: true },
+        chronostratigraphy: { available: true },
+        gemet: { available: true },
+        analytical_methods: { available: true },
+        euroscivoc: { available: true },
+    };
 
     // Helper Functions
     const clearXsrfCookie = () => {
@@ -243,21 +258,28 @@ describe('DataCiteForm', () => {
         };
         
         // Keep global.fetch mock for backward compatibility with other parts
-        global.fetch = vi.fn();
-        
-        // Mock the controlled vocabulary fetches that DataCiteForm makes on mount
-        // (GCMD Science Keywords, Platforms, Instruments, and ROR Funders)
-        const emptyVocabularyResponse = {
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve([]),
-        } as Response;
-        
-        (global.fetch as unknown as ReturnType<typeof vi.fn>)
-            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
-            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
-            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-instruments
-            .mockResolvedValueOnce(emptyVocabularyResponse); // ror-funders
+        global.fetch = vi.fn((input: RequestInfo | URL) => {
+            const url = input.toString();
+
+            if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                return Promise.resolve(
+                    createJsonResponse({
+                        pid4inst: { available: true },
+                        ror: { available: true },
+                    }),
+                );
+            }
+
+            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
+            }
+
+            if (url.includes('/vocabularies/')) {
+                return Promise.resolve(createJsonResponse({ data: [] }));
+            }
+
+            return Promise.resolve(createJsonResponse([]));
+        });
         
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
@@ -617,6 +639,75 @@ describe('DataCiteForm', () => {
             expect(saveButton).toHaveAttribute('aria-disabled', 'false');
         },
     );
+
+    it('shows the used instruments section when PID4INST is enabled', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                descriptionTypes={descriptionTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        expect(await screen.findByTestId('used-instruments-section')).toBeInTheDocument();
+    });
+
+    it('hides the used instruments section when PID4INST is disabled', async () => {
+        vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+            const url = input.toString();
+
+            if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                return Promise.resolve(
+                    createJsonResponse({
+                        pid4inst: { available: false },
+                        ror: { available: true },
+                    }),
+                );
+            }
+
+            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
+            }
+
+            if (url.includes('/vocabularies/')) {
+                return Promise.resolve(createJsonResponse({ data: [] }));
+            }
+
+            return Promise.resolve(createJsonResponse([]));
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                descriptionTypes={descriptionTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(fetch).toHaveBeenCalledWith('/api/v1/vocabularies/pid-availability');
+        });
+
+        await waitFor(() => {
+            expect(screen.queryByTestId('used-instruments-section')).not.toBeInTheDocument();
+        });
+
+        expect(screen.queryByText('Unable to load instrument data')).not.toBeInTheDocument();
+    });
 
     it(
         'shows validation error list when saving with missing required fields (Issue #538)',
