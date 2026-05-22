@@ -3,20 +3,31 @@
 declare(strict_types=1);
 
 use App\Console\Commands\GetPid4instInstruments;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
-uses(RefreshDatabase::class);
-
 covers(GetPid4instInstruments::class);
+
+function pid4instHost(): string
+{
+    return rtrim((string) config('b2inst.host'), '/');
+}
+
+function pid4instRecordsUrlPattern(): string
+{
+    return pid4instHost() . '/api/records*';
+}
+
+beforeEach(function (): void {
+    config(['b2inst.host' => 'https://b2inst.example.test']);
+});
 
 it('fetches and stores pid4inst instruments without sending the rejected sort parameter', function (): void {
     Storage::fake('local');
 
-    Http::fakeSequence('https://b2inst.gwdg.de/api/records*')
+    Http::fakeSequence(pid4instRecordsUrlPattern())
         ->push([
             'hits' => [
                 'total' => 3,
@@ -128,9 +139,16 @@ it('fetches and stores pid4inst instruments without sending the rejected sort pa
         parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
         return $request->method() === 'GET'
-            && str_starts_with($request->url(), 'https://b2inst.gwdg.de/api/records?')
+            && str_starts_with($request->url(), pid4instHost() . '/api/records?')
             && ! array_key_exists('sort', $query)
             && isset($query['size'], $query['page']);
+    });
+
+    Http::assertNotSent(function (Request $request): bool {
+        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+        return str_starts_with($request->url(), pid4instHost() . '/api/records?')
+            && array_key_exists('sort', $query);
     });
 });
 
@@ -138,7 +156,7 @@ it('fails without creating a registry file when b2inst rejects the request', fun
     Storage::fake('local');
 
     Http::fake([
-        'https://b2inst.gwdg.de/api/records*' => Http::response([
+        pid4instRecordsUrlPattern() => Http::response([
             'errors' => [
                 ['message' => 'Invalid sort parameter'],
             ],
