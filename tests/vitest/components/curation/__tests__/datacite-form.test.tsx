@@ -53,12 +53,18 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
 
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
-    const createJsonResponse = (body: unknown): Response =>
-        ({
-            ok: true,
-            status: 200,
-            json: () => Promise.resolve(body),
-        }) as Response;
+    const createJsonResponse = (body: unknown, init: ResponseInit = {}): Response => {
+        const headers = new Headers(init.headers);
+
+        if (!headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
+        }
+
+        return new Response(JSON.stringify(body), {
+            ...init,
+            headers,
+        });
+    };
     const thesauriAvailabilityResponse = {
         science_keywords: { available: true },
         platforms: { available: true },
@@ -718,11 +724,7 @@ describe('DataCiteForm', () => {
             const url = input.toString();
 
             if (url.includes('/api/v1/vocabularies/pid-availability')) {
-                return Promise.resolve({
-                    ok: false,
-                    status: 500,
-                    json: () => Promise.resolve({}),
-                } as Response);
+                return Promise.resolve(createJsonResponse({}, { status: 500 }));
             }
 
             if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
