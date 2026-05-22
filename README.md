@@ -43,7 +43,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - **MySQL 9.7.x** or **MariaDB 10.6+**
 - **Composer 2.x**
 
-The repository currently uses `@types/node` `25.x` while running on Node 26. This can move to a `26.x` typings line once that release is available.
+The repository currently uses `@types/node` `25.x` while the runtime version follows `.node-version`. This can move to a newer typings major once that release is available.
 
 ### Basic Setup
 

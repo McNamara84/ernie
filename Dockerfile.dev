@@ -30,6 +30,8 @@ RUN apt-get update && apt-get install -y \
     libsodium-dev \
     libxslt1-dev \
     libicu-dev \
+    python3 \
+    make \
     g++ \
     netcat-traditional \
     ca-certificates \
@@ -206,11 +208,7 @@ FROM app AS vite
 
 WORKDIR /var/www/html
 
-# Install dependencies that might be needed for native modules
-RUN apt-get update \
-    && apt-get install -y python3 make \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Native module build prerequisites are inherited from the app stage.
 
 # Create startup script that ensures dependencies are installed
 RUN echo '#!/bin/sh' > /usr/local/bin/vite-entrypoint.sh && \
