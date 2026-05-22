@@ -274,6 +274,10 @@ describe('DataCiteForm', () => {
                 return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
             }
 
+            if (url.includes('/vocabularies/msl')) {
+                return Promise.resolve(createJsonResponse([]));
+            }
+
             if (url.includes('/vocabularies/')) {
                 return Promise.resolve(createJsonResponse({ data: [] }));
             }
