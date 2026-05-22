@@ -43,7 +43,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - **MySQL 9.7.x** or **MariaDB 10.6+**
 - **Composer 2.x**
 
-TypeScript currently tracks the newest published `25.x` release of `@types/node`. As of this upgrade, npm has not released a `26.x` typings line yet, so the repository stays on the `25.x` major until a `26.x` release becomes available.
+The repository currently uses `@types/node` `25.x` while running on Node 26. This can move to a `26.x` typings line once that release is available.
 
 ### Basic Setup
 
