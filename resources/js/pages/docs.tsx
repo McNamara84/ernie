@@ -130,7 +130,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
-                                <strong>Header Status:</strong> The authenticated page header now shows the current workspace and indicates when ERNIE is actively opening the next page, so navigation changes remain visible even during short transitions.
+                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a page defines breadcrumbs, ERNIE shows them directly below the header to keep the current location clear.
                             </p>
                         </div>
                     </>
