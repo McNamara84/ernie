@@ -148,12 +148,14 @@ test.describe('Documentation Page - Interactive Features', () => {
 
     test.describe('accessibility', () => {
         test('tabs have proper ARIA roles', async ({ page }) => {
-            const tabsList = page.locator('[role="tablist"]');
+            const tabsList = page.locator('[role="tablist"]').filter({
+                has: page.getByTestId('tab-getting-started'),
+            });
+
+            await expect(tabsList).toHaveCount(1);
             await expect(tabsList).toBeVisible();
 
-            const tabs = page.locator('[role="tab"]');
-            const count = await tabs.count();
-            expect(count).toBe(3);
+            await expect(tabsList.locator('[role="tab"]')).toHaveCount(3);
         });
 
         test('tabs are keyboard navigable', async ({ page }) => {

@@ -94,6 +94,10 @@
         ],
         "improvements": [
             {
+                "title": "Workspace-Based Sidebar for Admins and Group Leaders",
+                "description": "The authenticated sidebar now gives Admins and Group Leaders an explicit workspace switcher with two modes: Curation and Administration. Daily metadata tasks such as Dashboard, Data Editor, Resources, and IGSN tools stay in Curation, while management pages like Users, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and legacy administration tools move into Administration. The last selected workspace is remembered locally, and opening an admin route automatically reveals the matching workspace so privileged navigation stays easier to scan without forcing a long scrolling sidebar."
+            },
+            {
                 "title": "OpenAPI 3.2 API Documentation Upgrade",
                 "description": "The API documentation at /api/v1/doc now serves an OpenAPI 3.2 description with modernized metadata, explicit JSON Schema null unions instead of legacy nullable keywords, and richer top-level summaries for tags and server metadata. The specification is also validated with Redocly CLI through local npm scripts and the CI lint workflow so future API documentation changes are checked automatically."
             },

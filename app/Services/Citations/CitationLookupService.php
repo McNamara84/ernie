@@ -62,15 +62,13 @@ class CitationLookupService
             return CitationLookupResult::error($primary->source, (string) $primary->error);
         }
 
-        // Cache policy:
+        // Cache policy after the early return above:
         //   - Successful hits: always cache.
-        //   - `not_found`: only cache when the primary lookup completed
-        //     without errors. Otherwise a transient Crossref outage would
-        //     persist a DataCite `not_found` for a DOI that does exist in
-        //     Crossref, locking users out for the full TTL.
+        //   - Clean `not_found` results: cache them.
+        //   - Crossref error + DataCite miss: already converted into an
+        //     error result above, so it never reaches the cache.
         //   - Errors: never cache (transient upstream failure).
-        $shouldCache = $result->error === null
-            && ($result->found || ! $primaryErrored);
+        $shouldCache = $result->error === null;
 
         if ($shouldCache) {
             $cache->put($cacheKey, $result, $ttl);

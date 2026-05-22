@@ -118,9 +118,19 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </p>
                         </div>
 
+                        <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
+                            <p className="text-sm text-violet-900 dark:text-violet-100">
+                                <strong>Workspace Switcher:</strong> Admins and Group Leaders now see a <strong>Curation</strong> /{' '}
+                                <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for
+                                day-to-day metadata work such as the Dashboard, Resources, and IGSN tools. Use <strong>Administration</strong>{' '}
+                                for privileged destinations such as Users, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and
+                                legacy maintenance pages. ERNIE remembers the last selected workspace locally.
+                            </p>
+                        </div>
+
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
-                                <strong>Header Status:</strong> The authenticated page header now shows the current workspace and indicates when ERNIE is actively opening the next page, so navigation changes remain visible even during short transitions.
+                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a page defines breadcrumbs, ERNIE shows them directly below the header to keep the current location clear.
                             </p>
                         </div>
                     </>
@@ -287,9 +297,10 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Editor Configuration</h3>
                         <p>
-                            You can configure the Data Editor at <code>/settings</code> (Editor Settings). In the authenticated main menu,
-                            the entry is located under <strong>Administration</strong>, near <strong>Logs</strong> and{' '}
-                            <strong>Landing Pages</strong> when those entries are available for your role:
+                            You can configure the Data Editor at <code>/settings</code> (Editor Settings). For Admins and Group Leaders,
+                            the page is available from the <strong>Administration</strong> workspace in the authenticated sidebar, next to
+                            other privileged destinations such as <strong>Users</strong>, <strong>Landing Pages</strong>, and role-specific
+                            operations pages:
                         </p>
 
                         <h4>Configurable Options</h4>
@@ -478,8 +489,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Metadata Enrichment Assistance</h3>
                         <p>
-                            The <strong>Assistance</strong> page (<code>/assistance</code>) helps admins and group leaders discover and fix
-                            missing metadata across all resources. Each assistant module focuses on a specific type of metadata enrichment.
+                            The <strong>Assistance</strong> page (<code>/assistance</code>) is available in the <strong>Administration</strong>{' '}
+                            workspace of the sidebar for Admins and Group Leaders. It helps them discover and fix missing metadata across all
+                            resources. Each assistant module focuses on a specific type of metadata enrichment.
                         </p>
 
                         <h4>Available Assistants</h4>
@@ -539,8 +551,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>FAIR Assessment Dashboard</h3>
                         <p>
                             The <strong>Assessment</strong> page (<code>/assessment</code>) is available to administrators in the
-                            <strong>Tools</strong> section of the sidebar. It runs F-UJI checks against publicly reachable landing pages and
-                            stores the latest FAIR result per resource.
+                            <strong>Administration</strong> workspace of the sidebar. It runs F-UJI checks against publicly reachable landing
+                            pages and stores the latest FAIR result per resource.
                         </p>
 
                         <p>
@@ -1496,7 +1508,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Open Template Management">
                                 <p>
-                                    Navigate to <strong>Landing Pages</strong> in the sidebar under Administration.
+                                    Switch the sidebar to <strong>Administration</strong> and open <strong>Landing Pages</strong>.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Clone Default Template">

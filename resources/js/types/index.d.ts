@@ -3,6 +3,8 @@ import { LucideIcon } from 'lucide-react';
 
 export type FontSize = 'regular' | 'large';
 
+export type SidebarWorkspace = 'curation' | 'administration';
+
 export type UserRole = 'beginner' | 'curator' | 'group_leader' | 'admin';
 
 export interface Auth {
