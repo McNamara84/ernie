@@ -692,11 +692,11 @@ export default function DataCiteForm({
                 if (!isCancelled) {
                     setPid4instAvailability(availabilityData.pid4inst?.available === false ? 'unavailable' : 'available');
                 }
-            } catch {
+            } catch (error) {
                 if (!isCancelled) {
                     setPid4instAvailability('available');
+                    console.warn('Failed to check PID availability, keeping PID-dependent fields visible', error);
                 }
-                console.warn('Failed to check PID availability, keeping PID-dependent fields visible');
             }
         };
 

@@ -94,6 +94,38 @@ describe('DataCiteForm', () => {
         relationTypes: [],
         contributorTypes: [],
     };
+    const createDefaultFetchResponse = (url: string): Promise<Response> => {
+        if (url.includes('/api/v1/vocabularies/pid-availability')) {
+            return Promise.resolve(
+                createJsonResponse({
+                    pid4inst: { available: true },
+                    ror: { available: true },
+                }),
+            );
+        }
+
+        if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+            return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
+        }
+
+        if (url.includes('/related-items/vocabularies')) {
+            return Promise.resolve(createJsonResponse(citationVocabulariesResponse));
+        }
+
+        if (/\/resources\/\d+\/related-items(?:\/.*)?$/.test(url)) {
+            return Promise.resolve(createJsonResponse({ data: [] }));
+        }
+
+        if (url.includes('/vocabularies/msl')) {
+            return Promise.resolve(createJsonResponse([]));
+        }
+
+        if (url.includes('/vocabularies/')) {
+            return Promise.resolve(createJsonResponse({ data: [] }));
+        }
+
+        return Promise.resolve(createJsonResponse([]));
+    };
 
     // Helper Functions
     const clearXsrfCookie = () => {
@@ -284,40 +316,7 @@ describe('DataCiteForm', () => {
         };
         
         // Keep global.fetch mock for backward compatibility with other parts
-        global.fetch = vi.fn((input: RequestInfo | URL) => {
-            const url = input.toString();
-
-            if (url.includes('/api/v1/vocabularies/pid-availability')) {
-                return Promise.resolve(
-                    createJsonResponse({
-                        pid4inst: { available: true },
-                        ror: { available: true },
-                    }),
-                );
-            }
-
-            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
-                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
-            }
-
-            if (url.includes('/related-items/vocabularies')) {
-                return Promise.resolve(createJsonResponse(citationVocabulariesResponse));
-            }
-
-            if (/\/resources\/\d+\/related-items(?:\/.*)?$/.test(url)) {
-                return Promise.resolve(createJsonResponse({ data: [] }));
-            }
-
-            if (url.includes('/vocabularies/msl')) {
-                return Promise.resolve(createJsonResponse([]));
-            }
-
-            if (url.includes('/vocabularies/')) {
-                return Promise.resolve(createJsonResponse({ data: [] }));
-            }
-
-            return Promise.resolve(createJsonResponse([]));
-        });
+        global.fetch = vi.fn((input: RequestInfo | URL) => createDefaultFetchResponse(input.toString()));
         
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
@@ -712,19 +711,7 @@ describe('DataCiteForm', () => {
                 return pidAvailabilityRequest.promise;
             }
 
-            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
-                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
-            }
-
-            if (url.includes('/vocabularies/msl')) {
-                return Promise.resolve(createJsonResponse([]));
-            }
-
-            if (url.includes('/vocabularies/')) {
-                return Promise.resolve(createJsonResponse({ data: [] }));
-            }
-
-            return Promise.resolve(createJsonResponse([]));
+            return createDefaultFetchResponse(url);
         });
 
         render(
@@ -773,15 +760,7 @@ describe('DataCiteForm', () => {
                 );
             }
 
-            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
-                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
-            }
-
-            if (url.includes('/vocabularies/')) {
-                return Promise.resolve(createJsonResponse({ data: [] }));
-            }
-
-            return Promise.resolve(createJsonResponse([]));
+            return createDefaultFetchResponse(url);
         });
 
         render(
@@ -818,19 +797,7 @@ describe('DataCiteForm', () => {
                 return Promise.resolve(createJsonResponse({}, { status: 500 }));
             }
 
-            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
-                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
-            }
-
-            if (url.includes('/vocabularies/msl')) {
-                return Promise.resolve(createJsonResponse([]));
-            }
-
-            if (url.includes('/vocabularies/')) {
-                return Promise.resolve(createJsonResponse({ data: [] }));
-            }
-
-            return Promise.resolve(createJsonResponse([]));
+            return createDefaultFetchResponse(url);
         });
 
         render(
@@ -860,19 +827,7 @@ describe('DataCiteForm', () => {
                 return Promise.reject(new Error('network down'));
             }
 
-            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
-                return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
-            }
-
-            if (url.includes('/vocabularies/msl')) {
-                return Promise.resolve(createJsonResponse([]));
-            }
-
-            if (url.includes('/vocabularies/')) {
-                return Promise.resolve(createJsonResponse({ data: [] }));
-            }
-
-            return Promise.resolve(createJsonResponse([]));
+            return createDefaultFetchResponse(url);
         });
 
         render(
@@ -892,6 +847,49 @@ describe('DataCiteForm', () => {
 
         expect(await screen.findByTestId('used-instruments-section')).toBeInTheDocument();
         expect(await screen.findByText('Add Instrument')).toBeInTheDocument();
+    });
+
+    it('does not warn about PID availability after the form unmounts', async () => {
+        const pidAvailabilityRequest = createDeferred<Response>();
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+            const url = input.toString();
+
+            if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                return pidAvailabilityRequest.promise;
+            }
+
+            return createDefaultFetchResponse(url);
+        });
+
+        const { unmount } = render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                descriptionTypes={descriptionTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(fetch).toHaveBeenCalledWith('/api/v1/vocabularies/pid-availability');
+        });
+
+        unmount();
+
+        await act(async () => {
+            pidAvailabilityRequest.reject(new Error('network down'));
+            await Promise.resolve();
+        });
+
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
 
     it(
