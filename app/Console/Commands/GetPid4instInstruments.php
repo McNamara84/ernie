@@ -46,7 +46,6 @@ class GetPid4instInstruments extends Command
                 ->get("{$host}/api/records", [
                     'size' => $pageSize,
                     'page' => $page,
-                    'sort' => 'mostrecent',
                 ]);
 
             if (! $response->successful()) {

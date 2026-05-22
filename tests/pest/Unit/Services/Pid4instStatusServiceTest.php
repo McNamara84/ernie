@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 use App\Models\PidSetting;
 use App\Services\Pid4instStatusService;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 covers(Pid4instStatusService::class);
 
+function pid4instStatusHost(): string
+{
+    return rtrim((string) config('b2inst.host'), '/');
+}
+
 describe('Pid4instStatusService', function () {
     beforeEach(function () {
+        config(['b2inst.host' => 'https://b2inst.example.test']);
         $this->service = new Pid4instStatusService;
     });
 
@@ -94,7 +101,7 @@ describe('Pid4instStatusService', function () {
     describe('getRemoteCount', function () {
         it('returns total hits from b2inst API', function () {
             Http::fake([
-                '*' => Http::response([
+                pid4instStatusHost() . '/api/records*' => Http::response([
                     'hits' => ['total' => 500],
                 ]),
             ]);
@@ -102,11 +109,23 @@ describe('Pid4instStatusService', function () {
             $result = $this->service->getRemoteCount();
 
             expect($result)->toBe(500);
+
+            Http::assertSentCount(1);
+
+            Http::assertSent(function (Request $request): bool {
+                parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+                return $request->method() === 'GET'
+                    && str_starts_with($request->url(), pid4instStatusHost() . '/api/records?')
+                    && ($query['size'] ?? null) === '1'
+                    && ($query['page'] ?? null) === '1'
+                    && ! array_key_exists('sort', $query);
+            });
         });
 
         it('throws RuntimeException on API failure', function () {
             Http::fake([
-                '*' => Http::response('Server Error', 500),
+                pid4instStatusHost() . '/api/records*' => Http::response('Server Error', 500),
             ]);
 
             $this->service->getRemoteCount();
