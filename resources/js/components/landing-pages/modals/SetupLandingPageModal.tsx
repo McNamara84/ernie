@@ -874,6 +874,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     <Input
                                         id="ftp-url"
                                         type="url"
+                                        role="combobox"
                                         placeholder="https://datapub.gfz-potsdam.de/download/..."
                                         value={ftpUrl}
                                         onChange={(e) => {

@@ -260,10 +260,10 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
             });
 
-            await user.click(screen.getByRole('combobox'));
+            await user.click(screen.getByRole('combobox', { name: /landing page template/i }));
 
             const optionsList = screen.getByRole('listbox');
             expect(optionsList).toHaveTextContent('Default GFZ IGSN Template');
@@ -313,6 +313,23 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByText('Previously used full URLs')).toBeInTheDocument();
             expect(screen.getByText('https://datapub.gfz.de/')).toBeInTheDocument();
             expect(screen.getByText('https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW')).toBeInTheDocument();
+        });
+
+        it('exposes the download url input as a combobox for assistive technology', async () => {
+            mockModalGetRequests();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+
+            expect(ftpInput).toHaveAttribute('role', 'combobox');
+            expect(ftpInput).toHaveAttribute('aria-autocomplete', 'list');
         });
 
         it('filters suggestions and lets the user keep editing after choosing a domain', async () => {
@@ -497,7 +514,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
             });
 
             expect(screen.queryByLabelText(/Download URL \(FTP\)/i)).not.toBeInTheDocument();
@@ -577,7 +594,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
             });
 
             await user.click(screen.getByRole('button', { name: /Update/i }));
@@ -1080,7 +1097,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByRole('combobox')).toHaveTextContent('Default GFZ IGSN Template');
+                expect(screen.getByRole('combobox', { name: /landing page template/i })).toHaveTextContent('Default GFZ IGSN Template');
             });
 
             expect(screen.queryByText(/You have unsaved changes/i)).not.toBeInTheDocument();

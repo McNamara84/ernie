@@ -606,12 +606,16 @@ class LandingPageController extends Controller
     public function downloadUrlSuggestions(): JsonResponse
     {
         return response()->json([
-            'suggestions' => Cache::remember(
+            'suggestions' => Cache::rememberForever(
                 self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY,
-                now()->addMinutes(10),
                 static fn (): array => self::buildDownloadUrlSuggestionPayload(self::loadDownloadUrlSuggestionSourceCounts()),
             ),
         ]);
+    }
+
+    public static function forgetDownloadUrlSuggestionsCache(): void
+    {
+        Cache::forget(self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY);
     }
 
     /**
@@ -811,7 +815,7 @@ class LandingPageController extends Controller
     {
         // Forget main cache
         Cache::forget("landing-page.{$resourceId}");
-        Cache::forget(self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY);
+        self::forgetDownloadUrlSuggestionsCache();
 
         // Invalidate portal facets (datacenter + resource type) because
         // publishing/unpublishing changes which resources are "published".
