@@ -12,6 +12,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
+use App\Support\UrlNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -364,7 +365,11 @@ class LandingPageController extends Controller
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
             $this->keywordService->invalidateCache();
+            $this->invalidatePortalFacets();
         }
+
+        $this->forgetLandingPageCache($resource->id);
+        $this->forgetDownloadUrlSuggestionsCache();
 
         return response()->json([
             'message' => 'Landing page created successfully',
@@ -510,14 +515,17 @@ class LandingPageController extends Controller
             }
         });
 
+        $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
+
         // Handle publication status change: allow publishing a draft
-        if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {
+        if ($becamePublished) {
             $landingPage->publish();
             $this->keywordService->invalidateCache();
+            $this->invalidatePortalFacets();
         }
 
-        // Invalidate cache
-        $this->invalidateCache($resource->id);
+        $this->forgetLandingPageCache($resource->id);
+        $this->forgetDownloadUrlSuggestionsCache();
 
         $freshLandingPage = LandingPage::query()
             ->with(['externalDomain', 'files', 'links', 'landingPageTemplate'])
@@ -558,8 +566,8 @@ class LandingPageController extends Controller
 
         $landingPage->delete();
 
-        // Invalidate cache
-        $this->invalidateCache($resource->id);
+        $this->forgetLandingPageCache($resource->id);
+        $this->forgetDownloadUrlSuggestionsCache();
 
         return response()->json([
             'message' => 'Landing page deleted successfully',
@@ -583,6 +591,26 @@ class LandingPageController extends Controller
 
         return response()->json([
             'landing_page' => self::serializeLandingPagePayload($resource, $landingPage),
+        ]);
+    }
+
+    /**
+     * Return grouped download URL suggestions for the landing page setup modal.
+     *
+     * Suggestions are derived from real download sources only:
+     * - landing_pages.ftp_url
+     * - landing_page_files.url
+     *
+     * External landing page domains are intentionally excluded unless they also
+     * appear as actual download URLs.
+     */
+    public function downloadUrlSuggestions(): JsonResponse
+    {
+        return response()->json([
+            'suggestions' => Cache::rememberForever(
+                CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key(),
+                static fn (): array => self::buildDownloadUrlSuggestionPayload(self::loadDownloadUrlSuggestionSourceCounts()),
+            ),
         ]);
     }
 
@@ -634,20 +662,156 @@ class LandingPageController extends Controller
     }
 
     /**
-     * Invalidate landing page cache.
+     * @param  array<string, int>  $sourceUrlCounts
+     * @return array{
+     *     domains: list<array{value: string, usage_count: int}>,
+     *     urls: list<array{value: string, usage_count: int}>
+     * }
      */
-    private function invalidateCache(int $resourceId): void
+    private static function buildDownloadUrlSuggestionPayload(array $sourceUrlCounts): array
     {
-        // Forget main cache
+        /** @var array<string, int> $domainCounts */
+        $domainCounts = [];
+        /** @var array<string, int> $urlCounts */
+        $urlCounts = [];
+
+        foreach ($sourceUrlCounts as $sourceUrl => $sourceUsageCount) {
+            $normalizedUrl = self::normalizeDownloadSuggestionUrl($sourceUrl);
+
+            if ($normalizedUrl === null) {
+                continue;
+            }
+
+            $urlCounts[$normalizedUrl] = ($urlCounts[$normalizedUrl] ?? 0) + $sourceUsageCount;
+
+            $domain = self::extractDownloadSuggestionDomain($normalizedUrl);
+
+            if ($domain !== null) {
+                $domainCounts[$domain] = ($domainCounts[$domain] ?? 0) + $sourceUsageCount;
+            }
+        }
+
+        return [
+            'domains' => self::sortDownloadSuggestionCounts($domainCounts),
+            'urls' => self::sortDownloadSuggestionCounts($urlCounts),
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private static function loadDownloadUrlSuggestionSourceCounts(): array
+    {
+        /** @var list<object{value: string, usage_count: int|string}> $groupedSources */
+        $groupedSources = [
+            ...DB::table('landing_pages')
+                ->selectRaw('ftp_url as value, COUNT(*) as usage_count')
+                ->whereNotNull('ftp_url')
+                ->whereRaw("TRIM(ftp_url) <> ''")
+                ->groupBy('ftp_url')
+                ->get()
+                ->all(),
+            ...DB::table('landing_page_files')
+                ->selectRaw('url as value, COUNT(*) as usage_count')
+                ->whereRaw("TRIM(url) <> ''")
+                ->groupBy('url')
+                ->get()
+                ->all(),
+        ];
+
+        $sourceCounts = [];
+
+        foreach ($groupedSources as $groupedSource) {
+            $sourceCounts[$groupedSource->value] = ($sourceCounts[$groupedSource->value] ?? 0) + (int) $groupedSource->usage_count;
+        }
+
+        return $sourceCounts;
+    }
+
+    private static function normalizeDownloadSuggestionUrl(string $url): ?string
+    {
+        $normalizedUrl = UrlNormalizer::normalizeAppUrl($url);
+
+        if ($normalizedUrl === null) {
+            return null;
+        }
+
+        $parts = parse_url($normalizedUrl);
+
+        if ($parts === false) {
+            return null;
+        }
+
+        /** @var array<string, int|string> $parts */
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+            return null;
+        }
+
+        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
+        $path = (string) ($parts['path'] ?? '');
+        $query = isset($parts['query']) ? '?'.(string) $parts['query'] : '';
+
+        return sprintf('%s://%s%s%s%s', $scheme, $host, $port, $path !== '' ? $path : '/', $query);
+    }
+
+    private static function extractDownloadSuggestionDomain(string $normalizedUrl): ?string
+    {
+        $parts = parse_url($normalizedUrl);
+
+        if ($parts === false) {
+            return null;
+        }
+
+        /** @var array<string, int|string> $parts */
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+
+        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+            return null;
+        }
+
+        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
+
+        return sprintf('%s://%s%s/', $scheme, $host, $port);
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @return list<array{value: string, usage_count: int}>
+     */
+    private static function sortDownloadSuggestionCounts(array $counts): array
+    {
+        $suggestions = [];
+
+        foreach ($counts as $value => $usageCount) {
+            $suggestions[] = [
+                'value' => $value,
+                'usage_count' => $usageCount,
+            ];
+        }
+
+        usort(
+            $suggestions,
+            static fn (array $left, array $right): int => ($right['usage_count'] <=> $left['usage_count'])
+                ?: ($left['value'] <=> $right['value'])
+        );
+
+        return array_slice($suggestions, 0, 20);
+    }
+
+    private function forgetLandingPageCache(int $resourceId): void
+    {
         Cache::forget("landing-page.{$resourceId}");
+    }
 
-        // Invalidate portal facets (datacenter + resource type) because
-        // publishing/unpublishing changes which resources are "published".
-        $this->invalidatePortalFacets();
-
-        // Also try to forget preview caches (pattern matching would require Redis tags)
-        // For now, we'll clear individual cache entries when we know the token
-        // In production with Redis, you could use Cache::tags()
+    private function forgetDownloadUrlSuggestionsCache(): void
+    {
+        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
     }
 
     /**
@@ -656,11 +820,7 @@ class LandingPageController extends Controller
     private function invalidatePortalFacets(): void
     {
         foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS] as $cacheKey) {
-            if ($this->supportsTagging()) {
-                Cache::tags($cacheKey->tags())->flush();
-            } else {
-                Cache::forget($cacheKey->key());
-            }
+            $cacheKey->forget();
         }
     }
 }

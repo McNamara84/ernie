@@ -426,6 +426,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/landing-page-domains/list', [LandingPageDomainController::class, 'index'])
         ->name('landing-page-domains.list');
 
+    // Download URL suggestions - read-only for all authenticated users (curators need this for the modal autocomplete)
+    Route::get('api/landing-page-download-url-suggestions', [LandingPageController::class, 'downloadUrlSuggestions'])
+        ->name('landing-page-download-url-suggestions.index');
+
     // Datacenters - read-only for all authenticated users (editor dropdown)
     Route::get('api/datacenters', [DatacenterController::class, 'index'])
         ->name('datacenters.index');

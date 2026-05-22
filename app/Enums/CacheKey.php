@@ -73,6 +73,9 @@ enum CacheKey: string
     // Landing page Schema.org JSON-LD
     case SCHEMA_ORG_JSONLD = 'landing_pages:schema_org_jsonld';
 
+    // Landing page setup modal download URL suggestions
+    case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions';
+
     /**
      * Get the full cache key with optional suffix.
      *
@@ -155,6 +158,10 @@ enum CacheKey: string
 
             // Schema.org JSON-LD - 1 hour (invalidated by ResourceObserver on update)
             self::SCHEMA_ORG_JSONLD => 3600,
+
+            // Download URL suggestions use rememberForever and explicit invalidation.
+            // This TTL acts only as a safe default if the enum is reused elsewhere.
+            self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => 86400,
         };
     }
 
@@ -214,6 +221,8 @@ enum CacheKey: string
             self::FUJI_HEALTH_STATUS => ['assessments'],
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],
+
+            self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => [],
         };
     }
 

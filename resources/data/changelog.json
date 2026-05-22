@@ -2,16 +2,6 @@
     {
         "version": "1.0.0",
         "date": "2026-05-22",
-        "fixes": [
-            {
-                "title": "PID4INST Registry Update Works with Current b2inst API",
-                "description": "The 'Check for Updates' and 'Update Now' flow in Editor Settings now works again for PID4INST instrument data. ERNIE no longer sends the outdated sort=mostrecent query parameter when downloading the b2inst registry, so the initial download and later refreshes no longer fail with 'Command exited with code 1' after the remote count check succeeds."
-            }
-        ]
-    },
-    {
-        "version": "1.0.0",
-        "date": "2026-05-21",
         "features": [
             {
                 "title": "Single DOI Import for GFZ Legacy Resources",
@@ -103,6 +93,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Download URL Suggestions in Landing Page Setup",
+                "description": "When curators set up a GFZ-hosted landing page from the Resources page, the primary Download URL field now suggests both frequently reused base domains and previously used full download URLs from existing landing pages. Suggestions open as soon as the field receives focus, can be filtered while typing, and let curators insert a base domain such as https://datapub.gfz.de/ before completing the remainder of the path manually. Imported legacy download files continue to disable the editable field as before."
+            },
             {
                 "title": "Workspace-Based Sidebar for Admins and Group Leaders",
                 "description": "The authenticated sidebar now gives Admins and Group Leaders an explicit workspace switcher with two modes: Curation and Administration. Daily metadata tasks such as Dashboard, Data Editor, Resources, and IGSN tools stay in Curation, while management pages like Users, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and legacy administration tools move into Administration. The last selected workspace is remembered locally, and opening an admin route automatically reveals the matching workspace so privileged navigation stays easier to scan without forcing a long scrolling sidebar."
@@ -237,6 +231,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "PID4INST Registry Update Works with Current b2inst API",
+                "description": "The 'Check for Updates' and 'Update Now' flow in Editor Settings now works again for PID4INST instrument data. ERNIE no longer sends the outdated sort=mostrecent query parameter when downloading the b2inst registry, so the initial download and later refreshes no longer fail with 'Command exited with code 1' after the remote count check succeeds."
+            },
             {
                 "title": "Custom Landing Page Template Logos Render",
                 "description": "Uploading a header logo to a cloned landing page template now works reliably beyond local development. The deployment images for Stage and Production now preserve Laravel's `/storage/...` asset path inside the webserver container, so uploaded custom logos appear again in template management cards as well as on preview and published landing pages that use the cloned template."

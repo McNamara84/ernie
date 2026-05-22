@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
@@ -622,6 +623,8 @@ class ImportFromDataCiteJob implements ShouldQueue
                 ]);
             }
         });
+
+        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
     }
 
     /**

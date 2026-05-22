@@ -1391,6 +1391,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             label, exposes the full path on hover, uses darker linked badges for controlled terms and lighter blue badges for free
                             keywords, and opens the matching portal filter either from the label itself or from the dedicated magnifying-glass action.
                         </p>
+                        <p>
+                            In the landing page setup modal, the primary <strong>Download URL</strong> field now suggests frequently reused base
+                            domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such
+                            as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
+                        </p>
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Navigate to Resources">
