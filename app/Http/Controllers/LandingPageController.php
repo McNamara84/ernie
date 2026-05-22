@@ -29,6 +29,8 @@ class LandingPageController extends Controller
     use AuthorizesRequests;
     use ChecksCacheTagging;
 
+    private const DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY = 'landing-page.download-url-suggestions';
+
     public static function templateSupportsCustomTemplateId(string $template): bool
     {
         return in_array($template, [
@@ -367,6 +369,10 @@ class LandingPageController extends Controller
             $this->keywordService->invalidateCache();
         }
 
+        // Invalidate landing page caches after successful creation so newly
+        // persisted download URLs become visible in the setup modal immediately.
+        $this->invalidateCache($resource->id);
+
         return response()->json([
             'message' => 'Landing page created successfully',
             'landing_page' => self::serializeLandingPagePayload($resource, $landingPage),
@@ -599,23 +605,12 @@ class LandingPageController extends Controller
      */
     public function downloadUrlSuggestions(): JsonResponse
     {
-        /** @var list<string> $sourceUrls */
-        $sourceUrls = [
-            ...DB::table('landing_pages')
-                ->whereNotNull('ftp_url')
-                ->pluck('ftp_url')
-                ->filter(static fn (mixed $url): bool => is_string($url))
-                ->values()
-                ->all(),
-            ...DB::table('landing_page_files')
-                ->pluck('url')
-                ->filter(static fn (mixed $url): bool => is_string($url))
-                ->values()
-                ->all(),
-        ];
-
         return response()->json([
-            'suggestions' => self::buildDownloadUrlSuggestionPayload($sourceUrls),
+            'suggestions' => Cache::remember(
+                self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY,
+                now()->addMinutes(10),
+                static fn (): array => self::buildDownloadUrlSuggestionPayload(self::loadDownloadUrlSuggestionSourceCounts()),
+            ),
         ]);
     }
 
@@ -667,32 +662,32 @@ class LandingPageController extends Controller
     }
 
     /**
-     * @param  list<string>  $sourceUrls
+     * @param  array<string, int>  $sourceUrlCounts
      * @return array{
      *     domains: list<array{value: string, usage_count: int}>,
      *     urls: list<array{value: string, usage_count: int}>
      * }
      */
-    private static function buildDownloadUrlSuggestionPayload(array $sourceUrls): array
+    private static function buildDownloadUrlSuggestionPayload(array $sourceUrlCounts): array
     {
         /** @var array<string, int> $domainCounts */
         $domainCounts = [];
         /** @var array<string, int> $urlCounts */
         $urlCounts = [];
 
-        foreach ($sourceUrls as $sourceUrl) {
+        foreach ($sourceUrlCounts as $sourceUrl => $sourceUsageCount) {
             $normalizedUrl = self::normalizeDownloadSuggestionUrl($sourceUrl);
 
             if ($normalizedUrl === null) {
                 continue;
             }
 
-            $urlCounts[$normalizedUrl] = ($urlCounts[$normalizedUrl] ?? 0) + 1;
+            $urlCounts[$normalizedUrl] = ($urlCounts[$normalizedUrl] ?? 0) + $sourceUsageCount;
 
             $domain = self::extractDownloadSuggestionDomain($normalizedUrl);
 
             if ($domain !== null) {
-                $domainCounts[$domain] = ($domainCounts[$domain] ?? 0) + 1;
+                $domainCounts[$domain] = ($domainCounts[$domain] ?? 0) + $sourceUsageCount;
             }
         }
 
@@ -700,6 +695,37 @@ class LandingPageController extends Controller
             'domains' => self::sortDownloadSuggestionCounts($domainCounts),
             'urls' => self::sortDownloadSuggestionCounts($urlCounts),
         ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private static function loadDownloadUrlSuggestionSourceCounts(): array
+    {
+        /** @var list<object{value: string, usage_count: int|string}> $groupedSources */
+        $groupedSources = [
+            ...DB::table('landing_pages')
+                ->selectRaw('ftp_url as value, COUNT(*) as usage_count')
+                ->whereNotNull('ftp_url')
+                ->whereRaw("TRIM(ftp_url) <> ''")
+                ->groupBy('ftp_url')
+                ->get()
+                ->all(),
+            ...DB::table('landing_page_files')
+                ->selectRaw('url as value, COUNT(*) as usage_count')
+                ->whereRaw("TRIM(url) <> ''")
+                ->groupBy('url')
+                ->get()
+                ->all(),
+        ];
+
+        $sourceCounts = [];
+
+        foreach ($groupedSources as $groupedSource) {
+            $sourceCounts[$groupedSource->value] = ($sourceCounts[$groupedSource->value] ?? 0) + (int) $groupedSource->usage_count;
+        }
+
+        return $sourceCounts;
     }
 
     private static function normalizeDownloadSuggestionUrl(string $url): ?string
@@ -785,6 +811,7 @@ class LandingPageController extends Controller
     {
         // Forget main cache
         Cache::forget("landing-page.{$resourceId}");
+        Cache::forget(self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY);
 
         // Invalidate portal facets (datacenter + resource type) because
         // publishing/unpublishing changes which resources are "published".

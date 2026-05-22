@@ -4,7 +4,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import axios, { isAxiosError } from 'axios';
 import { Copy, ExternalLink, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -15,13 +15,13 @@ import {
     normalizeExternalPath,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
-import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import {
     getTemplateOptions,
     isIgsnLandingPageResourceType,
@@ -52,6 +52,12 @@ interface SetupLandingPageModalProps {
 const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
     domains: [],
     urls: [],
+};
+
+type DownloadUrlSuggestionEntry = {
+    id: string;
+    value: string;
+    usageCount: number;
 };
 
 function SortableLinkItem({
@@ -138,7 +144,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [downloadUrlSuggestionsLoading, setDownloadUrlSuggestionsLoading] = useState(false);
     const [downloadUrlSuggestionsOpen, setDownloadUrlSuggestionsOpen] = useState(false);
     const [downloadUrlSuggestionQuery, setDownloadUrlSuggestionQuery] = useState('');
-    const downloadUrlAutocompleteRef = useRef<HTMLDivElement | null>(null);
+    const [activeDownloadUrlSuggestionIndex, setActiveDownloadUrlSuggestionIndex] = useState<number | null>(null);
 
     // Landing page template ID (for custom templates)
     const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
@@ -218,6 +224,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setDownloadUrlSuggestionsLoading(false);
             setDownloadUrlSuggestionsOpen(false);
             setDownloadUrlSuggestionQuery('');
+            setActiveDownloadUrlSuggestionIndex(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [applyConfigState, defaultTemplateForResource, existingConfig, isOpen, resource.id]);
@@ -290,6 +297,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         if (!supportsFtpUrl || hasImportedFiles) {
             setDownloadUrlSuggestionsOpen(false);
             setDownloadUrlSuggestionQuery('');
+            setActiveDownloadUrlSuggestionIndex(null);
         }
     }, [hasImportedFiles, supportsFtpUrl]);
 
@@ -493,8 +501,42 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         };
     }, [downloadUrlSuggestionQuery, downloadUrlSuggestions]);
 
+    const visibleDownloadUrlSuggestionEntries = useMemo(
+        () => [
+            ...filteredDownloadUrlSuggestions.domains.map((suggestion, index): DownloadUrlSuggestionEntry => ({
+                id: `ftp-url-domain-suggestion-${index}`,
+                value: suggestion.value,
+                usageCount: suggestion.usage_count,
+            })),
+            ...filteredDownloadUrlSuggestions.urls.map((suggestion, index): DownloadUrlSuggestionEntry => ({
+                id: `ftp-url-full-suggestion-${index}`,
+                value: suggestion.value,
+                usageCount: suggestion.usage_count,
+            })),
+        ],
+        [filteredDownloadUrlSuggestions.domains, filteredDownloadUrlSuggestions.urls],
+    );
+
     const shouldShowDownloadUrlSuggestions = supportsFtpUrl && !hasImportedFiles && downloadUrlSuggestionsOpen;
     const hasVisibleDownloadUrlSuggestions = filteredDownloadUrlSuggestions.domains.length > 0 || filteredDownloadUrlSuggestions.urls.length > 0;
+    const activeDownloadUrlSuggestion = activeDownloadUrlSuggestionIndex === null
+        ? null
+        : (visibleDownloadUrlSuggestionEntries[activeDownloadUrlSuggestionIndex] ?? null);
+
+    useEffect(() => {
+        if (!shouldShowDownloadUrlSuggestions) {
+            setActiveDownloadUrlSuggestionIndex(null);
+
+            return;
+        }
+
+        if (
+            activeDownloadUrlSuggestionIndex !== null
+            && activeDownloadUrlSuggestionIndex >= visibleDownloadUrlSuggestionEntries.length
+        ) {
+            setActiveDownloadUrlSuggestionIndex(null);
+        }
+    }, [activeDownloadUrlSuggestionIndex, shouldShowDownloadUrlSuggestions, visibleDownloadUrlSuggestionEntries.length]);
 
     const openDownloadUrlSuggestions = () => {
         if (!supportsFtpUrl || hasImportedFiles) {
@@ -502,6 +544,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
 
         setDownloadUrlSuggestionsOpen(true);
+        setActiveDownloadUrlSuggestionIndex(null);
 
         void loadDownloadUrlSuggestions();
     };
@@ -510,6 +553,25 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setFtpUrl(value);
         setDownloadUrlSuggestionQuery('');
         setDownloadUrlSuggestionsOpen(false);
+        setActiveDownloadUrlSuggestionIndex(null);
+    };
+
+    const moveActiveDownloadUrlSuggestion = (direction: 'next' | 'previous') => {
+        if (visibleDownloadUrlSuggestionEntries.length === 0) {
+            return;
+        }
+
+        setActiveDownloadUrlSuggestionIndex((currentIndex) => {
+            if (currentIndex === null) {
+                return direction === 'next' ? 0 : visibleDownloadUrlSuggestionEntries.length - 1;
+            }
+
+            if (direction === 'next') {
+                return (currentIndex + 1) % visibleDownloadUrlSuggestionEntries.length;
+            }
+
+            return (currentIndex - 1 + visibleDownloadUrlSuggestionEntries.length) % visibleDownloadUrlSuggestionEntries.length;
+        });
     };
 
     const openPreview = async () => {
@@ -797,7 +859,6 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             <div className="space-y-2">
                                 <Label htmlFor="ftp-url">Download URL (FTP)</Label>
                                 <div
-                                    ref={downloadUrlAutocompleteRef}
                                     className="relative"
                                     onFocusCapture={openDownloadUrlSuggestions}
                                     onBlurCapture={(event) => {
@@ -807,6 +868,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
                                         setDownloadUrlSuggestionsOpen(false);
                                         setDownloadUrlSuggestionQuery('');
+                                        setActiveDownloadUrlSuggestionIndex(null);
                                     }}
                                 >
                                     <Input
@@ -817,6 +879,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                         onChange={(e) => {
                                             setFtpUrl(e.target.value);
                                             setDownloadUrlSuggestionQuery(e.target.value);
+                                            setActiveDownloadUrlSuggestionIndex(null);
 
                                             if (!downloadUrlSuggestionsOpen) {
                                                 setDownloadUrlSuggestionsOpen(true);
@@ -825,13 +888,43 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                             void loadDownloadUrlSuggestions();
                                         }}
                                         onKeyDown={(event) => {
+                                            if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !downloadUrlSuggestionsOpen) {
+                                                setDownloadUrlSuggestionsOpen(true);
+                                                setActiveDownloadUrlSuggestionIndex(null);
+                                                void loadDownloadUrlSuggestions();
+                                            }
+
+                                            if (event.key === 'ArrowDown') {
+                                                event.preventDefault();
+                                                moveActiveDownloadUrlSuggestion('next');
+
+                                                return;
+                                            }
+
+                                            if (event.key === 'ArrowUp') {
+                                                event.preventDefault();
+                                                moveActiveDownloadUrlSuggestion('previous');
+
+                                                return;
+                                            }
+
+                                            if (event.key === 'Enter' && activeDownloadUrlSuggestion !== null) {
+                                                event.preventDefault();
+                                                applyDownloadUrlSuggestion(activeDownloadUrlSuggestion.value);
+
+                                                return;
+                                            }
+
                                             if (event.key === 'Escape') {
                                                 setDownloadUrlSuggestionsOpen(false);
                                                 setDownloadUrlSuggestionQuery('');
+                                                setActiveDownloadUrlSuggestionIndex(null);
                                             }
                                         }}
                                         disabled={hasImportedFiles}
                                         autoComplete="off"
+                                        aria-activedescendant={activeDownloadUrlSuggestion?.id}
+                                        aria-autocomplete="list"
                                         aria-expanded={shouldShowDownloadUrlSuggestions}
                                         aria-controls={shouldShowDownloadUrlSuggestions ? 'ftp-url-suggestions' : undefined}
                                         aria-haspopup="listbox"
@@ -839,55 +932,81 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
                                     {shouldShowDownloadUrlSuggestions && (
                                         <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-                                            <Command shouldFilter={false} className="bg-transparent">
-                                                <CommandList id="ftp-url-suggestions" className="max-h-64">
-                                                    {downloadUrlSuggestionsLoading ? (
-                                                        <div className="px-3 py-2 text-sm text-muted-foreground" role="status">
-                                                            Loading suggestions...
-                                                        </div>
-                                                    ) : !hasVisibleDownloadUrlSuggestions ? (
-                                                        <div className="px-3 py-2 text-sm text-muted-foreground">No matching suggestions.</div>
-                                                    ) : (
-                                                        <>
-                                                            {filteredDownloadUrlSuggestions.domains.length > 0 && (
-                                                                <CommandGroup heading="Suggested domains">
-                                                                    {filteredDownloadUrlSuggestions.domains.map((suggestion) => (
-                                                                        <CommandItem
-                                                                            key={`domain-${suggestion.value}`}
-                                                                            value={suggestion.value}
-                                                                            onMouseDown={(event) => event.preventDefault()}
-                                                                            onSelect={() => applyDownloadUrlSuggestion(suggestion.value)}
-                                                                        >
-                                                                            <span className="truncate">{suggestion.value}</span>
-                                                                            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                                                                                {suggestion.usage_count}x
-                                                                            </span>
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            )}
+                                            <div id="ftp-url-suggestions" role="listbox" className="max-h-64 overflow-y-auto py-1">
+                                                {downloadUrlSuggestionsLoading ? (
+                                                    <div className="px-3 py-2 text-sm text-muted-foreground" role="status">
+                                                        Loading suggestions...
+                                                    </div>
+                                                ) : !hasVisibleDownloadUrlSuggestions ? (
+                                                    <div className="px-3 py-2 text-sm text-muted-foreground">No matching suggestions.</div>
+                                                ) : (
+                                                    <>
+                                                        {filteredDownloadUrlSuggestions.domains.length > 0 && (
+                                                            <div className="p-1 text-foreground">
+                                                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Suggested domains</div>
+                                                                {filteredDownloadUrlSuggestions.domains.map((suggestion, index) => {
+                                                                    const suggestionId = `ftp-url-domain-suggestion-${index}`;
+                                                                    const suggestionIndex = index;
+                                                                    const isActive = activeDownloadUrlSuggestion?.id === suggestionId;
 
-                                                            {filteredDownloadUrlSuggestions.urls.length > 0 && (
-                                                                <CommandGroup heading="Previously used full URLs">
-                                                                    {filteredDownloadUrlSuggestions.urls.map((suggestion) => (
-                                                                        <CommandItem
-                                                                            key={`url-${suggestion.value}`}
-                                                                            value={suggestion.value}
+                                                                    return (
+                                                                        <div
+                                                                            key={`domain-${suggestion.value}`}
+                                                                            id={suggestionId}
+                                                                            role="option"
+                                                                            aria-selected={isActive}
+                                                                            className={cn(
+                                                                                'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+                                                                                isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
+                                                                            )}
                                                                             onMouseDown={(event) => event.preventDefault()}
-                                                                            onSelect={() => applyDownloadUrlSuggestion(suggestion.value)}
+                                                                            onMouseEnter={() => setActiveDownloadUrlSuggestionIndex(suggestionIndex)}
+                                                                            onClick={() => applyDownloadUrlSuggestion(suggestion.value)}
                                                                         >
                                                                             <span className="truncate">{suggestion.value}</span>
                                                                             <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                                                                                 {suggestion.usage_count}x
                                                                             </span>
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </CommandList>
-                                            </Command>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+
+                                                        {filteredDownloadUrlSuggestions.urls.length > 0 && (
+                                                            <div className="p-1 text-foreground">
+                                                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Previously used full URLs</div>
+                                                                {filteredDownloadUrlSuggestions.urls.map((suggestion, index) => {
+                                                                    const suggestionId = `ftp-url-full-suggestion-${index}`;
+                                                                    const suggestionIndex = filteredDownloadUrlSuggestions.domains.length + index;
+                                                                    const isActive = activeDownloadUrlSuggestion?.id === suggestionId;
+
+                                                                    return (
+                                                                        <div
+                                                                            key={`url-${suggestion.value}`}
+                                                                            id={suggestionId}
+                                                                            role="option"
+                                                                            aria-selected={isActive}
+                                                                            className={cn(
+                                                                                'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+                                                                                isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
+                                                                            )}
+                                                                            onMouseDown={(event) => event.preventDefault()}
+                                                                            onMouseEnter={() => setActiveDownloadUrlSuggestionIndex(suggestionIndex)}
+                                                                            onClick={() => applyDownloadUrlSuggestion(suggestion.value)}
+                                                                        >
+                                                                            <span className="truncate">{suggestion.value}</span>
+                                                                            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                                                                                {suggestion.usage_count}x
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>

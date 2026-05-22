@@ -367,6 +367,37 @@ describe('SetupLandingPageModal', () => {
             expect(ftpInput).toHaveValue('https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW');
         });
 
+        it('supports keyboard navigation and selection for download url suggestions', async () => {
+            mockModalGetRequests();
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/Download URL \(FTP\)/i);
+
+            await user.click(ftpInput);
+
+            await waitFor(() => {
+                expect(screen.getByRole('listbox')).toBeInTheDocument();
+            });
+
+            await user.keyboard('{ArrowDown}');
+
+            expect(ftpInput).toHaveAttribute('aria-activedescendant', 'ftp-url-domain-suggestion-0');
+
+            await user.keyboard('{Enter}');
+
+            expect(ftpInput).toHaveValue('https://datapub.gfz.de/');
+            expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+        });
+
         it('does not fetch suggestions when imported files disable the ftp field', async () => {
             mockModalGetRequests({
                 landingPage: {

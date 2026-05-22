@@ -8,6 +8,7 @@ use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 
 covers(LandingPageController::class);
 
@@ -738,6 +739,10 @@ describe('Landing Page GET Endpoint', function () {
 });
 
 describe('Landing Page Download URL Suggestions', function () {
+    beforeEach(function () {
+        Cache::flush();
+    });
+
     test('aggregates domain and url suggestions from existing download sources', function () {
         $duplicateUrl = 'https://datapub.gfz.de/download/10.5880.DIGIS.E.2025.002-aYVBW';
 
@@ -801,5 +806,23 @@ describe('Landing Page Download URL Suggestions', function () {
 
         $this->getJson('/api/landing-page-download-url-suggestions')
             ->assertUnauthorized();
+    });
+
+    test('invalidates cached suggestions when landing pages change', function () {
+        $this->getJson('/api/landing-page-download-url-suggestions')
+            ->assertOk()
+            ->assertJsonPath('suggestions.domains', [])
+            ->assertJsonPath('suggestions.urls', []);
+
+        $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz.de/download/newly-created-file.zip',
+            'status' => 'draft',
+        ])->assertCreated();
+
+        $this->getJson('/api/landing-page-download-url-suggestions')
+            ->assertOk()
+            ->assertJsonPath('suggestions.domains.0.value', 'https://datapub.gfz.de/')
+            ->assertJsonPath('suggestions.urls.0.value', 'https://datapub.gfz.de/download/newly-created-file.zip');
     });
 });
