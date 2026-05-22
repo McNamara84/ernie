@@ -89,6 +89,11 @@ describe('DataCiteForm', () => {
         analytical_methods: { available: true },
         euroscivoc: { available: true },
     };
+    const citationVocabulariesResponse = {
+        resourceTypes: [],
+        relationTypes: [],
+        contributorTypes: [],
+    };
 
     // Helper Functions
     const clearXsrfCookie = () => {
@@ -293,6 +298,14 @@ describe('DataCiteForm', () => {
 
             if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
                 return Promise.resolve(createJsonResponse(thesauriAvailabilityResponse));
+            }
+
+            if (url.includes('/related-items/vocabularies')) {
+                return Promise.resolve(createJsonResponse(citationVocabulariesResponse));
+            }
+
+            if (/\/resources\/\d+\/related-items(?:\/.*)?$/.test(url)) {
+                return Promise.resolve(createJsonResponse({ data: [] }));
             }
 
             if (url.includes('/vocabularies/msl')) {
