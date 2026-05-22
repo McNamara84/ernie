@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\LandingPageController;
+use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
@@ -13,6 +14,15 @@ use Illuminate\Support\Facades\Cache;
 covers(LandingPageController::class);
 
 uses()->group('landing-pages');
+
+function portalFacetCacheRepository(CacheKey $cacheKey): \Illuminate\Contracts\Cache\Repository
+{
+    if (method_exists(Cache::getStore(), 'tags')) {
+        return Cache::tags($cacheKey->tags());
+    }
+
+    return Cache::store();
+}
 
 beforeEach(function () {
     $this->user = User::factory()->curator()->create();
@@ -51,6 +61,22 @@ describe('Landing Page Creation', function () {
             ->status->toBe('draft')
             ->preview_token->not->toBeNull()
             ->published_at->toBeNull();
+    });
+
+    test('creating a draft landing page does not invalidate portal facet caches', function () {
+        portalFacetCacheRepository(CacheKey::PORTAL_DATACENTER_FACETS)
+            ->put(CacheKey::PORTAL_DATACENTER_FACETS->key(), ['stale-datacenter'], CacheKey::PORTAL_DATACENTER_FACETS->ttl());
+        portalFacetCacheRepository(CacheKey::PORTAL_RESOURCE_TYPE_FACETS)
+            ->put(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key(), ['stale-resource-type'], CacheKey::PORTAL_RESOURCE_TYPE_FACETS->ttl());
+
+        $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'status' => 'draft',
+        ])->assertCreated();
+
+        expect(portalFacetCacheRepository(CacheKey::PORTAL_DATACENTER_FACETS)->get(CacheKey::PORTAL_DATACENTER_FACETS->key()))->toBe(['stale-datacenter'])
+            ->and(portalFacetCacheRepository(CacheKey::PORTAL_RESOURCE_TYPE_FACETS)->get(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key()))->toBe(['stale-resource-type']);
     });
 
     test('can create landing page as published', function () {
@@ -148,6 +174,11 @@ describe('Landing Page Updates', function () {
     });
 
     test('can publish draft landing page', function () {
+        portalFacetCacheRepository(CacheKey::PORTAL_DATACENTER_FACETS)
+            ->put(CacheKey::PORTAL_DATACENTER_FACETS->key(), ['stale-datacenter'], CacheKey::PORTAL_DATACENTER_FACETS->ttl());
+        portalFacetCacheRepository(CacheKey::PORTAL_RESOURCE_TYPE_FACETS)
+            ->put(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key(), ['stale-resource-type'], CacheKey::PORTAL_RESOURCE_TYPE_FACETS->ttl());
+
         $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
             'status' => 'published',
@@ -158,6 +189,30 @@ describe('Landing Page Updates', function () {
         expect($this->landingPage->fresh())
             ->status->toBe('published')
             ->published_at->not->toBeNull();
+
+        expect(portalFacetCacheRepository(CacheKey::PORTAL_DATACENTER_FACETS)->get(CacheKey::PORTAL_DATACENTER_FACETS->key()))->toBeNull()
+            ->and(portalFacetCacheRepository(CacheKey::PORTAL_RESOURCE_TYPE_FACETS)->get(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key()))->toBeNull();
+    });
+
+    test('updating a published landing page keeps portal facet caches intact', function () {
+        $this->landingPage->publish();
+
+        Cache::put("landing-page.{$this->resource->id}", ['stale-landing-page']);
+        portalFacetCacheRepository(CacheKey::PORTAL_DATACENTER_FACETS)
+            ->put(CacheKey::PORTAL_DATACENTER_FACETS->key(), ['stale-datacenter'], CacheKey::PORTAL_DATACENTER_FACETS->ttl());
+        portalFacetCacheRepository(CacheKey::PORTAL_RESOURCE_TYPE_FACETS)
+            ->put(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key(), ['stale-resource-type'], CacheKey::PORTAL_RESOURCE_TYPE_FACETS->ttl());
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/published-update.zip',
+        ]);
+
+        $response->assertOk();
+
+        expect(Cache::get("landing-page.{$this->resource->id}"))->toBeNull()
+            ->and(portalFacetCacheRepository(CacheKey::PORTAL_DATACENTER_FACETS)->get(CacheKey::PORTAL_DATACENTER_FACETS->key()))->toBe(['stale-datacenter'])
+            ->and(portalFacetCacheRepository(CacheKey::PORTAL_RESOURCE_TYPE_FACETS)->get(CacheKey::PORTAL_RESOURCE_TYPE_FACETS->key()))->toBe(['stale-resource-type']);
     });
 
     test('cannot depublish published landing page because DOIs are persistent', function () {
@@ -740,7 +795,7 @@ describe('Landing Page GET Endpoint', function () {
 
 describe('Landing Page Download URL Suggestions', function () {
     beforeEach(function () {
-        Cache::flush();
+        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
     });
 
     test('aggregates domain and url suggestions from existing download sources', function () {

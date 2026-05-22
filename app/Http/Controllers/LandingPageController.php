@@ -29,8 +29,6 @@ class LandingPageController extends Controller
     use AuthorizesRequests;
     use ChecksCacheTagging;
 
-    private const DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY = 'landing-page.download-url-suggestions';
-
     public static function templateSupportsCustomTemplateId(string $template): bool
     {
         return in_array($template, [
@@ -367,11 +365,11 @@ class LandingPageController extends Controller
         // Invalidate keyword suggestions cache if landing page was created as published
         if ($landingPage->is_published) {
             $this->keywordService->invalidateCache();
+            $this->invalidatePortalFacets();
         }
 
-        // Invalidate landing page caches after successful creation so newly
-        // persisted download URLs become visible in the setup modal immediately.
-        $this->invalidateCache($resource->id);
+        $this->forgetLandingPageCache($resource->id);
+        $this->forgetDownloadUrlSuggestionsCache();
 
         return response()->json([
             'message' => 'Landing page created successfully',
@@ -517,14 +515,17 @@ class LandingPageController extends Controller
             }
         });
 
+        $becamePublished = $requestedStatus !== null && $requestedStatus && ! $currentlyPublished;
+
         // Handle publication status change: allow publishing a draft
-        if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {
+        if ($becamePublished) {
             $landingPage->publish();
             $this->keywordService->invalidateCache();
+            $this->invalidatePortalFacets();
         }
 
-        // Invalidate cache
-        $this->invalidateCache($resource->id);
+        $this->forgetLandingPageCache($resource->id);
+        $this->forgetDownloadUrlSuggestionsCache();
 
         $freshLandingPage = LandingPage::query()
             ->with(['externalDomain', 'files', 'links', 'landingPageTemplate'])
@@ -565,8 +566,8 @@ class LandingPageController extends Controller
 
         $landingPage->delete();
 
-        // Invalidate cache
-        $this->invalidateCache($resource->id);
+        $this->forgetLandingPageCache($resource->id);
+        $this->forgetDownloadUrlSuggestionsCache();
 
         return response()->json([
             'message' => 'Landing page deleted successfully',
@@ -607,15 +608,10 @@ class LandingPageController extends Controller
     {
         return response()->json([
             'suggestions' => Cache::rememberForever(
-                self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY,
+                CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key(),
                 static fn (): array => self::buildDownloadUrlSuggestionPayload(self::loadDownloadUrlSuggestionSourceCounts()),
             ),
         ]);
-    }
-
-    public static function forgetDownloadUrlSuggestionsCache(): void
-    {
-        Cache::forget(self::DOWNLOAD_URL_SUGGESTIONS_CACHE_KEY);
     }
 
     /**
@@ -808,22 +804,14 @@ class LandingPageController extends Controller
         return array_slice($suggestions, 0, 20);
     }
 
-    /**
-     * Invalidate landing page cache.
-     */
-    private function invalidateCache(int $resourceId): void
+    private function forgetLandingPageCache(int $resourceId): void
     {
-        // Forget main cache
         Cache::forget("landing-page.{$resourceId}");
-        self::forgetDownloadUrlSuggestionsCache();
+    }
 
-        // Invalidate portal facets (datacenter + resource type) because
-        // publishing/unpublishing changes which resources are "published".
-        $this->invalidatePortalFacets();
-
-        // Also try to forget preview caches (pattern matching would require Redis tags)
-        // For now, we'll clear individual cache entries when we know the token
-        // In production with Redis, you could use Cache::tags()
+    private function forgetDownloadUrlSuggestionsCache(): void
+    {
+        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
     }
 
     /**
@@ -832,11 +820,7 @@ class LandingPageController extends Controller
     private function invalidatePortalFacets(): void
     {
         foreach ([CacheKey::PORTAL_DATACENTER_FACETS, CacheKey::PORTAL_RESOURCE_TYPE_FACETS] as $cacheKey) {
-            if ($this->supportsTagging()) {
-                Cache::tags($cacheKey->tags())->flush();
-            } else {
-                Cache::forget($cacheKey->key());
-            }
+            $cacheKey->forget();
         }
     }
 }

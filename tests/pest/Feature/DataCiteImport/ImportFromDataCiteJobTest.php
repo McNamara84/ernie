@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\LandingPage;
@@ -630,7 +631,7 @@ describe('ImportFromDataCiteJob', function () {
 
 describe('ImportFromDataCiteJob download URL enrichment', function () {
     it('creates landing page with files when metaworks has download URLs', function () {
-        Cache::put('landing-page.download-url-suggestions', [
+        Cache::put(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key(), [
             'domains' => [['value' => 'https://stale.example.org/', 'usage_count' => 99]],
             'urls' => [['value' => 'https://stale.example.org/download/file.zip', 'usage_count' => 99]],
         ]);
@@ -695,7 +696,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($files[1]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip')
             ->and($files[1]->position)->toBe(1);
 
-        expect(Cache::get('landing-page.download-url-suggestions'))->toBeNull();
+        expect(Cache::get(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key()))->toBeNull();
     });
 
     it('creates unpublished landing page when metaworks files are non-public', function () {
