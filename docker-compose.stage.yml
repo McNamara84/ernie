@@ -139,7 +139,7 @@ services:
       start_period: 5s
 
   fuji:
-    image: ghcr.io/pangaea-data-publisher/fuji@sha256:ce91f8c5998655c34f570d68f52254cb5dfa29d659808c571c8e6f9249948a0e
+    image: ghcr.io/pangaea-data-publisher/fuji@sha256:a75a9c88fb46918afafb09593aa52aecc1adb12eb9f19a2fc2ebb8740be03d97
     container_name: ernie-fuji-stage
     restart: unless-stopped
     entrypoint:
@@ -170,7 +170,7 @@ services:
       start_period: 60s
 
   cloudbeaver:
-    image: dbeaver/cloudbeaver:26.0.4@sha256:824c5e389155af3674b8e9a837bc4fd4454fcb43ac115c8be4c733e8b7315a4e
+    image: dbeaver/cloudbeaver:26.0.5@sha256:33083a988e83c714b98bffc58d45c6c6c15c86816bb446c5f053f1eed66d5247
     container_name: ernie-cloudbeaver-stage
     restart: unless-stopped
     volumes:
