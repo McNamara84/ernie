@@ -13,7 +13,8 @@ FROM php:8.5.6-fpm-trixie@sha256:fc0e3fbbc15926f27d1213b83abfc8a8665a09cf870c441
 WORKDIR /var/www/html
 
 # Install system dependencies and Node.js in a single layer for efficiency.
-# Node.js 24 LTS is installed from NodeSource, which includes npm.
+# The Node.js major version is sourced from .node-version and installed from NodeSource.
+COPY .node-version /tmp/.node-version
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -121,12 +122,13 @@ RUN apt-get update && apt-get install -y \
     xkb-data \
     xserver-common \
     xvfb \
-    # Install Node.js 24 from NodeSource. This package includes npm,
+    # Install Node.js from NodeSource. This package includes npm,
     # so no separate npm installation is needed.
+    && NODE_MAJOR="$(tr -d '\r\n' < /tmp/.node-version)" \
     && apt-get install -y --only-upgrade libcap2 libsystemd0 libudev1 linux-libc-dev \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
     && apt-get install -y nodejs \
     && apt-get clean \
@@ -194,7 +196,7 @@ EXPOSE 80
 # because the Wayfinder plugin requires php artisan access. This stage is
 # kept for potential future use with a standalone Vite setup.
 # -----------------------------------------------------------------------------
-FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS vite
+FROM app AS vite
 
 WORKDIR /var/www/html
 

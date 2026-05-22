@@ -39,7 +39,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
   - Core: `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `tokenizer`, `xml`, `xmlwriter`
   - Database: `pdo`, `pdo_mysql`
   - Additional: `intl`, `simplexml`, `sodium`, `xsl`
-- **Node.js 24** and npm
+- **Node.js** matching `.node-version` and npm
 - **MySQL 9.7.x** or **MariaDB 10.6+**
 - **Composer 2.x**
 

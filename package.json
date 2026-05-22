@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24",
     "npm": ">=10"
   },
   "scripts": {
+    "preinstall": "node ./scripts/check-node-version.mjs",
     "build": "vite build",
     "build:ssr": "vite build && vite build --ssr",
     "dev": "vite",
@@ -70,7 +70,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/d3": "^7.4.3",
     "@types/leaflet": "^1.9.21",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.1",
     "@types/nprogress": "^0.2.3",
     "@types/papaparse": "^5.3.16",
     "@types/qrcode.react": "^1.0.5",
