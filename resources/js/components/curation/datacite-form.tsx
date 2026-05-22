@@ -707,8 +707,7 @@ export default function DataCiteForm({
         };
     }, []);
 
-    const shouldShowUsedInstrumentsSection = pid4instAvailability !== 'unavailable';
-    const canLoadUsedInstrumentsField = pid4instAvailability === 'available';
+    const shouldShowUsedInstrumentsSection = pid4instAvailability === 'available';
 
     // Load thesauri availability and GCMD vocabularies from web routes on mount
     useEffect(() => {
@@ -2668,11 +2667,7 @@ export default function DataCiteForm({
                                 tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
                                 counter={{ current: instruments.length, max: 100 }}
                             />
-                            {canLoadUsedInstrumentsField ? (
-                                <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
-                            ) : (
-                                <p className="text-sm text-muted-foreground">Checking PID4INST availability...</p>
-                            )}
+                            <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
                         </AccordionContent>
                     </AccordionItem>
                 )}
