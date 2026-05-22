@@ -12,8 +12,12 @@ FROM php:8.5.6-fpm-trixie@sha256:fc0e3fbbc15926f27d1213b83abfc8a8665a09cf870c441
 
 WORKDIR /var/www/html
 
-# Install system dependencies and Node.js in a single layer for efficiency.
-# Node.js 24 LTS is installed from NodeSource, which includes npm.
+# Copy .node-version so the following RUN step can derive the NodeSource major
+# from the repository's single source of truth.
+COPY .node-version /tmp/.node-version
+
+# Install system dependencies and Node.js in one RUN step to keep the build
+# setup straightforward.
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -26,6 +30,8 @@ RUN apt-get update && apt-get install -y \
     libsodium-dev \
     libxslt1-dev \
     libicu-dev \
+    python3 \
+    make \
     g++ \
     netcat-traditional \
     ca-certificates \
@@ -121,12 +127,16 @@ RUN apt-get update && apt-get install -y \
     xkb-data \
     xserver-common \
     xvfb \
-    # Install Node.js 24 from NodeSource. This package includes npm,
+    # Install Node.js from NodeSource. This package includes npm,
     # so no separate npm installation is needed.
+    && NODE_VERSION="$(tr -d '\r\n' < /tmp/.node-version)" \
+    && NODE_VERSION="${NODE_VERSION#v}" \
+    && NODE_MAJOR="${NODE_VERSION%%.*}" \
+    && case "$NODE_MAJOR" in ''|*[!0-9]*) echo "Expected .node-version to start with a numeric Node.js major version, got: $NODE_VERSION" >&2; exit 1 ;; esac \
     && apt-get install -y --only-upgrade libcap2 libsystemd0 libudev1 linux-libc-dev \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
     && apt-get install -y nodejs \
     && apt-get clean \
@@ -194,12 +204,11 @@ EXPOSE 80
 # because the Wayfinder plugin requires php artisan access. This stage is
 # kept for potential future use with a standalone Vite setup.
 # -----------------------------------------------------------------------------
-FROM node:24-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS vite
+FROM app AS vite
 
 WORKDIR /var/www/html
 
-# Install dependencies that might be needed for native modules
-RUN apk add --no-cache python3 make g++
+# Native module build prerequisites are inherited from the app stage.
 
 # Create startup script that ensures dependencies are installed
 RUN echo '#!/bin/sh' > /usr/local/bin/vite-entrypoint.sh && \
