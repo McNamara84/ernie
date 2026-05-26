@@ -99,7 +99,9 @@ Route::get('/changelog', function () {
 
 // Public Portal (Dataset Discovery)
 // ===========================================================
-Route::get('/portal', [PortalController::class, 'index'])->name('portal');
+Route::get('/portal', [PortalController::class, 'index'])
+    ->middleware('throttle:public-portal')
+    ->name('portal');
 
 // OAI-PMH Harvesting Endpoint
 // ===========================================================
@@ -124,11 +126,13 @@ Route::match(['get', 'post'], '/oai-pmh', OaiPmhController::class)->middleware('
 
 // JSON-LD download for published landing pages (must be defined BEFORE the catch-all show route)
 Route::get('{doiPrefix}/{slug}/jsonld', [LandingPagePublicController::class, 'exportJsonLd'])
+    ->middleware('throttle:public-landing-jsonld')
     ->name('landing-page.export-jsonld')
     ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
     ->where('slug', '[a-z0-9-]+');
 
 Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
+    ->middleware('throttle:public-landing-page')
     ->name('landing-page.show')
     ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
     ->where('slug', '[a-z0-9-]+');
@@ -157,6 +161,7 @@ Route::post('draft-{resourceId}/{slug}/contact', [ContactMessageController::clas
 // - Checking for resource existence without landing page would be misleading
 // - Search engines should get 404 for invalid legacy URLs, not false redirects
 Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLegacy'])
+    ->middleware('throttle:public-landing-page')
     ->name('landing-page.show-legacy')
     ->where('resourceId', '[0-9]+');
 

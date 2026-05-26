@@ -61,7 +61,7 @@ class ClearApplicationCache extends Command
     {
         if ($this->supportsTagging()) {
             // Note: 'affiliations' is a secondary tag for 'ror', not a separate category
-            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'doi', 'system', 'assistance', 'portal'];
+            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'doi', 'system', 'assistance', 'portal', 'portal_page_payloads'];
 
             foreach ($tags as $tag) {
                 Cache::tags([$tag])->flush();
@@ -92,6 +92,10 @@ class ClearApplicationCache extends Command
     {
         if ($this->supportsTagging()) {
             Cache::tags([$tag])->flush();
+
+            if ($tag === 'portal') {
+                Cache::tags(['portal_page_payloads'])->flush();
+            }
         } else {
             // WARNING: Cannot clear specific category without tagging support.
             // This clears the ENTIRE cache store (sessions, rate limiting, etc.)

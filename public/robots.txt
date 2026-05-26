@@ -1,2 +1,69 @@
+User-agent: GPTBot
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: ChatGPT-User
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: ClaudeBot
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: Claude-User
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: CCBot
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: PerplexityBot
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: Bytespider
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: Amazonbot
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: Applebot-Extended
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: Google-Extended
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
+User-agent: Meta-ExternalAgent
+Disallow: /portal
+Disallow: /10.
+Disallow: /datasets/
+Allow: /oai-pmh
+
 User-agent: *
+Allow: /oai-pmh
 Disallow:

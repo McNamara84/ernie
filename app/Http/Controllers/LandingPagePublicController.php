@@ -8,6 +8,8 @@ use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\SchemaOrgJsonLdExporter;
@@ -15,6 +17,7 @@ use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -28,6 +31,7 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class LandingPagePublicController extends Controller
 {
     use ChecksCacheTagging;
+
     /**
      * Regex pattern for valid slug characters.
      * Must match the route constraint in web.php.
@@ -74,6 +78,8 @@ class LandingPagePublicController extends Controller
     public function show(
         Request $request,
         LandingPageResourceTransformer $transformer,
+        LandingPageRenderDataCacheService $renderDataCache,
+        LandingPageViewCounterService $viewCounter,
         string $doiPrefix,
         string $slug
     ): Response|RedirectResponse {
@@ -105,7 +111,7 @@ class LandingPagePublicController extends Controller
         // In production, this helps detect sync issues between resources and landing pages.
         $resourceDoi = $landingPage->resource()->value('doi');
         if ($resourceDoi !== null && $resourceDoi !== $doiPrefix) {
-            \Illuminate\Support\Facades\Log::error(
+            Log::error(
                 'LandingPagePublicController: DOI mismatch between landing page and resource',
                 [
                     'landing_page_id' => $landingPage->id,
@@ -118,7 +124,7 @@ class LandingPagePublicController extends Controller
             // if they drift, we prioritize availability over strict consistency.
         }
 
-        return $this->renderLandingPage($landingPage, $transformer, $previewToken);
+        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $previewToken);
     }
 
     /**
@@ -131,6 +137,8 @@ class LandingPagePublicController extends Controller
     public function showDraft(
         Request $request,
         LandingPageResourceTransformer $transformer,
+        LandingPageRenderDataCacheService $renderDataCache,
+        LandingPageViewCounterService $viewCounter,
         int $resourceId,
         string $slug
     ): Response|RedirectResponse {
@@ -153,7 +161,7 @@ class LandingPagePublicController extends Controller
 
         abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
-        return $this->renderLandingPage($landingPage, $transformer, $previewToken);
+        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $previewToken);
     }
 
     /**
@@ -219,8 +227,11 @@ class LandingPagePublicController extends Controller
      * is only a safety net for users accessing the internal route.
      */
     private function renderLandingPage(
+        Request $request,
         LandingPage $landingPage,
         LandingPageResourceTransformer $transformer,
+        LandingPageRenderDataCacheService $renderDataCache,
+        LandingPageViewCounterService $viewCounter,
         ?string $previewToken
     ): Response|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
@@ -245,7 +256,7 @@ class LandingPagePublicController extends Controller
             $externalUrl = $landingPage->external_url;
 
             if ($externalUrl === null) {
-                \Illuminate\Support\Facades\Log::error(
+                Log::error(
                     'LandingPagePublicController: External landing page has no external URL',
                     ['landing_page_id' => $landingPage->id, 'resource_id' => $landingPage->resource_id]
                 );
@@ -254,7 +265,7 @@ class LandingPagePublicController extends Controller
 
             // Increment view count for published pages (before redirect)
             if ($landingPage->isPublished() && $previewToken === null) {
-                $landingPage->incrementViewCount();
+                $viewCounter->record($request, $landingPage);
             }
 
             // Use 301 (permanent) for published pages accessed without a preview token,
@@ -269,57 +280,66 @@ class LandingPagePublicController extends Controller
 
         // Increment view count only for published pages without preview token
         if ($landingPage->isPublished() && $previewToken === null) {
-            $landingPage->incrementViewCount();
+            $viewCounter->record($request, $landingPage);
         }
 
-        // Load resource with all necessary relationships
-        $resource = Resource::with($transformer->requiredRelations())
-            ->findOrFail($landingPage->resource_id);
-        $resourceTypeSlug = $resource->resourceType?->slug;
-        $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
+        $buildRenderData = function () use ($landingPage, $transformer, $previewToken): array {
+            // Load resource with all necessary relationships
+            $resource = Resource::with($transformer->requiredRelations())
+                ->findOrFail($landingPage->resource_id);
+            $resourceTypeSlug = $resource->resourceType?->slug;
+            $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
 
-        // Eager-load file and link entries for download URL display
-        $landingPage->loadMissing(['files', 'links', 'landingPageTemplate']);
+            // Eager-load file and link entries for download URL display
+            $landingPage->loadMissing(['files', 'links', 'landingPageTemplate']);
 
-        $resourceData = $transformer->transform($resource);
+            $resourceData = $transformer->transform($resource);
 
-        // Build section order and logo from custom template (if set)
-        $sectionOrder = null;
-        $customLogoUrl = null;
-        $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
-            ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
-            : null;
+            // Build section order and logo from custom template (if set)
+            $sectionOrder = null;
+            $customLogoUrl = null;
+            $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
+                ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
+                : null;
 
-        if ($effectiveLandingPageTemplate !== null) {
-            $tmpl = $effectiveLandingPageTemplate;
-            $sectionOrder = [
-                'rightColumn' => $tmpl->right_column_order,
-                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($tmpl->left_column_order, $tmpl->template_type),
+            if ($effectiveLandingPageTemplate !== null) {
+                $tmpl = $effectiveLandingPageTemplate;
+                $sectionOrder = [
+                    'rightColumn' => $tmpl->right_column_order,
+                    'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($tmpl->left_column_order, $tmpl->template_type),
+                ];
+                $customLogoUrl = $tmpl->logo_url;
+            }
+
+            // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
+            $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
+            $schemaOrgJsonLd = $this->getCacheInstance(CacheKey::SCHEMA_ORG_JSONLD->tags())
+                ->remember($cacheKey, CacheKey::SCHEMA_ORG_JSONLD->ttl(), function () use ($resource): array {
+                    $exporter = new SchemaOrgJsonLdExporter;
+
+                    return $exporter->export($resource);
+                });
+
+            $landingPageData = LandingPageController::serializeLandingPagePayload($resource, $landingPage);
+
+            return [
+                'template' => $effectiveTemplate,
+                'props' => [
+                    'resource' => $resourceData,
+                    'landingPage' => $landingPageData,
+                    'isPreview' => (bool) $previewToken,
+                    'schemaOrgJsonLd' => $schemaOrgJsonLd,
+                    'sectionOrder' => $sectionOrder,
+                    'customLogoUrl' => $customLogoUrl,
+                ],
             ];
-            $customLogoUrl = $tmpl->logo_url;
-        }
+        };
 
-        // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
-        $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
-        $schemaOrgJsonLd = $this->getCacheInstance(CacheKey::SCHEMA_ORG_JSONLD->tags())
-            ->remember($cacheKey, CacheKey::SCHEMA_ORG_JSONLD->ttl(), function () use ($resource): array {
-                $exporter = new SchemaOrgJsonLdExporter;
+        $renderData = $previewToken === null
+            ? $renderDataCache->remember($landingPage, $buildRenderData)
+            : $buildRenderData();
 
-                return $exporter->export($resource);
-            });
-
-        $landingPageData = LandingPageController::serializeLandingPagePayload($resource, $landingPage);
-
-        $data = [
-            'resource' => $resourceData,
-            'landingPage' => $landingPageData,
-            'isPreview' => (bool) $previewToken,
-            'schemaOrgJsonLd' => $schemaOrgJsonLd,
-            'sectionOrder' => $sectionOrder,
-            'customLogoUrl' => $customLogoUrl,
-        ];
-
-        return Inertia::render("LandingPages/{$effectiveTemplate}", $data);
+        return Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
     }
 
     /**
@@ -348,7 +368,7 @@ class LandingPagePublicController extends Controller
 
         if ($pregResult === false) {
             // preg_match failed due to PCRE error - this is an internal error.
-            \Illuminate\Support\Facades\Log::error(
+            Log::error(
                 'LandingPagePublicController: preg_match failed with PCRE error',
                 $logContext
             );
@@ -358,7 +378,7 @@ class LandingPagePublicController extends Controller
         if ($pregResult === 0) {
             // Slug doesn't match pattern - log warning but return 404 to user.
             // This avoids polluting error monitoring while still aiding debugging.
-            \Illuminate\Support\Facades\Log::warning(
+            Log::warning(
                 'LandingPagePublicController: Invalid slug bypassed route constraint',
                 $logContext
             );
@@ -387,7 +407,7 @@ class LandingPagePublicController extends Controller
             || str_contains($doiPrefix, './');
 
         if ($quickCheckFailed) {
-            \Illuminate\Support\Facades\Log::warning(
+            Log::warning(
                 'LandingPagePublicController: Malformed DOI prefix (quick check)',
                 [
                     'doi_prefix_length' => strlen($doiPrefix),
@@ -404,7 +424,7 @@ class LandingPagePublicController extends Controller
 
         // Handle PCRE errors first (pregResult === false)
         if ($pregResult === false) {
-            \Illuminate\Support\Facades\Log::error(
+            Log::error(
                 'LandingPagePublicController: DOI prefix preg_match failed with PCRE error',
                 ['doi_prefix_length' => strlen($doiPrefix)]
             );
@@ -416,7 +436,7 @@ class LandingPagePublicController extends Controller
         // a value of 0 means no match. This is defense in depth - the route constraint
         // should catch most cases, but this protects against route bypasses.
         if ($pregResult === 0) {
-            \Illuminate\Support\Facades\Log::warning(
+            Log::warning(
                 'LandingPagePublicController: Invalid DOI prefix (regex check)',
                 [
                     'doi_prefix_length' => strlen($doiPrefix),
@@ -442,7 +462,7 @@ class LandingPagePublicController extends Controller
             // Log in development to help identify potential frontend bugs.
             // Empty string preview tokens are unexpected from valid requests.
             if (config('app.debug')) {
-                \Illuminate\Support\Facades\Log::debug(
+                Log::debug(
                     'LandingPagePublicController: Empty preview token normalized to null',
                     ['possible_frontend_bug' => true]
                 );

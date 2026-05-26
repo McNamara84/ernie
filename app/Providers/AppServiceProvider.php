@@ -20,11 +20,13 @@ use App\Observers\ResourceAssessmentObserver;
 use App\Observers\ResourceObserver;
 use App\Observers\ResourceTypeObserver;
 use App\Observers\SubjectObserver;
+use App\Services\BotProtection\BotClassifierService;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\RorLookupService;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
@@ -99,6 +101,32 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('oai-pmh', function (Request $request) {
             return Limit::perMinute(120)->by((string) $request->ip());
         });
+
+        RateLimiter::for('public-portal', function (Request $request) {
+            return $this->publicDiscoveryLimit($request, 'portal', 'public_portal_per_minute', 20);
+        });
+
+        RateLimiter::for('public-landing-page', function (Request $request) {
+            return $this->publicDiscoveryLimit($request, 'landing-page', 'public_landing_per_minute', 60);
+        });
+
+        RateLimiter::for('public-landing-jsonld', function (Request $request) {
+            return $this->publicDiscoveryLimit($request, 'landing-jsonld', 'public_landing_jsonld_per_minute', 30);
+        });
+    }
+
+    private function publicDiscoveryLimit(Request $request, string $surface, string $publicLimitKey, int $defaultAttempts): Limit|Unlimited
+    {
+        if (! (bool) config('bot_protection.enabled', true)) {
+            return Limit::none();
+        }
+
+        $classifier = $this->app->make(BotClassifierService::class);
+        $limit = $classifier->isKnownAiBot($request)
+            ? (int) config('bot_protection.limits.ai_bot_public_per_minute', 6)
+            : (int) config("bot_protection.limits.{$publicLimitKey}", $defaultAttempts);
+
+        return Limit::perMinute(max(1, $limit))->by($classifier->rateLimitKey($request, $surface));
     }
 
     /**

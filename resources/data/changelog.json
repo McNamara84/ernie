@@ -94,6 +94,10 @@
         ],
         "improvements": [
             {
+                "title": "Public Bot Traffic Protection",
+                "description": "The public portal and landing pages now have layered protection against aggressive automated crawling while keeping the OAI-PMH endpoint open for standards-based metadata harvesters. Known AI crawler user agents receive stricter application-level throttling, Nginx applies early rate limits to dynamic discovery pages, and robots.txt directs AI crawlers away from page crawling toward /oai-pmh. Published landing page and portal payloads are cached briefly to absorb repeated requests, and landing page view counters now debounce repeated human views and ignore known AI bot hits when bot protection is enabled. Stage and production Docker Compose files expose environment variables for tuning these limits without code changes."
+            },
+            {
                 "title": "Updated Role-Aware User Documentation",
                 "description": "The in-app documentation at /docs has been refreshed to match the current ERNIE workflows more closely. It now consistently refers to DataCite Metadata Schema 4.7, keeps the legacy ELMO import format clearly labelled as a DataCite 4.6 envelope, documents the Citation Manager for all authenticated users who can edit resources, and aligns role- and feature-dependent sections more precisely with the permissions and editor settings that are active in the application."
             },
