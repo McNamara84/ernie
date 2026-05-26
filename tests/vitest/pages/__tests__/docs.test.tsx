@@ -31,6 +31,7 @@ global.IntersectionObserver = class IntersectionObserver {
 } as any;
 
 Object.defineProperty(window, 'scrollTo', {
+    configurable: true,
     writable: true,
     value: vi.fn(),
 });
