@@ -359,7 +359,7 @@ describe('Docs page', () => {
         await openDatasetsTab(user);
 
         expect(screen.getByText(/Inline Citations \(DataCite 4\.7/i)).toBeInTheDocument();
-        expect(screen.getByText(/Every authenticated user can open this workflow/i)).toBeInTheDocument();
+        expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
     });
 
     it('hides resource types documentation when no resource types are active', async () => {

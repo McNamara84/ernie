@@ -82,13 +82,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <h3>Welcome to ERNIE</h3>
                         <p>
                             ERNIE is a DataCite v{CURRENT_DATACITE_METADATA_SCHEMA_VERSION} metadata editor for research data curation at GFZ Helmholtz
-                            Centre. This documentation will help you navigate the platform and make the most of its features.
+                            Centre. This documentation helps you find the workflows and features that matter for your daily work.
                         </p>
 
                         <h4>Your Role: {userRole}</h4>
                         <p>
-                            Your current role is <strong>{userRole}</strong>. This documentation shows only the sections and features available to
-                            your role.
+                            Your current role is <strong>{userRole}</strong>. ERNIE only shows sections that match your permissions and the features
+                            enabled in this installation.
                         </p>
 
                         <h4>Login & Navigation</h4>
@@ -133,7 +133,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
-                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a page defines breadcrumbs, ERNIE shows them directly below the header to keep the current location clear.
+                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a page defines breadcrumbs, ERNIE shows them directly below the header so your current location stays clear.
                             </p>
                         </div>
                     </>
@@ -176,8 +176,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <h4>Quick Font Size Toggle</h4>
                         <p>
-                            For quick access, use the font size toggle button in the page header (top right). Click the icon to instantly switch
-                            between regular and large font sizes without navigating to settings. Your preference is automatically saved.
+                            For quick access, use the font size toggle button in the page header. Click the icon to switch instantly between
+                            regular and large font sizes without opening Settings. Your preference is saved automatically.
                         </p>
                     </>
                 ),
@@ -492,9 +492,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Metadata Enrichment Assistance</h3>
                         <p>
-                            The <strong>Assistance</strong> page (<code>/assistance</code>) is available in the <strong>Administration</strong>{' '}
-                            workspace of the sidebar for Admins and Group Leaders. It helps them discover and fix missing metadata across all
-                            resources. Each assistant module focuses on a specific type of metadata enrichment.
+                            The <strong>Assistance</strong> page (<code>/assistance</code>) is available to Admins and Group Leaders in the{' '}
+                            <strong>Administration</strong> workspace of the sidebar. Use it to discover and fix missing metadata across all
+                            resources. Each assistant module focuses on one type of enrichment.
                         </p>
 
                         <h4>Available Assistants</h4>
@@ -1290,7 +1290,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             directly to the resource. This is especially useful when citing a work that has no persistent identifier, or when
                             the linked record should remain visible even if the external DOI later becomes unavailable.
                         </p>
-                        <p>Every authenticated user can open this workflow anywhere they are allowed to edit a resource.</p>
+                        <p>You can open this workflow anywhere ERNIE lets you edit a resource.</p>
 
                         <h4>Where to find it</h4>
                         <ul className="list-inside list-disc space-y-1">
@@ -1530,18 +1530,21 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder Sections">
                                 <p>
-                                    Click the edit icon on a template card. Use <strong>drag &amp; drop</strong> to rearrange the
-                                    right column sections and left column sections independently. The right column now exposes
-                                    separate description modules for <strong>Abstract</strong>, <strong>Methods</strong>,
-                                    <strong>Technical Information</strong>, <strong>Series Information</strong>,
-                                    <strong>Table of Contents</strong>, and <strong>Other</strong>, followed by Creators,
-                                    Contributors, Funding References, Keywords, Metadata Download, and Location / Map. Description
-                                    modules are reordered individually, but they still render together inside one shared metadata
-                                    card on the public landing page. The <strong>Location / Map</strong> section stays as a separate
-                                    card above or below that metadata card. For IGSN landing pages, the left column also includes
-                                    <strong>General</strong> (Project, Campaign, Type, IGSN, Parent IGSN, Purpose, Release Date)
-                                    and <strong>Acquisition</strong> (Material, Rock Classification, Collection Method, Funding
-                                    Agency, Comments, Chief Scientist, Start/End Date) modules. Empty fields and empty modules are
+                                    Click the edit icon on a template card. Use <strong>drag &amp; drop</strong> to rearrange the right and left
+                                    column sections independently.
+                                </p>
+                                <p>
+                                    The right column exposes separate description modules for <strong>Abstract</strong>, <strong>Methods</strong>,
+                                    <strong>Technical Information</strong>, <strong>Series Information</strong>, <strong>Table of Contents</strong>,
+                                    and <strong>Other</strong>, followed by Creators, Contributors, Funding References, Keywords, Metadata Download,
+                                    and Location / Map. Description modules are reordered individually, but they still render together inside one
+                                    shared metadata card on the public landing page. The <strong>Location / Map</strong> section remains a separate
+                                    card above or below that metadata card.
+                                </p>
+                                <p>
+                                    For IGSN landing pages, the left column also includes <strong>General</strong> (Project, Campaign, Type, IGSN,
+                                    Parent IGSN, Purpose, Release Date) and <strong>Acquisition</strong> (Material, Rock Classification, Collection
+                                    Method, Funding Agency, Comments, Chief Scientist, Start/End Date) modules. Empty fields and empty modules are
                                     hidden automatically on the rendered page.
                                 </p>
                             </WorkflowSteps.Step>
@@ -1742,17 +1745,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
 
                         <h4>Import Existing GFZ Legacy Resources</h4>
-                        <p>
-                            Admins and Group Leaders see two import actions to the right of the bulk toolbar on
-                            the <code>/resources</code> page:
-                        </p>
+                        <p>Admins and Group Leaders see two import actions to the right of the bulk toolbar on the <code>/resources</code> page:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Import all old Resources</strong> starts the existing background import of
                                 all GFZ DataCite resources.
                             </li>
                             <li>
-                                <strong>Import old single Resource</strong> opens a dialog for one DOI.
+                                <strong>Import old single Resource</strong> opens a dialog for a single DOI.
                             </li>
                         </ul>
                         <p>
