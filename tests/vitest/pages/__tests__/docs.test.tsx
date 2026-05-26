@@ -5,6 +5,7 @@ import { render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
+import type { UserRole } from '@/types';
 import type { EditorSettings } from '@/types/docs';
 
 vi.mock('@inertiajs/react', () => ({
@@ -28,6 +29,12 @@ global.IntersectionObserver = class IntersectionObserver {
     thresholds = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
+
+Object.defineProperty(window, 'scrollTo', {
+    configurable: true,
+    writable: true,
+    value: vi.fn(),
+});
 
 // Default editor settings for tests
 const defaultEditorSettings: EditorSettings = {
@@ -56,6 +63,47 @@ const defaultEditorSettings: EditorSettings = {
         maxTitles: 10,
         maxLicenses: 5,
     },
+};
+
+type EditorSettingsOverrides = {
+    thesauri?: Partial<EditorSettings['thesauri']>;
+    features?: Partial<EditorSettings['features']>;
+    limits?: Partial<EditorSettings['limits']>;
+};
+
+const createEditorSettings = (overrides: EditorSettingsOverrides = {}): EditorSettings => ({
+    thesauri: {
+        ...defaultEditorSettings.thesauri,
+        ...overrides.thesauri,
+    },
+    features: {
+        ...defaultEditorSettings.features,
+        ...overrides.features,
+    },
+    limits: {
+        ...defaultEditorSettings.limits,
+        ...overrides.limits,
+    },
+});
+
+const renderDocsPage = (userRole: UserRole, editorSettings: EditorSettings = defaultEditorSettings) => {
+    const user = userEvent.setup();
+
+    render(<Docs userRole={userRole} editorSettings={editorSettings} />);
+
+    return { user };
+};
+
+const openDatasetsTab = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('tab', { name: /Datasets/i }));
+
+    expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
+};
+
+const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('tab', { name: /Physical Samples/i }));
+
+    expect(screen.getByText('What is IGSN?')).toBeInTheDocument();
 };
 
 describe('Docs page', () => {
@@ -89,6 +137,16 @@ describe('Docs page', () => {
         expect(screen.getAllByText('User Management').length).toBeGreaterThan(0);
         expect(screen.getAllByText('System Administration').length).toBeGreaterThan(0);
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
+    });
+
+    it('shows assistance documentation for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
+    });
+
+    it('hides assistance documentation for curators', () => {
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        expect(screen.queryByText('Metadata Enrichment Assistance')).not.toBeInTheDocument();
     });
 
     it('mentions the assessment FAIR sidebar summary for administrators', () => {
@@ -164,31 +222,66 @@ describe('Docs page', () => {
         expect(screen.getByText(/validated with Redocly/i)).toBeInTheDocument();
     });
 
-    it('hides controlled keywords section when GCMD is disabled', () => {
-        const settingsWithoutGcmd: EditorSettings = {
-            ...defaultEditorSettings,
-            features: {
-                ...defaultEditorSettings.features,
-                hasActiveGcmd: false,
-                hasActiveMsl: false,
-                hasActiveChronostrat: false,
-                hasActiveGemet: false,
-                hasActiveAnalyticalMethods: false,
-                hasActiveEuroSciVoc: false,
-            },
-        };
-        render(<Docs userRole="beginner" editorSettings={settingsWithoutGcmd} />);
-        // The datasets tab should be visible but Keywords section should be filtered out
-        // Check that the Datasets tab exists
-        expect(screen.getByRole('tab', { name: /Datasets/i })).toBeInTheDocument();
+    it('documents the current metadata schema and legacy ELMO envelope format', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        expect(screen.getByText(/DataCite v4\.7 metadata editor/i)).toBeInTheDocument();
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText(/legacy DataCite 4\.6 \+ ISO envelope format/i)).toBeInTheDocument();
+        expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
     });
 
-    it('shows controlled keywords section when GCMD is enabled', () => {
-        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
-        // The datasets tab should be visible
-        expect(screen.getByRole('tab', { name: /Datasets/i })).toBeInTheDocument();
-        // Verify tabs are rendered correctly for users with GCMD enabled
-        expect(screen.getByRole('tablist')).toBeInTheDocument();
+    it('hides controlled keywords section when all vocabulary families are disabled', async () => {
+        const { user } = renderDocsPage(
+            'beginner',
+            createEditorSettings({
+                features: {
+                    hasActiveGcmd: false,
+                    hasActiveMsl: false,
+                    hasActiveChronostrat: false,
+                    hasActiveGemet: false,
+                    hasActiveAnalyticalMethods: false,
+                    hasActiveEuroSciVoc: false,
+                },
+            }),
+        );
+
+        await openDatasetsTab(user);
+
+        expect(screen.queryByText('Controlled Vocabularies')).not.toBeInTheDocument();
+    });
+
+    it('shows only the enabled controlled vocabulary families', async () => {
+        const { user } = renderDocsPage(
+            'beginner',
+            createEditorSettings({
+                thesauri: {
+                    scienceKeywords: false,
+                    platforms: false,
+                    instruments: false,
+                    chronostratigraphy: false,
+                    gemet: false,
+                    analyticalMethods: false,
+                    euroSciVoc: true,
+                },
+                features: {
+                    hasActiveGcmd: false,
+                    hasActiveMsl: false,
+                    hasActiveChronostrat: false,
+                    hasActiveGemet: false,
+                    hasActiveAnalyticalMethods: false,
+                    hasActiveEuroSciVoc: true,
+                },
+            }),
+        );
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Controlled Vocabularies')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /European Science Vocabulary \(EuroSciVoc\)/i })).toBeInTheDocument();
+        expect(screen.queryByText('NASA GCMD Keywords')).not.toBeInTheDocument();
     });
 
     it('shows editor settings for group_leader', () => {
@@ -249,6 +342,75 @@ describe('Docs page', () => {
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
     });
 
+    it('shows landing page templates for group leaders', async () => {
+        const groupLeaderPage = renderDocsPage('group_leader');
+        await openDatasetsTab(groupLeaderPage.user);
+        expect(screen.getByText('Custom Landing Page Templates')).toBeInTheDocument();
+    });
+
+    it('hides landing page templates for curators', async () => {
+        const curatorPage = renderDocsPage('curator');
+        await openDatasetsTab(curatorPage.user);
+        expect(screen.queryByText('Custom Landing Page Templates')).not.toBeInTheDocument();
+    });
+
+    it('shows citation manager documentation for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText(/Inline Citations \(DataCite 4\.7/i)).toBeInTheDocument();
+        expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
+    });
+
+    it('hides resource types documentation when no resource types are active', async () => {
+        const { user } = renderDocsPage(
+            'beginner',
+            createEditorSettings({
+                features: {
+                    hasActiveResourceTypes: false,
+                },
+            }),
+        );
+
+        await openDatasetsTab(user);
+
+        expect(screen.queryByText('Selecting Resource Types')).not.toBeInTheDocument();
+    });
+
+    it('hides licenses documentation when no licenses are active', async () => {
+        const { user } = renderDocsPage(
+            'beginner',
+            createEditorSettings({
+                features: {
+                    hasActiveLicenses: false,
+                },
+            }),
+        );
+
+        await openDatasetsTab(user);
+
+        expect(screen.queryByText('Assigning Licenses')).not.toBeInTheDocument();
+    });
+
+    it('hides optional title type examples when title types are disabled', async () => {
+        const { user } = renderDocsPage(
+            'beginner',
+            createEditorSettings({
+                features: {
+                    hasActiveTitleTypes: false,
+                },
+            }),
+        );
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Main Title')).toBeInTheDocument();
+        expect(screen.queryByText('Alternative Title')).not.toBeInTheDocument();
+        expect(screen.queryByText('Subtitle')).not.toBeInTheDocument();
+        expect(screen.queryByText('Translated Title')).not.toBeInTheDocument();
+    });
+
     it('documents the update metadata DOI action label in the ORCID pre-flight section', async () => {
         const user = userEvent.setup();
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
@@ -266,6 +428,34 @@ describe('Docs page', () => {
                 return text.includes('when you press Register DOI or Update metadata.');
             }),
         ).toBeInTheDocument();
+    });
+
+    it('shows the beginner note for test DOI registration only', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Beginners can only register test DOIs.')).toBeInTheDocument();
+    });
+
+    it('documents the current schema version for IGSN exports', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openPhysicalSamplesTab(user);
+
+        expect(screen.getByText(/DataCite Schema 4\.7 before download/i)).toBeInTheDocument();
+    });
+
+    it('shows IGSN administration for admins', async () => {
+        const adminPage = renderDocsPage('admin');
+        await openPhysicalSamplesTab(adminPage.user);
+        expect(screen.getByText('Bulk Delete')).toBeInTheDocument();
+    });
+
+    it('hides IGSN administration for group leaders', async () => {
+        const groupLeaderPage = renderDocsPage('group_leader');
+        await openPhysicalSamplesTab(groupLeaderPage.user);
+        expect(screen.queryByText('Bulk Delete')).not.toBeInTheDocument();
     });
 
     it('shows thesaurus update actions for admin in editor settings', () => {

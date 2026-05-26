@@ -20,7 +20,15 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     ca-certificates \
     gnupg \
-    && apt-get install -y --only-upgrade libcap2 libsystemd0 libudev1 linux-libc-dev \
+    && apt-get install -y --only-upgrade \
+        libcap2 \
+        libgssapi-krb5-2 \
+        libk5crypto3 \
+        libkrb5-3 \
+        libkrb5support0 \
+        libsystemd0 \
+        libudev1 \
+        linux-libc-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
