@@ -52,6 +52,9 @@ const roleHierarchy: Record<UserRole, number> = {
     admin: 4,
 };
 
+const CURRENT_DATACITE_METADATA_SCHEMA_VERSION = '4.7';
+const LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION = '4.6';
+
 export default function Docs({ userRole, editorSettings }: DocsProps) {
     const [activeTab, setActiveTab] = useState<DocsTabId>('getting-started');
 
@@ -78,8 +81,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Welcome to ERNIE</h3>
                         <p>
-                            ERNIE is a DataCite v4.6 metadata editor for research data curation at GFZ Helmholtz Centre. This documentation will help
-                            you navigate the platform and make the most of its features.
+                            ERNIE is a DataCite v{CURRENT_DATACITE_METADATA_SCHEMA_VERSION} metadata editor for research data curation at GFZ Helmholtz
+                            Centre. This documentation will help you navigate the platform and make the most of its features.
                         </p>
 
                         <h4>Your Role: {userRole}</h4>
@@ -686,7 +689,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>DataCite XML v4.x</li>
                             <li>DataCite JSON (standard API format)</li>
                             <li>DataCite JSON-LD (linked data format with <code>@context</code>)</li>
-                            <li>ELMO's DataCite 4.6 + ISO envelope format</li>
+                            <li>ELMO's legacy DataCite {LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION} + ISO envelope format</li>
                         </ul>
 
                         <h4>Upload Process</h4>
@@ -1275,16 +1278,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'citation-manager',
                 title: 'Citation Manager',
                 icon: Quote,
-                minRole: 'curator',
+                minRole: 'beginner',
                 content: (
                     <>
-                        <h3>Inline Citations (DataCite 4.7 <code>relatedItem</code>)</h3>
+                        <h3>
+                            Inline Citations (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
+                        </h3>
                         <p>
                             The Citation Manager complements plain <em>Related Identifiers</em> by allowing you to attach full bibliographic
                             metadata for related works — including title, authors, publication year, volume, issue, pages, and publisher —
                             directly to the resource. This is especially useful when citing a work that has no persistent identifier, or when
                             the linked record should remain visible even if the external DOI later becomes unavailable.
                         </p>
+                        <p>Every authenticated user can open this workflow anywhere they are allowed to edit a resource.</p>
 
                         <h4>Where to find it</h4>
                         <ul className="list-inside list-disc space-y-1">
@@ -1712,7 +1718,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </ul>
                         <p className="text-sm text-muted-foreground">
                             Limit: up to 100 resources per ZIP. Bulk exports stream the generated payload
-                            directly to the browser without running the DataCite Schema 4.7 validator —
+                            directly to the browser without running the DataCite Schema {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} validator —
                             use the single-resource export in the editor if you need schema-validated output.
                         </p>
 
@@ -1775,7 +1781,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>Click the JSON export button (file icon) on any resource row.</p>
 
                         <h4>Automatic Validation</h4>
-                        <p>All exports are validated against DataCite Metadata Schema 4.6:</p>
+                        <p>All exports are validated against DataCite Metadata Schema {CURRENT_DATACITE_METADATA_SCHEMA_VERSION}:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Schema violations are shown in an error modal</li>
                             <li>Each issue includes JSON path and description</li>
@@ -2066,7 +2072,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
                             <p className="text-sm text-green-900 dark:text-green-100">
-                                <strong>Validation:</strong> All exports are validated against DataCite Schema 4.6 before download.
+                                <strong>Validation:</strong> All exports are validated against DataCite Schema {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} before download.
                             </p>
                         </div>
                     </>
