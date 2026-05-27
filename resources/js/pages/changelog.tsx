@@ -11,8 +11,6 @@ import ChangelogLayout from '@/layouts/changelog-layout';
 declare global {
     interface Window {
         __testHelper_updateActiveRelease?: () => void;
-        __testHelper_getUserInteracted?: () => boolean;
-        __testHelper_setUserInteracted?: (value: boolean) => void;
         __testHelper_expandRelease?: (index: number) => void;
     }
 }
@@ -41,13 +39,13 @@ const sectionConfig: Record<
 
 export default function Changelog() {
     const [releases, setReleases] = useState<Release[]>([]);
-    const [active, setActive] = useState<number | null>(null);
+    const [openIndex, setOpenIndex] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
     const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
     const [announcement, setAnnouncement] = useState('');
     const releaseRefs = useRef<(HTMLLIElement | null)[]>([]);
-    const userInteractedRef = useRef<boolean>(false);
+    const pendingScrollRef = useRef<{ index: number; behavior: ScrollBehavior } | null>(null);
 
     // Check for reduced motion preference
     useEffect(() => {
@@ -73,6 +71,19 @@ export default function Changelog() {
         return releaseDate >= fourteenDaysAgo;
     };
 
+    const getReleaseIndexFromHash = useCallback((hash: string, sourceReleases: Release[]) => {
+        const normalizedHash = hash.replace('#', '');
+
+        if (!normalizedHash.startsWith('v')) {
+            return null;
+        }
+
+        const version = normalizedHash.substring(1);
+        const index = sourceReleases.findIndex((release) => release.version === version);
+
+        return index === -1 ? null : index;
+    }, []);
+
     // Fetch changelog data on mount
     useEffect(() => {
         fetch('/api/changelog')
@@ -86,48 +97,81 @@ export default function Changelog() {
                 setReleases(data);
                 releaseRefs.current = new Array(data.length).fill(null);
 
-                // Read hash directly from URL when data is loaded
-                const hash = window.location.hash.replace('#', '');
-                if (hash.startsWith('v')) {
-                    const version = hash.substring(1);
-                    const index = data.findIndex((r) => r.version === version);
-                    if (index !== -1) {
-                        userInteractedRef.current = true; // Prevent auto-expand from overriding deep-link
-                        setActive(index);
-                        // Scroll to element after React has rendered
-                        setTimeout(() => {
-                            const element = releaseRefs.current[index];
-                            if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                        }, 300); // Increased timeout for reliability
-                    }
+                const hashIndex = getReleaseIndexFromHash(window.location.hash, data);
+
+                if (hashIndex !== null) {
+                    setOpenIndex(hashIndex);
+                    setHighlightedIndex(hashIndex);
+                    pendingScrollRef.current = {
+                        index: hashIndex,
+                        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                    };
                 } else {
-                    setActive(data.length > 0 ? 0 : null);
+                    const defaultIndex = data.length > 0 ? 0 : null;
+
+                    setOpenIndex(defaultIndex);
+                    setHighlightedIndex(defaultIndex);
                 }
             })
             .catch(() => setError('Unable to load changelog.'));
-    }, []);
+    }, [getReleaseIndexFromHash, prefersReducedMotion]);
+
+    useEffect(() => {
+        const pendingScroll = pendingScrollRef.current;
+
+        if (!pendingScroll) {
+            return;
+        }
+
+        const element = releaseRefs.current[pendingScroll.index];
+
+        if (!element) {
+            return;
+        }
+
+        element.scrollIntoView({ behavior: pendingScroll.behavior, block: 'center' });
+        pendingScrollRef.current = null;
+    }, [releases, openIndex]);
+
+    const navigateToRelease = useCallback(
+        (
+            index: number,
+            options: {
+                updateHash?: boolean;
+                scrollBehavior?: ScrollBehavior;
+            } = {},
+        ) => {
+            const targetRelease = releases[index];
+
+            if (!targetRelease) {
+                return;
+            }
+
+            const nextHash = `#v${targetRelease.version}`;
+
+            if (options.updateHash !== false && window.location.hash !== nextHash) {
+                window.history.pushState(null, '', nextHash);
+            }
+
+            setOpenIndex(index);
+            setHighlightedIndex(index);
+            pendingScrollRef.current = {
+                index,
+                behavior: options.scrollBehavior ?? (prefersReducedMotion ? 'auto' : 'smooth'),
+            };
+        },
+        [prefersReducedMotion, releases],
+    );
 
     // Handle hash changes (for browser navigation and timeline clicks)
     useEffect(() => {
         if (releases.length === 0) return;
 
         const processHash = () => {
-            const hash = window.location.hash.replace('#', '');
-            if (hash.startsWith('v')) {
-                const version = hash.substring(1);
-                const index = releases.findIndex((r) => r.version === version);
-                if (index !== -1) {
-                    userInteractedRef.current = true; // Prevent auto-expand from overriding deep-link
-                    setActive(index);
-                    setTimeout(() => {
-                        const element = releaseRefs.current[index];
-                        if (element) {
-                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                    }, 100);
-                }
+            const index = getReleaseIndexFromHash(window.location.hash, releases);
+
+            if (index !== null) {
+                navigateToRelease(index, { updateHash: false });
             }
         };
 
@@ -137,7 +181,9 @@ export default function Changelog() {
         return () => {
             window.removeEventListener('hashchange', processHash);
         };
-    }, [releases]); // Helper function to find most visible release (extracted for reuse)
+    }, [getReleaseIndexFromHash, navigateToRelease, releases]);
+
+    // Helper function to find most visible release (extracted for reuse)
     const findMostVisibleRelease = useCallback(() => {
         let bestIndex = -1;
         let bestRatio = 0;
@@ -171,10 +217,6 @@ export default function Changelog() {
 
         if (mostVisibleIndex !== -1) {
             setHighlightedIndex(mostVisibleIndex);
-
-            if (!userInteractedRef.current) {
-                setActive(mostVisibleIndex);
-            }
         }
     }, [findMostVisibleRelease]);
 
@@ -182,28 +224,20 @@ export default function Changelog() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             window.__testHelper_updateActiveRelease = updateActiveRelease;
-            window.__testHelper_getUserInteracted = () => userInteractedRef.current;
-            window.__testHelper_setUserInteracted = (value: boolean) => {
-                userInteractedRef.current = value;
-            };
-            // Direct helper to expand specific release by index (bypasses visibility check)
-            // NOTE: For tests only - bypasses userInteracted check for full control
             window.__testHelper_expandRelease = (index: number) => {
                 if (index >= 0 && index < releases.length) {
                     setHighlightedIndex(index);
-                    setActive(index);
+                    setOpenIndex(index);
                 }
             };
         }
         return () => {
             if (typeof window !== 'undefined') {
                 delete window.__testHelper_updateActiveRelease;
-                delete window.__testHelper_getUserInteracted;
-                delete window.__testHelper_setUserInteracted;
                 delete window.__testHelper_expandRelease;
             }
         };
-    }, [updateActiveRelease, releases, setActive, setHighlightedIndex]);
+    }, [releases, updateActiveRelease]);
 
     // Intersection Observer for scroll-based highlighting and auto-expand
     useEffect(() => {
@@ -250,43 +284,31 @@ export default function Changelog() {
 
     const handleNavigate = useCallback(
         (index: number) => {
-            const version = releases[index]?.version;
-            if (version) {
-                window.history.pushState(null, '', `#v${version}`);
-            }
-
-            userInteractedRef.current = true;
-            setActive(index);
-
-            const element = releaseRefs.current[index];
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-
-            // Manually trigger update after programmatic scroll
-            setTimeout(() => updateActiveRelease(), 400);
+            navigateToRelease(index);
         },
-        [releases, updateActiveRelease],
+        [navigateToRelease],
     );
 
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (releases.length === 0 || active === null) return;
+            if (releases.length === 0) return;
+
+            const currentIndex = highlightedIndex ?? openIndex ?? 0;
 
             switch (event.key) {
                 case 'ArrowDown':
                 case 'j':
                     event.preventDefault();
-                    if (active < releases.length - 1) {
-                        handleNavigate(active + 1);
+                    if (currentIndex < releases.length - 1) {
+                        handleNavigate(currentIndex + 1);
                     }
                     break;
                 case 'ArrowUp':
                 case 'k':
                     event.preventDefault();
-                    if (active > 0) {
-                        handleNavigate(active - 1);
+                    if (currentIndex > 0) {
+                        handleNavigate(currentIndex - 1);
                     }
                     break;
                 case 'Home':
@@ -300,20 +322,22 @@ export default function Changelog() {
                 case 'Enter':
                 case ' ':
                     event.preventDefault();
-                    userInteractedRef.current = true;
-                    setActive((prev) => (prev === active ? null : active));
+                    setHighlightedIndex(currentIndex);
+                    setOpenIndex((prev) => (prev === currentIndex ? null : currentIndex));
                     break;
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [releases, active, handleNavigate]);
+    }, [handleNavigate, highlightedIndex, openIndex, releases]);
+
+    const activeTimelineIndex = highlightedIndex ?? openIndex;
 
     return (
         <ChangelogLayout>
             <Head title="Changelog" />
-            <ChangelogTimelineNav releases={releases} activeIndex={active} onNavigate={handleNavigate} />
+            <ChangelogTimelineNav releases={releases} activeIndex={activeTimelineIndex} onNavigate={handleNavigate} />
 
             {/* Screen reader announcements */}
             <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
@@ -339,7 +363,7 @@ export default function Changelog() {
             ) : (
                 <ul className="relative space-y-4 border-l border-gray-300 pl-6" aria-label="Changelog Timeline">
                     {releases.map((release, index) => {
-                        const isOpen = active === index;
+                        const isOpen = openIndex === index;
                         const buttonId = `release-trigger-${index}`;
                         const panelId = `release-${index}`;
                         const prev = releases[index - 1];
@@ -372,25 +396,13 @@ export default function Changelog() {
                                     prefersReducedMotion
                                         ? {}
                                         : {
-                                              duration: 0.4,
-                                              delay: index * 0.1,
+                                              duration: 0.2,
                                               ease: 'easeOut',
                                           }
                                 }
                             >
-                                <motion.div
-                                    animate={
-                                        prefersReducedMotion
-                                            ? {}
-                                            : {
-                                                  scale: highlightedIndex === index ? 1.02 : 1,
-                                              }
-                                    }
-                                    transition={prefersReducedMotion ? {} : { duration: 0.3, ease: 'easeInOut' }}
-                                    className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg}`}
-                                    style={{
-                                        opacity: highlightedIndex === null || highlightedIndex === index ? 1 : 0.6,
-                                    }}
+                                <div
+                                    className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg} ${highlightedIndex === index ? 'ring-1 ring-slate-300/70 dark:ring-slate-700/70' : ''}`}
                                 >
                                     <span
                                         aria-hidden="true"
@@ -400,23 +412,22 @@ export default function Changelog() {
                                     {/* Native button used intentionally - custom accordion styling with complex children */}
                                     <button
                                         onClick={() => {
-                                            userInteractedRef.current = true;
                                             const wasOpen = isOpen;
-                                            setActive(isOpen ? null : index);
+                                            const nextIsOpen = !wasOpen;
+
+                                            setHighlightedIndex(index);
+                                            setOpenIndex(nextIsOpen ? index : null);
 
                                             // Announce for screen readers
                                             setAnnouncement(
                                                 wasOpen ? `Version ${release.version} eingeklappt` : `Version ${release.version} erweitert`,
                                             );
 
-                                            // Scroll element into view after toggle
-                                            if (!isOpen) {
-                                                setTimeout(() => {
-                                                    const element = releaseRefs.current[index];
-                                                    if (element) {
-                                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                    }
-                                                }, 50);
+                                            if (nextIsOpen) {
+                                                pendingScrollRef.current = {
+                                                    index,
+                                                    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                                                };
                                             }
                                         }}
                                         id={buttonId}
@@ -446,7 +457,7 @@ export default function Changelog() {
                                                 initial={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
                                                 animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
                                                 exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
-                                                transition={prefersReducedMotion ? {} : { duration: 0.3 }}
+                                                transition={prefersReducedMotion ? {} : { duration: 0.2 }}
                                                 className="mt-2 ml-5 border-l pl-4 text-sm text-gray-700"
                                                 role="region"
                                                 aria-labelledby={buttonId}
@@ -483,7 +494,7 @@ export default function Changelog() {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
-                                </motion.div>
+                                </div>
                             </motion.li>
                         );
                     })}

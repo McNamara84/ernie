@@ -136,26 +136,12 @@ describe('Changelog', () => {
         // Reset hash between tests (handleNavigate uses pushState which persists)
         window.history.replaceState(null, '', window.location.pathname);
         
-        // Mock IntersectionObserver with callback execution
+        // Mock IntersectionObserver without automatic callbacks so tests can
+        // drive visibility changes explicitly through the test helper.
         global.IntersectionObserver = vi.fn().mockImplementation(function (this: IntersectionObserver, callback: IntersectionObserverCallback) {
+            consumeMotionOnlyProps(callback);
             return {
-                observe: vi.fn((target: Element) => {
-                    // Immediately trigger callback with isIntersecting: true
-                    callback(
-                        [
-                            {
-                                target,
-                                isIntersecting: true,
-                                intersectionRatio: 1,
-                                boundingClientRect: target.getBoundingClientRect(),
-                                intersectionRect: target.getBoundingClientRect(),
-                                rootBounds: null,
-                                time: Date.now(),
-                            },
-                        ] as IntersectionObserverEntry[],
-                        this
-                    );
-                }),
+                observe: vi.fn(),
                 unobserve: vi.fn(),
                 disconnect: vi.fn(),
                 root: null,
@@ -217,11 +203,75 @@ describe('Changelog', () => {
         });
     });
 
+    it('opens the hash-targeted release on initial load', async () => {
+        window.history.replaceState(null, '', '/changelog#v0.1.1');
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const targetButton = screen.getByRole('button', { name: /version 0.1.1/i });
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('opens the hash-targeted release when the hash changes', async () => {
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const targetButton = screen.getByRole('button', { name: /version 0.2.0/i });
+
+        await act(async () => {
+            window.history.pushState(null, '', '/changelog#v0.2.0');
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
+        });
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('keeps the open release stable when scroll-based highlighting changes', async () => {
+        Object.defineProperty(window, 'innerHeight', { value: 1000, writable: true });
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+        const items = screen.getAllByRole('listitem');
+        const createRect = (top: number, bottom: number) => ({
+            x: 0,
+            y: top,
+            width: 400,
+            height: bottom - top,
+            top,
+            right: 400,
+            bottom,
+            left: 0,
+            toJSON: () => ({}),
+        });
+
+        Object.defineProperty(items[0], 'getBoundingClientRect', {
+            configurable: true,
+            value: () => createRect(0, 220),
+        });
+        Object.defineProperty(items[1], 'getBoundingClientRect', {
+            configurable: true,
+            value: () => createRect(320, 720),
+        });
+        Object.defineProperty(items[2], 'getBoundingClientRect', {
+            configurable: true,
+            value: () => createRect(760, 960),
+        });
+
+        await act(async () => {
+            window.__testHelper_updateActiveRelease?.();
+        });
+
+        expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
     describe('keyboard navigation', () => {
-        // Use fake timers to prevent the debounced updateActiveRelease (400ms)
-        // from overriding the synchronous setActive() in handleNavigate.
-        // The IntersectionObserver mock fires isIntersecting:true for all elements,
-        // so without fake timers the debounced callback picks index 0 again.
         beforeEach(() => {
             vi.useFakeTimers({ shouldAdvanceTime: false });
         });

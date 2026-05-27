@@ -9,6 +9,22 @@ const mocks = vi.hoisted(() => ({
     motionButton: vi.fn(),
 }));
 
+type MotionButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    whileHover?: unknown;
+    whileTap?: unknown;
+};
+
+const consumeMotionOnlyProps = (...values: unknown[]) => {
+    values.forEach(() => {
+        // Accessing the values is enough to satisfy eslint while discarding motion-only props.
+    });
+};
+
+const sanitizeButtonMotionProps = ({ whileHover, whileTap, ...rest }: MotionButtonProps) => {
+    consumeMotionOnlyProps(whileHover, whileTap);
+    return rest;
+};
+
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
     motion: {
@@ -19,9 +35,11 @@ vi.mock('framer-motion', () => ({
         button: ({
             children,
             ...props
-        }: React.PropsWithChildren<React.ButtonHTMLAttributes<HTMLButtonElement>>) => {
-            mocks.motionButton(props);
-            return <button {...props}>{children}</button>;
+        }: React.PropsWithChildren<MotionButtonProps>) => {
+            const rest = sanitizeButtonMotionProps(props);
+
+            mocks.motionButton(rest);
+            return <button {...rest}>{children}</button>;
         },
         span: ({ children, ...props }: React.PropsWithChildren<object>) => <span {...props}>{children}</span>,
     },
@@ -112,6 +130,17 @@ describe('ChangelogTimelineNav', () => {
             });
 
             expect(mockOnNavigate).toHaveBeenCalledWith(1);
+        });
+
+        it('uses larger desktop hit targets for timeline buttons', async () => {
+            render(
+                <ChangelogTimelineNav releases={mockReleases} activeIndex={0} onNavigate={mockOnNavigate} />,
+            );
+
+            await waitFor(() => {
+                const button = screen.getByLabelText('Navigate to version 2.0.0');
+                expect(button).toHaveClass('h-8', 'w-8');
+            });
         });
 
         it('marks the active version with aria-current', async () => {
@@ -208,7 +237,7 @@ describe('ChangelogTimelineNav', () => {
             );
 
             await waitFor(() => {
-                const buttons = screen.getAllByRole('button');
+                const buttons = screen.getAllByTestId('timeline-dot');
                 // First button should have green background
                 expect(buttons[0]).toHaveClass('bg-green-500');
             });
@@ -221,7 +250,7 @@ describe('ChangelogTimelineNav', () => {
             );
 
             await waitFor(() => {
-                const buttons = screen.getAllByRole('button');
+                const buttons = screen.getAllByTestId('timeline-dot');
                 // Second button (1.1.0 compared to 2.0.0) - major change
                 expect(buttons[1]).toHaveClass('bg-green-500');
             });
@@ -234,7 +263,7 @@ describe('ChangelogTimelineNav', () => {
             );
 
             await waitFor(() => {
-                const buttons = screen.getAllByRole('button');
+                const buttons = screen.getAllByTestId('timeline-dot');
                 // Third button (1.0.1 compared to 1.1.0) - minor change
                 expect(buttons[2]).toHaveClass('bg-blue-500');
             });
@@ -247,7 +276,7 @@ describe('ChangelogTimelineNav', () => {
             );
 
             await waitFor(() => {
-                const buttons = screen.getAllByRole('button');
+                const buttons = screen.getAllByTestId('timeline-dot');
                 // Fourth button (1.0.0 compared to 1.0.1) - patch change
                 expect(buttons[3]).toHaveClass('bg-red-500');
             });
