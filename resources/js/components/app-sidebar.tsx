@@ -170,13 +170,20 @@ export function AppSidebar() {
 
     if (auth.user?.can_access_statistics) {
         const statisticsItem: NavItem = {
-            title: 'Statistics (old)',
-            href: '/old-statistics',
+            title: 'Statistics',
+            href: '/statistics',
             icon: BarChart3,
         };
 
+        const legacyStatisticsItem: NavItem = {
+            title: 'Statistics (old)',
+            href: '/old-statistics',
+            icon: History,
+        };
+
         administrationItems.push(statisticsItem);
-        legacyItems.push(statisticsItem);
+        operationsItems.push(statisticsItem);
+        legacyItems.push(legacyStatisticsItem);
     }
 
     if (auth.user?.can_access_users) {

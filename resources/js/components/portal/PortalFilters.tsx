@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -84,6 +85,11 @@ export function PortalFilters({
     const handleSearchSubmit = useCallback(
         (e: React.FormEvent) => {
             e.preventDefault();
+
+            if (searchInput.trim() !== '') {
+                void axios.post('/portal/search-analytics', { search_term: searchInput }).catch(() => undefined);
+            }
+
             onSearchChange(searchInput);
         },
         [searchInput, onSearchChange],

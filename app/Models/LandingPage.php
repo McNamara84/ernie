@@ -289,6 +289,16 @@ class LandingPage extends Model
     }
 
     /**
+     * Get the daily analytics aggregates associated with this landing page.
+     *
+     * @return HasMany<LandingPageDailyStatistic, $this>
+     */
+    public function dailyStatistics(): HasMany
+    {
+        return $this->hasMany(LandingPageDailyStatistic::class);
+    }
+
+    /**
      * Get the additional links associated with this landing page.
      *
      * Curators can add extra download links (e.g., GitLab repository, project website)

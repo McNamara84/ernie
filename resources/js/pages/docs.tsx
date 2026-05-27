@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import {
+    BarChart3,
     BookOpen,
     Braces,
     Calendar,
@@ -126,8 +127,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Workspace Switcher:</strong> Admins and Group Leaders now see a <strong>Curation</strong> /{' '}
                                 <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for
                                 day-to-day metadata work such as the Dashboard, Resources, and IGSN tools. Use <strong>Administration</strong>{' '}
-                                for privileged destinations such as Users, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and
-                                legacy maintenance pages. ERNIE remembers the last selected workspace locally.
+                                for privileged destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment,
+                                Logs, and legacy maintenance pages. ERNIE remembers the last selected workspace locally.
                             </p>
                         </div>
 
@@ -480,6 +481,58 @@ DATACITE_TEST_USERNAME=your_test_username
 DATACITE_TEST_PASSWORD=your_test_password`}
                             language="bash"
                         />
+                    </>
+                ),
+            },
+            {
+                id: 'statistics-dashboard',
+                title: 'Statistics',
+                icon: BarChart3,
+                minRole: 'group_leader',
+                content: (
+                    <>
+                        <h3>Public Engagement Statistics</h3>
+                        <p>
+                            The <strong>Statistics</strong> page (<code>/statistics</code>) is available to Admins and Group Leaders in the{' '}
+                            <strong>Administration</strong> workspace of the sidebar. It summarizes how published landing pages perform after go-live.
+                        </p>
+
+                        <h4>What is counted</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Landing page views</strong> for published landing pages only
+                            </li>
+                            <li>
+                                <strong>Download clicks</strong> on real file targets from the <strong>Files</strong> section
+                            </li>
+                            <li>
+                                <strong>Portal searches</strong> submitted explicitly through the public <code>/portal</code> search box
+                            </li>
+                        </ul>
+
+                        <h4>What is excluded</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Preview and review links</li>
+                            <li>Draft landing pages</li>
+                            <li>Additional curator-defined links below the main download area</li>
+                            <li>Known bot traffic when bot protection is enabled</li>
+                        </ul>
+
+                        <h4>Dashboard modules</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Overview cards for landing page views, download clicks, portal searches, and tracked landing pages</li>
+                            <li>Daily trend charts for the last 14 days</li>
+                            <li>Top landing pages by views and by download clicks</li>
+                            <li>Top normalized portal search terms</li>
+                            <li>Separate engagement split for regular resources and Physical Objects</li>
+                        </ul>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Go-live baseline:</strong> The dashboard starts counting from the moment this analytics feature is deployed.
+                                Older legacy counters are not backfilled into the new dashboard.
+                            </p>
+                        </div>
                     </>
                 ),
             },

@@ -573,6 +573,25 @@ erDiagram
         timestamp updated_at
     }
 
+    landing_page_daily_statistics {
+        bigint id PK
+        bigint landing_page_id FK
+        date statistic_date "UK with landing_page_id"
+        int page_view_count "default 0"
+        int file_download_click_count "default 0"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    portal_search_daily_statistics {
+        bigint id PK
+        date statistic_date "UK with normalized_term"
+        varchar normalized_term "255"
+        int search_count "default 0"
+        timestamp created_at
+        timestamp updated_at
+    }
+
     settings {
         bigint id PK
         varchar key UK
@@ -1027,6 +1046,7 @@ erDiagram
     landing_pages }o--o| landing_page_domains : "external domain"
     landing_pages ||--o{ landing_page_files : "has files"
     landing_pages ||--o{ landing_page_links : "has links"
+    landing_pages ||--o{ landing_page_daily_statistics : "tracks daily analytics"
     landing_pages }o--o| landing_page_templates : "uses template"
     landing_page_templates }o--o| users : "created by"
 

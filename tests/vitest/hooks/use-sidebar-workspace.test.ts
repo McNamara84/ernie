@@ -14,7 +14,7 @@ import {
 } from '@/hooks/use-sidebar-workspace';
 
 const workspacePaths = {
-    administration: ['/users', '/logs', '/settings', '/landing-pages', '/assistance', '/assessment', '/old-statistics', '/old-datasets'],
+    administration: ['/users', '/logs', '/settings', '/landing-pages', '/assistance', '/assessment', '/statistics', '/old-statistics', '/old-datasets'],
     curation: ['/dashboard', '/editor', '/resources', '/igsns', '/igsns-map', '/igsn-editor'],
 };
 

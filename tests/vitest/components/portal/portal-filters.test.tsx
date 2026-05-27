@@ -4,6 +4,16 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { mockAxiosPost } = vi.hoisted(() => ({
+    mockAxiosPost: vi.fn(),
+}));
+
+vi.mock('axios', () => ({
+    default: {
+        post: mockAxiosPost,
+    },
+}));
+
 import { PortalFilters } from '@/components/portal/PortalFilters';
 import type { PortalFilters as PortalFiltersType } from '@/types/portal';
 
@@ -69,6 +79,7 @@ describe('PortalFilters', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAxiosPost.mockResolvedValue({ status: 204 });
     });
 
     describe('Expanded State', () => {
@@ -167,7 +178,26 @@ describe('PortalFilters', () => {
             fireEvent.change(input, { target: { value: 'submitted query' } });
             fireEvent.submit(input.closest('form')!);
 
+            await vi.waitFor(() => {
+                expect(mockAxiosPost).toHaveBeenCalledWith('/portal/search-analytics', { search_term: 'submitted query' });
+            });
+
             expect(onSearchChange).toHaveBeenCalledWith('submitted query');
+        });
+
+        it('does not send analytics for blank submitted queries', async () => {
+            const onSearchChange = vi.fn();
+            render(<PortalFilters {...defaultProps} onSearchChange={onSearchChange} />);
+
+            const input = screen.getByPlaceholderText(/search datasets/i);
+            fireEvent.change(input, { target: { value: '   ' } });
+            fireEvent.submit(input.closest('form')!);
+
+            await vi.waitFor(() => {
+                expect(onSearchChange).toHaveBeenCalledWith('   ');
+            });
+
+            expect(mockAxiosPost).not.toHaveBeenCalled();
         });
 
         it('shows clear button when search input has value and clears on click', async () => {
@@ -188,6 +218,7 @@ describe('PortalFilters', () => {
             await user.click(clearButton);
 
             expect(onSearchChange).toHaveBeenCalledWith('');
+            expect(mockAxiosPost).not.toHaveBeenCalled();
         });
     });
 

@@ -10,7 +10,7 @@ import { LandingPageCard } from './LandingPageCard';
 
 interface FilesSectionProps {
     downloadUrl?: string | null;
-    downloadFiles?: { url: string }[];
+    downloadFiles?: { url: string; tracked_url?: string | null }[];
     licenses: LandingPageLicense[];
     contactPersons?: LandingPageContactPerson[];
     datasetTitle?: string;
@@ -34,7 +34,9 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
     // Build effective list of download URLs: prefer downloadFiles, fall back to single downloadUrl
     const hasDownloadUrl = typeof downloadUrl === 'string' && downloadUrl !== '#' && downloadUrl.trim() !== '';
     const effectiveDownloads =
-        downloadFiles && downloadFiles.length > 0 ? downloadFiles.map((f) => f.url) : hasDownloadUrl ? [downloadUrl!] : [];
+        downloadFiles && downloadFiles.length > 0
+            ? downloadFiles.map((file) => file.tracked_url ?? file.url)
+            : hasDownloadUrl ? [downloadUrl!] : [];
 
     // Find contact persons for fallback options
     const contactPersonWithEmail = contactPersons.find((p) => p.has_email);

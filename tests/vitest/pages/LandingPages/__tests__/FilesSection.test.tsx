@@ -17,6 +17,17 @@ describe('FilesSection', () => {
         expect(screen.getByText('Download data and description')).toBeInTheDocument();
     });
 
+    it('prefers tracked file URLs over raw file URLs', () => {
+        render(
+            <FilesSection
+                downloadFiles={[{ url: 'https://example.com/raw.csv', tracked_url: '/landing-page-downloads/1/files/7' }]}
+                licenses={[]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: /Download data and description/i })).toHaveAttribute('href', '/landing-page-downloads/1/files/7');
+    });
+
     it('renders fallback message when no download or contacts', () => {
         render(<FilesSection licenses={[]} />);
 

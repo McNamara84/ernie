@@ -641,6 +641,27 @@ entity "landing_page_links" as landing_page_links {
     updated_at : TIMESTAMP
 }
 
+entity "landing_page_daily_statistics" as landing_page_daily_statistics {
+    * **id** : BIGINT <<PK>>
+    --
+    * landing_page_id : BIGINT <<FK>>
+    * statistic_date : DATE <<UK(landing_page_id, statistic_date)>>
+    * page_view_count : INT = 0
+    * file_download_click_count : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "portal_search_daily_statistics" as portal_search_daily_statistics {
+    * **id** : BIGINT <<PK>>
+    --
+    * statistic_date : DATE <<UK(statistic_date, normalized_term)>>
+    * normalized_term : VARCHAR(255)
+    * search_count : INT = 0
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
 entity "landing_page_domains" as landing_page_domains {
     * **id** : BIGINT <<PK>>
     --
@@ -1106,6 +1127,7 @@ users }o--o| users : "deactivated_by"
 landing_pages }o--o| landing_page_domains
 landing_pages ||--o{ landing_page_files
 landing_pages ||--o{ landing_page_links
+landing_pages ||--o{ landing_page_daily_statistics
 landing_pages }o--o| landing_page_templates
 landing_page_templates }o--o| users
 

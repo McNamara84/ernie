@@ -209,7 +209,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Operations', 'Legacy']);
         expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Users']);
         expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings']);
-        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Logs']);
+        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics', 'Logs']);
         expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Old Datasets', 'Statistics (old)']);
     });
 
@@ -229,10 +229,11 @@ describe('AppSidebar', () => {
         expect(screen.getByTestId('workspace-switcher')).toHaveAttribute('data-value', 'administration');
 
         const sectionCalls = NavSectionMock.mock.calls;
-        expect(sectionCalls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Legacy']);
+        expect(sectionCalls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Operations', 'Legacy']);
         expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Users']);
         expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings']);
-        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics (old)']);
+        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics']);
+        expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics (old)']);
     });
 
     it('does not render a leading separator when the team section is filtered out', () => {
@@ -284,7 +285,7 @@ describe('AppSidebar', () => {
 
         const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
         expect(operationsSection).toBeDefined();
-        expect(operationsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assessment', 'Logs']);
+        expect(operationsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assessment', 'Statistics', 'Logs']);
         expect(operationsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
     });
 

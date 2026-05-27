@@ -153,6 +153,9 @@ export interface LandingPageFile {
     /** Download URL */
     url: string;
 
+    /** Public tracked redirect URL used only on published landing pages */
+    tracked_url?: string | null;
+
     /** Display order */
     position: number;
 }
@@ -203,6 +206,9 @@ export interface LandingPageConfig {
 
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
+
+    /** Public tracked redirect URL used only on published landing pages */
+    tracked_ftp_url?: string | null;
 
     /** FK to landing_page_domains (only for external template) */
     external_domain_id?: number | null;

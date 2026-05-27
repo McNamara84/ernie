@@ -437,7 +437,7 @@ export class LandingPage {
   /**
    * Verify download button is visible and has correct URL
    */
-  async verifyDownloadButtonVisible(expectedUrl?: string) {
+  async verifyDownloadButtonVisible(expectedUrl?: string | RegExp) {
     await expect(this.downloadButton).toBeVisible();
     if (expectedUrl) {
       await expect(this.downloadButton).toHaveAttribute('href', expectedUrl);
