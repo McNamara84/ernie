@@ -5,7 +5,20 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
-import Changelog from '@/pages/changelog';
+import Changelog, { browserNavigation } from '@/pages/changelog';
+
+type TimelineNavProps = {
+    releases: Array<{ version: string; date: string }>;
+    activeIndex: number | null;
+    onNavigate: (index: number) => void;
+};
+
+const pageMocks = vi.hoisted(() => ({
+    timelineNavProps: null as TimelineNavProps | null,
+    skipListItemRefAssignment: false,
+    reducedMotionMatches: false,
+    reducedMotionListeners: new Set<(event: MediaQueryListEvent) => void>(),
+}));
 
 vi.mock('@/layouts/changelog-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -16,7 +29,10 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/changelog-timeline-nav', () => ({
-    ChangelogTimelineNav: () => null,
+    ChangelogTimelineNav: (props: TimelineNavProps) => {
+        pageMocks.timelineNavProps = props;
+        return null;
+    },
 }));
 
 vi.mock('@/components/ui/badge', () => ({
@@ -75,6 +91,11 @@ vi.mock('framer-motion', () => ({
         },
         li: ({ children, ref, ...props }: MotionLiProps & { children?: React.ReactNode; ref?: React.Ref<HTMLLIElement> }) => {
             const rest = sanitizeLiMotionProps(props);
+
+            if (pageMocks.skipListItemRefAssignment) {
+                return <li {...rest}>{children}</li>;
+            }
+
             return <li ref={ref} {...rest}>{children}</li>;
         },
     },
@@ -86,8 +107,56 @@ vi.mock('lucide-react', () => ({
     TrendingUp: () => <svg data-testid="trending-up-icon" />,
 }));
 
+const setReducedMotion = (matches: boolean, options: { notify?: boolean } = {}) => {
+    pageMocks.reducedMotionMatches = matches;
+
+    Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation((query: string) => ({
+            matches: query === '(prefers-reduced-motion: reduce)' ? pageMocks.reducedMotionMatches : false,
+            media: query,
+            onchange: null,
+            addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+                if (query === '(prefers-reduced-motion: reduce)') {
+                    pageMocks.reducedMotionListeners.add(listener);
+                }
+            }),
+            removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+                pageMocks.reducedMotionListeners.delete(listener);
+            }),
+            addEventListener: vi.fn((eventName: string, listener: (event: MediaQueryListEvent) => void) => {
+                if (query === '(prefers-reduced-motion: reduce)' && eventName === 'change') {
+                    pageMocks.reducedMotionListeners.add(listener);
+                }
+            }),
+            removeEventListener: vi.fn((eventName: string, listener: (event: MediaQueryListEvent) => void) => {
+                if (eventName === 'change') {
+                    pageMocks.reducedMotionListeners.delete(listener);
+                }
+            }),
+            dispatchEvent: vi.fn(),
+        })),
+    });
+
+    if (options.notify) {
+        const event = {
+            matches,
+            media: '(prefers-reduced-motion: reduce)',
+        } as MediaQueryListEvent;
+
+        pageMocks.reducedMotionListeners.forEach((listener) => {
+            listener(event);
+        });
+    }
+};
+
 describe('Changelog', () => {
     beforeEach(() => {
+        pageMocks.timelineNavProps = null;
+        pageMocks.skipListItemRefAssignment = false;
+        pageMocks.reducedMotionMatches = false;
+        pageMocks.reducedMotionListeners.clear();
+
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
             json: () =>
@@ -132,30 +201,17 @@ describe('Changelog', () => {
         // Mock scrollTo and scrollIntoView
         window.scrollTo = vi.fn();
         Element.prototype.scrollIntoView = vi.fn();
+        setReducedMotion(false);
 
         // Reset hash between tests (handleNavigate uses pushState which persists)
         window.history.replaceState(null, '', window.location.pathname);
         
-        // Mock IntersectionObserver with callback execution
+        // Mock IntersectionObserver without automatic callbacks so tests can
+        // drive visibility changes explicitly through the test helper.
         global.IntersectionObserver = vi.fn().mockImplementation(function (this: IntersectionObserver, callback: IntersectionObserverCallback) {
+            consumeMotionOnlyProps(callback);
             return {
-                observe: vi.fn((target: Element) => {
-                    // Immediately trigger callback with isIntersecting: true
-                    callback(
-                        [
-                            {
-                                target,
-                                isIntersecting: true,
-                                intersectionRatio: 1,
-                                boundingClientRect: target.getBoundingClientRect(),
-                                intersectionRect: target.getBoundingClientRect(),
-                                rootBounds: null,
-                                time: Date.now(),
-                            },
-                        ] as IntersectionObserverEntry[],
-                        this
-                    );
-                }),
+                observe: vi.fn(),
                 unobserve: vi.fn(),
                 disconnect: vi.fn(),
                 root: null,
@@ -205,6 +261,25 @@ describe('Changelog', () => {
         expect(alert).toHaveTextContent(/unable to load changelog/i);
     });
 
+    it('shows an error message when the changelog request returns a non-ok response', async () => {
+        (global.fetch as unknown as Mock).mockResolvedValueOnce({
+            ok: false,
+            json: vi.fn(),
+        });
+
+        const reloadSpy = vi.spyOn(browserNavigation, 'reload').mockImplementation(() => undefined);
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(/unable to load changelog/i);
+
+        await user.click(screen.getByRole('button', { name: /reload page/i }));
+
+        expect(reloadSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('fetches releases from /api/changelog', async () => {
         const fetchSpy = global.fetch as unknown as Mock;
 
@@ -217,11 +292,211 @@ describe('Changelog', () => {
         });
     });
 
+    it('does not refetch changelog data when reduced motion preference changes', async () => {
+        const fetchSpy = global.fetch as unknown as Mock;
+
+        render(<Changelog />);
+
+        await screen.findByRole('list', { name: /changelog timeline/i });
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            setReducedMotion(true, { notify: true });
+        });
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the hash-targeted release on initial load', async () => {
+        window.history.replaceState(null, '', '/changelog#v0.1.1');
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const targetButton = screen.getByRole('button', { name: /version 0.1.1/i });
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('falls back to the first release for a missing version hash', async () => {
+        window.history.replaceState(null, '', '/changelog#v9.9.9');
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+
+        expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('ignores non-version hashes and keeps the default release open', async () => {
+        window.history.replaceState(null, '', '/changelog#notes');
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+
+        expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('opens the hash-targeted release when the hash changes', async () => {
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const targetButton = screen.getByRole('button', { name: /version 0.2.0/i });
+
+        await act(async () => {
+            window.history.pushState(null, '', '/changelog#v0.2.0');
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
+        });
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('keeps the open release stable when scroll-based highlighting changes', async () => {
+        Object.defineProperty(window, 'innerHeight', { value: 1000, writable: true });
+
+        render(<Changelog />);
+
+        const list = await screen.findByRole('list', { name: /changelog timeline/i });
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+        const items = Array.from(list.children) as HTMLLIElement[];
+        const createRect = (top: number, bottom: number) => ({
+            x: 0,
+            y: top,
+            width: 400,
+            height: bottom - top,
+            top,
+            right: 400,
+            bottom,
+            left: 0,
+            toJSON: () => ({}),
+        });
+
+        Object.defineProperty(items[0], 'getBoundingClientRect', {
+            configurable: true,
+            value: () => createRect(0, 220),
+        });
+        Object.defineProperty(items[1], 'getBoundingClientRect', {
+            configurable: true,
+            value: () => createRect(320, 720),
+        });
+        Object.defineProperty(items[2], 'getBoundingClientRect', {
+            configurable: true,
+            value: () => createRect(760, 960),
+        });
+
+        await act(async () => {
+            window.__testHelper_updateActiveRelease?.();
+        });
+
+        expect(pageMocks.timelineNavProps?.activeIndex).toBe(1);
+        expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('announces release expansion and collapse in English', async () => {
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const status = screen.getByRole('status');
+
+        await user.click(firstButton);
+        expect(status).toHaveTextContent('Version 0.1.0 collapsed');
+
+        await user.click(firstButton);
+        expect(status).toHaveTextContent('Version 0.1.0 expanded');
+    });
+
+    it('updates the hash when opening a release by click and keeps it when collapsing', async () => {
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+
+        await user.click(secondButton);
+
+        expect(window.location.hash).toBe('#v0.1.1');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'true');
+
+        await user.click(secondButton);
+
+        expect(window.location.hash).toBe('#v0.1.1');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('clears a pending scroll when the target element ref is missing', async () => {
+        pageMocks.skipListItemRefAssignment = true;
+        window.history.replaceState(null, '', '/changelog#v0.1.1');
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+
+        pageMocks.skipListItemRefAssignment = false;
+
+        await user.click(targetButton);
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'false');
+        expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+    });
+
+    it('ignores navigation requests for an out-of-range release index', async () => {
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+
+        await act(async () => {
+            pageMocks.timelineNavProps?.onNavigate(99);
+        });
+
+        expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('uses auto scrolling and reduced-motion variants when reduced motion is enabled', async () => {
+        setReducedMotion(true);
+        window.history.replaceState(null, '', '/changelog#v0.1.1');
+
+        render(<Changelog />);
+
+        const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        await vi.waitFor(() => {
+            expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' });
+        });
+    });
+
+    it('uses auto scrolling when opening a release by click in reduced-motion mode', async () => {
+        setReducedMotion(true);
+
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+
+        (Element.prototype.scrollIntoView as Mock).mockClear();
+
+        await user.click(secondButton);
+
+        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' });
+    });
+
     describe('keyboard navigation', () => {
-        // Use fake timers to prevent the debounced updateActiveRelease (400ms)
-        // from overriding the synchronous setActive() in handleNavigate.
-        // The IntersectionObserver mock fires isIntersecting:true for all elements,
-        // so without fake timers the debounced callback picks index 0 again.
         beforeEach(() => {
             vi.useFakeTimers({ shouldAdvanceTime: false });
         });
@@ -307,6 +582,205 @@ describe('Changelog', () => {
             });
 
             expect(screen.getByRole('button', { name: /version 0.2.0/i })).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('does not move past the last release with ArrowDown', async () => {
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            expect(screen.getByRole('button', { name: /version 0.2.0/i })).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('does not move above the first release with ArrowUp', async () => {
+            render(<Changelog />);
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+            });
+
+            expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('toggles the current release with Enter and Space', async () => {
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const status = screen.getByRole('status');
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+            expect(status).toHaveTextContent('Version 0.1.0 collapsed');
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(status).toHaveTextContent('Version 0.1.0 expanded');
+        });
+
+        it('opens the currently highlighted release with Enter and synchronizes the hash', async () => {
+            Object.defineProperty(window, 'innerHeight', { value: 1000, writable: true });
+
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const list = screen.getByRole('list', { name: /changelog timeline/i });
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+            const items = Array.from(list.children) as HTMLLIElement[];
+            const createRect = (top: number, bottom: number) => ({
+                x: 0,
+                y: top,
+                width: 400,
+                height: bottom - top,
+                top,
+                right: 400,
+                bottom,
+                left: 0,
+                toJSON: () => ({}),
+            });
+
+            Object.defineProperty(items[0], 'getBoundingClientRect', {
+                configurable: true,
+                value: () => createRect(0, 220),
+            });
+            Object.defineProperty(items[1], 'getBoundingClientRect', {
+                configurable: true,
+                value: () => createRect(320, 720),
+            });
+            Object.defineProperty(items[2], 'getBoundingClientRect', {
+                configurable: true,
+                value: () => createRect(760, 960),
+            });
+
+            await act(async () => {
+                window.__testHelper_updateActiveRelease?.();
+            });
+
+            expect(pageMocks.timelineNavProps?.activeIndex).toBe(1);
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'true');
+            expect(window.location.hash).toBe('#v0.1.1');
+        });
+
+        it('ignores shortcut handling for interactive timeline buttons', async () => {
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+
+            secondButton.focus();
+
+            const arrowEvent = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+
+            await act(async () => {
+                secondButton.dispatchEvent(arrowEvent);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(arrowEvent.defaultPrevented).toBe(false);
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+
+            const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+
+            await act(async () => {
+                secondButton.dispatchEvent(enterEvent);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(enterEvent.defaultPrevented).toBe(false);
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+        });
+
+        it('ignores shortcuts when the keyboard event is already prevented', async () => {
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+            const preventedEvent = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+
+            preventedEvent.preventDefault();
+
+            await act(async () => {
+                window.dispatchEvent(preventedEvent);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(preventedEvent.defaultPrevented).toBe(true);
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+        });
+
+        it('ignores keyboard navigation when there are no releases', async () => {
+            (global.fetch as unknown as Mock).mockResolvedValueOnce({
+                ok: true,
+                json: () => Promise.resolve([]),
+            });
+
+            render(<Changelog />);
+            expect(screen.getByRole('heading', { name: /changelog/i })).toBeInTheDocument();
+
+            await vi.waitFor(() => {
+                expect(screen.queryByRole('button', { name: /version/i })).not.toBeInTheDocument();
+            });
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            expect(screen.queryByRole('button', { name: /version/i })).not.toBeInTheDocument();
         });
     });
 

@@ -75,6 +75,8 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                             className="h-12 w-12 rounded-full bg-white shadow-lg hover:shadow-xl dark:bg-gray-800"
                             onClick={() => setIsOpen(!isOpen)}
                             aria-label="Toggle timeline navigation"
+                            aria-expanded={isOpen}
+                            aria-controls="changelog-timeline-menu"
                         >
                             <History className="h-5 w-5" />
                         </Button>
@@ -89,6 +91,7 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                         initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8, y: 20 }}
                         animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1, y: 0 }}
                         exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8, y: 20 }}
+                        id="changelog-timeline-menu"
                         className="absolute right-0 bottom-16 max-h-96 w-48 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl dark:bg-gray-800"
                     >
                         <div className="space-y-2">
@@ -105,10 +108,11 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                         'w-full justify-start gap-2',
                                         activeIndex === index && 'bg-accent font-medium',
                                     )}
+                                    aria-current={activeIndex === index ? 'true' : undefined}
                                 >
                                     <span
                                         className={cn(
-                                            'h-2 w-2 flex-shrink-0 rounded-full',
+                                            'size-2 shrink-0 rounded-full',
                                             getVersionColor(index),
                                             activeIndex === index && 'ring-2 ring-gray-400 ring-offset-2',
                                         )}
@@ -134,28 +138,34 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                     return (
                         <Tooltip key={release.version}>
                             <TooltipTrigger asChild>
-                                <motion.button
-                                        whileHover={prefersReducedMotion ? {} : { scale: 1.3 }}
-                                        whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    type="button"
+                                    className={cn(
+                                        'h-8 w-8 rounded-full p-0 transition-colors focus-visible:ring-gray-400 dark:focus-visible:ring-gray-600',
+                                        isActive && 'bg-accent/50',
+                                    )}
+                                    aria-label={`Navigate to version ${release.version}`}
+                                    aria-current={isActive ? 'true' : undefined}
+                                >
+                                    <motion.button
+                                        whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+                                        whileTap={prefersReducedMotion ? {} : { scale: 0.96 }}
                                         onClick={() => onNavigate(index)}
-                                        className={cn(
-                                            'relative rounded-full transition-all',
-                                            isActive ? 'h-4 w-4' : 'h-2.5 w-2.5',
-                                            color,
-                                            isActive && 'ring-2 ring-gray-400 ring-offset-2 dark:ring-gray-600',
-                                        )}
-                                        aria-label={`Navigate to version ${release.version}`}
-                                        aria-current={isActive ? 'true' : undefined}
                                     >
-                                        {isActive && (
-                                            <motion.span
-                                                layoutId="activeIndicator"
-                                                className="absolute inset-0 rounded-full bg-white/30"
-                                                transition={prefersReducedMotion ? {} : { type: 'spring', stiffness: 380, damping: 30 }}
-                                            />
-                                        )}
+                                        <span
+                                            data-testid="timeline-dot"
+                                            className={cn(
+                                                'rounded-full transition-all',
+                                                isActive ? 'h-4 w-4' : 'h-2.5 w-2.5',
+                                                color,
+                                                isActive && 'ring-2 ring-gray-400 ring-offset-2 ring-offset-background dark:ring-gray-600 dark:ring-offset-gray-950',
+                                            )}
+                                        />
                                     </motion.button>
-                                </TooltipTrigger>
+                                </Button>
+                            </TooltipTrigger>
                             <TooltipContent side="left" className="text-xs">
                                 <div>
                                     <p className="font-semibold">Version {release.version}</p>

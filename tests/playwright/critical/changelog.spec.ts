@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Changelog Page', () => {
     test.beforeEach(async ({ page }) => {
+        await page.addInitScript(() => {
+            window.__enableChangelogTestHelpers = true;
+        });
         await page.goto('/changelog');
         // Wait for the page to be fully loaded
         await page.waitForSelector('[aria-label="Changelog Timeline"]');
@@ -214,9 +217,10 @@ test.describe('Changelog Page', () => {
         const firstItem = versionItems.first();
         const firstItemDiv = firstItem.locator('> div').first();
         const className = await firstItemDiv.getAttribute('class');
-        
-        // Should contain gradient-related classes
-        expect(className).toContain('bg-gradient-to-r');
+
+        expect(className).toBeTruthy();
+        // Tailwind v4 prefers bg-linear-to-r, but older snapshots may still use bg-gradient-to-r.
+        expect(className ?? '').toMatch(/bg-(gradient|linear)-to-r/);
     });
 
     test('stagger animation on initial load', async ({ page }) => {
@@ -245,19 +249,10 @@ test.describe('Changelog Page', () => {
         const count = await navButtons.count();
 
         if (count >= 2) {
-            // Trigger navigation via the exposed test helper because the small
-            // framer-motion dots (10px) don't reliably forward click events
-            // to React's onClick handler in headless WebKit/Firefox.
+            // Trigger navigation via the explicitly enabled test helper because
+            // the animated dots can still be flaky to click in headless browsers.
             await page.evaluate(() => {
                 window.__testHelper_expandRelease?.(1);
-                // The test helper sets active state but doesn't push URL hash,
-                // so we replicate handleNavigate's pushState behavior.
-                const releases = document.querySelectorAll('[aria-label="Changelog Timeline"] > li');
-                const btn = releases[1]?.querySelector('button[id^="release-trigger-"]');
-                const versionText = btn?.getAttribute('data-version');
-                if (versionText) {
-                    window.history.pushState(null, '', `#v${versionText}`);
-                }
             });
 
             // URL should have a hash
