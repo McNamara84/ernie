@@ -37,6 +37,10 @@ const sectionConfig: Record<
     fixes: { label: 'Fixes', color: 'text-red-700', icon: Bug },
 };
 
+export const browserNavigation = {
+    reload: () => window.location.reload(),
+};
+
 export default function Changelog() {
     const [releases, setReleases] = useState<Release[]>([]);
     const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -378,7 +382,7 @@ export default function Changelog() {
                     <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">Failed to load changelog</h2>
                     <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
                     <Button
-                        onClick={() => window.location.reload()}
+                        onClick={() => browserNavigation.reload()}
                         variant="destructive"
                     >
                         Reload page
@@ -438,20 +442,19 @@ export default function Changelog() {
                                             const wasOpen = isOpen;
                                             const nextIsOpen = !wasOpen;
 
-                                            setHighlightedIndex(index);
-                                            setOpenIndex(nextIsOpen ? index : null);
-
                                             // Announce for screen readers
                                             setAnnouncement(
                                                 wasOpen ? `Version ${release.version} collapsed` : `Version ${release.version} expanded`,
                                             );
 
                                             if (nextIsOpen) {
-                                                pendingScrollRef.current = {
-                                                    index,
-                                                    behavior: getScrollBehavior(),
-                                                };
+                                                navigateToRelease(index);
+                                                return;
                                             }
+
+                                            pendingScrollRef.current = null;
+                                            setHighlightedIndex(index);
+                                            setOpenIndex(null);
                                         }}
                                         id={buttonId}
                                         data-version={release.version}

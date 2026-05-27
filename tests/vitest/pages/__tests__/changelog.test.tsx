@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
-import Changelog from '@/pages/changelog';
+import Changelog, { browserNavigation } from '@/pages/changelog';
 
 type TimelineNavProps = {
     releases: Array<{ version: string; date: string }>;
@@ -267,6 +267,7 @@ describe('Changelog', () => {
             json: vi.fn(),
         });
 
+        const reloadSpy = vi.spyOn(browserNavigation, 'reload').mockImplementation(() => undefined);
         const user = userEvent.setup();
 
         render(<Changelog />);
@@ -276,7 +277,7 @@ describe('Changelog', () => {
 
         await user.click(screen.getByRole('button', { name: /reload page/i }));
 
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(reloadSpy).toHaveBeenCalledTimes(1);
     });
 
     it('fetches releases from /api/changelog', async () => {
@@ -413,6 +414,24 @@ describe('Changelog', () => {
         expect(status).toHaveTextContent('Version 0.1.0 expanded');
     });
 
+    it('updates the hash when opening a release by click and keeps it when collapsing', async () => {
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const secondButton = await screen.findByRole('button', { name: /version 0.1.1/i });
+
+        await user.click(secondButton);
+
+        expect(window.location.hash).toBe('#v0.1.1');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'true');
+
+        await user.click(secondButton);
+
+        expect(window.location.hash).toBe('#v0.1.1');
+        expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
     it('clears a pending scroll when the target element ref is missing', async () => {
         pageMocks.skipListItemRefAssignment = true;
         window.history.replaceState(null, '', '/changelog#v0.1.1');
@@ -454,7 +473,9 @@ describe('Changelog', () => {
         const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
         expect(targetButton).toHaveAttribute('aria-expanded', 'true');
-        expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' });
+        await vi.waitFor(() => {
+            expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'auto', block: 'center' });
+        });
     });
 
     it('uses auto scrolling when opening a release by click in reduced-motion mode', async () => {
