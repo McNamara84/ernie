@@ -12,6 +12,8 @@ use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Services\DataCite\Mapping\DataCiteFundingReferenceMappingService;
+use App\Services\DataCite\Mapping\DataCitePartyMappingService;
 
 /**
  * Shared helper methods for DataCite XML and JSON exporters.
@@ -21,6 +23,16 @@ use App\Models\ResourceDate;
  */
 trait DataCiteExporterHelpers
 {
+    protected function dataCitePartyMapper(): DataCitePartyMappingService
+    {
+        return app(DataCitePartyMappingService::class);
+    }
+
+    protected function dataCiteFundingReferenceMapper(): DataCiteFundingReferenceMappingService
+    {
+        return app(DataCiteFundingReferenceMappingService::class);
+    }
+
     /**
      * Required relationships to eager load for DataCite export.
      *
@@ -61,19 +73,7 @@ trait DataCiteExporterHelpers
      */
     protected function formatPersonName(Person $person): string
     {
-        if ($person->family_name && $person->given_name) {
-            return "{$person->family_name}, {$person->given_name}";
-        }
-
-        if ($person->family_name) {
-            return $person->family_name;
-        }
-
-        if ($person->given_name) {
-            return $person->given_name;
-        }
-
-        return 'Unknown';
+        return $this->dataCitePartyMapper()->formatPersonName($person);
     }
 
     /**
@@ -81,7 +81,7 @@ trait DataCiteExporterHelpers
      */
     protected function formatInstitutionName(Institution $institution): string
     {
-        return $institution->name ?? 'Unknown Institution';
+        return $this->dataCitePartyMapper()->formatInstitutionName($institution);
     }
 
     /**
@@ -91,17 +91,7 @@ trait DataCiteExporterHelpers
      */
     protected function buildPersonNameIdentifier(Person $person): ?array
     {
-        if (! $person->name_identifier) {
-            return null;
-        }
-
-        $scheme = $person->name_identifier_scheme ?? 'ORCID';
-
-        return [
-            'nameIdentifier' => $person->name_identifier,
-            'nameIdentifierScheme' => $scheme,
-            'schemeUri' => $this->getSchemeUri($scheme),
-        ];
+        return $this->dataCitePartyMapper()->buildPersonNameIdentifier($person);
     }
 
     /**
@@ -111,17 +101,7 @@ trait DataCiteExporterHelpers
      */
     protected function buildInstitutionNameIdentifier(Institution $institution): ?array
     {
-        if (! $institution->name_identifier) {
-            return null;
-        }
-
-        $scheme = $institution->name_identifier_scheme ?? 'ROR';
-
-        return [
-            'nameIdentifier' => $institution->name_identifier,
-            'nameIdentifierScheme' => $scheme,
-            'schemeUri' => $this->getSchemeUri($scheme),
-        ];
+        return $this->dataCitePartyMapper()->buildInstitutionNameIdentifier($institution);
     }
 
     /**
@@ -129,13 +109,7 @@ trait DataCiteExporterHelpers
      */
     protected function getSchemeUri(string $scheme): string
     {
-        return match (strtoupper($scheme)) {
-            'ORCID' => 'https://orcid.org/',
-            'ROR' => 'https://ror.org/',
-            'ISNI' => 'https://isni.org/',
-            'GRID' => 'https://www.grid.ac/',
-            default => '',
-        };
+        return $this->dataCitePartyMapper()->getSchemeUri($scheme);
     }
 
     /**
@@ -150,36 +124,7 @@ trait DataCiteExporterHelpers
      */
     protected function transformAffiliation(Affiliation $affiliation): array
     {
-        $name = $affiliation->name;
-
-        // Defense-in-depth: if name looks like a ROR URL and an identifier is
-        // already present, resolve the real label or blank the name so the URL
-        // is never exported as an affiliation name.
-        if ($affiliation->identifier && preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', $name)) {
-            /** @var \App\Services\RorLookupService $rorLookup */
-            $rorLookup = app(\App\Services\RorLookupService::class);
-            $name = $rorLookup->resolve($name) ?? '';
-        }
-
-        $data = [
-            'name' => $name,
-        ];
-
-        if ($affiliation->identifier) {
-            $data['affiliationIdentifier'] = $affiliation->identifier;
-
-            $scheme = $affiliation->identifier_scheme ?? 'ROR';
-            $data['affiliationIdentifierScheme'] = $scheme;
-
-            // Include schemeURI when available – fall back to computed value for older records
-            $schemeUri = $affiliation->scheme_uri ?? $this->getSchemeUri($scheme);
-
-            if ($schemeUri !== '') {
-                $data['schemeURI'] = $schemeUri;
-            }
-        }
-
-        return $data;
+        return $this->dataCitePartyMapper()->transformAffiliation($affiliation);
     }
 
     /**
@@ -189,13 +134,7 @@ trait DataCiteExporterHelpers
      */
     protected function transformAffiliations(ResourceCreator|ResourceContributor $author): array
     {
-        $affiliations = [];
-
-        foreach ($author->affiliations as $affiliation) {
-            $affiliations[] = $this->transformAffiliation($affiliation);
-        }
-
-        return $affiliations;
+        return $this->dataCitePartyMapper()->transformAffiliations($author);
     }
 
     /**
@@ -382,34 +321,7 @@ trait DataCiteExporterHelpers
      */
     protected function transformFundingReference(FundingReference $funding): array
     {
-        $data = [
-            'funderName' => $funding->funder_name,
-        ];
-
-        // Add funder identifier if available
-        if ($funding->funder_identifier) {
-            $data['funderIdentifier'] = $funding->funder_identifier;
-            $data['funderIdentifierType'] = $funding->funderIdentifierType->name ?? 'Other';
-
-            if ($funding->scheme_uri) {
-                $data['schemeUri'] = $funding->scheme_uri;
-            }
-        }
-
-        // Add award information
-        if ($funding->award_number) {
-            $data['awardNumber'] = $funding->award_number;
-        }
-
-        if ($funding->award_uri) {
-            $data['awardUri'] = $funding->award_uri;
-        }
-
-        if ($funding->award_title) {
-            $data['awardTitle'] = $funding->award_title;
-        }
-
-        return $data;
+        return $this->dataCiteFundingReferenceMapper()->toArray($funding);
     }
 
     /**
@@ -422,31 +334,7 @@ trait DataCiteExporterHelpers
      */
     protected function buildPersonCreatorData(ResourceCreator|ResourceContributor $author, Person $person): array
     {
-        $data = [
-            'name' => $this->formatPersonName($person),
-            'nameType' => 'Personal',
-        ];
-
-        // Add given/family name separately (DataCite recommendation)
-        if ($person->given_name) {
-            $data['givenName'] = $person->given_name;
-        }
-        if ($person->family_name) {
-            $data['familyName'] = $person->family_name;
-        }
-
-        // Add name identifier (ORCID)
-        if ($nameIdentifier = $this->buildPersonNameIdentifier($person)) {
-            $data['nameIdentifiers'] = [$nameIdentifier];
-        }
-
-        // Add affiliations
-        $affiliations = $this->transformAffiliations($author);
-        if (! empty($affiliations)) {
-            $data['affiliation'] = $affiliations;
-        }
-
-        return $data;
+        return $this->dataCitePartyMapper()->buildPersonCreatorData($author, $person);
     }
 
     /**
@@ -459,23 +347,7 @@ trait DataCiteExporterHelpers
      */
     protected function buildInstitutionCreatorData(ResourceCreator|ResourceContributor $author, Institution $institution): array
     {
-        $data = [
-            'name' => $this->formatInstitutionName($institution),
-            'nameType' => 'Organizational',
-        ];
-
-        // Add name identifier (ROR)
-        if ($nameIdentifier = $this->buildInstitutionNameIdentifier($institution)) {
-            $data['nameIdentifiers'] = [$nameIdentifier];
-        }
-
-        // Add affiliations
-        $affiliations = $this->transformAffiliations($author);
-        if (! empty($affiliations)) {
-            $data['affiliation'] = $affiliations;
-        }
-
-        return $data;
+        return $this->dataCitePartyMapper()->buildInstitutionCreatorData($author, $institution);
     }
 
     /**
@@ -483,16 +355,9 @@ trait DataCiteExporterHelpers
      *
      * @return array<string, mixed>
      */
-    protected function buildPersonContributorData(ResourceContributor $contributor, Person $person): array
+    protected function buildPersonContributorData(ResourceContributor $contributor, Person $person, ?string $contributorType = null): array
     {
-        $data = $this->buildPersonCreatorData($contributor, $person);
-
-        // Add contributor type - use first type slug for DataCite-compliant PascalCase values
-        $firstType = $contributor->contributorTypes->first();
-        // @phpstan-ignore nullsafe.neverNull (collection may be empty at runtime for legacy data)
-        $data['contributorType'] = $firstType?->slug ?? 'Other';
-
-        return $data;
+        return $this->dataCitePartyMapper()->buildPersonContributorData($contributor, $person, $contributorType);
     }
 
     /**
@@ -500,15 +365,8 @@ trait DataCiteExporterHelpers
      *
      * @return array<string, mixed>
      */
-    protected function buildInstitutionContributorData(ResourceContributor $contributor, Institution $institution): array
+    protected function buildInstitutionContributorData(ResourceContributor $contributor, Institution $institution, ?string $contributorType = null): array
     {
-        $data = $this->buildInstitutionCreatorData($contributor, $institution);
-
-        // Add contributor type - use first type slug for DataCite-compliant PascalCase values
-        $firstType = $contributor->contributorTypes->first();
-        // @phpstan-ignore nullsafe.neverNull (collection may be empty at runtime for legacy data)
-        $data['contributorType'] = $firstType?->slug ?? 'Other';
-
-        return $data;
+        return $this->dataCitePartyMapper()->buildInstitutionContributorData($contributor, $institution, $contributorType);
     }
 }

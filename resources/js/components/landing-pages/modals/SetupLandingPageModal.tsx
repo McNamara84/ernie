@@ -2,17 +2,20 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import axios, { isAxiosError } from 'axios';
-import { Copy, ExternalLink, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
+import axios from 'axios';
+import { Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
 import {
+    buildLandingPagePreviewPayload,
+    buildLandingPageSetupPayload,
     getHydratedLandingPageTemplateId,
-    getPayloadLandingPageTemplateId,
+    getLandingPageRequestErrorMessage,
     getPreferredTemplateForResource,
     getPreviewableExternalUrl,
-    normalizeExternalPath,
+    isLandingPageNotFoundError,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -274,7 +277,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
             applyConfigState(response.data.landing_page);
         } catch (error) {
-            if (isAxiosError(error) && error.response?.status === 404) {
+            if (isLandingPageNotFoundError(error)) {
                 setCurrentConfig(null);
                 setTemplate(defaultTemplateForResource);
                 setFtpUrl('');
@@ -310,31 +313,18 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         setIsSaving(true);
 
         try {
-            const normalizedExternalPath = normalizeExternalPath(externalPath);
-            const payload: Record<string, unknown> = {
+            const payload = buildLandingPageSetupPayload({
                 template,
-                status: isPublished ? 'published' : 'draft',
-                landing_page_template_id: getPayloadLandingPageTemplateId(template, landingPageTemplateId),
-            };
-
-            if (supportsFtpUrl) {
-                payload.ftp_url = ftpUrl || null;
-            }
-
-            if (isExternal) {
-                payload.external_domain_id = externalDomainId ? Number(externalDomainId) : null;
-                payload.external_path = normalizedExternalPath;
-            }
-
-            if (supportsLinks) {
-                payload.links = links
-                    .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
-                    .map((link, index) => ({
-                        url: link.url,
-                        label: link.label,
-                        position: index,
-                    }));
-            }
+                landingPageTemplateId,
+                isPublished,
+                supportsFtpUrl,
+                ftpUrl,
+                supportsLinks,
+                links,
+                isExternal,
+                externalDomainId,
+                externalPath,
+            });
 
             const url = `/resources/${resource.id}/landing-page`;
             const shouldUpdate = currentConfig !== null;
@@ -365,16 +355,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             onSuccess?.();
         } catch (error) {
             console.error('Failed to save landing page:', error);
-
-            let errorMessage = 'Failed to save landing page configuration';
-            if (isAxiosError(error) && error.response?.data?.message) {
-                errorMessage = error.response.data.message;
-            } else if (isAxiosError(error) && error.response?.data?.errors) {
-                const errors = error.response.data.errors;
-                errorMessage = Object.values(errors).flat().join(', ');
-            }
-
-            toast.error(errorMessage);
+            toast.error(getLandingPageRequestErrorMessage(error, 'Failed to save landing page configuration'));
         } finally {
             setIsSaving(false);
         }
@@ -596,27 +577,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             }
 
             try {
-                const payload: Record<string, unknown> = { template };
-
-                if (supportsFtpUrl) {
-                    payload.ftp_url = ftpUrl || null;
-                }
-
-                payload.landing_page_template_id = getPayloadLandingPageTemplateId(template, landingPageTemplateId);
-
-                // Include complete links for templates that support them (filter out incomplete rows)
-                if (supportsLinks) {
-                    const completeLinks = links
-                        .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
-                        .map((link, index) => ({
-                            url: link.url,
-                            label: link.label,
-                            position: index,
-                        }));
-                    if (completeLinks.length > 0) {
-                        payload.links = completeLinks;
-                    }
-                }
+                const payload = buildLandingPagePreviewPayload({
+                    template,
+                    landingPageTemplateId,
+                    supportsFtpUrl,
+                    ftpUrl,
+                    supportsLinks,
+                    links,
+                    isExternal,
+                    externalDomainId,
+                    externalPath,
+                });
 
                 // Store preview in session and get preview URL
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
@@ -627,13 +598,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
             } catch (error) {
                 console.error('Failed to create preview:', error);
-
-                let errorMessage = 'Failed to create preview';
-                if (isAxiosError(error) && error.response?.data?.message) {
-                    errorMessage = error.response.data.message;
-                }
-
-                toast.error(errorMessage);
+                toast.error(getLandingPageRequestErrorMessage(error, 'Failed to create preview'));
             }
             return;
         }
@@ -803,55 +768,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
                         {/* External Landing Page Fields */}
                         {isExternal && (
-                            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
-                                <div className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
-                                    <ExternalLink className="size-4" />
-                                    External URL Configuration
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="external-domain">Domain</Label>
-                                    <Select value={externalDomainId} onValueChange={setExternalDomainId}>
-                                        <SelectTrigger id="external-domain">
-                                            <SelectValue placeholder="Select a domain" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableDomains.map((domain) => (
-                                                <SelectItem key={domain.id} value={String(domain.id)}>
-                                                    {domain.domain}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {availableDomains.length === 0 && (
-                                        <p className="text-xs text-amber-600 dark:text-amber-400">
-                                            No domains configured. An administrator can add domains in Editor Settings.
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="external-path">Path</Label>
-                                    <Input
-                                        id="external-path"
-                                        type="text"
-                                        placeholder="/path/to/landing-page"
-                                        value={externalPath}
-                                        onChange={(e) => setExternalPath(e.target.value)}
-                                    />
-                                    <p className="text-sm text-muted-foreground">Path appended to the domain (e.g. /dataset/12345)</p>
-                                </div>
-
-                                {/* External URL Preview */}
-                                {computedExternalUrl && (
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Resulting URL</Label>
-                                        <p className="break-all rounded bg-white/80 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-gray-900/50 dark:text-blue-200">
-                                            {computedExternalUrl}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                            <ExternalLandingPageFields
+                                availableDomains={availableDomains}
+                                externalDomainId={externalDomainId}
+                                onExternalDomainIdChange={setExternalDomainId}
+                                externalPath={externalPath}
+                                onExternalPathChange={setExternalPath}
+                                computedExternalUrl={computedExternalUrl}
+                                pathExample="/dataset/12345"
+                            />
                         )}
 
                         {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}

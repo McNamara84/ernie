@@ -50,7 +50,7 @@ class DataCiteXmlExporter
     /**
      * Export a Resource to DataCite XML format
      *
-     * @param  resource  $resource  The resource to export
+    * @param  Resource  $resource  The resource to export
      * @return string The DataCite XML string
      */
     #[\NoDiscard('Exported XML string must be used')]
@@ -1364,39 +1364,40 @@ class DataCiteXmlExporter
         $fundingReferences = $this->dom->createElement('fundingReferences');
 
         foreach ($resource->fundingReferences as $funding) {
+            $fundingData = $this->transformFundingReference($funding);
             $fundingReference = $this->dom->createElement('fundingReference');
 
-            $funderName = $this->dom->createElement('funderName', htmlspecialchars($funding->funder_name));
+            $funderName = $this->dom->createElement('funderName', htmlspecialchars((string) $fundingData['funderName']));
             $fundingReference->appendChild($funderName);
 
-            if ($funding->funder_identifier) {
+            if (isset($fundingData['funderIdentifier'])) {
                 $funderIdentifier = $this->dom->createElement(
                     'funderIdentifier',
-                    htmlspecialchars($funding->funder_identifier)
+                    htmlspecialchars((string) $fundingData['funderIdentifier'])
                 );
                 $funderIdentifier->setAttribute(
                     'funderIdentifierType',
-                    $funding->funderIdentifierType->slug ?? 'Other'
+                    (string) ($fundingData['funderIdentifierType'] ?? 'Other')
                 );
-                if ($funding->scheme_uri) {
+                if (isset($fundingData['schemeUri'])) {
                     $funderIdentifier->setAttribute(
                         'schemeURI',
-                        htmlspecialchars($funding->scheme_uri)
+                        htmlspecialchars((string) $fundingData['schemeUri'])
                     );
                 }
                 $fundingReference->appendChild($funderIdentifier);
             }
 
-            if ($funding->award_number) {
-                $awardNumber = $this->dom->createElement('awardNumber', htmlspecialchars($funding->award_number));
-                if ($funding->award_uri) {
-                    $awardNumber->setAttribute('awardURI', htmlspecialchars($funding->award_uri));
+            if (isset($fundingData['awardNumber'])) {
+                $awardNumber = $this->dom->createElement('awardNumber', htmlspecialchars((string) $fundingData['awardNumber']));
+                if (isset($fundingData['awardUri'])) {
+                    $awardNumber->setAttribute('awardURI', htmlspecialchars((string) $fundingData['awardUri']));
                 }
                 $fundingReference->appendChild($awardNumber);
             }
 
-            if ($funding->award_title) {
-                $awardTitle = $this->dom->createElement('awardTitle', htmlspecialchars($funding->award_title));
+            if (isset($fundingData['awardTitle'])) {
+                $awardTitle = $this->dom->createElement('awardTitle', htmlspecialchars((string) $fundingData['awardTitle']));
                 $fundingReference->appendChild($awardTitle);
             }
 

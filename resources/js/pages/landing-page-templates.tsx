@@ -19,150 +19,16 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import AppLayout from '@/layouts/app-layout';
-import { DESCRIPTION_SECTION_KEYS, LEGACY_DESCRIPTIONS_SECTION_KEY } from '@/pages/LandingPages/lib/metadata-sections';
+import {
+    LEFT_SECTION_LABELS,
+    normalizeLeftColumnOrder,
+    normalizeRightColumnOrder,
+    RIGHT_SECTION_LABELS,
+} from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { LandingPageTemplateConfig, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
-
-/** Display labels for right column sections */
-const RIGHT_SECTION_LABELS: Record<RightColumnSection, string> = {
-    descriptions: 'Abstract & Descriptions',
-    abstract: 'Abstract',
-    methods: 'Methods',
-    technical_info: 'Technical Information',
-    series_information: 'Series Information',
-    table_of_contents: 'Table of Contents',
-    other: 'Other',
-    creators: 'Creators / Authors',
-    contributors: 'Contributors',
-    funders: 'Funding References',
-    keywords: 'Keywords / Subjects',
-    metadata_download: 'Metadata Download',
-    location: 'Location / Map',
-};
-
-/** Display labels for left column sections */
-const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
-    files: 'Files & Downloads',
-    general: 'General',
-    acquisition: 'Acquisition',
-    contact: 'Contact Person',
-    model_description: 'Model / Method Description',
-    related_work: 'Related Work',
-};
-
-/** Canonical section orders – mirror of `LandingPageTemplate::*_COLUMN_SECTIONS`. */
-const CANONICAL_RIGHT_ORDER: RightColumnSection[] = [
-    ...DESCRIPTION_SECTION_KEYS,
-    'creators',
-    'contributors',
-    'funders',
-    'keywords',
-    'metadata_download',
-    'location',
-];
-
-const RESOURCE_LEFT_ORDER: LeftColumnSection[] = [
-    'files',
-    'contact',
-    'model_description',
-    'related_work',
-];
-
-const IGSN_LEFT_ORDER: LeftColumnSection[] = [
-    'general',
-    'acquisition',
-    'contact',
-    'model_description',
-    'related_work',
-];
-
-function getCanonicalLeftOrder(templateType: LandingPageTemplateConfig['template_type']): LeftColumnSection[] {
-    return templateType === 'igsn' ? IGSN_LEFT_ORDER : RESOURCE_LEFT_ORDER;
-}
-
-/**
- * Merge a stored section order with the canonical list:
- *   - drop unknown keys (defensive, e.g. removed sections),
- *   - deduplicate,
- *   - append canonical keys that are missing (preserving existing ordering).
- *
- * This keeps templates that were created before new sections were added
- * editable in the UI and saveable through the backend validator, which
- * requires the full canonical set.
- */
-function normalizeOrder<T extends string>(stored: readonly T[], canonical: readonly T[]): T[] {
-    const canonicalSet = new Set<T>(canonical);
-    const seen = new Set<T>();
-    const result: T[] = [];
-
-    for (const key of stored) {
-        if (!canonicalSet.has(key) || seen.has(key)) continue;
-        seen.add(key);
-        result.push(key);
-    }
-
-    for (const key of canonical) {
-        if (!seen.has(key)) {
-            result.push(key);
-        }
-    }
-
-    return result;
-}
-
-function normalizeRightColumnOrder(stored: readonly RightColumnSection[]): RightColumnSection[] {
-    const locationBeforeMetadata = stored.find((key) => {
-        if (key === 'location') return true;
-        if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) return true;
-
-        return CANONICAL_RIGHT_ORDER.includes(key);
-    }) === 'location';
-
-    const metadataItems: RightColumnSection[] = [];
-    const seen = new Set<RightColumnSection>();
-
-    for (const key of stored) {
-        if (key === 'location') {
-            continue;
-        }
-
-        if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) {
-            for (const descriptionKey of DESCRIPTION_SECTION_KEYS) {
-                if (seen.has(descriptionKey)) continue;
-                seen.add(descriptionKey);
-                metadataItems.push(descriptionKey);
-            }
-            continue;
-        }
-
-        if (!CANONICAL_RIGHT_ORDER.includes(key) || seen.has(key)) {
-            continue;
-        }
-
-        seen.add(key);
-        metadataItems.push(key);
-    }
-
-    for (const key of CANONICAL_RIGHT_ORDER) {
-        if (key === 'location' || seen.has(key)) {
-            continue;
-        }
-
-        seen.add(key);
-        metadataItems.push(key);
-    }
-
-    return locationBeforeMetadata ? ['location', ...metadataItems] : [...metadataItems, 'location'];
-}
-
-function normalizeLeftColumnOrder(
-    stored: readonly LeftColumnSection[],
-    templateType: LandingPageTemplateConfig['template_type'],
-): LeftColumnSection[] {
-    return normalizeOrder<LeftColumnSection>(stored, getCanonicalLeftOrder(templateType));
-}
 
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];

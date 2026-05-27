@@ -1,3 +1,5 @@
+import { isAxiosError } from 'axios';
+
 import {
     getDefaultIgsnTemplate,
     getDefaultTemplate,
@@ -6,6 +8,7 @@ import {
     isIgsnLandingPageResourceType,
     type LandingPageConfig,
     type LandingPageDomain,
+    type LandingPageLink,
 } from '@/types/landing-page';
 
 type BuiltInTemplateType = 'resource' | 'igsn';
@@ -104,4 +107,97 @@ export function getPreviewableExternalUrl({
     }
 
     return domain.domain + normalizedExternalPath.replace(/^\/+/, '');
+}
+
+interface BuildLandingPagePayloadOptions {
+    template: string;
+    landingPageTemplateId?: number | null;
+    isPublished?: boolean;
+    supportsFtpUrl: boolean;
+    ftpUrl?: string;
+    supportsLinks: boolean;
+    links?: LandingPageLink[];
+    isExternal: boolean;
+    externalDomainId?: string;
+    externalPath?: string;
+    includeStatus: boolean;
+    includeEmptyLinks: boolean;
+}
+
+function getCompleteLandingPageLinks(links: LandingPageLink[] = []) {
+    return links
+        .filter((link) => link.url.trim() !== '' && link.label.trim() !== '')
+        .map((link, index) => ({
+            url: link.url,
+            label: link.label,
+            position: index,
+        }));
+}
+
+function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+        template: options.template,
+        landing_page_template_id: getPayloadLandingPageTemplateId(options.template, options.landingPageTemplateId),
+    };
+
+    if (options.includeStatus) {
+        payload.status = options.isPublished ? 'published' : 'draft';
+    }
+
+    if (options.supportsFtpUrl) {
+        payload.ftp_url = options.ftpUrl || null;
+    }
+
+    if (options.isExternal) {
+        payload.external_domain_id = options.externalDomainId ? Number(options.externalDomainId) : null;
+        payload.external_path = normalizeExternalPath(options.externalPath);
+    }
+
+    if (options.supportsLinks) {
+        const completeLinks = getCompleteLandingPageLinks(options.links);
+
+        if (options.includeEmptyLinks || completeLinks.length > 0) {
+            payload.links = completeLinks;
+        }
+    }
+
+    return payload;
+}
+
+export function buildLandingPageSetupPayload(options: Omit<BuildLandingPagePayloadOptions, 'includeStatus' | 'includeEmptyLinks'>): Record<string, unknown> {
+    return buildLandingPagePayload({
+        ...options,
+        includeStatus: true,
+        includeEmptyLinks: true,
+    });
+}
+
+export function buildLandingPagePreviewPayload(options: Omit<BuildLandingPagePayloadOptions, 'includeStatus' | 'includeEmptyLinks' | 'isPublished'>): Record<string, unknown> {
+    return buildLandingPagePayload({
+        ...options,
+        includeStatus: false,
+        includeEmptyLinks: false,
+    });
+}
+
+export function isLandingPageNotFoundError(error: unknown): boolean {
+    return isAxiosError(error) && error.response?.status === 404;
+}
+
+export function getLandingPageRequestErrorMessage(error: unknown, fallback: string): string {
+    if (!isAxiosError(error)) {
+        return fallback;
+    }
+
+    const data = error.response?.data;
+
+    if (typeof data === 'object' && data !== null && 'message' in data && typeof data.message === 'string') {
+        return data.message;
+    }
+
+    if (typeof data === 'object' && data !== null && 'errors' in data && typeof data.errors === 'object' && data.errors !== null) {
+        return Object.values(data.errors as Record<string, string | string[]>).flat().join(', ');
+    }
+
+    return fallback;
 }

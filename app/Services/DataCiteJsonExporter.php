@@ -33,7 +33,7 @@ class DataCiteJsonExporter
     /**
      * Export a Resource to DataCite JSON format
      *
-     * @param  resource  $resource  The resource to export
+    * @param  Resource  $resource  The resource to export
      * @return array<string, mixed> The DataCite JSON structure
      */
     public function export(Resource $resource): array
@@ -615,31 +615,7 @@ class DataCiteJsonExporter
             ];
         }
 
-        $data = [
-            'name' => $this->formatPersonName($person),
-            'nameType' => 'Personal',
-            'contributorType' => $contributorType,
-        ];
-
-        // Add given/family name separately
-        if ($person->given_name) {
-            $data['givenName'] = $person->given_name;
-        }
-        if ($person->family_name) {
-            $data['familyName'] = $person->family_name;
-        }
-
-        // Add name identifier (ORCID)
-        if ($nameIdentifier = $this->buildPersonNameIdentifier($person)) {
-            $data['nameIdentifiers'] = [$nameIdentifier];
-        }
-
-        // Add affiliations
-        if ($affiliations = $this->buildAffiliations($contributor)) {
-            $data['affiliation'] = $affiliations;
-        }
-
-        return $data;
+        return $this->buildPersonContributorData($contributor, $person, $contributorType);
     }
 
     /**
@@ -660,23 +636,7 @@ class DataCiteJsonExporter
             ];
         }
 
-        $data = [
-            'name' => $this->formatInstitutionName($institution),
-            'nameType' => 'Organizational',
-            'contributorType' => $contributorType,
-        ];
-
-        // Add name identifier (ROR)
-        if ($nameIdentifier = $this->buildInstitutionNameIdentifier($institution)) {
-            $data['nameIdentifiers'] = [$nameIdentifier];
-        }
-
-        // Add affiliations
-        if ($affiliations = $this->buildAffiliations($contributor)) {
-            $data['affiliation'] = $affiliations;
-        }
-
-        return $data;
+        return $this->buildInstitutionContributorData($contributor, $institution, $contributorType);
     }
 
     /**
