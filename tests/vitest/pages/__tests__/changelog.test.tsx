@@ -363,9 +363,10 @@ describe('Changelog', () => {
 
         render(<Changelog />);
 
+        const list = await screen.findByRole('list', { name: /changelog timeline/i });
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
-        const items = screen.getAllByRole('listitem');
+        const items = Array.from(list.children) as HTMLLIElement[];
         const createRect = (top: number, bottom: number) => ({
             x: 0,
             y: top,
@@ -395,6 +396,7 @@ describe('Changelog', () => {
             window.__testHelper_updateActiveRelease?.();
         });
 
+        expect(pageMocks.timelineNavProps?.activeIndex).toBe(1);
         expect(firstButton).toHaveAttribute('aria-expanded', 'true');
         expect(secondButton).toHaveAttribute('aria-expanded', 'false');
     });
@@ -646,6 +648,60 @@ describe('Changelog', () => {
 
             expect(firstButton).toHaveAttribute('aria-expanded', 'true');
             expect(status).toHaveTextContent('Version 0.1.0 expanded');
+        });
+
+        it('opens the currently highlighted release with Enter and synchronizes the hash', async () => {
+            Object.defineProperty(window, 'innerHeight', { value: 1000, writable: true });
+
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const list = screen.getByRole('list', { name: /changelog timeline/i });
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+            const items = Array.from(list.children) as HTMLLIElement[];
+            const createRect = (top: number, bottom: number) => ({
+                x: 0,
+                y: top,
+                width: 400,
+                height: bottom - top,
+                top,
+                right: 400,
+                bottom,
+                left: 0,
+                toJSON: () => ({}),
+            });
+
+            Object.defineProperty(items[0], 'getBoundingClientRect', {
+                configurable: true,
+                value: () => createRect(0, 220),
+            });
+            Object.defineProperty(items[1], 'getBoundingClientRect', {
+                configurable: true,
+                value: () => createRect(320, 720),
+            });
+            Object.defineProperty(items[2], 'getBoundingClientRect', {
+                configurable: true,
+                value: () => createRect(760, 960),
+            });
+
+            await act(async () => {
+                window.__testHelper_updateActiveRelease?.();
+            });
+
+            expect(pageMocks.timelineNavProps?.activeIndex).toBe(1);
+
+            await act(async () => {
+                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                await vi.runAllTimersAsync();
+            });
+
+            expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'true');
+            expect(window.location.hash).toBe('#v0.1.1');
         });
 
         it('ignores shortcut handling for interactive timeline buttons', async () => {

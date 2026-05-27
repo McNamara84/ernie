@@ -10,6 +10,7 @@ import ChangelogLayout from '@/layouts/changelog-layout';
 // Type declaration for test helpers exposed on window object
 declare global {
     interface Window {
+        __enableChangelogTestHelpers?: boolean;
         __testHelper_updateActiveRelease?: () => void;
         __testHelper_expandRelease?: (index: number) => void;
     }
@@ -248,24 +249,30 @@ export default function Changelog() {
         }
     }, [findMostVisibleRelease]);
 
-    // Test helper: Expose updateActiveRelease for E2E tests (Playwright doesn't trigger IntersectionObserver properly)
+    // Test helpers are only exposed in explicit test contexts.
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            window.__testHelper_updateActiveRelease = updateActiveRelease;
-            window.__testHelper_expandRelease = (index: number) => {
-                if (index >= 0 && index < releases.length) {
-                    setHighlightedIndex(index);
-                    setOpenIndex(index);
-                }
-            };
+        if (typeof window === 'undefined') {
+            return;
         }
-        return () => {
-            if (typeof window !== 'undefined') {
-                delete window.__testHelper_updateActiveRelease;
-                delete window.__testHelper_expandRelease;
-            }
+
+        const shouldExposeTestHelpers = import.meta.env.MODE === 'test' || window.__enableChangelogTestHelpers === true;
+
+        if (!shouldExposeTestHelpers) {
+            delete window.__testHelper_updateActiveRelease;
+            delete window.__testHelper_expandRelease;
+            return;
+        }
+
+        window.__testHelper_updateActiveRelease = updateActiveRelease;
+        window.__testHelper_expandRelease = (index: number) => {
+            navigateToRelease(index);
         };
-    }, [releases, updateActiveRelease]);
+
+        return () => {
+            delete window.__testHelper_updateActiveRelease;
+            delete window.__testHelper_expandRelease;
+        };
+    }, [navigateToRelease, updateActiveRelease]);
 
     // Intersection Observer for scroll-based highlighting
     useEffect(() => {
@@ -350,19 +357,24 @@ export default function Changelog() {
                 case 'Enter':
                 case ' ': {
                     event.preventDefault();
-                    if (!releases[currentIndex]) {
+                    const currentRelease = releases[currentIndex];
+
+                    if (!currentRelease) {
                         return;
                     }
 
                     const nextIsOpen = openIndex !== currentIndex;
 
+                    if (nextIsOpen) {
+                        setAnnouncement(`Version ${currentRelease.version} expanded`);
+                        navigateToRelease(currentIndex);
+                        break;
+                    }
+
+                    pendingScrollRef.current = null;
                     setHighlightedIndex(currentIndex);
-                    setOpenIndex(nextIsOpen ? currentIndex : null);
-                    setAnnouncement(
-                        nextIsOpen
-                            ? `Version ${releases[currentIndex].version} expanded`
-                            : `Version ${releases[currentIndex].version} collapsed`,
-                    );
+                    setOpenIndex(null);
+                    setAnnouncement(`Version ${currentRelease.version} collapsed`);
                     break;
                 }
             }
@@ -370,7 +382,7 @@ export default function Changelog() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleNavigate, highlightedIndex, openIndex, releases, shouldIgnoreGlobalShortcut]);
+    }, [handleNavigate, highlightedIndex, navigateToRelease, openIndex, releases, shouldIgnoreGlobalShortcut]);
 
     const activeTimelineIndex = highlightedIndex ?? openIndex;
 
