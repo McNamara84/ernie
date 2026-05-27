@@ -47,6 +47,11 @@ export default function Changelog() {
     const releaseRefs = useRef<(HTMLLIElement | null)[]>([]);
     const pendingScrollRef = useRef<{ index: number; behavior: ScrollBehavior } | null>(null);
 
+    const getScrollBehavior = useCallback(
+        (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'),
+        [],
+    );
+
     // Check for reduced motion preference
     useEffect(() => {
         const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -104,7 +109,7 @@ export default function Changelog() {
                     setHighlightedIndex(hashIndex);
                     pendingScrollRef.current = {
                         index: hashIndex,
-                        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                        behavior: getScrollBehavior(),
                     };
                 } else {
                     const defaultIndex = data.length > 0 ? 0 : null;
@@ -114,7 +119,7 @@ export default function Changelog() {
                 }
             })
             .catch(() => setError('Unable to load changelog.'));
-    }, [getReleaseIndexFromHash, prefersReducedMotion]);
+            }, [getReleaseIndexFromHash, getScrollBehavior]);
 
     useEffect(() => {
         const pendingScroll = pendingScrollRef.current;
@@ -157,10 +162,10 @@ export default function Changelog() {
             setHighlightedIndex(index);
             pendingScrollRef.current = {
                 index,
-                behavior: options.scrollBehavior ?? (prefersReducedMotion ? 'auto' : 'smooth'),
+                behavior: options.scrollBehavior ?? getScrollBehavior(),
             };
         },
-        [prefersReducedMotion, releases],
+        [getScrollBehavior, releases],
     );
 
     // Handle hash changes (for browser navigation and timeline clicks)
@@ -239,7 +244,7 @@ export default function Changelog() {
         };
     }, [releases, updateActiveRelease]);
 
-    // Intersection Observer for scroll-based highlighting and auto-expand
+    // Intersection Observer for scroll-based highlighting
     useEffect(() => {
         if (releases.length === 0) return;
 
@@ -409,8 +414,7 @@ export default function Changelog() {
                                         data-testid="version-anchor"
                                         className={`absolute top-3 -left-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
                                     ></span>
-                                    {/* Native button used intentionally - custom accordion styling with complex children */}
-                                    <button
+                                    <Button
                                         onClick={() => {
                                             const wasOpen = isOpen;
                                             const nextIsOpen = !wasOpen;
@@ -420,13 +424,13 @@ export default function Changelog() {
 
                                             // Announce for screen readers
                                             setAnnouncement(
-                                                wasOpen ? `Version ${release.version} eingeklappt` : `Version ${release.version} erweitert`,
+                                                wasOpen ? `Version ${release.version} collapsed` : `Version ${release.version} expanded`,
                                             );
 
                                             if (nextIsOpen) {
                                                 pendingScrollRef.current = {
                                                     index,
-                                                    behavior: prefersReducedMotion ? 'auto' : 'smooth',
+                                                    behavior: getScrollBehavior(),
                                                 };
                                             }
                                         }}
@@ -435,7 +439,8 @@ export default function Changelog() {
                                         aria-expanded={isOpen}
                                         aria-controls={panelId}
                                         type="button"
-                                        className="flex w-full items-center rounded px-2 py-3 text-left transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:hover:bg-gray-800"
+                                        variant="ghost"
+                                        className="h-auto w-full justify-start rounded px-2 py-3 text-left whitespace-normal hover:bg-gray-50 focus-visible:ring-blue-500 dark:hover:bg-gray-800"
                                     >
                                         <span className="flex flex-1 items-center gap-2">
                                             <span className="font-medium">Version {release.version}</span>
@@ -449,7 +454,7 @@ export default function Changelog() {
                                             )}
                                         </span>
                                         <span className="ml-4 text-sm text-gray-700 dark:text-gray-300">{release.date}</span>
-                                    </button>
+                                    </Button>
                                     <AnimatePresence initial={false}>
                                         {isOpen && (
                                             <motion.div

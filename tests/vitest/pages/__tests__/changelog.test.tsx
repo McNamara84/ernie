@@ -16,6 +16,8 @@ type TimelineNavProps = {
 const pageMocks = vi.hoisted(() => ({
     timelineNavProps: null as TimelineNavProps | null,
     skipListItemRefAssignment: false,
+    reducedMotionMatches: false,
+    reducedMotionListeners: new Set<(event: MediaQueryListEvent) => void>(),
 }));
 
 vi.mock('@/layouts/changelog-layout', () => ({
@@ -105,26 +107,55 @@ vi.mock('lucide-react', () => ({
     TrendingUp: () => <svg data-testid="trending-up-icon" />,
 }));
 
-const setReducedMotion = (matches: boolean) => {
+const setReducedMotion = (matches: boolean, options: { notify?: boolean } = {}) => {
+    pageMocks.reducedMotionMatches = matches;
+
     Object.defineProperty(window, 'matchMedia', {
         writable: true,
         value: vi.fn().mockImplementation((query: string) => ({
-            matches: query === '(prefers-reduced-motion: reduce)' ? matches : false,
+            matches: query === '(prefers-reduced-motion: reduce)' ? pageMocks.reducedMotionMatches : false,
             media: query,
             onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
+            addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+                if (query === '(prefers-reduced-motion: reduce)') {
+                    pageMocks.reducedMotionListeners.add(listener);
+                }
+            }),
+            removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
+                pageMocks.reducedMotionListeners.delete(listener);
+            }),
+            addEventListener: vi.fn((eventName: string, listener: (event: MediaQueryListEvent) => void) => {
+                if (query === '(prefers-reduced-motion: reduce)' && eventName === 'change') {
+                    pageMocks.reducedMotionListeners.add(listener);
+                }
+            }),
+            removeEventListener: vi.fn((eventName: string, listener: (event: MediaQueryListEvent) => void) => {
+                if (eventName === 'change') {
+                    pageMocks.reducedMotionListeners.delete(listener);
+                }
+            }),
             dispatchEvent: vi.fn(),
         })),
     });
+
+    if (options.notify) {
+        const event = {
+            matches,
+            media: '(prefers-reduced-motion: reduce)',
+        } as MediaQueryListEvent;
+
+        pageMocks.reducedMotionListeners.forEach((listener) => {
+            listener(event);
+        });
+    }
 };
 
 describe('Changelog', () => {
     beforeEach(() => {
         pageMocks.timelineNavProps = null;
         pageMocks.skipListItemRefAssignment = false;
+        pageMocks.reducedMotionMatches = false;
+        pageMocks.reducedMotionListeners.clear();
 
         global.fetch = vi.fn().mockResolvedValue({
             ok: true,
@@ -260,6 +291,21 @@ describe('Changelog', () => {
         });
     });
 
+    it('does not refetch changelog data when reduced motion preference changes', async () => {
+        const fetchSpy = global.fetch as unknown as Mock;
+
+        render(<Changelog />);
+
+        await screen.findByRole('list', { name: /changelog timeline/i });
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            setReducedMotion(true, { notify: true });
+        });
+
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('opens the hash-targeted release on initial load', async () => {
         window.history.replaceState(null, '', '/changelog#v0.1.1');
 
@@ -350,6 +396,21 @@ describe('Changelog', () => {
 
         expect(firstButton).toHaveAttribute('aria-expanded', 'true');
         expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('announces release expansion and collapse in English', async () => {
+        const user = userEvent.setup();
+
+        render(<Changelog />);
+
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const status = screen.getByRole('status');
+
+        await user.click(firstButton);
+        expect(status).toHaveTextContent('Version 0.1.0 collapsed');
+
+        await user.click(firstButton);
+        expect(status).toHaveTextContent('Version 0.1.0 expanded');
     });
 
     it('returns early when a pending scroll target has no attached element ref', async () => {
