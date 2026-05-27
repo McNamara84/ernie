@@ -240,6 +240,10 @@
         ],
         "fixes": [
             {
+                "title": "Imported DataCite Dates Reload Correctly in the Editor",
+                "description": "Resources imported from DataCite via the Resources page now repopulate the Dates form group with their actual date values instead of showing only the date type. Single-value imported dates that were stored in the dedicated database field are now loaded back into the editor correctly, while auto-managed dates such as Created, Updated, and Coverage remain hidden as intended."
+            },
+            {
                 "title": "Hide Used Instruments When PID4INST Is Disabled",
                 "description": "When administrators or group leaders deactivate PID4INST in Settings, the Data Editor now hides the entire 'Used Instruments' form group instead of showing it with a misleading 'Unable to load instrument data' error."
             },
