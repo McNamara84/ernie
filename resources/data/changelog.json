@@ -240,6 +240,10 @@
         ],
         "fixes": [
             {
+                "title": "Landing Page Keyword Breadcrumbs Show Literal Greater-Than Separators",
+                "description": "Legacy imported thesaurus keywords that still carry encoded breadcrumb separators such as &gt now render on published landing pages with readable > hierarchy markers instead of the raw entity text. The normalization happens in the shared controlled-subject path so landing page keyword badges recover clean breadcrumb labels without changing their existing portal filter links."
+            },
+            {
                 "title": "Imported DataCite Dates Reload Correctly in the Editor",
                 "description": "Resources imported from DataCite via the Resources page now repopulate the Dates form group with their actual date values instead of showing only the date type. Single-value imported dates that were stored in the dedicated database field are now loaded back into the editor correctly, while auto-managed dates such as Created, Updated, and Coverage remain hidden as intended."
             },

@@ -10,6 +10,8 @@ final class PortalSubjectNormalizer
 {
     public const BREADCRUMB_SEPARATOR = ' > ';
 
+    private const ENCODED_BREADCRUMB_SEPARATOR_PATTERN = '/\s*&(?:amp;)?gt;?\s*/iu';
+
     public const SCHEME_ICS_CHRONOSTRAT = 'International Chronostratigraphic Chart';
 
     public const SCHEME_ANALYTICAL_METHODS = 'Analytical Methods for Geochemistry and Cosmochemistry';
@@ -21,7 +23,8 @@ final class PortalSubjectNormalizer
             return null;
         }
 
-        $normalizedSeparators = preg_replace('/\s*>\s*/u', self::BREADCRUMB_SEPARATOR, $trimmed) ?? $trimmed;
+        $decodedEntitySeparators = preg_replace(self::ENCODED_BREADCRUMB_SEPARATOR_PATTERN, self::BREADCRUMB_SEPARATOR, $trimmed) ?? $trimmed;
+        $normalizedSeparators = preg_replace('/\s*>\s*/u', self::BREADCRUMB_SEPARATOR, $decodedEntitySeparators) ?? $decodedEntitySeparators;
         $normalizedWhitespace = preg_replace('/\s+/u', ' ', $normalizedSeparators) ?? $normalizedSeparators;
         $normalizedValue = trim($normalizedWhitespace);
 
@@ -55,10 +58,14 @@ final class PortalSubjectNormalizer
     public static function normalizedControlledSubjectValueSql(string $column, ?string $driverName = null): string
     {
         $characterFunction = self::characterCodeSqlFunction($driverName);
-        $expression = self::trimmedSql($column);
+        $expression = 'LOWER('.self::trimmedSql($column).')';
         $expression = "REPLACE({$expression}, {$characterFunction}(13), ' ')";
         $expression = "REPLACE({$expression}, {$characterFunction}(10), ' ')";
         $expression = "REPLACE({$expression}, {$characterFunction}(9), ' ')";
+        $expression = "REPLACE({$expression}, '&amp;gt;', '>')";
+        $expression = "REPLACE({$expression}, '&amp;gt', '>')";
+        $expression = "REPLACE({$expression}, '&gt;', '>')";
+        $expression = "REPLACE({$expression}, '&gt', '>')";
         $expression = "REPLACE(REPLACE(REPLACE({$expression}, ' > ', '>'), ' >', '>'), '> ', '>')";
         $expression = "REPLACE({$expression}, '>', ' > ')";
 
@@ -66,7 +73,7 @@ final class PortalSubjectNormalizer
             $expression = "REPLACE({$expression}, '  ', ' ')";
         }
 
-        return "LOWER(TRIM({$expression}))";
+        return "TRIM({$expression})";
     }
 
     public static function normalizedSchemeSql(string $column): string
