@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\KeywordSuggestionService;
 use App\Services\PortalSearchService;
 use Illuminate\Http\Request;
@@ -21,12 +22,24 @@ class PortalController extends Controller
     public function __construct(
         private readonly PortalSearchService $searchService,
         private readonly KeywordSuggestionService $keywordService,
+        private readonly PortalPageCacheService $pageCache,
     ) {}
 
     /**
      * Display the portal page with search and filter capabilities.
      */
     public function index(Request $request): Response
+    {
+        return Inertia::render('portal', $this->pageCache->remember(
+            $request,
+            fn (): array => $this->buildPortalPayload($request),
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPortalPayload(Request $request): array
     {
         // Compute temporal range once (cached) – used for both validation and frontend
         $temporalRange = $this->searchService->getTemporalRange();
@@ -79,7 +92,7 @@ class PortalController extends Controller
             ->map(fn ($resource) => $this->searchService->transformForPortal($resource))
             ->all();
 
-        return Inertia::render('portal', [
+        return [
             'resources' => $transformedResources,
             'mapData' => $mapData,
             'pagination' => [
@@ -106,7 +119,7 @@ class PortalController extends Controller
             'temporalRange' => $temporalRange,
             'resourceTypeFacets' => $resourceTypeFacets,
             'datacenterFacets' => $datacenterFacets,
-        ]);
+        ];
     }
 
     /**

@@ -6,6 +6,8 @@ namespace App\Observers;
 
 use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
 
 /**
@@ -16,7 +18,14 @@ class LandingPageObserver
 {
     public function __construct(
         private readonly OaiPmhSetService $oaiPmhSetService,
+        private readonly LandingPageRenderDataCacheService $renderDataCache,
+        private readonly PortalPageCacheService $portalPageCache,
     ) {}
+
+    public function created(LandingPage $landingPage): void
+    {
+        $this->portalPageCache->flush();
+    }
 
     /**
      * Handle the LandingPage "updated" event.
@@ -26,6 +35,9 @@ class LandingPageObserver
      */
     public function updated(LandingPage $landingPage): void
     {
+        $this->renderDataCache->forget($landingPage);
+        $this->portalPageCache->flush();
+
         if (! $landingPage->wasChanged('is_published')) {
             return;
         }
@@ -36,7 +48,7 @@ class LandingPageObserver
             return;
         }
 
-        $oaiIdentifier = config('oaipmh.identifier_prefix') . ':' . $resource->doi;
+        $oaiIdentifier = config('oaipmh.identifier_prefix').':'.$resource->doi;
 
         if (! $landingPage->is_published) {
             // Depublished → track as deleted in OAI-PMH (concurrency-safe)
@@ -55,5 +67,11 @@ class LandingPageObserver
             // Republished → remove from deleted records
             OaiPmhDeletedRecord::where('oai_identifier', $oaiIdentifier)->delete();
         }
+    }
+
+    public function deleted(LandingPage $landingPage): void
+    {
+        $this->renderDataCache->forget($landingPage);
+        $this->portalPageCache->flush();
     }
 }

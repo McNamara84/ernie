@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 
 covers(LandingPagePublicController::class);
 
@@ -93,6 +96,36 @@ describe('Public Landing Page Access', function () {
 
         $response->assertStatus(404);
     });
+
+    test('strongly throttles known ai bots on public landing pages', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.ai_user_agents' => ['GPTBot'],
+            'bot_protection.limits.ai_bot_public_per_minute' => 1,
+            'bot_protection.limits.public_landing_per_minute' => 10,
+        ]);
+
+        RateLimiter::clear('landing-page:ai-bot:203.0.113.20');
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'throttled-ai-bot-test',
+                'template' => 'default_gfz',
+            ]);
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.20',
+            'HTTP_USER_AGENT' => 'GPTBot',
+        ])->get(landingPageUrl($landingPage))->assertOk();
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.20',
+            'HTTP_USER_AGENT' => 'GPTBot',
+        ])->get(landingPageUrl($landingPage))->assertTooManyRequests();
+    });
 });
 
 describe('Preview Token Access', function () {
@@ -145,19 +178,6 @@ describe('Preview Token Access', function () {
 });
 
 describe('Landing Page Caching', function () {
-    /**
-     * Caching for semantic URLs is not yet implemented.
-     *
-     * Current state: The controller does NOT cache responses.
-     * When implementing caching, the cache key should use the semantic URL
-     * components (doi_prefix + slug) instead of resource_id.
-     *
-     * These tests document the expected behavior and verify that current
-     * behavior (no caching) doesn't break anything. They should be updated
-     * when caching is implemented.
-     *
-     * @see https://github.com/McNamara84/ernie/issues/XXX (create tracking issue)
-     */
     test('draft previews are not cached (no cache key created)', function () {
         $landingPage = LandingPage::factory()
             ->draft()
@@ -172,11 +192,7 @@ describe('Landing Page Caching', function () {
         expect(Cache::has("landing_page.{$this->resource->id}"))->toBeFalse();
     });
 
-    test('published pages return fresh data (caching not yet implemented)', function () {
-        // This test verifies current behavior: no caching.
-        // When caching is implemented, update this test to verify:
-        // - Cache key format: "landing-page.{doi_prefix}.{slug}"
-        // - Cache is invalidated when landing page is updated
+    test('published pages return fresh data when bot protection cache is disabled', function () {
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
@@ -193,22 +209,22 @@ describe('Landing Page Caching', function () {
         $response1 = $this->get(landingPageUrl($landingPage));
         $response1->assertStatus(200);
 
-        // Verify no cache keys were created (caching not yet implemented)
+        // Verify no legacy cache keys were created while the new cache is disabled
         expect(Cache::has($semanticCacheKey))->toBeFalse(
-            "Expected semantic cache key '{$semanticCacheKey}' to not exist (caching not implemented)"
+            "Expected legacy semantic cache key '{$semanticCacheKey}' to not exist"
         );
         expect(Cache::has($resourceIdCacheKey))->toBeFalse(
-            "Expected resource ID cache key '{$resourceIdCacheKey}' to not exist (caching not implemented)"
+            "Expected legacy resource ID cache key '{$resourceIdCacheKey}' to not exist"
         );
 
         // Modify landing page
         $landingPage->update(['ftp_url' => 'https://new-url.com']);
 
-        // Second request - should reflect the change since caching is not yet implemented
+        // Second request - should reflect the change because caching is disabled
         $response2 = $this->get(landingPageUrl($landingPage));
         $response2->assertStatus(200);
 
-        // Still no caching after second request
+        // Still no legacy caching after the second request
         expect(Cache::has($semanticCacheKey))->toBeFalse();
         expect(Cache::has($resourceIdCacheKey))->toBeFalse();
     });
@@ -235,6 +251,66 @@ describe('Landing Page Caching', function () {
 
         // Note: Published landing pages cannot be unpublished because DOIs are persistent
         // and must always resolve to a valid landing page
+    });
+
+    test('published landing page render data is cached and invalidated after landing page updates', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.landing_cache_ttl' => 600,
+        ]);
+
+        Cache::flush();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'render-cache-test',
+                'template' => 'default_gfz',
+                'ftp_url' => 'https://data.gfz.de/old.zip',
+            ]);
+
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('landingPage.ftp_url', 'https://data.gfz.de/old.zip'));
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+
+        $landingPage->update(['ftp_url' => 'https://data.gfz.de/new.zip']);
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
+
+        $landingPage->refresh();
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('landingPage.ftp_url', 'https://data.gfz.de/new.zip'));
+    });
+
+    test('preview token requests are not stored in the public render cache', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.landing_cache_ttl' => 600,
+        ]);
+
+        Cache::flush();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'preview-cache-test',
+            ]);
+
+        $this->get(landingPageUrl($landingPage, $landingPage->preview_token))->assertOk();
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has(
+            CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id),
+        ))->toBeFalse();
     });
 });
 
@@ -269,7 +345,7 @@ describe('View Counter', function () {
         expect($landingPage->fresh()->view_count)->toBe(0);
     });
 
-    test('increments view count only once per cached request', function () {
+    test('increments view count for repeated requests when bot protection is disabled', function () {
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
@@ -286,6 +362,68 @@ describe('View Counter', function () {
         // Second request
         $this->get(landingPageUrl($landingPage));
         expect($landingPage->fresh()->view_count)->toBe(2);
+    });
+
+    test('debounces view count per visitor when bot protection is enabled', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.ai_user_agents' => ['GPTBot'],
+            'bot_protection.view_count_debounce_seconds' => 3600,
+        ]);
+
+        Cache::flush();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'debounced-view-test',
+                'view_count' => 0,
+            ]);
+
+        $server = [
+            'REMOTE_ADDR' => '203.0.113.30',
+            'HTTP_USER_AGENT' => 'Mozilla/5.0',
+        ];
+
+        $this->withServerVariables($server)->get(landingPageUrl($landingPage))->assertOk();
+        expect($landingPage->fresh()->view_count)->toBe(1);
+
+        $this->withServerVariables($server)->get(landingPageUrl($landingPage))->assertOk();
+        expect($landingPage->fresh()->view_count)->toBe(1);
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.31',
+            'HTTP_USER_AGENT' => 'Mozilla/5.0',
+        ])->get(landingPageUrl($landingPage))->assertOk();
+        expect($landingPage->fresh()->view_count)->toBe(2);
+    });
+
+    test('does not count known ai bot landing page views when bot protection is enabled', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.ai_user_agents' => ['GPTBot'],
+            'bot_protection.limits.ai_bot_public_per_minute' => 10,
+        ]);
+
+        Cache::flush();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'ai-bot-view-test',
+                'view_count' => 0,
+            ]);
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.40',
+            'HTTP_USER_AGENT' => 'GPTBot',
+        ])->get(landingPageUrl($landingPage))->assertOk();
+
+        expect($landingPage->fresh()->view_count)->toBe(0);
     });
 });
 
@@ -457,8 +595,8 @@ describe('External Landing Page Redirect', function () {
 
 describe('Landing Page with Custom Template', function () {
     test('renders landing page with custom template section order and logo', function () {
-        $template = \App\Models\LandingPageTemplate::factory()->create([
-            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => User::factory()->admin()->create()->id,
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/custom-logo.png',
@@ -520,7 +658,7 @@ describe('Landing Page with Custom Template', function () {
         ]);
 
         $template = LandingPageTemplate::factory()->igsn()->create([
-            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'created_by' => User::factory()->admin()->create()->id,
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/igsn-logo.png',
@@ -578,7 +716,7 @@ describe('Landing Page with Custom Template', function () {
         ]);
 
         $template = LandingPageTemplate::factory()->igsn()->create([
-            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'created_by' => User::factory()->admin()->create()->id,
             'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
         ]);
 
@@ -614,7 +752,7 @@ describe('Landing Page with Custom Template', function () {
         ]);
 
         $template = LandingPageTemplate::factory()->create([
-            'created_by' => \App\Models\User::factory()->admin()->create()->id,
+            'created_by' => User::factory()->admin()->create()->id,
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/resource-logo.png',

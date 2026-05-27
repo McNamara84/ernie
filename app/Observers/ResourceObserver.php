@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Enums\CacheKey;
+use App\Models\LandingPage;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\Assessment\AssessmentAverageSummaryVersionService;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
+use App\Services\BotProtection\PortalPageCacheService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use App\Services\PortalKeywordCacheInvalidationService;
 use App\Services\ResourceCacheService;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Observer for Resource model to handle cache invalidation.
@@ -22,6 +28,7 @@ use Illuminate\Support\Facades\Cache;
 class ResourceObserver
 {
     use ChecksCacheTagging;
+
     /**
      * Create a new observer instance.
      */
@@ -29,6 +36,8 @@ class ResourceObserver
         private readonly ResourceCacheService $cacheService,
         private readonly PortalKeywordCacheInvalidationService $cacheInvalidationService,
         private readonly OaiPmhSetService $oaiPmhSetService,
+        private readonly LandingPageRenderDataCacheService $landingPageRenderDataCache,
+        private readonly PortalPageCacheService $portalPageCache,
     ) {}
 
     /**
@@ -42,6 +51,7 @@ class ResourceObserver
         $this->cacheService->invalidateAllResourceCaches();
         $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
+        $this->portalPageCache->flush();
     }
 
     /**
@@ -70,6 +80,8 @@ class ResourceObserver
         $this->cacheService->invalidateResourceCache($resource->id);
         $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
+        $this->invalidateLandingPageRenderCache($resource);
+        $this->portalPageCache->flush();
 
         if ($resource->wasChanged('resource_type_id') && $resource->resourceAssessment()->exists()) {
             app(AssessmentAverageSummaryVersionService::class)->bump();
@@ -101,7 +113,7 @@ class ResourceObserver
             // 1. Adding explicit lock ordering (e.g., always lock by ascending landing_page.id)
             // 2. Using DB::statement('SET innodb_lock_wait_timeout = 5') before the transaction
             // 3. Implementing retry logic for deadlock exceptions (SQLSTATE 40001)
-            $landingPage = \Illuminate\Support\Facades\DB::transaction(function () use ($resource, $oldDoi) {
+            $landingPage = DB::transaction(function () use ($resource, $oldDoi) {
                 // Fetch with row-level lock to prevent concurrent updates.
                 // This SELECT ... FOR UPDATE blocks other transactions trying to read
                 // the same row until this transaction commits or rolls back.
@@ -132,7 +144,7 @@ class ResourceObserver
                         // is purely for logging/monitoring - it does NOT prevent the change.
                         // The policy check happens before the request reaches this point.
                         // See: app/Policies/ResourcePolicy.php::changeDoi()
-                        \Illuminate\Support\Facades\Log::warning(
+                        Log::warning(
                             'ResourceObserver: DOI changed for resource with published landing page',
                             [
                                 'resource_id' => $resource->id,
@@ -185,10 +197,10 @@ class ResourceObserver
      */
     public function deleting(Resource $resource): void
     {
-        $resource->loadMissing('resourceAssessment');
+        $resource->loadMissing(['landingPage', 'resourceAssessment']);
 
         if ($resource->doi !== null && $resource->doi !== '') {
-            $resource->loadMissing(['resourceType', 'landingPage']);
+            $resource->loadMissing('resourceType');
         }
     }
 
@@ -204,6 +216,8 @@ class ResourceObserver
         $this->cacheService->invalidateAllResourceCaches();
         $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
+        $this->invalidateLandingPageRenderCache($resource);
+        $this->portalPageCache->flush();
 
         if ($resource->relationLoaded('resourceAssessment') && $resource->resourceAssessment !== null) {
             app(AssessmentAverageSummaryVersionService::class)->bump();
@@ -223,6 +237,8 @@ class ResourceObserver
         $this->cacheService->invalidateAllResourceCaches();
         $this->cacheInvalidationService->scheduleAfterCommit();
         $this->invalidatePortalFacets();
+        $this->invalidateLandingPageRenderCache($resource);
+        $this->portalPageCache->flush();
     }
 
     /**
@@ -244,7 +260,7 @@ class ResourceObserver
             return;
         }
 
-        $oaiIdentifier = config('oaipmh.identifier_prefix') . ':' . $resource->doi;
+        $oaiIdentifier = config('oaipmh.identifier_prefix').':'.$resource->doi;
         $sets = $this->oaiPmhSetService->getSetsForResource($resource);
 
         OaiPmhDeletedRecord::updateOrCreate(
@@ -263,8 +279,8 @@ class ResourceObserver
     private function invalidatePortalFacets(): void
     {
         $cacheKeys = [
-            \App\Enums\CacheKey::PORTAL_DATACENTER_FACETS,
-            \App\Enums\CacheKey::PORTAL_RESOURCE_TYPE_FACETS,
+            CacheKey::PORTAL_DATACENTER_FACETS,
+            CacheKey::PORTAL_RESOURCE_TYPE_FACETS,
         ];
 
         foreach ($cacheKeys as $cacheKey) {
@@ -273,6 +289,17 @@ class ResourceObserver
             } else {
                 Cache::forget($cacheKey->key());
             }
+        }
+    }
+
+    private function invalidateLandingPageRenderCache(Resource $resource): void
+    {
+        $landingPage = $resource->relationLoaded('landingPage')
+            ? $resource->getRelation('landingPage')
+            : $resource->landingPage()->first();
+
+        if ($landingPage instanceof LandingPage) {
+            $this->landingPageRenderDataCache->forget($landingPage);
         }
     }
 }

@@ -49,6 +49,26 @@ it('returns correct TTL for ROR and ORCID', function () {
     expect(CacheKey::ORCID_PERSON->ttl())->toBe(86400);
 });
 
+it('returns configurable TTLs for public page payload caches', function () {
+    config([
+        'bot_protection.portal_cache_ttl' => 45,
+        'bot_protection.landing_cache_ttl' => 90,
+    ]);
+
+    expect(CacheKey::PORTAL_PAGE_PAYLOAD->ttl())->toBe(45)
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->ttl())->toBe(90);
+});
+
+it('clamps public page payload cache TTLs to zero', function () {
+    config([
+        'bot_protection.portal_cache_ttl' => -10,
+        'bot_protection.landing_cache_ttl' => -20,
+    ]);
+
+    expect(CacheKey::PORTAL_PAGE_PAYLOAD->ttl())->toBe(0)
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->ttl())->toBe(0);
+});
+
 it('returns correct tags for resources', function () {
     expect(CacheKey::RESOURCE_LIST->tags())->toBe(['resources']);
     expect(CacheKey::RESOURCE_DETAIL->tags())->toBe(['resources']);
@@ -71,6 +91,11 @@ it('returns correct tags for ORCID', function () {
 
 it('returns correct tags for system', function () {
     expect(CacheKey::CACHE_STATS->tags())->toBe(['system']);
+});
+
+it('returns correct tags for public page payload caches', function () {
+    expect(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->toBe(['portal_page_payloads'])
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->toBe(['resources', 'landing_pages']);
 });
 
 it('returns correct tags for assessment summary metrics', function () {

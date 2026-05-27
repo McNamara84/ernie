@@ -6,14 +6,14 @@ use App\Enums\CacheKey;
 use App\Http\Controllers\PortalController;
 use App\Models\GeoLocation;
 use App\Models\LandingPage;
-use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Services\BotProtection\PortalPageCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 covers(PortalController::class);
@@ -34,7 +34,7 @@ beforeEach(function () {
     $this->createPublishedPortalResource = function (string $title = 'Test Dataset', ?string $doi = null): Resource {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->datasetType->id,
-            'doi' => $doi ?? '10.5880/gfz.' . fake()->unique()->numerify('####.###'),
+            'doi' => $doi ?? '10.5880/gfz.'.fake()->unique()->numerify('####.###'),
             'publication_year' => 2025,
         ]);
 
@@ -179,6 +179,33 @@ describe('index', function () {
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page->has('mapData'));
+    });
+
+    it('caches portal payloads briefly and flushes them when landing pages change', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.portal_cache_ttl' => 120,
+        ]);
+
+        Cache::flush();
+
+        ($this->createPublishedPortalResource)('Cached Dataset');
+
+        $cacheKey = app(PortalPageCacheService::class)->keyForRequest(Request::create('/portal', 'GET'));
+
+        $this->get('/portal')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('pagination.total', 1));
+
+        expect(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($cacheKey))->toBeTrue();
+
+        ($this->createPublishedPortalResource)('New Dataset');
+
+        expect(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($cacheKey))->toBeFalse();
+
+        $this->get('/portal')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('pagination.total', 2));
     });
 });
 

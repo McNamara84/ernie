@@ -101,6 +101,19 @@ it('clears only DOI citation cache', function () {
     expect(Cache::tags(['doi', 'citations'])->has('doi-key'))->toBeFalse();
 });
 
+it('clears portal caches including dedicated page payload caches', function () {
+    Cache::tags(['resources'])->put('resource-key', 'value', 3600);
+    Cache::tags(['portal'])->put('portal-key', 'value', 3600);
+    Cache::tags(['portal_page_payloads'])->put('portal-page-key', 'value', 3600);
+
+    $this->artisan('cache:clear-app', ['category' => 'portal'])
+        ->assertSuccessful();
+
+    expect(Cache::tags(['resources'])->has('resource-key'))->toBeTrue();
+    expect(Cache::tags(['portal'])->has('portal-key'))->toBeFalse();
+    expect(Cache::tags(['portal_page_payloads'])->has('portal-page-key'))->toBeFalse();
+});
+
 it('fails with invalid category', function () {
     $this->artisan('cache:clear-app', ['category' => 'invalid'])
         ->assertFailed()

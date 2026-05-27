@@ -48,6 +48,7 @@ enum CacheKey: string
     case PORTAL_TEMPORAL_RANGE = 'portal:temporal_range';
     case PORTAL_RESOURCE_TYPE_FACETS = 'portal:resource_type_facets';
     case PORTAL_DATACENTER_FACETS = 'portal:datacenter_facets';
+    case PORTAL_PAGE_PAYLOAD = 'portal:page_payload';
 
     // DOI citation cache keys
     case DOI_CITATION = 'doi:citation';
@@ -72,6 +73,9 @@ enum CacheKey: string
 
     // Landing page Schema.org JSON-LD
     case SCHEMA_ORG_JSONLD = 'landing_pages:schema_org_jsonld';
+
+    // Published landing page render payloads
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions';
@@ -141,6 +145,9 @@ enum CacheKey: string
             self::PORTAL_RESOURCE_TYPE_FACETS,
             self::PORTAL_DATACENTER_FACETS => 600,
 
+            // Portal Inertia payloads - very short-lived to absorb crawler bursts
+            self::PORTAL_PAGE_PAYLOAD => max(0, (int) config('bot_protection.portal_cache_ttl', 120)),
+
             // DOI citations and DataCite metadata are relatively stable - 24 hours
             self::DOI_CITATION, self::DOI_DATACITE_METADATA, self::CITATION_LOOKUP => 86400,
 
@@ -158,6 +165,9 @@ enum CacheKey: string
 
             // Schema.org JSON-LD - 1 hour (invalidated by ResourceObserver on update)
             self::SCHEMA_ORG_JSONLD => 3600,
+
+            // Published landing page render data - short-lived and configurable
+            self::LANDING_PAGE_RENDER_DATA => max(0, (int) config('bot_protection.landing_cache_ttl', 600)),
 
             // Download URL suggestions use rememberForever and explicit invalidation.
             // This TTL acts only as a safe default if the enum is reused elsewhere.
@@ -206,6 +216,8 @@ enum CacheKey: string
 
             self::PORTAL_DATACENTER_FACETS => ['portal', 'datacenters'],
 
+            self::PORTAL_PAGE_PAYLOAD => ['portal_page_payloads'],
+
             self::DOI_CITATION => ['doi', 'citations'],
 
             self::DOI_DATACITE_METADATA => ['doi', 'datacite_metadata'],
@@ -221,6 +233,8 @@ enum CacheKey: string
             self::FUJI_HEALTH_STATUS => ['assessments'],
 
             self::SCHEMA_ORG_JSONLD => ['resources', 'landing_pages'],
+
+            self::LANDING_PAGE_RENDER_DATA => ['resources', 'landing_pages'],
 
             self::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS => [],
         };

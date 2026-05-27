@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Models\GeoLocation;
-use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
@@ -12,6 +11,7 @@ use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
@@ -56,6 +56,33 @@ describe('Portal Page Display', function () {
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('portal'));
+    });
+
+    it('strongly throttles known ai bots without throttling normal visitors on the same ip', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.ai_user_agents' => ['GPTBot'],
+            'bot_protection.limits.ai_bot_public_per_minute' => 1,
+            'bot_protection.limits.public_portal_per_minute' => 10,
+        ]);
+
+        RateLimiter::clear('portal:ai-bot:203.0.113.10');
+        RateLimiter::clear('portal:public:203.0.113.10');
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.10',
+            'HTTP_USER_AGENT' => 'GPTBot',
+        ])->get(route('portal'))->assertOk();
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.10',
+            'HTTP_USER_AGENT' => 'GPTBot',
+        ])->get(route('portal'))->assertTooManyRequests();
+
+        $this->withServerVariables([
+            'REMOTE_ADDR' => '203.0.113.10',
+            'HTTP_USER_AGENT' => 'Mozilla/5.0',
+        ])->get(route('portal'))->assertOk();
     });
 });
 
