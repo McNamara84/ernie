@@ -58,11 +58,12 @@ final class PortalSubjectNormalizer
     public static function normalizedControlledSubjectValueSql(string $column, ?string $driverName = null): string
     {
         $characterFunction = self::characterCodeSqlFunction($driverName);
-        $expression = self::trimmedSql($column);
+        $expression = 'LOWER('.self::trimmedSql($column).')';
         $expression = "REPLACE({$expression}, {$characterFunction}(13), ' ')";
         $expression = "REPLACE({$expression}, {$characterFunction}(10), ' ')";
         $expression = "REPLACE({$expression}, {$characterFunction}(9), ' ')";
         $expression = "REPLACE({$expression}, '&amp;gt;', '>')";
+        $expression = "REPLACE({$expression}, '&amp;gt', '>')";
         $expression = "REPLACE({$expression}, '&gt;', '>')";
         $expression = "REPLACE({$expression}, '&gt', '>')";
         $expression = "REPLACE(REPLACE(REPLACE({$expression}, ' > ', '>'), ' >', '>'), '> ', '>')";
@@ -72,7 +73,7 @@ final class PortalSubjectNormalizer
             $expression = "REPLACE({$expression}, '  ', ' ')";
         }
 
-        return "LOWER(TRIM({$expression}))";
+        return "TRIM({$expression})";
     }
 
     public static function normalizedSchemeSql(string $column): string

@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\DB;
 covers(PortalSubjectNormalizer::class);
 
 describe('PortalSubjectNormalizer::normalizeControlledSubjectValue()', function () {
-    it('normalizes legacy encoded breadcrumb separators', function () {
+    it('normalizes legacy encoded breadcrumb separators case-insensitively', function () {
         expect(PortalSubjectNormalizer::normalizeControlledSubjectValue(
-            '  EARTH SCIENCE &gt; SOLID EARTH &amp;gt; SEISMOLOGY  ',
+            '  EARTH SCIENCE &GT; SOLID EARTH &AMP;GT SEISMOLOGY  ',
         ))->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
     });
 });
@@ -26,11 +26,11 @@ describe('PortalSubjectNormalizer::normalizedControlledSubjectValueSql()', funct
             ->not->toContain('CHR(13)');
     });
 
-    it('normalizes legacy encoded breadcrumb separators on sqlite', function () {
+    it('normalizes legacy encoded breadcrumb separators on sqlite with php parity', function () {
         $sql = PortalSubjectNormalizer::normalizedControlledSubjectValueSql('?', 'sqlite');
         $row = DB::selectOne(
             "SELECT {$sql} AS normalized",
-            ['  EARTH SCIENCE &gt; SOLID EARTH &gt SEISMOLOGY  '],
+            ['  EARTH SCIENCE &GT; SOLID EARTH &AMP;GT SEISMOLOGY  '],
         );
 
         expect($row)->not->toBeNull();
