@@ -141,7 +141,7 @@ export default function Changelog() {
                 }
             })
             .catch(() => setError('Unable to load changelog.'));
-            }, [getReleaseIndexFromHash, getScrollBehavior]);
+    }, [getReleaseIndexFromHash, getScrollBehavior]);
 
     useEffect(() => {
         const pendingScroll = pendingScrollRef.current;
@@ -348,11 +348,23 @@ export default function Changelog() {
                     handleNavigate(releases.length - 1);
                     break;
                 case 'Enter':
-                case ' ':
+                case ' ': {
                     event.preventDefault();
+                    if (!releases[currentIndex]) {
+                        return;
+                    }
+
+                    const nextIsOpen = openIndex !== currentIndex;
+
                     setHighlightedIndex(currentIndex);
-                    setOpenIndex((prev) => (prev === currentIndex ? null : currentIndex));
+                    setOpenIndex(nextIsOpen ? currentIndex : null);
+                    setAnnouncement(
+                        nextIsOpen
+                            ? `Version ${releases[currentIndex].version} expanded`
+                            : `Version ${releases[currentIndex].version} collapsed`,
+                    );
                     break;
+                }
             }
         };
 

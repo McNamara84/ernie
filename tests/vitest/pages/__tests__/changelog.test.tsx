@@ -628,6 +628,7 @@ describe('Changelog', () => {
             });
 
             const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const status = screen.getByRole('status');
             expect(firstButton).toHaveAttribute('aria-expanded', 'true');
 
             await act(async () => {
@@ -636,6 +637,7 @@ describe('Changelog', () => {
             });
 
             expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+            expect(status).toHaveTextContent('Version 0.1.0 collapsed');
 
             await act(async () => {
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
@@ -643,6 +645,7 @@ describe('Changelog', () => {
             });
 
             expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(status).toHaveTextContent('Version 0.1.0 expanded');
         });
 
         it('ignores shortcut handling for interactive timeline buttons', async () => {

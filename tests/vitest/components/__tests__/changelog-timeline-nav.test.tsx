@@ -140,6 +140,8 @@ describe('ChangelogTimelineNav', () => {
             await waitFor(() => {
                 const button = screen.getByLabelText('Navigate to version 2.0.0');
                 expect(button).toHaveClass('h-8', 'w-8');
+                expect(button).toHaveAttribute('data-variant', 'ghost');
+                expect(button).toHaveAttribute('data-size', 'default');
             });
         });
 

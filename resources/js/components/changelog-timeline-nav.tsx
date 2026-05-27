@@ -138,27 +138,33 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                     return (
                         <Tooltip key={release.version}>
                             <TooltipTrigger asChild>
-                                <motion.button
-                                    whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                                    whileTap={prefersReducedMotion ? {} : { scale: 0.96 }}
-                                    onClick={() => onNavigate(index)}
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    type="button"
                                     className={cn(
-                                        'flex h-8 w-8 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2 dark:focus-visible:ring-gray-600',
+                                        'h-8 w-8 rounded-full p-0 transition-colors focus-visible:ring-gray-400 dark:focus-visible:ring-gray-600',
                                         isActive && 'bg-accent/50',
                                     )}
                                     aria-label={`Navigate to version ${release.version}`}
                                     aria-current={isActive ? 'true' : undefined}
                                 >
-                                    <span
-                                        data-testid="timeline-dot"
-                                        className={cn(
-                                            'rounded-full transition-all',
-                                            isActive ? 'h-4 w-4' : 'h-2.5 w-2.5',
-                                            color,
-                                            isActive && 'ring-2 ring-gray-400 ring-offset-2 ring-offset-background dark:ring-gray-600 dark:ring-offset-gray-950',
-                                        )}
-                                    />
-                                </motion.button>
+                                    <motion.button
+                                        whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+                                        whileTap={prefersReducedMotion ? {} : { scale: 0.96 }}
+                                        onClick={() => onNavigate(index)}
+                                    >
+                                        <span
+                                            data-testid="timeline-dot"
+                                            className={cn(
+                                                'rounded-full transition-all',
+                                                isActive ? 'h-4 w-4' : 'h-2.5 w-2.5',
+                                                color,
+                                                isActive && 'ring-2 ring-gray-400 ring-offset-2 ring-offset-background dark:ring-gray-600 dark:ring-offset-gray-950',
+                                            )}
+                                        />
+                                    </motion.button>
+                                </Button>
                             </TooltipTrigger>
                             <TooltipContent side="left" className="text-xs">
                                 <div>
