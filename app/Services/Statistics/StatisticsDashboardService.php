@@ -66,7 +66,8 @@ class StatisticsDashboardService
         $landingPageTrendRows = DB::table('landing_page_daily_statistics')
             ->selectRaw('statistic_date, COALESCE(SUM(page_view_count), 0) as total_page_views')
             ->selectRaw('COALESCE(SUM(file_download_click_count), 0) as total_download_clicks')
-            ->whereBetween('statistic_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->whereDate('statistic_date', '>=', $startDate->toDateString())
+            ->whereDate('statistic_date', '<=', $endDate->toDateString())
             ->groupBy('statistic_date')
             ->get()
             ->all();
@@ -74,7 +75,8 @@ class StatisticsDashboardService
         /** @var list<object{statistic_date:string, total_searches:int|string}> $searchTrendRows */
         $searchTrendRows = DB::table('portal_search_daily_statistics')
             ->selectRaw('statistic_date, COALESCE(SUM(search_count), 0) as total_searches')
-            ->whereBetween('statistic_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->whereDate('statistic_date', '>=', $startDate->toDateString())
+            ->whereDate('statistic_date', '<=', $endDate->toDateString())
             ->groupBy('statistic_date')
             ->get()
             ->all();
@@ -82,7 +84,9 @@ class StatisticsDashboardService
         /** @var array<string, array{pageViews:int, downloadClicks:int}> $landingPageRows */
         $landingPageRows = [];
         foreach ($landingPageTrendRows as $row) {
-            $landingPageRows[$row->statistic_date] = [
+            $dateKey = CarbonImmutable::parse($row->statistic_date)->toDateString();
+
+            $landingPageRows[$dateKey] = [
                 'pageViews' => (int) $row->total_page_views,
                 'downloadClicks' => (int) $row->total_download_clicks,
             ];
@@ -91,7 +95,9 @@ class StatisticsDashboardService
         /** @var array<string, int> $searchRows */
         $searchRows = [];
         foreach ($searchTrendRows as $row) {
-            $searchRows[$row->statistic_date] = (int) $row->total_searches;
+            $dateKey = CarbonImmutable::parse($row->statistic_date)->toDateString();
+
+            $searchRows[$dateKey] = (int) $row->total_searches;
         }
 
         $days = [];

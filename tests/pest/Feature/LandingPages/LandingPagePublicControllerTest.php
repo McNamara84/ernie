@@ -55,6 +55,15 @@ function landingPageDailyDownloadCount(LandingPage $landingPage): ?int
         ->value('file_download_click_count');
 }
 
+function invokeLandingPagePublicControllerHelper(string $method, mixed ...$arguments): mixed
+{
+    $controller = new LandingPagePublicController;
+    $reflection = new ReflectionMethod($controller, $method);
+    $reflection->setAccessible(true);
+
+    return $reflection->invokeArgs($controller, $arguments);
+}
+
 describe('Public Landing Page Access', function () {
     test('can access published landing page', function () {
         $landingPage = LandingPage::factory()
@@ -521,6 +530,54 @@ describe('Tracked Download URLs', function () {
                 ->missing('landingPage.tracked_ftp_url')
                 ->missing('landingPage.files.0.tracked_url')
             );
+    });
+
+    test('tracked download helper clears malformed file payloads and omits blank primary download urls', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'tracked-download-helper-test',
+            ]);
+
+        $result = invokeLandingPagePublicControllerHelper('attachTrackedDownloadUrls', [
+            'ftp_url' => '   ',
+            'files' => 'invalid-payload',
+        ], $landingPage);
+
+        expect($result['tracked_ftp_url'])->toBeNull()
+            ->and($result['files'])->toBe([]);
+    });
+
+    test('tracked download helper leaves malformed file entries untouched', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'tracked-download-helper-invalid-file-test',
+                'ftp_url' => 'https://downloads.example.org/dataset.zip',
+            ]);
+
+        $result = invokeLandingPagePublicControllerHelper('attachTrackedDownloadUrls', [
+            'ftp_url' => 'https://downloads.example.org/dataset.zip',
+            'files' => [
+                'plain-string',
+                ['id' => 'not-numeric', 'url' => 'https://downloads.example.org/ignored.zip'],
+                ['id' => 42, 'url' => 'https://downloads.example.org/tracked.zip'],
+            ],
+        ], $landingPage);
+
+        expect($result['files'][0])->toBe('plain-string')
+            ->and($result['files'][1])->toBe([
+                'id' => 'not-numeric',
+                'url' => 'https://downloads.example.org/ignored.zip',
+            ])
+            ->and($result['files'][2]['tracked_url'])->toBe(route('landing-page.download.file', [
+                'landingPage' => $landingPage->id,
+                'landingPageFile' => 42,
+            ]));
     });
 });
 
