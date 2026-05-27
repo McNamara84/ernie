@@ -11,7 +11,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Services\RorLookupService;
 
-final readonly class DataCitePartyMapper
+final readonly class DataCitePartyMappingService
 {
     public function __construct(private RorLookupService $rorLookup) {}
 

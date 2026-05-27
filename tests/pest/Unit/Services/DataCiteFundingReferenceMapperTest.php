@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
-use App\Services\DataCite\Mapping\DataCiteFundingReferenceMapper;
+use App\Services\DataCite\Mapping\DataCiteFundingReferenceMappingService;
 
-covers(DataCiteFundingReferenceMapper::class);
+covers(DataCiteFundingReferenceMappingService::class);
 
 it('maps minimal funding reference data', function (): void {
     $funding = new FundingReference;
     $funding->funder_name = 'German Research Foundation';
 
-    expect(app(DataCiteFundingReferenceMapper::class)->toArray($funding))->toBe([
+    expect(app(DataCiteFundingReferenceMappingService::class)->toArray($funding))->toBe([
         'funderName' => 'German Research Foundation',
     ]);
 });
@@ -30,7 +30,7 @@ it('maps funder identifiers and award metadata', function (): void {
     $funding->award_title = 'Research Award';
     $funding->setRelation('funderIdentifierType', $type);
 
-    expect(app(DataCiteFundingReferenceMapper::class)->toArray($funding))->toBe([
+    expect(app(DataCiteFundingReferenceMappingService::class)->toArray($funding))->toBe([
         'funderName' => 'GFZ Potsdam',
         'funderIdentifier' => 'https://ror.org/04z8jg394',
         'funderIdentifierType' => 'ROR',

@@ -12,8 +12,8 @@ use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
-use App\Services\DataCite\Mapping\DataCiteFundingReferenceMapper;
-use App\Services\DataCite\Mapping\DataCitePartyMapper;
+use App\Services\DataCite\Mapping\DataCiteFundingReferenceMappingService;
+use App\Services\DataCite\Mapping\DataCitePartyMappingService;
 
 /**
  * Shared helper methods for DataCite XML and JSON exporters.
@@ -23,14 +23,14 @@ use App\Services\DataCite\Mapping\DataCitePartyMapper;
  */
 trait DataCiteExporterHelpers
 {
-    protected function dataCitePartyMapper(): DataCitePartyMapper
+    protected function dataCitePartyMapper(): DataCitePartyMappingService
     {
-        return app(DataCitePartyMapper::class);
+        return app(DataCitePartyMappingService::class);
     }
 
-    protected function dataCiteFundingReferenceMapper(): DataCiteFundingReferenceMapper
+    protected function dataCiteFundingReferenceMapper(): DataCiteFundingReferenceMappingService
     {
-        return app(DataCiteFundingReferenceMapper::class);
+        return app(DataCiteFundingReferenceMappingService::class);
     }
 
     /**

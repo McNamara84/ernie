@@ -8,15 +8,13 @@ use App\Models\Institution;
 use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
-use App\Services\DataCite\Mapping\DataCitePartyMapper;
+use App\Services\DataCite\Mapping\DataCitePartyMappingService;
 
-covers(DataCitePartyMapper::class);
-
-beforeEach(function (): void {
-    $this->mapper = app(DataCitePartyMapper::class);
-});
+covers(DataCitePartyMappingService::class);
 
 it('builds person creator data with identifiers and affiliations', function (): void {
+    $mapper = app(DataCitePartyMappingService::class);
+
     $person = Person::factory()->make([
         'given_name' => 'Jane',
         'family_name' => 'Doe',
@@ -34,7 +32,7 @@ it('builds person creator data with identifiers and affiliations', function (): 
     $creator = new ResourceCreator;
     $creator->setRelation('affiliations', collect([$affiliation]));
 
-    $data = $this->mapper->buildPersonCreatorData($creator, $person);
+    $data = $mapper->buildPersonCreatorData($creator, $person);
 
     expect($data)->toMatchArray([
         'name' => 'Doe, Jane',
@@ -56,6 +54,8 @@ it('builds person creator data with identifiers and affiliations', function (): 
 });
 
 it('uses an explicit contributor type for repeated DataCite contributor roles', function (): void {
+    $mapper = app(DataCitePartyMappingService::class);
+
     $person = Person::factory()->make([
         'given_name' => 'Alex',
         'family_name' => 'Miller',
@@ -68,7 +68,7 @@ it('uses an explicit contributor type for repeated DataCite contributor roles', 
     $contributor->setRelation('affiliations', collect());
     $contributor->setRelation('contributorTypes', collect([$storedType]));
 
-    $data = $this->mapper->buildPersonContributorData($contributor, $person, 'ProjectLeader');
+    $data = $mapper->buildPersonContributorData($contributor, $person, 'ProjectLeader');
 
     expect($data)->toMatchArray([
         'name' => 'Miller, Alex',
@@ -78,6 +78,8 @@ it('uses an explicit contributor type for repeated DataCite contributor roles', 
 });
 
 it('falls back to the first stored contributor type when no explicit type is passed', function (): void {
+    $mapper = app(DataCitePartyMappingService::class);
+
     $institution = Institution::factory()->make([
         'name' => 'GFZ Potsdam',
         'name_identifier' => 'https://ror.org/04z8jg394',
@@ -91,7 +93,7 @@ it('falls back to the first stored contributor type when no explicit type is pas
     $contributor->setRelation('affiliations', collect());
     $contributor->setRelation('contributorTypes', collect([$storedType]));
 
-    $data = $this->mapper->buildInstitutionContributorData($contributor, $institution);
+    $data = $mapper->buildInstitutionContributorData($contributor, $institution);
 
     expect($data)->toMatchArray([
         'name' => 'GFZ Potsdam',

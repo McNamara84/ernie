@@ -6,7 +6,7 @@ namespace App\Services\DataCite\Mapping;
 
 use App\Models\FundingReference;
 
-final readonly class DataCiteFundingReferenceMapper
+final readonly class DataCiteFundingReferenceMappingService
 {
     /**
      * @return array<string, mixed>
