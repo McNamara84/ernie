@@ -407,8 +407,8 @@ test.describe('Landing Page - Files Section (Issue #373)', () => {
     // Verify files section is visible
     await landingPage.verifyFilesSectionVisible();
 
-    // Verify download button is visible with correct URL
-    await landingPage.verifyDownloadButtonVisible('https://datapub.gfz-potsdam.de/download/test-data.zip');
+    // Verify download button is visible with the tracked redirect URL
+    await landingPage.verifyDownloadButtonVisible(/\/landing-page-downloads\/\d+\/primary$/);
 
     // Contact form button should NOT be visible when download URL exists
     await landingPage.verifyContactFormButtonNotVisible();
