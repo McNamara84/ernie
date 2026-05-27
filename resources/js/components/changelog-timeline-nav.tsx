@@ -108,10 +108,11 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                         'w-full justify-start gap-2',
                                         activeIndex === index && 'bg-accent font-medium',
                                     )}
+                                    aria-current={activeIndex === index ? 'true' : undefined}
                                 >
                                     <span
                                         className={cn(
-                                            'h-2 w-2 flex-shrink-0 rounded-full',
+                                            'size-2 shrink-0 rounded-full',
                                             getVersionColor(index),
                                             activeIndex === index && 'ring-2 ring-gray-400 ring-offset-2',
                                         )}

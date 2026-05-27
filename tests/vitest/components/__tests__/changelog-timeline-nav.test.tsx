@@ -228,6 +228,27 @@ describe('ChangelogTimelineNav', () => {
 
             expect(mockOnNavigate).toHaveBeenCalledWith(2);
         });
+
+        it('marks the active mobile version with aria-current', async () => {
+            const user = userEvent.setup();
+
+            render(
+                <ChangelogTimelineNav releases={mockReleases} activeIndex={1} onNavigate={mockOnNavigate} />,
+            );
+
+            await waitFor(async () => {
+                const toggleButton = screen.getByLabelText('Toggle timeline navigation');
+                await user.click(toggleButton);
+            });
+
+            await waitFor(() => {
+                const activeButton = screen.getByRole('button', { name: 'v1.1.0' });
+                const inactiveButton = screen.getByRole('button', { name: 'v1.0.1' });
+
+                expect(activeButton).toHaveAttribute('aria-current', 'true');
+                expect(inactiveButton).not.toHaveAttribute('aria-current');
+            });
+        });
     });
 
     describe('version color coding', () => {

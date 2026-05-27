@@ -413,15 +413,23 @@ describe('Changelog', () => {
         expect(status).toHaveTextContent('Version 0.1.0 expanded');
     });
 
-    it('returns early when a pending scroll target has no attached element ref', async () => {
+    it('clears a pending scroll when the target element ref is missing', async () => {
         pageMocks.skipListItemRefAssignment = true;
         window.history.replaceState(null, '', '/changelog#v0.1.1');
+        const user = userEvent.setup();
 
         render(<Changelog />);
 
         const targetButton = await screen.findByRole('button', { name: /version 0.1.1/i });
 
         expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+        expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
+
+        pageMocks.skipListItemRefAssignment = false;
+
+        await user.click(targetButton);
+
+        expect(targetButton).toHaveAttribute('aria-expanded', 'false');
         expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
     });
 

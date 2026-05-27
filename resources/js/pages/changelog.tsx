@@ -149,6 +149,7 @@ export default function Changelog() {
         const element = releaseRefs.current[pendingScroll.index];
 
         if (!element) {
+            pendingScrollRef.current = null;
             return;
         }
 
@@ -425,7 +426,7 @@ export default function Changelog() {
                                 }
                             >
                                 <div
-                                    className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg} ${highlightedIndex === index ? 'ring-1 ring-slate-300/70 dark:ring-slate-700/70' : ''}`}
+                                    className={`rounded-lg bg-linear-to-r p-1 ${gradientBg} ${highlightedIndex === index ? 'ring-1 ring-slate-300/70 dark:ring-slate-700/70' : ''}`}
                                 >
                                     <span
                                         aria-hidden="true"

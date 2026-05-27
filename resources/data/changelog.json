@@ -249,7 +249,7 @@
             },
             {
                 "title": "Landing Page Keyword Breadcrumbs Show Literal Greater-Than Separators",
-                "description": "Legacy imported thesaurus keywords that still carry encoded breadcrumb separators such as &gt now render on published landing pages with readable > hierarchy markers instead of the raw entity text. The normalization happens in the shared controlled-subject path so landing page keyword badges recover clean breadcrumb labels without changing their existing portal filter links."
+                "description": "Legacy imported thesaurus keywords that still carry encoded breadcrumb separators such as the literal \"&gt;\" text now render on published landing pages with readable > hierarchy markers instead of the raw entity text. The normalization happens in the shared controlled-subject path so landing page keyword badges recover clean breadcrumb labels without changing their existing portal filter links."
             },
             {
                 "title": "Imported DataCite Dates Reload Correctly in the Editor",
