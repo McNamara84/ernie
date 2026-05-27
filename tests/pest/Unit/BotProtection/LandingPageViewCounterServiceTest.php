@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\BotProtection\BotClassifierService;
@@ -86,4 +87,20 @@ it('debounces repeated requests from the same visitor fingerprint', function ():
     $service->record(botProtectionViewCounterRequest(ipAddress: '203.0.113.11'), $landingPage->fresh());
 
     expect($landingPage->fresh()->view_count)->toBe(2);
+});
+
+it('keeps public caches warm when recording a human view', function (): void {
+    $service = new LandingPageViewCounterService(new BotClassifierService);
+    $landingPage = botProtectionViewCounterLandingPage();
+    $renderCacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+    $portalCacheKey = CacheKey::PORTAL_PAGE_PAYLOAD->key('page:filters');
+
+    Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($renderCacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+    Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->put($portalCacheKey, ['props' => []], 600);
+
+    $service->record(botProtectionViewCounterRequest(), $landingPage);
+
+    expect($landingPage->fresh()->view_count)->toBe(1)
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($renderCacheKey))->toBeTrue()
+        ->and(Cache::tags(CacheKey::PORTAL_PAGE_PAYLOAD->tags())->has($portalCacheKey))->toBeTrue();
 });

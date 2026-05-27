@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -481,8 +482,22 @@ class LandingPage extends Model
      */
     public function incrementViewCount(): void
     {
-        $this->increment('view_count');
-        $this->update(['last_viewed_at' => now()]);
+        $timestamp = now();
+
+        static::query()
+            ->whereKey($this->getKey())
+            ->update([
+                'view_count' => DB::raw('view_count + 1'),
+                'last_viewed_at' => $timestamp,
+            ]);
+
+        $this->forceFill([
+            'view_count' => $this->view_count + 1,
+            'last_viewed_at' => $timestamp,
+        ])->syncOriginalAttributes([
+            'view_count',
+            'last_viewed_at',
+        ]);
     }
 
     /**
