@@ -4,6 +4,10 @@
         "date": "2026-05-27",
         "features": [
             {
+                "title": "Landing Page and Portal Statistics Dashboard",
+                "description": "Admins and Group Leaders now get a new Statistics page at /statistics in the Administration workspace of the main navigation. The dashboard tracks only published landing pages and excludes preview/review traffic. It shows daily trends and rankings for landing page views, clicks on real download targets in the Files section, and explicit search submissions from the public /portal search box. Physical Objects and regular resources are split out separately, while the legacy /old-statistics page remains available as a distinct legacy destination."
+            },
+            {
                 "title": "Single DOI Import for GFZ Legacy Resources",
                 "description": "The Resources page now distinguishes between importing all historical GFZ DataCite records and importing a single old resource. The former action was renamed to 'Import all old Resources'. A new adjacent action, 'Import old single Resource', opens a dialog where admins and group leaders can enter either a bare DOI or a doi.org URL for one dataset. Before the import starts, ERNIE now verifies that the DOI belongs to the GFZ legacy database; already imported resources are detected and skipped without overwriting the existing record."
             },

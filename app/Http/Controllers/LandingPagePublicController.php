@@ -322,6 +322,10 @@ class LandingPagePublicController extends Controller
 
             $landingPageData = LandingPageController::serializeLandingPagePayload($resource, $landingPage);
 
+            if ($landingPage->isPublished() && $previewToken === null) {
+                $landingPageData = $this->attachTrackedDownloadUrls($landingPageData, $landingPage);
+            }
+
             return [
                 'template' => $effectiveTemplate,
                 'props' => [
@@ -340,6 +344,52 @@ class LandingPagePublicController extends Controller
             : $buildRenderData();
 
         return Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $landingPageData
+     * @return array<string, mixed>
+     */
+    private function attachTrackedDownloadUrls(array $landingPageData, LandingPage $landingPage): array
+    {
+        $landingPageData['tracked_ftp_url'] = $this->buildTrackedPrimaryDownloadUrl($landingPageData, $landingPage);
+
+        $files = $landingPageData['files'] ?? [];
+
+        if (! is_array($files)) {
+            $landingPageData['files'] = [];
+
+            return $landingPageData;
+        }
+
+        $landingPageData['files'] = array_map(function (mixed $file) use ($landingPage): mixed {
+            if (! is_array($file) || ! isset($file['id']) || ! is_numeric($file['id'])) {
+                return $file;
+            }
+
+            $file['tracked_url'] = route('landing-page.download.file', [
+                'landingPage' => $landingPage->id,
+                'landingPageFile' => (int) $file['id'],
+            ]);
+
+            return $file;
+        }, $files);
+
+        return $landingPageData;
+    }
+
+    /**
+     * @param  array<string, mixed>  $landingPageData
+     */
+    private function buildTrackedPrimaryDownloadUrl(array $landingPageData, LandingPage $landingPage): ?string
+    {
+        $ftpUrl = $landingPageData['ftp_url'] ?? null;
+
+        if (! is_string($ftpUrl) || trim($ftpUrl) === '') {
+            return null;
+        }
+
+        return route('landing-page.download.primary', ['landingPage' => $landingPage->id]);
     }
 
     /**

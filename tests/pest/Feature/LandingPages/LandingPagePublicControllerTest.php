@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
+use App\Models\LandingPageDailyStatistic;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
@@ -36,6 +37,22 @@ function landingPageUrl(LandingPage $landingPage, ?string $preview = null): stri
     $url = $landingPage->public_url;
 
     return $preview ? "{$url}?preview={$preview}" : $url;
+}
+
+function landingPageDailyViewCount(LandingPage $landingPage): ?int
+{
+    return LandingPageDailyStatistic::query()
+        ->where('landing_page_id', $landingPage->id)
+        ->whereDate('statistic_date', now()->toDateString())
+        ->value('page_view_count');
+}
+
+function landingPageDailyDownloadCount(LandingPage $landingPage): ?int
+{
+    return LandingPageDailyStatistic::query()
+        ->where('landing_page_id', $landingPage->id)
+        ->whereDate('statistic_date', now()->toDateString())
+        ->value('file_download_click_count');
 }
 
 describe('Public Landing Page Access', function () {
@@ -328,6 +345,7 @@ describe('View Counter', function () {
         $this->get(landingPageUrl($landingPage));
 
         expect($landingPage->fresh()->view_count)->toBe(1);
+        expect(landingPageDailyViewCount($landingPage))->toBe(1);
     });
 
     test('does not increment view count for draft previews', function () {
@@ -343,6 +361,7 @@ describe('View Counter', function () {
         $this->get(landingPageUrl($landingPage, $landingPage->preview_token));
 
         expect($landingPage->fresh()->view_count)->toBe(0);
+        expect(landingPageDailyViewCount($landingPage))->toBeNull();
     });
 
     test('increments view count for repeated requests when bot protection is disabled', function () {
@@ -358,10 +377,12 @@ describe('View Counter', function () {
         // First request
         $this->get(landingPageUrl($landingPage));
         expect($landingPage->fresh()->view_count)->toBe(1);
+        expect(landingPageDailyViewCount($landingPage))->toBe(1);
 
         // Second request
         $this->get(landingPageUrl($landingPage));
         expect($landingPage->fresh()->view_count)->toBe(2);
+        expect(landingPageDailyViewCount($landingPage))->toBe(2);
     });
 
     test('debounces view count per visitor when bot protection is enabled', function () {
@@ -389,15 +410,18 @@ describe('View Counter', function () {
 
         $this->withServerVariables($server)->get(landingPageUrl($landingPage))->assertOk();
         expect($landingPage->fresh()->view_count)->toBe(1);
+        expect(landingPageDailyViewCount($landingPage))->toBe(1);
 
         $this->withServerVariables($server)->get(landingPageUrl($landingPage))->assertOk();
         expect($landingPage->fresh()->view_count)->toBe(1);
+        expect(landingPageDailyViewCount($landingPage))->toBe(1);
 
         $this->withServerVariables([
             'REMOTE_ADDR' => '203.0.113.31',
             'HTTP_USER_AGENT' => 'Mozilla/5.0',
         ])->get(landingPageUrl($landingPage))->assertOk();
         expect($landingPage->fresh()->view_count)->toBe(2);
+        expect(landingPageDailyViewCount($landingPage))->toBe(2);
     });
 
     test('does not count known ai bot landing page views when bot protection is enabled', function () {
@@ -424,6 +448,7 @@ describe('View Counter', function () {
         ])->get(landingPageUrl($landingPage))->assertOk();
 
         expect($landingPage->fresh()->view_count)->toBe(0);
+        expect(landingPageDailyViewCount($landingPage))->toBeNull();
     });
 });
 
@@ -446,6 +471,56 @@ describe('Resource Data Loading', function () {
             ->has('resource.funding_references')
             ->has('resource.related_identifiers')
         );
+    });
+});
+
+describe('Tracked Download URLs', function () {
+    test('published landing pages expose tracked download URLs in the public payload', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'tracked-downloads-test',
+                'ftp_url' => 'https://downloads.example.org/dataset.zip',
+            ]);
+
+        $file = $landingPage->files()->create([
+            'url' => 'https://downloads.example.org/supplement.csv',
+            'position' => 0,
+        ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('landingPage.ftp_url', 'https://downloads.example.org/dataset.zip')
+                ->where('landingPage.tracked_ftp_url', route('landing-page.download.primary', ['landingPage' => $landingPage->id]))
+                ->where('landingPage.files.0.url', 'https://downloads.example.org/supplement.csv')
+                ->where('landingPage.files.0.tracked_url', route('landing-page.download.file', ['landingPage' => $landingPage->id, 'landingPageFile' => $file->id]))
+            );
+    });
+
+    test('preview payloads do not expose tracked download URLs', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'tracked-download-preview-test',
+                'ftp_url' => 'https://downloads.example.org/dataset.zip',
+            ]);
+
+        $landingPage->files()->create([
+            'url' => 'https://downloads.example.org/supplement.csv',
+            'position' => 0,
+        ]);
+
+        $this->get(landingPageUrl($landingPage, $landingPage->preview_token))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->missing('landingPage.tracked_ftp_url')
+                ->missing('landingPage.files.0.tracked_url')
+            );
     });
 });
 
@@ -489,6 +564,7 @@ describe('External Landing Page Redirect', function () {
         $this->get($landingPage->getPublicPath());
 
         expect($landingPage->fresh()->view_count)->toBe(1);
+        expect(landingPageDailyViewCount($landingPage))->toBe(1);
     });
 
     test('external draft is not accessible without preview token', function () {

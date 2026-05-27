@@ -17,6 +17,7 @@ use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
 use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\LandingPageDownloadRedirectController;
 use App\Http\Controllers\LandingPageDomainController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
@@ -27,12 +28,14 @@ use App\Http\Controllers\OaiPmh\OaiPmhDocsController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
+use App\Http\Controllers\PortalSearchAnalyticsController;
 use App\Http\Controllers\RelatedItemController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
 use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\Settings\PidSettingsController;
+use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
@@ -103,6 +106,10 @@ Route::get('/portal', [PortalController::class, 'index'])
     ->middleware('throttle:public-portal')
     ->name('portal');
 
+Route::post('/portal/search-analytics', [PortalSearchAnalyticsController::class, 'store'])
+    ->middleware('throttle:public-portal')
+    ->name('portal.search-analytics');
+
 // OAI-PMH Harvesting Endpoint
 // ===========================================================
 Route::get('/oai-pmh/docs', [OaiPmhDocsController::class, 'index'])->name('oaipmh.docs');
@@ -110,6 +117,17 @@ Route::match(['get', 'post'], '/oai-pmh', OaiPmhController::class)->middleware('
 
 // Public Landing Pages (accessible without authentication)
 // ===========================================================
+
+Route::get('landing-page-downloads/{landingPage}/primary', [LandingPageDownloadRedirectController::class, 'primary'])
+    ->middleware('throttle:public-landing-page')
+    ->name('landing-page.download.primary')
+    ->whereNumber('landingPage');
+
+Route::get('landing-page-downloads/{landingPage}/files/{landingPageFile}', [LandingPageDownloadRedirectController::class, 'file'])
+    ->middleware('throttle:public-landing-page')
+    ->name('landing-page.download.file')
+    ->whereNumber('landingPage')
+    ->whereNumber('landingPageFile');
 
 // Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
 // DOI prefix format: 10.NNNN/suffix where suffix contains valid DOI characters.
@@ -268,6 +286,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Statistics routes (Admin, Group Leader - Issue #379)
     Route::middleware(['can:access-statistics'])->group(function () {
+        Route::get('statistics', [StatisticsController::class, 'index'])
+            ->name('statistics');
+
         Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
             ->name('old-statistics');
     });
