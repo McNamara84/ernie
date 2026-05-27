@@ -214,9 +214,10 @@ test.describe('Changelog Page', () => {
         const firstItem = versionItems.first();
         const firstItemDiv = firstItem.locator('> div').first();
         const className = await firstItemDiv.getAttribute('class');
-        
-        // Should contain gradient-related classes
-        expect(className).toContain('bg-gradient-to-r');
+
+        expect(className).toBeTruthy();
+        // Tailwind v4 prefers bg-linear-to-r, but older snapshots may still use bg-gradient-to-r.
+        expect(className ?? '').toMatch(/bg-(gradient|linear)-to-r/);
     });
 
     test('stagger animation on initial load', async ({ page }) => {
