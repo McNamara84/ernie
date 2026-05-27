@@ -192,7 +192,7 @@ export default function Changelog() {
         [getScrollBehavior, releases],
     );
 
-    // Handle hash changes (for browser navigation and timeline clicks)
+    // Handle external hash changes (for browser navigation or direct hash edits)
     useEffect(() => {
         if (releases.length === 0) return;
 
@@ -204,7 +204,7 @@ export default function Changelog() {
             }
         };
 
-        // Listen for hash changes (browser back/forward, timeline clicks)
+        // Listen for hash changes triggered outside navigateToRelease()
         window.addEventListener('hashchange', processHash);
 
         return () => {
