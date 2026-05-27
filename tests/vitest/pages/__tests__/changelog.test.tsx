@@ -616,6 +616,64 @@ describe('Changelog', () => {
             expect(firstButton).toHaveAttribute('aria-expanded', 'true');
         });
 
+        it('ignores shortcut handling for interactive timeline buttons', async () => {
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+
+            secondButton.focus();
+
+            const arrowEvent = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+
+            await act(async () => {
+                secondButton.dispatchEvent(arrowEvent);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(arrowEvent.defaultPrevented).toBe(false);
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+
+            const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+
+            await act(async () => {
+                secondButton.dispatchEvent(enterEvent);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(enterEvent.defaultPrevented).toBe(false);
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+        });
+
+        it('ignores shortcuts when the keyboard event is already prevented', async () => {
+            render(<Changelog />);
+
+            await vi.waitFor(() => {
+                expect(screen.getByRole('button', { name: /version 0.1.0/i })).toHaveAttribute('aria-expanded', 'true');
+            });
+
+            const firstButton = screen.getByRole('button', { name: /version 0.1.0/i });
+            const secondButton = screen.getByRole('button', { name: /version 0.1.1/i });
+            const preventedEvent = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+
+            preventedEvent.preventDefault();
+
+            await act(async () => {
+                window.dispatchEvent(preventedEvent);
+                await vi.runAllTimersAsync();
+            });
+
+            expect(preventedEvent.defaultPrevented).toBe(true);
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+            expect(secondButton).toHaveAttribute('aria-expanded', 'false');
+        });
+
         it('ignores keyboard navigation when there are no releases', async () => {
             (global.fetch as unknown as Mock).mockResolvedValueOnce({
                 ok: true,

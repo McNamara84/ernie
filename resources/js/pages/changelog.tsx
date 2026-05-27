@@ -52,6 +52,24 @@ export default function Changelog() {
         [],
     );
 
+    const shouldIgnoreGlobalShortcut = useCallback((event: KeyboardEvent) => {
+        if (event.defaultPrevented) {
+            return true;
+        }
+
+        const target = event.target;
+
+        if (!(target instanceof HTMLElement)) {
+            return false;
+        }
+
+        if (target.isContentEditable) {
+            return true;
+        }
+
+        return target.closest('button, a[href], input, textarea, select, summary, [contenteditable="true"], [role="button"], [role="link"]') !== null;
+    }, []);
+
     // Check for reduced motion preference
     useEffect(() => {
         const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -297,7 +315,7 @@ export default function Changelog() {
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (releases.length === 0) return;
+            if (releases.length === 0 || shouldIgnoreGlobalShortcut(event)) return;
 
             const currentIndex = highlightedIndex ?? openIndex ?? 0;
 
@@ -335,7 +353,7 @@ export default function Changelog() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleNavigate, highlightedIndex, openIndex, releases]);
+    }, [handleNavigate, highlightedIndex, openIndex, releases, shouldIgnoreGlobalShortcut]);
 
     const activeTimelineIndex = highlightedIndex ?? openIndex;
 
