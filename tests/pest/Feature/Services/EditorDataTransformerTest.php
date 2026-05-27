@@ -20,6 +20,8 @@ use App\Models\Right;
 use App\Models\Setting;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Models\User;
+use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -728,6 +730,25 @@ describe('transformDates', function (): void {
             ->and($result[0]['endDate'])->toBe('2024-06-30');
     });
 
+    it('falls back to date_value for imported single dates', function (): void {
+        $dateType = DateType::factory()->create(['slug' => 'Issued', 'name' => 'Issued']);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'date_value' => '2026-02-10',
+            'start_date' => null,
+            'end_date' => null,
+        ]);
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['dateType'])->toBe('Issued')
+            ->and($result[0]['startDate'])->toBe('2026-02-10')
+            ->and($result[0]['endDate'])->toBe('');
+    });
+
     it('excludes coverage, created, and updated date types', function (): void {
         foreach (['coverage', 'created', 'updated'] as $slug) {
             $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
@@ -735,6 +756,22 @@ describe('transformDates', function (): void {
                 'resource_id' => $this->resource->id,
                 'date_type_id' => $dateType->id,
                 'start_date' => '2024-01-01',
+            ]);
+        }
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toBeEmpty();
+    });
+
+    it('excludes coverage, created, and updated even when only date_value is populated', function (): void {
+        foreach (['coverage', 'created', 'updated'] as $slug) {
+            $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
+            ResourceDate::create([
+                'resource_id' => $this->resource->id,
+                'date_type_id' => $dateType->id,
+                'date_value' => '2024-01-01',
             ]);
         }
         $this->resource->load('dates.dateType');
@@ -819,6 +856,49 @@ describe('transformDates', function (): void {
         $result = $this->transformer->transformDates($this->resource);
 
         expect($result[0]['startDate'])->toBe('');
+    });
+
+    it('loads imported DataCite single dates into the editor payload', function (): void {
+        test()->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        test()->seed(\Database\Seeders\TitleTypeSeeder::class);
+        test()->seed(\Database\Seeders\DateTypeSeeder::class);
+
+        $user = User::factory()->create();
+        $importTransformer = new DataCiteToResourceTransformer;
+
+        $resource = $importTransformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/editor.dates.2026.001',
+                'publicationYear' => 2026,
+                'publisher' => 'GFZ Test Publisher',
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+                'titles' => [
+                    ['title' => 'Imported Dates Resource'],
+                ],
+                'creators' => [
+                    ['familyName' => 'Doe', 'givenName' => 'Jane', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2025-06-03', 'dateType' => 'Collected'],
+                    ['date' => '2026-02-10', 'dateType' => 'Issued'],
+                    ['date' => '2027-06', 'dateType' => 'Available'],
+                ],
+            ],
+        ], $user->id);
+
+        $resource->load('dates.dateType');
+
+        $result = collect($this->transformer->transformDates($resource))->keyBy('dateType');
+
+        expect($resource->dates)->toHaveCount(4)
+            ->and($result)->toHaveCount(3)
+            ->and($result->keys()->all())->toContain('Collected')
+            ->and($result->keys()->all())->toContain('Issued')
+            ->and($result->keys()->all())->toContain('Available')
+            ->and($result['Collected']['startDate'])->toBe('2025-06-03')
+            ->and($result['Collected']['endDate'])->toBe('')
+            ->and($result['Issued']['startDate'])->toBe('2026-02-10')
+            ->and($result['Available']['startDate'])->toBe('2027-06-01');
     });
 });
 

@@ -306,7 +306,7 @@ class EditorDataTransformer
             ->filter(function (ResourceDate $date): bool {
                 // Use null-safe operator to handle missing dateType relationship
                 // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
-                $slug = $date->dateType?->slug ?? '';
+                $slug = mb_strtolower($date->dateType?->slug ?? '');
 
                 return ! in_array($slug, ['coverage', 'created', 'updated'], true);
             })
@@ -315,7 +315,7 @@ class EditorDataTransformer
                     // Use null-safe operator to handle missing dateType relationship
                     // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
                     'dateType' => $date->dateType?->slug ?? '',
-                    'startDate' => $this->formatStoredDate($date->start_date),
+                    'startDate' => $this->formatStoredDate($date->start_date ?? $date->date_value),
                     'endDate' => $this->formatStoredDate($date->end_date),
                 ];
             })
