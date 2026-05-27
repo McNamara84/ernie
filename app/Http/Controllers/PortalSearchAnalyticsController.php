@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PortalSearchAnalyticsRequest;
 use App\Services\Statistics\PortalSearchAnalyticsService;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PortalSearchAnalyticsController extends Controller
@@ -14,13 +14,9 @@ class PortalSearchAnalyticsController extends Controller
         private readonly PortalSearchAnalyticsService $analyticsService,
     ) {}
 
-    public function store(Request $request): \Illuminate\Http\Response
+    public function store(PortalSearchAnalyticsRequest $request): \Illuminate\Http\Response
     {
-        $validated = $request->validate([
-            'search_term' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $this->analyticsService->recordSearch($request, $validated['search_term'] ?? null);
+        $this->analyticsService->recordSearch($request, $request->searchTerm());
 
         return response()->noContent(HttpResponse::HTTP_NO_CONTENT);
     }
