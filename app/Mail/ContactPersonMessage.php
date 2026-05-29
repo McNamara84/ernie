@@ -48,17 +48,21 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
             ? "[Copy] Contact request for: {$datasetTitle}"
             : "Contact request for: {$datasetTitle}";
 
+        $using = [];
+
+        if (! $this->isCopyToSender) {
+            $using[] = function (Email $message): void {
+                $message->getHeaders()->addTextHeader(
+                    'X-Contact-Message-Id',
+                    (string) $this->contactMessage->getKey(),
+                );
+            };
+        }
+
         return new Envelope(
             subject: $subject,
             replyTo: [$this->contactMessage->sender_email],
-            using: [
-                function (Email $message): void {
-                    $message->getHeaders()->addTextHeader(
-                        'X-Contact-Message-Id',
-                        (string) $this->contactMessage->getKey(),
-                    );
-                },
-            ],
+            using: $using,
         );
     }
 
@@ -100,6 +104,10 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
 
     public function failed(?Throwable $exception): void
     {
+        if ($this->isCopyToSender) {
+            return;
+        }
+
         $contactMessageId = $this->contactMessage->getKey();
 
         if (! is_int($contactMessageId) && ! is_string($contactMessageId)) {
