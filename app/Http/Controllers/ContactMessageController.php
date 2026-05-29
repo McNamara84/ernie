@@ -199,10 +199,9 @@ class ContactMessageController extends Controller
             );
         }
 
-        // Mark as sent
-        $contactMessage->markAsSent();
+        $contactMessage->markAsQueued();
 
-        Log::info('Contact message sent', [
+        Log::info('Contact message queued', [
             'contact_message_id' => $contactMessage->id,
             'resource_id' => $resourceId,
             'recipients_count' => count($recipients),

@@ -70,6 +70,13 @@ describe('ContactMessageController', function (): void {
                 'sender_name' => 'Jane Smith',
                 'sender_email' => 'jane@example.com',
             ]);
+
+            $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
+
+            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                ->and($contactMessage->sent_at)->toBeNull()
+                ->and($contactMessage->failed_at)->toBeNull()
+                ->and($contactMessage->failure_reason)->toBeNull();
         });
 
         it('returns 404 for non-existent landing page', function (): void {

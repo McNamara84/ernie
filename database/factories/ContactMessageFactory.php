@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Models\Resource;
@@ -27,7 +29,10 @@ class ContactMessageFactory extends Factory
             'message' => fake()->paragraph(),
             'copy_to_sender' => fake()->boolean(30),
             'ip_address' => fake()->ipv4(),
-            'sent_at' => fake()->optional(0.8)->dateTimeBetween('-1 week', 'now'),
+            'queued_at' => null,
+            'sent_at' => null,
+            'failed_at' => null,
+            'failure_reason' => null,
         ];
     }
 
@@ -37,7 +42,10 @@ class ContactMessageFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
+            'queued_at' => null,
             'sent_at' => null,
+            'failed_at' => null,
+            'failure_reason' => null,
         ]);
     }
 
@@ -47,7 +55,10 @@ class ContactMessageFactory extends Factory
     public function sent(): static
     {
         return $this->state(fn (array $attributes) => [
+            'queued_at' => now()->subMinute(),
             'sent_at' => now(),
+            'failed_at' => null,
+            'failure_reason' => null,
         ]);
     }
 }

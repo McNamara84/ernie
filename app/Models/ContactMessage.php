@@ -25,14 +25,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $message
  * @property bool $copy_to_sender
  * @property string|null $ip_address
+ * @property \Illuminate\Support\Carbon|null $queued_at
  * @property \Illuminate\Support\Carbon|null $sent_at
+ * @property \Illuminate\Support\Carbon|null $failed_at
+ * @property string|null $failure_reason
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read ResourceCreator|null $resourceCreator
  * @property-read ResourceContributor|null $resourceContributor
  */
-#[Fillable(['resource_id', 'resource_creator_id', 'resource_contributor_id', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'sent_at'])]
+#[Fillable(['resource_id', 'resource_creator_id', 'resource_contributor_id', 'send_to_all', 'sender_name', 'sender_email', 'message', 'copy_to_sender', 'ip_address', 'queued_at', 'sent_at', 'failed_at', 'failure_reason'])]
 class ContactMessage extends Model
 {
     /** @use HasFactory<\Database\Factories\ContactMessageFactory> */
@@ -44,7 +47,9 @@ class ContactMessage extends Model
     protected $casts = [
         'send_to_all' => 'boolean',
         'copy_to_sender' => 'boolean',
+        'queued_at' => 'datetime',
         'sent_at' => 'datetime',
+        'failed_at' => 'datetime',
     ];
 
     /**
@@ -89,11 +94,42 @@ class ContactMessage extends Model
     }
 
     /**
+     * Mark the message as queued.
+     */
+    public function markAsQueued(): void
+    {
+        if ($this->queued_at !== null) {
+            return;
+        }
+
+        $this->forceFill(['queued_at' => now()])->save();
+    }
+
+    /**
      * Mark the message as sent.
      */
     public function markAsSent(): void
     {
-        $this->update(['sent_at' => now()]);
+        if ($this->sent_at !== null) {
+            return;
+        }
+
+        $this->forceFill(['sent_at' => now()])->save();
+    }
+
+    /**
+     * Mark the message as failed.
+     */
+    public function markAsFailed(?string $reason = null): void
+    {
+        if ($this->failed_at !== null) {
+            return;
+        }
+
+        $this->forceFill([
+            'failed_at' => now(),
+            'failure_reason' => $reason,
+        ])->save();
     }
 
     /**

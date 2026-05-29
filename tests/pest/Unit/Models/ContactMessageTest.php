@@ -21,7 +21,10 @@ describe('fillable', function () {
             'message',
             'copy_to_sender',
             'ip_address',
+            'queued_at',
             'sent_at',
+            'failed_at',
+            'failure_reason',
         ]);
     });
 });
@@ -39,10 +42,22 @@ describe('casts', function () {
         expect($model->copy_to_sender)->toBeBool();
     });
 
+    it('casts queued_at to datetime', function () {
+        $model = new ContactMessage(['queued_at' => '2025-01-15 10:00:00']);
+
+        expect($model->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    });
+
     it('casts sent_at to datetime', function () {
         $model = new ContactMessage(['sent_at' => '2025-01-15 10:30:00']);
 
         expect($model->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    });
+
+    it('casts failed_at to datetime', function () {
+        $model = new ContactMessage(['failed_at' => '2025-01-15 11:00:00']);
+
+        expect($model->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
     });
 });
 
@@ -89,6 +104,38 @@ describe('markAsSent', function () {
 
         expect($contactMessage->isSent())->toBeTrue()
             ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    });
+});
+
+describe('markAsQueued', function () {
+    it('updates queued_at timestamp', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'queued_at' => null,
+        ]);
+
+        $contactMessage->markAsQueued();
+        $contactMessage->refresh();
+
+        expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    });
+});
+
+describe('markAsFailed', function () {
+    it('updates failed_at and failure_reason', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'failed_at' => null,
+            'failure_reason' => null,
+        ]);
+
+        $contactMessage->markAsFailed('SMTP unavailable');
+        $contactMessage->refresh();
+
+        expect($contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+            ->and($contactMessage->failure_reason)->toBe('SMTP unavailable');
     });
 });
 

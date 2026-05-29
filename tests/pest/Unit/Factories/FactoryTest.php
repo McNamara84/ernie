@@ -41,19 +41,24 @@ describe('ContactMessageFactory', function () {
             ->and($message->sender_name)->toBeString()
             ->and($message->sender_email)->toContain('@')
             ->and($message->message)->toBeString()
-            ->and($message->ip_address)->toBeString();
+            ->and($message->ip_address)->toBeString()
+            ->and($message->queued_at)->toBeNull()
+            ->and($message->sent_at)->toBeNull()
+            ->and($message->failed_at)->toBeNull();
     });
 
     it('creates a pending message', function () {
         $message = ContactMessage::factory()->pending()->create();
 
-        expect($message->sent_at)->toBeNull();
+        expect($message->queued_at)->toBeNull()
+            ->and($message->sent_at)->toBeNull();
     });
 
     it('creates a sent message', function () {
         $message = ContactMessage::factory()->sent()->create();
 
-        expect($message->sent_at)->not->toBeNull();
+        expect($message->queued_at)->not->toBeNull()
+            ->and($message->sent_at)->not->toBeNull();
     });
 });
 

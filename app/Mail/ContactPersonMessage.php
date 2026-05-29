@@ -12,6 +12,8 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Symfony\Component\Mime\Email;
+use Throwable;
 
 /**
  * Contact Person Message Mail
@@ -49,6 +51,14 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
         return new Envelope(
             subject: $subject,
             replyTo: [$this->contactMessage->sender_email],
+            using: [
+                function (Email $message): void {
+                    $message->getHeaders()->addTextHeader(
+                        'X-Contact-Message-Id',
+                        (string) $this->contactMessage->getKey(),
+                    );
+                },
+            ],
         );
     }
 
@@ -86,5 +96,22 @@ class ContactPersonMessage extends Mailable implements ShouldQueue
     public function attachments(): array
     {
         return [];
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $contactMessageId = $this->contactMessage->getKey();
+
+        if (! is_int($contactMessageId) && ! is_string($contactMessageId)) {
+            return;
+        }
+
+        $contactMessage = ContactMessage::query()->find((int) $contactMessageId);
+
+        if ($contactMessage === null) {
+            return;
+        }
+
+        $contactMessage->markAsFailed($exception?->getMessage());
     }
 }

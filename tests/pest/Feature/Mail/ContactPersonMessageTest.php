@@ -7,6 +7,7 @@ use App\Models\ContactMessage;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
+use Symfony\Component\Mime\Email;
 
 covers(ContactPersonMessage::class);
 
@@ -73,6 +74,23 @@ describe('envelope', function () {
 
         expect($envelope->subject)->toBe('Contact request for: Dataset');
     });
+
+    it('adds a contact message tracking header to the Symfony email', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $email = new Email;
+
+        foreach ($mailable->envelope()->using as $callback) {
+            $callback($email);
+        }
+
+        expect($email->getHeaders()->get('X-Contact-Message-Id')?->getBodyAsString())
+            ->toBe((string) $this->contactMessage->id);
+    });
 });
 
 describe('content', function () {
@@ -134,5 +152,19 @@ describe('attachments', function () {
         );
 
         expect($mailable->attachments())->toBeEmpty();
+    });
+
+    it('marks the contact message as failed when delivery fails', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+            ->and($this->contactMessage->failure_reason)->toBe('SMTP unavailable');
     });
 });
