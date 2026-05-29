@@ -105,6 +105,19 @@ describe('markAsSent', function () {
         expect($contactMessage->isSent())->toBeTrue()
             ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
     });
+
+    it('does not overwrite an existing sent_at timestamp', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'sent_at' => '2025-01-15 10:30:00',
+        ]);
+
+        $contactMessage->markAsSent();
+        $contactMessage->refresh();
+
+        expect($contactMessage->sent_at?->toDateTimeString())->toBe('2025-01-15 10:30:00');
+    });
 });
 
 describe('markAsQueued', function () {
@@ -119,6 +132,19 @@ describe('markAsQueued', function () {
         $contactMessage->refresh();
 
         expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    });
+
+    it('does not overwrite an existing queued_at timestamp', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'queued_at' => '2025-01-15 10:00:00',
+        ]);
+
+        $contactMessage->markAsQueued();
+        $contactMessage->refresh();
+
+        expect($contactMessage->queued_at?->toDateTimeString())->toBe('2025-01-15 10:00:00');
     });
 });
 
@@ -136,6 +162,21 @@ describe('markAsFailed', function () {
 
         expect($contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
             ->and($contactMessage->failure_reason)->toBe('SMTP unavailable');
+    });
+
+    it('does not overwrite an existing failure state', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'failed_at' => '2025-01-15 11:00:00',
+            'failure_reason' => 'Original failure',
+        ]);
+
+        $contactMessage->markAsFailed('Replacement failure');
+        $contactMessage->refresh();
+
+        expect($contactMessage->failed_at?->toDateTimeString())->toBe('2025-01-15 11:00:00')
+            ->and($contactMessage->failure_reason)->toBe('Original failure');
     });
 });
 

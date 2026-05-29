@@ -167,4 +167,54 @@ describe('attachments', function () {
         expect($this->contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
             ->and($this->contactMessage->failure_reason)->toBe('SMTP unavailable');
     });
+
+    it('ignores delivery failures when the contact message key is not scalar', function () {
+        $invalidKeyMessage = new class extends ContactMessage
+        {
+            public function getKey()
+            {
+                return ['invalid'];
+            }
+        };
+
+        $invalidKeyMessage->forceFill([
+            'sender_name' => 'Jane Doe',
+            'sender_email' => 'jane@example.com',
+            'message' => 'I have a question about your dataset.',
+        ]);
+
+        $mailable = new ContactPersonMessage(
+            contactMessage: $invalidKeyMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeNull()
+            ->and($this->contactMessage->failure_reason)->toBeNull();
+    });
+
+    it('ignores delivery failures when the tracked contact message no longer exists', function () {
+        $missingContactMessage = ContactMessage::factory()->make([
+            'resource_id' => $this->resource->id,
+            'sender_name' => 'Jane Doe',
+            'sender_email' => 'jane@example.com',
+            'message' => 'I have a question about your dataset.',
+        ]);
+        $missingContactMessage->id = 999999;
+
+        $mailable = new ContactPersonMessage(
+            contactMessage: $missingContactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeNull()
+            ->and($this->contactMessage->failure_reason)->toBeNull();
+    });
 });

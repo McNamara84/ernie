@@ -63,3 +63,28 @@ it('ignores unrelated sent messages without the tracking header', function () {
 
     expect($contactMessage->sent_at)->toBeNull();
 });
+
+it('ignores tracking headers that reference no persisted contact message', function () {
+    $contactMessage = ContactMessage::factory()->pending()->create();
+
+    $email = (new Email)
+        ->from('noreply@example.com')
+        ->to('recipient@example.com')
+        ->subject('Contact request')
+        ->text('Body');
+
+    $email->getHeaders()->addTextHeader('X-Contact-Message-Id', '999999');
+
+    $sentMessage = new IlluminateSentMessage(
+        new SymfonySentMessage(
+            $email,
+            new SymfonyEnvelope(new Address('noreply@example.com'), [new Address('recipient@example.com')]),
+        ),
+    );
+
+    (new MarkContactMessageAsSent)->handle(new MessageSent($sentMessage));
+
+    $contactMessage->refresh();
+
+    expect($contactMessage->sent_at)->toBeNull();
+});
