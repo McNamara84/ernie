@@ -7,6 +7,7 @@ use App\Models\ContactMessage;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\Title;
+use Symfony\Component\Mime\Email;
 
 covers(ContactPersonMessage::class);
 
@@ -73,6 +74,40 @@ describe('envelope', function () {
 
         expect($envelope->subject)->toBe('Contact request for: Dataset');
     });
+
+    it('adds a contact message tracking header to recipient emails', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $email = new Email;
+
+        foreach ($mailable->envelope()->using as $callback) {
+            $callback($email);
+        }
+
+        expect($email->getHeaders()->get('X-Contact-Message-Id')?->getBodyAsString())
+            ->toBe((string) $this->contactMessage->id);
+    });
+
+    it('does not add a contact message tracking header to sender copies', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Jane Doe',
+            isCopyToSender: true,
+        );
+
+        $email = new Email;
+
+        foreach ($mailable->envelope()->using as $callback) {
+            $callback($email);
+        }
+
+        expect($email->getHeaders()->get('X-Contact-Message-Id'))->toBeNull();
+    });
 });
 
 describe('content', function () {
@@ -134,5 +169,84 @@ describe('attachments', function () {
         );
 
         expect($mailable->attachments())->toBeEmpty();
+    });
+
+    it('marks the contact message as failed when delivery fails', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+            ->and($this->contactMessage->failure_reason)->toBe('SMTP unavailable');
+    });
+
+    it('does not mark the contact message as failed when only the sender copy fails', function () {
+        $mailable = new ContactPersonMessage(
+            contactMessage: $this->contactMessage,
+            resource: $this->resource,
+            recipientName: 'Jane Doe',
+            isCopyToSender: true,
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeNull()
+            ->and($this->contactMessage->failure_reason)->toBeNull();
+    });
+
+    it('ignores delivery failures when the contact message key is not scalar', function () {
+        $invalidKeyMessage = new class extends ContactMessage
+        {
+            public function getKey()
+            {
+                return ['invalid'];
+            }
+        };
+
+        $invalidKeyMessage->forceFill([
+            'sender_name' => 'Jane Doe',
+            'sender_email' => 'jane@example.com',
+            'message' => 'I have a question about your dataset.',
+        ]);
+
+        $mailable = new ContactPersonMessage(
+            contactMessage: $invalidKeyMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeNull()
+            ->and($this->contactMessage->failure_reason)->toBeNull();
+    });
+
+    it('ignores delivery failures when the tracked contact message no longer exists', function () {
+        $missingContactMessage = ContactMessage::factory()->make([
+            'resource_id' => $this->resource->id,
+            'sender_name' => 'Jane Doe',
+            'sender_email' => 'jane@example.com',
+            'message' => 'I have a question about your dataset.',
+        ]);
+        $missingContactMessage->id = 999999;
+
+        $mailable = new ContactPersonMessage(
+            contactMessage: $missingContactMessage,
+            resource: $this->resource,
+            recipientName: 'Dr. Smith',
+        );
+
+        $mailable->failed(new \RuntimeException('SMTP unavailable'));
+        $this->contactMessage->refresh();
+
+        expect($this->contactMessage->failed_at)->toBeNull()
+            ->and($this->contactMessage->failure_reason)->toBeNull();
     });
 });

@@ -258,8 +258,7 @@ The default development stack includes:
 Optional profiles:
 
 - `assessment` starts the F-UJI container for assessment and FAIRness-specific workflows; set `FUJI_ENABLED=true` in `.env.docker` when you want the app to use it.
-- `tools` adds CloudBeaver for database inspection.
-- `parity` starts both optional profiles together for broader local verification; set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI during that run.
+- `parity` starts the parity-oriented optional services for broader local verification; set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI during that run.
 
 ### URL Routing
 
@@ -299,10 +298,7 @@ Start Fast Mode with additional services only when you need them:
 # Start the F-UJI container locally (also set FUJI_ENABLED=true in .env.docker)
 npm run docker:dev:assessment
 
-# Enable CloudBeaver locally
-npm run docker:dev:tools
-
-# Start both optional profiles for broader local verification
+# Start the parity-oriented optional services for broader local verification
 # (also set FUJI_ENABLED=true in .env.docker if the app should use F-UJI)
 npm run docker:dev:parity
 ```
@@ -402,8 +398,8 @@ If `public/hot` is missing on the Windows host, recreate it from the Vite contai
 docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
-**F-UJI or CloudBeaver is unavailable:**
-Those services are now opt-in. Start the matching profile with `npm run docker:dev:assessment`, `npm run docker:dev:tools`, or `npm run docker:dev:parity`. For F-UJI specifically, also set `FUJI_ENABLED=true` in `.env.docker` before restarting the stack.
+**Optional services are unavailable:**
+Those services are opt-in. Start the matching profile with `npm run docker:dev:assessment` or `npm run docker:dev:parity`. For F-UJI specifically, also set `FUJI_ENABLED=true` in `.env.docker` before restarting the stack.
 
 ---
 

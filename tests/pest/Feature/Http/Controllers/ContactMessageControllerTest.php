@@ -18,6 +18,42 @@ use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
 
+function successfulPendingMail(?Closure $assertion = null): object
+{
+    return new class($assertion)
+    {
+        public function __construct(private readonly ?Closure $assertion) {}
+
+        public function cc(string $address): static
+        {
+            return $this;
+        }
+
+        public function queue(ContactPersonMessage $mailable): void
+        {
+            $this->assertion?->__invoke($mailable);
+        }
+    };
+}
+
+function failingPendingMail(string $message): object
+{
+    return new class($message)
+    {
+        public function __construct(private readonly string $message) {}
+
+        public function cc(string $address): static
+        {
+            return $this;
+        }
+
+        public function queue(ContactPersonMessage $mailable): void
+        {
+            throw new \RuntimeException($this->message);
+        }
+    };
+}
+
 describe('ContactMessageController', function (): void {
 
     beforeEach(function (): void {
@@ -61,7 +97,7 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertOk()
-                ->assertJson(['message' => 'Message sent successfully.']);
+                ->assertJson(['message' => 'Message received successfully.']);
 
             Mail::assertQueued(ContactPersonMessage::class);
 
@@ -70,6 +106,100 @@ describe('ContactMessageController', function (): void {
                 'sender_name' => 'Jane Smith',
                 'sender_email' => 'jane@example.com',
             ]);
+
+            $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
+
+            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                ->and($contactMessage->recipient_count)->toBe(1)
+                ->and($contactMessage->delivered_recipient_count)->toBe(0)
+                ->and($contactMessage->sent_at)->toBeNull()
+                ->and($contactMessage->failed_at)->toBeNull()
+                ->and($contactMessage->failure_reason)->toBeNull();
+        });
+
+        it('marks the contact message as queued before dispatching the first recipient mail', function (): void {
+            config(['mail.landing_page_contact_cc' => '']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $person = Person::factory()->create([
+                'given_name' => 'John',
+                'family_name' => 'Doe',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'john.doe@example.com',
+                'is_contact' => true,
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.queue-order.001',
+                'slug' => 'queue-order-test',
+            ]);
+
+            Mail::shouldReceive('to')
+                ->once()
+                ->with('john.doe@example.com')
+                ->andReturn(successfulPendingMail(function (ContactPersonMessage $mailable): void {
+                    expect($mailable->contactMessage->fresh()?->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                        ->and($mailable->contactMessage->fresh()?->failed_at)->toBeNull();
+                }));
+
+            $this->postJson('/10.5880/gfz.queue-order.001/queue-order-test/contact', [
+                'sender_name' => 'Jane Smith',
+                'sender_email' => 'jane@example.com',
+                'message' => 'This is a test message for the contact form.',
+                'send_to_all' => true,
+            ])->assertOk();
+        });
+
+        it('marks the contact message as failed when recipient dispatch throws before queuing completes', function (): void {
+            config(['mail.landing_page_contact_cc' => '']);
+
+            $resource = Resource::factory()->create();
+            Title::factory()->create(['resource_id' => $resource->id, 'value' => 'Test Dataset']);
+
+            $person = Person::factory()->create([
+                'given_name' => 'John',
+                'family_name' => 'Doe',
+            ]);
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'john.doe@example.com',
+                'is_contact' => true,
+            ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.queue-fail.001',
+                'slug' => 'queue-fail-test',
+            ]);
+
+            Mail::shouldReceive('to')
+                ->once()
+                ->with('john.doe@example.com')
+                ->andReturn(failingPendingMail('Queue unavailable'));
+
+            $this->withoutExceptionHandling();
+
+            expect(fn () => $this->postJson('/10.5880/gfz.queue-fail.001/queue-fail-test/contact', [
+                'sender_name' => 'Jane Smith',
+                'sender_email' => 'jane@example.com',
+                'message' => 'This is a test message for the contact form.',
+                'send_to_all' => true,
+            ]))->toThrow(\RuntimeException::class, 'Queue unavailable');
+
+            $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
+
+            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                ->and($contactMessage->failed_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                ->and($contactMessage->failure_reason)->toBe('Queue unavailable');
         });
 
         it('returns 404 for non-existent landing page', function (): void {
@@ -102,7 +232,7 @@ describe('ContactMessageController', function (): void {
 
             // Should return success to not reveal detection
             $response->assertOk()
-                ->assertJson(['message' => 'Message sent successfully.']);
+                ->assertJson(['message' => 'Message received successfully.']);
 
             // But no email should be sent
             Mail::assertNothingQueued();
@@ -219,9 +349,55 @@ describe('ContactMessageController', function (): void {
             // Should queue 2 emails: one to creator, one copy to sender
             Mail::assertQueued(ContactPersonMessage::class, 2);
 
-            $this->assertDatabaseHas('contact_messages', [
-                'copy_to_sender' => true,
+            $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
+
+            expect($contactMessage->copy_to_sender)->toBeTrue()
+                ->and($contactMessage->recipient_count)->toBe(1)
+                ->and($contactMessage->delivered_recipient_count)->toBe(0);
+        });
+
+        it('keeps the contact message successful when only sender-copy dispatch fails', function (): void {
+            config(['mail.landing_page_contact_cc' => '']);
+
+            $resource = Resource::factory()->create();
+            $person = Person::factory()->create();
+            ResourceCreator::factory()->create([
+                'resource_id' => $resource->id,
+                'creatorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'email' => 'creator@example.com',
+                'is_contact' => true,
             ]);
+
+            LandingPage::factory()->create([
+                'resource_id' => $resource->id,
+                'doi_prefix' => '10.5880/gfz.copy-dispatch.001',
+                'slug' => 'copy-dispatch-test',
+            ]);
+
+            Mail::shouldReceive('to')
+                ->once()
+                ->with('creator@example.com')
+                ->andReturn(successfulPendingMail());
+
+            Mail::shouldReceive('to')
+                ->once()
+                ->with('jane@example.com')
+                ->andReturn(failingPendingMail('Copy queue unavailable'));
+
+            $this->postJson('/10.5880/gfz.copy-dispatch.001/copy-dispatch-test/contact', [
+                'sender_name' => 'Jane Doe',
+                'sender_email' => 'jane@example.com',
+                'message' => 'Please send me a copy of this message.',
+                'send_to_all' => true,
+                'copy_to_sender' => true,
+            ])->assertOk();
+
+            $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
+
+            expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                ->and($contactMessage->failed_at)->toBeNull()
+                ->and($contactMessage->failure_reason)->toBeNull();
         });
 
         it('sends to specific creator when resource_creator_id provided', function (): void {
@@ -330,7 +506,7 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertOk()
-                ->assertJson(['message' => 'Message sent successfully.']);
+                ->assertJson(['message' => 'Message received successfully.']);
 
             Mail::assertQueued(ContactPersonMessage::class);
         });

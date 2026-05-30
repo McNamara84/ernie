@@ -609,7 +609,12 @@ erDiagram
         text message
         boolean copy_to_sender
         varchar ip_address
+        int recipient_count
+        int delivered_recipient_count
+        timestamp queued_at
         timestamp sent_at
+        timestamp failed_at
+        text failure_reason
         timestamp created_at
         timestamp updated_at
     }

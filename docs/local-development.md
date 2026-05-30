@@ -8,8 +8,7 @@ ERNIE has two local operating speeds:
 | --- | --- | --- |
 | Fast Mode | Daily development with the core stack only | `npm run docker:dev:up` |
 | Assessment profile | Start the F-UJI container when assessment workflows are under active development; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:assessment` |
-| Tools profile | Enable CloudBeaver only when database inspection is needed | `npm run docker:dev:tools` |
-| Parity profile | Start both optional profiles for broader local verification; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI | `npm run docker:dev:parity` |
+| Parity profile | Start the parity-oriented optional services for broader local verification; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI | `npm run docker:dev:parity` |
 
 Canonical checks:
 
@@ -89,8 +88,7 @@ Default Fast Mode services:
 Optional profiles:
 
 - `assessment`: starts the F-UJI container; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
-- `tools`: adds CloudBeaver
-- `parity`: adds both optional profiles; set `FUJI_ENABLED=true` in `.env.docker` when the app should use F-UJI
+- `parity`: starts the parity-oriented optional services; set `FUJI_ENABLED=true` in `.env.docker` when the app should use F-UJI
 
 Examples:
 
@@ -102,10 +100,7 @@ npm run docker:dev:up
 # Also set FUJI_ENABLED=true in .env.docker if the app should use it.
 npm run docker:dev:assessment
 
-# Fast Mode with CloudBeaver
-npm run docker:dev:tools
-
-# Fast Mode with all optional local services
+# Fast Mode with the parity-oriented optional services
 # Also set FUJI_ENABLED=true in .env.docker if the app should use F-UJI.
 npm run docker:dev:parity
 ```
@@ -159,7 +154,6 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 
 That is expected unless you started the matching profile:
 
 - `npm run docker:dev:assessment`
-- `npm run docker:dev:tools`
 - `npm run docker:dev:parity`
 
 For F-UJI specifically, the app will still treat the integration as disabled until `FUJI_ENABLED=true` is set in `.env.docker` and the stack is restarted.

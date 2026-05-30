@@ -123,8 +123,6 @@ services:
       - dockerized-laravel-data:/var/lib/mysql
     networks:
       - dockerized-laravel-network
-    ports:
-      - "3306:3306"
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
       interval: 10s
@@ -138,8 +136,6 @@ services:
     restart: unless-stopped
     networks:
       - dockerized-laravel-network
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -177,78 +173,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-
-  cloudbeaver:
-    image: dbeaver/cloudbeaver:26.0.5@sha256:33083a988e83c714b98bffc58d45c6c6c15c86816bb446c5f053f1eed66d5247
-    container_name: ernie-cloudbeaver-stage
-    restart: unless-stopped
-    volumes:
-      - cloudbeaver-workspace:/opt/cloudbeaver/workspace
-    networks:
-      - dockerized-laravel-network
-      - traefik
-    depends_on:
-      - db
-    environment:
-      - CB_SERVER_NAME=ERNIE Database Admin
-      - CB_ADMIN_NAME=cbadmin
-      - CB_ADMIN_PASSWORD=${CLOUDBEAVER_ADMIN_PASSWORD}
-      - CLOUDBEAVER_APP_ANONYMOUS_ACCESS_ENABLED=false
-      - CLOUDBEAVER_APP_SUPPORTS_CUSTOM_CONNECTIONS=true
-      # Database connection credentials for auto-configuration (from stack.env)
-      - CB_DB_HOST=db
-      - CB_DB_NAME=${MARIADB_DATABASE:-ernie}
-      - CB_DB_USER=${MARIADB_USER:-ernie}
-      - CB_DB_PASSWORD=${MARIADB_PASSWORD}
-      - CB_DB_TYPE=stage
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        # Create database connection configuration
-        WORKSPACE="/opt/cloudbeaver/workspace"
-        GLOBAL_CONFIG_DIR="$$WORKSPACE/GlobalConfiguration/.dbeaver"
-        DATA_SOURCES_FILE="$$GLOBAL_CONFIG_DIR/data-sources.json"
-        
-        mkdir -p "$$GLOBAL_CONFIG_DIR"
-        
-        if [ ! -s "$$DATA_SOURCES_FILE" ] || grep -q '"connections":{}' "$$DATA_SOURCES_FILE" 2>/dev/null; then
-          echo "[ERNIE Setup] Creating initial database connection configuration..."
-          cat > "$$DATA_SOURCES_FILE" << EOF
-        {
-          "folders": {},
-          "connections": {
-            "mysql_ernie": {
-              "provider": "mysql",
-              "driver": "mysql8",
-              "name": "ERNIE Database",
-              "save-password": true,
-              "configuration": {
-                "host": "$${CB_DB_HOST:-db}",
-                "port": "3306",
-                "database": "$${CB_DB_NAME:-ernie}",
-                "user": "$${CB_DB_USER:-ernie}",
-                "password": "$${CB_DB_PASSWORD}",
-                "url": "jdbc:mysql://$${CB_DB_HOST:-db}:3306/$${CB_DB_NAME:-ernie}?allowPublicKeyRetrieval=true&useSSL=false",
-                "type": "$${CB_DB_TYPE:-stage}"
-              }
-            }
-          }
-        }
-        EOF
-          echo "[ERNIE Setup] Database connection configuration created!"
-        else
-          echo "[ERNIE Setup] Database connection already configured, skipping..."
-        fi
-        
-        # Start CloudBeaver
-        exec /opt/cloudbeaver/launch-product.sh
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ernie-cloudbeaver.rule=Host(`db.ernie.rz-vm182.gfz.de`)"
-      - "traefik.http.routers.ernie-cloudbeaver.entrypoints=https"
-      - "traefik.http.routers.ernie-cloudbeaver.service=ernie-cloudbeaver-service"
-      - "traefik.http.services.ernie-cloudbeaver-service.loadbalancer.server.port=8978"
-      - "traefik.docker.network=traefik"
 
   queue:
     build:
@@ -318,6 +242,4 @@ volumes:
   storage-data:
     driver: local
   bootstrap-cache:
-    driver: local
-  cloudbeaver-workspace:
     driver: local

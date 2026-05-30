@@ -9,6 +9,7 @@ use App\Jobs\DiscoverRelationsJob;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
+use App\Listeners\MarkContactMessageAsSent;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
@@ -28,6 +29,8 @@ use App\Services\RorLookupService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Events\MessageSent;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
@@ -60,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);
         Subject::observe(SubjectObserver::class);
+        Event::listen(MessageSent::class, MarkContactMessageAsSent::class);
 
         // Configure rate limiters
         $this->configureRateLimiting();

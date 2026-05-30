@@ -56,8 +56,6 @@ use Inertia\Inertia;
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
-        'timestamp' => now()->toISOString(),
-        'laravel' => app()->version(),
     ]);
 })->name('health');
 

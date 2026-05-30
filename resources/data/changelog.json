@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-27",
+        "date": "2026-05-29",
         "features": [
             {
                 "title": "Landing Page and Portal Statistics Dashboard",
@@ -97,6 +97,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Go-Live Hardening for Contact Delivery and Public Operations",
+                "description": "Stage and production stacks no longer expose database and Redis ports on the host, CloudBeaver has been removed from the maintained Docker profiles, and the public /health endpoint now returns only a minimal status payload. Landing-page contact requests are also tracked more accurately across queued, sent, and failed delivery states so successful dispatch is no longer recorded before the queued mail actually leaves the application."
+            },
             {
                 "title": "Public Bot Traffic Protection",
                 "description": "The public portal and landing pages now have layered protection against aggressive automated crawling while keeping the OAI-PMH endpoint open for standards-based metadata harvesters. Known AI crawler user agents receive stricter application-level throttling, Nginx applies early rate limits to dynamic discovery pages, and robots.txt directs AI crawlers away from page crawling toward /oai-pmh. Published landing page and portal payloads are cached briefly to absorb repeated requests, and landing page view counters now debounce repeated human views and ignore known AI bot hits when bot protection is enabled. Stage and production Docker Compose files expose environment variables for tuning these limits without code changes."
