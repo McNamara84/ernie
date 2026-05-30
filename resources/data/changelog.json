@@ -98,6 +98,10 @@
         ],
         "improvements": [
             {
+                "title": "Clickable Save & Validate Error Navigation",
+                "description": "The Data Editor now turns Save & Validate blocking messages into a grouped clickable summary. When required fields such as title, datacenter, authors, abstract, licenses, or funding references need attention, curators can select the matching entry to reopen the relevant accordion section and jump directly to the affected field instead of scanning the entire form manually."
+            },
+            {
                 "title": "Go-Live Hardening for Contact Delivery and Public Operations",
                 "description": "Stage and production stacks no longer expose database and Redis ports on the host, CloudBeaver has been removed from the maintained Docker profiles, and the public /health endpoint now returns only a minimal status payload. Landing-page contact requests are also tracked more accurately across queued, sent, and failed delivery states so successful dispatch is no longer recorded before the queued mail actually leaves the application."
             },

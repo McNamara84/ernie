@@ -808,6 +808,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                         (title, year, resource type, datacenter, language, license, authors, abstract) must be filled.
                                     </li>
                                 </ul>
+                                <p className="mt-3">
+                                    After <strong>"Save &amp; Validate"</strong>, ERNIE shows blocking validation issues in a clickable summary
+                                    above the form. Select any entry to reopen the relevant accordion section and jump directly to the affected
+                                    field.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 

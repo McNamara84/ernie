@@ -923,10 +923,10 @@ describe('DataCiteForm', () => {
             });
 
             // Individual missing field messages should be listed
-            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
-            expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
-            expect(screen.getByText('Resource Type is required')).toBeInTheDocument();
-            expect(screen.getByText('Primary License is required')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Resource Type is required\.$/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Primary License is required\.$/i })).toBeInTheDocument();
         },
     );
 
@@ -958,7 +958,7 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
             });
-            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
 
             // Second save attempt — error list must still appear
             await act(async () => {
@@ -967,8 +967,8 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
             });
-            expect(screen.getByText('Main Title is required')).toBeInTheDocument();
-            expect(screen.getByText('Publication Year is required')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
         },
     );
 
@@ -2952,11 +2952,182 @@ describe('DataCiteForm', () => {
         await screen.findByText('Validation failed');
         const alert = screen.getByTestId('global-validation-alert');
         expect(alert).not.toBeNull();
-        expect(screen.getByText('A main title is required.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^A main title is required\.$/i })).toBeInTheDocument();
         // Should NOT redirect on validation failure (Issue #624)
         expect(mockRouterVisit).not.toHaveBeenCalled();
         },
     );
+
+    it('renders client-side submit blockers as clickable navigation errors for datacenter selection', { timeout: 20000 }, async () => {
+        vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+            cb(performance.now());
+            return 1;
+        });
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+                availableDatacenters={availableDatacenters}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user, 'This is a sufficiently long abstract for client-side validation coverage.');
+
+        const datacenterSelect = screen.getByTestId('datacenter-select');
+        const datacenterScrollSpy = vi.spyOn(datacenterSelect, 'scrollIntoView');
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /^At least one datacenter is required\.$/i })).toBeInTheDocument();
+        });
+        expect(axios.post).not.toHaveBeenCalled();
+        expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(datacenterScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+
+        datacenterScrollSpy.mockClear();
+
+        await user.click(screen.getByRole('button', { name: /^At least one datacenter is required\.$/i }));
+
+        await waitFor(() => {
+            expect(datacenterScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+    });
+
+    it('reopens and scrolls to the authors section when a client-side author error is clicked', { timeout: 20000 }, async () => {
+        vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+            cb(performance.now());
+            return 1;
+        });
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+                availableDatacenters={availableDatacenters}
+            />,
+        );
+
+        await fillRequiredAbstract(user, 'This is a sufficiently long abstract for author navigation coverage.');
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /^At least one author is required\.$/i })).toBeInTheDocument();
+        });
+        expect(axios.post).not.toHaveBeenCalled();
+
+        const authorsTrigger = getAccordionTrigger(/Authors/i);
+        await user.click(authorsTrigger);
+        expect(authorsTrigger).toHaveAttribute('aria-expanded', 'false');
+
+        const authorsScrollSpy = vi.spyOn(authorsTrigger, 'scrollIntoView');
+
+        await user.click(screen.getByRole('button', { name: /^At least one author is required\.$/i }));
+
+        await waitFor(() => {
+            expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
+            expect(authorsScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+    });
+
+    it('shows clickable funding reference navigation errors before submit reaches the backend', { timeout: 20000 }, async () => {
+        vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+            cb(performance.now());
+            return 1;
+        });
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                initialDatacenters={[1]}
+                initialFundingReferences={[
+                    {
+                        id: 'funding-1',
+                        funderName: '',
+                        funderIdentifier: '',
+                        funderIdentifierType: null,
+                        awardNumber: '',
+                        awardUri: '',
+                        awardTitle: '',
+                        isExpanded: false,
+                    },
+                ]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+                availableDatacenters={availableDatacenters}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user, 'This is a sufficiently long abstract for funding validation coverage.');
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /^Please fix the validation errors in the Funding References section before submitting\.$/i })).toBeInTheDocument();
+        });
+        expect(axios.post).not.toHaveBeenCalled();
+
+        const fundingTrigger = getAccordionTrigger(/Funding References/i);
+        await user.click(fundingTrigger);
+        expect(fundingTrigger).toHaveAttribute('aria-expanded', 'false');
+
+        const fundingScrollSpy = vi.spyOn(fundingTrigger, 'scrollIntoView');
+
+        await user.click(screen.getByRole('button', { name: /^Please fix the validation errors in the Funding References section before submitting\.$/i }));
+
+        await waitFor(() => {
+            expect(fundingTrigger).toHaveAttribute('aria-expanded', 'true');
+            expect(fundingScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+    });
 
     it(
         'shows a network error message when saving throws',
@@ -3072,7 +3243,7 @@ describe('DataCiteForm', () => {
             fireEvent.submit(formElement);
         });
         await waitFor(() => {
-            expect(screen.getByText('Abstract is required')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Abstract is required\.$/i })).toBeInTheDocument();
         });
     });
 
