@@ -1,79 +1,95 @@
-# Local Development Guide
+# Local Development
 
 ## Overview
 
-ERNIE has two local operating speeds:
+ERNIE uses a Docker-first local workflow.
+
+- Fast Mode is the default path for day-to-day development.
+- Optional profiles are available for assessment-specific and parity-specific work.
+- Canonical validation entry points remain `npm run check:backend`, `npm run check:frontend`, and `npm run check:parity`.
 
 | Mode | Purpose | Command |
 | --- | --- | --- |
-| Fast Mode | Daily development with the core stack only | `npm run docker:dev:up` |
-| Assessment profile | Start the F-UJI container when assessment workflows are under active development; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:assessment` |
-| Parity profile | Start the parity-oriented optional services for broader local verification; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI | `npm run docker:dev:parity` |
+| Fast Mode | Start the core development stack only | `npm run docker:dev:up` |
+| Assessment profile | Start the stack with the F-UJI container for assessment work; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:assessment` |
+| Parity profile | Start the stack with the parity-oriented optional services; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI | `npm run docker:dev:parity` |
 
-Canonical checks:
+Fast Mode is the default because it keeps optional services out of the normal startup path.
 
-- `npm run check:backend`
-- `npm run check:frontend`
-- `npm run check:parity`
-
-Fast Mode is the default. Optional services no longer slow down or block the standard local startup path.
-
-## Recommended Windows Setup
+## Windows Recommendation
 
 ### Preferred: WSL2 checkout
 
-This is the recommended path for Windows developers because Docker bind mounts and Node-based tooling are significantly faster inside the WSL filesystem.
+WSL2 is the recommended Windows setup because Docker bind mounts and host-side Node tooling are significantly faster inside the WSL filesystem.
 
 1. Install Docker Desktop with WSL2 integration enabled.
 2. Clone the repository inside your WSL home directory, for example `~/src/ernie`.
 3. Open the project through VS Code Remote - WSL.
 4. Run Docker Compose and host-side Node commands from the WSL shell.
-5. Use your Windows browser for `https://ernie.localhost:3333` if you prefer.
+5. Use your Windows browser for `https://ernie.localhost:3333` if preferred.
 
 ### Supported fallback: Windows checkout on NTFS
 
-If you keep the repository under `D:\` or another NTFS path:
+If the repository stays under `D:\` or another NTFS path:
 
-- Expect slower bind-mount performance than WSL2.
-- Keep `VITE_USE_POLLING=true` enabled.
-- If HMR becomes unreliable, check the `public/hot` troubleshooting step below.
+- expect slower bind-mount performance than WSL2
+- keep `VITE_USE_POLLING=true` enabled
+- use the `public/hot` troubleshooting step below if HMR becomes unreliable
 
 ## Quick Start
 
-1. Generate certificates:
+1. Generate certificates.
+
+   Windows PowerShell:
 
    ```powershell
    .\docker\generate-certs.ps1
    ```
 
-2. Create the Docker env file:
+   WSL, Git Bash, or another POSIX shell:
+
+   ```bash
+   ./docker/generate-certs.sh
+   ```
+
+2. Create the Docker environment file.
+
+   Windows PowerShell:
 
    ```powershell
    Copy-Item .env.docker.example .env.docker
    ```
 
-3. Start Fast Mode:
+   WSL, Git Bash, or another POSIX shell:
 
-   ```powershell
+   ```bash
+   cp .env.docker.example .env.docker
+   ```
+
+3. Start Fast Mode.
+
+   ```bash
    npm run docker:dev:up
    ```
 
-4. Trust `docker\traefik\certs\localhost.crt` in Windows if your browser warns about TLS.
+4. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
 
-5. Open the app:
+5. Open the application.
 
-   - `https://ernie.localhost:3333`
-   - localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
+   - Main URL: `https://ernie.localhost:3333`
+   - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
-6. Create the first admin user:
+   If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
-   ```powershell
+6. Create the first administrator account.
+
+   ```bash
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
    ```
 
-The development entrypoint already installs missing dependencies, runs migrations, and seeds baseline data when the database is empty.
+The development entrypoint installs missing dependencies, runs migrations, and seeds baseline data when the database is empty.
 
-## Service Profiles
+## Profiles And Services
 
 Default Fast Mode services:
 
@@ -87,25 +103,18 @@ Default Fast Mode services:
 
 Optional profiles:
 
-- `assessment`: starts the F-UJI container; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
-- `parity`: starts the parity-oriented optional services; set `FUJI_ENABLED=true` in `.env.docker` when the app should use F-UJI
+- `assessment` starts the F-UJI container; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
+- `parity` starts the parity-oriented optional services; set `FUJI_ENABLED=true` in `.env.docker` when the app should use F-UJI
 
-Examples:
+Common startup commands:
 
-```powershell
-# Fast Mode
+```bash
 npm run docker:dev:up
-
-# Fast Mode with the F-UJI container
-# Also set FUJI_ENABLED=true in .env.docker if the app should use it.
 npm run docker:dev:assessment
-
-# Fast Mode with the parity-oriented optional services
-# Also set FUJI_ENABLED=true in .env.docker if the app should use F-UJI.
 npm run docker:dev:parity
 ```
 
-## Command Matrix
+## Command Reference
 
 | Task | Recommended place | Command |
 | --- | --- | --- |
@@ -122,7 +131,7 @@ npm run docker:dev:parity
 | ESLint check | Host shell | `npm run lint:check` |
 | ESLint auto-fix | Host shell | `npm run lint` |
 | TypeScript | Host shell | `npm run types` |
-| Playwright against dev stack | Host shell | `npm run test:e2e:devstack` |
+| Playwright against the dev stack | Host shell | `npm run test:e2e:devstack` |
 | Canonical backend validation | Host shell | `npm run check:backend` |
 | Canonical frontend validation | Host shell | `npm run check:frontend` |
 | Canonical parity validation | Host shell | `npm run check:parity` |
@@ -151,14 +160,14 @@ docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 
 
 ### Optional services are not reachable
 
-That is expected unless you started the matching profile:
+That is expected unless the matching profile was started:
 
 - `npm run docker:dev:assessment`
 - `npm run docker:dev:parity`
 
-For F-UJI specifically, the app will still treat the integration as disabled until `FUJI_ENABLED=true` is set in `.env.docker` and the stack is restarted.
+For F-UJI specifically, the app still treats the integration as disabled until `FUJI_ENABLED=true` is set in `.env.docker` and the stack is restarted.
 
-### The first startup feels slow
+### The first startup is slow
 
 The initial boot may still need to:
 
@@ -168,15 +177,15 @@ The initial boot may still need to:
 - run migrations
 - seed baseline data
 
-Subsequent startups should be much faster because Docker volumes keep `vendor`, `node_modules`, and the MySQL data directory.
+Subsequent startups are usually much faster because Docker volumes keep `vendor`, `node_modules`, and the MySQL data directory.
 
-## MySQL Test Slice
+## MySQL-Sensitive Pest Slice
 
-The fast default Pest loop remains SQLite-backed.
+The default local Pest loop remains SQLite-backed.
 
-When you need driver-sensitive coverage, use:
+Use the dedicated MySQL-backed slice only when driver-sensitive verification is required:
 
-```powershell
+```bash
 npm run test:php:mysql-sensitive
 ```
 
@@ -186,4 +195,4 @@ This command:
 - creates an isolated `ernie_test` schema inside the local MySQL container
 - runs the current explicit MySQL-sensitive migration file slice with a schema reset before each file
 
-It does not reuse the regular development schema.
+It does not reuse the regular development schema. For broader testing guidance, see [testing.md](testing.md).
