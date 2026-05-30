@@ -983,7 +983,6 @@ export default function DataCiteForm({
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -1840,7 +1839,6 @@ export default function DataCiteForm({
         setHasAttemptedSubmit(true);
         setIsSaving(true);
         setErrorMessage(null);
-        setValidationErrors([]);
         setMappedValidationErrors([]);
         clearBackendErrors();
 
@@ -1963,7 +1961,6 @@ export default function DataCiteForm({
                     if (parsed?.errors) {
                         applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
                     } else {
-                        setValidationErrors([]);
                         setErrorMessage(parsed?.message || defaultError);
                     }
 
@@ -1984,7 +1981,6 @@ export default function DataCiteForm({
 
         setIsSavingDraft(true);
         setErrorMessage(null);
-        setValidationErrors([]);
         setMappedValidationErrors([]);
         clearBackendErrors();
 
@@ -2038,7 +2034,6 @@ export default function DataCiteForm({
                     if (parsed?.errors) {
                         applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
                     } else {
-                        setValidationErrors([]);
                         setErrorMessage(parsed?.message || defaultError);
                     }
 
@@ -2066,15 +2061,14 @@ export default function DataCiteForm({
         return <Circle className="h-4 w-4 text-gray-400" aria-label="Optional section" />;
     };
 
-    // Build global error messages array for ValidationAlert (client-side preflight errors only)
+    // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
-        const messages: string[] = [];
         if (errorMessage && mappedValidationErrors.length === 0) {
-            messages.push(errorMessage);
+            return [errorMessage];
         }
-        messages.push(...validationErrors);
-        return messages;
-    }, [errorMessage, validationErrors, mappedValidationErrors]);
+
+        return [];
+    }, [errorMessage, mappedValidationErrors]);
 
     // Handle click on an error in the ClickableValidationAlert (Issue #605)
     const handleErrorClick = useCallback(
