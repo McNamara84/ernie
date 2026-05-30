@@ -25,6 +25,6 @@ class MarkContactMessageAsSent
             return;
         }
 
-        $contactMessage->markAsSent();
+        $contactMessage->markRecipientDelivered();
     }
 }

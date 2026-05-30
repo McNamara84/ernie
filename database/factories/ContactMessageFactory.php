@@ -29,6 +29,8 @@ class ContactMessageFactory extends Factory
             'message' => fake()->paragraph(),
             'copy_to_sender' => fake()->boolean(30),
             'ip_address' => fake()->ipv4(),
+            'recipient_count' => 1,
+            'delivered_recipient_count' => 0,
             'queued_at' => null,
             'sent_at' => null,
             'failed_at' => null,
@@ -42,6 +44,8 @@ class ContactMessageFactory extends Factory
     public function pending(): static
     {
         return $this->state(fn (array $attributes) => [
+            'recipient_count' => 1,
+            'delivered_recipient_count' => 0,
             'queued_at' => null,
             'sent_at' => null,
             'failed_at' => null,
@@ -55,6 +59,8 @@ class ContactMessageFactory extends Factory
     public function sent(): static
     {
         return $this->state(fn (array $attributes) => [
+            'recipient_count' => 1,
+            'delivered_recipient_count' => 1,
             'queued_at' => now()->subMinute(),
             'sent_at' => now(),
             'failed_at' => null,

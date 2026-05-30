@@ -42,6 +42,8 @@ describe('ContactMessageFactory', function () {
             ->and($message->sender_email)->toContain('@')
             ->and($message->message)->toBeString()
             ->and($message->ip_address)->toBeString()
+            ->and($message->recipient_count)->toBe(1)
+            ->and($message->delivered_recipient_count)->toBe(0)
             ->and($message->queued_at)->toBeNull()
             ->and($message->sent_at)->toBeNull()
             ->and($message->failed_at)->toBeNull();
@@ -50,14 +52,18 @@ describe('ContactMessageFactory', function () {
     it('creates a pending message', function () {
         $message = ContactMessage::factory()->pending()->create();
 
-        expect($message->queued_at)->toBeNull()
+        expect($message->recipient_count)->toBe(1)
+            ->and($message->delivered_recipient_count)->toBe(0)
+            ->and($message->queued_at)->toBeNull()
             ->and($message->sent_at)->toBeNull();
     });
 
     it('creates a sent message', function () {
         $message = ContactMessage::factory()->sent()->create();
 
-        expect($message->queued_at)->not->toBeNull()
+        expect($message->recipient_count)->toBe(1)
+            ->and($message->delivered_recipient_count)->toBe(1)
+            ->and($message->queued_at)->not->toBeNull()
             ->and($message->sent_at)->not->toBeNull();
     });
 });

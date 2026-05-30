@@ -21,6 +21,8 @@ describe('fillable', function () {
             'message',
             'copy_to_sender',
             'ip_address',
+            'recipient_count',
+            'delivered_recipient_count',
             'queued_at',
             'sent_at',
             'failed_at',
@@ -40,6 +42,18 @@ describe('casts', function () {
         $model = new ContactMessage(['copy_to_sender' => 1]);
 
         expect($model->copy_to_sender)->toBeBool();
+    });
+
+    it('casts recipient_count to integer', function () {
+        $model = new ContactMessage(['recipient_count' => '2']);
+
+        expect($model->recipient_count)->toBeInt();
+    });
+
+    it('casts delivered_recipient_count to integer', function () {
+        $model = new ContactMessage(['delivered_recipient_count' => '1']);
+
+        expect($model->delivered_recipient_count)->toBeInt();
     });
 
     it('casts queued_at to datetime', function () {
@@ -177,6 +191,78 @@ describe('markAsFailed', function () {
 
         expect($contactMessage->failed_at?->toDateTimeString())->toBe('2025-01-15 11:00:00')
             ->and($contactMessage->failure_reason)->toBe('Original failure');
+    });
+
+    it('does not mark an already sent message as failed', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'recipient_count' => 1,
+            'delivered_recipient_count' => 1,
+            'sent_at' => '2025-01-15 11:05:00',
+            'failed_at' => null,
+            'failure_reason' => null,
+        ]);
+
+        $contactMessage->markAsFailed('SMTP unavailable');
+        $contactMessage->refresh();
+
+        expect($contactMessage->sent_at?->toDateTimeString())->toBe('2025-01-15 11:05:00')
+            ->and($contactMessage->failed_at)->toBeNull()
+            ->and($contactMessage->failure_reason)->toBeNull();
+    });
+});
+
+describe('markRecipientDelivered', function () {
+    it('increments delivered recipient count without marking sent before the final delivery', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'recipient_count' => 2,
+            'delivered_recipient_count' => 0,
+            'sent_at' => null,
+            'failed_at' => null,
+        ]);
+
+        $contactMessage->markRecipientDelivered();
+        $contactMessage->refresh();
+
+        expect($contactMessage->delivered_recipient_count)->toBe(1)
+            ->and($contactMessage->sent_at)->toBeNull();
+    });
+
+    it('marks the message as sent when the final tracked recipient is delivered', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'recipient_count' => 2,
+            'delivered_recipient_count' => 1,
+            'sent_at' => null,
+            'failed_at' => null,
+        ]);
+
+        $contactMessage->markRecipientDelivered();
+        $contactMessage->refresh();
+
+        expect($contactMessage->delivered_recipient_count)->toBe(2)
+            ->and($contactMessage->sent_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class);
+    });
+
+    it('ignores recipient deliveries after the message has already failed', function () {
+        $resource = Resource::factory()->create();
+        $contactMessage = ContactMessage::factory()->create([
+            'resource_id' => $resource->id,
+            'recipient_count' => 2,
+            'delivered_recipient_count' => 1,
+            'sent_at' => null,
+            'failed_at' => '2025-01-15 11:00:00',
+        ]);
+
+        $contactMessage->markRecipientDelivered();
+        $contactMessage->refresh();
+
+        expect($contactMessage->delivered_recipient_count)->toBe(1)
+            ->and($contactMessage->sent_at)->toBeNull();
     });
 });
 

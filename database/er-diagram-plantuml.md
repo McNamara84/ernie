@@ -689,6 +689,8 @@ entity "contact_messages" as contact_messages {
     * message : TEXT
     * copy_to_sender : BOOLEAN = false
     ip_address : VARCHAR(45)
+    recipient_count : INT = 0
+    delivered_recipient_count : INT = 0
     queued_at : TIMESTAMP
     sent_at : TIMESTAMP
     failed_at : TIMESTAMP

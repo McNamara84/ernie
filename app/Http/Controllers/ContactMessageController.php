@@ -90,7 +90,7 @@ class ContactMessageController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Message sent successfully.',
+                'message' => 'Message received successfully.',
             ]);
         }
 
@@ -157,6 +157,8 @@ class ContactMessageController extends Controller
             'message' => $validated['message'],
             'copy_to_sender' => $validated['copy_to_sender'] ?? false,
             'ip_address' => $ipAddress,
+            'recipient_count' => count($recipients),
+            'delivered_recipient_count' => 0,
         ]);
 
         // Get Cc email from config (empty string disables Cc)
@@ -233,7 +235,7 @@ class ContactMessageController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Message sent successfully.',
+            'message' => 'Message received successfully.',
             'recipients_count' => count($recipients),
         ]);
     }

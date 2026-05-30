@@ -97,7 +97,7 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertOk()
-                ->assertJson(['message' => 'Message sent successfully.']);
+                ->assertJson(['message' => 'Message received successfully.']);
 
             Mail::assertQueued(ContactPersonMessage::class);
 
@@ -110,6 +110,8 @@ describe('ContactMessageController', function (): void {
             $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
 
             expect($contactMessage->queued_at)->toBeInstanceOf(\Illuminate\Support\Carbon::class)
+                ->and($contactMessage->recipient_count)->toBe(1)
+                ->and($contactMessage->delivered_recipient_count)->toBe(0)
                 ->and($contactMessage->sent_at)->toBeNull()
                 ->and($contactMessage->failed_at)->toBeNull()
                 ->and($contactMessage->failure_reason)->toBeNull();
@@ -230,7 +232,7 @@ describe('ContactMessageController', function (): void {
 
             // Should return success to not reveal detection
             $response->assertOk()
-                ->assertJson(['message' => 'Message sent successfully.']);
+                ->assertJson(['message' => 'Message received successfully.']);
 
             // But no email should be sent
             Mail::assertNothingQueued();
@@ -347,9 +349,11 @@ describe('ContactMessageController', function (): void {
             // Should queue 2 emails: one to creator, one copy to sender
             Mail::assertQueued(ContactPersonMessage::class, 2);
 
-            $this->assertDatabaseHas('contact_messages', [
-                'copy_to_sender' => true,
-            ]);
+            $contactMessage = ContactMessage::query()->latest('id')->firstOrFail();
+
+            expect($contactMessage->copy_to_sender)->toBeTrue()
+                ->and($contactMessage->recipient_count)->toBe(1)
+                ->and($contactMessage->delivered_recipient_count)->toBe(0);
         });
 
         it('keeps the contact message successful when only sender-copy dispatch fails', function (): void {
@@ -502,7 +506,7 @@ describe('ContactMessageController', function (): void {
             ]);
 
             $response->assertOk()
-                ->assertJson(['message' => 'Message sent successfully.']);
+                ->assertJson(['message' => 'Message received successfully.']);
 
             Mail::assertQueued(ContactPersonMessage::class);
         });
