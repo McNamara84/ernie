@@ -94,6 +94,10 @@ function appendValidationMessage(errors: Record<string, string[]>, backendKey: s
     errors[backendKey] = [message];
 }
 
+function isDatacenterErrorKey(backendKey: string): boolean {
+    return backendKey === 'datacenters' || backendKey.startsWith('datacenters.');
+}
+
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
@@ -1794,7 +1798,7 @@ export default function DataCiteForm({
             setMappedValidationErrors(mapped);
             setValidationAlertHeader(headerMessage);
 
-            if (Object.hasOwn(errors, 'datacenters')) {
+            if (Object.keys(errors).some(isDatacenterErrorKey)) {
                 setDatacenterTouched(true);
             }
 
@@ -1820,6 +1824,23 @@ export default function DataCiteForm({
         },
         [setFieldErrors, setOpenAccordionItems],
     );
+
+    const datacenterErrorMessage = useMemo(() => {
+        if (!datacenterTouched) {
+            return null;
+        }
+
+        const mappedDatacenterError = mappedValidationErrors.find((error) => isDatacenterErrorKey(error.backendKey));
+        if (mappedDatacenterError) {
+            return mappedDatacenterError.message;
+        }
+
+        if (selectedDatacenters.length === 0) {
+            return 'At least one datacenter is required.';
+        }
+
+        return null;
+    }, [datacenterTouched, mappedValidationErrors, selectedDatacenters.length]);
 
     /**
      * Shared handler for 422 backend validation errors.
@@ -2172,7 +2193,8 @@ export default function DataCiteForm({
                                 }}
                                 className="min-w-0 md:col-span-3"
                                 required
-                                hasError={datacenterTouched && selectedDatacenters.length === 0}
+                                hasError={datacenterErrorMessage !== null}
+                                errorMessage={datacenterErrorMessage ?? undefined}
                             />
                             <InputField
                                 id="version"

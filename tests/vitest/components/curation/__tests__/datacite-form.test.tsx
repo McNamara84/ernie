@@ -2958,6 +2958,59 @@ describe('DataCiteForm', () => {
         },
     );
 
+    it('marks the datacenter field invalid for backend datacenter element errors', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        mockedAxios.post.mockRejectedValue({
+            response: {
+                status: 422,
+                data: {
+                    message: 'Validation failed',
+                    errors: {
+                        'datacenters.0': ['Selected datacenter is invalid.'],
+                    },
+                },
+            },
+            isAxiosError: true,
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Dataset', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /^Selected datacenter is invalid\.$/i })).toBeInTheDocument();
+        });
+
+        const datacenterSelect = screen.getByTestId('datacenter-select');
+        expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
+        expect(datacenterSelect.parentElement).not.toBeNull();
+        expect(within(datacenterSelect.parentElement!).getByText('Selected datacenter is invalid.')).toBeInTheDocument();
+    });
+
     it('renders client-side submit blockers as clickable navigation errors for datacenter selection', { timeout: 20000 }, async () => {
         vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
             cb(performance.now());
