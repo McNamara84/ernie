@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * Contact Message Controller
@@ -165,41 +166,63 @@ class ContactMessageController extends Controller
             Log::warning('Invalid Cc email address in config', ['cc_email' => $ccEmail]);
             $ccEmail = null;
         }
+
+        $contactMessage->markAsQueued();
+
         $isFirstRecipient = true;
 
-        // Send emails to all recipients
-        foreach ($recipients as $recipient) {
-            $mail = Mail::to($recipient['email']);
+        try {
+            // Send emails to all recipients
+            foreach ($recipients as $recipient) {
+                $mail = Mail::to($recipient['email']);
 
-            // Add Cc only to first recipient when configured
-            if ($isFirstRecipient && ! empty($ccEmail)) {
-                $mail->cc($ccEmail);
-                $isFirstRecipient = false;
+                // Add Cc only to first recipient when configured
+                if ($isFirstRecipient && ! empty($ccEmail)) {
+                    $mail->cc($ccEmail);
+                    $isFirstRecipient = false;
+                }
+
+                $mail->queue(
+                    new ContactPersonMessage(
+                        $contactMessage,
+                        $resource,
+                        $recipient['name'],
+                        false
+                    )
+                );
             }
+        } catch (Throwable $exception) {
+            $contactMessage->markAsFailed($exception->getMessage());
 
-            $mail->queue(
-                new ContactPersonMessage(
-                    $contactMessage,
-                    $resource,
-                    $recipient['name'],
-                    false
-                )
-            );
+            Log::error('Failed to queue contact message for recipient delivery', [
+                'contact_message_id' => $contactMessage->id,
+                'resource_id' => $resourceId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
         }
 
         // Send copy to sender if requested
         if ($validated['copy_to_sender'] ?? false) {
-            Mail::to($validated['sender_email'])->queue(
-                new ContactPersonMessage(
-                    $contactMessage,
-                    $resource,
-                    $validated['sender_name'],
-                    true
-                )
-            );
+            try {
+                Mail::to($validated['sender_email'])->queue(
+                    new ContactPersonMessage(
+                        $contactMessage,
+                        $resource,
+                        $validated['sender_name'],
+                        true
+                    )
+                );
+            } catch (Throwable $exception) {
+                Log::warning('Failed to queue contact message sender copy', [
+                    'contact_message_id' => $contactMessage->id,
+                    'resource_id' => $resourceId,
+                    'sender_email' => $validated['sender_email'],
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
-
-        $contactMessage->markAsQueued();
 
         Log::info('Contact message queued', [
             'contact_message_id' => $contactMessage->id,
