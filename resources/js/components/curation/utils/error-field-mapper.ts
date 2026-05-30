@@ -138,7 +138,7 @@ function resolveFieldSelector(backendKey: string): string | null {
         return '[data-testid="abstract-textarea"]';
     }
 
-    // For "licenses" without index, return null (no stable testid on license selects)
+    // For "licenses" without index, point to the first license select via its stable data-testid
     if (backendKey === 'licenses') {
         return '[data-testid="license-select-0"]';
     }

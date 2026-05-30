@@ -80,6 +80,9 @@ export type { DataCiteFormProps, InitialAuthor, InitialContributor } from './typ
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 
+const ABSTRACT_MIN_LENGTH = 50;
+const ABSTRACT_MAX_LENGTH = 17500;
+
 function appendValidationMessage(errors: Record<string, string[]>, backendKey: string, message: string): void {
     const existing = errors[backendKey];
 
@@ -607,8 +610,8 @@ export default function DataCiteForm({
 
                 // Length check (50-17500 characters)
                 const lengthResult = validateTextLength(text, {
-                    min: 50,
-                    max: 17500,
+                    min: ABSTRACT_MIN_LENGTH,
+                    max: ABSTRACT_MAX_LENGTH,
                     fieldName: 'Abstract',
                 });
                 if (!lengthResult.isValid) {
@@ -616,11 +619,10 @@ export default function DataCiteForm({
                 }
 
                 // Warning at 90% of max length
-                if (text.length > 15750) {
-                    // 90% of 17500
+                if (text.length > ABSTRACT_MAX_LENGTH * 0.9) {
                     return {
                         severity: 'warning',
-                        message: `Abstract is very long (${text.length}/17500 characters). Consider condensing if possible.`,
+                        message: `Abstract is very long (${text.length}/${ABSTRACT_MAX_LENGTH} characters). Consider condensing if possible.`,
                     };
                 }
 
@@ -1117,8 +1119,20 @@ export default function DataCiteForm({
         }
 
         const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
-        if (!abstractEntry?.value.trim()) {
+        const abstractText = abstractEntry?.value.trim() ?? '';
+
+        if (!abstractText) {
             appendValidationMessage(errors, 'descriptions.0.description', 'Abstract is required.');
+        } else {
+            const abstractLengthResult = validateTextLength(abstractText, {
+                min: ABSTRACT_MIN_LENGTH,
+                max: ABSTRACT_MAX_LENGTH,
+                fieldName: 'Abstract',
+            });
+
+            if (!abstractLengthResult.isValid) {
+                appendValidationMessage(errors, 'descriptions.0.description', abstractLengthResult.error!);
+            }
         }
 
         if (selectedDatacenters.length === 0) {
@@ -1206,7 +1220,7 @@ export default function DataCiteForm({
         if (!abstractEntry?.value.trim()) {
             return 'invalid';
         }
-        if (abstractEntry.value.trim().length < 50) {
+        if (abstractEntry.value.trim().length < ABSTRACT_MIN_LENGTH) {
             return 'invalid';
         }
 
@@ -2093,7 +2107,7 @@ export default function DataCiteForm({
                         <SectionHeader
                             label="Resource Information"
                             description="Basic metadata about your dataset including identifiers and type."
-                            tooltip="Required fields: Year, Resource Type, Main Title, Language"
+                            tooltip="Required fields: Year, Resource Type, Main Title, Language, Datacenter"
                             required
                         />
                         <div className="grid gap-4 md:grid-cols-12">
@@ -2321,7 +2335,7 @@ export default function DataCiteForm({
                         <SectionHeader
                             label="Descriptions"
                             description="Detailed information about your dataset."
-                            tooltip="Abstract is required (50-17,500 characters). Other description types are optional."
+                            tooltip={`Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`}
                             required
                         />
                         <DescriptionField

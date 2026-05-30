@@ -266,7 +266,7 @@ describe('DataCiteForm', () => {
 
     const fillRequiredAbstract = async (
         user: ReturnType<typeof userEvent.setup>,
-        abstract = 'This is a test abstract for the dataset.',
+        abstract = 'This is a sufficiently long abstract for the dataset validation flow.',
     ) => {
         await ensureDescriptionsOpen(user);
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -3274,10 +3274,47 @@ describe('DataCiteForm', () => {
 
         // Fill Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'This is a test abstract');
+        await user.type(abstractTextarea, 'This is a sufficiently long abstract for save button coverage.');
 
         const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
+    });
+
+    it('blocks Save & Validate when Abstract is shorter than 50 characters', async () => {
+        const user = userEvent.setup();
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+        await user.type(abstractTextarea, 'Short abstract');
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: /^Abstract must be at least 50 characters \(current: 14\)$/i })).toBeInTheDocument();
+        });
+        expect(axios.post).not.toHaveBeenCalled();
     });
 
     it(
@@ -3316,7 +3353,7 @@ describe('DataCiteForm', () => {
 
         // Fill Abstract (required)
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'This is a test abstract');
+        await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
 
         // Fill Methods (optional)
         const methodsTab = screen.getByRole('tab', { name: /^Methods$/i });
@@ -3343,7 +3380,7 @@ describe('DataCiteForm', () => {
             expect.arrayContaining([
                 expect.objectContaining({
                     descriptionType: 'Abstract',
-                    description: 'This is a test abstract',
+                    description: 'This is a sufficiently long abstract for payload submission tests.',
                 }),
                 expect.objectContaining({
                     descriptionType: 'Methods',
@@ -3387,7 +3424,7 @@ describe('DataCiteForm', () => {
 
         // Fill only Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'This is a test abstract');
+        await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
 
         const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
@@ -3406,7 +3443,7 @@ describe('DataCiteForm', () => {
         expect(requestBody.descriptions).toHaveLength(1);
         expect(requestBody.descriptions[0]).toEqual({
             descriptionType: 'Abstract',
-            description: 'This is a test abstract',
+            description: 'This is a sufficiently long abstract for payload submission tests.',
             language: null,
         });
     });
@@ -3444,7 +3481,7 @@ describe('DataCiteForm', () => {
 
         // Fill Abstract with whitespace
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, '   Test abstract with spaces   ');
+        await user.type(abstractTextarea, '   This is a sufficiently long abstract with spaces for trimming tests.   ');
 
         const saveButton = screen.getByRole('button', { name: /save & validate/i });
         await waitFor(() => expect(saveButton).toBeEnabled());
@@ -3459,7 +3496,7 @@ describe('DataCiteForm', () => {
         expect(fetchCall).toBeDefined();
         const requestBody = JSON.parse(fetchCall![1].body);
 
-        expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
+        expect(requestBody.descriptions[0].description).toBe('This is a sufficiently long abstract with spaces for trimming tests.');
     });
     });
 
