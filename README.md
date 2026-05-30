@@ -108,8 +108,8 @@ Use the npm wrapper commands whenever possible so Docker Compose and Laravel sta
 | `npm run docker:dev:up:d` | Start the default development stack in the background |
 | `npm run docker:dev:down` | Stop the development stack |
 | `npm run docker:dev:reset` | Stop the stack and remove Docker volumes |
-| `npm run docker:dev:assessment` | Start the stack with the optional assessment profile |
-| `npm run docker:dev:parity` | Start the stack with the optional parity profile |
+| `npm run docker:dev:assessment` | Start the stack with the assessment profile, which adds the F-UJI container |
+| `npm run docker:dev:parity` | Start the stack with the parity profile, which currently adds the F-UJI container |
 | `npm run check:backend` | Run Pest and PHPStan against the Docker-backed backend workflow |
 | `npm run check:frontend` | Run ESLint, OpenAPI linting, TypeScript checks, and one-shot Vitest on the host |
 | `npm run check:parity` | Run the parity validation flow, including the MySQL-sensitive backend slice and Playwright |

@@ -12,9 +12,9 @@ ERNIE uses a Docker-first local workflow.
 | --- | --- | --- |
 | Fast Mode | Start the core development stack only | `npm run docker:dev:up` |
 | Assessment profile | Start the stack with the F-UJI container for assessment work; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:assessment` |
-| Parity profile | Start the stack with the parity-oriented optional services; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use F-UJI | `npm run docker:dev:parity` |
+| Parity profile | Start the stack with the parity profile, which currently adds the F-UJI container; also set `FUJI_ENABLED=true` in `.env.docker` if the app should use it | `npm run docker:dev:parity` |
 
-Fast Mode is the default because it keeps optional services out of the normal startup path.
+Fast Mode is the default because it keeps the profile-gated F-UJI service out of the normal startup path.
 
 ## Windows Recommendation
 
@@ -104,7 +104,7 @@ Default Fast Mode services:
 Optional profiles:
 
 - `assessment` starts the F-UJI container; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
-- `parity` starts the parity-oriented optional services; set `FUJI_ENABLED=true` in `.env.docker` when the app should use F-UJI
+- `parity` currently starts the same F-UJI container under the parity profile; set `FUJI_ENABLED=true` in `.env.docker` when the app should use it
 
 Common startup commands:
 
@@ -158,7 +158,7 @@ Docker Desktop can fail to sync the file back to the host even when it exists in
 docker compose --env-file .env.docker -f docker-compose.dev.yml exec vite sh -c 'echo "https://ernie.localhost:3333" > /var/www/html/public/hot'
 ```
 
-### Optional services are not reachable
+### F-UJI is not reachable
 
 That is expected unless the matching profile was started:
 
