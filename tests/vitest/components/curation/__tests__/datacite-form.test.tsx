@@ -2960,6 +2960,10 @@ describe('DataCiteForm', () => {
 
     it('marks the datacenter field invalid for backend datacenter element errors', { timeout: 20000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const backendErrorDatacenters = [
+            { id: 1, name: 'Invalid Datacenter' },
+            { id: 2, name: 'Replacement Datacenter' },
+        ];
 
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         mockedAxios.post.mockRejectedValue({
@@ -2989,7 +2993,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Dataset', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
-                availableDatacenters={availableDatacenters}
+                availableDatacenters={backendErrorDatacenters}
                 initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
@@ -3009,6 +3013,16 @@ describe('DataCiteForm', () => {
         expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
         expect(datacenterSelect.parentElement).not.toBeNull();
         expect(within(datacenterSelect.parentElement!).getByText('Selected datacenter is invalid.')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Remove datacenter "Invalid Datacenter"' }));
+        await user.click(datacenterSelect);
+        await user.click(screen.getByText('Replacement Datacenter'));
+
+        await waitFor(() => {
+            expect(datacenterSelect).toHaveAttribute('aria-invalid', 'false');
+            expect(within(datacenterSelect.parentElement!).queryByText('Selected datacenter is invalid.')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /^Selected datacenter is invalid\.$/i })).not.toBeInTheDocument();
+        });
     });
 
     it('renders client-side submit blockers as clickable navigation errors for datacenter selection', { timeout: 20000 }, async () => {

@@ -1851,6 +1851,21 @@ export default function DataCiteForm({
         return null;
     }, [datacenterTouched, mappedValidationErrors, selectedDatacenters.length]);
 
+    const clearDatacenterValidationErrors = useCallback(() => {
+        const nextMappedValidationErrors = mappedValidationErrors.filter((error) => !isDatacenterErrorKey(error.backendKey));
+
+        if (nextMappedValidationErrors.length === mappedValidationErrors.length) {
+            return;
+        }
+
+        setMappedValidationErrors(nextMappedValidationErrors);
+
+        if (nextMappedValidationErrors.length === 0) {
+            setValidationAlertHeader(undefined);
+            setErrorMessage(null);
+        }
+    }, [mappedValidationErrors]);
+
     /**
      * Shared handler for 422 backend validation errors.
      * Maps errors to sections, injects inline field errors, opens relevant accordion sections,
@@ -2199,6 +2214,7 @@ export default function DataCiteForm({
                                 onChange={(ids) => {
                                     setSelectedDatacenters(ids);
                                     setDatacenterTouched(true);
+                                    clearDatacenterValidationErrors();
                                 }}
                                 className="min-w-0 md:col-span-3"
                                 required
