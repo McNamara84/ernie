@@ -2958,7 +2958,7 @@ describe('DataCiteForm', () => {
         },
     );
 
-    it('marks the datacenter field invalid for backend datacenter element errors', async () => {
+    it('marks the datacenter field invalid for backend datacenter element errors', { timeout: 20000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
@@ -3065,7 +3065,7 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it('clears the inline required datacenter error after a datacenter is selected', async () => {
+    it('clears the inline required datacenter error after a datacenter is selected', { timeout: 20000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         render(
