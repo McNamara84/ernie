@@ -104,6 +104,19 @@ describe('mapBackendErrors', () => {
         expect(mapped).toHaveLength(1);
         expect(mapped[0].sectionId).toBe('licenses-rights');
         expect(mapped[0].sectionName).toBe('Licenses & Rights');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="license-select-0"]');
+    });
+
+    it('maps datacenters to the datacenter selector', () => {
+        const errors: Record<string, string[]> = {
+            datacenters: ['[Resource Information] At least one datacenter is required.'],
+        };
+
+        const mapped = mapBackendErrors(errors);
+
+        expect(mapped).toHaveLength(1);
+        expect(mapped[0].sectionId).toBe('resource-info');
+        expect(mapped[0].fieldSelector).toBe('#datacenter');
     });
 
     it('maps contributor roles to roles field selector', () => {
@@ -293,6 +306,18 @@ describe('mapBackendErrors', () => {
         const mapped = mapBackendErrors(errors);
 
         expect(mapped[0].fieldSelector).toBe('[data-testid="main-title-input"]');
+        expect(mapped[0].fieldId).toBe('title-0');
+    });
+
+    it('resolves indexed license selector', () => {
+        const errors: Record<string, string[]> = {
+            'licenses.0.license': ['[Licenses & Rights] License #1 is required.'],
+        };
+
+        const mapped = mapBackendErrors(errors);
+
+        expect(mapped[0].fieldSelector).toBe('[data-testid="license-select-0"]');
+        expect(mapped[0].fieldId).toBe('license-0');
     });
 
     it('resolves "titles" (no index) to main title input', () => {
@@ -303,16 +328,29 @@ describe('mapBackendErrors', () => {
         const mapped = mapBackendErrors(errors);
 
         expect(mapped[0].fieldSelector).toBe('[data-testid="main-title-input"]');
+        expect(mapped[0].fieldId).toBe('title-0');
     });
 
-    it('resolves "licenses" (no index) to null (accordion section fallback)', () => {
+    it('resolves "licenses" (no index) to the primary license selector', () => {
         const errors: Record<string, string[]> = {
             licenses: ['[Licenses & Rights] At least one license is required.'],
         };
 
         const mapped = mapBackendErrors(errors);
 
-        expect(mapped[0].fieldSelector).toBeNull();
+        expect(mapped[0].fieldSelector).toBe('[data-testid="license-select-0"]');
+        expect(mapped[0].fieldId).toBe('license-0');
+    });
+
+    it('resolves descriptions to the abstract field feedback state', () => {
+        const errors: Record<string, string[]> = {
+            'descriptions.0.description': ['[Descriptions] Abstract is required.'],
+        };
+
+        const mapped = mapBackendErrors(errors);
+
+        expect(mapped[0].fieldSelector).toBe('[data-testid="abstract-textarea"]');
+        expect(mapped[0].fieldId).toBe('abstract');
     });
 
     it('resolves "authors" (no index) to null (accordion section fallback)', () => {

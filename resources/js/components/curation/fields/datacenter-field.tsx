@@ -22,9 +22,10 @@ interface DatacenterFieldProps {
     className?: string;
     required?: boolean;
     hasError?: boolean;
+    errorMessage?: string;
 }
 
-export function DatacenterField({ id, label, options, selected, onChange, className, required = false, hasError = false }: DatacenterFieldProps) {
+export function DatacenterField({ id, label, options, selected, onChange, className, required = false, hasError = false, errorMessage }: DatacenterFieldProps) {
     const [open, setOpen] = useState(false);
 
     const selectedOptions = options.filter((o) => selected.includes(o.id));
@@ -100,7 +101,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                     </Command>
                 </PopoverContent>
             </Popover>
-            {hasError && selected.length === 0 && <p className="text-destructive text-sm">At least one datacenter is required.</p>}
+            {hasError && errorMessage && <p className="text-destructive text-sm">{errorMessage}</p>}
         </div>
     );
 }

@@ -66,6 +66,7 @@ const SIMPLE_FIELD_MAP: Record<string, string> = {
     resourceType: '#resourceType',
     version: '#version',
     language: '#language',
+    datacenters: '#datacenter',
 };
 
 /**
@@ -137,9 +138,9 @@ function resolveFieldSelector(backendKey: string): string | null {
         return '[data-testid="abstract-textarea"]';
     }
 
-    // For "licenses" without index, return null (no stable testid on license selects)
+    // For "licenses" without index, point to the first license select via its stable data-testid
     if (backendKey === 'licenses') {
-        return null;
+        return '[data-testid="license-select-0"]';
     }
 
     // For "authors" without index, return null to trigger accordion section fallback
@@ -170,9 +171,10 @@ function resolveFieldSelector(backendKey: string): string | null {
                 return index === '0' ? '[data-testid="abstract-textarea"]' : null;
             case 'datacenters':
                 return '#datacenter';
+            case 'licenses':
+                return `[data-testid="license-select-${index}"]`;
             // The following field components do not have stable data-testid attributes yet.
             // Return null to fall back to opening the correct accordion section.
-            case 'licenses':
             case 'fundingReferences':
             case 'relatedIdentifiers':
             case 'spatialTemporalCoverages':
@@ -197,6 +199,38 @@ function resolveFieldId(backendKey: string): string | null {
     if (backendKey in FIELD_ID_MAP) {
         return FIELD_ID_MAP[backendKey];
     }
+
+    if (backendKey === 'titles') {
+        return 'title-0';
+    }
+
+    if (backendKey === 'licenses') {
+        return 'license-0';
+    }
+
+    if (backendKey === 'descriptions') {
+        return 'abstract';
+    }
+
+    const arrayMatch = backendKey.match(/^(\w+)\.(\d+)(?:\.(\w+))?$/);
+    if (!arrayMatch) {
+        return null;
+    }
+
+    const [, prefix, index, subfield] = arrayMatch;
+
+    if (prefix === 'titles' && subfield === 'title' && index === '0') {
+        return 'title-0';
+    }
+
+    if (prefix === 'licenses' && index === '0') {
+        return 'license-0';
+    }
+
+    if (prefix === 'descriptions' && index === '0') {
+        return 'abstract';
+    }
+
     return null;
 }
 

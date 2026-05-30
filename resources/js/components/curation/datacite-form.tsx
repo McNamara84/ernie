@@ -80,6 +80,28 @@ export type { DataCiteFormProps, InitialAuthor, InitialContributor } from './typ
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 
+const ABSTRACT_MIN_LENGTH = 50;
+const ABSTRACT_MAX_LENGTH = 17500;
+
+function appendValidationMessage(errors: Record<string, string[]>, backendKey: string, message: string): void {
+    const existing = errors[backendKey];
+
+    if (existing) {
+        existing.push(message);
+        return;
+    }
+
+    errors[backendKey] = [message];
+}
+
+function isDatacenterErrorKey(backendKey: string): boolean {
+    return backendKey === 'datacenters' || backendKey.startsWith('datacenters.');
+}
+
+function isDatacenterElementErrorKey(backendKey: string): boolean {
+    return backendKey.startsWith('datacenters.');
+}
+
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
@@ -144,17 +166,7 @@ export default function DataCiteForm({
     );
 
     const errorRef = useRef<HTMLDivElement | null>(null);
-
-    // Refs for accordion sections (for auto-scroll on validation errors)
-    const resourceInfoRef = useRef<HTMLDivElement | null>(null);
-    const licensesRef = useRef<HTMLDivElement | null>(null);
-    const authorsRef = useRef<HTMLDivElement | null>(null);
-    const descriptionsRef = useRef<HTMLDivElement | null>(null);
-    const datesRef = useRef<HTMLDivElement | null>(null);
     const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
-
-    // Ref to track pending validation scroll timeout (prevents race conditions on rapid save clicks)
-    const validationScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
@@ -606,8 +618,8 @@ export default function DataCiteForm({
 
                 // Length check (50-17500 characters)
                 const lengthResult = validateTextLength(text, {
-                    min: 50,
-                    max: 17500,
+                    min: ABSTRACT_MIN_LENGTH,
+                    max: ABSTRACT_MAX_LENGTH,
                     fieldName: 'Abstract',
                 });
                 if (!lengthResult.isValid) {
@@ -615,11 +627,10 @@ export default function DataCiteForm({
                 }
 
                 // Warning at 90% of max length
-                if (text.length > 15750) {
-                    // 90% of 17500
+                if (text.length > ABSTRACT_MAX_LENGTH * 0.9) {
                     return {
                         severity: 'warning',
-                        message: `Abstract is very long (${text.length}/17500 characters). Consider condensing if possible.`,
+                        message: `Abstract is very long (${text.length}/${ABSTRACT_MAX_LENGTH} characters). Consider condensing if possible.`,
                     };
                 }
 
@@ -980,7 +991,6 @@ export default function DataCiteForm({
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
     const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -1058,30 +1068,6 @@ export default function DataCiteForm({
         return issues;
     }, [dates]);
 
-    const areRequiredFieldsFilled = useMemo(() => {
-        const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
-        const mainTitleFilled = Boolean(mainTitleEntry?.title.trim());
-        const yearFilled = Boolean(form.year?.trim());
-        const resourceTypeSelected = Boolean(form.resourceType);
-        const languageSelected = Boolean(form.language);
-        const primaryLicenseFilled = Boolean(licenseEntries[0]?.license?.trim());
-        const authorsValid =
-            authors.length > 0 &&
-            authors.every((author) => {
-                if (author.type === 'person') {
-                    const hasLastName = Boolean(author.lastName.trim());
-                    const contactValid = !author.isContact || Boolean(author.email.trim());
-                    return hasLastName && contactValid;
-                }
-
-                return Boolean(author.institutionName.trim());
-            });
-        const abstractFilled = descriptions.some((desc) => desc.type === 'Abstract' && desc.value.trim() !== '');
-        // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
-
-        return mainTitleFilled && yearFilled && resourceTypeSelected && languageSelected && primaryLicenseFilled && authorsValid && abstractFilled && selectedDatacenters.length > 0;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles]);
-
     // Draft save only requires a Main Title (Issue #548)
     const isDraftSaveable = useMemo(() => {
         const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
@@ -1093,70 +1079,74 @@ export default function DataCiteForm({
         return gcmdKeywords.some((kw) => kw.isLegacy === true);
     }, [gcmdKeywords]);
 
-    // Collect all missing required fields for Save button tooltip
-    const missingRequiredFields = useMemo(() => {
-        const missing: string[] = [];
-
-        // Check main title
+    const clientSubmitValidationErrors = useMemo(() => {
+        const errors: Record<string, string[]> = {};
         const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
+
         if (!mainTitleEntry?.title.trim()) {
-            missing.push('Main Title is required');
+            appendValidationMessage(errors, 'titles.0.title', 'Main Title is required.');
         }
 
-        // Check year
         if (!form.year?.trim()) {
-            missing.push('Publication Year is required');
+            appendValidationMessage(errors, 'year', 'Publication Year is required.');
         }
 
-        // Check resource type
         if (!form.resourceType) {
-            missing.push('Resource Type is required');
+            appendValidationMessage(errors, 'resourceType', 'Resource Type is required.');
         }
 
-        // Check language
         if (!form.language) {
-            missing.push('Language is required');
+            appendValidationMessage(errors, 'language', 'Language is required.');
         }
 
-        // Check primary license
         if (!licenseEntries[0]?.license?.trim()) {
-            missing.push('Primary License is required');
+            appendValidationMessage(errors, 'licenses.0.license', 'Primary License is required.');
         }
 
-        // Check authors
         if (authors.length === 0) {
-            missing.push('At least one Author is required');
+            appendValidationMessage(errors, 'authors', 'At least one author is required.');
         } else {
-            const invalidAuthors = authors.filter((author) => {
+            authors.forEach((author, index) => {
                 if (author.type === 'person') {
-                    const hasLastName = Boolean(author.lastName.trim());
-                    const contactValid = !author.isContact || Boolean(author.email.trim());
-                    return !hasLastName || !contactValid;
+                    if (!author.lastName.trim()) {
+                        appendValidationMessage(errors, `authors.${index}.lastName`, `Author ${index + 1}: Last name is required.`);
+                    }
+
+                    if (author.isContact && !author.email.trim()) {
+                        appendValidationMessage(errors, `authors.${index}.email`, `Author ${index + 1}: Email is required for contact person.`);
+                    }
+
+                    return;
                 }
-                return !author.institutionName.trim();
+
+                if (!author.institutionName.trim()) {
+                    appendValidationMessage(errors, `authors.${index}.institutionName`, `Author ${index + 1}: Institution name is required.`);
+                }
+            });
+        }
+
+        const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
+        const abstractText = abstractEntry?.value.trim() ?? '';
+
+        if (!abstractText) {
+            appendValidationMessage(errors, 'descriptions.0.description', 'Abstract is required.');
+        } else {
+            const abstractLengthResult = validateTextLength(abstractText, {
+                min: ABSTRACT_MIN_LENGTH,
+                max: ABSTRACT_MAX_LENGTH,
+                fieldName: 'Abstract',
             });
 
-            if (invalidAuthors.length > 0) {
-                missing.push(`${invalidAuthors.length} Author(s) with missing required fields`);
+            if (!abstractLengthResult.isValid) {
+                appendValidationMessage(errors, 'descriptions.0.description', abstractLengthResult.error!);
             }
         }
 
-        // Check abstract
-        const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
-        if (!abstractEntry?.value.trim()) {
-            missing.push('Abstract is required');
-        } else if (abstractEntry.value.trim().length < 50) {
-            missing.push('Abstract must be at least 50 characters');
-        }
-
-        // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
-
-        // Check datacenters
         if (selectedDatacenters.length === 0) {
-            missing.push('At least one Datacenter is required');
+            appendValidationMessage(errors, 'datacenters', 'At least one datacenter is required.');
         }
 
-        return missing;
+        return errors;
     }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles]);
 
     // ===================================================================
@@ -1237,7 +1227,7 @@ export default function DataCiteForm({
         if (!abstractEntry?.value.trim()) {
             return 'invalid';
         }
-        if (abstractEntry.value.trim().length < 50) {
+        if (abstractEntry.value.trim().length < ABSTRACT_MIN_LENGTH) {
             return 'invalid';
         }
 
@@ -1340,80 +1330,6 @@ export default function DataCiteForm({
         }
         return 'valid';
     }, [instruments]);
-
-    // ===================================================================
-    // Auto-Scroll to First Invalid Section
-    // ===================================================================
-    // Scrolls to the first accordion section with validation errors
-    // Opens the section automatically and focuses the first problematic field
-    const scrollToFirstInvalidSection = () => {
-        // Define priority order of sections to check
-        // Note: Dates section is excluded as it's now optional (Created/Updated are auto-managed)
-        const sectionsToCheck: Array<{
-            status: 'valid' | 'invalid' | 'optional-empty';
-            ref: React.RefObject<HTMLDivElement | null>;
-            accordionValue: string;
-            focusSelector?: string; // CSS selector for first field to focus
-        }> = [
-            {
-                status: resourceInfoStatus,
-                ref: resourceInfoRef,
-                accordionValue: 'resource-info',
-                focusSelector: '[data-testid="main-title-input"]', // Focus main title if invalid
-            },
-            {
-                status: licensesStatus,
-                ref: licensesRef,
-                accordionValue: 'licenses-rights',
-                focusSelector: '[data-testid="license-select-0"]', // Focus primary license
-            },
-            {
-                status: authorsStatus,
-                ref: authorsRef,
-                accordionValue: 'authors',
-                // Authors is complex, just scroll to section
-            },
-            {
-                status: descriptionsStatus,
-                ref: descriptionsRef,
-                accordionValue: 'descriptions',
-                focusSelector: '[data-testid="abstract-textarea"]', // Focus abstract
-            },
-        ];
-
-        // Find first invalid section
-        const firstInvalidSection = sectionsToCheck.find((section) => section.status === 'invalid');
-
-        if (firstInvalidSection) {
-            // Open the accordion section
-            setOpenAccordionItems((prev) => {
-                if (!prev.includes(firstInvalidSection.accordionValue)) {
-                    return [...prev, firstInvalidSection.accordionValue];
-                }
-                return prev;
-            });
-
-            // Scroll to the section after a brief delay to allow accordion to open
-            setTimeout(() => {
-                if (firstInvalidSection.ref.current) {
-                    firstInvalidSection.ref.current.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                    });
-
-                    // Focus the first field if selector provided
-                    if (firstInvalidSection.focusSelector) {
-                        setTimeout(() => {
-                            const fieldToFocus = document.querySelector(firstInvalidSection.focusSelector!) as HTMLElement;
-                            if (fieldToFocus) {
-                                fieldToFocus.focus();
-                            }
-                        }, 400); // Additional delay for smooth scroll to complete
-                    }
-                }
-            }, 100); // Brief delay for accordion animation
-        }
-    };
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -1593,16 +1509,6 @@ export default function DataCiteForm({
         }
 
     }, [errorMessage]);
-
-    // Cleanup pending validation scroll timeout on unmount
-    useEffect(() => {
-        return () => {
-            if (validationScrollTimeoutRef.current) {
-                clearTimeout(validationScrollTimeoutRef.current);
-                validationScrollTimeoutRef.current = null;
-            }
-        };
-    }, []);
 
     const [resolvedResourceId, setResolvedResourceId] = useState<number | null>(() => {
         if (!initialResourceId) {
@@ -1890,16 +1796,15 @@ export default function DataCiteForm({
         titles,
     ]);
 
-    /**
-     * Shared handler for 422 backend validation errors.
-     * Maps errors to sections, injects inline field errors, opens relevant accordion sections,
-     * and scrolls/focuses the first errored field or section trigger.
-     */
-    const applyBackendValidationErrors = useCallback(
-        (errors: Record<string, string[]>, serverMessage: string | undefined, defaultHeader: string) => {
+    const revealValidationErrors = useCallback(
+        (errors: Record<string, string[]>, headerMessage: string) => {
             const mapped = mapBackendErrors(errors);
             setMappedValidationErrors(mapped);
-            setValidationAlertHeader(serverMessage ?? defaultHeader);
+            setValidationAlertHeader(headerMessage);
+
+            if (Object.keys(errors).some(isDatacenterErrorKey)) {
+                setDatacenterTouched(true);
+            }
 
             // Inject errors into individual field states for inline display
             const fieldErrors = mapped
@@ -1919,9 +1824,58 @@ export default function DataCiteForm({
                 scheduleScrollToError(firstError.fieldSelector, firstError.sectionId);
             }
 
-            setErrorMessage(serverMessage ?? defaultHeader);
+            setErrorMessage(headerMessage);
         },
         [setFieldErrors, setOpenAccordionItems],
+    );
+
+    const datacenterErrorMessage = useMemo(() => {
+        if (!datacenterTouched) {
+            return null;
+        }
+
+        const mappedDatacenterElementError = mappedValidationErrors.find((error) => isDatacenterElementErrorKey(error.backendKey));
+        if (mappedDatacenterElementError) {
+            return mappedDatacenterElementError.message;
+        }
+
+        if (selectedDatacenters.length === 0) {
+            const mappedDatacenterCollectionError = mappedValidationErrors.find((error) => error.backendKey === 'datacenters');
+            if (mappedDatacenterCollectionError) {
+                return mappedDatacenterCollectionError.message;
+            }
+
+            return 'At least one datacenter is required.';
+        }
+
+        return null;
+    }, [datacenterTouched, mappedValidationErrors, selectedDatacenters.length]);
+
+    const clearDatacenterValidationErrors = useCallback(() => {
+        const nextMappedValidationErrors = mappedValidationErrors.filter((error) => !isDatacenterErrorKey(error.backendKey));
+
+        if (nextMappedValidationErrors.length === mappedValidationErrors.length) {
+            return;
+        }
+
+        setMappedValidationErrors(nextMappedValidationErrors);
+
+        if (nextMappedValidationErrors.length === 0) {
+            setValidationAlertHeader(undefined);
+            setErrorMessage(null);
+        }
+    }, [mappedValidationErrors]);
+
+    /**
+     * Shared handler for 422 backend validation errors.
+     * Maps errors to sections, injects inline field errors, opens relevant accordion sections,
+     * and scrolls/focuses the first errored field or section trigger.
+     */
+    const applyBackendValidationErrors = useCallback(
+        (errors: Record<string, string[]>, serverMessage: string | undefined, defaultHeader: string) => {
+            revealValidationErrors(errors, serverMessage ?? defaultHeader);
+        },
+        [revealValidationErrors],
     );
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1930,42 +1884,25 @@ export default function DataCiteForm({
         setHasAttemptedSubmit(true);
         setIsSaving(true);
         setErrorMessage(null);
-        setValidationErrors([]);
         setMappedValidationErrors([]);
         clearBackendErrors();
 
-        // Check if required fields are filled - if not, show error list and scroll to first invalid section
-        if (!areRequiredFieldsFilled) {
-            // Clear any pending scroll timeout from a previous save attempt
-            if (validationScrollTimeoutRef.current) {
-                clearTimeout(validationScrollTimeoutRef.current);
-                validationScrollTimeoutRef.current = null;
-            }
-
-            setValidationErrors(missingRequiredFields);
-            setErrorMessage('Please complete all required fields before saving.');
+        // Check client-side submit blockers before sending the request.
+        if (Object.keys(clientSubmitValidationErrors).length > 0) {
+            revealValidationErrors(clientSubmitValidationErrors, 'Please complete all required fields before saving.');
             setIsSaving(false);
-
-            // Scroll to error list first (via useEffect on errorMessage), then to first invalid section.
-            // Use requestAnimationFrame to wait for the DOM update + a short delay for the scroll animation.
-            requestAnimationFrame(() => {
-                validationScrollTimeoutRef.current = setTimeout(() => {
-                    validationScrollTimeoutRef.current = null;
-                    scrollToFirstInvalidSection();
-                }, 600);
-            });
             return;
         }
 
         // Client-side validation for funding references
         if (!validateAllFundingReferences(fundingReferences)) {
-            setValidationErrors(['Please fix the validation errors in the Funding References section before submitting.']);
+            revealValidationErrors(
+                {
+                    fundingReferences: ['Please fix the validation errors in the Funding References section before submitting.'],
+                },
+                'Please review the highlighted funding reference issues before saving.',
+            );
             setIsSaving(false);
-            // Scroll to funding references section
-            const fundingSection = document.getElementById('funding-references-section');
-            if (fundingSection) {
-                fundingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
             return;
         }
 
@@ -2069,7 +2006,6 @@ export default function DataCiteForm({
                     if (parsed?.errors) {
                         applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
                     } else {
-                        setValidationErrors([]);
                         setErrorMessage(parsed?.message || defaultError);
                     }
 
@@ -2090,7 +2026,6 @@ export default function DataCiteForm({
 
         setIsSavingDraft(true);
         setErrorMessage(null);
-        setValidationErrors([]);
         setMappedValidationErrors([]);
         clearBackendErrors();
 
@@ -2144,7 +2079,6 @@ export default function DataCiteForm({
                     if (parsed?.errors) {
                         applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
                     } else {
-                        setValidationErrors([]);
                         setErrorMessage(parsed?.message || defaultError);
                     }
 
@@ -2172,15 +2106,14 @@ export default function DataCiteForm({
         return <Circle className="h-4 w-4 text-gray-400" aria-label="Optional section" />;
     };
 
-    // Build global error messages array for ValidationAlert (client-side preflight errors only)
+    // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
-        const messages: string[] = [];
         if (errorMessage && mappedValidationErrors.length === 0) {
-            messages.push(errorMessage);
+            return [errorMessage];
         }
-        messages.push(...validationErrors);
-        return messages;
-    }, [errorMessage, validationErrors, mappedValidationErrors]);
+
+        return [];
+    }, [errorMessage, mappedValidationErrors]);
 
     // Handle click on an error in the ClickableValidationAlert (Issue #605)
     const handleErrorClick = useCallback(
@@ -2209,11 +2142,11 @@ export default function DataCiteForm({
                             {renderStatusBadge(resourceInfoStatus)}
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent ref={resourceInfoRef} className="space-y-6">
+                    <AccordionContent className="space-y-6">
                         <SectionHeader
                             label="Resource Information"
                             description="Basic metadata about your dataset including identifiers and type."
-                            tooltip="Required fields: Year, Resource Type, Main Title, Language"
+                            tooltip="Required fields: Year, Resource Type, Main Title, Language, Datacenter"
                             required
                         />
                         <div className="grid gap-4 md:grid-cols-12">
@@ -2281,10 +2214,12 @@ export default function DataCiteForm({
                                 onChange={(ids) => {
                                     setSelectedDatacenters(ids);
                                     setDatacenterTouched(true);
+                                    clearDatacenterValidationErrors();
                                 }}
                                 className="min-w-0 md:col-span-3"
                                 required
-                                hasError={datacenterTouched && selectedDatacenters.length === 0}
+                                hasError={datacenterErrorMessage !== null}
+                                errorMessage={datacenterErrorMessage ?? undefined}
                             />
                             <InputField
                                 id="version"
@@ -2349,7 +2284,7 @@ export default function DataCiteForm({
                             {renderStatusBadge(licensesStatus)}
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent ref={licensesRef}>
+                    <AccordionContent>
                         <SectionHeader
                             label="Licenses and Rights"
                             description="Specify usage rights and restrictions for your dataset."
@@ -2389,7 +2324,7 @@ export default function DataCiteForm({
                             {renderStatusBadge(authorsStatus)}
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent ref={authorsRef}>
+                    <AccordionContent>
                         <SectionHeader
                             label="Authors"
                             description="People or institutions who created this work."
@@ -2437,11 +2372,11 @@ export default function DataCiteForm({
                             {renderStatusBadge(descriptionsStatus)}
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent ref={descriptionsRef}>
+                    <AccordionContent>
                         <SectionHeader
                             label="Descriptions"
                             description="Detailed information about your dataset."
-                            tooltip="Abstract is required (50-17,500 characters). Other description types are optional."
+                            tooltip={`Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`}
                             required
                         />
                         <DescriptionField
@@ -2559,7 +2494,7 @@ export default function DataCiteForm({
                             {renderStatusBadge(datesStatus)}
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent ref={datesRef}>
+                    <AccordionContent>
                         <SectionHeader
                             label="Dates"
                             description="Important dates for your dataset."
