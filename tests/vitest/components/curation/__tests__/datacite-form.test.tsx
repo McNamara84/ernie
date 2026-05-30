@@ -3065,6 +3065,51 @@ describe('DataCiteForm', () => {
         });
     });
 
+    it('clears the inline required datacenter error after a datacenter is selected', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+                availableDatacenters={availableDatacenters}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user, 'This is a sufficiently long abstract for datacenter inline error clearing.');
+
+        const datacenterSelect = screen.getByTestId('datacenter-select');
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        await waitFor(() => {
+            expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
+        });
+        expect(datacenterSelect.parentElement).not.toBeNull();
+        expect(within(datacenterSelect.parentElement!).getByText('At least one datacenter is required.')).toBeInTheDocument();
+
+        await user.click(datacenterSelect);
+        await user.click(screen.getByText('Test Datacenter'));
+
+        await waitFor(() => {
+            expect(datacenterSelect).toHaveAttribute('aria-invalid', 'false');
+            expect(within(datacenterSelect.parentElement!).queryByText('At least one datacenter is required.')).not.toBeInTheDocument();
+        });
+    });
+
     it('reopens and scrolls to the authors section when a client-side author error is clicked', { timeout: 20000 }, async () => {
         vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
             cb(performance.now());

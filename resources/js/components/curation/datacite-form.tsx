@@ -98,6 +98,10 @@ function isDatacenterErrorKey(backendKey: string): boolean {
     return backendKey === 'datacenters' || backendKey.startsWith('datacenters.');
 }
 
+function isDatacenterElementErrorKey(backendKey: string): boolean {
+    return backendKey.startsWith('datacenters.');
+}
+
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
@@ -1830,12 +1834,17 @@ export default function DataCiteForm({
             return null;
         }
 
-        const mappedDatacenterError = mappedValidationErrors.find((error) => isDatacenterErrorKey(error.backendKey));
-        if (mappedDatacenterError) {
-            return mappedDatacenterError.message;
+        const mappedDatacenterElementError = mappedValidationErrors.find((error) => isDatacenterElementErrorKey(error.backendKey));
+        if (mappedDatacenterElementError) {
+            return mappedDatacenterElementError.message;
         }
 
         if (selectedDatacenters.length === 0) {
+            const mappedDatacenterCollectionError = mappedValidationErrors.find((error) => error.backendKey === 'datacenters');
+            if (mappedDatacenterCollectionError) {
+                return mappedDatacenterCollectionError.message;
+            }
+
             return 'At least one datacenter is required.';
         }
 
