@@ -545,6 +545,20 @@ describe('ResourcesPage – extended', () => {
             expect(routerMock.delete).toHaveBeenCalledTimes(1);
         });
 
+        it('keeps the confirmation dialog open while the delete request is in flight', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+            });
+
+            expect(routerMock.delete).toHaveBeenCalledTimes(1);
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /deleting\.\.\./i })).toBeDisabled();
+        });
+
         it('closes the delete confirmation dialog when the user cancels', () => {
             renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
 
@@ -556,7 +570,7 @@ describe('ResourcesPage – extended', () => {
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         });
 
-        it('re-enables the row delete action after a failed delete finishes', async () => {
+        it('re-enables the delete confirmation after a failed delete finishes', async () => {
             renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
 
             fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
@@ -565,7 +579,7 @@ describe('ResourcesPage – extended', () => {
             });
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /delete resource.*disposable draft/i })).toBeDisabled();
+                expect(screen.getByRole('button', { name: /deleting\.\.\./i })).toBeDisabled();
             });
 
             const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
@@ -578,10 +592,11 @@ describe('ResourcesPage – extended', () => {
                 deleteOptions.onFinish();
             });
 
-            expect(screen.getByRole('button', { name: /delete resource.*disposable draft/i })).toBeEnabled();
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /delete draft/i })).toBeEnabled();
         });
 
-        it('allows a new delete request after the previous one finishes', async () => {
+        it('allows a retry after the previous delete request finishes', async () => {
             renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
 
             fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
@@ -597,7 +612,6 @@ describe('ResourcesPage – extended', () => {
                 firstDeleteOptions.onFinish();
             });
 
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
             fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
 
             expect(routerMock.delete).toHaveBeenCalledTimes(2);

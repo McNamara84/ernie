@@ -1,7 +1,7 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, Braces, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -810,13 +810,15 @@ function ResourcesPage({
     );
 
     const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
-        if (!open && !isDeletingResource) {
+        if (!open && !isDeletingResourceRef.current && !isDeletingResource) {
             isDeletingResourceRef.current = false;
             setResourcePendingDelete(null);
         }
     }, [isDeletingResource]);
 
-    const handleConfirmDelete = useCallback(() => {
+    const handleConfirmDelete = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+
         if (isDeletingResourceRef.current || !resourcePendingDelete?.id) {
             return;
         }

@@ -2339,6 +2339,71 @@ describe('SetupLandingPageModal', () => {
             expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
         });
 
+        it('resets to clean defaults when a new resource fails to load and no persisted draft exists', async () => {
+            const firstResource = mockResource;
+            const secondResource = {
+                ...mockResource,
+                id: 456,
+                doi: '10.5880/GFZ.TEST.2025.002',
+                title: 'Second Resource Title',
+            };
+            const firstConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                ftp_url: 'https://downloads.example.org/first-resource.zip',
+                links: [
+                    {
+                        label: 'First resource link',
+                        url: 'https://example.org/first-resource',
+                        position: 0,
+                    },
+                ],
+            };
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                if (url.includes(`/resources/${firstResource.id}/landing-page`)) {
+                    return Promise.resolve({ data: { landing_page: firstConfig } });
+                }
+
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 500, data: { message: 'Server error' } },
+                });
+            });
+
+            const { rerender } = render(
+                <SetupLandingPageModal
+                    resource={firstResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/^Download URL$/i)).toHaveValue('https://downloads.example.org/first-resource.zip');
+            });
+            expect(screen.getByDisplayValue('First resource link')).toBeInTheDocument();
+
+            rerender(
+                <SetupLandingPageModal
+                    resource={secondResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByLabelText(/^Download URL$/i)).toHaveValue('');
+            });
+            expect(screen.queryByDisplayValue('First resource link')).not.toBeInTheDocument();
+            expect(mockedToastError).toHaveBeenCalledWith('Failed to load landing page configuration');
+        });
+
         it('prevents removal of published landing page with error toast', async () => {
             // Published config cannot be removed
             mockedAxiosGet.mockImplementation((url: string) => {

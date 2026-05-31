@@ -4,7 +4,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import axios from 'axios';
 import { Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
@@ -227,6 +227,14 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     // else uses the standard `default_gfz` template.
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
     const storageKey = resource.id ? `${LANDING_PAGE_DRAFT_STORAGE_PREFIX}:${resource.id}` : null;
+    const hydratedDraftStateKeyRef = useRef<string | null>(null);
+    const previousDraftScopeRef = useRef<string | null>(null);
+    const currentDraftScope = isOpen ? storageKey : null;
+
+    if (previousDraftScopeRef.current !== currentDraftScope) {
+        hydratedDraftStateKeyRef.current = null;
+        previousDraftScopeRef.current = currentDraftScope;
+    }
 
     const readPersistedDraftState = useCallback((): PersistedLandingPageDraftState | null => {
         if (typeof window === 'undefined' || storageKey === null) {
@@ -357,14 +365,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         const baseDraftState = buildDraftStateFromConfig(config);
         const persistedDraftState = readPersistedDraftState();
 
+        hydratedDraftStateKeyRef.current = storageKey;
         setCurrentConfig(config);
         setPreviewUrl(config?.preview_url ?? '');
         applyDraftState(persistedDraftState ?? baseDraftState);
         setHasHydratedDraftState(true);
-    }, [applyDraftState, buildDraftStateFromConfig, readPersistedDraftState]);
+    }, [applyDraftState, buildDraftStateFromConfig, readPersistedDraftState, storageKey]);
 
     useEffect(() => {
-        if (!isOpen || !hasHydratedDraftState) {
+        if (!isOpen || !hasHydratedDraftState || hydratedDraftStateKeyRef.current !== storageKey) {
             return;
         }
 
@@ -387,6 +396,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         landingPageTemplateId,
         links,
         persistDraftState,
+        storageKey,
         template,
     ]);
 
@@ -440,16 +450,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
-                const persistedDraftState = readPersistedDraftState();
-                if (persistedDraftState) {
-                    applyDraftState(persistedDraftState);
-                }
-                setHasHydratedDraftState(true);
+                applyConfigState(null);
             }
         } finally {
             setIsLoading(false);
         }
-    }, [applyConfigState, applyDraftState, readPersistedDraftState, resource.id]);
+    }, [applyConfigState, resource.id]);
 
     // Load existing config when modal opens
     useEffect(() => {
