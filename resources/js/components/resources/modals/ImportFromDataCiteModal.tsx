@@ -60,13 +60,13 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, [isOpen]);
 
     useEffect(() => {
-        if (modalState !== 'completed' || (progress?.imported ?? 0) < 1 || hasNotifiedSuccessRef.current) {
+        if (!isOpen || modalState !== 'completed' || (progress?.imported ?? 0) < 1 || hasNotifiedSuccessRef.current) {
             return;
         }
 
         hasNotifiedSuccessRef.current = true;
         onSuccess?.();
-    }, [modalState, onSuccess, progress?.imported]);
+    }, [isOpen, modalState, onSuccess, progress?.imported]);
 
     // Poll for progress updates with adaptive interval using setTimeout chains.
     // This approach avoids race conditions that can occur with setInterval + clearInterval,

@@ -216,6 +216,44 @@ describe('ImportFromDataCiteModal', () => {
         expect(mockOnClose).not.toHaveBeenCalled();
     });
 
+    it('does not call onSuccess again when the parent closes the modal after completion', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValueOnce({
+            data: { import_id: 'test-import-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 5,
+                processed: 5,
+                imported: 2,
+                skipped: 3,
+                failed: 0,
+                skipped_dois: [],
+                failed_dois: [],
+            },
+        });
+
+        const { rerender } = render(
+            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
+        );
+
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(mockOnSuccess).toHaveBeenCalledOnce();
+
+        rerender(
+            <ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
+        );
+
+        await waitFor(() => {
+            expect(mockOnSuccess).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it('does not call onSuccess when the import completed without new resources', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

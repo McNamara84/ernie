@@ -71,13 +71,13 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
     }, [isOpen]);
 
     useEffect(() => {
-        if (modalState !== 'completed' || progress?.imported !== 1 || hasNotifiedSuccessRef.current) {
+        if (!isOpen || modalState !== 'completed' || progress?.imported !== 1 || hasNotifiedSuccessRef.current) {
             return;
         }
 
         hasNotifiedSuccessRef.current = true;
         onSuccess?.();
-    }, [modalState, onSuccess, progress?.imported]);
+    }, [isOpen, modalState, onSuccess, progress?.imported]);
 
     useEffect(() => {
         if (!importId || modalState !== 'running') {
