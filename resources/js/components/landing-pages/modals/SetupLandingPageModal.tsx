@@ -4,7 +4,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import axios from 'axios';
 import { Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
@@ -57,11 +57,140 @@ const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
     urls: [],
 };
 
+const LANDING_PAGE_DRAFT_STORAGE_PREFIX = 'setup-landing-page-modal:draft';
+
 type DownloadUrlSuggestionEntry = {
     id: string;
     value: string;
     usageCount: number;
 };
+
+type PersistedLandingPageDraftState = {
+    template: string;
+    ftpUrl: string;
+    isPublished: boolean;
+    externalDomainId: string;
+    externalPath: string;
+    landingPageTemplateId: number | null;
+    links: LandingPageLink[];
+};
+
+function cloneLandingPageLinks(links: LandingPageLink[] = []): LandingPageLink[] {
+    return links.map((link, index) => ({
+        id: link.id,
+        _clientId: link._clientId,
+        url: link.url,
+        label: link.label,
+        position: typeof link.position === 'number' ? link.position : index,
+    }));
+}
+
+function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPageDraftState) {
+    return {
+        template: draftState.template,
+        ftpUrl: draftState.ftpUrl,
+        isPublished: draftState.isPublished,
+        externalDomainId: draftState.externalDomainId,
+        externalPath: draftState.externalPath,
+        landingPageTemplateId: draftState.landingPageTemplateId,
+        links: cloneLandingPageLinks(draftState.links).map((link, index) => ({
+            url: link.url,
+            label: link.label,
+            position: typeof link.position === 'number' ? link.position : index,
+        })),
+    };
+}
+
+function arePersistedLandingPageDraftStatesEqual(
+    left: PersistedLandingPageDraftState,
+    right: PersistedLandingPageDraftState,
+): boolean {
+    return JSON.stringify(normalizePersistedLandingPageDraftState(left)) === JSON.stringify(normalizePersistedLandingPageDraftState(right));
+}
+
+function parsePersistedLandingPageDraftState(rawValue: string | null): PersistedLandingPageDraftState | null {
+    if (!rawValue) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(rawValue) as Partial<PersistedLandingPageDraftState> | null;
+
+        if (!parsed || typeof parsed !== 'object' || typeof parsed.template !== 'string') {
+            return null;
+        }
+
+        const links = Array.isArray(parsed.links)
+            ? parsed.links.map((link, index) => {
+                if (!link || typeof link !== 'object') {
+                    return {
+                        url: '',
+                        label: '',
+                        position: index,
+                    } satisfies LandingPageLink;
+                }
+
+                const candidate = link as Partial<LandingPageLink>;
+
+                return {
+                    id: typeof candidate.id === 'number' ? candidate.id : undefined,
+                    _clientId: typeof candidate._clientId === 'string' ? candidate._clientId : undefined,
+                    url: typeof candidate.url === 'string' ? candidate.url : '',
+                    label: typeof candidate.label === 'string' ? candidate.label : '',
+                    position: typeof candidate.position === 'number' ? candidate.position : index,
+                } satisfies LandingPageLink;
+            })
+            : [];
+
+        return {
+            template: parsed.template,
+            ftpUrl: typeof parsed.ftpUrl === 'string' ? parsed.ftpUrl : '',
+            isPublished: parsed.isPublished === true,
+            externalDomainId: typeof parsed.externalDomainId === 'string' ? parsed.externalDomainId : '',
+            externalPath: typeof parsed.externalPath === 'string' ? parsed.externalPath : '',
+            landingPageTemplateId: typeof parsed.landingPageTemplateId === 'number' ? parsed.landingPageTemplateId : null,
+            links,
+        };
+    } catch {
+        return null;
+    }
+}
+
+function readSessionStorageItem(key: string): string | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        return window.sessionStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function writeSessionStorageItem(key: string, value: string): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.setItem(key, value);
+    } catch {
+        // Ignore storage errors so the modal remains usable.
+    }
+}
+
+function removeSessionStorageItem(key: string): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.removeItem(key);
+    } catch {
+        // Ignore storage errors so the modal remains usable.
+    }
+}
 
 function SortableLinkItem({
     link,
@@ -118,12 +247,76 @@ function SortableLinkItem({
 
 export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupLandingPageModalProps) {
     // PhysicalObject resources (IGSNs) default to the IGSN renderer; everything
-    // else uses the standard `default_gfz` template. This is reused for the
-    // initial state, the reset-on-close branch, and the 404 fallback inside
-    // `loadLandingPageConfig` so a freshly opened IGSN modal always points at
-    // the correct built-in template.
-    const defaultTemplateForResource = getPreferredTemplateForResource(resource.resourcetypegeneral);
+    // else uses the standard `default_gfz` template.
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
+    const storageKey = resource.id ? `${LANDING_PAGE_DRAFT_STORAGE_PREFIX}:${resource.id}` : null;
+    const hydratedDraftStateKeyRef = useRef<string | null>(null);
+    const currentDraftScope = isOpen ? storageKey : null;
+
+    useEffect(() => {
+        hydratedDraftStateKeyRef.current = null;
+    }, [currentDraftScope]);
+
+    const readPersistedDraftState = useCallback((): PersistedLandingPageDraftState | null => {
+        if (typeof window === 'undefined' || storageKey === null) {
+            return null;
+        }
+
+        const persistedDraft = parsePersistedLandingPageDraftState(readSessionStorageItem(storageKey));
+
+        if (!persistedDraft) {
+            return null;
+        }
+
+        return {
+            ...persistedDraft,
+            template: getPreferredTemplateForResource(resource.resourcetypegeneral, persistedDraft.template),
+            links: cloneLandingPageLinks(persistedDraft.links),
+        };
+    }, [resource.resourcetypegeneral, storageKey]);
+
+    const persistDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
+        if (typeof window === 'undefined' || storageKey === null) {
+            return;
+        }
+
+        writeSessionStorageItem(storageKey, JSON.stringify({
+            ...draftState,
+            links: cloneLandingPageLinks(draftState.links),
+        }));
+    }, [storageKey]);
+
+    const clearPersistedDraftState = useCallback(() => {
+        if (typeof window === 'undefined' || storageKey === null) {
+            return;
+        }
+
+        removeSessionStorageItem(storageKey);
+    }, [storageKey]);
+
+    const buildDraftStateFromConfig = useCallback((config: LandingPageConfig | null): PersistedLandingPageDraftState => {
+        const preferredTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, config?.template);
+
+        return {
+            template: preferredTemplate,
+            ftpUrl: config?.ftp_url ?? '',
+            isPublished: (config?.status ?? 'draft') === 'published',
+            externalDomainId: String(config?.external_domain_id ?? ''),
+            externalPath: config?.external_path ?? '',
+            landingPageTemplateId: getHydratedLandingPageTemplateId(preferredTemplate, config),
+            links: cloneLandingPageLinks(config?.links ?? []),
+        };
+    }, [resource.resourcetypegeneral]);
+
+    const applyDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
+        setTemplate(draftState.template);
+        setFtpUrl(draftState.ftpUrl);
+        setIsPublished(draftState.isPublished);
+        setExternalDomainId(draftState.externalDomainId);
+        setExternalPath(draftState.externalPath);
+        setLinks(cloneLandingPageLinks(draftState.links));
+        setLandingPageTemplateId(draftState.landingPageTemplateId);
+    }, []);
 
     const [template, setTemplate] = useState<string>(initialTemplate);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
@@ -148,6 +341,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const [downloadUrlSuggestionsOpen, setDownloadUrlSuggestionsOpen] = useState(false);
     const [downloadUrlSuggestionQuery, setDownloadUrlSuggestionQuery] = useState('');
     const [activeDownloadUrlSuggestionIndex, setActiveDownloadUrlSuggestionIndex] = useState<number | null>(null);
+    const [hasHydratedDraftState, setHasHydratedDraftState] = useState(false);
 
     // Landing page template ID (for custom templates)
     const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
@@ -187,50 +381,51 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     );
     const importedDownloadFiles = currentConfig?.files ?? existingConfig?.files ?? [];
     const hasImportedFiles = importedDownloadFiles.length > 0;
+    const currentDraftState = useMemo<PersistedLandingPageDraftState>(() => ({
+        template,
+        ftpUrl,
+        isPublished,
+        externalDomainId,
+        externalPath,
+        landingPageTemplateId,
+        links: cloneLandingPageLinks(links),
+    }), [externalDomainId, externalPath, ftpUrl, isPublished, landingPageTemplateId, links, template]);
+    const baselineDraftState = useMemo(
+        () => buildDraftStateFromConfig(currentConfig),
+        [buildDraftStateFromConfig, currentConfig],
+    );
 
-    const applyConfigState = useCallback((config: LandingPageConfig) => {
-        const preferredTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, config.template);
+    const applyConfigState = useCallback((config: LandingPageConfig | null) => {
+        const baseDraftState = buildDraftStateFromConfig(config);
+        const persistedDraftState = readPersistedDraftState();
 
+        hydratedDraftStateKeyRef.current = storageKey;
         setCurrentConfig(config);
-        setTemplate(preferredTemplate);
-        setFtpUrl(config.ftp_url ?? '');
-        setIsPublished(config.status === 'published');
-        setPreviewUrl(config.preview_url ?? '');
-        setExternalDomainId(String(config.external_domain_id ?? ''));
-        setExternalPath(config.external_path ?? '');
-        setLinks(config.links ?? []);
-        setLandingPageTemplateId(getHydratedLandingPageTemplateId(preferredTemplate, config));
-    }, [resource.resourcetypegeneral]);
+        setPreviewUrl(config?.preview_url ?? '');
+        applyDraftState(persistedDraftState ?? baseDraftState);
+        setHasHydratedDraftState(true);
+    }, [applyDraftState, buildDraftStateFromConfig, readPersistedDraftState, storageKey]);
 
-    // Load existing config when modal opens
     useEffect(() => {
-        if (isOpen && resource.id) {
-            if (existingConfig) {
-                applyConfigState(existingConfig);
-            } else {
-                loadLandingPageConfig();
-            }
-            loadAvailableDomains();
-            loadCustomTemplates();
-        } else if (!isOpen) {
-            setCurrentConfig(null);
-            setTemplate(defaultTemplateForResource);
-            setFtpUrl('');
-            setIsPublished(false);
-            setPreviewUrl('');
-            setExternalDomainId('');
-            setExternalPath('');
-            setLinks([]);
-            setLandingPageTemplateId(null);
-            setDownloadUrlSuggestions(EMPTY_DOWNLOAD_URL_SUGGESTIONS);
-            setDownloadUrlSuggestionsLoaded(false);
-            setDownloadUrlSuggestionsLoading(false);
-            setDownloadUrlSuggestionsOpen(false);
-            setDownloadUrlSuggestionQuery('');
-            setActiveDownloadUrlSuggestionIndex(null);
+        if (!isOpen || !hasHydratedDraftState || hydratedDraftStateKeyRef.current !== storageKey) {
+            return;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [applyConfigState, defaultTemplateForResource, existingConfig, isOpen, resource.id]);
+
+        if (arePersistedLandingPageDraftStatesEqual(currentDraftState, baselineDraftState)) {
+            clearPersistedDraftState();
+            return;
+        }
+
+        persistDraftState(currentDraftState);
+    }, [
+        baselineDraftState,
+        clearPersistedDraftState,
+        currentDraftState,
+        hasHydratedDraftState,
+        isOpen,
+        persistDraftState,
+        storageKey,
+    ]);
 
     const loadAvailableDomains = async () => {
         try {
@@ -271,30 +466,48 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
     };
 
-    const loadLandingPageConfig = async () => {
+    const loadLandingPageConfig = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
             applyConfigState(response.data.landing_page);
         } catch (error) {
             if (isLandingPageNotFoundError(error)) {
-                setCurrentConfig(null);
-                setTemplate(defaultTemplateForResource);
-                setFtpUrl('');
-                setIsPublished(false);
-                setPreviewUrl('');
-                setExternalDomainId('');
-                setExternalPath('');
-                setLinks([]);
-                setLandingPageTemplateId(null);
+                applyConfigState(null);
             } else {
                 console.error('Failed to load landing page config:', error);
                 toast.error('Failed to load landing page configuration');
+                applyConfigState(null);
             }
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [applyConfigState, resource.id]);
+
+    // Load existing config when modal opens
+    useEffect(() => {
+        if (isOpen && resource.id) {
+            setHasHydratedDraftState(false);
+            if (existingConfig) {
+                applyConfigState(existingConfig);
+            } else {
+                void loadLandingPageConfig();
+            }
+            void loadAvailableDomains();
+            void loadCustomTemplates();
+        } else if (!isOpen) {
+            setHasHydratedDraftState(false);
+            setCurrentConfig(null);
+            setPreviewUrl('');
+            applyDraftState(buildDraftStateFromConfig(null));
+            setDownloadUrlSuggestions(EMPTY_DOWNLOAD_URL_SUGGESTIONS);
+            setDownloadUrlSuggestionsLoaded(false);
+            setDownloadUrlSuggestionsLoading(false);
+            setDownloadUrlSuggestionsOpen(false);
+            setDownloadUrlSuggestionQuery('');
+            setActiveDownloadUrlSuggestionIndex(null);
+        }
+    }, [applyConfigState, applyDraftState, buildDraftStateFromConfig, existingConfig, isOpen, loadLandingPageConfig, resource.id]);
 
     useEffect(() => {
         if (!supportsFtpUrl || hasImportedFiles) {
@@ -343,6 +556,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             toast.success(response.data.message);
 
             if (response.data.landing_page) {
+                clearPersistedDraftState();
                 applyConfigState(response.data.landing_page);
             }
 
@@ -384,8 +598,10 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
         try {
             await axios.delete(`/resources/${resource.id}/landing-page`);
+            clearPersistedDraftState();
             setCurrentConfig(null);
             setPreviewUrl('');
+            applyDraftState(buildDraftStateFromConfig(null));
             toast.success('Landing page preview removed successfully');
             onSuccess?.();
             onClose();
@@ -782,7 +998,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                         {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
                         {supportsFtpUrl && (
                             <div className="space-y-2">
-                                <Label htmlFor="ftp-url">Download URL (FTP)</Label>
+                                <Label htmlFor="ftp-url">Download URL</Label>
                                 <div
                                     className="relative"
                                     onFocusCapture={openDownloadUrlSuggestions}

@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { AlertCircle, CheckCircle2, Download, Search, XCircle } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
@@ -54,6 +54,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
     const [progress, setProgress] = useState<ImportProgress | null>(null);
     const [isStarting, setIsStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const hasNotifiedSuccessRef = useRef(false);
 
     useEffect(() => {
         if (!isOpen) {
@@ -65,8 +66,18 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
             setProgress(null);
             setIsStarting(false);
             setError(null);
+            hasNotifiedSuccessRef.current = false;
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || modalState !== 'completed' || progress?.imported !== 1 || hasNotifiedSuccessRef.current) {
+            return;
+        }
+
+        hasNotifiedSuccessRef.current = true;
+        onSuccess?.();
+    }, [isOpen, modalState, onSuccess, progress?.imported]);
 
     useEffect(() => {
         if (!importId || modalState !== 'running') {
@@ -137,6 +148,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
         setError(null);
         setSubmittedDoi(normalizedDoi);
         setDoiInput(normalizedDoi);
+        hasNotifiedSuccessRef.current = false;
 
         try {
             const response = await axios.post<{ import_id: string; message: string }>(
@@ -194,12 +206,8 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
     }, [doiInput]);
 
     const handleClose = useCallback(() => {
-        if (modalState === 'completed' && progress?.imported === 1) {
-            onSuccess?.();
-        }
-
         onClose();
-    }, [modalState, onClose, onSuccess, progress?.imported]);
+    }, [onClose]);
 
     const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
     const isAlreadyImported = progress?.skipped === 1;

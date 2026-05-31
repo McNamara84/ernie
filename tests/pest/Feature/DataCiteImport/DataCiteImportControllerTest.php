@@ -160,8 +160,10 @@ describe('ResourceController canImportFromDataCite', function () {
 });
 
 describe('ResourceController destroy authorization', function () {
-    it('allows admin to delete resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+    it('allows admin to delete draft resources', function () {
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->adminUser)
             ->delete("/resources/{$resource->id}");
@@ -170,8 +172,10 @@ describe('ResourceController destroy authorization', function () {
         expect(\App\Models\Resource::find($resource->id))->toBeNull();
     });
 
-    it('allows group leader to delete resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+    it('allows group leader to delete draft resources', function () {
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->groupLeader)
             ->delete("/resources/{$resource->id}");
@@ -180,19 +184,22 @@ describe('ResourceController destroy authorization', function () {
         expect(\App\Models\Resource::find($resource->id))->toBeNull();
     });
 
-    it('denies curator from deleting resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+    it('allows curator to delete draft resources', function () {
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->curator)
             ->delete("/resources/{$resource->id}");
 
-        $response->assertForbidden();
-        // Resource should still exist
-        expect(\App\Models\Resource::find($resource->id))->not->toBeNull();
+        $response->assertRedirect('/resources');
+        expect(\App\Models\Resource::find($resource->id))->toBeNull();
     });
 
-    it('denies beginner from deleting resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+    it('denies beginner from deleting draft resources', function () {
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->beginner)
             ->delete("/resources/{$resource->id}");

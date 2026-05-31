@@ -50,9 +50,27 @@ class ResourcePolicy
      */
     public function delete(User $user, Resource $resource): bool
     {
-        // Only admins and group leaders can delete resources
-        return $user->role === UserRole::ADMIN
-            || $user->role === UserRole::GROUP_LEADER;
+        $canDeleteDrafts = $user->role === UserRole::ADMIN
+            || $user->role === UserRole::GROUP_LEADER
+            || $user->role === UserRole::CURATOR;
+
+        if (! $canDeleteDrafts) {
+            return false;
+        }
+
+        if (filled($resource->doi)) {
+            return false;
+        }
+
+        $resource->loadMissing([
+            'titles.titleType',
+            'creators',
+            'rights',
+            'descriptions.descriptionType',
+            'landingPage',
+        ]);
+
+        return $resource->publicStatus() === 'draft';
     }
 
     /**

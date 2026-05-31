@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Hoisted mocks
@@ -12,6 +12,7 @@ const editorRouteMock = vi.hoisted(() =>
     })),
 );
 const mockUser = vi.hoisted(() => ({
+    role: 'group_leader',
     can_manage_landing_pages: true,
     can_access_old_datasets: false,
     can_access_statistics: false,
@@ -87,6 +88,7 @@ interface TestResource {
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
     landingPage?: { id: number; is_published: boolean; public_url: string } | null;
+    [key: string]: unknown;
 }
 
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
@@ -141,6 +143,15 @@ describe('ResourcesPage – extended', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+        Object.assign(mockUser, {
+            role: 'group_leader',
+            can_manage_landing_pages: true,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_logs: false,
+            can_access_editor_settings: false,
+        });
         Object.defineProperty(window, 'location', { writable: true, value: { href: '', search: '' } });
 
         // IntersectionObserver stub – does not auto-trigger
@@ -357,6 +368,32 @@ describe('ResourcesPage – extended', () => {
             expect(screen.queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
         });
+
+        it('syncs refreshed resources and pagination props into local state after reloads', () => {
+            const initialProps = {
+                resources: [makeResource({ id: 1, title: 'Old Resource Title', doi: '10.5880/test.2024.001' })],
+                pagination: makePagination({ total: 1, to: 1 }),
+                sort: defaultSort,
+                canImportFromDataCite: true,
+            };
+
+            const { rerender } = render(<ResourcesPage {...initialProps} />);
+
+            expect(screen.getByText('Old Resource Title')).toBeInTheDocument();
+            expect(screen.getByText(/all resources have been loaded.*1 total/i)).toBeInTheDocument();
+
+            rerender(
+                <ResourcesPage
+                    {...initialProps}
+                    resources={[makeResource({ id: 2, title: 'Imported Resource Title', doi: '10.5880/test.2024.002' })]}
+                    pagination={makePagination({ total: 2, to: 1 })}
+                />,
+            );
+
+            expect(screen.queryByText('Old Resource Title')).not.toBeInTheDocument();
+            expect(screen.getByText('Imported Resource Title')).toBeInTheDocument();
+            expect(screen.getByText(/all resources have been loaded.*2 total/i)).toBeInTheDocument();
+        });
     });
 
     // ── Landing page management button ───────────────────────────────
@@ -442,8 +479,152 @@ describe('ResourcesPage – extended', () => {
 
         it('renders disabled delete button', () => {
             renderPage();
-            const deleteBtn = screen.getByRole('button', { name: /delete resource.*not yet implemented/i });
+            const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
             expect(deleteBtn).toBeDisabled();
+            expect(deleteBtn).toHaveAttribute('title', 'Only draft resources can be deleted');
+        });
+
+        it('enables delete button for draft resources when the user can delete drafts', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, landingPage: null })] });
+
+            const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
+            expect(deleteBtn).toBeEnabled();
+            expect(deleteBtn).toHaveAttribute('title', 'Delete draft resource');
+        });
+
+        it('keeps the delete button disabled for draft resources with persistent identifiers', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', title: 'Registered Draft', landingPage: null })] });
+
+            const deleteBtn = screen.getByRole('button', { name: /delete resource.*10\.5880\/test\.2024\.001/i });
+            expect(deleteBtn).toBeDisabled();
+            expect(deleteBtn).toHaveAttribute('title', 'Resources with persistent identifiers cannot be deleted');
+        });
+
+        it('opens a confirmation dialog and submits the delete request for draft resources', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+            expect(screen.getByText(/delete draft resource\?/i)).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+
+            expect(routerMock.delete).toHaveBeenCalledWith(
+                '/resources/1',
+                expect.objectContaining({
+                    preserveScroll: true,
+                    onSuccess: expect.any(Function),
+                    onError: expect.any(Function),
+                    onFinish: expect.any(Function),
+                }),
+            );
+
+            const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+                onSuccess: () => void;
+                onFinish: () => void;
+            };
+
+            await act(async () => {
+                deleteOptions.onSuccess();
+                deleteOptions.onFinish();
+            });
+
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('ignores rapid repeated delete confirmations within the same dialog open', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+
+            const confirmDeleteButton = screen.getByRole('button', { name: /delete draft/i });
+            fireEvent.click(confirmDeleteButton);
+            fireEvent.click(confirmDeleteButton);
+
+            expect(routerMock.delete).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps the confirmation dialog open while the delete request is in flight', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+            });
+
+            expect(routerMock.delete).toHaveBeenCalledTimes(1);
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /deleting\.\.\./i })).toBeDisabled();
+        });
+
+        it('closes the delete confirmation dialog when the user cancels', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('re-enables the delete confirmation after a failed delete finishes', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+            });
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /deleting\.\.\./i })).toBeDisabled();
+            });
+
+            const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+                onError: () => void;
+                onFinish: () => void;
+            };
+
+            await act(async () => {
+                deleteOptions.onError();
+                deleteOptions.onFinish();
+            });
+
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /delete draft/i })).toBeEnabled();
+        });
+
+        it('allows a retry after the previous delete request finishes', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+
+            const firstDeleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+                onError: () => void;
+                onFinish: () => void;
+            };
+
+            await act(async () => {
+                firstDeleteOptions.onError();
+                firstDeleteOptions.onFinish();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+
+            expect(routerMock.delete).toHaveBeenCalledTimes(2);
+        });
+
+        it('keeps the delete button disabled for draft resources when the user lacks permission', () => {
+            mockUser.role = 'beginner';
+
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', landingPage: null })] });
+
+            const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
+            expect(deleteBtn).toBeDisabled();
+            expect(deleteBtn).toHaveAttribute('title', 'You do not have permission to delete draft resources');
         });
 
         it('opens editor when edit button is clicked', async () => {
