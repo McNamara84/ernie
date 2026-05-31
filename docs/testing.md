@@ -6,6 +6,7 @@ ERNIE uses a split local validation workflow.
 
 - PHP, Composer, Artisan, Pest, and PHPStan are container-first.
 - Vitest, ESLint, TypeScript, and Playwright run from the host shell.
+- Host-side frontend checks require local `node_modules` in the repository checkout.
 - The default PHP path stays fast by using SQLite in memory.
 - MySQL-specific verification stays targeted and explicit.
 
@@ -14,6 +15,8 @@ Canonical entry points:
 - `npm run check:backend`
 - `npm run check:frontend`
 - `npm run check:parity`
+
+Run `npm install` once after cloning and again whenever frontend dependencies change. The Docker entrypoints install npm packages only inside Docker-managed volumes and do not satisfy host-side frontend commands.
 
 ## Recommended Commands
 
@@ -70,6 +73,12 @@ Why backend validation stays Docker-backed:
 - Windows developers do not need a separate local PHP installation.
 
 ## Frontend Validation
+
+Host prerequisite:
+
+```bash
+npm install
+```
 
 Recommended commands:
 

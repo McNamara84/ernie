@@ -8,6 +8,8 @@ ERNIE uses a Docker-first local workflow.
 - Optional profiles are available for assessment-specific and parity-specific work.
 - Canonical validation entry points remain `npm run check:backend`, `npm run check:frontend`, and `npm run check:parity`.
 
+Host-side frontend commands require local `node_modules` in the repository checkout. Run `npm install` once after cloning and again whenever frontend dependencies change.
+
 | Mode | Purpose | Command |
 | --- | --- | --- |
 | Fast Mode | Start the core development stack only | `npm run docker:dev:up` |
@@ -66,28 +68,36 @@ If the repository stays under `D:\` or another NTFS path:
    cp .env.docker.example .env.docker
    ```
 
-3. Start Fast Mode.
+3. Install host-side Node dependencies for frontend validation.
+
+   ```bash
+   npm install
+   ```
+
+   This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
+
+4. Start Fast Mode.
 
    ```bash
    npm run docker:dev:up
    ```
 
-4. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
+5. Trust `docker\traefik\certs\localhost.crt` on Windows if your browser warns about the local TLS certificate.
 
-5. Open the application.
+6. Open the application.
 
    - Main URL: `https://ernie.localhost:3333`
    - Localhost fallback after switching `ERNIE_DEV_HOST` and `ERNIE_DEV_SESSION_DOMAIN`: `https://localhost:3333`
 
    If `ernie.localhost` does not resolve, add `127.0.0.1 ernie.localhost` to your hosts file.
 
-6. Create the first administrator account.
+7. Create the first administrator account.
 
    ```bash
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
    ```
 
-The development entrypoint installs missing dependencies, runs migrations, and seeds baseline data when the database is empty.
+The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
 
 ## Profiles And Services
 
@@ -119,6 +129,7 @@ npm run docker:dev:parity
 | Task | Recommended place | Command |
 | --- | --- | --- |
 | Start the core stack | Host shell | `npm run docker:dev:up` |
+| Install host-side frontend dependencies | Host shell | `npm install` |
 | Start the backend services needed for PHP checks | Host shell | `npm run docker:dev:backend:d` |
 | Stop the stack | Host shell | `npm run docker:dev:down` |
 | Reset Docker volumes | Host shell | `npm run docker:dev:reset` |
@@ -142,6 +153,7 @@ npm run docker:dev:parity
 - `.env` is the Laravel application environment used inside the containers.
 - The development entrypoint copies `.env.docker` to `.env` when `.env` does not already exist.
 - The npm Docker wrappers always pass `--env-file .env.docker` so Compose and Laravel use the same source of truth.
+- Docker-managed `node_modules` live in the named Docker volume, not in your host checkout.
 
 ## Troubleshooting
 

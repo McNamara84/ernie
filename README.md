@@ -67,7 +67,15 @@ This README documents the Docker-based development workflow only. For deeper set
 
    The default values work for a standard local setup.
 
-4. Start the default development stack:
+4. Install host-side Node dependencies for frontend validation:
+
+   ```bash
+   npm install
+   ```
+
+   This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
+
+5. Start the default development stack:
 
    ```bash
    npm run docker:dev:up
@@ -75,14 +83,14 @@ This README documents the Docker-based development workflow only. For deeper set
 
    The first startup can take a few minutes because Docker may need to build images, install dependencies, run migrations, and seed baseline data.
 
-5. Open the application:
+6. Open the application:
 
    - Main URL: https://ernie.localhost:3333
    - Traefik dashboard: http://localhost:8080
 
    If `ernie.localhost` does not resolve on your machine, add `127.0.0.1 ernie.localhost` to your hosts file.
 
-6. Create the first administrator account:
+7. Create the first administrator account:
 
    ```bash
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
@@ -90,17 +98,19 @@ This README documents the Docker-based development workflow only. For deeper set
 
    The first user created in a fresh environment becomes an administrator automatically.
 
-7. Initialize SPDX license data:
+8. Initialize SPDX license data:
 
    ```bash
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
    ```
 
-The development entrypoint installs missing Composer and npm dependencies, runs migrations, and seeds baseline data when the database is empty.
+The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
 
 ### Daily Commands
 
 Use the npm wrapper commands whenever possible so Docker Compose and Laravel stay aligned with `.env.docker`.
+
+Host-side frontend commands in this repository require local `node_modules` in your checkout.
 
 | Command | Purpose |
 | --- | --- |
@@ -126,6 +136,8 @@ ERNIE uses a split local validation workflow:
 
 - PHP, Composer, Artisan, Pest, and PHPStan run against the Docker development stack
 - ESLint, TypeScript, Vitest, and Playwright run from the host shell
+
+Host-side frontend validation requires local `node_modules` in the repository checkout. Run `npm install` once after cloning and again whenever frontend dependencies change.
 
 Recommended validation entry points:
 
