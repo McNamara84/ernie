@@ -143,6 +143,15 @@ describe('ResourcesPage – extended', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+        Object.assign(mockUser, {
+            role: 'group_leader',
+            can_manage_landing_pages: true,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_logs: false,
+            can_access_editor_settings: false,
+        });
         Object.defineProperty(window, 'location', { writable: true, value: { href: '', search: '' } });
 
         // IntersectionObserver stub – does not auto-trigger
@@ -602,8 +611,6 @@ describe('ResourcesPage – extended', () => {
             const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
             expect(deleteBtn).toBeDisabled();
             expect(deleteBtn).toHaveAttribute('title', 'You do not have permission to delete draft resources');
-
-            mockUser.role = 'group_leader';
         });
 
         it('opens editor when edit button is clicked', async () => {

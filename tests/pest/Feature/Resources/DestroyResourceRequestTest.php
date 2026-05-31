@@ -17,7 +17,9 @@ uses(RefreshDatabase::class);
 
 function createNonDraftResource(): Resource
 {
-    $resource = Resource::factory()->create();
+    $resource = Resource::factory()->create([
+        'doi' => null,
+    ]);
 
     $titleType = TitleType::firstOrCreate([
         'slug' => 'MainTitle',
