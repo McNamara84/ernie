@@ -516,6 +516,18 @@ describe('ResourcesPage – extended', () => {
             expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         });
 
+        it('ignores rapid repeated delete confirmations within the same dialog open', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+
+            const confirmDeleteButton = screen.getByRole('button', { name: /delete draft/i });
+            fireEvent.click(confirmDeleteButton);
+            fireEvent.click(confirmDeleteButton);
+
+            expect(routerMock.delete).toHaveBeenCalledTimes(1);
+        });
+
         it('closes the delete confirmation dialog when the user cancels', () => {
             renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
 
@@ -550,6 +562,28 @@ describe('ResourcesPage – extended', () => {
             });
 
             expect(screen.getByRole('button', { name: /delete resource.*disposable draft/i })).toBeEnabled();
+        });
+
+        it('allows a new delete request after the previous one finishes', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+
+            const firstDeleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+                onError: () => void;
+                onFinish: () => void;
+            };
+
+            await act(async () => {
+                firstDeleteOptions.onError();
+                firstDeleteOptions.onFinish();
+            });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+
+            expect(routerMock.delete).toHaveBeenCalledTimes(2);
         });
 
         it('keeps the delete button disabled for draft resources when the user lacks permission', () => {

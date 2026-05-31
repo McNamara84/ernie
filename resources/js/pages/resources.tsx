@@ -761,6 +761,7 @@ function ResourcesPage({
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
     const [resourcePendingDelete, setResourcePendingDelete] = useState<Resource | null>(null);
     const [isDeletingResource, setIsDeletingResource] = useState(false);
+    const isDeletingResourceRef = useRef(false);
     const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
 
     const canDeleteResource = useCallback(
@@ -789,6 +790,7 @@ function ResourcesPage({
                 return;
             }
 
+            isDeletingResourceRef.current = false;
             setResourcePendingDelete(resource);
         },
         [canDeleteResource],
@@ -796,17 +798,19 @@ function ResourcesPage({
 
     const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
         if (!open && !isDeletingResource) {
+            isDeletingResourceRef.current = false;
             setResourcePendingDelete(null);
         }
     }, [isDeletingResource]);
 
     const handleConfirmDelete = useCallback(() => {
-        if (!resourcePendingDelete?.id) {
+        if (isDeletingResourceRef.current || !resourcePendingDelete?.id) {
             return;
         }
 
         const resourceToDelete = resourcePendingDelete;
 
+        isDeletingResourceRef.current = true;
         setIsDeletingResource(true);
 
         router.delete(`/resources/${resourceToDelete.id}`, {
@@ -824,6 +828,7 @@ function ResourcesPage({
                 toast.error('Failed to delete draft resource.');
             },
             onFinish: () => {
+                isDeletingResourceRef.current = false;
                 setIsDeletingResource(false);
             },
         });

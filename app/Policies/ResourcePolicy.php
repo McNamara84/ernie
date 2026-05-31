@@ -50,6 +50,14 @@ class ResourcePolicy
      */
     public function delete(User $user, Resource $resource): bool
     {
+        $canDeleteDrafts = $user->role === UserRole::ADMIN
+            || $user->role === UserRole::GROUP_LEADER
+            || $user->role === UserRole::CURATOR;
+
+        if (! $canDeleteDrafts) {
+            return false;
+        }
+
         $resource->loadMissing([
             'titles.titleType',
             'creators',
@@ -58,11 +66,7 @@ class ResourcePolicy
             'landingPage',
         ]);
 
-        $canDeleteDrafts = $user->role === UserRole::ADMIN
-            || $user->role === UserRole::GROUP_LEADER
-            || $user->role === UserRole::CURATOR;
-
-        return $canDeleteDrafts && $resource->publicStatus() === 'draft';
+        return $resource->publicStatus() === 'draft';
     }
 
     /**

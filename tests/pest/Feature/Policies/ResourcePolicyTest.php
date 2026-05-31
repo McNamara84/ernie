@@ -164,6 +164,34 @@ describe('ResourcePolicy', function () {
     });
 
     describe('delete', function () {
+        it('short-circuits before loading relations for users who cannot delete drafts', function () {
+            $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+
+            /** @var Resource&\Mockery\MockInterface $resource */
+            $resource = \Mockery::mock(Resource::class);
+            $resource->shouldNotReceive('loadMissing');
+            $resource->shouldNotReceive('publicStatus');
+
+            expect($this->policy->delete($user, $resource))->toBeFalse();
+        });
+
+        it('loads relations only after the role check passes', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+
+            /** @var Resource&\Mockery\MockInterface $resource */
+            $resource = \Mockery::mock(Resource::class);
+            $resource->shouldReceive('loadMissing')->once()->with([
+                'titles.titleType',
+                'creators',
+                'rights',
+                'descriptions.descriptionType',
+                'landingPage',
+            ])->andReturnSelf();
+            $resource->shouldReceive('publicStatus')->once()->andReturn('draft');
+
+            expect($this->policy->delete($user, $resource))->toBeTrue();
+        });
+
         it('allows admin to delete a draft resource', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
             expect($this->policy->delete($user, $this->resource))->toBeTrue();
