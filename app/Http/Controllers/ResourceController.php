@@ -165,10 +165,10 @@ class ResourceController extends Controller
     }
 
     /**
-     * Delete a resource.
+     * Delete a draft resource.
      *
      * Authorization is enforced by DestroyResourceRequest::authorize() (delegates
-     * to ResourcePolicy::delete – Admin / Group Leader only).
+     * to ResourcePolicy::delete – curator / group leader / admin on draft resources only).
      */
     public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
@@ -176,7 +176,7 @@ class ResourceController extends Controller
 
         return redirect()
             ->route('resources')
-            ->with('success', 'Resource deleted successfully.');
+            ->with('success', 'Draft deleted successfully.');
     }
 
     /**

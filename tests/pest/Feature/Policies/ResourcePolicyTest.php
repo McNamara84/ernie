@@ -3,10 +3,71 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
+use App\Models\Right;
+use App\Models\TitleType;
 use App\Models\User;
 use App\Policies\ResourcePolicy;
+
+function createNonDraftResourceForPolicy(): Resource
+{
+    $resource = Resource::factory()->create();
+
+    $titleType = TitleType::firstOrCreate([
+        'slug' => 'MainTitle',
+    ], [
+        'name' => 'Main Title',
+    ]);
+
+    $resource->titles()->create([
+        'value' => 'Complete resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    $creator = Person::create([
+        'family_name' => 'Example',
+        'given_name' => 'Author',
+    ]);
+
+    ResourceCreator::create([
+        'resource_id' => $resource->id,
+        'creatorable_type' => Person::class,
+        'creatorable_id' => $creator->id,
+        'position' => 0,
+    ]);
+
+    $right = Right::firstOrCreate([
+        'identifier' => 'cc-by-4.0',
+    ], [
+        'name' => 'CC-BY 4.0',
+    ]);
+    $resource->rights()->attach($right->id);
+
+    $abstractType = DescriptionType::firstOrCreate([
+        'slug' => 'Abstract',
+    ], [
+        'name' => 'Abstract',
+    ]);
+
+    Description::create([
+        'resource_id' => $resource->id,
+        'value' => 'Abstract',
+        'description_type_id' => $abstractType->id,
+    ]);
+
+    return $resource->fresh([
+        'titles.titleType',
+        'creators',
+        'rights',
+        'descriptions.descriptionType',
+        'landingPage',
+    ]);
+}
 
 describe('ResourcePolicy', function () {
     beforeEach(function () {
@@ -103,19 +164,43 @@ describe('ResourcePolicy', function () {
     });
 
     describe('delete', function () {
-        it('allows admin to delete a resource', function () {
+        it('allows admin to delete a draft resource', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
             expect($this->policy->delete($user, $this->resource))->toBeTrue();
         });
 
-        it('allows group leader to delete a resource', function () {
+        it('allows group leader to delete a draft resource', function () {
             $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
             expect($this->policy->delete($user, $this->resource))->toBeTrue();
         });
 
-        it('denies curator from deleting a resource', function () {
+        it('allows curator to delete a draft resource', function () {
             $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            expect($this->policy->delete($user, $this->resource))->toBeFalse();
+            expect($this->policy->delete($user, $this->resource))->toBeTrue();
+        });
+
+        it('denies admin from deleting a non-draft resource', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+            $resource = createNonDraftResourceForPolicy();
+
+            expect($resource->publicStatus())->not->toBe('draft');
+            expect($this->policy->delete($user, $resource))->toBeFalse();
+        });
+
+        it('denies group leader from deleting a non-draft resource', function () {
+            $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+            $resource = createNonDraftResourceForPolicy();
+
+            expect($resource->publicStatus())->not->toBe('draft');
+            expect($this->policy->delete($user, $resource))->toBeFalse();
+        });
+
+        it('denies curator from deleting a non-draft resource', function () {
+            $user = User::factory()->create(['role' => UserRole::CURATOR]);
+            $resource = createNonDraftResourceForPolicy();
+
+            expect($resource->publicStatus())->not->toBe('draft');
+            expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
         it('denies beginner from deleting a resource', function () {

@@ -27,6 +27,7 @@ vi.mock('@inertiajs/react', () => ({
             auth: {
                 user: {
                     can_manage_landing_pages: true,
+                    role: 'group_leader',
                 },
             },
         },
@@ -116,9 +117,9 @@ describe('ResourcesPage', () => {
         expect(
             screen.getByRole('button', { name: /open resource.*10\.9999\/example.*in.*editor/i }),
         ).toBeInTheDocument();
-        // Delete functionality is not yet implemented (disabled button)
-        const deleteButton = screen.getByRole('button', { name: /delete resource.*10\.9999\/example.*not yet implemented/i });
+        const deleteButton = screen.getByRole('button', { name: /delete resource.*10\.9999\/example/i });
         expect(deleteButton).toBeDisabled();
+        expect(deleteButton).toHaveAttribute('title', 'Only draft resources can be deleted');
     });
 
     it('shows a friendly empty state when there are no resources', () => {
@@ -171,8 +172,7 @@ describe('ResourcesPage', () => {
         const dataRows = screen.getAllByRole('row').slice(1);
         expect(within(dataRows[0]).getByText('Not registered')).toBeInTheDocument();
 
-        // Delete functionality is not yet implemented - skip dialog test
-        // fireEvent.click(screen.getByRole('button', { name: /delete.*placeholder title.*from ernie/i }));
+        expect(screen.getByRole('button', { name: /delete resource.*placeholder title/i })).toBeDisabled();
     });
 
     it('opens the curation editor with prefilled metadata when the action is triggered', async () => {

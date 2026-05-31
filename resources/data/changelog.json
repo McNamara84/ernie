@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-29",
+        "date": "2026-05-31",
         "features": [
             {
                 "title": "Landing Page and Portal Statistics Dashboard",
@@ -255,6 +255,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Resources List Actions Stay in Sync",
+                "description": "The /resources page now refreshes immediately after successful legacy imports, draft resources can again be deleted from the per-row trash action by authorized curator, group leader, and admin users, and reopening the landing page setup modal in the same browser tab no longer drops unsaved Download URL or Additional Links input."
+            },
             {
                 "title": "Changelog Navigation and Expansion Stay Predictable",
                 "description": "The /changelog page now keeps release expansion under explicit user control: only clicking a release, using timeline navigation, keyboard navigation, or opening a hash URL changes which version is open. Scroll-based viewport tracking no longer auto-expands other releases, the desktop timeline uses larger click targets so navigation feels reliable again, and the surrounding motion was toned down to reduce distracting transitions while preserving orientation cues."

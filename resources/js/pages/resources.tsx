@@ -18,6 +18,16 @@ import ImportSingleOldResourceModal from '@/components/resources/modals/ImportSi
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -282,6 +292,9 @@ function ResourcesPage({
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
     const canRegisterDoi = auth.user?.can_register_production_doi ?? false;
+    const canDeleteDraftResources = auth.user?.role === 'admin'
+        || auth.user?.role === 'group_leader'
+        || auth.user?.role === 'curator';
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -304,6 +317,14 @@ function ResourcesPage({
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
+
+    useEffect(() => {
+        setResources(initialResources);
+    }, [initialResources]);
+
+    useEffect(() => {
+        setPagination(initialPagination);
+    }, [initialPagination]);
 
     // Load more resources for infinite scrolling
     const loadMore = useCallback(async () => {
@@ -738,7 +759,75 @@ function ResourcesPage({
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
+    const [resourcePendingDelete, setResourcePendingDelete] = useState<Resource | null>(null);
+    const [isDeletingResource, setIsDeletingResource] = useState(false);
     const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
+
+    const canDeleteResource = useCallback(
+        (resource: Resource): boolean => canDeleteDraftResources && resource.publicstatus === 'draft' && typeof resource.id === 'number',
+        [canDeleteDraftResources],
+    );
+
+    const getDeleteButtonTitle = useCallback(
+        (resource: Resource): string => {
+            if (!canDeleteDraftResources) {
+                return 'You do not have permission to delete draft resources';
+            }
+
+            if (resource.publicstatus !== 'draft') {
+                return 'Only draft resources can be deleted';
+            }
+
+            return 'Delete draft resource';
+        },
+        [canDeleteDraftResources],
+    );
+
+    const handleRequestDelete = useCallback(
+        (resource: Resource) => {
+            if (!canDeleteResource(resource)) {
+                return;
+            }
+
+            setResourcePendingDelete(resource);
+        },
+        [canDeleteResource],
+    );
+
+    const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
+        if (!open && !isDeletingResource) {
+            setResourcePendingDelete(null);
+        }
+    }, [isDeletingResource]);
+
+    const handleConfirmDelete = useCallback(() => {
+        if (!resourcePendingDelete?.id) {
+            return;
+        }
+
+        const resourceToDelete = resourcePendingDelete;
+
+        setIsDeletingResource(true);
+
+        router.delete(`/resources/${resourceToDelete.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(resourceToDelete.id);
+                    return next;
+                });
+                setResourcePendingDelete(null);
+                toast.success('Draft deleted successfully.');
+            },
+            onError: () => {
+                toast.error('Failed to delete draft resource.');
+            },
+            onFinish: () => {
+                setIsDeletingResource(false);
+            },
+        });
+    }, [resourcePendingDelete]);
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -1524,10 +1613,11 @@ function ResourcesPage({
                                                                         type="button"
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        disabled
-                                                                        aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
-                                                                        title="Delete resource (not yet implemented)"
-                                                                        className="cursor-not-allowed opacity-40"
+                                                                        onClick={canDeleteResource(resource) ? () => handleRequestDelete(resource) : undefined}
+                                                                        disabled={!canDeleteResource(resource) || isDeletingResource}
+                                                                        aria-label={`Delete resource ${resourceLabel}`}
+                                                                        title={getDeleteButtonTitle(resource)}
+                                                                        className={!canDeleteResource(resource) ? 'cursor-not-allowed opacity-40' : undefined}
                                                                     >
                                                                         <Trash2 aria-hidden="true" className="size-4" />
                                                                     </Button>
@@ -1592,6 +1682,29 @@ function ResourcesPage({
                 onClose={() => setShowSingleImportModal(false)}
                 onSuccess={handleImportSuccess}
             />
+
+            <AlertDialog open={resourcePendingDelete !== null} onOpenChange={handleDeleteDialogOpenChange}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete draft resource?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {resourcePendingDelete?.title
+                                ? `This will permanently remove the draft resource "${resourcePendingDelete.title}" from ERNIE.`
+                                : 'This will permanently remove the selected draft resource from ERNIE.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeletingResource}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                            disabled={isDeletingResource}
+                        >
+                            {isDeletingResource ? 'Deleting...' : 'Delete Draft'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* JSON Validation Error Modal */}
             <ValidationErrorModal

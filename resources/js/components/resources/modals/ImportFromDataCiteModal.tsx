@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { AlertCircle, CheckCircle2, Download, XCircle } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
@@ -43,6 +43,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     const [error, setError] = useState<string | null>(null);
     const [showSkippedDois, setShowSkippedDois] = useState(false);
     const [showFailedDois, setShowFailedDois] = useState(false);
+    const hasNotifiedSuccessRef = useRef(false);
 
     // Reset state when modal opens/closes
     useEffect(() => {
@@ -54,8 +55,18 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             setError(null);
             setShowSkippedDois(false);
             setShowFailedDois(false);
+            hasNotifiedSuccessRef.current = false;
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (modalState !== 'completed' || (progress?.imported ?? 0) < 1 || hasNotifiedSuccessRef.current) {
+            return;
+        }
+
+        hasNotifiedSuccessRef.current = true;
+        onSuccess?.();
+    }, [modalState, onSuccess, progress?.imported]);
 
     // Poll for progress updates with adaptive interval using setTimeout chains.
     // This approach avoids race conditions that can occur with setInterval + clearInterval,
@@ -117,6 +128,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     const startImport = useCallback(async () => {
         setIsStarting(true);
         setError(null);
+        hasNotifiedSuccessRef.current = false;
 
         try {
             const response = await axios.post<{ import_id: string; message: string }>('/datacite/import/start', {}, { headers: buildCsrfHeaders() });
@@ -164,16 +176,8 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, []);
 
     const handleClose = useCallback(() => {
-        if (modalState === 'completed') {
-            // Call onSuccess callback to refresh the resources list.
-            // Note: The onSuccess callback (from resources.tsx) already handles
-            // page reload, so we don't call router.reload() here to avoid duplicates.
-            if (onSuccess) {
-                onSuccess();
-            }
-        }
         onClose();
-    }, [modalState, onClose, onSuccess]);
+    }, [onClose]);
 
     const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
 
