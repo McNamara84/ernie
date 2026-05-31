@@ -251,13 +251,11 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
     const storageKey = resource.id ? `${LANDING_PAGE_DRAFT_STORAGE_PREFIX}:${resource.id}` : null;
     const hydratedDraftStateKeyRef = useRef<string | null>(null);
-    const previousDraftScopeRef = useRef<string | null>(null);
     const currentDraftScope = isOpen ? storageKey : null;
 
-    if (previousDraftScopeRef.current !== currentDraftScope) {
+    useEffect(() => {
         hydratedDraftStateKeyRef.current = null;
-        previousDraftScopeRef.current = currentDraftScope;
-    }
+    }, [currentDraftScope]);
 
     const readPersistedDraftState = useCallback((): PersistedLandingPageDraftState | null => {
         if (typeof window === 'undefined' || storageKey === null) {
