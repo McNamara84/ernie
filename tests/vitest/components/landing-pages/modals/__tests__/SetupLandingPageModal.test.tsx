@@ -1435,6 +1435,120 @@ describe('SetupLandingPageModal', () => {
             expect(screen.queryByDisplayValue('Temporary Link')).not.toBeInTheDocument();
             expect(screen.queryByDisplayValue('https://example.org/temp')).not.toBeInTheDocument();
         });
+
+        it('ignores malformed persisted draft data and falls back to the server state', async () => {
+            window.sessionStorage.setItem('setup-landing-page-modal:draft:123', '{not-valid-json');
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/^Download URL$/i) as HTMLInputElement;
+
+            expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
+        });
+
+        it('ignores persisted draft entries without a template and falls back to the server state', async () => {
+            window.sessionStorage.setItem(
+                'setup-landing-page-modal:draft:123',
+                JSON.stringify({
+                    ftpUrl: 'https://downloads.example.org/invalid.zip',
+                    links: [{ label: 'Invalid persisted link', url: 'https://example.org/invalid', position: 0 }],
+                }),
+            );
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/^Download URL$/i) as HTMLInputElement;
+
+            expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
+            expect(screen.queryByDisplayValue('Invalid persisted link')).not.toBeInTheDocument();
+        });
+
+        it('clears a persisted draft after removing a preview and reopens with empty defaults', async () => {
+            const draftConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft',
+                ftp_url: 'https://saved.example.org/current.zip',
+            };
+
+            window.sessionStorage.setItem(
+                'setup-landing-page-modal:draft:123',
+                JSON.stringify({
+                    template: 'default_gfz',
+                    ftpUrl: 'https://downloads.example.org/stale.zip',
+                    isPublished: false,
+                    externalDomainId: '',
+                    externalPath: '',
+                    landingPageTemplateId: null,
+                    links: [
+                        {
+                            label: 'Stale link',
+                            url: 'https://example.org/stale',
+                            position: 0,
+                        },
+                    ],
+                }),
+            );
+
+            mockModalGetRequests({ landingPage: draftConfig });
+            mockedAxiosDelete.mockResolvedValue({ data: { message: 'Landing page deleted successfully' } });
+            vi.stubGlobal('confirm', vi.fn(() => true));
+
+            const user = userEvent.setup();
+            const { rerender } = render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await screen.findByRole('dialog');
+            await user.click(screen.getByRole('button', { name: /remove preview/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosDelete).toHaveBeenCalledWith(`/resources/${mockResource.id}/landing-page`);
+            });
+
+            mockModalGetRequests({ landingPage: null });
+
+            rerender(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={false}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            rerender(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const reopenedFtpInput = await screen.findByLabelText(/^Download URL$/i) as HTMLInputElement;
+
+            expect(reopenedFtpInput.value).toBe('');
+            expect(screen.queryByDisplayValue('Stale link')).not.toBeInTheDocument();
+            expect(screen.queryByDisplayValue('https://example.org/stale')).not.toBeInTheDocument();
+
+            vi.unstubAllGlobals();
+        });
     });
 
     describe('Custom Templates', () => {
@@ -2073,6 +2187,58 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
             });
+        });
+
+        it('restores a persisted draft when loading the server config fails with a non-404 error', async () => {
+            const { toast } = await import('sonner');
+
+            window.sessionStorage.setItem(
+                'setup-landing-page-modal:draft:123',
+                JSON.stringify({
+                    template: 'default_gfz',
+                    ftpUrl: 'https://downloads.example.org/persisted.zip',
+                    isPublished: false,
+                    externalDomainId: '',
+                    externalPath: '',
+                    landingPageTemplateId: null,
+                    links: [
+                        {
+                            label: 'Persisted link',
+                            url: 'https://example.org/persisted',
+                            position: 0,
+                        },
+                    ],
+                }),
+            );
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 500, data: { message: 'Server error' } },
+                });
+            });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/^Download URL$/i) as HTMLInputElement;
+
+            expect(ftpInput.value).toBe('https://downloads.example.org/persisted.zip');
+            expect(screen.getByDisplayValue('Persisted link')).toBeInTheDocument();
+            expect(screen.getByDisplayValue('https://example.org/persisted')).toBeInTheDocument();
+            expect(toast.error).toHaveBeenCalledWith('Failed to load landing page configuration');
         });
 
         it('prevents removal of published landing page with error toast', async () => {

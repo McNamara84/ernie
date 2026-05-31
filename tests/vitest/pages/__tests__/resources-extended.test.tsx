@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Hoisted mocks
@@ -502,6 +502,54 @@ describe('ResourcesPage – extended', () => {
                     onFinish: expect.any(Function),
                 }),
             );
+
+            const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+                onSuccess: () => void;
+                onFinish: () => void;
+            };
+
+            await act(async () => {
+                deleteOptions.onSuccess();
+                deleteOptions.onFinish();
+            });
+
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('closes the delete confirmation dialog when the user cancels', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+
+            fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        });
+
+        it('re-enables the row delete action after a failed delete finishes', async () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
+            });
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /delete resource.*disposable draft/i })).toBeDisabled();
+            });
+
+            const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+                onError: () => void;
+                onFinish: () => void;
+            };
+
+            await act(async () => {
+                deleteOptions.onError();
+                deleteOptions.onFinish();
+            });
+
+            expect(screen.getByRole('button', { name: /delete resource.*disposable draft/i })).toBeEnabled();
         });
 
         it('keeps the delete button disabled for draft resources when the user lacks permission', () => {
