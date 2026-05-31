@@ -27,6 +27,8 @@ export interface NavItem {
     icon?: LucideIcon | null;
     isActive?: boolean;
     disabled?: boolean;
+    openInNewTab?: boolean;
+    rel?: string;
     separator?: boolean;
     badge?: number | string;
     showZeroBadge?: boolean;

@@ -189,7 +189,9 @@ describe('AppSidebar', () => {
         expect(sectionCalls[0][0].label).toBeUndefined();
         expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Dashboard']);
         expect(sectionCalls[1][0].label).toBe('Data Curation');
-        expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Data Editor', 'Resources']);
+        expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Data Editor', 'Resources', 'Portal']);
+        expect(sectionCalls[1][0].items[2].href).toBe('/portal');
+        expect(sectionCalls[1][0].items[2].openInNewTab).toBe(true);
         expect(sectionCalls[2][0].label).toBe('IGSN Curation');
         expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
 
@@ -397,7 +399,9 @@ describe('AppSidebar', () => {
 
         const toolsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Tools');
         const administrationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Administration');
+        const dataCurationSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Data Curation');
 
+        expect(dataCurationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Data Editor', 'Resources', 'Portal']);
         expect(toolsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assistance', 'Assessment']);
         expect(administrationSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Logs', 'Editor Settings', 'Landing Pages']);
     });

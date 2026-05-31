@@ -62,5 +62,14 @@ describe('NavFooter', () => {
 
         expect(screen.getByRole('link', { name: /docs/i })).toHaveAttribute('data-tour', 'sidebar-documentation');
     });
+
+    it('supports footer items that open in a new tab', () => {
+        render(<NavFooter items={[{ title: 'Portal', href: '/portal', icon: Book, openInNewTab: true }]} />);
+
+        const link = screen.getByRole('link', { name: /portal/i });
+        expect(link).toHaveAttribute('href', '/portal');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
 });
 

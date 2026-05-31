@@ -46,6 +46,7 @@ export interface PortalResource {
     id: number;
     doi: string | null;
     title: string;
+    abstract: string | null;
     creators: PortalCreator[];
     year: number | null;
     resourceType: string;

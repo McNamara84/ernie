@@ -126,7 +126,7 @@ class PortalSearchService
     {
         return $this->buildQuery($filters, applyBounds: false)
             ->whereHas('geoLocations')
-            ->with(['geoLocations', 'titles.titleType', 'creators.creatorable', 'resourceType'])
+            ->with(['geoLocations', 'titles.titleType', 'creators.creatorable', 'resourceType', 'descriptions.descriptionType'])
             ->get();
     }
 
@@ -152,6 +152,7 @@ class PortalSearchService
             ->with([
                 'titles.titleType',
                 'creators.creatorable',
+                'descriptions.descriptionType',
                 'resourceType',
                 'geoLocations',
                 'landingPage',
@@ -917,6 +918,7 @@ class PortalSearchService
             'id' => $resource->id,
             'doi' => $resource->doi,
             'title' => $mainTitle,
+            'abstract' => $this->extractAbstract($resource),
             'creators' => $creators,
             'year' => $resource->publication_year,
             'resourceType' => $resourceType !== null ? $resourceType->name : 'Unknown',
@@ -946,6 +948,20 @@ class PortalSearchService
         }
 
         return 'Untitled';
+    }
+
+    private function extractAbstract(Resource $resource): ?string
+    {
+        $abstract = $resource->descriptions
+            ->first(fn ($description): bool => strcasecmp((string) $description->descriptionType->slug, 'Abstract') === 0);
+
+        if ($abstract === null) {
+            return null;
+        }
+
+        $value = trim((string) $abstract->value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**

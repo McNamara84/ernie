@@ -13,6 +13,7 @@ import {
     LayoutTemplate,
     MapPin,
     ScrollText,
+    Search,
     Settings,
     Sparkles,
     Users,
@@ -97,6 +98,14 @@ export function AppSidebar() {
             showZeroBadge: true,
             badgeTone: 'primary',
             tourId: 'sidebar-resources',
+        },
+        {
+            title: 'Portal',
+            href: '/portal',
+            icon: Search,
+            openInNewTab: true,
+            rel: 'noopener noreferrer',
+            tourId: 'sidebar-portal',
         },
     ];
 

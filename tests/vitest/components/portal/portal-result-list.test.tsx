@@ -15,6 +15,7 @@ function createMockResource(id: number, overrides: Partial<PortalResource> = {})
         id,
         title: `Resource ${id}`,
         doi: `10.5880/GFZ.TEST.${id}`,
+        abstract: null,
         resourceType: 'Dataset',
         resourceTypeSlug: 'dataset',
         isIgsn: false,

@@ -146,6 +146,17 @@ describe('NavSection', () => {
         expect(link).toHaveAttribute('href', '/dashboard');
     });
 
+    it('renders native new-tab links when configured', () => {
+        const items: NavItem[] = [{ title: 'Portal', href: '/portal', icon: Home, openInNewTab: true }];
+
+        render(<NavSection items={items} />);
+
+        const link = screen.getByRole('link', { name: /portal/i });
+        expect(link).toHaveAttribute('href', '/portal');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
     it('renders data-tour attributes for guided tour anchors', () => {
         const items: NavItem[] = [{ title: 'Dashboard', href: '/dashboard', icon: Home, tourId: 'sidebar-dashboard' }];
 

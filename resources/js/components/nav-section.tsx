@@ -42,11 +42,20 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
             <SidebarMenu>
                 {items.map((item) => {
                     const href = typeof item.href === 'string' ? item.href : item.href.url;
-                    const isActive =
+                    const isActive = !item.openInNewTab && (
                         page.url === href ||
                         page.url.startsWith(href + '/') ||
                         page.url.startsWith(href + '?') ||
-                        page.url.startsWith(href + '#');
+                        page.url.startsWith(href + '#')
+                    );
+
+                    const linkContent = (
+                        <>
+                            {item.icon && <item.icon />}
+                            <span>{item.title}</span>
+                        </>
+                    );
+
                     return (
                         <SidebarMenuItem key={item.title}>
                             {item.disabled ? (
@@ -62,10 +71,22 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                     isActive={isActive}
                                     tooltip={{ children: item.title }}
                                 >
-                                    <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch} data-tour={item.tourId} aria-current={isActive ? 'page' : undefined}>
-                                        {item.icon && <item.icon />}
-                                        <span>{item.title}</span>
-                                    </Link>
+                                    {item.openInNewTab ? (
+                                        <a
+                                            href={href}
+                                            target="_blank"
+                                            rel={item.rel ?? 'noopener noreferrer'}
+                                            onMouseEnter={item.onPrefetch}
+                                            onFocus={item.onPrefetch}
+                                            data-tour={item.tourId}
+                                        >
+                                            {linkContent}
+                                        </a>
+                                    ) : (
+                                        <Link href={href} prefetch onMouseEnter={item.onPrefetch} onFocus={item.onPrefetch} data-tour={item.tourId} aria-current={isActive ? 'page' : undefined}>
+                                            {linkContent}
+                                        </Link>
+                                    )}
                                 </SidebarMenuButton>
                             )}
                             {shouldRenderBadge(item) && (
