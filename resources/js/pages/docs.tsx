@@ -137,6 +137,14 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a page defines breadcrumbs, ERNIE shows them directly below the header so your current location stays clear.
                             </p>
                         </div>
+
+                        <div className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-900 dark:bg-cyan-950">
+                            <p className="text-sm text-cyan-900 dark:text-cyan-100">
+                                <strong>Portal Shortcut:</strong> The authenticated sidebar now includes a <strong>Portal</strong> entry in the{' '}
+                                <strong>Data Curation</strong> section. It opens the public Data Portal in a new browser tab, so you can switch
+                                quickly from internal curation to published-record discovery without losing your current ERNIE workspace.
+                            </p>
+                        </div>
                     </>
                 ),
             },
@@ -947,6 +955,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
                             filters. When the result set refreshes, the current results stay visible until the new response arrives.
                         </p>
+
+                        <h4>Result Preview</h4>
+                        <p>
+                            Portal result rows stay compact for faster scanning. If a title is too long for the available row width, ERNIE truncates
+                            it responsively so author and year metadata stay visible.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Hover a result row with the mouse to open a metadata preview</li>
+                            <li>Tab to a result link to open the same preview from the keyboard</li>
+                            <li>The preview shows the full main title, the full creator list, and the abstract when one is available</li>
+                        </ul>
                     </>
                 ),
             },

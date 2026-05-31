@@ -198,11 +198,11 @@ vi.mock('@/components/ui/resizable', () => ({
 
 const defaultProps: PortalPageProps = {
     resources: [
-        { id: 1, doi: '10.1234/test1', title: 'Dataset 1', creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
-        { id: 2, doi: '10.1234/test2', title: 'Dataset 2', creators: [], year: 2023, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
+        { id: 1, doi: '10.1234/test1', title: 'Dataset 1', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
+        { id: 2, doi: '10.1234/test2', title: 'Dataset 2', abstract: null, creators: [], year: 2023, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
     ],
     mapData: [
-        { id: 1, doi: '10.1234/test1', title: 'Dataset 1', creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [{ id: 1, type: 'point', point: { lat: 52, lng: 13 }, bounds: null, polygon: null }], landingPageUrl: null },
+        { id: 1, doi: '10.1234/test1', title: 'Dataset 1', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [{ id: 1, type: 'point', point: { lat: 52, lng: 13 }, bounds: null, polygon: null }], landingPageUrl: null },
     ],
     pagination: {
         current_page: 1,
@@ -422,13 +422,13 @@ describe('Portal', () => {
             ...defaultProps,
             mapData: [
                 {
-                    id: 1, doi: '10.1234/a', title: 'A', creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, landingPageUrl: null,
+                    id: 1, doi: '10.1234/a', title: 'A', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, landingPageUrl: null,
                     geoLocations: [
                         { id: 1, type: 'point' as const, point: { lat: 1, lng: 1 }, bounds: null, polygon: null },
                         { id: 2, type: 'point' as const, point: { lat: 2, lng: 2 }, bounds: null, polygon: null },
                     ],
                 },
-                { id: 2, doi: '10.1234/b', title: 'B', creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
+                { id: 2, doi: '10.1234/b', title: 'B', abstract: null, creators: [], year: 2024, resourceType: 'Dataset', resourceTypeSlug: 'dataset', isIgsn: false, geoLocations: [], landingPageUrl: null },
             ],
         };
         render(<Portal {...propsWithMultipleGeo} />);

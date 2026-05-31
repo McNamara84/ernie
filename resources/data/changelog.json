@@ -98,6 +98,10 @@
         ],
         "improvements": [
             {
+                "title": "Portal Navigation and Search Result Preview",
+                "description": "Authenticated users now get a dedicated Portal entry in the Data Curation section of the main menu, opening the public /portal search in a new browser tab. Inside the portal result list, long titles now truncate more predictably so author and year metadata remain visible in the row. Hovering or focusing a result opens a richer preview with the full main title, the full creator list, and the abstract when one is available, allowing faster triage before opening the landing page."
+            },
+            {
                 "title": "Clickable Save & Validate Error Navigation",
                 "description": "The Data Editor now turns Save & Validate blocking messages into a grouped clickable summary. When required fields such as title, datacenter, authors, abstract, licenses, or funding references need attention, curators can select the matching entry to reopen the relevant accordion section and jump directly to the affected field instead of scanning the entire form manually."
             },

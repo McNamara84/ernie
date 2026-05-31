@@ -62,5 +62,20 @@ describe('NavFooter', () => {
 
         expect(screen.getByRole('link', { name: /docs/i })).toHaveAttribute('data-tour', 'sidebar-documentation');
     });
+
+    it('supports footer items that open in a new tab', () => {
+        render(<NavFooter items={[{ title: 'Portal', href: '/portal', icon: Book, openInNewTab: true }]} />);
+
+        const link = screen.getByRole('link', { name: /portal/i });
+        expect(link).toHaveAttribute('href', '/portal');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('preserves custom rel tokens while enforcing new-tab protections', () => {
+        render(<NavFooter items={[{ title: 'Portal', href: '/portal', icon: Book, openInNewTab: true, rel: 'nofollow' }]} />);
+
+        expect(screen.getByRole('link', { name: /portal/i })).toHaveAttribute('rel', 'nofollow noopener noreferrer');
+    });
 });
 

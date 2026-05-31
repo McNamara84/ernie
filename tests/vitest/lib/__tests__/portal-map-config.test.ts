@@ -324,6 +324,7 @@ describe('renderPopupHtml', () => {
         id: 1,
         doi: '10.5880/test.2026.001',
         title: 'Test Dataset',
+        abstract: null,
         creators: [{ name: 'Doe, John' }],
         year: 2026,
         resourceType: 'Dataset',
