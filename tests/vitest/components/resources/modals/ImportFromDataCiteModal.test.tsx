@@ -36,7 +36,7 @@ vi.mock('sonner', () => ({
 
 describe('ImportFromDataCiteModal', () => {
     const mockOnClose = vi.fn();
-     
+
     const mockOnSuccess = vi.fn();
 
     beforeEach(() => {

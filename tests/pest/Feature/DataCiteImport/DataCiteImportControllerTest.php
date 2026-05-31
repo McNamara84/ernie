@@ -197,7 +197,9 @@ describe('ResourceController destroy authorization', function () {
     });
 
     it('denies beginner from deleting draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->beginner)
             ->delete("/resources/{$resource->id}");
