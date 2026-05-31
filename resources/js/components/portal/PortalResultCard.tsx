@@ -55,7 +55,8 @@ function getTypeBadgeVariant(isIgsn: boolean): 'default' | 'secondary' | 'outlin
  */
 export function PortalResultCard({ resource }: PortalResultCardProps) {
     const authors = formatAuthors(resource.creators);
-    const hasLandingPage = resource.landingPageUrl !== null;
+    const landingPageUrl = resource.landingPageUrl;
+    const hasLandingPage = landingPageUrl !== null;
     const previewCreators = resource.creators.length > 0 ? resource.creators.map(formatCreatorDisplayName) : ['Unknown'];
 
     const rowContent = (
@@ -109,7 +110,7 @@ export function PortalResultCard({ resource }: PortalResultCardProps) {
             <HoverCard openDelay={0} closeDelay={0}>
                 <HoverCardTrigger asChild>
                     <a
-                        href={resource.landingPageUrl}
+                        href={landingPageUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={`View ${resource.title} (opens in new tab)`}
