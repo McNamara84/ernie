@@ -161,7 +161,9 @@ describe('ResourceController canImportFromDataCite', function () {
 
 describe('ResourceController destroy authorization', function () {
     it('allows admin to delete draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->adminUser)
             ->delete("/resources/{$resource->id}");
@@ -171,7 +173,9 @@ describe('ResourceController destroy authorization', function () {
     });
 
     it('allows group leader to delete draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->groupLeader)
             ->delete("/resources/{$resource->id}");
@@ -181,7 +185,9 @@ describe('ResourceController destroy authorization', function () {
     });
 
     it('allows curator to delete draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create();
+        $resource = \App\Models\Resource::factory()->create([
+            'doi' => null,
+        ]);
 
         $response = $this->actingAs($this->curator)
             ->delete("/resources/{$resource->id}");

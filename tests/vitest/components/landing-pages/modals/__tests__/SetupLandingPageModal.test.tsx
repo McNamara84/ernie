@@ -1436,6 +1436,104 @@ describe('SetupLandingPageModal', () => {
             expect(screen.queryByDisplayValue('https://example.org/temp')).not.toBeInTheDocument();
         });
 
+        it('ignores sessionStorage read errors and falls back to the server state', async () => {
+            const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+                throw new DOMException('sessionStorage is unavailable', 'QuotaExceededError');
+            });
+
+            try {
+                mockModalGetRequests({ landingPage: mockExistingConfig });
+
+                render(
+                    <SetupLandingPageModal
+                        resource={mockResource}
+                        isOpen={true}
+                        onClose={mockOnClose}
+                    />,
+                );
+
+                const ftpInput = await screen.findByLabelText(/^Download URL$/i) as HTMLInputElement;
+
+                expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
+            } finally {
+                getItemSpy.mockRestore();
+            }
+        });
+
+        it('ignores sessionStorage write errors while the user edits the modal', async () => {
+            const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+                throw new DOMException('sessionStorage is unavailable', 'QuotaExceededError');
+            });
+
+            try {
+                mockModalGetRequests({ landingPage: null });
+
+                const user = userEvent.setup();
+                render(
+                    <SetupLandingPageModal
+                        resource={mockResource}
+                        isOpen={true}
+                        onClose={mockOnClose}
+                    />,
+                );
+
+                const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+                await user.clear(ftpInput);
+                await user.type(ftpInput, 'https://downloads.example.org/storage-safe.zip');
+
+                expect((ftpInput as HTMLInputElement).value).toBe('https://downloads.example.org/storage-safe.zip');
+            } finally {
+                setItemSpy.mockRestore();
+            }
+        });
+
+        it('ignores sessionStorage removal errors after a successful save', async () => {
+            const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+                throw new DOMException('sessionStorage is unavailable', 'QuotaExceededError');
+            });
+
+            try {
+                mockModalGetRequests({ landingPage: null });
+
+                const savedConfig: LandingPageConfig = {
+                    ...mockExistingConfig,
+                    status: 'draft',
+                    ftp_url: 'https://saved.example.org/final-file.zip',
+                    links: [],
+                };
+
+                mockedAxiosPost.mockResolvedValue({
+                    data: {
+                        message: 'Landing page saved',
+                        landing_page: savedConfig,
+                        preview_url: savedConfig.preview_url,
+                    },
+                });
+
+                const user = userEvent.setup();
+                render(
+                    <SetupLandingPageModal
+                        resource={mockResource}
+                        isOpen={true}
+                        onClose={mockOnClose}
+                    />,
+                );
+
+                const ftpInput = await screen.findByLabelText(/^Download URL$/i);
+                await user.clear(ftpInput);
+                await user.type(ftpInput, savedConfig.ftp_url ?? '');
+                await user.click(screen.getByRole('button', { name: /create preview/i }));
+
+                await waitFor(() => {
+                    expect(mockedAxiosPost).toHaveBeenCalled();
+                });
+
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            } finally {
+                removeItemSpy.mockRestore();
+            }
+        });
+
         it('ignores malformed persisted draft data and falls back to the server state', async () => {
             window.sessionStorage.setItem('setup-landing-page-modal:draft:123', '{not-valid-json');
             mockModalGetRequests({ landingPage: mockExistingConfig });

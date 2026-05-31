@@ -764,9 +764,18 @@ function ResourcesPage({
     const isDeletingResourceRef = useRef(false);
     const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
 
+    const hasPersistentIdentifier = useCallback((resource: Resource): boolean => {
+        return typeof resource.doi === 'string' && resource.doi.trim().length > 0;
+    }, []);
+
     const canDeleteResource = useCallback(
-        (resource: Resource): boolean => canDeleteDraftResources && resource.publicstatus === 'draft' && typeof resource.id === 'number',
-        [canDeleteDraftResources],
+        (resource: Resource): boolean => {
+            return canDeleteDraftResources
+                && resource.publicstatus === 'draft'
+                && typeof resource.id === 'number'
+                && !hasPersistentIdentifier(resource);
+        },
+        [canDeleteDraftResources, hasPersistentIdentifier],
     );
 
     const getDeleteButtonTitle = useCallback(
@@ -779,9 +788,13 @@ function ResourcesPage({
                 return 'Only draft resources can be deleted';
             }
 
+            if (hasPersistentIdentifier(resource)) {
+                return 'Resources with persistent identifiers cannot be deleted';
+            }
+
             return 'Delete draft resource';
         },
-        [canDeleteDraftResources],
+        [canDeleteDraftResources, hasPersistentIdentifier],
     );
 
     const handleRequestDelete = useCallback(

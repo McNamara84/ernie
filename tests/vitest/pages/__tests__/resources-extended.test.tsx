@@ -476,11 +476,19 @@ describe('ResourcesPage – extended', () => {
         });
 
         it('enables delete button for draft resources when the user can delete drafts', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', landingPage: null })] });
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, landingPage: null })] });
 
             const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
             expect(deleteBtn).toBeEnabled();
             expect(deleteBtn).toHaveAttribute('title', 'Delete draft resource');
+        });
+
+        it('keeps the delete button disabled for draft resources with persistent identifiers', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'draft', title: 'Registered Draft', landingPage: null })] });
+
+            const deleteBtn = screen.getByRole('button', { name: /delete resource.*10\.5880\/test\.2024\.001/i });
+            expect(deleteBtn).toBeDisabled();
+            expect(deleteBtn).toHaveAttribute('title', 'Resources with persistent identifiers cannot be deleted');
         });
 
         it('opens a confirmation dialog and submits the delete request for draft resources', async () => {

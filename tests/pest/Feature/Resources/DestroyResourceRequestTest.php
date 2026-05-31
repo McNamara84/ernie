@@ -72,7 +72,9 @@ function createNonDraftResource(): Resource
 
 it('allows admins to delete draft resources', function (): void {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
-    $resource = Resource::factory()->create();
+    $resource = Resource::factory()->create([
+        'doi' => null,
+    ]);
 
     $this->actingAs($admin)
         ->delete(route('resources.destroy', $resource))
@@ -82,9 +84,26 @@ it('allows admins to delete draft resources', function (): void {
     expect(Resource::find($resource->id))->toBeNull();
 });
 
+it('forbids admins from deleting draft resources with persistent identifiers', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/test.2026.002',
+    ]);
+
+    expect($resource->publicStatus())->toBe('draft');
+
+    $this->actingAs($admin)
+        ->delete(route('resources.destroy', $resource))
+        ->assertStatus(403);
+
+    expect(Resource::find($resource->id))->not->toBeNull();
+});
+
 it('allows group leaders to delete draft resources', function (): void {
     $leader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
-    $resource = Resource::factory()->create();
+    $resource = Resource::factory()->create([
+        'doi' => null,
+    ]);
 
     $this->actingAs($leader)
         ->delete(route('resources.destroy', $resource))
@@ -95,7 +114,9 @@ it('allows group leaders to delete draft resources', function (): void {
 
 it('allows curators to delete draft resources', function (): void {
     $curator = User::factory()->create(['role' => UserRole::CURATOR]);
-    $resource = Resource::factory()->create();
+    $resource = Resource::factory()->create([
+        'doi' => null,
+    ]);
 
     $this->actingAs($curator)
         ->delete(route('resources.destroy', $resource))

@@ -58,6 +58,10 @@ class ResourcePolicy
             return false;
         }
 
+        if (filled($resource->doi)) {
+            return false;
+        }
+
         $resource->loadMissing([
             'titles.titleType',
             'creators',

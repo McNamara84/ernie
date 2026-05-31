@@ -72,7 +72,9 @@ function createNonDraftResourceForPolicy(): Resource
 describe('ResourcePolicy', function () {
     beforeEach(function () {
         $this->policy = new ResourcePolicy;
-        $this->resource = Resource::factory()->create();
+        $this->resource = Resource::factory()->create([
+            'doi' => null,
+        ]);
     });
 
     describe('viewAny', function () {
@@ -180,6 +182,7 @@ describe('ResourcePolicy', function () {
 
             /** @var Resource&\Mockery\MockInterface $resource */
             $resource = \Mockery::mock(Resource::class);
+            $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
             $resource->shouldReceive('loadMissing')->once()->with([
                 'titles.titleType',
                 'creators',
@@ -195,6 +198,16 @@ describe('ResourcePolicy', function () {
         it('allows admin to delete a draft resource', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
             expect($this->policy->delete($user, $this->resource))->toBeTrue();
+        });
+
+        it('denies admin from deleting a draft resource with a persistent identifier', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+            $resource = Resource::factory()->create([
+                'doi' => '10.5880/test.2026.001',
+            ]);
+
+            expect($resource->publicStatus())->toBe('draft');
+            expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
         it('allows group leader to delete a draft resource', function () {

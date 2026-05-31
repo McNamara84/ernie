@@ -133,6 +133,42 @@ function parsePersistedLandingPageDraftState(rawValue: string | null): Persisted
     }
 }
 
+function readSessionStorageItem(key: string): string | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        return window.sessionStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function writeSessionStorageItem(key: string, value: string): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.setItem(key, value);
+    } catch {
+        // Ignore storage errors so the modal remains usable.
+    }
+}
+
+function removeSessionStorageItem(key: string): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.sessionStorage.removeItem(key);
+    } catch {
+        // Ignore storage errors so the modal remains usable.
+    }
+}
+
 function SortableLinkItem({
     link,
     index,
@@ -197,7 +233,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return null;
         }
 
-        const persistedDraft = parsePersistedLandingPageDraftState(window.sessionStorage.getItem(storageKey));
+        const persistedDraft = parsePersistedLandingPageDraftState(readSessionStorageItem(storageKey));
 
         if (!persistedDraft) {
             return null;
@@ -215,7 +251,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
-        window.sessionStorage.setItem(storageKey, JSON.stringify({
+        writeSessionStorageItem(storageKey, JSON.stringify({
             ...draftState,
             links: cloneLandingPageLinks(draftState.links),
         }));
@@ -226,7 +262,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
-        window.sessionStorage.removeItem(storageKey);
+        removeSessionStorageItem(storageKey);
     }, [storageKey]);
 
     const buildDraftStateFromConfig = useCallback((config: LandingPageConfig | null): PersistedLandingPageDraftState => {
