@@ -3,6 +3,7 @@ import { type ComponentPropsWithoutRef } from 'react';
 
 import { Icon } from '@/components/icon';
 import { SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { buildExternalLinkRel } from '@/lib/external-link-rel';
 import { type NavItem } from '@/types';
 
 export function NavFooter({
@@ -33,7 +34,7 @@ export function NavFooter({
                                     className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
                                 >
                                     {item.openInNewTab ? (
-                                        <a href={href} target="_blank" rel={item.rel ?? 'noopener noreferrer'} data-tour={item.tourId}>
+                                        <a href={href} target="_blank" rel={buildExternalLinkRel(item.rel)} data-tour={item.tourId}>
                                             {linkContent}
                                         </a>
                                     ) : (

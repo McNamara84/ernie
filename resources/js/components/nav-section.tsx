@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
+import { buildExternalLinkRel } from '@/lib/external-link-rel';
 import { cn } from '@/lib/utils';
 import { type NavItem } from '@/types';
 
@@ -75,7 +76,7 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                         <a
                                             href={href}
                                             target="_blank"
-                                            rel={item.rel ?? 'noopener noreferrer'}
+                                            rel={buildExternalLinkRel(item.rel)}
                                             onMouseEnter={item.onPrefetch}
                                             onFocus={item.onPrefetch}
                                             data-tour={item.tourId}

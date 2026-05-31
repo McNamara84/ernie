@@ -71,5 +71,11 @@ describe('NavFooter', () => {
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
+
+    it('preserves custom rel tokens while enforcing new-tab protections', () => {
+        render(<NavFooter items={[{ title: 'Portal', href: '/portal', icon: Book, openInNewTab: true, rel: 'nofollow' }]} />);
+
+        expect(screen.getByRole('link', { name: /portal/i })).toHaveAttribute('rel', 'nofollow noopener noreferrer');
+    });
 });
 

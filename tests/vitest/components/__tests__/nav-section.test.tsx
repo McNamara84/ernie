@@ -157,6 +157,14 @@ describe('NavSection', () => {
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
+    it('preserves custom rel tokens while enforcing new-tab protections', () => {
+        const items: NavItem[] = [{ title: 'Portal', href: '/portal', icon: Home, openInNewTab: true, rel: 'nofollow' }];
+
+        render(<NavSection items={items} />);
+
+        expect(screen.getByRole('link', { name: /portal/i })).toHaveAttribute('rel', 'nofollow noopener noreferrer');
+    });
+
     it('renders data-tour attributes for guided tour anchors', () => {
         const items: NavItem[] = [{ title: 'Dashboard', href: '/dashboard', icon: Home, tourId: 'sidebar-dashboard' }];
 
