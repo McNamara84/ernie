@@ -1370,6 +1370,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('clears persisted unsaved values after a successful save', async () => {
+            const draftStorageKey = 'setup-landing-page-modal:draft:123';
             mockModalGetRequests({ landingPage: null });
 
             const savedConfig: LandingPageConfig = {
@@ -1411,6 +1412,10 @@ describe('SetupLandingPageModal', () => {
                 expect(mockedAxiosPost).toHaveBeenCalled();
             });
 
+            await waitFor(() => {
+                expect(window.sessionStorage.getItem(draftStorageKey)).toBeNull();
+            });
+
             mockModalGetRequests({ landingPage: savedConfig });
 
             rerender(
@@ -1434,6 +1439,26 @@ describe('SetupLandingPageModal', () => {
             expect(reopenedFtpInput.value).toBe('https://saved.example.org/final-file.zip');
             expect(screen.queryByDisplayValue('Temporary Link')).not.toBeInTheDocument();
             expect(screen.queryByDisplayValue('https://example.org/temp')).not.toBeInTheDocument();
+        });
+
+        it('does not persist a draft when the hydrated state matches the server config', async () => {
+            mockModalGetRequests({ landingPage: mockExistingConfig });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            const ftpInput = await screen.findByLabelText(/^Download URL$/i) as HTMLInputElement;
+
+            expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
+
+            await waitFor(() => {
+                expect(window.sessionStorage.getItem('setup-landing-page-modal:draft:123')).toBeNull();
+            });
         });
 
         it('ignores sessionStorage read errors and falls back to the server state', async () => {
@@ -1576,6 +1601,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('clears a persisted draft after removing a preview and reopens with empty defaults', async () => {
+            const draftStorageKey = 'setup-landing-page-modal:draft:123';
             const draftConfig: LandingPageConfig = {
                 ...mockExistingConfig,
                 status: 'draft',
@@ -1619,6 +1645,10 @@ describe('SetupLandingPageModal', () => {
 
             await waitFor(() => {
                 expect(mockedAxiosDelete).toHaveBeenCalledWith(`/resources/${mockResource.id}/landing-page`);
+            });
+
+            await waitFor(() => {
+                expect(window.sessionStorage.getItem(draftStorageKey)).toBeNull();
             });
 
             mockModalGetRequests({ landingPage: null });

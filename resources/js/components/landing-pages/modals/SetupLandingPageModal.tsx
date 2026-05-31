@@ -85,6 +85,29 @@ function cloneLandingPageLinks(links: LandingPageLink[] = []): LandingPageLink[]
     }));
 }
 
+function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPageDraftState) {
+    return {
+        template: draftState.template,
+        ftpUrl: draftState.ftpUrl,
+        isPublished: draftState.isPublished,
+        externalDomainId: draftState.externalDomainId,
+        externalPath: draftState.externalPath,
+        landingPageTemplateId: draftState.landingPageTemplateId,
+        links: cloneLandingPageLinks(draftState.links).map((link, index) => ({
+            url: link.url,
+            label: link.label,
+            position: typeof link.position === 'number' ? link.position : index,
+        })),
+    };
+}
+
+function arePersistedLandingPageDraftStatesEqual(
+    left: PersistedLandingPageDraftState,
+    right: PersistedLandingPageDraftState,
+): boolean {
+    return JSON.stringify(normalizePersistedLandingPageDraftState(left)) === JSON.stringify(normalizePersistedLandingPageDraftState(right));
+}
+
 function parsePersistedLandingPageDraftState(rawValue: string | null): PersistedLandingPageDraftState | null {
     if (!rawValue) {
         return null;
@@ -360,6 +383,19 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     );
     const importedDownloadFiles = currentConfig?.files ?? existingConfig?.files ?? [];
     const hasImportedFiles = importedDownloadFiles.length > 0;
+    const currentDraftState = useMemo<PersistedLandingPageDraftState>(() => ({
+        template,
+        ftpUrl,
+        isPublished,
+        externalDomainId,
+        externalPath,
+        landingPageTemplateId,
+        links: cloneLandingPageLinks(links),
+    }), [externalDomainId, externalPath, ftpUrl, isPublished, landingPageTemplateId, links, template]);
+    const baselineDraftState = useMemo(
+        () => buildDraftStateFromConfig(currentConfig),
+        [buildDraftStateFromConfig, currentConfig],
+    );
 
     const applyConfigState = useCallback((config: LandingPageConfig | null) => {
         const baseDraftState = buildDraftStateFromConfig(config);
@@ -377,27 +413,20 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
-        persistDraftState({
-            template,
-            ftpUrl,
-            isPublished,
-            externalDomainId,
-            externalPath,
-            landingPageTemplateId,
-            links: cloneLandingPageLinks(links),
-        });
+        if (arePersistedLandingPageDraftStatesEqual(currentDraftState, baselineDraftState)) {
+            clearPersistedDraftState();
+            return;
+        }
+
+        persistDraftState(currentDraftState);
     }, [
-        externalDomainId,
-        externalPath,
-        ftpUrl,
+        baselineDraftState,
+        clearPersistedDraftState,
+        currentDraftState,
         hasHydratedDraftState,
         isOpen,
-        isPublished,
-        landingPageTemplateId,
-        links,
         persistDraftState,
         storageKey,
-        template,
     ]);
 
     const loadAvailableDomains = async () => {
