@@ -88,6 +88,7 @@ interface TestResource {
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
     landingPage?: { id: number; is_published: boolean; public_url: string } | null;
+    [key: string]: unknown;
 }
 
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
