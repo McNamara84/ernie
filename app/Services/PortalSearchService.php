@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Models\Description;
 use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\GeoLocation;
@@ -20,6 +21,7 @@ use App\Models\Title;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -90,7 +92,7 @@ class PortalSearchService
      */
     public function search(array $filters = []): LengthAwarePaginator
     {
-        $query = $this->buildQuery($filters);
+        $query = $this->buildQuery($filters, includeAbstractPreview: true);
 
         $perPage = min(
             $filters['per_page'] ?? self::DEFAULT_PER_PAGE,
@@ -126,7 +128,6 @@ class PortalSearchService
     {
         return $this->buildQuery($filters, applyBounds: false)
             ->whereHas('geoLocations')
-            ->with(['geoLocations', 'titles.titleType', 'creators.creatorable', 'resourceType', 'descriptions.descriptionType'])
             ->get();
     }
 
@@ -146,13 +147,12 @@ class PortalSearchService
      * }  $filters
      * @return Builder<Resource>
      */
-    private function buildQuery(array $filters, bool $applyBounds = true): Builder
+    private function buildQuery(array $filters, bool $applyBounds = true, bool $includeAbstractPreview = false): Builder
     {
         $query = Resource::query()
             ->with([
                 'titles.titleType',
                 'creators.creatorable',
-                'descriptions.descriptionType',
                 'resourceType',
                 'geoLocations',
                 'landingPage',
@@ -168,6 +168,10 @@ class PortalSearchService
                     ->limit(1)
             )
             ->orderByDesc('created_at');
+
+        if ($includeAbstractPreview) {
+            $this->withAbstractPreview($query);
+        }
 
         // Apply type filter
         $type = $filters['type'] ?? null;
@@ -952,8 +956,12 @@ class PortalSearchService
 
     private function extractAbstract(Resource $resource): ?string
     {
+        if (! $resource->relationLoaded('descriptions')) {
+            return null;
+        }
+
         $abstract = $resource->descriptions
-            ->first(fn ($description): bool => strcasecmp((string) $description->descriptionType->slug, 'Abstract') === 0);
+            ->first(fn (Description $description): bool => $description->isAbstract());
 
         if ($abstract === null) {
             return null;
@@ -962,6 +970,25 @@ class PortalSearchService
         $value = trim((string) $abstract->value);
 
         return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  Builder<Resource>  $query
+     */
+    private function withAbstractPreview(Builder $query): void
+    {
+        $query->with([
+            'descriptions' => function (Relation $descriptionRelation): void {
+                $descriptionQuery = $descriptionRelation->getQuery();
+
+                $descriptionQuery
+                    ->select(['id', 'resource_id', 'value', 'description_type_id'])
+                    ->whereHas('descriptionType', function (Builder $typeQuery): void {
+                        $typeQuery->where('slug', 'Abstract');
+                    })
+                    ->with(['descriptionType:id,slug']);
+            },
+        ]);
     }
 
     /**

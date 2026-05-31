@@ -309,10 +309,17 @@ describe('Portal Resource Transformation', function () {
             'value' => 'A concise abstract for portal preview testing.',
         ]);
 
+        GeoLocation::factory()->create([
+            'resource_id' => $resource->id,
+            'point_latitude' => 52.5,
+            'point_longitude' => 13.4,
+        ]);
+
         $this->get(route('portal'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('resources.0.abstract', 'A concise abstract for portal preview testing.')
+                ->where('mapData.0.abstract', null)
             );
     });
 
