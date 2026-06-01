@@ -34,77 +34,87 @@ This README documents the Docker-based development workflow only. For deeper set
 
 1. Clone the repository:
 
-   ```bash
+```
    git clone https://github.com/McNamara84/ernie.git
    cd ernie
-   ```
+```
 
 2. Generate local TLS certificates:
 
    Windows PowerShell:
 
-   ```powershell
+```
    .\docker\generate-certs.ps1
-   ```
+```
 
-   WSL, Git Bash, or other POSIX shells:
+   macOS, Linux, WSL, Git Bash, or other POSIX shells:
 
-   ```bash
+```
    ./docker/generate-certs.sh
-   ```
+```
+
+   On macOS the browser will flag the self-signed certificate on first launch. To trust it system-wide, add it to the system keychain:
+
+```
+   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain docker/traefik/certs/localhost.crt
+```
 
 3. Create the Docker environment file:
 
    Windows PowerShell:
 
-   ```powershell
+```
    Copy-Item .env.docker.example .env.docker
-   ```
+```
 
-   WSL, Git Bash, or other POSIX shells:
+   macOS, Linux, WSL, Git Bash, or other POSIX shells:
 
-   ```bash
+```
    cp .env.docker.example .env.docker
-   ```
+```
 
    The default values work for a standard local setup.
 
 4. Install host-side Node dependencies for frontend validation:
 
-   ```bash
+```
    npm install
-   ```
+```
 
    This installs the local `node_modules` required by ESLint, TypeScript, Vitest, OpenAPI linting, and Playwright.
 
 5. Start the default development stack:
 
-   ```bash
+```
    npm run docker:dev:up
-   ```
+```
 
    The first startup can take a few minutes because Docker may need to build images, install dependencies, run migrations, and seed baseline data.
 
 6. Open the application:
 
-   - Main URL: https://ernie.localhost:3333
-   - Traefik dashboard: http://localhost:8080
+   - Main URL: <https://ernie.localhost:3333>
+   - Traefik dashboard: <http://localhost:8080>
 
-   If `ernie.localhost` does not resolve on your machine, add `127.0.0.1 ernie.localhost` to your hosts file.
+   If `ernie.localhost` does not resolve on your machine, add `127.0.0.1 ernie.localhost` to your hosts file. On macOS and Linux this is `/etc/hosts`, for example:
+
+```
+   echo "127.0.0.1 ernie.localhost" | sudo tee -a /etc/hosts
+```
 
 7. Create the first administrator account:
 
-   ```bash
+```
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
-   ```
+```
 
    The first user created in a fresh environment becomes an administrator automatically.
 
 8. Initialize SPDX license data:
 
-   ```bash
+```
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
-   ```
+```
 
 The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
 
