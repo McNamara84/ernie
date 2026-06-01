@@ -3,4 +3,4 @@ As part of a joint collaboration between the University of Applied Sciences Pots
 The project team consists of the following members:
 - NAME OR GITHUB HANDLE: ROLE, SPECIAL SKILL
 
-We would greatly appreciate bug reports and suggestions for improvements [here](https://github.com/McNamara84/ernie/issues) on the issue board. For implementation details, see the [Assistance Module Developer Guide](./DEVELOPER_GUIDE.md).
+We would greatly appreciate bug reports and suggestions for improvements in the [GitHub issue tracker](https://github.com/McNamara84/ernie/issues). For implementation details, see the [Assistance Module Developer Guide](./DEVELOPER_GUIDE.md).
