@@ -7,5 +7,5 @@ The project team consists of the following members:
 - NAME OR GITHUB HANDLE: ROLE, SPECIAL SKILL
 - PhilSeidelFH: Developer, (programming)
 - Lennart Ubben: developer, problem solving
-
+- Maximilian Lippka developer, patient problem solving
 We would greatly appreciate bug reports and suggestions for improvements in the [GitHub issue tracker](https://github.com/McNamara84/ernie/issues). For implementation details, see the [Assistance Module Developer Guide](./DEVELOPER_GUIDE.md).
