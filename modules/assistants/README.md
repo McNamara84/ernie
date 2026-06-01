@@ -2,6 +2,7 @@ As part of a joint collaboration between the University of Applied Sciences Pots
 
 The project team consists of the following members:
 - PaulUbben: Developer, Tasks completer 
+- PiaKruschinski: Scrum Master, planning
 - Leo Weiß: Developer, organizer
 - NAME OR GITHUB HANDLE: ROLE, SPECIAL SKILL
 - PhilSeidelFH: Developer, (programming)
