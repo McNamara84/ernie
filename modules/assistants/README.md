@@ -1,6 +1,7 @@
 As part of a joint collaboration between the University of Applied Sciences Potsdam and the GFZ Helmholtz Centre for Geosciences, several new assistants for enriching metadata are currently being developed.
 
 The project team consists of the following members:
+- PiaKruschinski: Scrum Master, planning
 - Leo Weiß: Developer, organizer
 - NAME OR GITHUB HANDLE: ROLE, SPECIAL SKILL
 - PhilSeidelFH: Developer, (programming)
