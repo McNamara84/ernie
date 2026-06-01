@@ -26,7 +26,9 @@ This README documents the Docker-based development workflow only. For deeper set
 - Docker Desktop
 - Node.js 26 or newer and npm 10 or newer on the host
 - OpenSSL support for generating local certificates
-- WSL2 is recommended on Windows, ideally with VS Code Remote - WSL
+- On Windows, WSL2 is recommended, ideally with VS Code Remote - WSL
+- On macOS, Docker Desktop runs on both Apple Silicon and Intel Macs. On Apple Silicon, enable **Use Rosetta for x86_64/amd64 emulation** under Docker Desktop → Settings → General so images without a native `arm64` build still run reliably.
+- On macOS, the default shell (`zsh`) and the bundled `openssl` (LibreSSL) work out of the box. If Node.js is not installed yet, the easiest route is [Homebrew](https://brew.sh) (`brew install node`) or a version manager such as `nvm`.
 
 ### Step-By-Step Setup
 
