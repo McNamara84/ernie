@@ -2,7 +2,7 @@
 To contribute to ERNIE please first open a new branch. There you can make your changes. Please test them. If you are ready and happy with the results, please open a Pull Request targeting the main branch. If your Pull Request is ready for a review please request a code review from Lead Developer McNamara84 to get approval to merge.
 
 ### Development branches
-All development branches are temporary, created from dev, and must use one of the prefixes.
+All development branches are temporary, created from `main`, and must use one of the prefixes below.
 
 #### Regular Branch Prefixes
 - feature/: New features and other enhancements!
