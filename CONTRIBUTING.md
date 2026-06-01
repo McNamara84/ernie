@@ -12,5 +12,5 @@ All development branches are temporary, created from `main`, and must use one of
 - doc/: Documentation only changes.
 
 #### In Case of a Fire
-If a critical bug breaches production, use a fast-track patch to bypass dev and fix production instantly.
-- hotfix/: The branch fixes a critical error, targets main directly and can be merged by the reviewer.
+If a critical bug impacts production, use a fast-track patch to fix it as quickly as possible.
+- `hotfix/`: The branch fixes a critical error, targets `main` directly, and can be merged by the reviewer.
