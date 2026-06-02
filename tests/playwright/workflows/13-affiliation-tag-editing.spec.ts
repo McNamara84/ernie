@@ -91,7 +91,16 @@ async function startInlineTagEdit(page: Page, section: AffiliationSection, field
   await tagText.scrollIntoViewIfNeeded();
   await tagText.dblclick();
 
-  const editableTagText = field.locator('.tagify__tag [contenteditable], .tagify__tag[contenteditable]').first();
+  const editableTagText = field
+    .locator(
+      [
+        '.tagify__tag [contenteditable="true"]',
+        '.tagify__tag[contenteditable="true"]',
+        '.tagify__tag [contenteditable="plaintext-only"]',
+        '.tagify__tag[contenteditable="plaintext-only"]',
+      ].join(', '),
+    )
+    .first();
   try {
     await editableTagText.waitFor({ state: 'visible', timeout: 1500 });
   } catch {
