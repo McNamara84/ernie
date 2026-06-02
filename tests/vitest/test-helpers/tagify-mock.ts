@@ -40,7 +40,7 @@ export class MockTagify {
     public whitelist: Array<Record<string, unknown>> = [];
     public dropdownHideCalls = 0;
     public dropdown = {
-        hide: (_force?: boolean) => {
+        hide: () => {
             this.dropdownHideCalls += 1;
         },
     };
