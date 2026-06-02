@@ -128,6 +128,70 @@ This README documents the Docker-based development workflow only. For deeper set
 
 The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
 
+### Common Permission Errors
+
+Most permission problems happen on the host side before the containers take over, or on Linux bind mounts. The development entrypoint already creates `storage/` and `bootstrap/cache` and runs `chown -R www-data:www-data` plus `chmod -R 775` on every start, so permissions *inside* the container are handled automatically. The cases below cover the host side.
+
+#### `./docker/generate-certs.sh: Permission denied` (macOS, Linux, WSL)
+
+The script lost its executable bit (common after downloading the repository as a ZIP, or when Git's `core.fileMode` is disabled). Restore it, or run it through the interpreter:
+
+```
+chmod +x docker/generate-certs.sh
+./docker/generate-certs.sh
+```
+
+```
+# alternative without changing the bit
+bash docker/generate-certs.sh
+```
+
+#### `generate-certs.ps1 cannot be loaded because running scripts is disabled` (Windows)
+
+PowerShell's execution policy blocks local scripts. Allow them for the current session only (no administrator rights required):
+
+```
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\docker\generate-certs.ps1
+```
+
+```
+# alternative without changing the policy
+powershell -ExecutionPolicy Bypass -File .\docker\generate-certs.ps1
+```
+
+#### `permission denied while trying to connect to the Docker daemon socket` (Linux)
+
+Your user is not in the `docker` group. This affects Docker Engine on Linux; Docker Desktop users normally do not see it.
+
+```
+sudo usermod -aG docker "$USER"
+newgrp docker
+```
+
+Log out and back in (or use `newgrp docker`) so the membership applies, then start the stack again.
+
+#### `Permission denied` writing to `storage/` or `bootstrap/cache`
+
+A fresh container start usually fixes this on its own, because the entrypoint re-applies ownership and permissions. If it persists, re-create the stack so the entrypoint runs cleanly:
+
+```
+npm run docker:dev:reset
+npm run docker:dev:up
+```
+
+#### Host files under `storage/` owned by another user after running the stack (Linux)
+
+With bind mounts, the container's `chown` to `www-data` propagates to the host, so your host user may be unable to edit or delete those files. Reclaim ownership from the repository root:
+
+```
+sudo chown -R "$USER":"$USER" storage bootstrap/cache
+```
+
+This is a Linux bind-mount effect. Docker Desktop on macOS and Windows remaps ownership and generally does not need this step.
+
+> **Tip:** Run the host-side `npm` commands as your normal user, never with `sudo`. Installing Node.js via `sudo` is a frequent cause of later `EACCES` errors during `npm install`. If that already happened, reinstall Node.js with a version manager such as `nvm` (or Homebrew on macOS) so it lives in a user-writable location.
+
 ### Daily Commands
 
 Use the npm wrapper commands whenever possible so Docker Compose and Laravel stay aligned with `.env.docker`.
