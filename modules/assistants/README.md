@@ -5,7 +5,7 @@ The project team consists of the following members:
 - PaulUbben: Developer, Tasks completer 
 - PiaKruschinski: Scrum Master, planning
 - Leo Weiß: Developer, organizer
-- NAME OR GITHUB HANDLE: ROLE, SPECIAL SKILL
+- Maryia Balonnikava: Testing, bug hunting
 - PhilSeidelFH: Developer, (programming)
 - Lennart Ubben: developer, problem solving
 - Mahdi Ahmadi Yeganeh: developer
