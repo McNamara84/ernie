@@ -34,10 +34,10 @@ This README documents the Docker-based development workflow only. For deeper set
 
 1. Clone the repository:
 
-```
+   ```bash
    git clone https://github.com/McNamara84/ernie.git
    cd ernie
-```
+   ```
 
 2. Generate local TLS certificates:
 
