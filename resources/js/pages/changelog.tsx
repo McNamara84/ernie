@@ -206,6 +206,7 @@ export default function Changelog() {
 
         // Listen for hash changes triggered outside navigateToRelease()
         window.addEventListener('hashchange', processHash);
+        processHash();
 
         return () => {
             window.removeEventListener('hashchange', processHash);

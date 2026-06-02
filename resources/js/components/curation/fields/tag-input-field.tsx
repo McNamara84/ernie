@@ -47,7 +47,12 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
     const tagifyRef = useRef<Tagify<TagData> | null>(null);
     const changeHandlerRef = useRef(onChange);
     const editingRorIdRef = useRef<string | null>(null);
-    const originalDelimitersRef = useRef<string | RegExp | null>(null);
+    const originalDelimitersRef = useRef<string | RegExp>(',');
+    const delimitersWereSuspendedRef = useRef(false);
+    const originalDropdownEnabledRef = useRef<number | false>(0);
+    const dropdownWasSuspendedRef = useRef(false);
+    const originalAutoCompleteEnabledRef = useRef(true);
+    const autoCompleteWasSuspendedRef = useRef(false);
 
     useEffect(() => {
         changeHandlerRef.current = onChange;
@@ -130,11 +135,50 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             changeHandlerRef.current({ raw: rawValue, tags });
         };
 
-        const restoreDelimiters = () => {
-            if (originalDelimitersRef.current !== null) {
-                tagify.settings.delimiters = originalDelimitersRef.current;
-                originalDelimitersRef.current = null;
+        const suspendAffiliationEditFormatting = () => {
+            if (!delimitersWereSuspendedRef.current) {
+                originalDelimitersRef.current = tagify.settings.delimiters;
+                delimitersWereSuspendedRef.current = true;
             }
+
+            tagify.settings.delimiters = /(?!)/;
+
+            if (tagify.settings.dropdown && !dropdownWasSuspendedRef.current) {
+                originalDropdownEnabledRef.current = tagify.settings.dropdown.enabled;
+                dropdownWasSuspendedRef.current = true;
+            }
+
+            if (tagify.settings.dropdown) {
+                tagify.settings.dropdown.enabled = false;
+                tagify.dropdown.hide(true);
+            }
+
+            if (tagify.settings.autoComplete && !autoCompleteWasSuspendedRef.current) {
+                originalAutoCompleteEnabledRef.current = tagify.settings.autoComplete.enabled;
+                autoCompleteWasSuspendedRef.current = true;
+            }
+
+            if (tagify.settings.autoComplete) {
+                tagify.settings.autoComplete.enabled = false;
+            }
+        };
+
+        const restoreAffiliationEditFormatting = () => {
+            if (delimitersWereSuspendedRef.current) {
+                tagify.settings.delimiters = originalDelimitersRef.current;
+                delimitersWereSuspendedRef.current = false;
+            }
+
+            if (dropdownWasSuspendedRef.current && tagify.settings.dropdown) {
+                tagify.settings.dropdown.enabled = originalDropdownEnabledRef.current;
+                dropdownWasSuspendedRef.current = false;
+            }
+
+            if (autoCompleteWasSuspendedRef.current && tagify.settings.autoComplete) {
+                tagify.settings.autoComplete.enabled = originalAutoCompleteEnabledRef.current;
+                autoCompleteWasSuspendedRef.current = false;
+            }
+
             editingRorIdRef.current = null;
         };
 
@@ -142,11 +186,9 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             const tagData = event.detail?.data as Record<string, unknown> | undefined;
             const rorId = typeof tagData?.rorId === 'string' ? tagData.rorId : null;
             editingRorIdRef.current = rorId;
-            // Only suspend delimiters for tags with a ROR ID (affiliation tags)
-            // to avoid changing comma-separator behavior in other fields (e.g. Free Keywords)
+
             if (rorId) {
-                originalDelimitersRef.current = tagify.settings.delimiters;
-                tagify.settings.delimiters = /(?!)/;
+                suspendAffiliationEditFormatting();
             }
         };
 
@@ -155,13 +197,13 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             if (tagData && editingRorIdRef.current) {
                 tagData.rorId = editingRorIdRef.current;
             }
-            restoreDelimiters();
+            restoreAffiliationEditFormatting();
         };
 
         const handleEditKeydown = (event: CustomEvent) => {
             const keyboardEvent = (event.detail as { event?: KeyboardEvent })?.event;
             if (keyboardEvent?.key === 'Escape') {
-                restoreDelimiters();
+                restoreAffiliationEditFormatting();
             }
         };
 
@@ -215,6 +257,22 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
                 ...tagify.settings.dropdown,
                 ...tagifySettings.dropdown,
             };
+        }
+
+        if (editingRorIdRef.current) {
+            if (tagifySettings.dropdown && 'enabled' in tagifySettings.dropdown && tagifySettings.dropdown.enabled !== undefined) {
+                originalDropdownEnabledRef.current = tagifySettings.dropdown.enabled;
+                dropdownWasSuspendedRef.current = true;
+            }
+
+            if (tagify.settings.dropdown) {
+                tagify.settings.dropdown.enabled = false;
+                tagify.dropdown.hide(true);
+            }
+
+            if (tagify.settings.autoComplete) {
+                tagify.settings.autoComplete.enabled = false;
+            }
         }
     }, [tagifySettings]);
 
