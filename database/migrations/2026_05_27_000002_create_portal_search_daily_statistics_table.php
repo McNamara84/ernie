@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('search_count')->default(0);
             $table->timestamps();
 
-            $table->unique(['statistic_date', 'normalized_term']);
+            $table->unique(['statistic_date', 'normalized_term'], 'portal_search_stats_date_term_unique');
             $table->index('normalized_term');
             $table->index('statistic_date');
         });

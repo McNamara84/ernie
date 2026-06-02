@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unsignedInteger('file_download_click_count')->default(0);
             $table->timestamps();
 
-            $table->unique(['landing_page_id', 'statistic_date']);
+            $table->unique(['landing_page_id', 'statistic_date'], 'lp_daily_stats_page_date_unique');
             $table->index('statistic_date');
         });
     }
