@@ -43,9 +43,9 @@ This README documents the Docker-based development workflow only. For deeper set
 
    Windows PowerShell:
 
-```
+   ```powershell
    .\docker\generate-certs.ps1
-```
+   ```
 
    macOS, Linux, WSL, Git Bash, or other POSIX shells:
 
