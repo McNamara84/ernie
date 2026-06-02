@@ -90,6 +90,7 @@ describe('CoverageEntry', () => {
         onChange: mockOnChange,
         onBatchChange: mockOnBatchChange,
         onRemove: mockOnRemove,
+        initiallyExpanded: true,
     };
 
     beforeEach(() => {
@@ -236,7 +237,7 @@ describe('CoverageEntry', () => {
         render(<CoverageEntry {...defaultProps} />);
 
         // The card is expanded by default
-        expect(screen.getByText(/^Temporal Information$/i)).toBeInTheDocument();
+        expect(screen.getByText(/^Temporal Coverage$/i)).toBeInTheDocument();
     });
 
     test('renders description section', () => {

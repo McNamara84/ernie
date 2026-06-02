@@ -290,7 +290,7 @@ export function TagInputField<T extends TagInputItem = TagInputItem>({
             <Label id={labelId} htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
                 {label}
                 {required && (
-                    <span aria-hidden="true" className="ml-1 text-destructive">
+                    <span aria-hidden="true" className="ml-1 font-bold text-destructive">
                         *
                     </span>
                 )}

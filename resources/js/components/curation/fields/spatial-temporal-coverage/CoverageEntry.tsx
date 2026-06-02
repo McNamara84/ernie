@@ -22,6 +22,7 @@ interface CoverageEntryProps {
     onChange: (field: keyof SpatialTemporalCoverageEntry, value: string) => void;
     onBatchChange: (updates: Partial<SpatialTemporalCoverageEntry>) => void;
     onRemove: () => void;
+    initiallyExpanded?: boolean;
 }
 
 /**
@@ -103,8 +104,17 @@ const hasData = (entry: SpatialTemporalCoverageEntry): boolean => {
     return !!(entry.latMin || entry.lonMin || entry.startDate || entry.endDate || entry.description);
 };
 
-export default function CoverageEntry({ entry, index, apiKey, isFirst, onChange, onBatchChange, onRemove }: CoverageEntryProps) {
-    const [isExpanded, setIsExpanded] = useState(true);
+export default function CoverageEntry({
+    entry,
+    index,
+    apiKey,
+    isFirst,
+    onChange,
+    onBatchChange,
+    onRemove,
+    initiallyExpanded = false,
+}: CoverageEntryProps) {
+    const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
 
     const handleTypeChange = (newType: CoverageType) => {
         // Clear inappropriate data when switching types
@@ -145,8 +155,8 @@ export default function CoverageEntry({ entry, index, apiKey, isFirst, onChange,
                         <h3 className="text-lg font-semibold">Coverage Entry #{index + 1}</h3>
                         {!isExpanded && hasData(entry) && (
                             <div className="mt-2 space-y-1">
-                                <p className="text-sm text-muted-foreground">📍 {formatCoordinates(entry)}</p>
-                                <p className="text-sm text-muted-foreground">🕐 {formatDateRange(entry)}</p>
+                                <p className="text-sm text-muted-foreground">Coordinates: {formatCoordinates(entry)}</p>
+                                <p className="text-sm text-muted-foreground">Dates: {formatDateRange(entry)}</p>
                                 {entry.description && <p className="truncate text-sm text-muted-foreground">{entry.description}</p>}
                             </div>
                         )}

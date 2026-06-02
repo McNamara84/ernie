@@ -91,6 +91,7 @@ describe('CoverageEntry', () => {
         onChange: mockOnChange,
         onBatchChange: mockOnBatchChange,
         onRemove: mockOnRemove,
+        initiallyExpanded: true,
     };
 
     beforeEach(() => {
@@ -112,7 +113,24 @@ describe('CoverageEntry', () => {
             expect(screen.getByText('Coverage Entry #6')).toBeInTheDocument();
         });
 
-        test('is expanded by default', () => {
+        test('is collapsed by default', () => {
+            render(
+                <CoverageEntry
+                    entry={defaultProps.entry}
+                    index={defaultProps.index}
+                    apiKey={defaultProps.apiKey}
+                    isFirst={defaultProps.isFirst}
+                    onChange={defaultProps.onChange}
+                    onBatchChange={defaultProps.onBatchChange}
+                    onRemove={defaultProps.onRemove}
+                />,
+            );
+
+            expect(screen.queryByTestId('mock-point-form')).not.toBeInTheDocument();
+            expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+        });
+
+        test('can be initially expanded', () => {
             render(<CoverageEntry {...defaultProps} />);
 
             // Point form should be visible (default type is 'point')
@@ -151,7 +169,7 @@ describe('CoverageEntry', () => {
     });
 
     describe('Expand/Collapse', () => {
-        test('entry is expanded by default', () => {
+        test('entry can start expanded', () => {
             render(<CoverageEntry {...defaultProps} />);
 
             // Point form should be visible in expanded state (default type)
@@ -191,10 +209,10 @@ describe('CoverageEntry', () => {
             expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
         });
 
-        test('shows preview when collapsed and has data', async () => {
-            const user = userEvent.setup();
+        test('shows preview when collapsed and has data', () => {
             const entryWithData: SpatialTemporalCoverageEntry = {
                 ...defaultEntry,
+                type: 'box',
                 latMin: '48.137154',
                 lonMin: '11.576124',
                 latMax: '48.200000',
@@ -204,15 +222,11 @@ describe('CoverageEntry', () => {
                 description: 'Test description',
             };
 
-            render(<CoverageEntry {...defaultProps} entry={entryWithData} />);
+            render(<CoverageEntry {...defaultProps} entry={entryWithData} initiallyExpanded={false} />);
 
-            // Collapse the entry
-            const collapseButton = screen.getByRole('button', { name: /collapse entry/i });
-            await user.click(collapseButton);
-
-            // Preview should show coordinate and date emojis
-            expect(screen.getByText(/📍/)).toBeInTheDocument();
-            expect(screen.getByText(/🕐/)).toBeInTheDocument();
+            // Preview should show coordinate and date summaries
+            expect(screen.getByText(/Coordinates: Box:/)).toBeInTheDocument();
+            expect(screen.getByText(/Dates: 2024-01-01 to 2024-12-31/)).toBeInTheDocument();
             
             // Verify description is shown
             expect(screen.getByText('Test description')).toBeInTheDocument();

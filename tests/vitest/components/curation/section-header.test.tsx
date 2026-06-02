@@ -50,7 +50,10 @@ describe('SectionHeader', () => {
         it('should show asterisk when required is true', () => {
             render(<SectionHeader label="Authors" required />);
 
-            expect(screen.getByLabelText('Required')).toBeInTheDocument();
+            const indicator = screen.getByLabelText('Required');
+
+            expect(indicator).toBeInTheDocument();
+            expect(indicator).toHaveClass('font-bold');
         });
 
         it('should not show asterisk when required is false', () => {

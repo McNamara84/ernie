@@ -22,7 +22,10 @@ describe('InputField with Validation', () => {
             render(<InputField id="test-input" label="Test Label" required />);
 
             const label = screen.getByText(/^Test Label/).closest('label');
+            const indicator = label?.querySelector('.text-destructive');
+
             expect(label).toHaveTextContent('*');
+            expect(indicator).toHaveClass('font-bold');
         });
 
         it('should render help text when provided', () => {

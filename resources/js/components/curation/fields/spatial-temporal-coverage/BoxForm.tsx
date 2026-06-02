@@ -60,6 +60,7 @@ export default function BoxForm({ entry, apiKey, onChange, onBatchChange }: BoxF
                     lonMax={entry.lonMax}
                     onChange={handleCoordinateChange}
                     showLabels={true}
+                    coordinateOrder="lat-lon"
                 />
             </div>
         </div>

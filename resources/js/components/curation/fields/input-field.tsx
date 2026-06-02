@@ -68,7 +68,7 @@ export function InputField({
         <>
             {label}
             {required && (
-                <span aria-hidden="true" className="ml-1 text-destructive">
+                <span aria-hidden="true" className="ml-1 font-bold text-destructive">
                     *
                 </span>
             )}
