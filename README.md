@@ -53,6 +53,8 @@ This README documents the Docker-based development workflow only. For deeper set
    ./docker/generate-certs.sh
 ```
 
+   If `./docker/generate-certs.sh` returns `Permission denied`, see [Common Permission Errors](#common-permission-errors).
+
    On macOS the browser will flag the self-signed certificate on first launch. To trust it system-wide, add it to the system keychain:
 
 ```
@@ -91,7 +93,15 @@ This README documents the Docker-based development workflow only. For deeper set
 
    The first startup can take a few minutes because Docker may need to build images, install dependencies, run migrations, and seed baseline data.
 
-6. Open the application:
+6. Generate the application key:
+
+```
+   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan key:generate
+```
+
+   The development container normally writes `APP_KEY` to `.env` automatically on first boot. If the application reports `No application encryption key has been specified` (or `APP_KEY=` in `.env` is still empty), run this once while the stack is running, then reload the page.
+
+7. Open the application:
 
    - Main URL: <https://ernie.localhost:3333>
    - Traefik dashboard: <http://localhost:8080>
@@ -102,7 +112,7 @@ This README documents the Docker-based development workflow only. For deeper set
    echo "127.0.0.1 ernie.localhost" | sudo tee -a /etc/hosts
 ```
 
-7. Create the first administrator account:
+8. Create the first administrator account:
 
 ```
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
@@ -110,7 +120,7 @@ This README documents the Docker-based development workflow only. For deeper set
 
    The first user created in a fresh environment becomes an administrator automatically.
 
-8. Initialize SPDX license data:
+9. Initialize SPDX license data:
 
 ```
    docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
