@@ -166,7 +166,7 @@ export default function DescriptionField({
                             <TabsTrigger key={type} value={type} className="relative">
                                 {meta.label}
                                 {meta.required && (
-                                    <span className="ml-0.5 text-destructive" aria-label="Required">
+                                    <span className="ml-0.5 font-bold text-destructive" aria-label="Required">
                                         *
                                     </span>
                                 )}

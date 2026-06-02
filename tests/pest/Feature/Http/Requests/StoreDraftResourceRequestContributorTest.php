@@ -15,6 +15,35 @@ beforeEach(function () {
 });
 
 describe('contributor email/website validation (draft)', function () {
+    it('accepts empty and ROR-only author affiliations in draft mode', function () {
+        $data = [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Draft',
+                    'lastName' => 'Author',
+                    'isContact' => false,
+                    'affiliations' => [
+                        ['value' => '', 'rorId' => ''],
+                        ['value' => '', 'rorId' => 'https://ror.org/04wxnsj81'],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'authors.0.affiliations',
+            'authors.0.affiliations.0.value',
+            'authors.0.affiliations.1.value',
+        ]);
+    });
+
     it('accepts contributor email and website fields in draft mode', function () {
         $data = [
             'titles' => [
@@ -37,6 +66,43 @@ describe('contributor email/website validation (draft)', function () {
             ->postJson('/editor/resources/draft', $data);
 
         $response->assertJsonMissingValidationErrors(['contributors.0.email', 'contributors.0.website']);
+    });
+
+    it('accepts missing, empty, and ROR-only contributor affiliations in draft mode', function () {
+        $data = [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Contributor',
+                    'lastName' => 'Without Affiliation',
+                    'roles' => ['DataCollector'],
+                ],
+                [
+                    'type' => 'person',
+                    'firstName' => 'Contributor',
+                    'lastName' => 'With Empty Affiliation',
+                    'roles' => ['DataCollector'],
+                    'affiliations' => [
+                        ['value' => '', 'rorId' => ''],
+                        ['value' => '', 'rorId' => 'https://ror.org/04wxnsj81'],
+                    ],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'contributors.0.affiliations',
+            'contributors.0.affiliations.0.value',
+            'contributors.1.affiliations',
+            'contributors.1.affiliations.0.value',
+            'contributors.1.affiliations.1.value',
+        ]);
     });
 
     it('does not require email for Contact Person in draft mode', function () {
