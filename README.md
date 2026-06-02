@@ -57,9 +57,9 @@ This README documents the Docker-based development workflow only. For deeper set
 
    On macOS the browser will flag the self-signed certificate on first launch. To trust it system-wide, add it to the system keychain:
 
-```
+   ```bash
    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain docker/traefik/certs/localhost.crt
-```
+   ```
 
 3. Create the Docker environment file:
 
