@@ -349,13 +349,19 @@ describe('Changelog', () => {
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
         const targetButton = screen.getByRole('button', { name: /version 0.2.0/i });
 
+        await vi.waitFor(() => {
+            expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+        });
+
         await act(async () => {
             window.history.pushState(null, '', '/changelog#v0.2.0');
             window.dispatchEvent(new HashChangeEvent('hashchange'));
         });
 
-        expect(targetButton).toHaveAttribute('aria-expanded', 'true');
-        expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+        await vi.waitFor(() => {
+            expect(targetButton).toHaveAttribute('aria-expanded', 'true');
+            expect(firstButton).toHaveAttribute('aria-expanded', 'false');
+        });
     });
 
     it('keeps the open release stable when scroll-based highlighting changes', async () => {
