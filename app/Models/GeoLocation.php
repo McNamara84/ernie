@@ -146,6 +146,11 @@ class GeoLocation extends Model
 
     private function isNear(float $actual, float $expected): bool
     {
-        return abs($actual - $expected) <= self::GLOBAL_COVERAGE_TOLERANCE;
+        $configuredTolerance = config('app.geo.global_coverage_tolerance');
+        $tolerance = is_numeric($configuredTolerance)
+            ? max(0.0, (float) $configuredTolerance)
+            : self::GLOBAL_COVERAGE_TOLERANCE;
+
+        return abs($actual - $expected) <= $tolerance;
     }
 }
