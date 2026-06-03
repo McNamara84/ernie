@@ -25,8 +25,10 @@ class LegacyLandingPageImportService
         bool $isPublished,
         bool $createWhenEmpty = false,
     ): ?LandingPage {
-        if (LandingPage::where('resource_id', $resource->id)->exists()) {
-            return LandingPage::where('resource_id', $resource->id)->first();
+        $existingLandingPage = LandingPage::where('resource_id', $resource->id)->first();
+
+        if ($existingLandingPage !== null) {
+            return $existingLandingPage;
         }
 
         $fileEntries = $this->normaliseFileEntries($fileEntries);

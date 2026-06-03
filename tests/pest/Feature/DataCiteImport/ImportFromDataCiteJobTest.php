@@ -642,6 +642,37 @@ describe('ImportFromDataCiteJob', function () {
             ]);
     });
 
+    it('marks single SUMARIO pending fallback as failed when the lookup is unavailable', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/pending.unavailable')
+            ->andReturnNull();
+
+        $this->pendingImportService
+            ->shouldReceive('importPendingByDoi')
+            ->once()
+            ->with('10.5880/pending.unavailable', $this->user->id)
+            ->andThrow(new RuntimeException('Connection refused'));
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/pending.unavailable');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['total'])->toBe(1)
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(0)
+            ->and($status['failed'])->toBe(1)
+            ->and($status['error'])->toBe('SUMARIO pending lookup is unavailable.')
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => '10.5880/pending.unavailable', 'error' => 'SUMARIO pending lookup is unavailable.'],
+            ]);
+    });
+
     it('imports a single SUMARIO pending resource when DataCite has no DOI record', function () {
         $this->importService
             ->shouldReceive('fetchSingleDoi')

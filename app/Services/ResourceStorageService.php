@@ -19,12 +19,13 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
 use App\Models\TitleType;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
-use App\Services\Citations\RelatedIdentifierCitationLabelService;
-use App\Services\Citations\RelatedItemStorageService;
 use App\Support\SubjectBreadcrumbPath;
+use App\Support\UriHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -33,6 +34,8 @@ use Illuminate\Validation\ValidationException;
 
 class ResourceStorageService
 {
+    private const CONTACT_FIELD_MAX_LENGTH = 255;
+
     /** @var array<string>|null Cached Contact Person name/slug for role matching */
     private ?array $contactPersonNames = null;
 
@@ -341,6 +344,7 @@ class ResourceStorageService
     {
         $person = $this->personService->findOrCreate($data);
         $isContact = (bool) ($data['isContact'] ?? false);
+        $contactInfo = $this->validatedContactInfo($data);
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
@@ -348,8 +352,8 @@ class ResourceStorageService
             'creatorable_type' => Person::class,
             'position' => $position,
             'is_contact' => $isContact,
-            'email' => $isContact ? ($data['email'] ?? null) : null,
-            'website' => $isContact ? ($data['website'] ?? null) : null,
+            'email' => $isContact ? $contactInfo['email'] : null,
+            'website' => $isContact ? $contactInfo['website'] : null,
         ]);
     }
 
@@ -435,14 +439,15 @@ class ResourceStorageService
         $person = $this->personService->findOrCreate($data);
 
         $hasContactPersonRole = $this->hasContactPersonRole($data);
+        $contactInfo = $this->validatedContactInfo($data);
 
         return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
             'position' => $position,
-            'email' => $hasContactPersonRole ? ($data['email'] ?? null) : null,
-            'website' => $hasContactPersonRole ? ($data['website'] ?? null) : null,
+            'email' => $hasContactPersonRole ? $contactInfo['email'] : null,
+            'website' => $hasContactPersonRole ? $contactInfo['website'] : null,
         ]);
     }
 
@@ -503,6 +508,74 @@ class ResourceStorageService
             'contributorable_type' => Institution::class,
             'position' => $position,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{email: string|null, website: string|null}
+     */
+    private function validatedContactInfo(array $data): array
+    {
+        return [
+            'email' => $this->validatedContactEmail($data['email'] ?? null),
+            'website' => $this->validatedContactWebsite($data['website'] ?? null),
+        ];
+    }
+
+    private function validatedContactEmail(mixed $value): ?string
+    {
+        $email = $this->filledContactString($value);
+
+        if ($email === null) {
+            return null;
+        }
+
+        if (
+            mb_strlen($email) > self::CONTACT_FIELD_MAX_LENGTH
+            || filter_var($email, FILTER_VALIDATE_EMAIL) === false
+        ) {
+            Log::warning('Skipping invalid contact email while storing resource');
+
+            return null;
+        }
+
+        return $email;
+    }
+
+    private function validatedContactWebsite(mixed $value): ?string
+    {
+        $website = $this->filledContactString($value);
+
+        if ($website === null) {
+            return null;
+        }
+
+        $uri = UriHelper::parse($website);
+        $scheme = strtolower($uri?->getScheme() ?? '');
+        $host = trim($uri?->getHost() ?? '');
+
+        if (
+            mb_strlen($website) > self::CONTACT_FIELD_MAX_LENGTH
+            || ! in_array($scheme, ['http', 'https'], true)
+            || $host === ''
+        ) {
+            Log::warning('Skipping invalid contact website while storing resource');
+
+            return null;
+        }
+
+        return $website;
+    }
+
+    private function filledContactString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**

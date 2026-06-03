@@ -388,8 +388,19 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     private function handleSinglePendingFallback(string $doi, string $startedAt): void
     {
-        $result = app(SumarioPendingResourceImportService::class)
-            ->importPendingByDoi($doi, $this->userId);
+        try {
+            $result = app(SumarioPendingResourceImportService::class)
+                ->importPendingByDoi($doi, $this->userId);
+        } catch (\Throwable $exception) {
+            Log::warning('SUMARIO pending lookup failed during single DOI fallback', [
+                'doi' => $doi,
+                'error' => $exception->getMessage(),
+            ]);
+
+            $this->markSingleImportAsFailed($doi, 'SUMARIO pending lookup is unavailable.', $startedAt);
+
+            return;
+        }
 
         if ($result['status'] === 'imported') {
             $this->updateProgress([
