@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Datacenter;
 use App\Models\Description;
+use App\Models\GeoLocation;
 use App\Models\Institution;
 use App\Models\LandingPage;
 use App\Models\Person;
@@ -684,6 +685,55 @@ describe('transformForPortal', function () {
 
         expect($result['isIgsn'])->toBeTrue()
             ->and($result['resourceTypeSlug'])->toBe('physical-object');
+    });
+
+    it('omits global-only coverage from portal geo locations', function () {
+        $resource = createPublishedResourceForSearch('Global Dataset', $this->titleType);
+        GeoLocation::factory()->withBox(-180, 180, -90, 90)->create([
+            'resource_id' => $resource->id,
+        ]);
+        $resource->load(['titles.titleType', 'creators.creatorable', 'resourceType', 'geoLocations', 'landingPage']);
+
+        $result = $this->service->transformForPortal($resource);
+
+        expect($result['geoLocations'])->toBeEmpty();
+    });
+
+    it('keeps local portal geo locations when global coverage is mixed with local coverage', function () {
+        $resource = createPublishedResourceForSearch('Mixed Coverage Dataset', $this->titleType);
+        GeoLocation::factory()->withBox(-180, 180, -90, 90)->create([
+            'resource_id' => $resource->id,
+        ]);
+        GeoLocation::factory()->withPoint(13.0661, 52.3806)->create([
+            'resource_id' => $resource->id,
+        ]);
+        GeoLocation::factory()->withBox(5.87, 15.04, 47.27, 55.06)->create([
+            'resource_id' => $resource->id,
+        ]);
+        $resource->load(['titles.titleType', 'creators.creatorable', 'resourceType', 'geoLocations', 'landingPage']);
+
+        $result = $this->service->transformForPortal($resource);
+
+        expect($result['geoLocations'])
+            ->toHaveCount(2)
+            ->and(array_column($result['geoLocations'], 'type'))
+            ->toEqualCanonicalizing(['point', 'box']);
+    });
+
+    it('does not cast incomplete legacy boxes to portal bounds', function () {
+        $resource = createPublishedResourceForSearch('Incomplete Box Dataset', $this->titleType);
+        GeoLocation::create([
+            'resource_id' => $resource->id,
+            'west_bound_longitude' => 13.0,
+        ]);
+        $resource->load(['titles.titleType', 'creators.creatorable', 'resourceType', 'geoLocations', 'landingPage']);
+
+        $result = $this->service->transformForPortal($resource);
+
+        expect($result['geoLocations'])
+            ->toHaveCount(1)
+            ->and($result['geoLocations'][0]['type'])->toBe('unknown')
+            ->and($result['geoLocations'][0]['bounds'])->toBeNull();
     });
 });
 
