@@ -3393,7 +3393,7 @@ describe('DataCiteForm', () => {
     });
 
     it('blocks Save & Validate when Abstract is shorter than 50 characters', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -3410,13 +3410,16 @@ describe('DataCiteForm', () => {
                 initialLicenses={['MIT']}
                 availableDatacenters={availableDatacenters}
                 initialDatacenters={[1]}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        lastName: 'Curator',
+                    },
+                ]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
-
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
 
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.type(abstractTextarea, 'Short abstract');
