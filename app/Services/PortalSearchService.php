@@ -1037,7 +1037,7 @@ class PortalSearchService
                     'point' => $geo->point_latitude !== null && $geo->point_longitude !== null
                         ? ['lat' => (float) $geo->point_latitude, 'lng' => (float) $geo->point_longitude]
                         : null,
-                    'bounds' => $geo->west_bound_longitude !== null
+                    'bounds' => $geo->hasBox()
                         ? [
                             'north' => (float) $geo->north_bound_latitude,
                             'south' => (float) $geo->south_bound_latitude,
@@ -1069,7 +1069,7 @@ class PortalSearchService
             return 'polygon';
         }
 
-        if ($geo->west_bound_longitude !== null) {
+        if ($geo->hasBox()) {
             return 'box';
         }
 

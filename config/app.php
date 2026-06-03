@@ -74,7 +74,7 @@ return [
     |
     | Configure application-level geographic interpretation. The global coverage
     | tolerance is optional; when unset, GeoLocation falls back to its built-in
-    | default so older deployments keep their existing behaviour.
+    | default for detecting whole-world bounding boxes.
     |
     */
 

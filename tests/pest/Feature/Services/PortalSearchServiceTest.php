@@ -719,6 +719,22 @@ describe('transformForPortal', function () {
             ->and(array_column($result['geoLocations'], 'type'))
             ->toEqualCanonicalizing(['point', 'box']);
     });
+
+    it('does not cast incomplete legacy boxes to portal bounds', function () {
+        $resource = createPublishedResourceForSearch('Incomplete Box Dataset', $this->titleType);
+        GeoLocation::create([
+            'resource_id' => $resource->id,
+            'west_bound_longitude' => 13.0,
+        ]);
+        $resource->load(['titles.titleType', 'creators.creatorable', 'resourceType', 'geoLocations', 'landingPage']);
+
+        $result = $this->service->transformForPortal($resource);
+
+        expect($result['geoLocations'])
+            ->toHaveCount(1)
+            ->and($result['geoLocations'][0]['type'])->toBe('unknown')
+            ->and($result['geoLocations'][0]['bounds'])->toBeNull();
+    });
 });
 
 // =========================================================================
