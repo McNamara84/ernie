@@ -216,6 +216,49 @@ describe('PortalMap', () => {
             expect(screen.getAllByTestId('map-rectangle').length).toBeGreaterThan(0);
         });
 
+        it('does not render global bounding boxes as map shapes', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    {
+                        id: 1,
+                        type: 'box',
+                        point: null,
+                        bounds: { north: 90, south: -90, east: 180, west: -180 },
+                        polygon: null,
+                    },
+                ]),
+            ];
+            render(<PortalMap resources={resources} />);
+
+            expect(screen.queryAllByTestId('map-rectangle')).toHaveLength(0);
+            expect(screen.getAllByText(/no geographic data available/i).length).toBeGreaterThan(0);
+        });
+
+        it('keeps local geometries when a resource also has global coverage', () => {
+            const resources = [
+                createMockResourceWithGeo(1, [
+                    {
+                        id: 1,
+                        type: 'box',
+                        point: null,
+                        bounds: { north: 90, south: -90, east: 180, west: -180 },
+                        polygon: null,
+                    },
+                    {
+                        id: 2,
+                        type: 'box',
+                        point: null,
+                        bounds: { north: 53, south: 52, east: 14, west: 13 },
+                        polygon: null,
+                    },
+                ]),
+            ];
+            render(<PortalMap resources={resources} />);
+
+            expect(screen.getAllByTestId('map-rectangle').length).toBeGreaterThan(0);
+            expect(screen.getAllByText('(1 location)').length).toBeGreaterThan(0);
+        });
+
         it('renders polygons for polygon geo locations', () => {
             const resources = [
                 createMockResourceWithGeo(1, [

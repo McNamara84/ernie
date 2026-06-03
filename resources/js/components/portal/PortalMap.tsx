@@ -10,9 +10,10 @@ import { MapContainer, Polygon, Polyline, Popup, Rectangle, TileLayer, useMap } 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { isGlobalCoverageBounds } from '@/lib/geo-coverage';
 import { formatAuthorsShort, getShapePathOptions } from '@/lib/portal-map-config';
 import { cn } from '@/lib/utils';
-import type { GeoBounds, PortalResource } from '@/types/portal';
+import type { GeoBounds, PortalGeoLocation, PortalResource } from '@/types/portal';
 
 import { ClusterLayer } from './PortalMapCluster';
 import { PortalMapLegend } from './PortalMapLegend';
@@ -70,6 +71,21 @@ function calculateBounds(resources: PortalResource[]): L.LatLngBounds | null {
     }
 
     return L.latLngBounds(allPoints);
+}
+
+function isGlobalPortalLocation(geo: PortalGeoLocation): boolean {
+    if (geo.type !== 'box' || geo.bounds === null) {
+        return false;
+    }
+
+    return isGlobalCoverageBounds(geo.bounds, geo.type);
+}
+
+function withoutGlobalLocations(resource: PortalResource): PortalResource {
+    return {
+        ...resource,
+        geoLocations: resource.geoLocations.filter((geo) => !isGlobalPortalLocation(geo)),
+    };
 }
 
 /**
@@ -370,9 +386,9 @@ export function PortalMap({ resources, className, hideHeader = false, geoFilterE
     const [isCollapsed, setIsCollapsed] = useState(false);
     const skipNextMoveEnd = useRef(false);
 
-    // Filter resources that have geo locations
+    // Filter resources that have non-global geo locations
     const resourcesWithGeo = useMemo(
-        () => resources.filter((r) => r.geoLocations.length > 0),
+        () => resources.map(withoutGlobalLocations).filter((r) => r.geoLocations.length > 0),
         [resources],
     );
 

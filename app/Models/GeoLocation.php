@@ -41,6 +41,8 @@ class GeoLocation extends Model
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
 
+    public const GLOBAL_COVERAGE_TOLERANCE = 0.000001;
+
     protected $casts = [
         'point_longitude' => 'decimal:8',
         'point_latitude' => 'decimal:8',
@@ -84,6 +86,25 @@ class GeoLocation extends Model
     }
 
     /**
+     * Check if this bounding box covers the whole world.
+     */
+    public function isGlobalCoverage(): bool
+    {
+        if (! $this->hasBox()) {
+            return false;
+        }
+
+        if ($this->geo_type !== null && $this->geo_type !== 'box') {
+            return false;
+        }
+
+        return $this->isNear((float) $this->west_bound_longitude, -180.0)
+            && $this->isNear((float) $this->east_bound_longitude, 180.0)
+            && $this->isNear((float) $this->south_bound_latitude, -90.0)
+            && $this->isNear((float) $this->north_bound_latitude, 90.0);
+    }
+
+    /**
      * Check if this has a place name defined.
      */
     public function hasPlace(): bool
@@ -121,5 +142,10 @@ class GeoLocation extends Model
     public function hasElevation(): bool
     {
         return $this->elevation !== null;
+    }
+
+    private function isNear(float $actual, float $expected): bool
+    {
+        return abs($actual - $expected) <= self::GLOBAL_COVERAGE_TOLERANCE;
     }
 }
