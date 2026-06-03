@@ -78,7 +78,7 @@ class LegacyLandingPageImportService
         $seenUrls = [];
 
         foreach ($fileEntries as $entry) {
-            $url = trim($entry['url'] ?? '');
+            $url = trim($entry['url']);
 
             if ($url === '' || isset($seenUrls[$url])) {
                 continue;

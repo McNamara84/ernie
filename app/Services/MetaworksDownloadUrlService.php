@@ -36,10 +36,10 @@ class MetaworksDownloadUrlService
         $result = $this->lookupFileEntries($doi);
 
         return [
-            'urls' => array_values(array_map(
+            'urls' => array_map(
                 static fn (array $file): string => $file['url'],
                 $result['files'],
-            )),
+            ),
             'allPublic' => $result['allPublic'],
         ];
     }

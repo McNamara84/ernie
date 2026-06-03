@@ -51,12 +51,13 @@ class LegacyMetaworksDatacenterLookupService
     {
         $names = $this->resolveDatacenterNames($doi);
 
-        return Datacenter::query()
+        $ids = Datacenter::query()
             ->whereIn('name', $names)
             ->pluck('id')
             ->map(static fn (mixed $id): int => (int) $id)
-            ->values()
             ->all();
+
+        return array_values($ids);
     }
 
     public function syncDatacenters(Resource $resource, string $doi): void

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * @property int $id
+ * @property string|null $publicstatus
  * @property string|null $identifier
  * @property int|null $publicationyear
  * @property string|null $version
