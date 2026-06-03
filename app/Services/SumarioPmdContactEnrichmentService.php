@@ -18,6 +18,8 @@ class SumarioPmdContactEnrichmentService
 {
     private const CONNECTION = 'metaworks';
 
+    private const CONTACT_FIELD_MAX_LENGTH = 255;
+
     public function enrich(Resource $resource, string $doi): bool
     {
         try {
@@ -250,7 +252,10 @@ class SumarioPmdContactEnrichmentService
             return null;
         }
 
-        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        if (
+            mb_strlen($email) > self::CONTACT_FIELD_MAX_LENGTH
+            || filter_var($email, FILTER_VALIDATE_EMAIL) === false
+        ) {
             Log::warning('Skipping invalid SUMARIO contact email', [
                 'doi' => $doi,
             ]);
@@ -273,7 +278,11 @@ class SumarioPmdContactEnrichmentService
         $scheme = strtolower($uri?->getScheme() ?? '');
         $host = trim($uri?->getHost() ?? '');
 
-        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+        if (
+            mb_strlen($website) > self::CONTACT_FIELD_MAX_LENGTH
+            || ! in_array($scheme, ['http', 'https'], true)
+            || $host === ''
+        ) {
             Log::warning('Skipping invalid SUMARIO contact website', [
                 'doi' => $doi,
             ]);

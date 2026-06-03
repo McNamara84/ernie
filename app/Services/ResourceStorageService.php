@@ -534,7 +534,7 @@ class ResourceStorageService
             mb_strlen($email) > self::CONTACT_FIELD_MAX_LENGTH
             || filter_var($email, FILTER_VALIDATE_EMAIL) === false
         ) {
-            Log::warning('Skipping invalid contact email while storing resource');
+            Log::debug('Skipping invalid contact email while storing resource');
 
             return null;
         }
@@ -559,7 +559,7 @@ class ResourceStorageService
             || ! in_array($scheme, ['http', 'https'], true)
             || $host === ''
         ) {
-            Log::warning('Skipping invalid contact website while storing resource');
+            Log::debug('Skipping invalid contact website while storing resource');
 
             return null;
         }

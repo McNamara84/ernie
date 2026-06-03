@@ -163,6 +163,45 @@ describe('SumarioPmdContactEnrichmentService', function () {
             ->and($creator->fresh()->website)->toBeNull();
     });
 
+    it('ignores overlong legacy contact email and website values', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 46,
+            'identifier' => '10.5880/contact.overlong',
+        ]);
+        DB::connection('metaworks')->table('resourceagent')->insert([
+            'resource_id' => 46,
+            'order' => 1,
+            'name' => 'Long, Logan',
+            'firstname' => 'Logan',
+            'lastname' => 'Long',
+        ]);
+        DB::connection('metaworks')->table('contactinfo')->insert([
+            'resourceagent_resource_id' => 46,
+            'resourceagent_order' => 1,
+            'email' => str_repeat('a', 260).'@example.org',
+            'website' => 'https://example.org/'.str_repeat('a', 260),
+        ]);
+
+        $resource = Resource::factory()->create(['doi' => '10.5880/contact.overlong']);
+        $person = Person::query()->create([
+            'given_name' => 'Logan',
+            'family_name' => 'Long',
+        ]);
+        $creator = ResourceCreator::query()->create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 0,
+        ]);
+
+        $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.overlong');
+
+        expect($updated)->toBeFalse()
+            ->and($creator->fresh()->is_contact)->toBeFalse()
+            ->and($creator->fresh()->email)->toBeNull()
+            ->and($creator->fresh()->website)->toBeNull();
+    });
+
     it('enriches matching contributors with legacy contact information', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 43,
