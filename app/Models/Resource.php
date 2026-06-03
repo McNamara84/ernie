@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
 /**
  * Resource Model (DataCite Metadata)
@@ -31,8 +34,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null $legacy_source_id
  * @property string|null $legacy_source_status
  * @property bool $force_review_status
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read ResourceType|null $resourceType
  * @property-read Language|null $language
  * @property-read Publisher|null $publisher
@@ -41,32 +44,32 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read LandingPage|null $landingPage
  * @property-read ResourceAssessment|null $resourceAssessment
  * @property-read IgsnMetadata|null $igsnMetadata
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Title> $titles
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceCreator> $creators
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceContributor> $contributors
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Description> $descriptions
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Subject> $subjects
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceDate> $dates
- * @property-read \Illuminate\Database\Eloquent\Collection<int, GeoLocation> $geoLocations
- * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedIdentifier> $relatedIdentifiers
- * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedItem> $relatedItems
- * @property-read \Illuminate\Database\Eloquent\Collection<int, FundingReference> $fundingReferences
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Right> $rights
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Size> $sizes
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Format> $formats
- * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnClassification> $igsnClassifications
- * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalAge> $igsnGeologicalAges
- * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
- * @property-read \Illuminate\Database\Eloquent\Collection<int, AlternateIdentifier> $alternateIdentifiers
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceInstrument> $instruments
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Datacenter> $datacenters
+ * @property-read Collection<int, Title> $titles
+ * @property-read Collection<int, ResourceCreator> $creators
+ * @property-read Collection<int, ResourceContributor> $contributors
+ * @property-read Collection<int, Description> $descriptions
+ * @property-read Collection<int, Subject> $subjects
+ * @property-read Collection<int, ResourceDate> $dates
+ * @property-read Collection<int, GeoLocation> $geoLocations
+ * @property-read Collection<int, RelatedIdentifier> $relatedIdentifiers
+ * @property-read Collection<int, RelatedItem> $relatedItems
+ * @property-read Collection<int, FundingReference> $fundingReferences
+ * @property-read Collection<int, Right> $rights
+ * @property-read Collection<int, Size> $sizes
+ * @property-read Collection<int, Format> $formats
+ * @property-read Collection<int, IgsnClassification> $igsnClassifications
+ * @property-read Collection<int, IgsnGeologicalAge> $igsnGeologicalAges
+ * @property-read Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
+ * @property-read Collection<int, AlternateIdentifier> $alternateIdentifiers
+ * @property-read Collection<int, ResourceInstrument> $instruments
+ * @property-read Collection<int, Datacenter> $datacenters
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
 #[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status'])]
 class Resource extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     protected $casts = [
@@ -406,9 +409,9 @@ class Resource extends Model
     /**
      * Get all free-text subjects.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Subject>
+     * @return Collection<int, Subject>
      */
-    public function getFreeTextSubjectsAttribute(): \Illuminate\Database\Eloquent\Collection
+    public function getFreeTextSubjectsAttribute(): Collection
     {
         return $this->subjects->filter(fn (Subject $s) => $s->isFreeText());
     }
@@ -416,9 +419,9 @@ class Resource extends Model
     /**
      * Get all controlled vocabulary subjects.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Subject>
+     * @return Collection<int, Subject>
      */
-    public function getControlledSubjectsAttribute(): \Illuminate\Database\Eloquent\Collection
+    public function getControlledSubjectsAttribute(): Collection
     {
         return $this->subjects->filter(fn (Subject $s) => $s->isControlled());
     }
@@ -426,9 +429,9 @@ class Resource extends Model
     /**
      * Get temporal coverage dates (dateType = 'Collected').
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, ResourceDate>
+     * @return Collection<int, ResourceDate>
      */
-    public function getTemporalCoverageAttribute(): \Illuminate\Database\Eloquent\Collection
+    public function getTemporalCoverageAttribute(): Collection
     {
         return $this->dates->filter(fn (ResourceDate $d) => $d->isCollected());
     }
@@ -502,8 +505,8 @@ class Resource extends Model
      * Determine the publication status of this resource (Issue #548).
      *
      * Status hierarchy:
-     * - 'review': legacy SUMARIO pending imports marked with force_review_status
-     * - 'draft': missing any mandatory field (takes precedence)
+     * - 'review'/'published': legacy SUMARIO pending imports marked with force_review_status override completeness checks
+     * - 'draft': non-legacy resources missing any mandatory field
      * - 'curation': all mandatory fields present, no DOI or no landing page
      * - 'review': has DOI + landing page with is_published = false
      * - 'published': has DOI + landing page with is_published = true

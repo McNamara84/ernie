@@ -409,7 +409,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->times(150)
-            ->andThrow(new \Exception('Transform failed'));
+            ->andThrow(new Exception('Transform failed'));
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -423,7 +423,7 @@ describe('ImportFromDataCiteJob', function () {
 
     it('validates importId is a valid UUID', function () {
         expect(fn () => new ImportFromDataCiteJob($this->user->id, 'invalid-id'))
-            ->toThrow(\InvalidArgumentException::class, 'Invalid importId format');
+            ->toThrow(InvalidArgumentException::class, 'Invalid importId format');
     });
 
     it('accepts valid UUID format for importId', function () {
@@ -706,8 +706,9 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['skipped_dois'])->toBe(['10.5880/pending.skip']);
     });
 
-    it('syncs imported DataCite resources after enrichment when production mode is active', function () {
+    it('syncs imported DataCite resources after enrichment when production sync after import is enabled', function () {
         Config::set('datacite.test_mode', false);
+        Config::set('datacite.sync_after_import', true);
 
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -759,6 +760,49 @@ describe('ImportFromDataCiteJob', function () {
                     && $resource->landingPage->ftp_url === 'https://datapub.gfz.de/download/10.5880/sync.production/data.zip';
             })
             ->andReturn(DataCiteSyncResult::succeeded('10.5880/sync.production'));
+        $this->app->instance(DataCiteSyncService::class, $syncService);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
+    });
+
+    it('does not sync imported DataCite resources when production sync after import is disabled', function () {
+        Config::set('datacite.test_mode', false);
+        Config::set('datacite.sync_after_import', false);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/sync.disabled',
+                    'attributes' => [
+                        'doi' => '10.5880/sync.disabled',
+                        'titles' => [['title' => 'Sync Disabled Dataset']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/sync.disabled']));
+
+        $syncService = Mockery::mock(DataCiteSyncService::class);
+        $syncService
+            ->shouldReceive('syncIfRegistered')
+            ->never();
         $this->app->instance(DataCiteSyncService::class, $syncService);
 
         $importId = Str::uuid()->toString();
@@ -1096,7 +1140,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
         $metaworksService->shouldReceive('lookupFileEntries')
             ->once()
-            ->andThrow(new \RuntimeException('Connection refused'));
+            ->andThrow(new RuntimeException('Connection refused'));
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);

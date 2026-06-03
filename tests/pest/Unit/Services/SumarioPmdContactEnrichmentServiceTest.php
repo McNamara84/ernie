@@ -85,6 +85,84 @@ describe('SumarioPmdContactEnrichmentService', function () {
             ->and($creator->fresh()->website)->toBe('https://jane.example.org');
     });
 
+    it('ignores invalid legacy contact email and unsafe website values', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 44,
+            'identifier' => '10.5880/contact.invalid',
+        ]);
+        DB::connection('metaworks')->table('resourceagent')->insert([
+            'resource_id' => 44,
+            'order' => 1,
+            'name' => 'Risk, Riley',
+            'firstname' => 'Riley',
+            'lastname' => 'Risk',
+        ]);
+        DB::connection('metaworks')->table('contactinfo')->insert([
+            'resourceagent_resource_id' => 44,
+            'resourceagent_order' => 1,
+            'email' => 'not-an-email',
+            'website' => 'javascript:alert(1)',
+        ]);
+
+        $resource = Resource::factory()->create(['doi' => '10.5880/contact.invalid']);
+        $person = Person::query()->create([
+            'given_name' => 'Riley',
+            'family_name' => 'Risk',
+        ]);
+        $creator = ResourceCreator::query()->create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 0,
+        ]);
+
+        $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.invalid');
+
+        expect($updated)->toBeFalse()
+            ->and($creator->fresh()->is_contact)->toBeFalse()
+            ->and($creator->fresh()->email)->toBeNull()
+            ->and($creator->fresh()->website)->toBeNull();
+    });
+
+    it('persists valid legacy contact fields while dropping invalid companion values', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 45,
+            'identifier' => '10.5880/contact.partial',
+        ]);
+        DB::connection('metaworks')->table('resourceagent')->insert([
+            'resource_id' => 45,
+            'order' => 1,
+            'name' => 'Safe, Sam',
+            'firstname' => 'Sam',
+            'lastname' => 'Safe',
+        ]);
+        DB::connection('metaworks')->table('contactinfo')->insert([
+            'resourceagent_resource_id' => 45,
+            'resourceagent_order' => 1,
+            'email' => 'sam.safe@example.org',
+            'website' => 'ftp://example.org/profile',
+        ]);
+
+        $resource = Resource::factory()->create(['doi' => '10.5880/contact.partial']);
+        $person = Person::query()->create([
+            'given_name' => 'Sam',
+            'family_name' => 'Safe',
+        ]);
+        $creator = ResourceCreator::query()->create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 0,
+        ]);
+
+        $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.partial');
+
+        expect($updated)->toBeTrue()
+            ->and($creator->fresh()->is_contact)->toBeTrue()
+            ->and($creator->fresh()->email)->toBe('sam.safe@example.org')
+            ->and($creator->fresh()->website)->toBeNull();
+    });
+
     it('enriches matching contributors with legacy contact information', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 43,

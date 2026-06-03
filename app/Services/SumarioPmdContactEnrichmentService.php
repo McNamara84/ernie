@@ -9,6 +9,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Support\UriHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -108,8 +109,8 @@ class SumarioPmdContactEnrichmentService
         $contacts = [];
 
         foreach ($rows as $row) {
-            $email = $this->filledString($row->email ?? null);
-            $website = $this->filledString($row->website ?? null);
+            $email = $this->validatedEmail($row->email ?? null, $doi);
+            $website = $this->validatedWebsite($row->website ?? null, $doi);
 
             if ($email === null && $website === null) {
                 continue;
@@ -239,5 +240,47 @@ class SumarioPmdContactEnrichmentService
         $value = trim($value);
 
         return $value !== '' ? $value : null;
+    }
+
+    private function validatedEmail(mixed $value, string $doi): ?string
+    {
+        $email = $this->filledString($value);
+
+        if ($email === null) {
+            return null;
+        }
+
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            Log::warning('Skipping invalid SUMARIO contact email', [
+                'doi' => $doi,
+            ]);
+
+            return null;
+        }
+
+        return $email;
+    }
+
+    private function validatedWebsite(mixed $value, string $doi): ?string
+    {
+        $website = $this->filledString($value);
+
+        if ($website === null) {
+            return null;
+        }
+
+        $uri = UriHelper::parse($website);
+        $scheme = strtolower($uri?->getScheme() ?? '');
+        $host = trim($uri?->getHost() ?? '');
+
+        if (! in_array($scheme, ['http', 'https'], true) || $host === '') {
+            Log::warning('Skipping invalid SUMARIO contact website', [
+                'doi' => $doi,
+            ]);
+
+            return null;
+        }
+
+        return $website;
     }
 }

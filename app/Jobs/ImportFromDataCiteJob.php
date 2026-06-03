@@ -17,6 +17,7 @@ use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -527,7 +528,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 'status' => 'imported',
                 'metaworks_unavailable' => $metaworksUnavailable,
             ];
-        } catch (\Illuminate\Database\QueryException $exception) {
+        } catch (QueryException $exception) {
             $isDuplicateEntry = false;
             if (isset($exception->errorInfo[1])) {
                 $isDuplicateEntry = $exception->errorInfo[1] === 1062;
@@ -561,7 +562,11 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     private function syncDataCiteMetadataIfAllowed(Resource $resource): void
     {
-        if (config('datacite.test_mode') !== false || ! $resource->exists) {
+        if (
+            config('datacite.test_mode') !== false
+            || ! (bool) config('datacite.sync_after_import', false)
+            || ! $resource->exists
+        ) {
             return;
         }
 
