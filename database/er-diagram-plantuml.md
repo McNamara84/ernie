@@ -267,6 +267,10 @@ entity "resources" as resources {
     language_id : BIGINT <<FK>>
     created_by_user_id : BIGINT <<FK>>
     updated_by_user_id : BIGINT <<FK>>
+    legacy_source : VARCHAR(50) <<nullable>>
+    legacy_source_id : BIGINT <<nullable>>
+    legacy_source_status : VARCHAR(50) <<nullable>>
+    * force_review_status : BOOLEAN = false
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
