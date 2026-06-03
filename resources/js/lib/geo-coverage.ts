@@ -1,6 +1,6 @@
 export const GLOBAL_COVERAGE_MESSAGE = 'This dataset has global spatial coverage.';
 
-export const GLOBAL_COVERAGE_TOLERANCE = 0.000001;
+export const DEFAULT_GLOBAL_COVERAGE_TOLERANCE = 0.000001;
 
 interface BoundsLike {
     north: number | null;
@@ -9,8 +9,24 @@ interface BoundsLike {
     west: number | null;
 }
 
-function isNear(actual: number, expected: number): boolean {
-    return Math.abs(actual - expected) <= GLOBAL_COVERAGE_TOLERANCE;
+export function getGlobalCoverageTolerance(): number {
+    const configuredTolerance = import.meta.env.VITE_GEO_GLOBAL_COVERAGE_TOLERANCE;
+
+    if (typeof configuredTolerance !== 'string' || configuredTolerance.trim() === '') {
+        return DEFAULT_GLOBAL_COVERAGE_TOLERANCE;
+    }
+
+    const tolerance = Number(configuredTolerance);
+
+    if (!Number.isFinite(tolerance) || tolerance < 0) {
+        return DEFAULT_GLOBAL_COVERAGE_TOLERANCE;
+    }
+
+    return tolerance;
+}
+
+function isNear(actual: number, expected: number, tolerance: number): boolean {
+    return Math.abs(actual - expected) <= tolerance;
 }
 
 export function isGlobalCoverageBounds(bounds: BoundsLike, geoType?: string | null): boolean {
@@ -22,10 +38,10 @@ export function isGlobalCoverageBounds(bounds: BoundsLike, geoType?: string | nu
         return false;
     }
 
-    return (
-        isNear(bounds.west, -180) &&
-        isNear(bounds.east, 180) &&
-        isNear(bounds.south, -90) &&
-        isNear(bounds.north, 90)
-    );
+    const tolerance = getGlobalCoverageTolerance();
+
+    return isNear(bounds.west, -180, tolerance)
+        && isNear(bounds.east, 180, tolerance)
+        && isNear(bounds.south, -90, tolerance)
+        && isNear(bounds.north, 90, tolerance);
 }

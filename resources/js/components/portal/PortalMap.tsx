@@ -81,10 +81,16 @@ function isGlobalPortalLocation(geo: PortalGeoLocation): boolean {
     return isGlobalCoverageBounds(geo.bounds, geo.type);
 }
 
-function withoutGlobalLocations(resource: PortalResource): PortalResource {
+export function withoutGlobalLocations(resource: PortalResource): PortalResource {
+    const geoLocations = resource.geoLocations.filter((geo) => !isGlobalPortalLocation(geo));
+
+    if (geoLocations.length === resource.geoLocations.length) {
+        return resource;
+    }
+
     return {
         ...resource,
-        geoLocations: resource.geoLocations.filter((geo) => !isGlobalPortalLocation(geo)),
+        geoLocations,
     };
 }
 

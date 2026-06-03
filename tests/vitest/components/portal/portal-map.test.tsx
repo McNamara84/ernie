@@ -87,7 +87,7 @@ vi.mock('leaflet/dist/images/marker-icon-2x.png', () => ({ default: 'marker-icon
 vi.mock('leaflet/dist/images/marker-shadow.png', () => ({ default: 'marker-shadow.png' }));
 
 // Import after mocks
-import { PortalMap } from '@/components/portal/PortalMap';
+import { PortalMap, withoutGlobalLocations } from '@/components/portal/PortalMap';
 
 /**
  * Factory to create a mock PortalResource with geo location
@@ -114,6 +114,48 @@ function createMockResourceWithGeo(
 describe('PortalMap', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('withoutGlobalLocations', () => {
+        it('returns the original resource when no global locations are removed', () => {
+            const resource = createMockResourceWithGeo(1, [
+                { id: 1, type: 'point', point: { lat: 52.5, lng: 13.4 }, bounds: null, polygon: null },
+                {
+                    id: 2,
+                    type: 'box',
+                    point: null,
+                    bounds: { north: 53, south: 52, east: 14, west: 13 },
+                    polygon: null,
+                },
+            ]);
+
+            expect(withoutGlobalLocations(resource)).toBe(resource);
+        });
+
+        it('clones the resource only when global locations are removed', () => {
+            const resource = createMockResourceWithGeo(1, [
+                {
+                    id: 1,
+                    type: 'box',
+                    point: null,
+                    bounds: { north: 90, south: -90, east: 180, west: -180 },
+                    polygon: null,
+                },
+                {
+                    id: 2,
+                    type: 'box',
+                    point: null,
+                    bounds: { north: 53, south: 52, east: 14, west: 13 },
+                    polygon: null,
+                },
+            ]);
+
+            const filteredResource = withoutGlobalLocations(resource);
+
+            expect(filteredResource).not.toBe(resource);
+            expect(filteredResource.geoLocations).toHaveLength(1);
+            expect(filteredResource.geoLocations[0]).toBe(resource.geoLocations[1]);
+        });
     });
 
     describe('Collapsible Behavior', () => {
