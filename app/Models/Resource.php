@@ -27,6 +27,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null $publisher_id
  * @property int|null $created_by_user_id
  * @property int|null $updated_by_user_id
+ * @property string|null $legacy_source
+ * @property int|null $legacy_source_id
+ * @property string|null $legacy_source_status
+ * @property bool $force_review_status
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read ResourceType|null $resourceType
@@ -59,7 +63,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
-#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'created_by_user_id', 'updated_by_user_id'])]
+#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status'])]
 class Resource extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -67,6 +71,8 @@ class Resource extends Model
 
     protected $casts = [
         'publication_year' => 'integer',
+        'legacy_source_id' => 'integer',
+        'force_review_status' => 'boolean',
     ];
 
     /**
@@ -496,6 +502,7 @@ class Resource extends Model
      * Determine the publication status of this resource (Issue #548).
      *
      * Status hierarchy:
+     * - 'review': legacy SUMARIO pending imports marked with force_review_status
      * - 'draft': missing any mandatory field (takes precedence)
      * - 'curation': all mandatory fields present, no DOI or no landing page
      * - 'review': has DOI + landing page with is_published = false
@@ -503,6 +510,14 @@ class Resource extends Model
      */
     public function publicStatus(): string
     {
+        if ($this->force_review_status) {
+            if ($this->doi && $this->landingPage) {
+                return $this->landingPage->is_published ? 'published' : 'review';
+            }
+
+            return 'review';
+        }
+
         if (! $this->isComplete()) {
             return 'draft';
         }

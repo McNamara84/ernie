@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
+use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
+use App\Services\LegacyLandingPageImportService;
+use App\Services\LegacyMetaworksDatacenterLookupService;
 use App\Services\MetaworksDownloadUrlService;
+use App\Services\SumarioPendingResourceImportService;
+use App\Services\SumarioPmdContactEnrichmentService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -96,8 +100,23 @@ class ImportFromDataCiteJob implements ShouldQueue
                 return;
             }
 
+            $pendingImportService = app(SumarioPendingResourceImportService::class);
+            $pendingImportUnavailable = false;
+
+            try {
+                $pendingTotal = $pendingImportService->countImportablePending();
+            } catch (\Throwable $exception) {
+                $pendingTotal = 0;
+                $pendingImportUnavailable = true;
+
+                Log::warning('SUMARIO pending import count failed; skipping pending resources', [
+                    'import_id' => $this->importId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+
             // Get total count for progress calculation
-            $total = $importService->getTotalDoiCount();
+            $total = $importService->getTotalDoiCount() + $pendingTotal;
 
             $this->updateProgress([
                 'status' => 'running',
@@ -206,6 +225,27 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
             }
 
+            if (! $pendingImportUnavailable && $this->determineFinalStatus() !== 'cancelled') {
+                $pendingSummary = $pendingImportService->importAllPending($this->userId, $maxStoredDois);
+
+                $processed += $pendingSummary['processed'];
+                $imported += $pendingSummary['imported'];
+                $skipped += $pendingSummary['skipped'];
+                $failed += $pendingSummary['failed'];
+                $skippedDois = array_slice(
+                    array_merge($skippedDois, $pendingSummary['skipped_dois']),
+                    0,
+                    $maxStoredDois,
+                );
+                $failedDois = array_slice(
+                    array_merge($failedDois, $pendingSummary['failed_dois']),
+                    0,
+                    $maxStoredDois,
+                );
+
+                $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
+            }
+
             // Determine final status - preserve 'cancelled' if user cancelled during processing
             $finalStatus = $this->determineFinalStatus();
 
@@ -280,7 +320,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         $doiRecord = $importService->fetchSingleDoi($doi);
 
         if ($doiRecord === null) {
-            $this->markSingleImportAsFailed($doi, 'The DOI was not found in DataCite.', $startedAt);
+            $this->handleSinglePendingFallback($doi, $startedAt);
 
             return;
         }
@@ -345,6 +385,53 @@ class ImportFromDataCiteJob implements ShouldQueue
         ]);
     }
 
+    private function handleSinglePendingFallback(string $doi, string $startedAt): void
+    {
+        $result = app(SumarioPendingResourceImportService::class)
+            ->importPendingByDoi($doi, $this->userId);
+
+        if ($result['status'] === 'imported') {
+            $this->updateProgress([
+                'status' => $this->determineFinalStatus(),
+                'total' => 1,
+                'processed' => 1,
+                'imported' => 1,
+                'skipped' => 0,
+                'failed' => 0,
+                'skipped_dois' => [],
+                'failed_dois' => [],
+                'started_at' => $startedAt,
+                'completed_at' => now()->toIso8601String(),
+                'current_prefix' => null,
+            ]);
+
+            return;
+        }
+
+        if ($result['status'] === 'skipped') {
+            $this->updateProgress([
+                'status' => $this->determineFinalStatus(),
+                'total' => 1,
+                'processed' => 1,
+                'imported' => 0,
+                'skipped' => 1,
+                'failed' => 0,
+                'skipped_dois' => [$result['doi']],
+                'failed_dois' => [],
+                'started_at' => $startedAt,
+                'completed_at' => now()->toIso8601String(),
+                'current_prefix' => null,
+            ]);
+
+            return;
+        }
+
+        $error = $result['error']
+            ?? 'The DOI was not found in DataCite or SUMARIO pending resources.';
+
+        $this->markSingleImportAsFailed($result['doi'], $error, $startedAt);
+    }
+
     /**
      * @param  array<string, mixed>  $doiRecord
      * @return array{status: 'imported'|'skipped', metaworks_unavailable: bool}
@@ -399,12 +486,14 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             $metaworksUnavailable = false;
 
+            $this->enrichImportedResourceFromLegacyDatabases($importedResource, $doi);
+
             if ($shouldLookupMetaworks && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
-                /** @var array{urls: array<int, string>, allPublic: bool} $fileResult */
-                $fileResult = ['urls' => [], 'allPublic' => false];
+                /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool} $fileResult */
+                $fileResult = ['files' => [], 'allPublic' => false];
 
                 try {
-                    $fileResult = $metaworksService->lookupFileUrls($doi);
+                    $fileResult = $metaworksService->lookupFileEntries($doi);
                 } catch (\Throwable $exception) {
                     Log::warning('Metaworks DB unavailable, disabling lookups for remaining DOIs', [
                         'doi' => $doi,
@@ -413,11 +502,15 @@ class ImportFromDataCiteJob implements ShouldQueue
                     $metaworksUnavailable = true;
                 }
 
-                if ($fileResult['urls'] !== []) {
+                if ($fileResult['files'] !== []) {
                     try {
-                        $this->createLandingPageWithFiles($importedResource, $fileResult['urls'], $fileResult['allPublic']);
+                        app(LegacyLandingPageImportService::class)->createForResource(
+                            resource: $importedResource,
+                            fileEntries: $fileResult['files'],
+                            isPublished: $fileResult['allPublic'],
+                        );
                     } catch (\Throwable $exception) {
-                        Log::warning('Failed to create landing page with download files', [
+                        Log::warning('Failed to create landing page with download links', [
                             'doi' => $doi,
                             'resource_id' => $importedResource->id,
                             'error' => $exception->getMessage(),
@@ -425,6 +518,8 @@ class ImportFromDataCiteJob implements ShouldQueue
                     }
                 }
             }
+
+            $this->syncDataCiteMetadataIfAllowed($importedResource);
 
             Log::debug('Imported DOI', ['doi' => $doi]);
 
@@ -452,6 +547,25 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    private function enrichImportedResourceFromLegacyDatabases(Resource $resource, string $doi): void
+    {
+        if (! $resource->exists) {
+            return;
+        }
+
+        app(SumarioPmdContactEnrichmentService::class)->enrich($resource, $doi);
+        app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, $doi);
+    }
+
+    private function syncDataCiteMetadataIfAllowed(Resource $resource): void
+    {
+        if (config('datacite.test_mode') !== false || ! $resource->exists) {
+            return;
+        }
+
+        app(DataCiteSyncService::class)->syncIfRegistered($resource->fresh() ?? $resource);
     }
 
     /**
@@ -572,59 +686,6 @@ class ImportFromDataCiteJob implements ShouldQueue
         return (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled')
             ? 'cancelled'
             : 'completed';
-    }
-
-    /**
-     * Create a landing page with file entries for a newly imported resource.
-     *
-     * The landing page is created with the default_gfz template. Its published status
-     * depends on the file visibility in the legacy metaworks database:
-     * - All files public -> landing page is published immediately
-     * - Any file non-public -> landing page is created as draft
-     *
-     * The slug, preview_token, and doi_prefix are auto-generated by the
-     * LandingPage model's boot event. The resource relation is set before save()
-     * so boot() can derive doi_prefix and slug without extra queries.
-     *
-     * The resource's titles.titleType are preloaded to avoid N+1 queries during
-     * slug generation in the boot event.
-     *
-     * The landing page and all files are wrapped in a transaction for atomicity.
-     *
-     * @param  Resource  $resource  The newly imported resource
-     * @param  array<int, string>  $fileUrls  Download URLs from the metaworks database
-     * @param  bool  $isPublished  Whether the landing page should be published
-     */
-    private function createLandingPageWithFiles(Resource $resource, array $fileUrls, bool $isPublished): void
-    {
-        // Preload titles.titleType so LandingPage::boot() slug generation
-        // doesn't trigger additional queries per resource in the import loop.
-        $resource->loadMissing('titles.titleType');
-
-        // Wrap in transaction for atomicity: either all files are created or none.
-        DB::transaction(function () use ($resource, $fileUrls, $isPublished): void {
-            $landingPage = new LandingPage([
-                'resource_id' => $resource->id,
-                'template' => 'default_gfz',
-                'ftp_url' => $fileUrls[0], // Backward compat: first URL as ftp_url
-                'is_published' => $isPublished,
-                'published_at' => $isPublished ? now() : null,
-            ]);
-
-            // Set relation so boot() auto-populates doi_prefix and generates
-            // the slug from the in-memory resource without extra queries.
-            $landingPage->setRelation('resource', $resource);
-            $landingPage->save();
-
-            foreach ($fileUrls as $position => $url) {
-                $landingPage->files()->create([
-                    'url' => $url,
-                    'position' => $position,
-                ]);
-            }
-        });
-
-        CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->forget();
     }
 
     /**

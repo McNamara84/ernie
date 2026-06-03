@@ -110,6 +110,34 @@ return [
             })() : [],
         ],
 
+        'legacy_metaworks' => [
+            'driver' => 'mysql',
+            'host' => env('DB_METAWORKS_HOST', '127.0.0.1'),
+            'port' => env('DB_METAWORKS_PORT', '3306'),
+            'database' => env('DB_METAWORKS_NAME', 'metaworks'),
+            'username' => env('DB_METAWORKS_USER', 'root'),
+            'password' => env('DB_METAWORKS_PASSWORD', ''),
+            'unix_socket' => '',
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? (static function (): array {
+                $sslCa = env('DB_METAWORKS_SSL_CA');
+
+                if ($sslCa === null || $sslCa === false || $sslCa === '') {
+                    $sslCa = '/etc/ssl/certs/ca-certificates.crt';
+                }
+
+                return [
+                    \Pdo\Mysql::ATTR_SSL_CA => $sslCa,
+                    \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+                ];
+            })() : [],
+        ],
+
         'igsn_legacy' => [
             'driver' => 'mysql',
             'host' => env('DB_IGSN_HOST', '127.0.0.1'),

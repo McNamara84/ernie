@@ -340,12 +340,16 @@ class ResourceStorageService
     private function storePersonCreator(Resource $resource, array $data, int $position): ResourceCreator
     {
         $person = $this->personService->findOrCreate($data);
+        $isContact = (bool) ($data['isContact'] ?? false);
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
             'creatorable_id' => $person->id,
             'creatorable_type' => Person::class,
             'position' => $position,
+            'is_contact' => $isContact,
+            'email' => $isContact ? ($data['email'] ?? null) : null,
+            'website' => $isContact ? ($data['website'] ?? null) : null,
         ]);
     }
 

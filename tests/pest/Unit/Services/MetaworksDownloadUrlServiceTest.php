@@ -54,7 +54,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('id')
             ->andReturnSelf();
         $fileQuery->shouldReceive('get')
-            ->with(['url', 'visible'])
+            ->with(['url', 'name', 'description', 'visible'])
             ->andReturn(collect([
                 (object) ['url' => 'https://datapub.gfz.de/download/10.5880/GFZ.1.2.2024.001', 'visible' => 'public'],
             ]));
@@ -98,7 +98,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('id')
             ->andReturnSelf();
         $fileQuery->shouldReceive('get')
-            ->with(['url', 'visible'])
+            ->with(['url', 'name', 'description', 'visible'])
             ->andReturn(collect([
                 (object) ['url' => 'https://datapub.gfz.de/download/10.5880/GFZ.dup.test', 'visible' => 'public'],
                 (object) ['url' => 'https://datapub.gfz.de/download/10.5880/GFZ.dup.test', 'visible' => 'public'],
@@ -144,7 +144,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('id')
             ->andReturnSelf();
         $fileQuery->shouldReceive('get')
-            ->with(['url', 'visible'])
+            ->with(['url', 'name', 'description', 'visible'])
             ->andReturn(collect([
                 (object) ['url' => 'https://datapub.gfz.de/download/10.5880/GFZ.multi.test/file1.zip', 'visible' => 'public'],
                 (object) ['url' => 'https://datapub.gfz.de/download/10.5880/GFZ.multi.test/file2.zip', 'visible' => 'public'],
@@ -171,6 +171,62 @@ describe('MetaworksDownloadUrlService', function () {
             ->and($result['allPublic'])->toBeTrue();
     });
 
+    it('returns structured file entries with labels from name and description', function () {
+        $resourceQuery = Mockery::mock();
+        $resourceQuery->shouldReceive('where')
+            ->with('identifier', '10.5880/GFZ.labels.test')
+            ->andReturnSelf();
+        $resourceQuery->shouldReceive('select')
+            ->with('id')
+            ->andReturnSelf();
+        $resourceQuery->shouldReceive('first')
+            ->andReturn((object) ['id' => 56]);
+
+        $fileQuery = Mockery::mock();
+        $fileQuery->shouldReceive('where')
+            ->with('resource_id', 56)
+            ->andReturnSelf();
+        $fileQuery->shouldReceive('orderBy')
+            ->with('id')
+            ->andReturnSelf();
+        $fileQuery->shouldReceive('get')
+            ->with(['url', 'name', 'description', 'visible'])
+            ->andReturn(collect([
+                (object) [
+                    'url' => 'https://datapub.gfz.de/download/name-label.zip',
+                    'name' => 'Name Label',
+                    'description' => 'Description Label',
+                    'visible' => 'public',
+                ],
+                (object) [
+                    'url' => 'https://datapub.gfz.de/download/description-label.zip',
+                    'name' => '',
+                    'description' => 'Description Fallback',
+                    'visible' => 'public',
+                ],
+            ]));
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('table')
+            ->with('resource')
+            ->andReturn($resourceQuery);
+        $connection->shouldReceive('table')
+            ->with('file')
+            ->andReturn($fileQuery);
+
+        DB::shouldReceive('connection')
+            ->with('metaworks')
+            ->andReturn($connection);
+
+        $service = new MetaworksDownloadUrlService;
+        $result = $service->lookupFileEntries('10.5880/GFZ.labels.test');
+
+        expect($result['files'])->toHaveCount(2)
+            ->and($result['files'][0]['label'])->toBe('Name Label')
+            ->and($result['files'][1]['label'])->toBe('Description Fallback')
+            ->and($result['allPublic'])->toBeTrue();
+    });
+
     it('filters out non-HTTP URLs from legacy data', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.xss.test')->andReturnSelf();
@@ -180,7 +236,7 @@ describe('MetaworksDownloadUrlService', function () {
         $fileQuery = Mockery::mock();
         $fileQuery->shouldReceive('where')->with('resource_id', 77)->andReturnSelf();
         $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
-        $fileQuery->shouldReceive('get')->with(['url', 'visible'])->andReturn(collect([
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect([
             (object) ['url' => 'https://datapub.gfz.de/download/safe.zip', 'visible' => 'public'],
             (object) ['url' => 'javascript:alert(1)', 'visible' => 'public'],
             (object) ['url' => 'data:text/html,<script>alert(1)</script>', 'visible' => 'public'],
@@ -215,7 +271,7 @@ describe('MetaworksDownloadUrlService', function () {
         $fileQuery = Mockery::mock();
         $fileQuery->shouldReceive('where')->with('resource_id', 88)->andReturnSelf();
         $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
-        $fileQuery->shouldReceive('get')->with(['url', 'visible'])->andReturn(collect([
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect([
             (object) ['url' => $longUrl, 'visible' => 'public'],
             (object) ['url' => 'https://datapub.gfz.de/download/short.zip', 'visible' => 'public'],
         ]));
@@ -244,7 +300,7 @@ describe('MetaworksDownloadUrlService', function () {
         $fileQuery = Mockery::mock();
         $fileQuery->shouldReceive('where')->with('resource_id', 33)->andReturnSelf();
         $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
-        $fileQuery->shouldReceive('get')->with(['url', 'visible'])->andReturn(collect([
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect([
             (object) ['url' => 'https://datapub.gfz.de/download/public-file.zip', 'visible' => 'public'],
             (object) ['url' => 'https://datapub.gfz.de/download/private-file.zip', 'visible' => 'private'],
         ]));
@@ -271,7 +327,7 @@ describe('MetaworksDownloadUrlService', function () {
         $fileQuery = Mockery::mock();
         $fileQuery->shouldReceive('where')->with('resource_id', 44)->andReturnSelf();
         $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
-        $fileQuery->shouldReceive('get')->with(['url', 'visible'])->andReturn(collect([
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect([
             (object) ['url' => 'https://datapub.gfz.de/download/internal.zip', 'visible' => 'internal'],
         ]));
 
@@ -298,7 +354,7 @@ describe('MetaworksDownloadUrlService', function () {
         $fileQuery = Mockery::mock();
         $fileQuery->shouldReceive('where')->with('resource_id', 66)->andReturnSelf();
         $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
-        $fileQuery->shouldReceive('get')->with(['url', 'visible'])->andReturn(collect([
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect([
             (object) ['url' => 'http:foo', 'visible' => 'public'],
             (object) ['url' => 'https://', 'visible' => 'public'],
             (object) ['url' => 'https://datapub.gfz.de/download/valid.zip', 'visible' => 'public'],
