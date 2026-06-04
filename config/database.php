@@ -1,7 +1,13 @@
 <?php
 
 use Illuminate\Support\Str;
-use Pdo\Mysql;
+
+$pdoMysqlSslCa = (int) (defined('Pdo\\Mysql::ATTR_SSL_CA')
+    ? constant('Pdo\\Mysql::ATTR_SSL_CA')
+    : constant('PDO::MYSQL_ATTR_SSL_CA'));
+$pdoMysqlSslVerifyServerCert = (int) (defined('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
+    ? constant('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
+    : constant('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT'));
 
 return [
 
@@ -59,7 +65,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                $pdoMysqlSslCa => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -79,7 +85,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                $pdoMysqlSslCa => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -97,7 +103,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? (static function (): array {
+            'options' => extension_loaded('pdo_mysql') ? (static function () use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
                 $sslCa = env('DB_SUMARIOPMD_SSL_CA');
 
                 if ($sslCa === null || $sslCa === false || $sslCa === '') {
@@ -105,8 +111,8 @@ return [
                 }
 
                 return [
-                    Mysql::ATTR_SSL_CA => $sslCa,
-                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+                    $pdoMysqlSslCa => $sslCa,
+                    $pdoMysqlSslVerifyServerCert => false,
                 ];
             })() : [],
         ],
@@ -125,7 +131,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? (static function (): array {
+            'options' => extension_loaded('pdo_mysql') ? (static function () use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
                 $sslCa = env('DB_METAWORKS_SSL_CA');
 
                 if ($sslCa === null || $sslCa === false || $sslCa === '') {
@@ -133,8 +139,8 @@ return [
                 }
 
                 return [
-                    Mysql::ATTR_SSL_CA => $sslCa,
-                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => env('DB_METAWORKS_SSL_VERIFY_SERVER_CERT', true),
+                    $pdoMysqlSslCa => $sslCa,
+                    $pdoMysqlSslVerifyServerCert => env('DB_METAWORKS_SSL_VERIFY_SERVER_CERT', true),
                 ];
             })() : [],
         ],
@@ -153,7 +159,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? (static function (): array {
+            'options' => extension_loaded('pdo_mysql') ? (static function () use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
                 $sslCa = env('DB_IGSN_SSL_CA');
 
                 if ($sslCa === null || $sslCa === false || $sslCa === '') {
@@ -161,8 +167,8 @@ return [
                 }
 
                 return [
-                    Mysql::ATTR_SSL_CA => $sslCa,
-                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+                    $pdoMysqlSslCa => $sslCa,
+                    $pdoMysqlSslVerifyServerCert => false,
                 ];
             })() : [],
         ],

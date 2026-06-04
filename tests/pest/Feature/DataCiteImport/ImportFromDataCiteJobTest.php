@@ -72,7 +72,7 @@ beforeEach(function () {
     $this->pendingImportService
         ->shouldReceive('importPendingByDoi')
         ->zeroOrMoreTimes()
-        ->andReturnUsing(fn (string $doi): array => [
+        ->andReturnUsing(fn (string $doi, mixed ...$_): array => [
             'status' => 'missing',
             'resource' => null,
             'doi' => $doi,
