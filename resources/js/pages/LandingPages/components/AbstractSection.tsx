@@ -2,6 +2,7 @@ import type {
     LandingPageContributor,
     LandingPageCreator,
     LandingPageDescription,
+    LandingPageDisplayLimits,
     LandingPageFundingReference,
     LandingPageSubject,
 } from '@/types/landing-page';
@@ -25,10 +26,7 @@ interface AbstractSectionProps {
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
     sectionOrder?: MetadataSectionKey[];
-    displayLimits?: {
-        creators: number;
-        contributors: number;
-    };
+    displayLimits?: LandingPageDisplayLimits;
 }
 
 /**

@@ -402,7 +402,11 @@ describe('Update', function (): void {
     it('prevents updating the default template', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
-            ->assertForbidden();
+            ->assertForbidden()
+            ->assertJson([
+                'message' => 'Only creator and contributor display limits can be updated on default templates.',
+                'error' => 'default_template_immutable',
+            ]);
     });
 
     it('allows updating display limits on default templates', function (): void {

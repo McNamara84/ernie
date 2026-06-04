@@ -90,7 +90,7 @@ class LandingPageTemplateController extends Controller
 
             if ($unsupportedFields !== []) {
                 return response()->json([
-                    'message' => 'The default template cannot be modified.',
+                    'message' => 'Only creator and contributor display limits can be updated on default templates.',
                     'error' => 'default_template_immutable',
                 ], 403);
             }
