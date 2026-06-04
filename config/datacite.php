@@ -15,6 +15,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | DataCite Sync After Import
+    |--------------------------------------------------------------------------
+    |
+    | When true and test_mode is false, imported DataCite resources are synced
+    | back to DataCite after legacy enrichment. Keep this opt-in for bulk imports
+    | because direct API updates can add significant runtime and hit rate limits.
+    |
+    */
+    'sync_after_import' => env('DATACITE_SYNC_AFTER_IMPORT', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | DataCite Production API Configuration
     |--------------------------------------------------------------------------
     |

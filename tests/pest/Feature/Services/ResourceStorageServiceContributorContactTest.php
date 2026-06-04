@@ -78,6 +78,36 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             ->and($contributor->website)->toBe('https://example.org');
     });
 
+    it('stores email and website when a creator is marked as contact person', function () {
+        $data = contributorResourceData();
+        $data['contributors'] = [];
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'author.contact@example.org';
+        $data['authors'][0]['website'] = 'https://author.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator->is_contact)->toBeTrue()
+            ->and($creator->email)->toBe('author.contact@example.org')
+            ->and($creator->website)->toBe('https://author.example.org');
+    });
+
+    it('drops invalid creator contact email and unsafe website values', function () {
+        $data = contributorResourceData();
+        $data['contributors'] = [];
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'not-an-email';
+        $data['authors'][0]['website'] = 'javascript:alert(1)';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $creator = $resource->creators()->first();
+        expect($creator->is_contact)->toBeTrue()
+            ->and($creator->email)->toBeNull()
+            ->and($creator->website)->toBeNull();
+    });
+
     it('stores null email and website when contributor has no Contact Person role', function () {
         $data = contributorResourceData([
             'roles' => ['DataCollector'],
@@ -90,6 +120,19 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             ['slug' => 'DataCollector'],
             ['name' => 'Data Collector', 'category' => 'person'],
         );
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $contributor = $resource->contributors()->first();
+        expect($contributor->email)->toBeNull()
+            ->and($contributor->website)->toBeNull();
+    });
+
+    it('drops invalid contributor contact email and unsafe website values', function () {
+        $data = contributorResourceData([
+            'email' => 'invalid-email',
+            'website' => 'ftp://example.org/profile',
+        ]);
 
         [$resource] = $this->service->store($data, $this->user->id);
 

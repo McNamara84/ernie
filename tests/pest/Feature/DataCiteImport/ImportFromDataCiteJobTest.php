@@ -5,13 +5,20 @@ use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\LandingPage;
 use App\Models\LandingPageFile;
+use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteImportService;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\LegacyMetaworksDatacenterLookupService;
 use App\Services\MetaworksDownloadUrlService;
+use App\Services\SumarioPendingResourceImportService;
+use App\Services\SumarioPmdContactEnrichmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
@@ -32,8 +39,63 @@ beforeEach(function () {
 
     // Mock the metaworks service (returns empty result by default)
     $this->metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-    $this->metaworksService->shouldReceive('lookupFileUrls')->andReturn(['urls' => [], 'allPublic' => false]);
+    $this->metaworksService
+        ->shouldReceive('lookupFileUrls')
+        ->zeroOrMoreTimes()
+        ->andReturn(['urls' => [], 'allPublic' => false])
+        ->byDefault();
+    $this->metaworksService
+        ->shouldReceive('lookupFileEntries')
+        ->zeroOrMoreTimes()
+        ->andReturn(['files' => [], 'allPublic' => false])
+        ->byDefault();
     $this->app->instance(MetaworksDownloadUrlService::class, $this->metaworksService);
+
+    $this->pendingImportService = Mockery::mock(SumarioPendingResourceImportService::class);
+    $this->pendingImportService
+        ->shouldReceive('countImportablePending')
+        ->zeroOrMoreTimes()
+        ->andReturn(0)
+        ->byDefault();
+    $this->pendingImportService
+        ->shouldReceive('importAllPending')
+        ->zeroOrMoreTimes()
+        ->andReturn([
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'skipped_dois' => [],
+            'failed_dois' => [],
+        ])
+        ->byDefault();
+    $this->pendingImportService
+        ->shouldReceive('importPendingByDoi')
+        ->zeroOrMoreTimes()
+        ->andReturnUsing(fn (string $doi, mixed ...$_): array => [
+            'status' => 'missing',
+            'resource' => null,
+            'doi' => $doi,
+            'error' => null,
+        ])
+        ->byDefault();
+    $this->app->instance(SumarioPendingResourceImportService::class, $this->pendingImportService);
+
+    $this->contactEnrichmentService = Mockery::mock(SumarioPmdContactEnrichmentService::class);
+    $this->contactEnrichmentService
+        ->shouldReceive('enrich')
+        ->zeroOrMoreTimes()
+        ->andReturn(false)
+        ->byDefault();
+    $this->app->instance(SumarioPmdContactEnrichmentService::class, $this->contactEnrichmentService);
+
+    $this->datacenterLookupService = Mockery::mock(LegacyMetaworksDatacenterLookupService::class);
+    $this->datacenterLookupService
+        ->shouldReceive('syncDatacenters')
+        ->zeroOrMoreTimes()
+        ->andReturnNull()
+        ->byDefault();
+    $this->app->instance(LegacyMetaworksDatacenterLookupService::class, $this->datacenterLookupService);
 });
 
 afterEach(function () {
@@ -87,6 +149,103 @@ describe('ImportFromDataCiteJob', function () {
         expect($status['processed'])->toBe(2);
         expect($status['imported'])->toBe(2);
         expect($status['failed'])->toBe(0);
+    });
+
+    it('adds SUMARIO pending import results to the bulk progress summary', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(0);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                if (false) {
+                    yield [];
+                }
+            })());
+
+        $this->pendingImportService
+            ->shouldReceive('countImportablePending')
+            ->once()
+            ->andReturn(1);
+
+        $this->pendingImportService
+            ->shouldReceive('importAllPending')
+            ->once()
+            ->with($this->user->id, 100)
+            ->andReturn([
+                'processed' => 1,
+                'imported' => 1,
+                'skipped' => 0,
+                'failed' => 0,
+                'skipped_dois' => [],
+                'failed_dois' => [],
+            ]);
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['total'])->toBe(1)
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
+    });
+
+    it('keeps the bulk import completed when the SUMARIO pending import phase is unavailable', function () {
+        $this->pendingImportService
+            ->shouldReceive('countImportablePending')
+            ->once()
+            ->andReturn(2);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/datacite.before.pending.failure',
+                    'attributes' => [
+                        'doi' => '10.5880/datacite.before.pending.failure',
+                        'titles' => [['title' => 'DataCite before pending failure']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/datacite.before.pending.failure']));
+
+        $this->pendingImportService
+            ->shouldReceive('importAllPending')
+            ->once()
+            ->with($this->user->id, 100)
+            ->andThrow(new RuntimeException('SUMARIO connection refused'));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['total'])->toBe(3)
+            ->and($status['processed'])->toBe(3)
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(2)
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => 'sumario-pending', 'error' => 'SUMARIO pending import is unavailable.'],
+            ]);
     });
 
     it('skips existing DOIs', function () {
@@ -300,7 +459,7 @@ describe('ImportFromDataCiteJob', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->times(150)
-            ->andThrow(new \Exception('Transform failed'));
+            ->andThrow(new Exception('Transform failed'));
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -314,7 +473,7 @@ describe('ImportFromDataCiteJob', function () {
 
     it('validates importId is a valid UUID', function () {
         expect(fn () => new ImportFromDataCiteJob($this->user->id, 'invalid-id'))
-            ->toThrow(\InvalidArgumentException::class, 'Invalid importId format');
+            ->toThrow(InvalidArgumentException::class, 'Invalid importId format');
     });
 
     it('accepts valid UUID format for importId', function () {
@@ -529,8 +688,212 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['imported'])->toBe(0)
             ->and($status['failed'])->toBe(1)
             ->and($status['failed_dois'])->toBe([
-                ['doi' => '10.5880/missing.single', 'error' => 'The DOI was not found in DataCite.'],
+                ['doi' => '10.5880/missing.single', 'error' => 'The DOI was not found in DataCite or SUMARIO pending resources.'],
             ]);
+    });
+
+    it('marks single SUMARIO pending fallback as failed when the lookup is unavailable', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/pending.unavailable')
+            ->andReturnNull();
+
+        $this->pendingImportService
+            ->shouldReceive('importPendingByDoi')
+            ->once()
+            ->with('10.5880/pending.unavailable', $this->user->id)
+            ->andThrow(new RuntimeException('Connection refused'));
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/pending.unavailable');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['total'])->toBe(1)
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(0)
+            ->and($status['failed'])->toBe(1)
+            ->and($status['error'])->toBe('SUMARIO pending lookup is unavailable.')
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => '10.5880/pending.unavailable', 'error' => 'SUMARIO pending lookup is unavailable.'],
+            ]);
+    });
+
+    it('imports a single SUMARIO pending resource when DataCite has no DOI record', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/pending.single')
+            ->andReturnNull();
+
+        $this->pendingImportService
+            ->shouldReceive('importPendingByDoi')
+            ->once()
+            ->with('10.5880/pending.single', $this->user->id)
+            ->andReturn([
+                'status' => 'imported',
+                'resource' => Resource::factory()->create([
+                    'doi' => '10.5880/pending.single',
+                    'force_review_status' => true,
+                    'legacy_source_status' => 'pending',
+                ]),
+                'doi' => '10.5880/pending.single',
+                'error' => null,
+            ]);
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/pending.single');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['processed'])->toBe(1)
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
+    });
+
+    it('marks a single SUMARIO pending fallback as skipped when the resource already exists', function () {
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with('10.5880/pending.skip')
+            ->andReturnNull();
+
+        $this->pendingImportService
+            ->shouldReceive('importPendingByDoi')
+            ->once()
+            ->with('10.5880/pending.skip', $this->user->id)
+            ->andReturn([
+                'status' => 'skipped',
+                'resource' => null,
+                'doi' => '10.5880/pending.skip',
+                'error' => null,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/pending.skip');
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['skipped_dois'])->toBe(['10.5880/pending.skip']);
+    });
+
+    it('syncs imported DataCite resources after enrichment when production sync after import is enabled', function () {
+        Config::set('datacite.test_mode', false);
+        Config::set('datacite.sync_after_import', true);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/sync.production',
+                    'attributes' => [
+                        'doi' => '10.5880/sync.production',
+                        'titles' => [['title' => 'Production Sync Dataset']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/sync.production']));
+
+        $this->metaworksService
+            ->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/sync.production')
+            ->andReturn([
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/10.5880/sync.production/data.zip',
+                        'label' => 'Data package',
+                        'visible' => 'public',
+                    ],
+                ],
+                'allPublic' => true,
+            ]);
+
+        $syncService = Mockery::mock(DataCiteSyncService::class);
+        $syncService
+            ->shouldReceive('syncIfRegistered')
+            ->once()
+            ->withArgs(function (Resource $resource): bool {
+                $resource->loadMissing('landingPage');
+
+                return $resource->doi === '10.5880/sync.production'
+                    && $resource->landingPage !== null
+                    && $resource->landingPage->ftp_url === 'https://datapub.gfz.de/download/10.5880/sync.production/data.zip';
+            })
+            ->andReturn(DataCiteSyncResult::succeeded('10.5880/sync.production'));
+        $this->app->instance(DataCiteSyncService::class, $syncService);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
+    });
+
+    it('does not sync imported DataCite resources when production sync after import is disabled', function () {
+        Config::set('datacite.test_mode', false);
+        Config::set('datacite.sync_after_import', false);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/sync.disabled',
+                    'attributes' => [
+                        'doi' => '10.5880/sync.disabled',
+                        'titles' => [['title' => 'Sync Disabled Dataset']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/sync.disabled']));
+
+        $syncService = Mockery::mock(DataCiteSyncService::class);
+        $syncService
+            ->shouldReceive('syncIfRegistered')
+            ->never();
+        $this->app->instance(DataCiteSyncService::class, $syncService);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0);
     });
 
     it('marks single import as failed when the DOI transform throws an exception', function () {
@@ -630,7 +993,7 @@ describe('ImportFromDataCiteJob', function () {
 });
 
 describe('ImportFromDataCiteJob download URL enrichment', function () {
-    it('creates landing page with files when metaworks has download URLs', function () {
+    it('creates landing page with primary download and additional links when metaworks has download URLs', function () {
         Cache::put(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key(), [
             'domains' => [['value' => 'https://stale.example.org/', 'usage_count' => 99]],
             'urls' => [['value' => 'https://stale.example.org/download/file.zip', 'usage_count' => 99]],
@@ -664,13 +1027,21 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         // Override the default mock: return download URLs (all public)
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileUrls')
+        $metaworksService->shouldReceive('lookupFileEntries')
             ->with('10.5880/lp.test.001')
             ->once()
             ->andReturn([
-                'urls' => [
-                    'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip',
-                    'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip',
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip',
+                        'label' => 'Archive package',
+                        'visible' => 'public',
+                    ],
+                    [
+                        'url' => 'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip',
+                        'label' => 'Supplement table',
+                        'visible' => 'public',
+                    ],
                 ],
                 'allPublic' => true,
             ]);
@@ -688,13 +1059,13 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($landingPage->published_at)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip');
 
-        // Verify files were created
-        $files = LandingPageFile::where('landing_page_id', $landingPage->id)->orderBy('position')->get();
-        expect($files)->toHaveCount(2)
-            ->and($files[0]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip')
-            ->and($files[0]->position)->toBe(0)
-            ->and($files[1]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip')
-            ->and($files[1]->position)->toBe(1);
+        $links = LandingPageLink::where('landing_page_id', $landingPage->id)->orderBy('position')->get();
+        expect($links)->toHaveCount(1)
+            ->and($links[0]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip')
+            ->and($links[0]->label)->toBe('Supplement table')
+            ->and($links[0]->position)->toBe(0);
+
+        expect(LandingPageFile::where('landing_page_id', $landingPage->id)->count())->toBe(0);
 
         expect(Cache::get(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key()))->toBeNull();
     });
@@ -727,11 +1098,17 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         // Return URLs with allPublic=false (some files are non-public)
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileUrls')
+        $metaworksService->shouldReceive('lookupFileEntries')
             ->with('10.5880/lp.nonpub.001')
             ->once()
             ->andReturn([
-                'urls' => ['https://datapub.gfz.de/download/internal-file.zip'],
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/internal-file.zip',
+                        'label' => 'Internal package',
+                        'visible' => 'internal',
+                    ],
+                ],
                 'allPublic' => false,
             ]);
 
@@ -746,10 +1123,9 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($landingPage->is_published)->toBeFalse()
             ->and($landingPage->published_at)->toBeNull();
 
-        // Files should still be created
-        $files = LandingPageFile::where('landing_page_id', $landingPage->id)->get();
-        expect($files)->toHaveCount(1)
-            ->and($files[0]->url)->toBe('https://datapub.gfz.de/download/internal-file.zip');
+        expect($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/internal-file.zip')
+            ->and(LandingPageLink::where('landing_page_id', $landingPage->id)->count())->toBe(0)
+            ->and(LandingPageFile::where('landing_page_id', $landingPage->id)->count())->toBe(0);
     });
 
     it('does not create landing page when metaworks has no files', function () {
@@ -843,9 +1219,9 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         // MetaworksService throws exception
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileUrls')
+        $metaworksService->shouldReceive('lookupFileEntries')
             ->once()
-            ->andThrow(new \RuntimeException('Connection refused'));
+            ->andThrow(new RuntimeException('Connection refused'));
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -896,7 +1272,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ]));
 
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileUrls')
+        $metaworksService->shouldReceive('lookupFileEntries')
             ->once()
             ->with('10.5880/metaworks.first')
             ->andThrow(new RuntimeException('Legacy DB unavailable'));
@@ -946,7 +1322,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
 
         // MetaworksService should NOT be called since landing page already exists
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldNotReceive('lookupFileUrls');
+        $metaworksService->shouldNotReceive('lookupFileEntries');
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -985,11 +1361,17 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->andReturn(Resource::factory()->make(['doi' => '10.5880/lp.create.fail']));
 
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileUrls')
+        $metaworksService->shouldReceive('lookupFileEntries')
             ->once()
             ->with('10.5880/lp.create.fail')
             ->andReturn([
-                'urls' => ['https://datapub.gfz.de/download/10.5880/lp.create.fail/file.zip'],
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/10.5880/lp.create.fail/file.zip',
+                        'label' => 'File',
+                        'visible' => 'public',
+                    ],
+                ],
                 'allPublic' => true,
             ]);
 
