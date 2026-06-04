@@ -2,12 +2,48 @@
 
 use Illuminate\Support\Str;
 
-$pdoMysqlSslCa = (int) (defined('Pdo\\Mysql::ATTR_SSL_CA')
-    ? constant('Pdo\\Mysql::ATTR_SSL_CA')
-    : constant('PDO::MYSQL_ATTR_SSL_CA'));
-$pdoMysqlSslVerifyServerCert = (int) (defined('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
-    ? constant('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
-    : constant('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT'));
+$resolvePdoMysqlAttribute = static function (string $modern, string $legacy): ?int {
+    if (defined($modern)) {
+        return (int) constant($modern);
+    }
+
+    if (defined($legacy)) {
+        return (int) constant($legacy);
+    }
+
+    return null;
+};
+$pdoMysqlSslCa = $resolvePdoMysqlAttribute('Pdo\\Mysql::ATTR_SSL_CA', 'PDO::MYSQL_ATTR_SSL_CA');
+$pdoMysqlSslVerifyServerCert = $resolvePdoMysqlAttribute(
+    'Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT',
+    'PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT',
+);
+$mysqlSslCaOptions = static function (mixed $sslCa) use ($pdoMysqlSslCa): array {
+    if (! extension_loaded('pdo_mysql') || $pdoMysqlSslCa === null) {
+        return [];
+    }
+
+    return array_filter([
+        $pdoMysqlSslCa => $sslCa,
+    ]);
+};
+$legacyMysqlSslOptions = static function (
+    mixed $sslCa,
+    mixed $verifyServerCert
+) use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
+    if (! extension_loaded('pdo_mysql') || $pdoMysqlSslCa === null || $pdoMysqlSslVerifyServerCert === null) {
+        return [];
+    }
+
+    if ($sslCa === null || $sslCa === false || $sslCa === '') {
+        $sslCa = '/etc/ssl/certs/ca-certificates.crt';
+    }
+
+    return [
+        $pdoMysqlSslCa => $sslCa,
+        $pdoMysqlSslVerifyServerCert => $verifyServerCert,
+    ];
+};
 
 return [
 
@@ -64,9 +100,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                $pdoMysqlSslCa => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => $mysqlSslCaOptions(env('MYSQL_ATTR_SSL_CA')),
         ],
 
         'mariadb' => [
@@ -84,9 +118,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                $pdoMysqlSslCa => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => $mysqlSslCaOptions(env('MYSQL_ATTR_SSL_CA')),
         ],
 
         'metaworks' => [
@@ -103,18 +135,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? (static function () use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
-                $sslCa = env('DB_SUMARIOPMD_SSL_CA');
-
-                if ($sslCa === null || $sslCa === false || $sslCa === '') {
-                    $sslCa = '/etc/ssl/certs/ca-certificates.crt';
-                }
-
-                return [
-                    $pdoMysqlSslCa => $sslCa,
-                    $pdoMysqlSslVerifyServerCert => false,
-                ];
-            })() : [],
+            'options' => $legacyMysqlSslOptions(env('DB_SUMARIOPMD_SSL_CA'), false),
         ],
 
         'legacy_metaworks' => [
@@ -131,18 +152,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? (static function () use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
-                $sslCa = env('DB_METAWORKS_SSL_CA');
-
-                if ($sslCa === null || $sslCa === false || $sslCa === '') {
-                    $sslCa = '/etc/ssl/certs/ca-certificates.crt';
-                }
-
-                return [
-                    $pdoMysqlSslCa => $sslCa,
-                    $pdoMysqlSslVerifyServerCert => env('DB_METAWORKS_SSL_VERIFY_SERVER_CERT', true),
-                ];
-            })() : [],
+            'options' => $legacyMysqlSslOptions(
+                env('DB_METAWORKS_SSL_CA'),
+                env('DB_METAWORKS_SSL_VERIFY_SERVER_CERT', true),
+            ),
         ],
 
         'igsn_legacy' => [
@@ -159,18 +172,7 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? (static function () use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
-                $sslCa = env('DB_IGSN_SSL_CA');
-
-                if ($sslCa === null || $sslCa === false || $sslCa === '') {
-                    $sslCa = '/etc/ssl/certs/ca-certificates.crt';
-                }
-
-                return [
-                    $pdoMysqlSslCa => $sslCa,
-                    $pdoMysqlSslVerifyServerCert => false,
-                ];
-            })() : [],
+            'options' => $legacyMysqlSslOptions(env('DB_IGSN_SSL_CA'), false),
         ],
 
         'pgsql' => [
