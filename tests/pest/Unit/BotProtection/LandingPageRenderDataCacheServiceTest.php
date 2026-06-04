@@ -112,3 +112,32 @@ it('forgets cached render data through the tagged cache repository', function ()
         ->and($service->forget($landingPage))->toBeTrue()
         ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
 });
+
+it('flushes all tagged landing page render data without clearing unrelated tags', function (): void {
+    $service = new LandingPageRenderDataCacheService;
+    $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA;
+
+    Cache::tags($cacheKey->tags())->put($cacheKey->key(1), ['template' => 'default_gfz', 'props' => []], 600);
+    Cache::tags($cacheKey->tags())->put($cacheKey->key(2), ['template' => 'default_gfz', 'props' => []], 600);
+    Cache::tags(['portal'])->put('portal-payload', ['props' => []], 600);
+
+    expect(Cache::tags($cacheKey->tags())->has($cacheKey->key(1)))->toBeTrue()
+        ->and(Cache::tags($cacheKey->tags())->has($cacheKey->key(2)))->toBeTrue()
+        ->and(Cache::tags(['portal'])->has('portal-payload'))->toBeTrue();
+
+    $service->flush();
+
+    expect(Cache::tags($cacheKey->tags())->has($cacheKey->key(1)))->toBeFalse()
+        ->and(Cache::tags($cacheKey->tags())->has($cacheKey->key(2)))->toBeFalse()
+        ->and(Cache::tags(['portal'])->has('portal-payload'))->toBeTrue();
+});
+
+it('falls back to flushing the whole cache store when tags are unsupported', function (): void {
+    Cache::shouldReceive('getStore')
+        ->once()
+        ->andReturn(new class {});
+    Cache::shouldReceive('flush')
+        ->once();
+
+    (new LandingPageRenderDataCacheService)->flush();
+});
