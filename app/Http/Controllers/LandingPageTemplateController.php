@@ -8,6 +8,7 @@ use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
 use App\Models\LandingPageTemplate;
+use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -61,6 +62,8 @@ class LandingPageTemplateController extends Controller
             'logo_filename' => null,
             'right_column_order' => $defaultTemplate->right_column_order,
             'left_column_order' => $defaultTemplate->left_column_order,
+            'creator_display_limit' => $defaultTemplate->creator_display_limit,
+            'contributor_display_limit' => $defaultTemplate->contributor_display_limit,
             'created_by' => $request->user()?->id,
         ]);
 
@@ -79,31 +82,45 @@ class LandingPageTemplateController extends Controller
     {
         $this->authorize('update', $landingPageTemplate);
 
-        if ($landingPageTemplate->isDefault()) {
-            return response()->json([
-                'message' => 'The default template cannot be modified.',
-                'error' => 'default_template_immutable',
-            ], 403);
-        }
-
         $validated = $request->validated();
+
+        if ($landingPageTemplate->isDefault()) {
+            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit'];
+            $unsupportedFields = array_diff(array_keys($validated), $editableDefaultFields);
+
+            if ($unsupportedFields !== []) {
+                return response()->json([
+                    'message' => 'The default template cannot be modified.',
+                    'error' => 'default_template_immutable',
+                ], 403);
+            }
+        }
 
         $updateData = [];
 
-        if (isset($validated['name'])) {
+        if (! $landingPageTemplate->isDefault() && isset($validated['name'])) {
             $updateData['name'] = $validated['name'];
         }
 
-        if (isset($validated['right_column_order'])) {
+        if (! $landingPageTemplate->isDefault() && isset($validated['right_column_order'])) {
             $updateData['right_column_order'] = $validated['right_column_order'];
         }
 
-        if (isset($validated['left_column_order'])) {
+        if (! $landingPageTemplate->isDefault() && isset($validated['left_column_order'])) {
             $updateData['left_column_order'] = $validated['left_column_order'];
+        }
+
+        if (isset($validated['creator_display_limit'])) {
+            $updateData['creator_display_limit'] = $validated['creator_display_limit'];
+        }
+
+        if (isset($validated['contributor_display_limit'])) {
+            $updateData['contributor_display_limit'] = $validated['contributor_display_limit'];
         }
 
         $landingPageTemplate->update($updateData);
         $landingPageTemplate->loadCount('landingPages');
+        app(LandingPageRenderDataCacheService::class)->flush();
 
         return response()->json([
             'message' => 'Template updated successfully',
@@ -181,6 +198,7 @@ class LandingPageTemplateController extends Controller
             'logo_path' => $path,
             'logo_filename' => $file->getClientOriginalName(),
         ]);
+        app(LandingPageRenderDataCacheService::class)->flush();
 
         // Delete old logo only after new one is persisted
         if ($oldLogoPath !== null) {
@@ -215,6 +233,7 @@ class LandingPageTemplateController extends Controller
             'logo_path' => null,
             'logo_filename' => null,
         ]);
+        app(LandingPageRenderDataCacheService::class)->flush();
 
         return response()->json([
             'message' => 'Logo removed successfully',
@@ -244,6 +263,8 @@ class LandingPageTemplateController extends Controller
                 'logo_path',
                 'right_column_order',
                 'left_column_order',
+                'creator_display_limit',
+                'contributor_display_limit',
             ]);
 
         return response()->json([

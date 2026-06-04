@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPageTemplateController;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
@@ -15,6 +16,7 @@ use Database\Seeders\LandingPageTemplateSeeder;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 covers(
@@ -169,7 +171,27 @@ describe('Clone', function (): void {
             ->and($template->is_default)->toBeFalse()
             ->and($template->created_by)->toBe($this->admin->id)
             ->and($template->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
-            ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS);
+            ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
+            ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
+    });
+
+    it('copies display limits from the selected default template when cloning', function (): void {
+        $this->defaultTemplate->update([
+            'creator_display_limit' => 25,
+            'contributor_display_limit' => 75,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->postJson('/landing-pages', ['name' => 'Limited Clone']);
+
+        $response->assertCreated();
+
+        $template = LandingPageTemplate::where('name', 'Limited Clone')->first();
+
+        expect($template)->not->toBeNull()
+            ->and($template?->creator_display_limit)->toBe(25)
+            ->and($template?->contributor_display_limit)->toBe(75);
     });
 
     it('rejects duplicate names', function (): void {
@@ -335,6 +357,8 @@ describe('Update', function (): void {
                 'name' => 'Updated Name',
                 'right_column_order' => $newRightOrder,
                 'left_column_order' => $newLeftOrder,
+                'creator_display_limit' => 40,
+                'contributor_display_limit' => 60,
             ]);
 
         $response->assertOk();
@@ -343,7 +367,9 @@ describe('Update', function (): void {
 
         expect($template->name)->toBe('Updated Name')
             ->and($template->right_column_order)->toBe($newRightOrder)
-            ->and($template->left_column_order)->toBe($newLeftOrder);
+            ->and($template->left_column_order)->toBe($newLeftOrder)
+            ->and($template->creator_display_limit)->toBe(40)
+            ->and($template->contributor_display_limit)->toBe(60);
     });
 
     it('normalizes location to the end when it is submitted in the middle of the right column order', function (): void {
@@ -377,6 +403,58 @@ describe('Update', function (): void {
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
             ->assertForbidden();
+    });
+
+    it('allows updating display limits on default templates', function (): void {
+        $this->actingAs($this->groupLeader)
+            ->putJson("/landing-pages/{$this->defaultTemplate->id}", [
+                'creator_display_limit' => 35,
+                'contributor_display_limit' => 45,
+            ])
+            ->assertOk()
+            ->assertJsonPath('template.creator_display_limit', 35)
+            ->assertJsonPath('template.contributor_display_limit', 45);
+
+        $fresh = $this->defaultTemplate->fresh();
+
+        expect($fresh?->creator_display_limit)->toBe(35)
+            ->and($fresh?->contributor_display_limit)->toBe(45);
+    });
+
+    it('rejects display limits outside the supported range', function (mixed $value): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'creator_display_limit' => $value,
+                'contributor_display_limit' => $value,
+            ])
+            ->assertJsonValidationErrors(['creator_display_limit', 'contributor_display_limit']);
+    })->with([0, -1, 501, 'abc', 10.5]);
+
+    it('flushes cached public landing page render data after template updates', function (): void {
+        Cache::flush();
+
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+        $resource = Resource::factory()->create();
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+        Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'creator_display_limit' => 45,
+                'contributor_display_limit' => 55,
+            ])
+            ->assertOk();
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
     });
 
     it('rejects invalid section keys in right column', function (): void {
@@ -703,6 +781,18 @@ describe('Model', function (): void {
             ->and($fresh->is_default)->toBeTrue();
     });
 
+    it('does not overwrite customized display limits when normalizing default templates', function (): void {
+        $this->defaultTemplate->update([
+            'creator_display_limit' => 33,
+            'contributor_display_limit' => 44,
+        ]);
+
+        $template = LandingPageTemplate::ensureDefaultTemplateExists();
+
+        expect($template->creator_display_limit)->toBe(33)
+            ->and($template->contributor_display_limit)->toBe(44);
+    });
+
     it('returns null logo_url when no logo is set', function (): void {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->admin->id,
@@ -864,7 +954,9 @@ describe('Factory', function (): void {
             ->and($template->logo_path)->toBeNull()
             ->and($template->logo_filename)->toBeNull()
             ->and($template->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
-            ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS);
+            ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
+            ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
     });
 
     it('creates an igsn template with igsn left-column defaults', function (): void {

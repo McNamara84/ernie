@@ -8,6 +8,7 @@ use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
+use Illuminate\Support\Facades\Cache;
 
 class LandingPageRenderDataCacheService
 {
@@ -33,6 +34,19 @@ class LandingPageRenderDataCacheService
     public function forget(LandingPage $landingPage): bool
     {
         return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPage->id);
+    }
+
+    public function flush(): void
+    {
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA;
+
+        if ($this->supportsTagging()) {
+            Cache::tags($cacheKey->tags())->flush();
+
+            return;
+        }
+
+        Cache::flush();
     }
 
     private function shouldCache(LandingPage $landingPage): bool

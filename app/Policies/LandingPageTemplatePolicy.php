@@ -12,7 +12,8 @@ use App\Models\User;
  * Policy for LandingPageTemplate model authorization.
  *
  * Only Admin and Group Leader roles can manage landing page templates.
- * The default template (is_default=true) cannot be updated or deleted.
+ * The default template (is_default=true) can only receive narrowly scoped
+ * display-limit updates; immutable fields remain protected by the controller.
  */
 class LandingPageTemplatePolicy
 {
@@ -44,14 +45,10 @@ class LandingPageTemplatePolicy
 
     /**
      * Determine whether the user can update the template.
-     * Default templates cannot be modified.
+     * Default template field restrictions are enforced by the controller.
      */
     public function update(User $user, LandingPageTemplate $template): bool
     {
-        if ($template->isDefault()) {
-            return false;
-        }
-
         return in_array($user->role, self::MANAGEMENT_ROLES, true);
     }
 
