@@ -1,49 +1,7 @@
 <?php
 
 use Illuminate\Support\Str;
-
-$resolvePdoMysqlAttribute = static function (string $modern, string $legacy): ?int {
-    if (defined($modern)) {
-        return (int) constant($modern);
-    }
-
-    if (defined($legacy)) {
-        return (int) constant($legacy);
-    }
-
-    return null;
-};
-$pdoMysqlSslCa = $resolvePdoMysqlAttribute('Pdo\\Mysql::ATTR_SSL_CA', 'PDO::MYSQL_ATTR_SSL_CA');
-$pdoMysqlSslVerifyServerCert = $resolvePdoMysqlAttribute(
-    'Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT',
-    'PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT',
-);
-$mysqlSslCaOptions = static function (mixed $sslCa) use ($pdoMysqlSslCa): array {
-    if (! extension_loaded('pdo_mysql') || $pdoMysqlSslCa === null) {
-        return [];
-    }
-
-    return array_filter([
-        $pdoMysqlSslCa => $sslCa,
-    ]);
-};
-$legacyMysqlSslOptions = static function (
-    mixed $sslCa,
-    mixed $verifyServerCert
-) use ($pdoMysqlSslCa, $pdoMysqlSslVerifyServerCert): array {
-    if (! extension_loaded('pdo_mysql') || $pdoMysqlSslCa === null || $pdoMysqlSslVerifyServerCert === null) {
-        return [];
-    }
-
-    if ($sslCa === null || $sslCa === false || $sslCa === '') {
-        $sslCa = '/etc/ssl/certs/ca-certificates.crt';
-    }
-
-    return [
-        $pdoMysqlSslCa => $sslCa,
-        $pdoMysqlSslVerifyServerCert => $verifyServerCert,
-    ];
-};
+use Pdo\Mysql;
 
 return [
 
@@ -100,7 +58,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => $mysqlSslCaOptions(env('MYSQL_ATTR_SSL_CA')),
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'mariadb' => [
@@ -118,7 +78,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => $mysqlSslCaOptions(env('MYSQL_ATTR_SSL_CA')),
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'metaworks' => [
@@ -135,7 +97,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => $legacyMysqlSslOptions(env('DB_SUMARIOPMD_SSL_CA'), false),
+            'options' => extension_loaded('pdo_mysql') ? [
+                Mysql::ATTR_SSL_CA => env('DB_SUMARIOPMD_SSL_CA', '/etc/ssl/certs/ca-certificates.crt'),
+                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+            ] : [],
         ],
 
         'legacy_metaworks' => [
@@ -152,10 +117,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => $legacyMysqlSslOptions(
-                env('DB_METAWORKS_SSL_CA'),
-                env('DB_METAWORKS_SSL_VERIFY_SERVER_CERT', true),
-            ),
+            'options' => extension_loaded('pdo_mysql') ? [
+                Mysql::ATTR_SSL_CA => env('DB_METAWORKS_SSL_CA', '/etc/ssl/certs/ca-certificates.crt'),
+                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+            ] : [],
         ],
 
         'igsn_legacy' => [
@@ -172,7 +137,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => $legacyMysqlSslOptions(env('DB_IGSN_SSL_CA'), false),
+            'options' => extension_loaded('pdo_mysql') ? [
+                Mysql::ATTR_SSL_CA => env('DB_IGSN_SSL_CA', '/etc/ssl/certs/ca-certificates.crt'),
+                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+            ] : [],
         ],
 
         'pgsql' => [
