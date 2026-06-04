@@ -198,6 +198,56 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['failed'])->toBe(0);
     });
 
+    it('keeps the bulk import completed when the SUMARIO pending import phase is unavailable', function () {
+        $this->pendingImportService
+            ->shouldReceive('countImportablePending')
+            ->once()
+            ->andReturn(2);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/datacite.before.pending.failure',
+                    'attributes' => [
+                        'doi' => '10.5880/datacite.before.pending.failure',
+                        'titles' => [['title' => 'DataCite before pending failure']],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/datacite.before.pending.failure']));
+
+        $this->pendingImportService
+            ->shouldReceive('importAllPending')
+            ->once()
+            ->with($this->user->id, 100)
+            ->andThrow(new RuntimeException('SUMARIO connection refused'));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['total'])->toBe(3)
+            ->and($status['processed'])->toBe(3)
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(2)
+            ->and($status['failed_dois'])->toBe([
+                ['doi' => 'sumario-pending', 'error' => 'SUMARIO pending import is unavailable.'],
+            ]);
+    });
+
     it('skips existing DOIs', function () {
         // Create existing resource
         Resource::factory()->create(['doi' => '10.5880/existing']);

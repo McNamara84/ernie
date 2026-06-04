@@ -227,22 +227,40 @@ class ImportFromDataCiteJob implements ShouldQueue
             }
 
             if (! $pendingImportUnavailable && $this->determineFinalStatus() !== 'cancelled') {
-                $pendingSummary = $pendingImportService->importAllPending($this->userId, $maxStoredDois);
+                try {
+                    $pendingSummary = $pendingImportService->importAllPending($this->userId, $maxStoredDois);
 
-                $processed += $pendingSummary['processed'];
-                $imported += $pendingSummary['imported'];
-                $skipped += $pendingSummary['skipped'];
-                $failed += $pendingSummary['failed'];
-                $skippedDois = array_slice(
-                    array_merge($skippedDois, $pendingSummary['skipped_dois']),
-                    0,
-                    $maxStoredDois,
-                );
-                $failedDois = array_slice(
-                    array_merge($failedDois, $pendingSummary['failed_dois']),
-                    0,
-                    $maxStoredDois,
-                );
+                    $processed += $pendingSummary['processed'];
+                    $imported += $pendingSummary['imported'];
+                    $skipped += $pendingSummary['skipped'];
+                    $failed += $pendingSummary['failed'];
+                    $skippedDois = array_slice(
+                        array_merge($skippedDois, $pendingSummary['skipped_dois']),
+                        0,
+                        $maxStoredDois,
+                    );
+                    $failedDois = array_slice(
+                        array_merge($failedDois, $pendingSummary['failed_dois']),
+                        0,
+                        $maxStoredDois,
+                    );
+                } catch (\Throwable $exception) {
+                    $processed += $pendingTotal;
+                    $failed += $pendingTotal;
+
+                    if ($pendingTotal > 0 && count($failedDois) < $maxStoredDois) {
+                        $failedDois[] = [
+                            'doi' => 'sumario-pending',
+                            'error' => 'SUMARIO pending import is unavailable.',
+                        ];
+                    }
+
+                    Log::warning('SUMARIO pending import failed; continuing DataCite import job', [
+                        'import_id' => $this->importId,
+                        'pending_total' => $pendingTotal,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
 
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
             }
