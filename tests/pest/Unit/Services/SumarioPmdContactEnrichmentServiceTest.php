@@ -109,6 +109,7 @@ describe('SumarioPmdContactEnrichmentService', function () {
             'updated_at' => now()->subDay(),
         ]);
         $originalUpdatedAt = $resource->updated_at;
+        $originalCreatorUpdatedAt = now()->subDay()->startOfSecond();
         $person = Person::query()->create([
             'given_name' => 'Casey',
             'family_name' => 'Stable',
@@ -121,12 +122,16 @@ describe('SumarioPmdContactEnrichmentService', function () {
             'is_contact' => true,
             'email' => 'casey.stable@example.org',
             'website' => 'https://casey.example.org',
+            'created_at' => $originalCreatorUpdatedAt,
+            'updated_at' => $originalCreatorUpdatedAt,
         ]);
+        $originalCreatorUpdatedAt = $creator->updated_at;
 
         $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.creator.unchanged');
+        $freshCreator = $creator->fresh();
 
         expect($updated)->toBeFalse()
-            ->and($creator->fresh()->wasChanged(['is_contact', 'email', 'website']))->toBeFalse()
+            ->and($freshCreator?->updated_at?->equalTo($originalCreatorUpdatedAt))->toBeTrue()
             ->and($resource->fresh()->updated_at?->equalTo($originalUpdatedAt))->toBeTrue();
     });
 
@@ -308,6 +313,7 @@ describe('SumarioPmdContactEnrichmentService', function () {
             'updated_at' => now()->subDay(),
         ]);
         $originalUpdatedAt = $resource->updated_at;
+        $originalContributorUpdatedAt = now()->subDay()->startOfSecond();
         $person = Person::query()->create([
             'given_name' => 'Alex',
             'family_name' => 'Still',
@@ -319,12 +325,16 @@ describe('SumarioPmdContactEnrichmentService', function () {
             'position' => 0,
             'email' => 'alex.still@example.org',
             'website' => 'https://alex.example.org',
+            'created_at' => $originalContributorUpdatedAt,
+            'updated_at' => $originalContributorUpdatedAt,
         ]);
+        $originalContributorUpdatedAt = $contributor->updated_at;
 
         $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.contributor.unchanged');
+        $freshContributor = $contributor->fresh();
 
         expect($updated)->toBeFalse()
-            ->and($contributor->fresh()->wasChanged(['email', 'website']))->toBeFalse()
+            ->and($freshContributor?->updated_at?->equalTo($originalContributorUpdatedAt))->toBeTrue()
             ->and($resource->fresh()->updated_at?->equalTo($originalUpdatedAt))->toBeTrue();
     });
 });
