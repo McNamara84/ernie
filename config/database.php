@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Str;
+use Pdo\Mysql;
 
 return [
 
@@ -58,7 +59,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                \Pdo\Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -78,7 +79,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                \Pdo\Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -104,8 +105,8 @@ return [
                 }
 
                 return [
-                    \Pdo\Mysql::ATTR_SSL_CA => $sslCa,
-                    \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+                    Mysql::ATTR_SSL_CA => $sslCa,
+                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
                 ];
             })() : [],
         ],
@@ -132,8 +133,8 @@ return [
                 }
 
                 return [
-                    \Pdo\Mysql::ATTR_SSL_CA => $sslCa,
-                    \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+                    Mysql::ATTR_SSL_CA => $sslCa,
+                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => env('DB_METAWORKS_SSL_VERIFY_SERVER_CERT', true),
                 ];
             })() : [],
         ],
@@ -160,8 +161,8 @@ return [
                 }
 
                 return [
-                    \Pdo\Mysql::ATTR_SSL_CA => $sslCa,
-                    \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+                    Mysql::ATTR_SSL_CA => $sslCa,
+                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
                 ];
             })() : [],
         ],
