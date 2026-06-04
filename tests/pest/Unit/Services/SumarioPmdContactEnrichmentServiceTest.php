@@ -85,6 +85,51 @@ describe('SumarioPmdContactEnrichmentService', function () {
             ->and($creator->fresh()->website)->toBe('https://jane.example.org');
     });
 
+    it('does not touch the resource when matching creator contact data is unchanged', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 47,
+            'identifier' => '10.5880/contact.creator.unchanged',
+        ]);
+        DB::connection('metaworks')->table('resourceagent')->insert([
+            'resource_id' => 47,
+            'order' => 1,
+            'name' => 'Stable, Casey',
+            'firstname' => 'Casey',
+            'lastname' => 'Stable',
+        ]);
+        DB::connection('metaworks')->table('contactinfo')->insert([
+            'resourceagent_resource_id' => 47,
+            'resourceagent_order' => 1,
+            'email' => 'casey.stable@example.org',
+            'website' => 'https://casey.example.org',
+        ]);
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/contact.creator.unchanged',
+            'updated_at' => now()->subDay(),
+        ]);
+        $originalUpdatedAt = $resource->updated_at;
+        $person = Person::query()->create([
+            'given_name' => 'Casey',
+            'family_name' => 'Stable',
+        ]);
+        $creator = ResourceCreator::query()->create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 0,
+            'is_contact' => true,
+            'email' => 'casey.stable@example.org',
+            'website' => 'https://casey.example.org',
+        ]);
+
+        $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.creator.unchanged');
+
+        expect($updated)->toBeFalse()
+            ->and($creator->fresh()->wasChanged(['is_contact', 'email', 'website']))->toBeFalse()
+            ->and($resource->fresh()->updated_at?->equalTo($originalUpdatedAt))->toBeTrue();
+    });
+
     it('ignores invalid legacy contact email and unsafe website values', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 44,
@@ -237,5 +282,49 @@ describe('SumarioPmdContactEnrichmentService', function () {
 
         expect($contributor->fresh()->email)->toBe('alex.smith@example.org')
             ->and($contributor->fresh()->website)->toBeNull();
+    });
+
+    it('does not touch the resource when matching contributor contact data is unchanged', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 48,
+            'identifier' => '10.5880/contact.contributor.unchanged',
+        ]);
+        DB::connection('metaworks')->table('resourceagent')->insert([
+            'resource_id' => 48,
+            'order' => 1,
+            'name' => 'Still, Alex',
+            'firstname' => 'Alex',
+            'lastname' => 'Still',
+        ]);
+        DB::connection('metaworks')->table('contactinfo')->insert([
+            'resourceagent_resource_id' => 48,
+            'resourceagent_order' => 1,
+            'email' => 'alex.still@example.org',
+            'website' => 'https://alex.example.org',
+        ]);
+
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/contact.contributor.unchanged',
+            'updated_at' => now()->subDay(),
+        ]);
+        $originalUpdatedAt = $resource->updated_at;
+        $person = Person::query()->create([
+            'given_name' => 'Alex',
+            'family_name' => 'Still',
+        ]);
+        $contributor = ResourceContributor::query()->create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 0,
+            'email' => 'alex.still@example.org',
+            'website' => 'https://alex.example.org',
+        ]);
+
+        $updated = (new SumarioPmdContactEnrichmentService)->enrich($resource, '10.5880/contact.contributor.unchanged');
+
+        expect($updated)->toBeFalse()
+            ->and($contributor->fresh()->wasChanged(['email', 'website']))->toBeFalse()
+            ->and($resource->fresh()->updated_at?->equalTo($originalUpdatedAt))->toBeTrue();
     });
 });

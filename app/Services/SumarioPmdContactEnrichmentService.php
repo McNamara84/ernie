@@ -51,8 +51,9 @@ class SumarioPmdContactEnrichmentService
                     continue;
                 }
 
-                $this->updateCreatorContact($creator, $contact);
-                $updated = true;
+                if ($this->updateCreatorContact($creator, $contact)) {
+                    $updated = true;
+                }
             }
 
             foreach ($resource->contributors as $contributor) {
@@ -60,8 +61,9 @@ class SumarioPmdContactEnrichmentService
                     continue;
                 }
 
-                $this->updateContributorContact($contributor, $contact);
-                $updated = true;
+                if ($this->updateContributorContact($contributor, $contact)) {
+                    $updated = true;
+                }
             }
         }
 
@@ -134,24 +136,28 @@ class SumarioPmdContactEnrichmentService
     /**
      * @param  array{order: int, name: string|null, firstname: string|null, lastname: string|null, email: string|null, website: string|null}  $contact
      */
-    private function updateCreatorContact(ResourceCreator $creator, array $contact): void
+    private function updateCreatorContact(ResourceCreator $creator, array $contact): bool
     {
         $creator->forceFill([
             'is_contact' => true,
             'email' => $contact['email'] ?? $creator->email,
             'website' => $contact['website'] ?? $creator->website,
         ])->save();
+
+        return $creator->wasChanged(['is_contact', 'email', 'website']);
     }
 
     /**
      * @param  array{order: int, name: string|null, firstname: string|null, lastname: string|null, email: string|null, website: string|null}  $contact
      */
-    private function updateContributorContact(ResourceContributor $contributor, array $contact): void
+    private function updateContributorContact(ResourceContributor $contributor, array $contact): bool
     {
         $contributor->forceFill([
             'email' => $contact['email'] ?? $contributor->email,
             'website' => $contact['website'] ?? $contributor->website,
         ])->save();
+
+        return $contributor->wasChanged(['email', 'website']);
     }
 
     /**
