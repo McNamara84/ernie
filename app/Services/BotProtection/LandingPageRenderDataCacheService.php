@@ -6,9 +6,11 @@ namespace App\Services\BotProtection;
 
 use App\Enums\CacheKey;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Support\Traits\ChecksCacheTagging;
 use Closure;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class LandingPageRenderDataCacheService
 {
@@ -36,17 +38,41 @@ class LandingPageRenderDataCacheService
         return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPage->id);
     }
 
-    public function flush(): void
+    public function forgetById(int $landingPageId): bool
     {
-        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA;
+        return CacheKey::LANDING_PAGE_RENDER_DATA->forget($landingPageId);
+    }
 
-        if ($this->supportsTagging()) {
-            Cache::tags($cacheKey->tags())->flush();
+    public function forgetForTemplate(LandingPageTemplate $template): void
+    {
+        $query = LandingPage::query()
+            ->select('landing_pages.id')
+            ->where('is_published', true);
 
-            return;
+        if ($template->isDefault()) {
+            $query->whereDoesntHave('landingPageTemplate', function (Builder $query) use ($template): void {
+                $query->where('is_default', false)
+                    ->where('template_type', $template->template_type);
+            });
+
+            if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+                $query->whereHas('resource.resourceType', function (Builder $query): void {
+                    $query->where('slug', 'physical-object');
+                });
+            } else {
+                $query->whereDoesntHave('resource.resourceType', function (Builder $query): void {
+                    $query->where('slug', 'physical-object');
+                });
+            }
+        } else {
+            $query->where('landing_page_template_id', $template->id);
         }
 
-        Cache::flush();
+        $query->chunkById(500, function (Collection $landingPages): void {
+            foreach ($landingPages as $landingPage) {
+                $this->forgetById((int) $landingPage->id);
+            }
+        }, 'landing_pages.id', 'id');
     }
 
     private function shouldCache(LandingPage $landingPage): bool

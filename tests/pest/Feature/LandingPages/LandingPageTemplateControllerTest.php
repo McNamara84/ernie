@@ -436,7 +436,7 @@ describe('Update', function (): void {
             ->assertJsonValidationErrors(['creator_display_limit', 'contributor_display_limit']);
     })->with([0, -1, 501, 'abc', 10.5]);
 
-    it('flushes cached public landing page render data after template updates', function (): void {
+    it('forgets affected cached public landing page render data after template updates', function (): void {
         Cache::flush();
 
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
@@ -447,9 +447,12 @@ describe('Update', function (): void {
         ]);
 
         $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+        $schemaOrgCacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
         Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+        Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->put($schemaOrgCacheKey, ['@context' => 'https://schema.org'], 600);
 
-        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue()
+            ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgCacheKey))->toBeTrue();
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -458,10 +461,11 @@ describe('Update', function (): void {
             ])
             ->assertOk();
 
-        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse()
+            ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgCacheKey))->toBeTrue();
     });
 
-    it('does not flush cached public landing page render data for empty template updates', function (): void {
+    it('does not forget cached public landing page render data for empty template updates', function (): void {
         Cache::flush();
 
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
@@ -481,7 +485,7 @@ describe('Update', function (): void {
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
     });
 
-    it('does not flush cached public landing page render data when submitted template values are unchanged', function (): void {
+    it('does not forget cached public landing page render data when submitted template values are unchanged', function (): void {
         Cache::flush();
 
         $template = LandingPageTemplate::factory()->create([

@@ -301,8 +301,10 @@ class LandingPagePublicController extends Controller
             $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
                 ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
                 : null;
+            $expectedTemplateType = LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug);
             $displayLimitTemplate = $effectiveLandingPageTemplate
-                ?? LandingPageTemplate::defaultForType(LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug));
+                ?? LandingPageTemplate::existingDefaultForType($expectedTemplateType)
+                ?? LandingPageTemplate::defaultForType($expectedTemplateType);
 
             if ($effectiveLandingPageTemplate !== null) {
                 $tmpl = $effectiveLandingPageTemplate;

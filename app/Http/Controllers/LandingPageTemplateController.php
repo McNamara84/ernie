@@ -122,7 +122,7 @@ class LandingPageTemplateController extends Controller
 
         if ($landingPageTemplate->isDirty()) {
             $landingPageTemplate->save();
-            app(LandingPageRenderDataCacheService::class)->flush();
+            app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
         }
 
         $landingPageTemplate->loadCount('landingPages');
@@ -203,7 +203,7 @@ class LandingPageTemplateController extends Controller
             'logo_path' => $path,
             'logo_filename' => $file->getClientOriginalName(),
         ]);
-        app(LandingPageRenderDataCacheService::class)->flush();
+        app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
 
         // Delete old logo only after new one is persisted
         if ($oldLogoPath !== null) {
@@ -238,7 +238,7 @@ class LandingPageTemplateController extends Controller
             'logo_path' => null,
             'logo_filename' => null,
         ]);
-        app(LandingPageRenderDataCacheService::class)->flush();
+        app(LandingPageRenderDataCacheService::class)->forgetForTemplate($landingPageTemplate);
 
         return response()->json([
             'message' => 'Logo removed successfully',

@@ -511,6 +511,21 @@ class LandingPageTemplate extends Model
         };
     }
 
+    public static function existingDefaultForType(string $templateType): ?self
+    {
+        return self::query()
+            ->where('slug', self::defaultSlugForType($templateType))
+            ->where('template_type', $templateType)
+            ->first();
+    }
+
+    private static function defaultSlugForType(string $templateType): string
+    {
+        return $templateType === self::TEMPLATE_TYPE_IGSN
+            ? self::IGSN_DEFAULT_TEMPLATE_SLUG
+            : self::DEFAULT_TEMPLATE_SLUG;
+    }
+
     /**
      * Shared implementation backing {@see self::ensureDefaultTemplateExists()} and
      * {@see self::ensureIgsnDefaultTemplateExists()}.

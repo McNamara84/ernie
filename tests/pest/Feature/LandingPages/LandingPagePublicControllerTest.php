@@ -790,6 +790,46 @@ describe('Landing Page with Custom Template', function () {
             );
     });
 
+    test('reads existing default template display limits without normalizing the system template during render', function () {
+        Cache::flush();
+
+        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+        $originalTimestamp = now()->subHour()->startOfSecond();
+
+        LandingPageTemplate::query()
+            ->whereKey($defaultTemplate->id)
+            ->update([
+                'is_default' => false,
+                'creator_display_limit' => 23,
+                'contributor_display_limit' => 43,
+                'updated_at' => $originalTimestamp,
+            ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'existing-default-template-read-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => null,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('displayLimits.creators', 23)
+                ->where('displayLimits.contributors', 43)
+            );
+
+        $freshDefaultTemplate = $defaultTemplate->fresh();
+
+        expect($freshDefaultTemplate?->is_default)->toBeFalse()
+            ->and($freshDefaultTemplate?->updated_at?->equalTo($originalTimestamp))->toBeTrue();
+    });
+
     test('normalizes legacy Physical Object landing pages to the igsn renderer and keeps matching igsn custom templates', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],

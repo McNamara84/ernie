@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CacheKey;
 use App\Models\LandingPage;
+use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use Illuminate\Support\Facades\Cache;
@@ -113,31 +114,73 @@ it('forgets cached render data through the tagged cache repository', function ()
         ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
 });
 
-it('flushes all tagged landing page render data without clearing unrelated tags', function (): void {
+it('forgets cached render data for landing pages using a custom template without clearing same-tag schema cache', function (): void {
     $service = new LandingPageRenderDataCacheService;
-    $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA;
+    $template = LandingPageTemplate::factory()->create();
+    $otherTemplate = LandingPageTemplate::factory()->create();
+    $affectedLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create()->id,
+        'landing_page_template_id' => $template->id,
+    ]);
+    $unaffectedLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create()->id,
+        'landing_page_template_id' => $otherTemplate->id,
+    ]);
 
-    Cache::tags($cacheKey->tags())->put($cacheKey->key(1), ['template' => 'default_gfz', 'props' => []], 600);
-    Cache::tags($cacheKey->tags())->put($cacheKey->key(2), ['template' => 'default_gfz', 'props' => []], 600);
-    Cache::tags(['portal'])->put('portal-payload', ['props' => []], 600);
+    $affectedRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($affectedLandingPage->id);
+    $unaffectedRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($unaffectedLandingPage->id);
+    $schemaOrgKey = CacheKey::SCHEMA_ORG_JSONLD->key($affectedLandingPage->resource_id);
 
-    expect(Cache::tags($cacheKey->tags())->has($cacheKey->key(1)))->toBeTrue()
-        ->and(Cache::tags($cacheKey->tags())->has($cacheKey->key(2)))->toBeTrue()
-        ->and(Cache::tags(['portal'])->has('portal-payload'))->toBeTrue();
+    Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($affectedRenderKey, ['template' => 'default_gfz', 'props' => []], 600);
+    Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($unaffectedRenderKey, ['template' => 'default_gfz', 'props' => []], 600);
+    Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->put($schemaOrgKey, ['@context' => 'https://schema.org'], 600);
 
-    $service->flush();
+    expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($affectedRenderKey))->toBeTrue()
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue()
+        ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgKey))->toBeTrue();
 
-    expect(Cache::tags($cacheKey->tags())->has($cacheKey->key(1)))->toBeFalse()
-        ->and(Cache::tags($cacheKey->tags())->has($cacheKey->key(2)))->toBeFalse()
-        ->and(Cache::tags(['portal'])->has('portal-payload'))->toBeTrue();
+    $service->forgetForTemplate($template);
+
+    expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($affectedRenderKey))->toBeFalse()
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue()
+        ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgKey))->toBeTrue();
 });
 
-it('falls back to flushing the whole cache store when tags are unsupported', function (): void {
-    Cache::shouldReceive('getStore')
-        ->once()
-        ->andReturn(new class {});
-    Cache::shouldReceive('flush')
-        ->once();
+it('forgets cached render data for default-template pages without clearing matching custom-template pages', function (): void {
+    $service = new LandingPageRenderDataCacheService;
+    $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+    $customTemplate = LandingPageTemplate::factory()->create();
+    $mismatchedTemplate = LandingPageTemplate::factory()->igsn()->create();
+    $nullTemplateLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create()->id,
+        'landing_page_template_id' => null,
+    ]);
+    $defaultIdLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create()->id,
+        'landing_page_template_id' => $defaultTemplate->id,
+    ]);
+    $mismatchedTemplateLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create()->id,
+        'landing_page_template_id' => $mismatchedTemplate->id,
+    ]);
+    $customTemplateLandingPage = LandingPage::factory()->published()->create([
+        'resource_id' => Resource::factory()->create()->id,
+        'landing_page_template_id' => $customTemplate->id,
+    ]);
 
-    (new LandingPageRenderDataCacheService)->flush();
+    $nullTemplateRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($nullTemplateLandingPage->id);
+    $defaultIdRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($defaultIdLandingPage->id);
+    $mismatchedTemplateRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($mismatchedTemplateLandingPage->id);
+    $customTemplateRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($customTemplateLandingPage->id);
+
+    foreach ([$nullTemplateRenderKey, $defaultIdRenderKey, $mismatchedTemplateRenderKey, $customTemplateRenderKey] as $renderKey) {
+        Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($renderKey, ['template' => 'default_gfz', 'props' => []], 600);
+    }
+
+    $service->forgetForTemplate($defaultTemplate);
+
+    expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($nullTemplateRenderKey))->toBeFalse()
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($defaultIdRenderKey))->toBeFalse()
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($mismatchedTemplateRenderKey))->toBeFalse()
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($customTemplateRenderKey))->toBeTrue();
 });
