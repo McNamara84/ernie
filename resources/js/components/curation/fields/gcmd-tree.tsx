@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,27 +36,34 @@ function highlightText(text: string, query?: string): React.ReactNode {
     );
 }
 
+function hasSelectedDescendant(keyword: VocabularyKeyword, selectedIds: Set<string>): boolean {
+    if (selectedIds.has(keyword.id)) return true;
+    if (!keyword.children || keyword.children.length === 0) return false;
+
+    return keyword.children.some((child) => hasSelectedDescendant(child, selectedIds));
+}
+
 /**
  * Recursive tree node component for GCMD controlled vocabularies
  * Memoized to prevent unnecessary re-renders when parent updates
  */
 const GCMDTreeNodeComponent = ({ node, selectedIds, onToggle, level = 0, pathPrefix = [], searchQuery }: GCMDTreeNodeProps) => {
-    // Check if this node or any of its descendants are selected
-    const hasSelectedDescendant = (keyword: VocabularyKeyword): boolean => {
-        if (selectedIds.has(keyword.id)) return true;
-        if (!keyword.children || keyword.children.length === 0) return false;
-        return keyword.children.some(hasSelectedDescendant);
-    };
-
     // Auto-expand if:
     // 1. Root level (level 0) for initial visibility
     // 2. Node or any descendant is selected (to show selected keywords)
-    const shouldAutoExpand = level === 0 || hasSelectedDescendant(node);
+    const hasSelectedMatch = hasSelectedDescendant(node, selectedIds);
+    const shouldAutoExpand = level === 0 || hasSelectedMatch;
     const [isExpanded, setIsExpanded] = useState(shouldAutoExpand);
 
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = selectedIds.has(node.id);
     const currentPath = [...pathPrefix, node.text];
+
+    useEffect(() => {
+        if (hasSelectedMatch) {
+            setIsExpanded(true);
+        }
+    }, [hasSelectedMatch]);
 
     const handleToggle = () => {
         onToggle(node, currentPath);
@@ -127,7 +134,14 @@ const GCMDTreeNodeComponent = ({ node, selectedIds, onToggle, level = 0, pathPre
 // Memoize the component to prevent re-renders when props haven't changed
 export const GCMDTreeNode = memo(GCMDTreeNodeComponent, (prevProps, nextProps) => {
     // Custom comparison function for better performance
-    return prevProps.node.id === nextProps.node.id && prevProps.selectedIds === nextProps.selectedIds && prevProps.level === nextProps.level;
+    return (
+        prevProps.node === nextProps.node &&
+        prevProps.selectedIds === nextProps.selectedIds &&
+        prevProps.onToggle === nextProps.onToggle &&
+        prevProps.level === nextProps.level &&
+        prevProps.pathPrefix === nextProps.pathPrefix &&
+        prevProps.searchQuery === nextProps.searchQuery
+    );
 });
 
 interface GCMDTreeProps {
