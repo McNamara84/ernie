@@ -242,9 +242,93 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
             />,
         );
 
-        // Check that both keywords are displayed
-        expect(screen.getByText('Rock Physics')).toBeInTheDocument();
+        // Check that both keywords are displayed. Rock Physics also appears in the active tree.
+        expect(screen.getAllByText('Rock Physics').length).toBeGreaterThan(0);
         expect(screen.getByText('Geochemistry')).toBeInTheDocument();
+    });
+});
+
+describe('ControlledVocabulariesField - Initial selected keywords', () => {
+    const mockScienceKeywords: VocabularyKeyword[] = [
+        {
+            id: 'sci-1',
+            text: 'Earth Science',
+            language: 'en',
+            scheme: 'GCMD Science Keywords',
+            schemeURI: 'https://gcmd.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+            description: 'Science keyword',
+            children: [],
+        },
+    ];
+
+    const mockGemetVocabulary: VocabularyKeyword[] = [
+        {
+            id: 'gemet-root',
+            text: 'Environment',
+            language: 'en',
+            scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus',
+            schemeURI: 'http://www.eionet.europa.eu/gemet/concept/',
+            description: 'Root group',
+            children: [
+                {
+                    id: 'gemet-group',
+                    text: 'Natural hazards',
+                    language: 'en',
+                    scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus',
+                    schemeURI: 'http://www.eionet.europa.eu/gemet/concept/',
+                    description: 'Group',
+                    children: [
+                        {
+                            id: 'gemet-earthquake',
+                            text: 'earthquake',
+                            language: 'en',
+                            scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus',
+                            schemeURI: 'http://www.eionet.europa.eu/gemet/concept/',
+                            description: 'Concept',
+                            children: [],
+                        },
+                    ],
+                },
+            ],
+        },
+    ];
+
+    it('activates the first visible tab with selected keywords and expands the selected tree path', () => {
+        const selectedGemetKeywords: SelectedKeyword[] = [
+            {
+                id: 'gemet-earthquake',
+                text: 'earthquake',
+                path: 'Environment > Natural hazards > earthquake',
+                language: 'en',
+                scheme: 'GEMET - GEneral Multilingual Environmental Thesaurus',
+                schemeURI: 'http://www.eionet.europa.eu/gemet/concept/',
+            },
+        ];
+
+        render(
+            <ControlledVocabulariesField
+                scienceKeywords={mockScienceKeywords}
+                platforms={[]}
+                instruments={[]}
+                gemetVocabulary={mockGemetVocabulary}
+                selectedKeywords={selectedGemetKeywords}
+                onChange={vi.fn()}
+                showGemetTab={true}
+                enabledThesauri={{
+                    science_keywords: true,
+                    platforms: true,
+                    instruments: true,
+                    chronostratigraphy: true,
+                    gemet: true,
+                    analytical_methods: true,
+                    euroscivoc: true,
+                }}
+            />,
+        );
+
+        expect(screen.getByRole('tab', { name: /GEMET/i })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByText('Natural hazards')).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'earthquake' })).toBeChecked();
     });
 });
 

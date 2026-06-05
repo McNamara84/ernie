@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { GCMDTree, GCMDTreeNode } from '@/components/curation/fields/gcmd-tree';
@@ -141,6 +141,27 @@ describe('gcmd-tree', () => {
 
             // Should auto-expand because grandchild is selected
             expect(screen.getByText('Child')).toBeInTheDocument();
+            expect(screen.getByText('Grandchild')).toBeInTheDocument();
+        });
+
+        it('expands after selectedIds updates to include a descendant', async () => {
+            const childNode = createMockKeyword({ id: 'child-1', text: 'Selected Child' });
+            const node = createMockKeyword({
+                id: 'parent',
+                text: 'Parent',
+                children: [childNode],
+            });
+
+            const { rerender } = render(<GCMDTreeNode node={node} selectedIds={new Set()} onToggle={vi.fn()} level={2} />);
+
+            expect(screen.queryByText('Selected Child')).not.toBeInTheDocument();
+
+            rerender(<GCMDTreeNode node={node} selectedIds={new Set(['child-1'])} onToggle={vi.fn()} level={2} />);
+
+            await waitFor(() => {
+                expect(screen.getByText('Selected Child')).toBeInTheDocument();
+            });
+            expect(screen.getByRole('checkbox', { name: 'Selected Child' })).toBeChecked();
         });
 
         it('collapses when expand button is clicked', () => {
@@ -188,6 +209,20 @@ describe('gcmd-tree', () => {
             // The matching text should be wrapped in a <mark> element
             const mark = screen.getByText('Science');
             expect(mark.tagName).toBe('MARK');
+        });
+
+        it('updates highlighted text when searchQuery changes', () => {
+            const keywords: VocabularyKeyword[] = [createMockKeyword({ id: 'earth-science', text: 'Earth Science Data' })];
+            const selectedIds = new Set<string>();
+            const onToggle = vi.fn();
+
+            const { rerender } = render(<GCMDTree keywords={keywords} selectedIds={selectedIds} onToggle={onToggle} searchQuery="Earth" />);
+
+            expect(screen.getByText('Earth').tagName).toBe('MARK');
+
+            rerender(<GCMDTree keywords={keywords} selectedIds={selectedIds} onToggle={onToggle} searchQuery="Science" />);
+
+            expect(screen.getByText('Science').tagName).toBe('MARK');
         });
 
         it('treats regex metacharacters in the search query literally', () => {
