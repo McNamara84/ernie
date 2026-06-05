@@ -239,3 +239,19 @@ Reviewer-facing suggestions should show at least:
 - Suggested rights text and SPDX identifier.
 - `rightsURI`, `schemeURI`, and language when present.
 - Confidence score and evidence/reason when present.
+
+## Export Mapping
+
+After acceptance, exports should map durable storage to DataCite as follows:
+
+| Export field | Source |
+| --- | --- |
+| `rights` | `rights.name` |
+| `rightsURI` | `rights.uri` |
+| `rightsIdentifier` | `rights.identifier` |
+| `rightsIdentifierScheme` | derived `SPDX` |
+| `schemeURI` | `rights.scheme_uri` |
+| `lang` / `xml:lang` | `resource_rights.language`, then resource language fallback |
+
+This lets accepted suggestions populate the full DataCite rights payload while
+keeping global SPDX catalog data separate from resource-specific usage.
