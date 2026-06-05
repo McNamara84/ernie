@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import BoxForm from '@/components/curation/fields/spatial-temporal-coverage/BoxForm';
@@ -116,6 +117,27 @@ describe('BoxForm', () => {
         render(<BoxForm {...defaultProps} />);
 
         expect(screen.getByTestId('coordinate-order')).toHaveTextContent('lat-lon');
+    });
+
+    it('renders a Global button for world coverage', () => {
+        render(<BoxForm {...defaultProps} />);
+
+        expect(screen.getByRole('button', { name: /global/i })).toBeInTheDocument();
+    });
+
+    it('sets global coverage coordinates when the Global button is clicked', async () => {
+        const user = userEvent.setup();
+        const onBatchChange = vi.fn();
+        render(<BoxForm {...defaultProps} onBatchChange={onBatchChange} />);
+
+        await user.click(screen.getByRole('button', { name: /global/i }));
+
+        expect(onBatchChange).toHaveBeenCalledWith({
+            latMin: '-90.000000',
+            latMax: '90.000000',
+            lonMin: '-180.000000',
+            lonMax: '180.000000',
+        });
     });
 
     it('calls onBatchChange when rectangle is selected on map', async () => {
