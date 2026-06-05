@@ -301,6 +301,10 @@ class LandingPagePublicController extends Controller
             $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
                 ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
                 : null;
+            $expectedTemplateType = LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug);
+            $displayLimitTemplate = $effectiveLandingPageTemplate
+                ?? LandingPageTemplate::existingDefaultForType($expectedTemplateType)
+                ?? LandingPageTemplate::defaultForType($expectedTemplateType);
 
             if ($effectiveLandingPageTemplate !== null) {
                 $tmpl = $effectiveLandingPageTemplate;
@@ -335,6 +339,10 @@ class LandingPagePublicController extends Controller
                     'schemaOrgJsonLd' => $schemaOrgJsonLd,
                     'sectionOrder' => $sectionOrder,
                     'customLogoUrl' => $customLogoUrl,
+                    'displayLimits' => [
+                        'creators' => $displayLimitTemplate->creator_display_limit,
+                        'contributors' => $displayLimitTemplate->contributor_display_limit,
+                    ],
                 ],
             ];
         };

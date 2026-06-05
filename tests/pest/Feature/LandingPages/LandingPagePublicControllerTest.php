@@ -733,6 +733,8 @@ describe('Landing Page with Custom Template', function () {
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/custom-logo.png',
+            'creator_display_limit' => 12,
+            'contributor_display_limit' => 34,
         ]);
 
         $landingPage = LandingPage::factory()
@@ -754,11 +756,18 @@ describe('Landing Page with Custom Template', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('displayLimits.creators', 12)
+                ->where('displayLimits.contributors', 34)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-logo.png'))
             );
     });
 
     test('renders landing page without custom template (default)', function () {
+        LandingPageTemplate::ensureDefaultTemplateExists()->update([
+            'creator_display_limit' => 22,
+            'contributor_display_limit' => 44,
+        ]);
+
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
@@ -776,7 +785,49 @@ describe('Landing Page with Custom Template', function () {
                 ->component('LandingPages/default_gfz')
                 ->where('sectionOrder', null)
                 ->where('customLogoUrl', null)
+                ->where('displayLimits.creators', 22)
+                ->where('displayLimits.contributors', 44)
             );
+    });
+
+    test('reads existing default template display limits without normalizing the system template during render', function () {
+        Cache::flush();
+
+        $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+        $originalTimestamp = now()->subHour()->startOfSecond();
+
+        LandingPageTemplate::query()
+            ->whereKey($defaultTemplate->id)
+            ->update([
+                'is_default' => false,
+                'creator_display_limit' => 23,
+                'contributor_display_limit' => 43,
+                'updated_at' => $originalTimestamp,
+            ]);
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'existing-default-template-read-test',
+                'template' => 'default_gfz',
+                'landing_page_template_id' => null,
+            ]);
+
+        $response = $this->get(landingPageUrl($landingPage));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('displayLimits.creators', 23)
+                ->where('displayLimits.contributors', 43)
+            );
+
+        $freshDefaultTemplate = $defaultTemplate->fresh();
+
+        expect($freshDefaultTemplate?->is_default)->toBeFalse()
+            ->and($freshDefaultTemplate?->updated_at?->equalTo($originalTimestamp))->toBeTrue();
     });
 
     test('normalizes legacy Physical Object landing pages to the igsn renderer and keeps matching igsn custom templates', function () {
@@ -795,6 +846,8 @@ describe('Landing Page with Custom Template', function () {
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/igsn-logo.png',
+            'creator_display_limit' => 21,
+            'contributor_display_limit' => 31,
         ]);
         $domain = LandingPageDomain::factory()->withDomain('https://legacy.example.org/')->create();
 
@@ -833,6 +886,8 @@ describe('Landing Page with Custom Template', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('displayLimits.creators', 21)
+                ->where('displayLimits.contributors', 31)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
             );
     });
