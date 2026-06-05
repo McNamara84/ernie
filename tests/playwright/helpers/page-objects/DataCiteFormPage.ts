@@ -31,7 +31,10 @@ export class DataCiteFormPage {
   readonly spatialTemporalCoverageAccordion: Locator;
   readonly datesAccordion: Locator;
   readonly relatedWorkAccordion: Locator;
+  readonly usedInstrumentsAccordion: Locator;
   readonly fundingAccordion: Locator;
+  readonly collapseAllButtons: Locator;
+  readonly expandAllButtons: Locator;
   
   // Resource Info Fields
   readonly doiInput: Locator;
@@ -67,7 +70,10 @@ export class DataCiteFormPage {
     this.spatialTemporalCoverageAccordion = getAccordionTrigger(page, /Spatial.*Temporal Coverage/i);
     this.datesAccordion = getAccordionTrigger(page, /Dates/i);
     this.relatedWorkAccordion = getAccordionTrigger(page, /Related Work/i);
+    this.usedInstrumentsAccordion = getAccordionTrigger(page, /Used Instruments/i);
     this.fundingAccordion = getAccordionTrigger(page, /Funding/i);
+    this.collapseAllButtons = page.getByRole('button', { name: /Collapse all field groups/i });
+    this.expandAllButtons = page.getByRole('button', { name: /Expand all field groups/i });
     
     // Resource Info Fields
     this.doiInput = page.locator('#doi');

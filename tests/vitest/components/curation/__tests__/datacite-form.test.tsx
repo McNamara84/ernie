@@ -5,14 +5,18 @@ import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/u
 import axios from 'axios';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
-import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
+import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
 
-const { mockRouterVisit } = vi.hoisted(() => ({
+const { mockRouterPut, mockRouterVisit, mockUsePageProps } = vi.hoisted(() => ({
+    mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
+    mockUsePageProps: vi.fn(() => ({
+        curationAccordionOpenItems: null as string[] | null,
+    })),
 }));
 
 vi.mock('@inertiajs/react', () => ({
@@ -20,8 +24,12 @@ vi.mock('@inertiajs/react', () => ({
         visit: mockRouterVisit,
         get: vi.fn(),
         post: vi.fn(),
+        put: mockRouterPut,
         reload: vi.fn(),
     },
+    usePage: () => ({
+        props: mockUsePageProps(),
+    }),
 }));
 
 vi.mock('axios');
@@ -286,9 +294,14 @@ describe('DataCiteForm', () => {
         vi.restoreAllMocks();
 
         // Reset router mock for each test
+        mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
+        });
+        mockUsePageProps.mockReset();
+        mockUsePageProps.mockReturnValue({
+            curationAccordionOpenItems: null,
         });
 
         (useRorAffiliations as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -382,6 +395,111 @@ describe('DataCiteForm', () => {
     ];
 
     const availableDatacenters = [{ id: 1, name: 'Test Datacenter' }];
+
+    const renderDataCiteForm = (props: Partial<DataCiteFormProps> = {}) =>
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+                {...props}
+            />,
+        );
+
+    describe('Accordion bulk controls', () => {
+        it('renders collapse-all actions next to visible field group triggers and hides expand-all while all are open', async () => {
+            renderDataCiteForm();
+
+            await waitFor(() => {
+                expect(screen.getAllByTestId('collapse-all-field-groups').length).toBeGreaterThanOrEqual(12);
+            });
+
+            expect(screen.queryAllByTestId('expand-all-field-groups')).toHaveLength(0);
+
+            const firstCollapseAllButton = screen.getAllByRole('button', { name: /Collapse all field groups/i })[0];
+            expect(firstCollapseAllButton).not.toHaveAttribute('data-slot', 'accordion-trigger');
+            expect(firstCollapseAllButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
+        });
+
+        it('collapses every visible field group and persists an empty open item list', async () => {
+            renderDataCiteForm();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await user.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(screen.queryAllByTestId('collapse-all-field-groups')).toHaveLength(0);
+            expect(screen.getAllByTestId('expand-all-field-groups').length).toBeGreaterThanOrEqual(12);
+            expect(mockRouterPut).toHaveBeenCalledWith(
+                '/settings/curation-accordion',
+                { open_items: [] },
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                }),
+            );
+        });
+
+        it('expands every visible field group from a saved collapsed preference', async () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: [],
+            });
+            renderDataCiteForm();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+
+            await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(screen.queryAllByTestId('expand-all-field-groups')).toHaveLength(0);
+            expect(mockRouterPut).toHaveBeenCalledWith(
+                '/settings/curation-accordion',
+                expect.objectContaining({
+                    open_items: expect.arrayContaining(['resource-info', 'authors', 'funding-references']),
+                }),
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                }),
+            );
+        });
+
+        it('does not include hidden conditional field groups when expanding all', async () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: [],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).not.toContain('msl-laboratories');
+            expect(payload.open_items).not.toContain('used-instruments');
+        });
+    });
 
     it(
         'renders fields, title options and supports adding/removing titles',
