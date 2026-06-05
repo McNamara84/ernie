@@ -1,6 +1,6 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, Circle, Save } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -21,7 +21,7 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
-import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier } from '@/types';
+import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
@@ -82,6 +82,56 @@ export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 
 const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
+const CURATION_ACCORDION_ITEM_VALUES = [
+    'resource-info',
+    'licenses-rights',
+    'authors',
+    'contributors',
+    'descriptions',
+    'controlled-vocabularies',
+    'free-keywords',
+    'msl-laboratories',
+    'spatial-temporal-coverage',
+    'dates',
+    'related-work',
+    'citations',
+    'used-instruments',
+    'funding-references',
+] as const satisfies readonly CurationAccordionItemValue[];
+const DEFAULT_OPEN_ACCORDION_ITEMS = [
+    'resource-info',
+    'authors',
+    'licenses-rights',
+    'contributors',
+    'descriptions',
+    'controlled-vocabularies',
+    'free-keywords',
+    'spatial-temporal-coverage',
+    'dates',
+    'related-work',
+    'citations',
+    'funding-references',
+    'used-instruments',
+] as const satisfies readonly CurationAccordionItemValue[];
+const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
+
+function normalizeAccordionItems(
+    items: readonly string[],
+    allowedItems: readonly CurationAccordionItemValue[] = CURATION_ACCORDION_ITEM_VALUES,
+): CurationAccordionItemValue[] {
+    const allowed = new Set<CurationAccordionItemValue>(allowedItems);
+    const result: CurationAccordionItemValue[] = [];
+
+    for (const item of items) {
+        if (!allowed.has(item as CurationAccordionItemValue) || result.includes(item as CurationAccordionItemValue)) {
+            continue;
+        }
+
+        result.push(item as CurationAccordionItemValue);
+    }
+
+    return result;
+}
 
 function appendValidationMessage(errors: Record<string, string[]>, backendKey: string, message: string): void {
     const existing = errors[backendKey];
@@ -142,6 +192,7 @@ export default function DataCiteForm({
     activeRelationTypes,
     activeIdentifierTypes,
 }: DataCiteFormProps) {
+    const { curationAccordionOpenItems } = usePage<SharedData>().props;
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
 
@@ -174,6 +225,7 @@ export default function DataCiteForm({
     // Refs to track MSL scroll/animation timeouts for cleanup (separate refs to avoid overwriting)
     const mslScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mslAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const accordionPreferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
@@ -382,21 +434,10 @@ export default function DataCiteForm({
         return [];
     });
     const [datacenterTouched, setDatacenterTouched] = useState(false);
-    const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([
-        'resource-info',
-        'authors',
-        'licenses-rights',
-        'contributors',
-        'descriptions',
-        'controlled-vocabularies',
-        'free-keywords',
-        'spatial-temporal-coverage',
-        'dates',
-        'related-work',
-        'citations',
-        'funding-references',
-        'used-instruments',
-    ]);
+    const [openAccordionItems, setOpenAccordionItems] = useState<CurationAccordionItemValue[]>(() =>
+        normalizeAccordionItems(curationAccordionOpenItems ?? DEFAULT_OPEN_ACCORDION_ITEMS),
+    );
+    const openAccordionItemsRef = useRef(openAccordionItems);
 
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
@@ -857,6 +898,103 @@ export default function DataCiteForm({
         return hasMslControlledKeywords || keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
     }, [freeKeywords, hasMslControlledKeywords]);
 
+    const visibleAccordionItemValues = useMemo<CurationAccordionItemValue[]>(() => {
+        return CURATION_ACCORDION_ITEM_VALUES.filter((value) => {
+            if (value === 'msl-laboratories') {
+                return shouldShowMSLSection;
+            }
+
+            if (value === 'used-instruments') {
+                return shouldShowUsedInstrumentsSection;
+            }
+
+            return true;
+        });
+    }, [shouldShowMSLSection, shouldShowUsedInstrumentsSection]);
+
+    const visibleOpenAccordionItems = useMemo(
+        () => normalizeAccordionItems(openAccordionItems, visibleAccordionItemValues),
+        [openAccordionItems, visibleAccordionItemValues],
+    );
+    const allVisibleAccordionItemsOpen =
+        visibleAccordionItemValues.length > 0 && visibleAccordionItemValues.every((value) => visibleOpenAccordionItems.includes(value));
+    const allVisibleAccordionItemsClosed = visibleOpenAccordionItems.length === 0;
+
+    const persistAccordionPreference = useCallback((items: readonly CurationAccordionItemValue[], immediate = false) => {
+        const persist = () => {
+            router.put(
+                CURATION_ACCORDION_PREFERENCE_URL,
+                {
+                    open_items: [...items],
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    only: ['curationAccordionOpenItems'],
+                },
+            );
+        };
+
+        if (accordionPreferenceTimeoutRef.current) {
+            clearTimeout(accordionPreferenceTimeoutRef.current);
+            accordionPreferenceTimeoutRef.current = null;
+        }
+
+        if (immediate) {
+            persist();
+            return;
+        }
+
+        accordionPreferenceTimeoutRef.current = setTimeout(persist, 400);
+    }, []);
+
+    const updateOpenAccordionItems = useCallback(
+        (
+            nextItemsOrUpdater:
+                | readonly CurationAccordionItemValue[]
+                | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
+            options: { immediate?: boolean } = {},
+        ) => {
+            const nextItems =
+                typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
+            const normalizedItems = normalizeAccordionItems(nextItems);
+            const persistedVisibleItems = normalizeAccordionItems(normalizedItems, visibleAccordionItemValues);
+
+            openAccordionItemsRef.current = normalizedItems;
+            setOpenAccordionItems(normalizedItems);
+            persistAccordionPreference(persistedVisibleItems, options.immediate);
+        },
+        [persistAccordionPreference, visibleAccordionItemValues],
+    );
+
+    const handleAccordionValueChange = useCallback(
+        (values: string[]) => {
+            updateOpenAccordionItems(normalizeAccordionItems(values, visibleAccordionItemValues));
+        },
+        [updateOpenAccordionItems, visibleAccordionItemValues],
+    );
+
+    const collapseAllAccordionItems = useCallback(() => {
+        updateOpenAccordionItems([], { immediate: true });
+    }, [updateOpenAccordionItems]);
+
+    const expandAllAccordionItems = useCallback(() => {
+        updateOpenAccordionItems(visibleAccordionItemValues, { immediate: true });
+    }, [updateOpenAccordionItems, visibleAccordionItemValues]);
+
+    useEffect(() => {
+        openAccordionItemsRef.current = openAccordionItems;
+    }, [openAccordionItems]);
+
+    useEffect(() => {
+        return () => {
+            if (accordionPreferenceTimeoutRef.current) {
+                clearTimeout(accordionPreferenceTimeoutRef.current);
+                accordionPreferenceTimeoutRef.current = null;
+            }
+        };
+    }, []);
+
     // Load MSL vocabulary when MSL section becomes visible
     useEffect(() => {
         if (shouldShowMSLSection && gcmdVocabularies.msl.length === 0) {
@@ -895,7 +1033,7 @@ export default function DataCiteForm({
         let isMounted = true;
 
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
-            setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
+            updateOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
 
             // Only notify if this is NOT an initial data load and we haven't notified yet
             if (!hasInitialMslTriggers.current && !hasNotifiedMslUnlock.current) {
@@ -917,7 +1055,7 @@ export default function DataCiteForm({
 
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
-                        setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
+                        updateOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
                     }
 
                     // Scroll to the section
@@ -936,7 +1074,7 @@ export default function DataCiteForm({
                 }, 300);
             }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
-            setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
+            updateOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
         }
@@ -953,7 +1091,7 @@ export default function DataCiteForm({
                 mslAnimationTimeoutRef.current = null;
             }
         };
-    }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl]);
+    }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl, updateOpenAccordionItems]);
 
     // MSL validation info - show recommendation when section is visible but no laboratories selected
     const mslValidationInfo = useMemo(() => {
@@ -1826,7 +1964,7 @@ export default function DataCiteForm({
 
             // Auto-open accordion sections that have errors
             const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
-            setOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])]);
+            updateOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])] as CurationAccordionItemValue[]);
 
             // Scroll to first errored field/section after accordion opens
             if (sectionsWithErrors.length > 0) {
@@ -1836,7 +1974,7 @@ export default function DataCiteForm({
 
             setErrorMessage(headerMessage);
         },
-        [setFieldErrors, setOpenAccordionItems],
+        [setFieldErrors, updateOpenAccordionItems],
     );
 
     const datacenterErrorMessage = useMemo(() => {
@@ -2116,6 +2254,45 @@ export default function DataCiteForm({
         return <Circle className="h-4 w-4 text-gray-400" aria-label="Optional section" />;
     };
 
+    const renderAccordionActions = () => (
+        <>
+            {!allVisibleAccordionItemsClosed && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label="Collapse all field groups"
+                            data-testid="collapse-all-field-groups"
+                            onClick={collapseAllAccordionItems}
+                        >
+                            <ChevronsUp className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Collapse all field groups</TooltipContent>
+                </Tooltip>
+            )}
+            {!allVisibleAccordionItemsOpen && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label="Expand all field groups"
+                            data-testid="expand-all-field-groups"
+                            onClick={expandAllAccordionItems}
+                        >
+                            <ChevronsDown className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Expand all field groups</TooltipContent>
+                </Tooltip>
+            )}
+        </>
+    );
+
     // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
         if (errorMessage && mappedValidationErrors.length === 0) {
@@ -2129,12 +2306,12 @@ export default function DataCiteForm({
     const handleErrorClick = useCallback(
         (error: MappedError) => {
             // 1. Open the accordion section
-            setOpenAccordionItems((prev) => (prev.includes(error.sectionId) ? prev : [...prev, error.sectionId]));
+            updateOpenAccordionItems((prev) => (prev.includes(error.sectionId as CurationAccordionItemValue) ? prev : [...prev, error.sectionId as CurationAccordionItemValue]));
 
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
             scheduleScrollToError(error.fieldSelector, error.sectionId);
         },
-        [setOpenAccordionItems],
+        [updateOpenAccordionItems],
     );
 
     return (
@@ -2144,9 +2321,9 @@ export default function DataCiteForm({
             ) : (
                 <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
             )}
-            <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
+            <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
                 <AccordionItem value="resource-info">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Resource Information</span>
                             {renderStatusBadge(resourceInfoStatus)}
@@ -2288,7 +2465,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="licenses-rights">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Licenses and Rights</span>
                             {renderStatusBadge(licensesStatus)}
@@ -2328,7 +2505,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="authors">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Authors</span>
                             {renderStatusBadge(authorsStatus)}
@@ -2353,7 +2530,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Contributors</span>
                             {renderStatusBadge(contributorsStatus)}
@@ -2376,7 +2553,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="descriptions">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Descriptions</span>
                             {renderStatusBadge(descriptionsStatus)}
@@ -2400,7 +2577,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Controlled Vocabularies</span>
                             {renderStatusBadge(controlledVocabulariesStatus)}
@@ -2439,7 +2616,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="free-keywords">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Free Keywords</span>
                             {renderStatusBadge(freeKeywordsStatus)}
@@ -2457,7 +2634,7 @@ export default function DataCiteForm({
                 </AccordionItem>
                 {shouldShowMSLSection && (
                     <AccordionItem value="msl-laboratories">
-                        <AccordionTrigger>
+                        <AccordionTrigger actions={renderAccordionActions()}>
                             <div className="flex items-center gap-2">
                                 <span>🔬 Originating Multi-Scale Laboratories</span>
                                 <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>
@@ -2477,7 +2654,7 @@ export default function DataCiteForm({
                     </AccordionItem>
                 )}
                 <AccordionItem value="spatial-temporal-coverage">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Spatial and Temporal Coverage</span>
                             {renderStatusBadge(spatialTemporalCoverageStatus)}
@@ -2498,7 +2675,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="dates">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Dates</span>
                             {renderStatusBadge(datesStatus)}
@@ -2561,7 +2738,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="related-work" data-testid="related-work-section">
-                    <AccordionTrigger data-testid="related-work-accordion-trigger">
+                    <AccordionTrigger data-testid="related-work-accordion-trigger" actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Related Work</span>
                             {renderStatusBadge(relatedWorkStatus)}
@@ -2583,7 +2760,7 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="citations" data-testid="citations-section">
-                    <AccordionTrigger data-testid="citations-accordion-trigger">
+                    <AccordionTrigger data-testid="citations-accordion-trigger" actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Citations</span>
                         </div>
@@ -2599,7 +2776,7 @@ export default function DataCiteForm({
                 </AccordionItem>
                 {shouldShowUsedInstrumentsSection && (
                     <AccordionItem value="used-instruments" data-testid="used-instruments-section">
-                        <AccordionTrigger data-testid="used-instruments-accordion-trigger">
+                        <AccordionTrigger data-testid="used-instruments-accordion-trigger" actions={renderAccordionActions()}>
                             <div className="flex items-center gap-2">
                                 <span>Used Instruments</span>
                                 {renderStatusBadge(instrumentsStatus)}
@@ -2617,7 +2794,7 @@ export default function DataCiteForm({
                     </AccordionItem>
                 )}
                 <AccordionItem value="funding-references">
-                    <AccordionTrigger>
+                    <AccordionTrigger actions={renderAccordionActions()}>
                         <div className="flex items-center gap-2">
                             <span>Funding References</span>
                             {renderStatusBadge(fundingReferencesStatus)}

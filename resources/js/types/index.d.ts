@@ -3,6 +3,22 @@ import { LucideIcon } from 'lucide-react';
 
 export type FontSize = 'regular' | 'large';
 
+export type CurationAccordionItemValue =
+    | 'resource-info'
+    | 'licenses-rights'
+    | 'authors'
+    | 'contributors'
+    | 'descriptions'
+    | 'controlled-vocabularies'
+    | 'free-keywords'
+    | 'msl-laboratories'
+    | 'spatial-temporal-coverage'
+    | 'dates'
+    | 'related-work'
+    | 'citations'
+    | 'used-instruments'
+    | 'funding-references';
+
 export type SidebarWorkspace = 'curation' | 'administration';
 
 export type UserRole = 'beginner' | 'curator' | 'group_leader' | 'admin';
@@ -54,6 +70,7 @@ export interface SharedData {
     auth: Auth;
     sidebarOpen: boolean;
     fontSizePreference: FontSize;
+    curationAccordionOpenItems: CurationAccordionItemValue[] | null;
     dataResourceCount?: number;
     igsnCount?: number;
     dataInstitutionCount?: number;
@@ -68,6 +85,7 @@ export interface User {
     name: string;
     email: string;
     font_size_preference: FontSize;
+    curation_accordion_open_items?: CurationAccordionItemValue[] | null;
     role?: UserRole;
     role_label?: string;
     is_active?: boolean;
