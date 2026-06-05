@@ -332,10 +332,16 @@ export default function DataCiteForm({
 
     // Check if initial free keywords contain MSL/EPOS triggers (to prevent notification on data load)
     useEffect(() => {
+        const hasInitialControlledMslKeywords = [...(initialGcmdKeywords ?? []), ...(initialGemetKeywords ?? [])].some(
+            (keyword) => typeof keyword.scheme === 'string' && getVocabularyTypeFromScheme(keyword.scheme) === 'msl',
+        );
+
         if (initialFreeKeywords && initialFreeKeywords.length > 0) {
             const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
             const hasInitialTriggers = initialFreeKeywords.some((keyword) => triggers.some((trigger) => keyword.toLowerCase().includes(trigger)));
-            hasInitialMslTriggers.current = hasInitialTriggers;
+            hasInitialMslTriggers.current = hasInitialTriggers || hasInitialControlledMslKeywords;
+        } else {
+            hasInitialMslTriggers.current = hasInitialControlledMslKeywords;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
@@ -839,13 +845,17 @@ export default function DataCiteForm({
         void loadVocabularies();
     }, []);
 
-    // Check if MSL section should be shown based on Free Keywords
+    const hasMslControlledKeywords = useMemo(() => {
+        return gcmdKeywords.some((kw) => getVocabularyTypeFromScheme(kw.scheme) === 'msl');
+    }, [gcmdKeywords]);
+
+    // Check if MSL section should be shown based on Free Keywords or selected MSL controlled keywords
     const shouldShowMSLSection = useMemo(() => {
         const keywords = freeKeywords.map((k) => k.value.toLowerCase());
         const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
 
-        return keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
-    }, [freeKeywords]);
+        return hasMslControlledKeywords || keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
+    }, [freeKeywords, hasMslControlledKeywords]);
 
     // Load MSL vocabulary when MSL section becomes visible
     useEffect(() => {
