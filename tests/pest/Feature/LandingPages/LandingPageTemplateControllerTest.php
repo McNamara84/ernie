@@ -461,6 +461,53 @@ describe('Update', function (): void {
         expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
     });
 
+    it('does not flush cached public landing page render data for empty template updates', function (): void {
+        Cache::flush();
+
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+        $resource = Resource::factory()->create();
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+        Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [])
+            ->assertOk();
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+    });
+
+    it('does not flush cached public landing page render data when submitted template values are unchanged', function (): void {
+        Cache::flush();
+
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->admin->id,
+            'creator_display_limit' => 45,
+            'contributor_display_limit' => 55,
+        ]);
+        $resource = Resource::factory()->create();
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'landing_page_template_id' => $template->id,
+        ]);
+
+        $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+        Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'creator_display_limit' => 45,
+                'contributor_display_limit' => 55,
+            ])
+            ->assertOk();
+
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
+    });
+
     it('rejects invalid section keys in right column', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 

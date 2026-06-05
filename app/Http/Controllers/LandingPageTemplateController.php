@@ -118,9 +118,14 @@ class LandingPageTemplateController extends Controller
             $updateData['contributor_display_limit'] = $validated['contributor_display_limit'];
         }
 
-        $landingPageTemplate->update($updateData);
+        $landingPageTemplate->fill($updateData);
+
+        if ($landingPageTemplate->isDirty()) {
+            $landingPageTemplate->save();
+            app(LandingPageRenderDataCacheService::class)->flush();
+        }
+
         $landingPageTemplate->loadCount('landingPages');
-        app(LandingPageRenderDataCacheService::class)->flush();
 
         return response()->json([
             'message' => 'Template updated successfully',
