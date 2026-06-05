@@ -35,6 +35,8 @@ use Illuminate\Support\Str;
  * @property string|null $logo_filename Original filename of the uploaded logo
  * @property array<int, string> $right_column_order Ordered section keys for right column
  * @property array<int, string> $left_column_order Ordered section keys for left column
+ * @property int $creator_display_limit Number of creators shown initially on landing pages
+ * @property int $contributor_display_limit Number of contributors shown initially on landing pages
  * @property int|null $created_by FK to users table
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -58,6 +60,12 @@ class LandingPageTemplate extends Model
     public const TEMPLATE_TYPE_RESOURCE = 'resource';
 
     public const TEMPLATE_TYPE_IGSN = 'igsn';
+
+    public const DEFAULT_DISPLAY_LIMIT = 50;
+
+    public const MIN_DISPLAY_LIMIT = 1;
+
+    public const MAX_DISPLAY_LIMIT = 500;
 
     /**
      * Allowed values for the `template_type` attribute.
@@ -154,6 +162,8 @@ class LandingPageTemplate extends Model
         'logo_filename',
         'right_column_order',
         'left_column_order',
+        'creator_display_limit',
+        'contributor_display_limit',
         'created_by',
     ];
 
@@ -166,6 +176,8 @@ class LandingPageTemplate extends Model
         'is_default' => 'boolean',
         'right_column_order' => 'array',
         'left_column_order' => 'array',
+        'creator_display_limit' => 'integer',
+        'contributor_display_limit' => 'integer',
     ];
 
     /**
@@ -499,6 +511,21 @@ class LandingPageTemplate extends Model
         };
     }
 
+    public static function existingDefaultForType(string $templateType): ?self
+    {
+        return self::query()
+            ->where('slug', self::defaultSlugForType($templateType))
+            ->where('template_type', $templateType)
+            ->first();
+    }
+
+    private static function defaultSlugForType(string $templateType): string
+    {
+        return $templateType === self::TEMPLATE_TYPE_IGSN
+            ? self::IGSN_DEFAULT_TEMPLATE_SLUG
+            : self::DEFAULT_TEMPLATE_SLUG;
+    }
+
     /**
      * Shared implementation backing {@see self::ensureDefaultTemplateExists()} and
      * {@see self::ensureIgsnDefaultTemplateExists()}.
@@ -520,6 +547,8 @@ class LandingPageTemplate extends Model
                             'logo_filename' => null,
                             'right_column_order' => self::RIGHT_COLUMN_SECTIONS,
                             'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
+                            'creator_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
+                            'contributor_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'created_by' => null,
                         ]
                     );

@@ -534,6 +534,8 @@ erDiagram
         varchar logo_filename "nullable"
         json right_column_order
         json left_column_order
+        smallint creator_display_limit "default 50"
+        smallint contributor_display_limit "default 50"
         bigint created_by FK "nullable"
         timestamp created_at
         timestamp updated_at

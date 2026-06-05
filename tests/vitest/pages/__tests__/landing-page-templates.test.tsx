@@ -156,6 +156,8 @@ const defaultTemplate: LandingPageTemplateConfig = {
     logo_url: null,
     right_column_order: defaultRightOrder,
     left_column_order: ['files', 'contact', 'model_description', 'related_work'],
+    creator_display_limit: 50,
+    contributor_display_limit: 50,
     created_by: null,
     creator: null,
     landing_pages_count: 5,
@@ -174,6 +176,8 @@ const customTemplate: LandingPageTemplateConfig = {
     logo_url: 'http://localhost/storage/landing-page-logos/geophysics/logo.png',
     right_column_order: locationFirstRightOrder,
     left_column_order: ['contact', 'files', 'model_description', 'related_work'],
+    creator_display_limit: 25,
+    contributor_display_limit: 75,
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
     landing_pages_count: 2,
@@ -192,6 +196,8 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     logo_url: null,
     right_column_order: defaultRightOrder,
     left_column_order: ['files', 'contact', 'model_description', 'related_work'],
+    creator_display_limit: 50,
+    contributor_display_limit: 50,
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
     landing_pages_count: 0,
@@ -288,6 +294,15 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getAllByText('Creators / Authors').length).toBeGreaterThanOrEqual(1);
         });
 
+        it('shows creator and contributor display limits on template cards', () => {
+            render(<LandingPageTemplatesPage />);
+
+            expect(screen.getAllByText('Creators shown').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Contributors shown').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getByText('25')).toBeInTheDocument();
+            expect(screen.getByText('75')).toBeInTheDocument();
+        });
+
         it('shows Edit, Upload Logo, and Delete buttons for custom templates', () => {
             render(<LandingPageTemplatesPage />);
             const editButtons = screen.getAllByRole('button', { name: /Edit/i });
@@ -301,6 +316,12 @@ describe('LandingPageTemplatesPage', () => {
             render(<LandingPageTemplatesPage />);
             expect(screen.queryByRole('button', { name: /Edit/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /Delete/i })).not.toBeInTheDocument();
+        });
+
+        it('shows a limits action for default templates', () => {
+            mockTemplates = [defaultTemplate];
+            render(<LandingPageTemplatesPage />);
+            expect(screen.getByRole('button', { name: /Limits/i })).toBeInTheDocument();
         });
 
         it('shows empty state when no templates exist', () => {
@@ -453,6 +474,8 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getByText('Edit Template')).toBeInTheDocument();
             const nameInput = screen.getByLabelText('Template Name') as HTMLInputElement;
             expect(nameInput.value).toBe('Geophysics Template');
+            expect((screen.getByLabelText('Creators shown initially') as HTMLInputElement).value).toBe('25');
+            expect((screen.getByLabelText('Contributors shown initially') as HTMLInputElement).value).toBe('75');
         });
 
         it('saves template changes', async () => {
@@ -474,6 +497,56 @@ describe('LandingPageTemplatesPage', () => {
                     `/landing-pages/${customTemplate.id}`,
                     expect.objectContaining({ name: 'Updated Template' }),
                 );
+            });
+        });
+
+        it('saves custom template display limits', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            const editButtons = screen.getAllByRole('button', { name: /Edit/i });
+            await user.click(editButtons[0]);
+
+            await user.clear(screen.getByLabelText('Creators shown initially'));
+            await user.type(screen.getByLabelText('Creators shown initially'), '30');
+            await user.clear(screen.getByLabelText('Contributors shown initially'));
+            await user.type(screen.getByLabelText('Contributors shown initially'), '80');
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplate.id}`,
+                    expect.objectContaining({
+                        creator_display_limit: 30,
+                        contributor_display_limit: 80,
+                    }),
+                );
+            });
+        });
+
+        it('saves only display limits for default templates', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            mockTemplates = [defaultTemplate];
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /Limits/i }));
+
+            expect(screen.getByText('Edit Display Limits')).toBeInTheDocument();
+            expect(screen.queryByLabelText('Template Name')).not.toBeInTheDocument();
+
+            await user.clear(screen.getByLabelText('Creators shown initially'));
+            await user.type(screen.getByLabelText('Creators shown initially'), '35');
+            await user.clear(screen.getByLabelText('Contributors shown initially'));
+            await user.type(screen.getByLabelText('Contributors shown initially'), '45');
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith('/landing-pages/1', {
+                    creator_display_limit: 35,
+                    contributor_display_limit: 45,
+                });
             });
         });
 

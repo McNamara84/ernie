@@ -104,6 +104,25 @@ describe('CollapsibleList', () => {
         expect(allItems.filter((el) => !el.classList.contains('hidden'))).toHaveLength(5);
     });
 
+    it('shows an optional visible-count summary', () => {
+        render(
+            <CollapsibleList
+                items={makeItems(8)}
+                renderItem={(item) => <li key={item}>{item}</li>}
+                threshold={5}
+                itemLabel="creators"
+                showSummary={true}
+                wrapper={(children) => <ul>{children}</ul>}
+            />,
+        );
+
+        expect(screen.getByText('Showing 5 of 8 creators')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /Show all 8 creators/i }));
+
+        expect(screen.getByText('Showing all 8 creators')).toBeInTheDocument();
+    });
+
     it('does not show button when itemCount equals threshold', () => {
         render(
             <CollapsibleList

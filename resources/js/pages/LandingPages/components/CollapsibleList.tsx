@@ -18,6 +18,8 @@ interface CollapsibleListProps<T> {
     itemLabel: string;
     /** Optional wrapper around the rendered items (e.g. a `<ul>` element). Receives the visible items as children. */
     wrapper?: (children: ReactNode) => ReactNode;
+    /** Show an explicit visible-count summary above the toggle button. */
+    showSummary?: boolean;
     className?: string;
 }
 
@@ -29,7 +31,7 @@ interface CollapsibleListProps<T> {
  *
  * SSR-safe: no client-side measurement needed.
  */
-export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRESHOLD, itemLabel, wrapper, className }: CollapsibleListProps<T>) {
+export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRESHOLD, itemLabel, wrapper, showSummary = false, className }: CollapsibleListProps<T>) {
     const [isExpanded, setIsExpanded] = useState(false);
     const regionId = useId();
     const reducedMotion = useReducedMotion();
@@ -57,6 +59,12 @@ export function CollapsibleList<T>({ items, renderItem, threshold = DEFAULT_THRE
             <div id={regionId} role="region" aria-label={`${itemLabel} list`}>
                 {wrapper ? wrapper(rendered) : rendered}
             </div>
+
+            {showSummary && (
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400" data-testid="collapsible-list-summary">
+                    {isExpanded ? `Showing all ${items.length} ${itemLabel}` : `Showing ${threshold} of ${items.length} ${itemLabel}`}
+                </p>
+            )}
 
             <Button
                 variant="ghost"
