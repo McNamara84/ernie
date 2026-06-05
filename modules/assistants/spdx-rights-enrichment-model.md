@@ -95,3 +95,147 @@ Accepting a suggestion should attach the shared right with
 `syncWithoutDetaching`, or update the existing pivot row if the right is already
 attached. It must not call `sync()` with only the suggested right unless the
 assistant is explicitly performing a reviewer-approved replacement action.
+
+## Shared vs Resource-Specific Behavior
+
+The boundary is:
+
+- Shared `rights` data describes what the license is.
+- `resource_rights` data describes how a resource uses that license.
+- Assistant suggestions are temporary review artifacts. They should carry the
+  complete proposed DataCite payload, but accepted suggestions should persist
+  only the fields that belong in durable storage.
+
+Examples:
+
+- `MIT`, `MIT License`, `https://spdx.org/licenses/MIT.html`, and
+  `https://spdx.org/licenses/` are shared catalog facts.
+- Resource A using `MIT` with rights text language `en` is a resource-specific
+  fact.
+- A reviewer confidence score, evidence text, source API response, and match
+  rationale are suggestion facts and stay in `assistant_suggestions.metadata`.
+
+## Migration And Compatibility Strategy
+
+The current schema can persist SPDX identifier, rights URI, and scheme URI. The
+only required schema gap for issue #819 is per-resource rights language.
+
+Recommended migration:
+
+```php
+Schema::table('resource_rights', function (Blueprint $table): void {
+    $table->string('language', 10)->nullable()->after('rights_id');
+});
+```
+
+Recommended model/export follow-up:
+
+- Add `->withPivot('language')` to `Resource::rights()` and `Right::resources()`.
+- When accepting a suggestion, pass the suggested language as pivot data when it
+  is non-empty.
+- Update DataCite XML export to emit `xml:lang` from pivot language first, then
+  the existing resource-language fallback.
+- Update DataCite JSON export to emit `lang` from pivot language first, then the
+  existing resource-language fallback.
+- Keep imports backward compatible by accepting the existing `licenses` array of
+  SPDX identifiers. A later importer enhancement may capture rights language
+  into the pivot when present.
+
+Backward compatibility constraints:
+
+- The migration must be nullable and must not require a data backfill.
+- Existing resources continue to export the same rights language via resource
+  language fallback.
+- Existing editor requests keep using `licenses: string[]` until a future UI
+  issue introduces per-license language editing.
+- Existing DataCite/XML/JSON imports that only extract `rightsIdentifier` remain
+  valid.
+- The unique key on `resource_rights(resource_id, rights_id)` remains unchanged.
+
+Rollout order:
+
+1. Add the nullable pivot column and model pivot accessors.
+2. Update XML and JSON exporters to read pivot language with fallback.
+3. Implement assistant acceptance to create or reuse `rights` rows and attach
+   the right through the pivot.
+4. Optionally extend DataCite import/editor UI to capture per-right language.
+
+## Suggestion Payload Contract
+
+SPDX rights enrichment should use the generic assistant tables:
+
+- `assistant_suggestions` for pending suggestions.
+- `assistant_dismissed` for declined suggestions.
+
+The existing `storeSuggestion()` fields should be populated as follows:
+
+| Field | Value |
+| --- | --- |
+| `assistant_id` | `spdx-license-suggestion`, unless the module manifest deliberately chooses another stable ID. |
+| `resource_id` | The resource being enriched. |
+| `target_type` | `resource_rights`. |
+| `target_id` | The resource ID when suggesting an attachment that does not have a pivot row yet. |
+| `suggested_value` | Normalized SPDX identifier, for example `CC-BY-4.0`. |
+| `suggested_label` | Human-readable rights text, for example `Creative Commons Attribution 4.0 International`. |
+| `similarity_score` | Optional confidence score from `0.0` to `1.0`. |
+| `metadata` | JSON object described below. |
+
+`metadata` must be structured enough for reviewer display and safe acceptance:
+
+```json
+{
+  "contract_version": "1.0",
+  "action": "attach_right",
+  "rights": "Creative Commons Attribution 4.0 International",
+  "rights_uri": "https://creativecommons.org/licenses/by/4.0/",
+  "rights_identifier": "CC-BY-4.0",
+  "rights_identifier_scheme": "SPDX",
+  "scheme_uri": "https://spdx.org/licenses/",
+  "language": "en",
+  "source": "spdx",
+  "source_url": "https://spdx.org/licenses/CC-BY-4.0.html",
+  "evidence": {
+    "matched_from": "existing free-text rights field, uploaded metadata, or file hint",
+    "reason": "why this SPDX license was selected"
+  }
+}
+```
+
+Required metadata keys:
+
+- `contract_version`
+- `action`
+- `rights`
+- `rights_identifier`
+- `rights_identifier_scheme`
+- `scheme_uri`
+- `source`
+
+Optional metadata keys:
+
+- `rights_uri`
+- `language`
+- `source_url`
+- `evidence`
+- `raw_spdx`
+
+Acceptance rules:
+
+- Reject suggestions whose `rights_identifier_scheme` is not `SPDX` unless a
+  future issue explicitly expands the assistant beyond SPDX.
+- Normalize and validate `rights_identifier` against the SPDX catalog lookup or
+  a trusted SPDX payload.
+- Create or reuse one shared `rights` row keyed by `rights.identifier`.
+- Attach the right to the resource without removing unrelated existing rights.
+- Store `metadata.language` on `resource_rights.language` once the pivot column
+  exists.
+- Delete the accepted suggestion after successful persistence, following the
+  existing `GenericTableAssistant` behavior.
+
+Reviewer-facing suggestions should show at least:
+
+- Resource title and DOI, when available.
+- Current rights attached to the resource.
+- Suggested rights text and SPDX identifier.
+- `rightsURI`, `schemeURI`, and language when present.
+- Confidence score and evidence/reason when present.
