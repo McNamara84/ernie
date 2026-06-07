@@ -234,9 +234,26 @@ Beobachtete Datenzentren:
 ---
 ## Hauptquellen
 
+- DOI
+    - `https://doi.org/{DOI}`
 - Uni Köln
+    - `http://www.tr32db.uni-koeln.de//DOI/doi.php?doiID={ID}`
+    - `https://www.trr228db.uni-koeln.de/DOI/doi.php?doiID={ID}`
+    - `https://crc806db.uni-koeln.de/dataset/show/{NAME}`
+    - `https://www.crc1211db.uni-koeln.de/search/view.php?doiID={ID}`
 - Geofon
-- Data services
+    - `https://geofon.gfz.de/doi/network/{ID}`
+    - `https://geofon.gfz.de/eqinfo/event.php?id={ID}`
+    - `https://geofon.gfz.de/software/{NAME}`
+    - `https://geofon.gfz.de/waveform/archive/network.php?ncode={ID}`
+- GFZ Data services
+    - `https://dataservices.gfz-potsdam.de/`
+
+Vereinzelnd auftretende Quellen:
+- `https://www.seiscomp.de`
+- `https://howas21.gfz.de`
+- `https://www.sintef.no/globalassets/project/stratigraphic-drilling/corephotos/bs_finnmark_east/712812u01/7128-12u01-06.html`
+- `https://ernie.rz-vm499.gfz.de/10.5880/gfz.1.4.2016.001/supplement-to-the-new-world-atlas-of-artificial`
 
 ## Einschränkung des Geltungsbereichs
 
