@@ -1,0 +1,48 @@
+# Probing Safety Policy
+Dieses Dokument soll die Probing Safety Policy für den Download-Derived
+Size and Format Enrichment Assistant definieren. 
+
+## Request Methode
+HEAD Request
+Attribute "Content-Lenght" und "Content-Type" auswerten
+Falls nicht unterstützt Fallback mit GET Funktion
+Get Funktion kann auf byte Zahl z.B. 1024 gecapped werden. Aus den ersten
+Bytes lassen sich Gesamtgröße und häufig auch Datei-Typ auswerten.
+
+# Regeln: Prefer HEAD requests. If HEAD returns 405, 501, or incomplete metadata, perform a single ranged GET request (first 1 KB only). Full content downloads are not allowed during probing. 
+
+## Timeout-Regeln
+Connect Timeout - für Verbindungsaufbau max 5 Sekunden
+Gesamt Timeout pro Request - max 10 Sekunden
+Nach Timeout die URL markieren
+Keine Endlosschleifen
+
+# Regeln: Set timeouts for connecting and for the whole request. Mark URL on failure. No infinite loops.
+
+## Redirect-Regeln
+Maximale Anzahl an redirects festlegen
+Nur http(s)
+Kette protokollieren
+Andere Protokolle abbrechen
+
+# Regeln: Set maximum amount for redirects. Only allow http(s). Cancel redirects to other protocols. Document the redirection chain. 
+
+## Retry-Regeln
+Maximale Anzahl an Versuchen
+Nur bei vorher definierten Fehlern - z.B. Timeout
+
+# Regeln: Maximum number of retries. Only retry on predifined errors. 
+
+## Skip Regeln
+Bereits besuchte URLS überspringen
+Eventuell geblockte Domänen überspringen
+Nicht http(s) Protokolle überspringen
+
+# Regel: Skip visited URLs, blacklistet domains and protocols other than http(S).
+
+## All rules
+Prefer HEAD requests. If HEAD returns 405, 501, or incomplete metadata, perform a single ranged GET request (first 1 KB only). Full content downloads are not allowed during probing.
+Set timeouts for connecting and for the whole request. Mark URL on failure. No infinite loops.
+Set maximum amount for redirects. Only allow http(s). Cancel redirects to other protocols. Document the redirection chain. 
+Maximum number of retries. Only retry on predifined errors.
+Skip visited URLs, blacklistet domains and protocols other than http(S). 
