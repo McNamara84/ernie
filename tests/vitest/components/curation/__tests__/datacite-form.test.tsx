@@ -3195,6 +3195,10 @@ describe('DataCiteForm', () => {
         const fundingScrollSpy = vi.spyOn(fundingTrigger, 'scrollIntoView');
 
         vi.useFakeTimers();
+        const animationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+            cb(performance.now());
+            return 1;
+        });
 
         try {
             fireEvent.click(
@@ -3214,6 +3218,7 @@ describe('DataCiteForm', () => {
 
             expect(mockRouterPut).not.toHaveBeenCalled();
         } finally {
+            animationFrameSpy.mockRestore();
             vi.useRealTimers();
         }
     });
