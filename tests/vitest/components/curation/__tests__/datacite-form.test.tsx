@@ -3030,6 +3030,7 @@ describe('DataCiteForm', () => {
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
 
+        mockRouterPut.mockClear();
         await user.click(saveButton);
 
         expect(axios.post).toHaveBeenCalledWith(
@@ -3073,6 +3074,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('button', { name: /^A main title is required\.$/i })).toBeInTheDocument();
         // Should NOT redirect on validation failure (Issue #624)
         expect(mockRouterVisit).not.toHaveBeenCalled();
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        expect(mockRouterPut).not.toHaveBeenCalled();
         },
     );
 
@@ -3348,6 +3351,10 @@ describe('DataCiteForm', () => {
         const fundingTrigger = getAccordionTrigger(/Funding References/i);
         await user.click(fundingTrigger);
         expect(fundingTrigger).toHaveAttribute('aria-expanded', 'false');
+        await waitFor(() => {
+            expect(mockRouterPut).toHaveBeenCalled();
+        });
+        mockRouterPut.mockClear();
 
         const fundingScrollSpy = vi.spyOn(fundingTrigger, 'scrollIntoView');
 
@@ -3357,6 +3364,8 @@ describe('DataCiteForm', () => {
             expect(fundingTrigger).toHaveAttribute('aria-expanded', 'true');
             expect(fundingScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
         });
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        expect(mockRouterPut).not.toHaveBeenCalled();
     });
 
     it(

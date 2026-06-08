@@ -10,6 +10,10 @@ use Illuminate\Validation\Rule;
 
 class UpdateCurationAccordionRequest extends FormRequest
 {
+    /**
+     * Keep in sync with resources/js/lib/curation-accordion.ts.
+     * CurationAccordionPreferenceTest compares the backend list with the frontend constants.
+     */
     public const ALLOWED_OPEN_ITEMS = [
         'resource-info',
         'licenses-rights',

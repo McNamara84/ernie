@@ -18,10 +18,11 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import { CURATION_ACCORDION_ITEM_VALUES, type CurationAccordionItemValue,DEFAULT_OPEN_ACCORDION_ITEMS } from '@/lib/curation-accordion';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
-import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
+import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
@@ -82,37 +83,6 @@ export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 
 const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
-const CURATION_ACCORDION_ITEM_VALUES = [
-    'resource-info',
-    'licenses-rights',
-    'authors',
-    'contributors',
-    'descriptions',
-    'controlled-vocabularies',
-    'free-keywords',
-    'msl-laboratories',
-    'spatial-temporal-coverage',
-    'dates',
-    'related-work',
-    'citations',
-    'used-instruments',
-    'funding-references',
-] as const satisfies readonly CurationAccordionItemValue[];
-const DEFAULT_OPEN_ACCORDION_ITEMS = [
-    'resource-info',
-    'authors',
-    'licenses-rights',
-    'contributors',
-    'descriptions',
-    'controlled-vocabularies',
-    'free-keywords',
-    'spatial-temporal-coverage',
-    'dates',
-    'related-work',
-    'citations',
-    'funding-references',
-    'used-instruments',
-] as const satisfies readonly CurationAccordionItemValue[];
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
 
 function normalizeAccordionItems(
@@ -953,7 +923,7 @@ export default function DataCiteForm({
             nextItemsOrUpdater:
                 | readonly CurationAccordionItemValue[]
                 | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
-            options: { immediate?: boolean } = {},
+            options: { immediate?: boolean; persist?: boolean } = {},
         ) => {
             const nextItems =
                 typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
@@ -962,7 +932,10 @@ export default function DataCiteForm({
 
             openAccordionItemsRef.current = normalizedItems;
             setOpenAccordionItems(normalizedItems);
-            persistAccordionPreference(persistedVisibleItems, options.immediate);
+
+            if (options.persist ?? true) {
+                persistAccordionPreference(persistedVisibleItems, options.immediate);
+            }
         },
         [persistAccordionPreference, visibleAccordionItemValues],
     );
@@ -1033,7 +1006,7 @@ export default function DataCiteForm({
         let isMounted = true;
 
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
-            updateOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
+            updateOpenAccordionItems((prev) => [...prev, 'msl-laboratories'], { persist: false });
 
             // Only notify if this is NOT an initial data load and we haven't notified yet
             if (!hasInitialMslTriggers.current && !hasNotifiedMslUnlock.current) {
@@ -1055,7 +1028,7 @@ export default function DataCiteForm({
 
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
-                        updateOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
+                        updateOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies'], { persist: false });
                     }
 
                     // Scroll to the section
@@ -1074,7 +1047,7 @@ export default function DataCiteForm({
                 }, 300);
             }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
-            updateOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
+            updateOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'), { persist: false });
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
         }
@@ -1964,7 +1937,7 @@ export default function DataCiteForm({
 
             // Auto-open accordion sections that have errors
             const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
-            updateOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])] as CurationAccordionItemValue[]);
+            updateOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])] as CurationAccordionItemValue[], { persist: false });
 
             // Scroll to first errored field/section after accordion opens
             if (sectionsWithErrors.length > 0) {
@@ -2306,7 +2279,10 @@ export default function DataCiteForm({
     const handleErrorClick = useCallback(
         (error: MappedError) => {
             // 1. Open the accordion section
-            updateOpenAccordionItems((prev) => (prev.includes(error.sectionId as CurationAccordionItemValue) ? prev : [...prev, error.sectionId as CurationAccordionItemValue]));
+            updateOpenAccordionItems(
+                (prev) => (prev.includes(error.sectionId as CurationAccordionItemValue) ? prev : [...prev, error.sectionId as CurationAccordionItemValue]),
+                { persist: false },
+            );
 
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
             scheduleScrollToError(error.fieldSelector, error.sectionId);

@@ -2,10 +2,20 @@
 
 declare(strict_types=1);
 
+use App\Http\Requests\Settings\UpdateCurationAccordionRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+test('allowed curation accordion item values stay in sync with frontend constants', function () {
+    $frontendConstants = (string) file_get_contents(resource_path('js/lib/curation-accordion.ts'));
+
+    preg_match('/export const CURATION_ACCORDION_ITEM_VALUES = \[(?<items>.*?)\] as const;/s', $frontendConstants, $matches);
+    preg_match_all("/'([^']+)'/", $matches['items'] ?? '', $itemMatches);
+
+    expect(UpdateCurationAccordionRequest::ALLOWED_OPEN_ITEMS)->toBe($itemMatches[1]);
+});
 
 test('guests are redirected when updating curation accordion preference', function () {
     $this->put(route('curation-accordion.update'), [

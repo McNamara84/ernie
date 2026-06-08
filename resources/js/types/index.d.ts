@@ -1,23 +1,11 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
-export type FontSize = 'regular' | 'large';
+import type { CurationAccordionItemValue } from '@/lib/curation-accordion';
 
-export type CurationAccordionItemValue =
-    | 'resource-info'
-    | 'licenses-rights'
-    | 'authors'
-    | 'contributors'
-    | 'descriptions'
-    | 'controlled-vocabularies'
-    | 'free-keywords'
-    | 'msl-laboratories'
-    | 'spatial-temporal-coverage'
-    | 'dates'
-    | 'related-work'
-    | 'citations'
-    | 'used-instruments'
-    | 'funding-references';
+export type { CurationAccordionItemValue } from '@/lib/curation-accordion';
+
+export type FontSize = 'regular' | 'large';
 
 export type SidebarWorkspace = 'curation' | 'administration';
 
