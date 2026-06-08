@@ -31,12 +31,29 @@ Andere Protokolle abbrechen
 Maximale Anzahl an Versuchen
 Nur bei vorher definierten Fehlern - z.B. Timeout
 
+- Connection timeout	                        retry
+- Temporary network error	                    retry
+- HTTP 429	                                    no retry
+- HTTP 401/403	                                no retry
+- SSL validation failure	                    no retry
+- DNS failure	                                no retry
+
 # Regeln: Maximum number of retries. Only retry on predifined errors. 
 
 ## Skip Regeln
 Bereits besuchte URLS überspringen
 Eventuell geblockte Domänen überspringen
 Nicht http(s) Protokolle überspringen
+
+Skip immediately when:
+
+- Authentication required (401)	                Skip
+- Forbidden (403)	                            Skip
+- CAPTCHA detected	                            Skip
+- Anti-bot challenge detected	                Skip
+- robots-only access path	                    Skip
+- Rate limit response (429)	                    Skip
+- Unsupported protocol	                        Skip
 
 # Regel: Skip visited URLs, blacklistet domains and protocols other than http(S).
 
