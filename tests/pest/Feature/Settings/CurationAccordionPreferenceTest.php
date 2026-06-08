@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -66,5 +68,5 @@ test('duplicate curation accordion item values are rejected', function () {
             'open_items' => ['authors', 'authors'],
         ])
         ->assertRedirect('/editor')
-        ->assertSessionHasErrors('open_items.0');
+        ->assertSessionHasErrors('open_items.1');
 });
