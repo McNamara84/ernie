@@ -173,12 +173,17 @@ The existing `storeSuggestion()` fields should be populated as follows:
 | --- | --- |
 | `assistant_id` | `spdx-license-suggestion`, unless the module manifest deliberately chooses another stable ID. |
 | `resource_id` | The resource being enriched. |
-| `target_type` | `resource_rights`. |
-| `target_id` | The resource ID when suggesting an attachment that does not have a pivot row yet. |
+| `target_type` | `resource`. |
+| `target_id` | The resource ID. |
 | `suggested_value` | Normalized SPDX identifier, for example `CC-BY-4.0`. |
 | `suggested_label` | Human-readable rights text, for example `Creative Commons Attribution 4.0 International`. |
 | `similarity_score` | Optional confidence score from `0.0` to `1.0`. |
 | `metadata` | JSON object described below. |
+
+Use `resource` rather than `resource_rights` for `target_type` because the
+suggestion enriches a resource and the `resource_rights` pivot row does not
+exist until the suggestion is accepted. This keeps duplicate and dismissed
+suggestion checks scoped to the same target as the Developer Guide examples.
 
 `metadata` must be structured enough for reviewer display and safe acceptance:
 
