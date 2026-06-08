@@ -247,7 +247,7 @@ Beobachtete Datenzentren:
     - `https://geofon.gfz.de/software/{NAME}`
     - `https://geofon.gfz.de/waveform/archive/network.php?ncode={ID}`
 - GFZ Data services
-    - `https://dataservices.gfz-potsdam.de/`
+    - `https://dataservices.gfz-potsdam.de/.../{ID}`
 
 Vereinzelnd auftretende Quellen:
 - `https://www.seiscomp.de`
