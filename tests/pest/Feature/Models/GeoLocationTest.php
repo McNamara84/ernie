@@ -27,6 +27,8 @@ beforeEach(function () {
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
     ]);
+
+    config()->set('app.geo.global_coverage_tolerance', null);
 });
 
 describe('Point locations', function () {
@@ -85,6 +87,61 @@ describe('Box locations', function () {
         ]);
 
         expect($geoLocation->hasBox())->toBeTrue();
+    });
+
+    it('detects an exact global coverage box', function () {
+        $geoLocation = GeoLocation::factory()->withBox(-180, 180, -90, 90)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+
+        expect($geoLocation->fresh()->isGlobalCoverage())->toBeTrue();
+    });
+
+    it('detects legacy global coverage boxes without explicit geo type', function () {
+        $geoLocation = GeoLocation::create([
+            'resource_id' => $this->resource->id,
+            'west_bound_longitude' => -180,
+            'east_bound_longitude' => 180,
+            'south_bound_latitude' => -90,
+            'north_bound_latitude' => 90,
+        ]);
+
+        expect($geoLocation->fresh()->isGlobalCoverage())->toBeTrue();
+    });
+
+    it('allows tiny coordinate drift for global coverage boxes', function () {
+        $geoLocation = GeoLocation::factory()->withBox(-179.9999995, 179.9999995, -89.9999995, 89.9999995)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+
+        expect($geoLocation->fresh()->isGlobalCoverage())->toBeTrue();
+    });
+
+    it('rejects near-world boxes outside the global coverage tolerance', function () {
+        $geoLocation = GeoLocation::factory()->withBox(-179.99, 180, -90, 90)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+
+        expect($geoLocation->fresh()->isGlobalCoverage())->toBeFalse();
+    });
+
+    it('uses the configured global coverage tolerance when detecting world boxes', function () {
+        config()->set('app.geo.global_coverage_tolerance', 0.02);
+
+        $geoLocation = GeoLocation::factory()->withBox(-179.99, 179.99, -89.99, 89.99)->create([
+            'resource_id' => $this->resource->id,
+        ]);
+
+        expect($geoLocation->fresh()->isGlobalCoverage())->toBeTrue();
+    });
+
+    it('rejects non-box geometry types even when box columns contain world bounds', function () {
+        $geoLocation = GeoLocation::factory()->withBox(-180, 180, -90, 90)->create([
+            'resource_id' => $this->resource->id,
+            'geo_type' => 'polygon',
+        ]);
+
+        expect($geoLocation->fresh()->isGlobalCoverage())->toBeFalse();
     });
 });
 

@@ -267,6 +267,10 @@ entity "resources" as resources {
     language_id : BIGINT <<FK>>
     created_by_user_id : BIGINT <<FK>>
     updated_by_user_id : BIGINT <<FK>>
+    legacy_source : VARCHAR(50) <<nullable>>
+    legacy_source_id : BIGINT <<nullable>>
+    legacy_source_status : VARCHAR(50) <<nullable>>
+    * force_review_status : BOOLEAN = false
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -595,6 +599,8 @@ entity "landing_page_templates" as landing_page_templates {
     logo_filename : VARCHAR
     * right_column_order : JSON
     * left_column_order : JSON
+    * creator_display_limit : SMALLINT = 50
+    * contributor_display_limit : SMALLINT = 50
     created_by : BIGINT <<FK>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

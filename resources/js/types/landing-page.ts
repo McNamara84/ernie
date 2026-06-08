@@ -70,6 +70,12 @@ export interface LandingPageTemplateConfig {
     /** Ordered left column sections */
     left_column_order: LeftColumnSection[];
 
+    /** Number of creators shown initially on public landing pages */
+    creator_display_limit: number;
+
+    /** Number of contributors shown initially on public landing pages */
+    contributor_display_limit: number;
+
     /** ID of user who created this template */
     created_by: number | null;
 
@@ -99,6 +105,16 @@ export interface LandingPageTemplateSummary {
     logo_url: string | null;
     right_column_order: RightColumnSection[];
     left_column_order: LeftColumnSection[];
+    creator_display_limit?: number;
+    contributor_display_limit?: number;
+}
+
+/**
+ * Initial display limits for long people lists on landing pages.
+ */
+export interface LandingPageDisplayLimits {
+    creators: number;
+    contributors: number;
 }
 
 /**
@@ -652,6 +668,8 @@ export interface LandingPageTemplateProps {
     sectionOrder?: SectionOrder | null;
     /** Custom logo URL from template (null = use default GFZ logo) */
     customLogoUrl?: string | null;
+    /** Initial visible counts for creator/contributor sections */
+    displayLimits?: LandingPageDisplayLimits;
 }
 
 /**

@@ -42,7 +42,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
         <div className={cn('flex min-w-0 flex-col gap-2', className)}>
             <Label htmlFor={id}>
                 {label}
-                {required && <span className="text-destructive ml-1">*</span>}
+                {required && <span className="ml-1 font-bold text-destructive">*</span>}
             </Label>
             {selectedOptions.length > 0 && (
                 <div className="flex min-w-0 flex-wrap gap-1">

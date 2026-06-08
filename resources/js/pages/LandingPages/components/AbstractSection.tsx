@@ -2,6 +2,7 @@ import type {
     LandingPageContributor,
     LandingPageCreator,
     LandingPageDescription,
+    LandingPageDisplayLimits,
     LandingPageFundingReference,
     LandingPageSubject,
 } from '@/types/landing-page';
@@ -25,6 +26,7 @@ interface AbstractSectionProps {
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
     sectionOrder?: MetadataSectionKey[];
+    displayLimits?: LandingPageDisplayLimits;
 }
 
 /**
@@ -42,6 +44,7 @@ export function AbstractSection({
     resourceId,
     jsonLdExportUrl,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
+    displayLimits = { creators: 50, contributors: 50 },
 }: AbstractSectionProps) {
     const expandedSectionOrder = expandMetadataOrder(sectionOrder);
 
@@ -53,9 +56,9 @@ export function AbstractSection({
 
             switch (sectionKey) {
                 case 'creators':
-                    return <CreatorsSection key="creators" creators={creators} />;
+                    return <CreatorsSection key="creators" creators={creators} displayLimit={displayLimits.creators} />;
                 case 'contributors':
-                    return <ContributorsSection key="contributors" contributors={contributors} />;
+                    return <ContributorsSection key="contributors" contributors={contributors} displayLimit={displayLimits.contributors} />;
                 case 'funders':
                     return <FundersSection key="funders" fundingReferences={fundingReferences} />;
                 case 'keywords':

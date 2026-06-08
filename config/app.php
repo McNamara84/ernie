@@ -69,6 +69,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Geographic Coverage
+    |--------------------------------------------------------------------------
+    |
+    | Configure application-level geographic interpretation. The global coverage
+    | tolerance is optional; when unset, GeoLocation falls back to its built-in
+    | default for detecting whole-world bounding boxes.
+    |
+    */
+
+    'geo' => [
+        'global_coverage_tolerance' => env('GEO_GLOBAL_COVERAGE_TOLERANCE'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

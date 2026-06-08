@@ -3393,7 +3393,7 @@ describe('DataCiteForm', () => {
     });
 
     it('blocks Save & Validate when Abstract is shorter than 50 characters', async () => {
-        const user = userEvent.setup();
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -3410,13 +3410,16 @@ describe('DataCiteForm', () => {
                 initialLicenses={['MIT']}
                 availableDatacenters={availableDatacenters}
                 initialDatacenters={[1]}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        lastName: 'Curator',
+                    },
+                ]}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
         );
-
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
 
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.type(abstractTextarea, 'Short abstract');
@@ -4135,6 +4138,46 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 expect(screen.getByRole('tab', { name: /MSL Vocabulary/i })).toBeInTheDocument();
             });
+        });
+
+        it('should show MSL tab when initial controlled MSL keywords exist', async () => {
+            const { toast } = await import('sonner');
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialGcmdKeywords={[
+                        {
+                            id: 'https://epos-msl.uu.nl/voc/keyword/deformation',
+                            text: 'Deformation',
+                            path: 'Rock and Melt Physics > Deformation',
+                            language: 'en',
+                            scheme: 'EPOS MSL vocabulary',
+                            schemeURI: 'https://epos-msl.uu.nl/voc',
+                        },
+                    ]}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await ensureControlledVocabulariesOpen(user);
+
+            await waitFor(() => {
+                expect(screen.getByRole('tab', { name: /MSL Vocabulary/i })).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('Rock and Melt Physics > Deformation')).toBeInTheDocument();
+            expect(screen.getAllByText(/Originating Multi-Scale Laboratories/i).length).toBeGreaterThan(0);
+            expect(toast.info).not.toHaveBeenCalled();
         });
 
         it('should only notify once when multiple MSL keywords are added', async () => {

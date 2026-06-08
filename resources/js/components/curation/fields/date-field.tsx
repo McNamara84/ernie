@@ -115,7 +115,7 @@ export function DateField({
                     {isFirst && (
                         <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>
                             {isDateRange ? 'Start Date' : 'Date'}
-                            {dateType === 'created' && <span className="text-destructive"> *</span>}
+                            {dateType === 'created' && <span className="font-bold text-destructive"> *</span>}
                         </Label>
                     )}
                     {isPartialDate(startDate) ? (

@@ -33,6 +33,28 @@ class MetaworksDownloadUrlService
      */
     public function lookupFileUrls(string $doi): array
     {
+        $result = $this->lookupFileEntries($doi);
+
+        return [
+            'urls' => array_map(
+                static fn (array $file): string => $file['url'],
+                $result['files'],
+            ),
+            'allPublic' => $result['allPublic'],
+        ];
+    }
+
+    /**
+     * Look up file download entries with labels for a given DOI.
+     *
+     * The first entry becomes the landing page's primary download URL. Remaining
+     * entries are imported as landing page additional links, using the legacy
+     * file name first and the description as fallback label.
+     *
+     * @return array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool}
+     */
+    public function lookupFileEntries(string $doi): array
+    {
         // Find old resource_id by DOI
         $oldResource = DB::connection(self::CONNECTION)
             ->table('resource')
@@ -41,7 +63,7 @@ class MetaworksDownloadUrlService
             ->first();
 
         if ($oldResource === null) {
-            return ['urls' => [], 'allPublic' => false];
+            return ['files' => [], 'allPublic' => false];
         }
 
         // Get all file records for that resource (public and non-public)
@@ -49,10 +71,10 @@ class MetaworksDownloadUrlService
             ->table('file')
             ->where('resource_id', $oldResource->id)
             ->orderBy('id')
-            ->get(['url', 'visible']);
+            ->get(['url', 'name', 'description', 'visible']);
 
         if ($files->isEmpty()) {
-            return ['urls' => [], 'allPublic' => false];
+            return ['files' => [], 'allPublic' => false];
         }
 
         // Determine if all files are publicly visible
@@ -61,29 +83,70 @@ class MetaworksDownloadUrlService
         // Deduplicate URLs and filter to valid absolute HTTP(S) links (max 2048 chars)
         // to prevent XSS from legacy data containing javascript:, data: or other unsafe schemes,
         // and reject malformed URLs like "http:foo" that lack a host component.
-        $urls = $files->pluck('url')
-            ->unique()
-            ->values()
-            ->filter(function (string $url) use ($doi): bool {
-                if (mb_strlen($url) > 2048) {
-                    Log::warning('Skipping overly long metaworks URL', ['doi' => $doi, 'length' => mb_strlen($url)]);
+        $seenUrls = [];
+        $entries = [];
 
-                    return false;
-                }
+        foreach ($files as $file) {
+            $url = trim((string) ($file->url ?? ''));
 
-                $uri = UriHelper::parse($url);
-                $scheme = $uri?->getScheme();
-                $isHttp = $scheme !== null && in_array(strtolower($scheme), ['http', 'https'], true);
+            if ($url === '') {
+                continue;
+            }
 
-                if ($uri === null || ! $isHttp || $uri->getHost() === null || $uri->getHost() === '') {
-                    Log::warning('Skipping invalid metaworks URL', ['doi' => $doi, 'url' => $url]);
+            if (isset($seenUrls[$url])) {
+                continue;
+            }
 
-                    return false;
-                }
+            if (! $this->isValidDownloadUrl($doi, $url)) {
+                continue;
+            }
 
-                return true;
-            })->values()->all();
+            $seenUrls[$url] = true;
+            $entries[] = [
+                'url' => $url,
+                'label' => $this->resolveLabel($file->name ?? null, $file->description ?? null),
+                'visible' => isset($file->visible) ? (string) $file->visible : null,
+            ];
+        }
 
-        return ['urls' => $urls, 'allPublic' => $allPublic];
+        return ['files' => $entries, 'allPublic' => $allPublic];
+    }
+
+    private function isValidDownloadUrl(string $doi, string $url): bool
+    {
+        if (mb_strlen($url) > 2048) {
+            Log::warning('Skipping overly long metaworks URL', ['doi' => $doi, 'length' => mb_strlen($url)]);
+
+            return false;
+        }
+
+        $uri = UriHelper::parse($url);
+        $scheme = $uri?->getScheme();
+        $isHttp = $scheme !== null && in_array(strtolower($scheme), ['http', 'https'], true);
+
+        if ($uri === null || ! $isHttp || $uri->getHost() === null || $uri->getHost() === '') {
+            Log::warning('Skipping invalid metaworks URL', ['doi' => $doi, 'url' => $url]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function resolveLabel(mixed $name, mixed $description): ?string
+    {
+        foreach ([$name, $description] as $candidate) {
+            if (! is_string($candidate)) {
+                continue;
+            }
+
+            $label = trim($candidate);
+
+            if ($label !== '') {
+                return mb_substr($label, 0, 255);
+            }
+        }
+
+        return null;
     }
 }
