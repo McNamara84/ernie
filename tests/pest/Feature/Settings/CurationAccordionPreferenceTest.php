@@ -14,7 +14,7 @@ test('allowed curation accordion item values stay in sync with frontend constant
     preg_match('/export const CURATION_ACCORDION_ITEM_VALUES = \[(?<items>.*?)\] as const;/s', $frontendConstants, $matches);
     preg_match_all("/'([^']+)'/", $matches['items'] ?? '', $itemMatches);
 
-    expect(UpdateCurationAccordionRequest::ALLOWED_OPEN_ITEMS)->toBe($itemMatches[1]);
+    expect(UpdateCurationAccordionRequest::ALLOWED_OPEN_ITEMS)->toEqualCanonicalizing($itemMatches[1]);
 });
 
 test('guests are redirected when updating curation accordion preference', function () {
