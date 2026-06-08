@@ -166,6 +166,7 @@ erDiagram
         timestamp password_set_at
         varchar remember_token
         varchar font_size_preference "default: regular"
+        json curation_accordion_open_items "nullable"
         varchar role "default: curator"
         boolean is_active "default: true"
         timestamp deactivated_at

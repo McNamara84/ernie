@@ -47,7 +47,7 @@ function AccordionTrigger({
         {children}
         <ChevronDownIcon className="pointer-events-none size-4 shrink-0 translate-y-0.5 text-muted-foreground transition-transform duration-200" />
       </AccordionPrimitive.Trigger>
-      {actions ? <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-3">{actions}</div> : null}
+      {actions ? <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">{actions}</div> : null}
     </AccordionPrimitive.Header>
   )
 }

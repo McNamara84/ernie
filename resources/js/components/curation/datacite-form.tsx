@@ -18,11 +18,11 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import { CURATION_ACCORDION_ITEM_VALUES, type CurationAccordionItemValue,DEFAULT_OPEN_ACCORDION_ITEMS } from '@/lib/curation-accordion';
+import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS } from '@/lib/curation-accordion';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
-import type { InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
+import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
@@ -323,10 +323,7 @@ export default function DataCiteForm({
     });
 
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
-        const combined = [
-            ...(initialGcmdKeywords ?? []),
-            ...(initialGemetKeywords ?? []),
-        ];
+        const combined = [...(initialGcmdKeywords ?? []), ...(initialGemetKeywords ?? [])];
         if (combined.length > 0) {
             return combined
                 .filter((kw): kw is typeof kw & { scheme: string } => typeof kw.scheme === 'string' && kw.scheme.length > 0)
@@ -337,7 +334,10 @@ export default function DataCiteForm({
                     language: 'language' in kw && typeof kw.language === 'string' ? kw.language : 'en',
                     scheme: kw.scheme,
                     schemeURI: 'schemeURI' in kw && typeof kw.schemeURI === 'string' ? kw.schemeURI : '',
-                    classificationCode: 'classificationCode' in kw && typeof kw.classificationCode === 'string' && kw.classificationCode.trim() !== '' ? kw.classificationCode.trim() : undefined,
+                    classificationCode:
+                        'classificationCode' in kw && typeof kw.classificationCode === 'string' && kw.classificationCode.trim() !== ''
+                            ? kw.classificationCode.trim()
+                            : undefined,
                     isLegacy: 'isLegacy' in kw && (kw.isLegacy === true || kw.isLegacy === 'true' || kw.isLegacy === '1'),
                 }));
         }
@@ -742,7 +742,15 @@ export default function DataCiteForm({
         const loadVocabularies = async () => {
             try {
                 // First, check which thesauri are available
-                let availability = { science_keywords: true, platforms: true, instruments: true, chronostratigraphy: true, gemet: true, analytical_methods: true, euroscivoc: true };
+                let availability = {
+                    science_keywords: true,
+                    platforms: true,
+                    instruments: true,
+                    chronostratigraphy: true,
+                    gemet: true,
+                    analytical_methods: true,
+                    euroscivoc: true,
+                };
                 try {
                     const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
                     if (availabilityRes.ok) {
@@ -765,7 +773,8 @@ export default function DataCiteForm({
 
                 // Only fetch vocabularies that are enabled
                 const fetchPromises: Promise<Response>[] = [];
-                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet' | 'analytical_methods' | 'euroscivoc')[] = [];
+                const fetchOrder: ('science' | 'platforms' | 'instruments' | 'chronostratigraphy' | 'gemet' | 'analytical_methods' | 'euroscivoc')[] =
+                    [];
 
                 if (availability.science_keywords) {
                     fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
@@ -925,8 +934,7 @@ export default function DataCiteForm({
                 | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
             options: { immediate?: boolean; persist?: boolean } = {},
         ) => {
-            const nextItems =
-                typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
+            const nextItems = typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
             const normalizedItems = normalizeAccordionItems(nextItems);
             const persistedVisibleItems = normalizeAccordionItems(normalizedItems, visibleAccordionItemValues);
 
@@ -1615,7 +1623,16 @@ export default function DataCiteForm({
         const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
         setDates((prev) => [
             ...prev,
-            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType, startTime: null, endTime: null, startTimezone: null, endTimezone: null },
+            {
+                id: crypto.randomUUID(),
+                startDate: '',
+                endDate: '',
+                dateType: availableType,
+                startTime: null,
+                endTime: null,
+                startTimezone: null,
+                endTimezone: null,
+            },
         ]);
     };
 
@@ -1628,7 +1645,6 @@ export default function DataCiteForm({
             errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             errorRef.current.focus();
         }
-
     }, [errorMessage]);
 
     const [resolvedResourceId, setResolvedResourceId] = useState<number | null>(() => {
@@ -1708,17 +1724,15 @@ export default function DataCiteForm({
                     const firstName = contributor.firstName.trim();
                     const lastName = contributor.lastName.trim();
 
-                    const hasContactPersonRole = contributor.roles.some(
-                        (role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson',
-                    );
+                    const hasContactPersonRole = contributor.roles.some((role) => role.value.replace(/\s+/g, '').toLowerCase() === 'contactperson');
 
                     return {
                         type: 'person',
                         orcid: orcid || null,
                         firstName: firstName || null,
                         lastName,
-                        email: hasContactPersonRole ? (contributor.email.trim() || null) : null,
-                        website: hasContactPersonRole ? (contributor.website.trim() || null) : null,
+                        email: hasContactPersonRole ? contributor.email.trim() || null : null,
+                        website: hasContactPersonRole ? contributor.website.trim() || null : null,
                         roles,
                         affiliations,
                         position: index,
@@ -1867,9 +1881,7 @@ export default function DataCiteForm({
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
             // CitationManagerModal owns the data.
-            ...(initialRelatedItems && initialRelatedItems.length > 0
-                ? { relatedItems: initialRelatedItems }
-                : {}),
+            ...(initialRelatedItems && initialRelatedItems.length > 0 ? { relatedItems: initialRelatedItems } : {}),
             fundingReferences: fundingReferences.map((funding) => ({
                 funderName: funding.funderName,
                 funderIdentifier: funding.funderIdentifier,
@@ -1928,9 +1940,7 @@ export default function DataCiteForm({
             }
 
             // Inject errors into individual field states for inline display
-            const fieldErrors = mapped
-                .filter((e) => e.fieldId)
-                .map((e) => ({ fieldId: e.fieldId!, message: e.message }));
+            const fieldErrors = mapped.filter((e) => e.fieldId).map((e) => ({ fieldId: e.fieldId!, message: e.message }));
             if (fieldErrors.length > 0) {
                 setFieldErrors(fieldErrors);
             }
@@ -2078,9 +2088,7 @@ export default function DataCiteForm({
             if (data?.dataCiteSync?.attempted) {
                 if (data.dataCiteSync.success) {
                     toast.success('DataCite metadata synchronized', {
-                        description: data.dataCiteSync.doi
-                            ? `DOI ${data.dataCiteSync.doi} has been updated.`
-                            : 'Metadata has been updated.',
+                        description: data.dataCiteSync.doi ? `DOI ${data.dataCiteSync.doi} has been updated.` : 'Metadata has been updated.',
                         duration: 4000,
                     });
                 } else {
@@ -2280,7 +2288,8 @@ export default function DataCiteForm({
         (error: MappedError) => {
             // 1. Open the accordion section
             updateOpenAccordionItems(
-                (prev) => (prev.includes(error.sectionId as CurationAccordionItemValue) ? prev : [...prev, error.sectionId as CurationAccordionItemValue]),
+                (prev) =>
+                    prev.includes(error.sectionId as CurationAccordionItemValue) ? prev : [...prev, error.sectionId as CurationAccordionItemValue],
                 { persist: false },
             );
 
@@ -2293,9 +2302,25 @@ export default function DataCiteForm({
     return (
         <form onSubmit={handleSubmit} noValidate className="space-y-6">
             {mappedValidationErrors.length > 0 ? (
-                <ClickableValidationAlert ref={errorRef} errors={mappedValidationErrors} onErrorClick={handleErrorClick} headerMessage={validationAlertHeader} focusable className="p-4" data-testid="global-validation-alert" />
+                <ClickableValidationAlert
+                    ref={errorRef}
+                    errors={mappedValidationErrors}
+                    onErrorClick={handleErrorClick}
+                    headerMessage={validationAlertHeader}
+                    focusable
+                    className="p-4"
+                    data-testid="global-validation-alert"
+                />
             ) : (
-                <ValidationAlert ref={errorRef} severity="error" messages={globalErrorMessages} assertive focusable className="p-4" data-testid="global-validation-alert" />
+                <ValidationAlert
+                    ref={errorRef}
+                    severity="error"
+                    messages={globalErrorMessages}
+                    assertive
+                    focusable
+                    className="p-4"
+                    data-testid="global-validation-alert"
+                />
             )}
             <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
                 <AccordionItem value="resource-info">
