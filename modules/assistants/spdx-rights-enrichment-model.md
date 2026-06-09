@@ -138,6 +138,44 @@ row by setting `rights_id` to the accepted shared right. It should preserve the
 raw imported fields for audit/evidence unless a future cleanup issue explicitly
 defines a destructive replacement. It must not remove unrelated rights rows.
 
+## SPDX Matching Strategy
+
+The assistant must treat every imported rights field as optional evidence. A
+missing `rights_uri` must not prevent matching when the imported rights text is
+strong enough on its own.
+
+Matching should run in conservative tiers:
+
+1. Exact SPDX identifier match from `resource_rights.rights_identifier`.
+2. Canonicalized URI match from `resource_rights.rights_uri`.
+3. Exact canonical SPDX name match from `resource_rights.rights_text`.
+4. Approved alias match from `resource_rights.rights_text`, for examples such
+   as `CC BY 4.0` -> `CC-BY-4.0` and `Apache License 2.0` -> `Apache-2.0`.
+5. Strict normalized-text match for well-known variants where the license family
+   and version are unambiguous.
+6. Unsupported/no suggestion for weak, institution-specific, commercial,
+   individual, or ambiguous statements.
+
+The URI is supporting evidence, not a required input. For example, an import
+with only:
+
+```json
+{
+  "rights": "CC BY 4.0"
+}
+```
+
+may still produce a suggestion for `CC-BY-4.0` because `CC BY 4.0` is an
+approved alias. By contrast, text such as `individual`, `commercial use only`,
+or a long institution-specific permission statement should be left unresolved
+unless a future issue introduces an explicit, reviewed mapping.
+
+Free-form fuzzy matching must be intentionally narrow. It may contribute a
+`similarity_score` and evidence text, but it must not turn a weak legal metadata
+guess into an actionable suggestion. When in doubt, the assistant should mark
+the row as unsupported internally or skip suggestion creation; the imported raw
+rights row remains available for human review.
+
 ## Shared vs Resource-Specific Behavior
 
 The boundary is:
