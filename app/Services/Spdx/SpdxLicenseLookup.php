@@ -150,7 +150,7 @@ final readonly class SpdxLicenseLookup
 
     public static function licensePageUrl(string $identifier): string
     {
-        return self::SCHEME_URI . $identifier . '.html';
+        return self::SCHEME_URI.$identifier.'.html';
     }
 
     public function findByIdentifier(?string $identifier): ?SpdxLicenseData
@@ -221,7 +221,7 @@ final readonly class SpdxLicenseLookup
         $path = preg_replace('/\/+/', '/', $path) ?? $path;
         $path = rtrim($path, '/');
 
-        return ltrim($host . '/' . ltrim($path, '/'), '/');
+        return ltrim($host.'/'.ltrim($path, '/'), '/');
     }
 
     /**
