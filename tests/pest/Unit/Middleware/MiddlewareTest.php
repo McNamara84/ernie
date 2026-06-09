@@ -225,6 +225,28 @@ describe('HandleInertiaRequests', function () {
         expect($shared['fontSizePreference'])->toBe('large');
     });
 
+    it('shares null curationAccordionOpenItems when no user', function () {
+        $middleware = new HandleInertiaRequests;
+        $request = Request::create('/test');
+
+        $shared = $middleware->share($request);
+
+        expect($shared['curationAccordionOpenItems'])->toBeNull();
+    });
+
+    it('shares curationAccordionOpenItems from authenticated user', function () {
+        $user = User::factory()->create([
+            'curation_accordion_open_items' => ['resource-info', 'authors'],
+        ]);
+        $middleware = new HandleInertiaRequests;
+        $request = Request::create('/test');
+        $request->setUserResolver(fn () => $user);
+
+        $shared = $middleware->share($request);
+
+        expect($shared['curationAccordionOpenItems'])->toBe(['resource-info', 'authors']);
+    });
+
     it('shares appUrl and baseUrl', function () {
         $middleware = new HandleInertiaRequests;
         $request = Request::create('http://localhost/test');

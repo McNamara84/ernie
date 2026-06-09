@@ -34,6 +34,28 @@ test.describe('DataCite Form Validation UX', () => {
     await formPage.goto();
     await formPage.waitForFormLoad();
   });
+
+  test.describe('Accordion Bulk Controls', () => {
+    test('collapses and expands always-visible field groups', async () => {
+      await expect(formPage.resourceInfoAccordion).toBeVisible();
+
+      if (await formPage.collapseAllButtons.count() > 0) {
+        await formPage.collapseAllButtons.first().click();
+      }
+
+      await expect(formPage.resourceInfoAccordion).toHaveAttribute('aria-expanded', 'false');
+      await expect(formPage.authorsAccordion).toHaveAttribute('aria-expanded', 'false');
+      await expect(formPage.fundingAccordion).toHaveAttribute('aria-expanded', 'false');
+      await expect(formPage.expandAllButtons.first()).toBeVisible();
+
+      await formPage.expandAllButtons.first().click();
+
+      await expect(formPage.resourceInfoAccordion).toHaveAttribute('aria-expanded', 'true');
+      await expect(formPage.authorsAccordion).toHaveAttribute('aria-expanded', 'true');
+      await expect(formPage.fundingAccordion).toHaveAttribute('aria-expanded', 'true');
+      await expect(formPage.collapseAllButtons.first()).toBeVisible();
+    });
+  });
   
   test.describe('Inline Field Validation', () => {
     test('shows error for invalid year (out of range)', async ({ page }) => {

@@ -18,6 +18,7 @@ use Inertia\Middleware;
 class HandleInertiaRequests extends Middleware
 {
     use ChecksCacheTagging;
+
     /**
      * The root template that's loaded on the first page visit.
      *
@@ -82,6 +83,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
+            'curationAccordionOpenItems' => $request->user()?->curation_accordion_open_items,
             'dataResourceCount' => fn (): int => $this->resolveSharedDataResourceCount($request),
             'igsnCount' => fn (): int => $this->resolveSharedIgsnCount($request),
             'appUrl' => $this->getBaseUrl($request),
