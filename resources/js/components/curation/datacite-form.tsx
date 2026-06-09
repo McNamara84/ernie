@@ -932,17 +932,19 @@ export default function DataCiteForm({
             nextItemsOrUpdater:
                 | readonly CurationAccordionItemValue[]
                 | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
-            options: { immediate?: boolean; persist?: boolean } = {},
+            options: { immediate?: boolean; persist?: boolean; persistHiddenItems?: boolean } = {},
         ) => {
             const nextItems = typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
             const normalizedItems = normalizeAccordionItems(nextItems);
-            const persistedVisibleItems = normalizeAccordionItems(normalizedItems, visibleAccordionItemValues);
+            const persistedItems = options.persistHiddenItems
+                ? normalizedItems
+                : normalizeAccordionItems(normalizedItems, visibleAccordionItemValues);
 
             openAccordionItemsRef.current = normalizedItems;
             setOpenAccordionItems(normalizedItems);
 
             if (options.persist ?? true) {
-                persistAccordionPreference(persistedVisibleItems, options.immediate);
+                persistAccordionPreference(persistedItems, options.immediate);
             }
         },
         [persistAccordionPreference, visibleAccordionItemValues],
@@ -950,7 +952,11 @@ export default function DataCiteForm({
 
     const handleAccordionValueChange = useCallback(
         (values: string[]) => {
-            updateOpenAccordionItems(normalizeAccordionItems(values, visibleAccordionItemValues));
+            const visibleItems = normalizeAccordionItems(values, visibleAccordionItemValues);
+            const visibleItemSet = new Set(visibleAccordionItemValues);
+            const hiddenOpenItems = openAccordionItemsRef.current.filter((item) => !visibleItemSet.has(item));
+
+            updateOpenAccordionItems([...visibleItems, ...hiddenOpenItems], { persistHiddenItems: true });
         },
         [updateOpenAccordionItems, visibleAccordionItemValues],
     );

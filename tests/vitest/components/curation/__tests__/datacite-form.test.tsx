@@ -496,6 +496,36 @@ describe('DataCiteForm', () => {
             expect(payload.open_items).not.toContain('msl-laboratories');
             expect(payload.open_items).not.toContain('used-instruments');
         });
+
+        it('preserves hidden conditional field groups when toggling a visible field group', async () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['resource-info', 'used-instruments'],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+            vi.useFakeTimers();
+
+            try {
+                fireEvent.click(getAccordionTrigger(/Resource Information/i));
+                await advanceAccordionPreferenceDebounce();
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).toContain('used-instruments');
+            expect(payload.open_items).not.toContain('resource-info');
+        });
     });
 
     it('renders fields, title options and supports adding/removing titles', { timeout: 60000 }, async () => {
