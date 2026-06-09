@@ -66,7 +66,7 @@ export class DataCiteFormPage {
     this.descriptionsAccordion = getAccordionTrigger(page, /Descriptions/i);
     this.controlledVocabulariesAccordion = getAccordionTrigger(page, /Controlled Vocabularies/i);
     this.freeKeywordsAccordion = getAccordionTrigger(page, /Free Keywords/i);
-    this.mslLaboratoriesAccordion = getAccordionTrigger(page, /MSL Laboratories/i);
+    this.mslLaboratoriesAccordion = getAccordionTrigger(page, /Originating Multi-Scale Laboratories/i);
     this.spatialTemporalCoverageAccordion = getAccordionTrigger(page, /Spatial.*Temporal Coverage/i);
     this.datesAccordion = getAccordionTrigger(page, /Dates/i);
     this.relatedWorkAccordion = getAccordionTrigger(page, /Related Work/i);
