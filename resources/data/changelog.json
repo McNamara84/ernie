@@ -106,6 +106,10 @@
                 "description": "The Data Editor now turns Save & Validate blocking messages into a grouped clickable summary. When required fields such as title, datacenter, authors, abstract, licenses, or funding references need attention, curators can select the matching entry to reopen the relevant accordion section and jump directly to the affected field instead of scanning the entire form manually."
             },
             {
+                "title": "Data Editor Accordion Bulk Controls",
+                "description": "The Data Editor now shows compact expand-all and collapse-all controls next to every field group header. Curators can close all currently visible field groups to scan the form more quickly, reopen them with one click, and ERNIE stores the preferred accordion state per user so the editor reopens in the same layout on the next visit. Conditional sections such as MSL Laboratories and Used Instruments are included only when visible."
+            },
+            {
                 "title": "Go-Live Hardening for Contact Delivery and Public Operations",
                 "description": "Stage and production stacks no longer expose database and Redis ports on the host, CloudBeaver has been removed from the maintained Docker profiles, and the public /health endpoint now returns only a minimal status payload. Landing-page contact requests are also tracked more accurately across queued, sent, and failed delivery states so successful dispatch is no longer recorded before the queued mail actually leaves the application."
             },
