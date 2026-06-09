@@ -446,6 +446,39 @@ describe('DataCiteForm', () => {
             );
         });
 
+        it('preserves hidden conditional field groups when collapsing all visible field groups', () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['resource-info', 'authors', 'funding-references', 'used-instruments'],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(mockRouterPut).toHaveBeenCalledWith(
+                '/settings/curation-accordion',
+                {
+                    open_items: ['used-instruments'],
+                },
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                }),
+            );
+        });
+
         it('expands every visible field group from a saved collapsed preference', async () => {
             mockUsePageProps.mockReturnValue({
                 curationAccordionOpenItems: [],
@@ -471,6 +504,31 @@ describe('DataCiteForm', () => {
                     preserveState: true,
                 }),
             );
+        });
+
+        it('preserves hidden conditional field groups when expanding all visible field groups', () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['used-instruments'],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).toEqual(expect.arrayContaining(['resource-info', 'authors', 'funding-references', 'used-instruments']));
         });
 
         it('does not include hidden conditional field groups when expanding all', async () => {

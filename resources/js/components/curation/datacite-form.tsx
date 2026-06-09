@@ -962,11 +962,17 @@ export default function DataCiteForm({
     );
 
     const collapseAllAccordionItems = useCallback(() => {
-        updateOpenAccordionItems([], { immediate: true });
-    }, [updateOpenAccordionItems]);
+        const visibleItemSet = new Set(visibleAccordionItemValues);
+        const hiddenOpenItems = openAccordionItemsRef.current.filter((item) => !visibleItemSet.has(item));
+
+        updateOpenAccordionItems(hiddenOpenItems, { immediate: true, persistHiddenItems: true });
+    }, [updateOpenAccordionItems, visibleAccordionItemValues]);
 
     const expandAllAccordionItems = useCallback(() => {
-        updateOpenAccordionItems(visibleAccordionItemValues, { immediate: true });
+        const visibleItemSet = new Set(visibleAccordionItemValues);
+        const hiddenOpenItems = openAccordionItemsRef.current.filter((item) => !visibleItemSet.has(item));
+
+        updateOpenAccordionItems([...visibleAccordionItemValues, ...hiddenOpenItems], { immediate: true, persistHiddenItems: true });
     }, [updateOpenAccordionItems, visibleAccordionItemValues]);
 
     useEffect(() => {
