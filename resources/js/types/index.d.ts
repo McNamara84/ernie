@@ -1,6 +1,10 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
+import type { CurationAccordionItemValue } from '@/lib/curation-accordion';
+
+export type { CurationAccordionItemValue } from '@/lib/curation-accordion';
+
 export type FontSize = 'regular' | 'large';
 
 export type SidebarWorkspace = 'curation' | 'administration';
@@ -54,6 +58,7 @@ export interface SharedData {
     auth: Auth;
     sidebarOpen: boolean;
     fontSizePreference: FontSize;
+    curationAccordionOpenItems: CurationAccordionItemValue[] | null;
     dataResourceCount?: number;
     igsnCount?: number;
     dataInstitutionCount?: number;
@@ -68,6 +73,7 @@ export interface User {
     name: string;
     email: string;
     font_size_preference: FontSize;
+    curation_accordion_open_items?: CurationAccordionItemValue[] | null;
     role?: UserRole;
     role_label?: string;
     is_active?: boolean;

@@ -115,20 +115,45 @@ export default function ControlledVocabulariesField({
     const showAnalyticalMethods = showAnalyticalMethodsTab && enabledThesauri.analytical_methods;
     const showEuroSciVoc = showEuroSciVocTab && enabledThesauri.euroscivoc;
 
-    // Determine default active tab based on what's available
-    const getDefaultTab = (): VocabularyType => {
-        if (showScienceTab) return 'science';
-        if (showPlatformsTab) return 'platforms';
-        if (showInstrumentsTab) return 'instruments';
-        if (showMslTab) return 'msl';
-        if (showChronostrat) return 'chronostratigraphy';
-        if (showGemet) return 'gemet';
-        if (showAnalyticalMethods) return 'analytical_methods';
-        if (showEuroSciVoc) return 'euroscivoc';
-        return 'science'; // Fallback
-    };
+    const visibleVocabularyTypes = useMemo(
+        () =>
+            [
+                ...(showScienceTab ? ['science' as const] : []),
+                ...(showPlatformsTab ? ['platforms' as const] : []),
+                ...(showInstrumentsTab ? ['instruments' as const] : []),
+                ...(showMslTab ? ['msl' as const] : []),
+                ...(showChronostrat ? ['chronostratigraphy' as const] : []),
+                ...(showGemet ? ['gemet' as const] : []),
+                ...(showAnalyticalMethods ? ['analytical_methods' as const] : []),
+                ...(showEuroSciVoc ? ['euroscivoc' as const] : []),
+            ] as VocabularyType[],
+        [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods, showEuroSciVoc],
+    );
 
-    const [activeTab, setActiveTab] = useState<VocabularyType>(getDefaultTab);
+    // Group selected keywords by vocabulary type (based on scheme)
+    const keywordsByVocabulary = useMemo(() => {
+        const grouped: Record<VocabularyType, SelectedKeyword[]> = {
+            science: [],
+            platforms: [],
+            instruments: [],
+            msl: [],
+            chronostratigraphy: [],
+            gemet: [],
+            analytical_methods: [],
+            euroscivoc: [],
+        };
+
+        for (const keyword of selectedKeywords) {
+            const type = getVocabularyTypeFromScheme(keyword.scheme);
+            grouped[type].push(keyword);
+        }
+
+        return grouped;
+    }, [selectedKeywords]);
+
+    const preferredInitialTab = visibleVocabularyTypes.find((type) => keywordsByVocabulary[type].length > 0) ?? visibleVocabularyTypes[0] ?? 'science';
+
+    const [activeTab, setActiveTab] = useState<VocabularyType>(preferredInitialTab);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Track if auto-switch has already occurred to prevent interference with manual tab changes
@@ -149,27 +174,10 @@ export default function ControlledVocabulariesField({
 
     // Switch to an available tab if the current tab becomes unavailable
     useEffect(() => {
-        const isCurrentTabAvailable =
-            (activeTab === 'science' && showScienceTab) ||
-            (activeTab === 'platforms' && showPlatformsTab) ||
-            (activeTab === 'instruments' && showInstrumentsTab) ||
-            (activeTab === 'msl' && showMslTab) ||
-            (activeTab === 'chronostratigraphy' && showChronostrat) ||
-            (activeTab === 'gemet' && showGemet) ||
-            (activeTab === 'analytical_methods' && showAnalyticalMethods) ||
-            (activeTab === 'euroscivoc' && showEuroSciVoc);
-
-        if (!isCurrentTabAvailable) {
-            if (showScienceTab) setActiveTab('science');
-            else if (showPlatformsTab) setActiveTab('platforms');
-            else if (showInstrumentsTab) setActiveTab('instruments');
-            else if (showMslTab) setActiveTab('msl');
-            else if (showChronostrat) setActiveTab('chronostratigraphy');
-            else if (showGemet) setActiveTab('gemet');
-            else if (showAnalyticalMethods) setActiveTab('analytical_methods');
-            else if (showEuroSciVoc) setActiveTab('euroscivoc');
+        if (!visibleVocabularyTypes.includes(activeTab)) {
+            setActiveTab(preferredInitialTab);
         }
-    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods, showEuroSciVoc]);
+    }, [activeTab, preferredInitialTab, visibleVocabularyTypes]);
 
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
@@ -251,27 +259,6 @@ export default function ControlledVocabulariesField({
         [selectedKeywords, onChange],
     );
 
-    // Group selected keywords by vocabulary type (based on scheme)
-    const keywordsByVocabulary = useMemo(() => {
-        const grouped: Record<VocabularyType, SelectedKeyword[]> = {
-            science: [],
-            platforms: [],
-            instruments: [],
-            msl: [],
-            chronostratigraphy: [],
-            gemet: [],
-            analytical_methods: [],
-            euroscivoc: [],
-        };
-
-        for (const keyword of selectedKeywords) {
-            const type = getVocabularyTypeFromScheme(keyword.scheme);
-            grouped[type].push(keyword);
-        }
-
-        return grouped;
-    }, [selectedKeywords]);
-
     // Check if a vocabulary type has selected keywords
     const hasKeywords = useCallback(
         (type: VocabularyType): boolean => {
@@ -281,7 +268,7 @@ export default function ControlledVocabulariesField({
     );
 
     // Check if any thesauri are available
-    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab || showChronostrat || showGemet || showAnalyticalMethods || showEuroSciVoc;
+    const hasAnyThesaurus = visibleVocabularyTypes.length > 0;
 
     return (
         <div className="space-y-4">
@@ -295,18 +282,7 @@ export default function ControlledVocabulariesField({
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
-                    {(
-                        [
-                            ...(showScienceTab ? ['science' as const] : []),
-                            ...(showPlatformsTab ? ['platforms' as const] : []),
-                            ...(showInstrumentsTab ? ['instruments' as const] : []),
-                            ...(showMslTab ? ['msl' as const] : []),
-                            ...(showChronostrat ? ['chronostratigraphy' as const] : []),
-                            ...(showGemet ? ['gemet' as const] : []),
-                            ...(showAnalyticalMethods ? ['analytical_methods' as const] : []),
-                            ...(showEuroSciVoc ? ['euroscivoc' as const] : []),
-                        ] as VocabularyType[]
-                    ).map((type) => {
+                    {visibleVocabularyTypes.map((type) => {
                         const keywords = keywordsByVocabulary[type];
                         if (keywords.length === 0) return null;
 
@@ -414,7 +390,7 @@ export default function ControlledVocabulariesField({
                                 'grid w-full',
                                 // Dynamically calculate grid columns based on visible tabs
                                 (() => {
-                                    const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab, showChronostrat, showGemet, showAnalyticalMethods, showEuroSciVoc].filter(Boolean).length;
+                                    const visibleCount = visibleVocabularyTypes.length;
                                     switch (visibleCount) {
                                         case 1:
                                             return 'grid-cols-1';

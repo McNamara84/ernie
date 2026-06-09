@@ -5,14 +5,18 @@ import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/u
 import axios from 'axios';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
-import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
+import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
 
-const { mockRouterVisit } = vi.hoisted(() => ({
+const { mockRouterPut, mockRouterVisit, mockUsePageProps } = vi.hoisted(() => ({
+    mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
+    mockUsePageProps: vi.fn(() => ({
+        curationAccordionOpenItems: null as string[] | null,
+    })),
 }));
 
 vi.mock('@inertiajs/react', () => ({
@@ -20,8 +24,12 @@ vi.mock('@inertiajs/react', () => ({
         visit: mockRouterVisit,
         get: vi.fn(),
         post: vi.fn(),
+        put: mockRouterPut,
         reload: vi.fn(),
     },
+    usePage: () => ({
+        props: mockUsePageProps(),
+    }),
 }));
 
 vi.mock('axios');
@@ -35,10 +43,7 @@ vi.mock('sonner', () => ({
     },
 }));
 
-import {
-    getTagifyInstance,
-    type TagifyEnabledInput,
-} from '../../../tagify-helpers';
+import { getTagifyInstance, type TagifyEnabledInput } from '../../../tagify-helpers';
 
 const { createTagifyMock } = await vi.hoisted(() => import('@test-helpers/tagify-mock'));
 vi.mock('@yaireo/tagify', () => createTagifyMock());
@@ -135,7 +140,7 @@ describe('DataCiteForm', () => {
     const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to avoid matching "Import authors from CSV" button
         const buttons = screen.getAllByRole('button', { name: /Authors/i });
-        const authorsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const authorsTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
         if (authorsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(authorsTrigger);
@@ -145,7 +150,7 @@ describe('DataCiteForm', () => {
     const ensureContributorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to avoid matching "Import contributors from CSV" button
         const buttons = screen.getAllByRole('button', { name: /Contributors/i });
-        const contributorsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const contributorsTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!contributorsTrigger) throw new Error('Contributors accordion trigger not found');
         if (contributorsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(contributorsTrigger);
@@ -155,7 +160,7 @@ describe('DataCiteForm', () => {
     const ensureFreeKeywordsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to find the accordion trigger (not the help button)
         const buttons = screen.getAllByRole('button', { name: /Free Keywords/i });
-        const freeKeywordsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const freeKeywordsTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!freeKeywordsTrigger) throw new Error('Free Keywords accordion trigger not found');
         if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(freeKeywordsTrigger);
@@ -165,7 +170,7 @@ describe('DataCiteForm', () => {
     const ensureControlledVocabulariesOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to find the accordion trigger (not the help button)
         const buttons = screen.getAllByRole('button', { name: /Controlled Vocabularies/i });
-        const controlledVocabTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const controlledVocabTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!controlledVocabTrigger) throw new Error('Controlled Vocabularies accordion trigger not found');
         if (controlledVocabTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(controlledVocabTrigger);
@@ -175,7 +180,7 @@ describe('DataCiteForm', () => {
     const ensureDatesOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to find the accordion trigger (not the help button)
         const buttons = screen.getAllByRole('button', { name: /Dates/i });
-        const datesTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const datesTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!datesTrigger) throw new Error('Dates accordion trigger not found');
         if (datesTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(datesTrigger);
@@ -186,7 +191,7 @@ describe('DataCiteForm', () => {
     // Helper to get accordion trigger by section name
     const getAccordionTrigger = (sectionName: RegExp | string): HTMLElement => {
         const buttons = screen.getAllByRole('button', { name: sectionName });
-        const trigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const trigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!trigger) throw new Error(`Accordion trigger for "${sectionName}" not found`);
         return trigger;
     };
@@ -199,20 +204,17 @@ describe('DataCiteForm', () => {
 
     const fillRequiredContributor = async (
         user: ReturnType<typeof userEvent.setup>,
-        {
-            lastName = 'Helper',
-            role = contributorPersonRoles[0]?.name ?? 'Researcher',
-        }: { lastName?: string; role?: string } = {},
+        { lastName = 'Helper', role = contributorPersonRoles[0]?.name ?? 'Researcher' }: { lastName?: string; role?: string } = {},
     ) => {
         await ensureContributorsOpen(user);
-        
+
         // Check if we need to add the first contributor
         const addFirstContributorButton = screen.queryByRole('button', { name: /Add [Ff]irst [Cc]ontributor/i });
         if (addFirstContributorButton) {
             await user.click(addFirstContributorButton);
         }
-        
-        const roleInput = await screen.findByTestId('contributor-0-roles-input') as TagifyEnabledInput;
+
+        const roleInput = (await screen.findByTestId('contributor-0-roles-input')) as TagifyEnabledInput;
 
         await waitFor(() => {
             expect(roleInput.tagify).toBeTruthy();
@@ -234,20 +236,17 @@ describe('DataCiteForm', () => {
         await user.type(lastNameInput, lastName);
     };
 
-    const fillRequiredAuthor = async (
-        user: ReturnType<typeof userEvent.setup>,
-        lastName = 'Curator',
-    ) => {
+    const fillRequiredAuthor = async (user: ReturnType<typeof userEvent.setup>, lastName = 'Curator') => {
         await ensureAuthorsOpen(user);
-        
+
         // Check if we need to add the first author
         const addFirstAuthorButton = screen.queryByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
         if (addFirstAuthorButton) {
             await user.click(addFirstAuthorButton);
         }
-        
+
         // Wait for the author section to be visible
-        const lastNameInput = await screen.findByRole('textbox', { name: /^Last name/ }) as HTMLInputElement;
+        const lastNameInput = (await screen.findByRole('textbox', { name: /^Last name/ })) as HTMLInputElement;
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
@@ -257,7 +256,7 @@ describe('DataCiteForm', () => {
     const ensureDescriptionsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to find the accordion trigger (not the help button)
         const buttons = screen.getAllByRole('button', { name: /Descriptions/i });
-        const descriptionsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const descriptionsTrigger = buttons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!descriptionsTrigger) throw new Error('Descriptions accordion trigger not found');
         if (descriptionsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(descriptionsTrigger);
@@ -274,6 +273,12 @@ describe('DataCiteForm', () => {
         await user.keyboard(abstract);
     };
 
+    const advanceAccordionPreferenceDebounce = async () => {
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(450);
+        });
+    };
+
     beforeAll(() => {
         // Polyfill methods required by Radix UI Select
         Element.prototype.hasPointerCapture = () => false;
@@ -286,9 +291,14 @@ describe('DataCiteForm', () => {
         vi.restoreAllMocks();
 
         // Reset router mock for each test
+        mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
+        });
+        mockUsePageProps.mockReset();
+        mockUsePageProps.mockReturnValue({
+            curationAccordionOpenItems: null,
         });
 
         (useRorAffiliations as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -296,11 +306,11 @@ describe('DataCiteForm', () => {
             isLoading: false,
             error: null,
         });
-        
+
         // Mock axios.post for form submission - return axios response format
         // Note: Vocabularies are loaded via fetch, not axios
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn>; isAxiosError: (error: unknown) => boolean };
-        
+
         // Axios response: { data, status, statusText, headers, config, request }
         mockedAxios.post = vi.fn().mockResolvedValue({
             data: { message: 'Success' },
@@ -309,15 +319,15 @@ describe('DataCiteForm', () => {
             headers: {},
             config: {},
         });
-        
+
         // Mock axios.isAxiosError helper - check for truthy isAxiosError flag
         mockedAxios.isAxiosError = (error: unknown) => {
             return error !== null && typeof error === 'object' && 'isAxiosError' in error && !!(error as { isAxiosError?: boolean }).isAxiosError;
         };
-        
+
         // Keep global.fetch mock for backward compatibility with other parts
         global.fetch = vi.fn((input: RequestInfo | URL) => createDefaultFetchResponse(input.toString()));
-        
+
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
     });
@@ -359,7 +369,7 @@ describe('DataCiteForm', () => {
         { id: 4, name: 'Rights Holder', slug: 'rights-holder' },
     ];
     const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
-    
+
     const dateTypes: DateType[] = [
         { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.' },
         { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
@@ -383,24 +393,214 @@ describe('DataCiteForm', () => {
 
     const availableDatacenters = [{ id: 1, name: 'Test Datacenter' }];
 
-    it(
-        'renders fields, title options and supports adding/removing titles',
-        { timeout: 60000 },
-        async () => {
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
+    const renderDataCiteForm = (props: Partial<DataCiteFormProps> = {}) =>
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+                {...props}
+            />,
+        );
+
+    describe('Accordion bulk controls', () => {
+        it('renders collapse-all actions next to visible field group triggers and hides expand-all while all are open', async () => {
+            renderDataCiteForm();
+
+            await waitFor(() => {
+                expect(screen.getAllByTestId('collapse-all-field-groups').length).toBeGreaterThanOrEqual(12);
+            });
+
+            expect(screen.queryAllByTestId('expand-all-field-groups')).toHaveLength(0);
+
+            const firstCollapseAllButton = screen.getAllByRole('button', { name: /Collapse all field groups/i })[0];
+            expect(firstCollapseAllButton).not.toHaveAttribute('data-slot', 'accordion-trigger');
+            expect(firstCollapseAllButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
+        });
+
+        it('collapses every visible field group and persists an empty open item list', async () => {
+            renderDataCiteForm();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await user.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(screen.queryAllByTestId('collapse-all-field-groups')).toHaveLength(0);
+            expect(screen.getAllByTestId('expand-all-field-groups').length).toBeGreaterThanOrEqual(12);
+            expect(mockRouterPut).toHaveBeenCalledWith(
+                '/settings/curation-accordion',
+                { open_items: [] },
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                }),
+            );
+        });
+
+        it('preserves hidden conditional field groups when collapsing all visible field groups', () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['resource-info', 'authors', 'funding-references', 'used-instruments'],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(mockRouterPut).toHaveBeenCalledWith(
+                '/settings/curation-accordion',
+                {
+                    open_items: ['used-instruments'],
+                },
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                }),
+            );
+        });
+
+        it('expands every visible field group from a saved collapsed preference', async () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: [],
+            });
+            renderDataCiteForm();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+
+            await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(screen.queryAllByTestId('expand-all-field-groups')).toHaveLength(0);
+            expect(mockRouterPut).toHaveBeenCalledWith(
+                '/settings/curation-accordion',
+                expect.objectContaining({
+                    open_items: expect.arrayContaining(['resource-info', 'authors', 'funding-references']),
+                }),
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                }),
+            );
+        });
+
+        it('preserves hidden conditional field groups when expanding all visible field groups', () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['used-instruments'],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
+            expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).toEqual(expect.arrayContaining(['resource-info', 'authors', 'funding-references', 'used-instruments']));
+        });
+
+        it('does not include hidden conditional field groups when expanding all', async () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: [],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
+
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).not.toContain('msl-laboratories');
+            expect(payload.open_items).not.toContain('used-instruments');
+        });
+
+        it('preserves hidden conditional field groups when toggling a visible field group', async () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['resource-info', 'used-instruments'],
+            });
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+
+                if (url.includes('/api/v1/vocabularies/pid-availability')) {
+                    return Promise.resolve(createJsonResponse({ pid4inst: { available: false } }));
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            renderDataCiteForm();
+            vi.useFakeTimers();
+
+            try {
+                fireEvent.click(getAccordionTrigger(/Resource Information/i));
+                await advanceAccordionPreferenceDebounce();
+            } finally {
+                vi.useRealTimers();
+            }
+
+            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).toContain('used-instruments');
+            expect(payload.open_items).not.toContain('resource-info');
+        });
+    });
+
+    it('renders fields, title options and supports adding/removing titles', { timeout: 60000 }, async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
-            );
+        );
         expect(useRorAffiliations).toHaveBeenCalled();
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -408,15 +608,15 @@ describe('DataCiteForm', () => {
         const resourceTrigger = getAccordionTrigger(/Resource Information/i);
         // Use getAllByRole and filter for Authors/Contributors to avoid matching Import CSV buttons
         const authorsButtons = screen.getAllByRole('button', { name: /Authors/i });
-        const authorsTrigger = authorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const authorsTrigger = authorsButtons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
-        
+
         const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
-        
+
         const contributorsButtons = screen.getAllByRole('button', { name: /Contributors/i });
-        const contributorsTrigger = contributorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const contributorsTrigger = contributorsButtons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!contributorsTrigger) throw new Error('Contributors accordion trigger not found');
-        
+
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
@@ -435,9 +635,7 @@ describe('DataCiteForm', () => {
         // resource type option
         const resourceTypeTrigger = screen.getByLabelText('Resource Type', { exact: false });
         await user.click(resourceTypeTrigger);
-        expect(
-            await screen.findByRole('option', { name: 'Dataset' }),
-        ).toBeInTheDocument();
+        expect(await screen.findByRole('option', { name: 'Dataset' })).toBeInTheDocument();
 
         // language options
         const languageTrigger = screen.getByLabelText('Language of Data', {
@@ -448,9 +646,7 @@ describe('DataCiteForm', () => {
         expect(languageLabel).toHaveTextContent('*');
         await user.click(languageTrigger);
         for (const option of languages) {
-            expect(
-                await screen.findByRole('option', { name: option.name }),
-            ).toBeInTheDocument();
+            expect(await screen.findByRole('option', { name: option.name })).toBeInTheDocument();
         }
         await user.keyboard('{Escape}');
 
@@ -462,9 +658,7 @@ describe('DataCiteForm', () => {
         expect(licenseTrigger).toHaveAttribute('aria-required', 'true');
         const licenseLabel = screen.getAllByText('License', { selector: 'label' })[0];
         expect(licenseLabel).toHaveTextContent('*');
-        expect(
-            screen.queryByRole('button', { name: 'Add license' }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add license' })).not.toBeInTheDocument();
         await user.click(licenseTrigger);
         const mitOption = await screen.findByRole('option', {
             name: 'MIT License',
@@ -477,12 +671,8 @@ describe('DataCiteForm', () => {
         });
         expect(licenseTriggers).toHaveLength(2);
         expect(licenseTriggers[1]).not.toHaveAttribute('aria-required', 'true');
-        expect(
-            screen.getByRole('button', { name: 'Remove license' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Add license' }),
-        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Remove license' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add license' })).not.toBeInTheDocument();
 
         // title fields
         const titleInput = screen.getByRole('textbox', { name: /Title/ });
@@ -491,13 +681,13 @@ describe('DataCiteForm', () => {
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
         await ensureAuthorsOpen(user);
-        
+
         // Add first author
         const addFirstAuthorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
         await user.click(addFirstAuthorButton);
-        
+
         await ensureContributorsOpen(user);
-        
+
         // Add first contributor
         const addFirstContributorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Cc]ontributor/i });
         await user.click(addFirstContributorButton);
@@ -513,9 +703,7 @@ describe('DataCiteForm', () => {
         expect(await screen.findByText('Contributor type')).toBeInTheDocument();
         expect(screen.getByLabelText(/^Roles/)).toBeInTheDocument();
         // After adding first contributor, button text changes - use more flexible pattern
-        expect(
-            screen.getAllByRole('button', { name: /Add.*contributor/i }).length,
-        ).toBeGreaterThan(0);
+        expect(screen.getAllByRole('button', { name: /Add.*contributor/i }).length).toBeGreaterThan(0);
 
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
@@ -531,15 +719,11 @@ describe('DataCiteForm', () => {
         })[1];
         expect(secondTitleTypeTrigger).toHaveTextContent('Subtitle');
         await user.click(secondTitleTypeTrigger);
-        expect(
-            screen.queryByRole('option', { name: 'Main Title' }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'Main Title' })).not.toBeInTheDocument();
         await user.click(secondTitleTypeTrigger);
         const removeButton = screen.getByRole('button', { name: 'Remove title' });
         await user.click(removeButton);
-        expect(
-            screen.getAllByRole('textbox', { name: /Title/ }),
-        ).toHaveLength(1);
+        expect(screen.getAllByRole('textbox', { name: /Title/ })).toHaveLength(1);
     });
 
     it('gives the datacenter field more grid width and keeps long selected datacenter badges wrapped', () => {
@@ -582,7 +766,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -594,7 +778,7 @@ describe('DataCiteForm', () => {
         );
 
         await ensureAuthorsOpen(user);
-        
+
         const message = await screen.findByTestId('author-roles-availability');
         expect(message).toHaveTextContent('The available author role is Author.');
         expect(message).toHaveAttribute('id', 'author-roles-description');
@@ -602,7 +786,7 @@ describe('DataCiteForm', () => {
         // Add first author to make the author-entries-group visible
         const addFirstAuthorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
         await user.click(addFirstAuthorButton);
-        
+
         const group = await screen.findByTestId('author-entries-group');
         expect(group).toHaveAttribute('role', 'list');
         expect(group).toHaveAttribute('aria-describedby', 'author-roles-description');
@@ -613,7 +797,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -650,32 +834,28 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it(
-        'save button is always enabled regardless of required fields (Issue #538)',
-        { timeout: 60000 },
-        async () => {
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
-                    descriptionTypes={descriptionTypes}
-                    googleMapsApiKey="test-api-key"
-                />,
-            );
+    it('save button is always enabled regardless of required fields (Issue #538)', { timeout: 60000 }, async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
 
-            const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
+        const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
 
-            // Save button should always be enabled, even when required fields are empty
-            expect(saveButton).toBeEnabled();
-            expect(saveButton).toHaveAttribute('aria-disabled', 'false');
-        },
-    );
+        // Save button should always be enabled, even when required fields are empty
+        expect(saveButton).toBeEnabled();
+        expect(saveButton).toHaveAttribute('aria-disabled', 'false');
+    });
 
     it('shows the used instruments section when PID4INST is enabled', async () => {
         render(
@@ -892,92 +1072,84 @@ describe('DataCiteForm', () => {
         expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
 
-    it(
-        'shows validation error list when saving with missing required fields (Issue #538)',
-        { timeout: 60000 },
-        async () => {
-            const { container } = render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
-                    descriptionTypes={descriptionTypes}
-                    googleMapsApiKey="test-api-key"
-                />,
-            );
+    it('shows validation error list when saving with missing required fields (Issue #538)', { timeout: 60000 }, async () => {
+        const { container } = render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
 
-            // Submit the form without filling any required fields
-            const formElement = container.querySelector('form')!;
-            await act(async () => {
-                fireEvent.submit(formElement);
-            });
+        // Submit the form without filling any required fields
+        const formElement = container.querySelector('form')!;
+        await act(async () => {
+            fireEvent.submit(formElement);
+        });
 
-            // ValidationAlert should show with the error summary
-            await waitFor(() => {
-                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
-            });
+        // ValidationAlert should show with the error summary
+        await waitFor(() => {
+            expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+        });
 
-            // Individual missing field messages should be listed
-            expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /^Resource Type is required\.$/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /^Primary License is required\.$/i })).toBeInTheDocument();
-        },
-    );
+        // Individual missing field messages should be listed
+        expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Resource Type is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Primary License is required\.$/i })).toBeInTheDocument();
+    });
 
-    it(
-        'shows validation error list on every save attempt, not just the first (Issue #538)',
-        { timeout: 60000 },
-        async () => {
-            const { container } = render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
-                    descriptionTypes={descriptionTypes}
-                    googleMapsApiKey="test-api-key"
-                />,
-            );
+    it('shows validation error list on every save attempt, not just the first (Issue #538)', { timeout: 60000 }, async () => {
+        const { container } = render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
 
-            const formElement = container.querySelector('form')!;
+        const formElement = container.querySelector('form')!;
 
-            // First save attempt
-            await act(async () => {
-                fireEvent.submit(formElement);
-            });
-            await waitFor(() => {
-                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
-            });
-            expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
+        // First save attempt
+        await act(async () => {
+            fireEvent.submit(formElement);
+        });
+        await waitFor(() => {
+            expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+        });
+        expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
 
-            // Second save attempt — error list must still appear
-            await act(async () => {
-                fireEvent.submit(formElement);
-            });
-            await waitFor(() => {
-                expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
-            });
-            expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
-        },
-    );
+        // Second save attempt — error list must still appear
+        await act(async () => {
+            fireEvent.submit(formElement);
+        });
+        await waitFor(() => {
+            expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
+        });
+        expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
+    });
 
     it('supports managing person and institution authors with affiliations', { timeout: 60000 }, async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1012,12 +1184,8 @@ describe('DataCiteForm', () => {
         expect(authorScope.getByRole('textbox', { name: /First name/i })).toBeInTheDocument();
 
         const affiliationField = authorScope.getByTestId('author-0-affiliations-field');
-        expect(
-            screen.queryByRole('button', { name: /Add affiliation/i }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Separate multiple affiliations with commas.'),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Add affiliation/i })).not.toBeInTheDocument();
+        expect(screen.queryByText('Separate multiple affiliations with commas.')).not.toBeInTheDocument();
 
         const affiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
 
@@ -1028,11 +1196,7 @@ describe('DataCiteForm', () => {
         const affiliationTagify = getTagifyInstance(affiliationInput);
 
         await act(async () => {
-            affiliationTagify.addTags(
-                ['University A', 'University B'],
-                true,
-                false,
-            );
+            affiliationTagify.addTags(['University A', 'University B'], true, false);
         });
 
         await waitFor(() => {
@@ -1045,15 +1209,15 @@ describe('DataCiteForm', () => {
         const addAuthorButtons = await screen.findAllByRole('button', { name: /Add.*author/i });
         await user.click(addAuthorButtons[0]);
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
-        
+
         // After adding a second author, only the second author should have the Add button visible on desktop
         const updatedAddButtons = await screen.findAllByRole('button', { name: /Add.*author/i });
         expect(updatedAddButtons.length).toBeGreaterThanOrEqual(1);
-        
+
         const removeAuthorButton = screen.getByRole('button', { name: 'Remove author 2' });
         await user.click(removeAuthorButton);
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
-        
+
         // After removing the second author, the Add button should be visible again
         expect((await screen.findAllByRole('button', { name: /Add.*author/i })).length).toBeGreaterThanOrEqual(1);
     });
@@ -1076,7 +1240,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1127,7 +1291,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1158,9 +1322,7 @@ describe('DataCiteForm', () => {
         });
 
         await waitFor(() => {
-            expect(
-                screen.queryByTestId('author-0-affiliations-ror-ids'),
-            ).not.toBeInTheDocument();
+            expect(screen.queryByTestId('author-0-affiliations-ror-ids')).not.toBeInTheDocument();
         });
     });
 
@@ -1169,7 +1331,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1187,7 +1349,6 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -1200,61 +1361,58 @@ describe('DataCiteForm', () => {
         expect(badgesContainer).toHaveTextContent('https://ror.org/02mhbdp94');
     });
 
-    it(
-        'supports adding, removing and managing multiple authors independently',
-        { timeout: 60000 },
-        async () => {
-            render(
-                <DataCiteForm
+    it('supports adding, removing and managing multiple authors independently', { timeout: 60000 }, async () => {
+        render(
+            <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
-            );
+        );
 
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            await ensureAuthorsOpen(user);
+        await ensureAuthorsOpen(user);
 
-            // Add the first author
-            const addFirstAuthorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
-            await user.click(addFirstAuthorButton);
+        // Add the first author
+        const addFirstAuthorButton = await screen.findByRole('button', { name: /Add [Ff]irst [Aa]uthor/i });
+        await user.click(addFirstAuthorButton);
 
-            // Add more authors - button changes to "Add another author"
-            const getAddButtons = async () => await screen.findAllByRole('button', { name: /Add.*author/i });
-            
-            const authorGroup = screen.getByTestId('author-entries-group');
+        // Add more authors - button changes to "Add another author"
+        const getAddButtons = async () => await screen.findAllByRole('button', { name: /Add.*author/i });
 
-            const firstLastNameInput = within(authorGroup).getByRole('textbox', { name: /Last name/i });
-            await user.clear(firstLastNameInput);
-            await user.type(firstLastNameInput, 'First Author');
-            
-            await user.click((await getAddButtons())[0]);
-            
-            await waitFor(() => {
-                expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
-            });
-            
-            const secondLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1];
-            await user.clear(secondLastNameInput);
-            await user.type(secondLastNameInput, 'Second Author');
-            
-            await user.click((await getAddButtons())[0]);
-            
-            await waitFor(() => {
-                expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
-            });
-            
-            const thirdLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[2];
-            await user.clear(thirdLastNameInput);
-            await user.type(thirdLastNameInput, 'Third Author');
+        const authorGroup = screen.getByTestId('author-entries-group');
+
+        const firstLastNameInput = within(authorGroup).getByRole('textbox', { name: /Last name/i });
+        await user.clear(firstLastNameInput);
+        await user.type(firstLastNameInput, 'First Author');
+
+        await user.click((await getAddButtons())[0]);
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        });
+
+        const secondLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1];
+        await user.clear(secondLastNameInput);
+        await user.type(secondLastNameInput, 'Second Author');
+
+        await user.click((await getAddButtons())[0]);
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
+        });
+
+        const thirdLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[2];
+        await user.clear(thirdLastNameInput);
+        await user.type(thirdLastNameInput, 'Third Author');
 
         // Verify all three authors are present
         expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
@@ -1271,12 +1429,8 @@ describe('DataCiteForm', () => {
 
         // Verify first and third are still persons
         expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })).toHaveLength(2);
-        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue(
-            'First Author',
-        );
-        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue(
-            'Third Author',
-        );
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue('First Author');
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
 
         // Set first author as contact person
         const firstContactCheckbox = screen.getAllByRole('checkbox', { name: /Contact person/i })[0];
@@ -1321,9 +1475,7 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('heading', { name: 'Author 3' })).not.toBeInTheDocument();
 
         // Former third author should now be second author
-        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue(
-            'Third Author',
-        );
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
 
         // First author contact data should be preserved
         expect(screen.getByRole('textbox', { name: /Email address/i })).toHaveValue('first@example.com');
@@ -1331,8 +1483,8 @@ describe('DataCiteForm', () => {
 
         // Former third author affiliations should be preserved
         const secondAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[1] as TagifyEnabledInput;
-        const updatedAffiliationValues = getTagifyInstance(secondAffiliationInput).value
-            .map((tag) => tag.value)
+        const updatedAffiliationValues = getTagifyInstance(secondAffiliationInput)
+            .value.map((tag) => tag.value)
             .filter((value): value is string => Boolean(value));
         expect(updatedAffiliationValues).toContain('Institution X');
         expect(updatedAffiliationValues).toContain('Institution Y');
@@ -1349,26 +1501,23 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('heading', { name: 'Author 2' })).not.toBeInTheDocument();
 
         // Remaining author should be the former third author
-        expect(within(authorGroup).getByRole('textbox', { name: /Last name/i })).toHaveValue(
-            'Third Author',
-        );
-        
+        expect(within(authorGroup).getByRole('textbox', { name: /Last name/i })).toHaveValue('Third Author');
+
         // Affiliations should be preserved
         const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
-        const finalAffiliationValues = getTagifyInstance(finalAffiliationInput).value
-            .map((tag) => tag.value)
+        const finalAffiliationValues = getTagifyInstance(finalAffiliationInput)
+            .value.map((tag) => tag.value)
             .filter((value): value is string => Boolean(value));
         expect(finalAffiliationValues).toContain('Institution X');
         expect(finalAffiliationValues).toContain('Institution Y');
-    },
-    );
+    });
 
     it('applies responsive layout for author inputs', async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1402,17 +1551,9 @@ describe('DataCiteForm', () => {
         // Add author button is available after the first author is added
         expect(await screen.findByRole('button', { name: /Add.*author/i })).toBeInTheDocument();
         const authorScopeForLast = await getAuthorScope();
-        expect(
-            authorScopeForLast
-                .getByRole('textbox', { name: /Last name/i })
-                .closest('div'),
-        ).toHaveClass('md:col-span-3');
+        expect(authorScopeForLast.getByRole('textbox', { name: /Last name/i }).closest('div')).toHaveClass('md:col-span-3');
         const authorScopeForFirst = await getAuthorScope();
-        expect(
-            authorScopeForFirst
-                .getByRole('textbox', { name: /First name/i })
-                .closest('div'),
-        ).toHaveClass('md:col-span-3');
+        expect(authorScopeForFirst.getByRole('textbox', { name: /First name/i }).closest('div')).toHaveClass('md:col-span-3');
         const contactField = screen.getByTestId('author-0-contact-field');
         expect(contactField).toHaveClass('md:col-span-1');
         expect(contactField).toHaveClass('flex');
@@ -1425,12 +1566,8 @@ describe('DataCiteForm', () => {
         expect(affiliationGrid).toHaveClass('md:gap-x-3');
         // Affiliations field spans full 12 columns when contact person is not selected
         expect(affiliationContainer).toHaveClass('md:col-span-12');
-        expect(
-            screen.queryByText('Use the 16-digit ORCID identifier when available.')
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Provide details for this author and their affiliations.')
-        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Use the 16-digit ORCID identifier when available.')).not.toBeInTheDocument();
+        expect(screen.queryByText('Provide details for this author and their affiliations.')).not.toBeInTheDocument();
     });
 
     it('aligns contact fields alongside affiliations when marked as CP', async () => {
@@ -1438,7 +1575,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1461,9 +1598,7 @@ describe('DataCiteForm', () => {
 
         const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
         const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
-        const emailContainer = screen
-            .getByRole('textbox', { name: /Email address/i })
-            .closest('div');
+        const emailContainer = screen.getByRole('textbox', { name: /Email address/i }).closest('div');
         const websiteContainer = screen.getByRole('textbox', { name: /Website/i }).closest('div');
 
         expect(affiliationGrid).toHaveClass('md:grid-cols-12');
@@ -1478,7 +1613,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1492,7 +1627,7 @@ describe('DataCiteForm', () => {
         const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
         // Use getAllByRole and filter to avoid matching "Import authors from CSV" button
         const authorsButtons = screen.getAllByRole('button', { name: /Authors/i });
-        const authorsTrigger = authorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        const authorsTrigger = authorsButtons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
 
         const position = licensesTrigger.compareDocumentPosition(authorsTrigger);
@@ -1504,7 +1639,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1530,86 +1665,79 @@ describe('DataCiteForm', () => {
 
         const tooltip = await screen.findByRole('tooltip');
         expect(tooltip).toBeVisible();
-        expect(tooltip).toHaveTextContent(
-            'Contact Person: Select if this author should be the primary contact.'
-        );
+        expect(tooltip).toHaveTextContent('Contact Person: Select if this author should be the primary contact.');
 
         const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
         expect(contactCheckbox).toBeInTheDocument();
     });
 
     // TODO: Test skipped due to flaky timeout issues - needs investigation
-    it.skip(
-        'requires an email address when a person author is marked as contact',
-        { timeout: 60000 },
-        async () => {
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
+    it.skip('requires an email address when a person author is marked as contact', { timeout: 60000 }, async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
-            );
+        );
 
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
+        const saveButton = screen.getByRole('button', { name: 'Save & Validate' });
 
-            const titleInput = screen.getByRole('textbox', { name: /Title/ });
-            await user.type(titleInput, 'Contact Title');
-            await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
-            await fillRequiredAuthor(user, 'Meyer');
-            await fillRequiredContributor(user);
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
+        await user.type(titleInput, 'Contact Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
+        await fillRequiredAuthor(user, 'Meyer');
+        await fillRequiredContributor(user);
 
-            await user.click(screen.getByLabelText('Resource Type', { exact: false }));
-            await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+        await user.click(screen.getByLabelText('Resource Type', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
 
-            await user.click(screen.getByLabelText('Language of Data', { exact: false }));
-            await user.click(await screen.findByRole('option', { name: 'German' }));
+        await user.click(screen.getByLabelText('Language of Data', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'German' }));
 
-            const licenseTrigger = screen.getAllByLabelText(/^License/, {
-                selector: 'button',
-            })[0];
-            await user.click(licenseTrigger);
-            await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
 
-            await ensureAuthorsOpen(user);
+        await ensureAuthorsOpen(user);
 
-            const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
-            await user.click(contactCheckbox);
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
+        await user.click(contactCheckbox);
 
-            const emailInput = await screen.findByRole('textbox', { name: /Email address/i });
-            expect(emailInput).toBeRequired();
-            expect(screen.getByRole('textbox', { name: /Website/i })).toBeInTheDocument();
-            expect(screen.queryByRole('textbox', { name: /Website \(optional\)/i })).not.toBeInTheDocument();
-            expect(saveButton).toBeDisabled();
+        const emailInput = await screen.findByRole('textbox', { name: /Email address/i });
+        expect(emailInput).toBeRequired();
+        expect(screen.getByRole('textbox', { name: /Website/i })).toBeInTheDocument();
+        expect(screen.queryByRole('textbox', { name: /Website \(optional\)/i })).not.toBeInTheDocument();
+        expect(saveButton).toBeDisabled();
 
-            await user.type(emailInput, 'contact@example.org');
-            await fillRequiredAbstract(user);
+        await user.type(emailInput, 'contact@example.org');
+        await fillRequiredAbstract(user);
 
-
-            await waitFor(
-                () => {
-                    expect(saveButton).toBeEnabled();
-                },
-                { timeout: 10000 },
-            );
-        },
-    );
+        await waitFor(
+            () => {
+                expect(saveButton).toBeEnabled();
+            },
+            { timeout: 10000 },
+        );
+    });
 
     it('prefills DOI when initialDoi is provided', () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1628,7 +1756,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1647,7 +1775,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1717,7 +1845,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1747,7 +1875,6 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -1767,13 +1894,9 @@ describe('DataCiteForm', () => {
         }) as HTMLInputElement[];
         expect(lastNameInputs[0]).toHaveValue('Hernandez');
 
-        expect(authorScope.getByLabelText('ORCID')).toHaveValue(
-            '0000-0002-2771-9344',
-        );
+        expect(authorScope.getByLabelText('ORCID')).toHaveValue('0000-0002-2771-9344');
 
-        expect(
-            (authorScope.getByRole('textbox', { name: /Institution name/i })) as HTMLInputElement,
-        ).toHaveValue('Example Organization');
+        expect(authorScope.getByRole('textbox', { name: /Institution name/i }) as HTMLInputElement).toHaveValue('Example Organization');
 
         expect(screen.getAllByText('GFZ Data Services').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Independent Collaboration').length).toBeGreaterThan(0);
@@ -1786,7 +1909,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1799,17 +1922,13 @@ describe('DataCiteForm', () => {
                         orcid: 'https://orcid.org/0000-0001-5727-2427',
                         firstName: 'Ada',
                         lastName: 'Lovelace',
-                        affiliations: [
-                            { value: 'Example Affiliation', rorId: 'https://ror.org/04wxnsj81' },
-                        ],
+                        affiliations: [{ value: 'Example Affiliation', rorId: 'https://ror.org/04wxnsj81' }],
                     },
                     {
                         type: 'institution',
                         roles: ['Distributor'],
                         institutionName: 'Example Org',
-                        affiliations: [
-                            { value: 'Example Org', rorId: 'https://ror.org/03yrm5c26' },
-                        ],
+                        affiliations: [{ value: 'Example Org', rorId: 'https://ror.org/03yrm5c26' }],
                     },
                 ]}
                 descriptionTypes={descriptionTypes}
@@ -1819,18 +1938,12 @@ describe('DataCiteForm', () => {
 
         await ensureContributorsOpen(user);
 
-        const contributorRoleInput = screen.getByTestId(
-            'contributor-0-roles-input',
-        ) as HTMLInputElement;
+        const contributorRoleInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement;
         expect(contributorRoleInput.value).toBe('Contact Person');
 
-        const contributorSection = screen
-            .getByRole('heading', { name: 'Contributor 1' })
-            .closest('section') as HTMLElement;
+        const contributorSection = screen.getByRole('heading', { name: 'Contributor 1' }).closest('section') as HTMLElement;
 
-        const contributorOrcidField = within(
-            screen.getByTestId('contributor-0-orcid-field'),
-        ).getByRole('textbox') as HTMLInputElement;
+        const contributorOrcidField = within(screen.getByTestId('contributor-0-orcid-field')).getByRole('textbox') as HTMLInputElement;
         expect(contributorOrcidField.value).toBe('0000-0001-5727-2427');
 
         const contributorFirstNameField = within(contributorSection).getByLabelText('First name', {
@@ -1843,15 +1956,11 @@ describe('DataCiteForm', () => {
         }) as HTMLInputElement;
         expect(contributorLastNameField.value).toBe('Lovelace');
 
-        const contributorAffiliationsInput = screen.getByTestId(
-            'contributor-0-affiliations-input',
-        ) as HTMLInputElement;
+        const contributorAffiliationsInput = screen.getByTestId('contributor-0-affiliations-input') as HTMLInputElement;
         expect(contributorAffiliationsInput.value).toBe('Example Affiliation');
         expect(screen.getByTestId('contributor-0-affiliations-ror-ids')).toBeInTheDocument();
 
-        const institutionSection = screen
-            .getByRole('heading', { name: 'Contributor 2' })
-            .closest('section') as HTMLElement;
+        const institutionSection = screen.getByRole('heading', { name: 'Contributor 2' }).closest('section') as HTMLElement;
 
         const institutionRolesInput = screen.getByTestId('contributor-1-roles-input') as HTMLInputElement;
         expect(institutionRolesInput.value).toBe('Distributor');
@@ -1861,9 +1970,7 @@ describe('DataCiteForm', () => {
         }) as HTMLInputElement;
         expect(institutionNameInput.value).toBe('Example Org');
 
-        const institutionAffiliationsInput = screen.getByTestId(
-            'contributor-1-affiliations-input',
-        ) as HTMLInputElement;
+        const institutionAffiliationsInput = screen.getByTestId('contributor-1-affiliations-input') as HTMLInputElement;
         expect(institutionAffiliationsInput.value).toBe('Example Org');
         expect(screen.getByTestId('contributor-1-affiliations-ror-ids')).toBeInTheDocument();
     });
@@ -1875,7 +1982,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1896,9 +2003,7 @@ describe('DataCiteForm', () => {
 
         await ensureContributorsOpen(user);
 
-        const contributorRoleInput = screen.getByTestId(
-            'contributor-0-roles-input',
-        ) as HTMLInputElement;
+        const contributorRoleInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement;
 
         expect(contributorRoleInput.value).toBe('Contact Person, Data Curator');
     });
@@ -1910,7 +2015,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1936,33 +2041,21 @@ describe('DataCiteForm', () => {
 
         await ensureContributorsOpen(user);
 
-        const contributorSection = screen
-            .getByRole('heading', { name: 'Contributor 1' })
-            .closest('section') as HTMLElement;
+        const contributorSection = screen.getByRole('heading', { name: 'Contributor 1' }).closest('section') as HTMLElement;
 
-        const typeField = within(screen.getByTestId('contributor-0-type-field')).getByRole(
-            'combobox',
-        );
+        const typeField = within(screen.getByTestId('contributor-0-type-field')).getByRole('combobox');
         expect(typeField).toHaveTextContent('Institution');
 
         const rolesInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement;
         expect(rolesInput.value).toBe('Research Group');
 
-        const institutionNameInput = within(contributorSection).getByDisplayValue(
-            'ExampleContributorRG',
-        ) as HTMLInputElement;
+        const institutionNameInput = within(contributorSection).getByDisplayValue('ExampleContributorRG') as HTMLInputElement;
         expect(institutionNameInput).toBeInTheDocument();
 
-        expect(
-            within(contributorSection).queryByLabelText('First name', { selector: 'input' }),
-        ).not.toBeInTheDocument();
-        expect(
-            within(contributorSection).queryByLabelText('Last name', { selector: 'input' }),
-        ).not.toBeInTheDocument();
+        expect(within(contributorSection).queryByLabelText('First name', { selector: 'input' })).not.toBeInTheDocument();
+        expect(within(contributorSection).queryByLabelText('Last name', { selector: 'input' })).not.toBeInTheDocument();
 
-        const affiliationsInput = screen.getByTestId(
-            'contributor-0-affiliations-input',
-        ) as HTMLInputElement;
+        const affiliationsInput = screen.getByTestId('contributor-0-affiliations-input') as HTMLInputElement;
         expect(affiliationsInput.value).toBe('ExampleOrganization');
 
         const rorList = screen.getByTestId('contributor-0-affiliations-ror-ids');
@@ -1976,7 +2069,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2000,7 +2093,6 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2010,12 +2102,13 @@ describe('DataCiteForm', () => {
 
         // Verify that multiple tags were created (not just one tag with all affiliations)
         const affiliationField = screen.getByTestId('author-0-affiliations-field');
-        const tags = within(affiliationField).getAllByRole('generic', { hidden: true })
-            .filter(el => el.classList.contains('tagify__tag'));
-        
+        const tags = within(affiliationField)
+            .getAllByRole('generic', { hidden: true })
+            .filter((el) => el.classList.contains('tagify__tag'));
+
         // Should have exactly 2 separate tags
         expect(tags.length).toBe(2);
-        
+
         // Verify the tag contents
         expect(tags[0]).toHaveTextContent('GFZ German Research Centre for Geosciences, Potsdam, Germany');
         expect(tags[1]).toHaveTextContent('Seismological Research Centre of the OGS');
@@ -2033,7 +2126,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2066,12 +2159,13 @@ describe('DataCiteForm', () => {
 
         // Verify that multiple tags were created (not just one tag with all affiliations)
         const affiliationField = screen.getByTestId('contributor-0-affiliations-field');
-        const tags = within(affiliationField).getAllByRole('generic', { hidden: true })
-            .filter(el => el.classList.contains('tagify__tag'));
-        
+        const tags = within(affiliationField)
+            .getAllByRole('generic', { hidden: true })
+            .filter((el) => el.classList.contains('tagify__tag'));
+
         // Should have exactly 2 separate tags
         expect(tags.length).toBe(2);
-        
+
         // Verify the tag contents
         expect(tags[0]).toHaveTextContent('Luxembourg Institute of Science and Technology');
         expect(tags[1]).toHaveTextContent('Catchment and Eco-Hydrology Group');
@@ -2082,14 +2176,7 @@ describe('DataCiteForm', () => {
     });
 
     it('allows adding license when last entry filled and under limit', () => {
-        expect(
-            canAddLicense(
-                [
-                    { id: '1', license: 'MIT' },
-                ],
-                2,
-            ),
-        ).toBe(true);
+        expect(canAddLicense([{ id: '1', license: 'MIT' }], 2)).toBe(true);
     });
 
     it('prevents adding license when last entry is empty', () => {
@@ -2106,18 +2193,8 @@ describe('DataCiteForm', () => {
 
     it('determines whether titles can be added', () => {
         expect(canAddTitle([], 3)).toBe(false);
-        expect(
-            canAddTitle(
-                [{ id: '1', title: '', titleType: 'main-title' }],
-                3,
-            ),
-        ).toBe(false);
-        expect(
-            canAddTitle(
-                [{ id: '1', title: 'First', titleType: 'main-title' }],
-                3,
-            ),
-        ).toBe(true);
+        expect(canAddTitle([{ id: '1', title: '', titleType: 'main-title' }], 3)).toBe(false);
+        expect(canAddTitle([{ id: '1', title: 'First', titleType: 'main-title' }], 3)).toBe(true);
     });
 
     it('prefills Language when initialLanguage code is provided', () => {
@@ -2125,7 +2202,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2136,11 +2213,7 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'German',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('German');
     });
 
     it('defaults Language to English when initialLanguage is missing', () => {
@@ -2148,7 +2221,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2158,11 +2231,7 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'English',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('English');
     });
 
     it('defaults Language to English even when English is not the first option', () => {
@@ -2176,7 +2245,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={shuffledLanguages}
                 descriptionTypes={descriptionTypes}
@@ -2184,11 +2253,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'English',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('English');
     });
 
     it('prefills Language when initialLanguage name is provided', () => {
@@ -2196,7 +2261,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2207,11 +2272,7 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'German',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('German');
     });
 
     it('prefills French when initialLanguage indicates French', () => {
@@ -2219,7 +2280,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2230,11 +2291,7 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'French',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('French');
     });
 
     it('falls back to the first language with a code when English is unavailable', () => {
@@ -2247,7 +2304,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={limitedLanguages}
                 descriptionTypes={descriptionTypes}
@@ -2255,11 +2312,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'German',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('German');
     });
 
     it('defaults to English when languages include incomplete entries', () => {
@@ -2273,7 +2326,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={incompleteLanguages}
                 descriptionTypes={descriptionTypes}
@@ -2281,11 +2334,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(
-            screen.getByLabelText('Language of Data', { exact: false }),
-        ).toHaveTextContent(
-            'English',
-        );
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('English');
     });
 
     it('prefills Resource Type when initialResourceType is provided', () => {
@@ -2293,7 +2342,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2304,9 +2353,7 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(screen.getByLabelText('Resource Type', { exact: false })).toHaveTextContent(
-            'Dataset',
-        );
+        expect(screen.getByLabelText('Resource Type', { exact: false })).toHaveTextContent('Dataset');
     });
 
     it('prefills licenses when initialLicenses are provided', () => {
@@ -2314,7 +2361,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2335,7 +2382,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2365,7 +2412,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2409,7 +2456,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2427,9 +2474,7 @@ describe('DataCiteForm', () => {
         await user.click(addButton);
         let inputs = screen.getAllByRole('textbox', { name: /Title/ });
         expect(inputs[1]).not.toBeRequired();
-        let labels = screen
-            .getAllByText(/Title/, { selector: 'label' })
-            .filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
+        let labels = screen.getAllByText(/Title/, { selector: 'label' }).filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
         expect(labels[0]).toHaveTextContent('*');
         expect(labels[1]).not.toHaveTextContent('*');
 
@@ -2442,9 +2487,7 @@ describe('DataCiteForm', () => {
         await user.click(mainOption);
 
         inputs = screen.getAllByRole('textbox', { name: /Title/ });
-        labels = screen
-            .getAllByText(/Title/, { selector: 'label' })
-            .filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
+        labels = screen.getAllByText(/Title/, { selector: 'label' }).filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
         expect(inputs[0]).not.toBeRequired();
         expect(inputs[1]).toBeRequired();
         expect(labels[0]).not.toHaveTextContent('*');
@@ -2456,7 +2499,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2489,7 +2532,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2500,90 +2543,76 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue(
-            'A mandatory Event',
-        );
-        expect(screen.getByRole('combobox', { name: /Title Type/ })).toHaveTextContent(
-            'Main Title',
-        );
+        expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue('A mandatory Event');
+        expect(screen.getByRole('combobox', { name: /Title Type/ })).toHaveTextContent('Main Title');
     });
 
-    it(
-        'limits title rows to max titles',
-        async () => {
-            render(
-                <DataCiteForm
+    it('limits title rows to max titles', async () => {
+        render(
+            <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
                 contributorInstitutionRoles={contributorInstitutionRoles}
                 authorRoles={authorRoles}
                 maxTitles={3}
-                    descriptionTypes={descriptionTypes}
-                    googleMapsApiKey="test-api-key"
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
             />,
-            );
-            const user = userEvent.setup();
-            const addButton = screen.getByRole('button', { name: 'Add title' });
+        );
+        const user = userEvent.setup();
+        const addButton = screen.getByRole('button', { name: 'Add title' });
         const firstInput = screen.getByRole('textbox', { name: /Title/ });
-            await user.type(firstInput, 'One');
-            await user.click(addButton);
+        await user.type(firstInput, 'One');
+        await user.click(addButton);
         const secondInput = screen.getAllByRole('textbox', { name: /Title/ })[1];
-            await user.type(secondInput, 'Two');
-            await user.click(addButton);
-            expect(
-                screen.getAllByRole('textbox', { name: /Title/ }),
-            ).toHaveLength(3);
-            expect(addButton).toBeDisabled();
-        },
-        10000,
-    );
+        await user.type(secondInput, 'Two');
+        await user.click(addButton);
+        expect(screen.getAllByRole('textbox', { name: /Title/ })).toHaveLength(3);
+        expect(addButton).toBeDisabled();
+    }, 10000);
 
     /**
      * Helper function to get the save operation axios.post call from the mock.
      * The save operation is a POST request to /editor/resources using axios.
-     * 
+     *
      * Returns data in a format compatible with old fetch-based tests:
      * [url, { body: JSON.stringify(data), headers, method: 'POST', credentials: 'same-origin' }]
-     * 
+     *
      * @returns The save call in fetch-compatible format, or null if no save call was found
      * @throws Error if multiple save calls are found (unexpected test scenario)
      */
     const getSaveAxiosCall = () => {
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
         const axiosPostMock = mockedAxios.post;
-        
+
         if (!axiosPostMock || !axiosPostMock.mock) {
             return null;
         }
-        
+
         // Find all POST calls to /editor/resources
-        const saveCalls = axiosPostMock.mock.calls
-            .map((call, index) => ({ call, index }))
-            .filter(
-                ({ call }) => call[0] === '/editor/resources'
-            );
-        
+        const saveCalls = axiosPostMock.mock.calls.map((call, index) => ({ call, index })).filter(({ call }) => call[0] === '/editor/resources');
+
         // Validate: exactly zero or one save call expected in most tests
         if (saveCalls.length === 0) {
             return null;
         }
-        
+
         if (saveCalls.length > 1) {
             throw new Error(
                 `Expected at most one save call, but found ${saveCalls.length}. ` +
-                `This might indicate a test issue or unintended form submissions.`
+                    `This might indicate a test issue or unintended form submissions.`,
             );
         }
-        
+
         // Return in fetch-compatible format: [url, options]
         // axios.post(url, data, config) -> [url, { body, headers, method, credentials }]
         const call = axiosPostMock.mock.calls[saveCalls[0].index];
         const [url, data, config] = call;
-        
+
         return [
             url,
             {
@@ -2606,7 +2635,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2639,7 +2668,7 @@ describe('DataCiteForm', () => {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                 }),
-            })
+            }),
         );
 
         // Get the save operation axios call
@@ -2648,14 +2677,14 @@ describe('DataCiteForm', () => {
         const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
-        
+
         // Note: In real usage, axios interceptors would add CSRF headers automatically.
         // In tests, we verify that axios.post is called with proper structure.
         expect(headers).toMatchObject({
             'Content-Type': 'application/json',
             Accept: 'application/json',
         });
-        
+
         const body = JSON.parse((fetchArgs as RequestInit).body as string);
         expect(body).toMatchObject({
             year: 2024,
@@ -2684,9 +2713,12 @@ describe('DataCiteForm', () => {
 
         // Should redirect to resources list instead of showing modal (Issue #624)
         await waitFor(() => {
-            expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                onError: expect.any(Function),
-            }));
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                '/resources',
+                expect.objectContaining({
+                    onError: expect.any(Function),
+                }),
+            );
         });
 
         const { toast } = await import('sonner');
@@ -2703,7 +2735,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2753,9 +2785,12 @@ describe('DataCiteForm', () => {
 
         // Should redirect to resources list instead of showing modal (Issue #624)
         await waitFor(() => {
-            expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                onError: expect.any(Function),
-            }));
+            expect(mockRouterVisit).toHaveBeenCalledWith(
+                '/resources',
+                expect.objectContaining({
+                    onError: expect.any(Function),
+                }),
+            );
         });
 
         const { toast } = await import('sonner');
@@ -2767,7 +2802,7 @@ describe('DataCiteForm', () => {
 
         const responseData = { message: 'Stored' };
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
-        mockedAxios.post.mockResolvedValue({ 
+        mockedAxios.post.mockResolvedValue({
             data: responseData,
             status: 200,
             statusText: 'OK',
@@ -2777,7 +2812,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2809,7 +2844,6 @@ describe('DataCiteForm', () => {
                         ],
                     },
                 ]}
-            
                 availableDatacenters={availableDatacenters}
                 initialDatacenters={[1]}
                 descriptionTypes={descriptionTypes}
@@ -2861,11 +2895,8 @@ describe('DataCiteForm', () => {
         ]);
     });
 
-    it(
-        'shows validation feedback when saving fails',
-        { timeout: 60000 },
-        async () => {
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
+    it('shows validation feedback when saving fails', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const validationResponse = {
             message: 'Validation failed',
@@ -2875,7 +2906,7 @@ describe('DataCiteForm', () => {
         };
 
         const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
-        mockedAxios.post.mockRejectedValue({ 
+        mockedAxios.post.mockRejectedValue({
             response: {
                 status: 422,
                 data: validationResponse,
@@ -2887,7 +2918,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
-                    dateTypes={dateTypes}
+                dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2912,51 +2943,63 @@ describe('DataCiteForm', () => {
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
 
-        await user.click(saveButton);
+        mockRouterPut.mockClear();
+        vi.useFakeTimers();
 
-        expect(axios.post).toHaveBeenCalledWith(
-            '/editor/resources',
-            expect.any(Object), // data payload
-            expect.any(Object)  // config (headers, etc.)
-        );
-        
-        // Get the save operation axios call
-        const saveCall = getSaveAxiosCall();
-        expect(saveCall).toBeDefined();
-        const fetchArgs = saveCall![1];
-        expect(fetchArgs).toBeDefined();
-        const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
-        
-        // Note: In real usage, axios interceptors add CSRF headers.
-        // In tests with mocked axios, we verify basic request structure.
-        expect(headers).toMatchObject({
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-        });
-        
-        const body = JSON.parse((fetchArgs as RequestInit).body as string);
-        expect(body).toMatchObject({
-            licenses: ['MIT'],
-            titles: [
-                {
-                    title: 'Primary Dataset',
-                    titleType: 'main-title',
-                },
-                {
-                    title: 'Only Subtitle',
-                    titleType: 'subtitle',
-                },
-            ],
-        });
+        try {
+            await act(async () => {
+                fireEvent.click(saveButton);
+                await Promise.resolve();
+                await Promise.resolve();
+            });
 
-        await screen.findByText('Validation failed');
-        const alert = screen.getByTestId('global-validation-alert');
-        expect(alert).not.toBeNull();
-        expect(screen.getByRole('button', { name: /^A main title is required\.$/i })).toBeInTheDocument();
-        // Should NOT redirect on validation failure (Issue #624)
-        expect(mockRouterVisit).not.toHaveBeenCalled();
-        },
-    );
+            expect(axios.post).toHaveBeenCalledWith(
+                '/editor/resources',
+                expect.any(Object), // data payload
+                expect.any(Object), // config (headers, etc.)
+            );
+
+            // Get the save operation axios call
+            const saveCall = getSaveAxiosCall();
+            expect(saveCall).toBeDefined();
+            const fetchArgs = saveCall![1];
+            expect(fetchArgs).toBeDefined();
+            const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
+
+            // Note: In real usage, axios interceptors add CSRF headers.
+            // In tests with mocked axios, we verify basic request structure.
+            expect(headers).toMatchObject({
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            });
+
+            const body = JSON.parse((fetchArgs as RequestInit).body as string);
+            expect(body).toMatchObject({
+                licenses: ['MIT'],
+                titles: [
+                    {
+                        title: 'Primary Dataset',
+                        titleType: 'main-title',
+                    },
+                    {
+                        title: 'Only Subtitle',
+                        titleType: 'subtitle',
+                    },
+                ],
+            });
+
+            expect(screen.getByText('Validation failed')).toBeInTheDocument();
+            const alert = screen.getByTestId('global-validation-alert');
+            expect(alert).not.toBeNull();
+            expect(screen.getByRole('button', { name: /^A main title is required\.$/i })).toBeInTheDocument();
+            // Should NOT redirect on validation failure (Issue #624)
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+            await advanceAccordionPreferenceDebounce();
+            expect(mockRouterPut).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 
     it('marks the datacenter field invalid for backend datacenter element errors', { timeout: 20000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -3223,34 +3266,235 @@ describe('DataCiteForm', () => {
         await user.click(screen.getByRole('button', { name: /save & validate/i }));
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /^Please fix the validation errors in the Funding References section before submitting\.$/i })).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /^Please fix the validation errors in the Funding References section before submitting\.$/i }),
+            ).toBeInTheDocument();
         });
         expect(axios.post).not.toHaveBeenCalled();
 
         const fundingTrigger = getAccordionTrigger(/Funding References/i);
         await user.click(fundingTrigger);
         expect(fundingTrigger).toHaveAttribute('aria-expanded', 'false');
+        await waitFor(() => {
+            expect(mockRouterPut).toHaveBeenCalled();
+        });
+        mockRouterPut.mockClear();
 
         const fundingScrollSpy = vi.spyOn(fundingTrigger, 'scrollIntoView');
 
-        await user.click(screen.getByRole('button', { name: /^Please fix the validation errors in the Funding References section before submitting\.$/i }));
-
-        await waitFor(() => {
-            expect(fundingTrigger).toHaveAttribute('aria-expanded', 'true');
-            expect(fundingScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        vi.useFakeTimers();
+        const animationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+            cb(performance.now());
+            return 1;
         });
+
+        try {
+            fireEvent.click(
+                screen.getByRole('button', { name: /^Please fix the validation errors in the Funding References section before submitting\.$/i }),
+            );
+            expect(fundingTrigger).toHaveAttribute('aria-expanded', 'true');
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(200);
+            });
+
+            expect(fundingScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(250);
+            });
+
+            expect(mockRouterPut).not.toHaveBeenCalled();
+        } finally {
+            animationFrameSpy.mockRestore();
+            vi.useRealTimers();
+        }
     });
 
-    it(
-        'shows a network error message when saving throws',
-        { timeout: 60000 },
-        async () => {
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('shows a network error message when saving throws', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-            // Mock axios.post to throw a network error
-            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
-            mockedAxios.post.mockRejectedValue(new Error('Network Error'));
+        // Mock axios.post to throw a network error
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        mockedAxios.post.mockRejectedValue(new Error('Network Error'));
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save & validate/i });
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
+
+        await waitFor(() => expect(saveButton).toBeEnabled(), { timeout: 10000 });
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(axios.post).toHaveBeenCalled();
+        });
+
+        // Use findAllByRole and filter to find the network error alert specifically
+        const alerts = await screen.findAllByRole('alert');
+        const networkErrorAlert = alerts.find((alert) => alert.textContent?.includes('A network error prevented saving the resource'));
+        expect(networkErrorAlert).toBeDefined();
+        expect(networkErrorAlert).toHaveTextContent('A network error prevented saving the resource. Please try again.');
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to save resource', expect.any(Error));
+    });
+
+    describe('Descriptions', () => {
+        it('renders the Descriptions accordion section', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            expect(getAccordionTrigger(/Descriptions/i)).toBeInTheDocument();
+        });
+
+        it('shows Abstract validation error when saving without Abstract (Issue #538)', async () => {
+            const user = userEvent.setup();
+            const { container } = render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            // Save button should be enabled even without Abstract
+            expect(saveButton).toBeEnabled();
+
+            // Submit the form — should show validation error about missing Abstract
+            const formElement = container.querySelector('form')!;
+            await act(async () => {
+                fireEvent.submit(formElement);
+            });
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /^Abstract is required\.$/i })).toBeInTheDocument();
+            });
+        });
+
+        it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
+            const user = userEvent.setup();
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
+
+            // Fill Abstract
+            const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+            await user.type(abstractTextarea, 'This is a sufficiently long abstract for save button coverage.');
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await waitFor(() => expect(saveButton).toBeEnabled());
+        });
+
+        it('blocks Save & Validate when Abstract is shorter than 50 characters', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenters={[1]}
+                    initialAuthors={[
+                        {
+                            type: 'person',
+                            lastName: 'Curator',
+                        },
+                    ]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+
+            const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+            await user.type(abstractTextarea, 'Short abstract');
+
+            await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /^Abstract must be at least 50 characters \(current: 14\)$/i })).toBeInTheDocument();
+            });
+            expect(axios.post).not.toHaveBeenCalled();
+        });
+
+        it('includes descriptions in the payload when submitting', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const responseData = { message: 'Success', resource: { id: 1 } };
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
             render(
                 <DataCiteForm
@@ -3273,346 +3517,153 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            const saveButton = screen.getByRole('button', { name: /save & validate/i });
             await fillRequiredAuthor(user);
             await fillRequiredContributor(user);
-            await fillRequiredAbstract(user);
 
-            await waitFor(() => expect(saveButton).toBeEnabled(), { timeout: 10000 });
+            // Fill Abstract (required)
+            const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+            await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
+
+            // Fill Methods (optional)
+            const methodsTab = screen.getByRole('tab', { name: /^Methods$/i });
+            await user.click(methodsTab);
+            const methodsTextarea = screen.getByRole('textbox', { name: /Methods/i });
+            await user.type(methodsTextarea, 'Test methodology');
+
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await waitFor(() => expect(saveButton).toBeEnabled());
             await user.click(saveButton);
 
             await waitFor(() => {
                 expect(axios.post).toHaveBeenCalled();
             });
 
-            // Use findAllByRole and filter to find the network error alert specifically
-            const alerts = await screen.findAllByRole('alert');
-            const networkErrorAlert = alerts.find(alert => 
-                alert.textContent?.includes('A network error prevented saving the resource')
+            // Get the save operation fetch call
+            const fetchCall = getSaveAxiosCall();
+            expect(fetchCall).toBeDefined();
+            const requestBody = JSON.parse(fetchCall![1].body);
+
+            expect(requestBody.descriptions).toBeDefined();
+            expect(requestBody.descriptions).toHaveLength(2);
+            expect(requestBody.descriptions).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        descriptionType: 'Abstract',
+                        description: 'This is a sufficiently long abstract for payload submission tests.',
+                    }),
+                    expect.objectContaining({
+                        descriptionType: 'Methods',
+                        description: 'Test methodology',
+                    }),
+                ]),
             );
-            expect(networkErrorAlert).toBeDefined();
-            expect(networkErrorAlert).toHaveTextContent(
-                'A network error prevented saving the resource. Please try again.',
-            );
-            expect(consoleSpy).toHaveBeenCalledWith(
-                'Failed to save resource',
-                expect.any(Error),
-            );
-        },
-    );
+        }); // Increased timeout for this long-running test with multiple user interactions
 
-    describe('Descriptions', () => {
-        it('renders the Descriptions accordion section', () => {
-            render(
-                <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
-
-        expect(getAccordionTrigger(/Descriptions/i)).toBeInTheDocument();
-    });
-
-    it('shows Abstract validation error when saving without Abstract (Issue #538)', async () => {
-        const user = userEvent.setup();
-        const { container } = render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                initialYear="2024"
-                initialResourceType="1"
-                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
-                initialLicenses={['MIT']}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
-
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
-
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
-        // Save button should be enabled even without Abstract
-        expect(saveButton).toBeEnabled();
-
-        // Submit the form — should show validation error about missing Abstract
-        const formElement = container.querySelector('form')!;
-        await act(async () => {
-            fireEvent.submit(formElement);
-        });
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: /^Abstract is required\.$/i })).toBeInTheDocument();
-        });
-    });
-
-    it('save button remains enabled when Abstract is filled', { timeout: 60000 }, async () => {
-        const user = userEvent.setup();
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                initialYear="2024"
-                initialResourceType="1"
-                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
-                initialLicenses={['MIT']}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
-
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
-
-
-        // Fill Abstract
-        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'This is a sufficiently long abstract for save button coverage.');
-
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
-        await waitFor(() => expect(saveButton).toBeEnabled());
-    });
-
-    it('blocks Save & Validate when Abstract is shorter than 50 characters', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                initialYear="2024"
-                initialResourceType="1"
-                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
-                initialLicenses={['MIT']}
-                availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
-                initialAuthors={[
-                    {
-                        type: 'person',
-                        lastName: 'Curator',
-                    },
-                ]}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
-
-        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'Short abstract');
-
-        await user.click(screen.getByRole('button', { name: /save & validate/i }));
-
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: /^Abstract must be at least 50 characters \(current: 14\)$/i })).toBeInTheDocument();
-        });
-        expect(axios.post).not.toHaveBeenCalled();
-    });
-
-    it(
-        'includes descriptions in the payload when submitting',
-        { timeout: 60000 },
-        async () => {
+        it('does not include empty descriptions in the payload', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        const responseData = { message: 'Success', resource: { id: 1 } };
-        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
+            const responseData = { message: 'Success', resource: { id: 1 } };
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
                     dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                initialYear="2024"
-                initialResourceType="1"
-                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
-                initialLicenses={['MIT']}
-                availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenters={[1]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
 
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
 
+            // Fill only Abstract
+            const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+            await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
 
-        // Fill Abstract (required)
-        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await waitFor(() => expect(saveButton).toBeEnabled());
+            await user.click(saveButton);
 
-        // Fill Methods (optional)
-        const methodsTab = screen.getByRole('tab', { name: /^Methods$/i });
-        await user.click(methodsTab);
-        const methodsTextarea = screen.getByRole('textbox', { name: /Methods/i });
-        await user.type(methodsTextarea, 'Test methodology');
+            await waitFor(() => {
+                expect(axios.post).toHaveBeenCalled();
+            });
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
-        await waitFor(() => expect(saveButton).toBeEnabled());
-        await user.click(saveButton);
+            // Get the save operation fetch call
+            const fetchCall = getSaveAxiosCall();
+            expect(fetchCall).toBeDefined();
+            const requestBody = JSON.parse(fetchCall![1].body);
 
-        await waitFor(() => {
-            expect(axios.post).toHaveBeenCalled();
+            expect(requestBody.descriptions).toBeDefined();
+            expect(requestBody.descriptions).toHaveLength(1);
+            expect(requestBody.descriptions[0]).toEqual({
+                descriptionType: 'Abstract',
+                description: 'This is a sufficiently long abstract for payload submission tests.',
+                language: null,
+            });
         });
 
-        // Get the save operation fetch call
-        const fetchCall = getSaveAxiosCall();
-        expect(fetchCall).toBeDefined();
-        const requestBody = JSON.parse(fetchCall![1].body);
+        it('trims whitespace from description values', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        expect(requestBody.descriptions).toBeDefined();
-        expect(requestBody.descriptions).toHaveLength(2);
-        expect(requestBody.descriptions).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    descriptionType: 'Abstract',
-                    description: 'This is a sufficiently long abstract for payload submission tests.',
-                }),
-                expect.objectContaining({
-                    descriptionType: 'Methods',
-                    description: 'Test methodology',
-                }),
-            ]),
-        );
-        },
-    ); // Increased timeout for this long-running test with multiple user interactions
+            const responseData = { message: 'Success', resource: { id: 1 } };
+            (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
-    it('does not include empty descriptions in the payload', { timeout: 30000 }, async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-        const responseData = { message: 'Success', resource: { id: 1 } };
-        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
-
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
                     dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                initialYear="2024"
-                initialResourceType="1"
-                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
-                initialLicenses={['MIT']}
-                availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    initialYear="2024"
+                    initialResourceType="1"
+                    initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                    initialLicenses={['MIT']}
+                    availableDatacenters={availableDatacenters}
+                    initialDatacenters={[1]}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
 
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
+            await fillRequiredAuthor(user);
+            await fillRequiredContributor(user);
 
+            // Fill Abstract with whitespace
+            const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+            await user.type(abstractTextarea, '   This is a sufficiently long abstract with spaces for trimming tests.   ');
 
-        // Fill only Abstract
-        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, 'This is a sufficiently long abstract for payload submission tests.');
+            const saveButton = screen.getByRole('button', { name: /save & validate/i });
+            await waitFor(() => expect(saveButton).toBeEnabled());
+            await user.click(saveButton);
 
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
-        await waitFor(() => expect(saveButton).toBeEnabled());
-        await user.click(saveButton);
+            await waitFor(() => {
+                expect(axios.post).toHaveBeenCalled();
+            });
 
-        await waitFor(() => {
-            expect(axios.post).toHaveBeenCalled();
+            // Get the save operation fetch call
+            const fetchCall = getSaveAxiosCall();
+            expect(fetchCall).toBeDefined();
+            const requestBody = JSON.parse(fetchCall![1].body);
+
+            expect(requestBody.descriptions[0].description).toBe('This is a sufficiently long abstract with spaces for trimming tests.');
         });
-
-        // Get the save operation fetch call
-        const fetchCall = getSaveAxiosCall();
-        expect(fetchCall).toBeDefined();
-        const requestBody = JSON.parse(fetchCall![1].body);
-
-        expect(requestBody.descriptions).toBeDefined();
-        expect(requestBody.descriptions).toHaveLength(1);
-        expect(requestBody.descriptions[0]).toEqual({
-            descriptionType: 'Abstract',
-            description: 'This is a sufficiently long abstract for payload submission tests.',
-            language: null,
-        });
-    });
-
-    it('trims whitespace from description values', { timeout: 60000 }, async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-        const responseData = { message: 'Success', resource: { id: 1 } };
-        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
-
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                    dateTypes={dateTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-                initialYear="2024"
-                initialResourceType="1"
-                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
-                initialLicenses={['MIT']}
-                availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
-        );
-
-        await fillRequiredAuthor(user);
-        await fillRequiredContributor(user);
-
-
-        // Fill Abstract with whitespace
-        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
-        await user.type(abstractTextarea, '   This is a sufficiently long abstract with spaces for trimming tests.   ');
-
-        const saveButton = screen.getByRole('button', { name: /save & validate/i });
-        await waitFor(() => expect(saveButton).toBeEnabled());
-        await user.click(saveButton);
-
-        await waitFor(() => {
-            expect(axios.post).toHaveBeenCalled();
-        });
-
-        // Get the save operation fetch call
-        const fetchCall = getSaveAxiosCall();
-        expect(fetchCall).toBeDefined();
-        const requestBody = JSON.parse(fetchCall![1].body);
-
-        expect(requestBody.descriptions[0].description).toBe('This is a sufficiently long abstract with spaces for trimming tests.');
-    });
     });
 
     describe('Dates Form Group', () => {
@@ -3627,9 +3678,9 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
             );
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -3649,9 +3700,9 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
             );
 
             // No date fields should be present by default since Created/Updated are auto-managed
@@ -3670,9 +3721,9 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                descriptionTypes={descriptionTypes}
-                googleMapsApiKey="test-api-key"
-            />,
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -3683,17 +3734,15 @@ describe('DataCiteForm', () => {
             // Find all comboboxes - one is the date picker, one is the date type select
             const allComboboxes = screen.getAllByRole('combobox');
             // DatePicker comboboxes contain "Select date" text
-            const datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            const datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
-            
+
             // Verify 'Created' and 'Updated' are not available in dropdown
-            const dateTypeTriggers = allComboboxes.filter(el => 
-                el.getAttribute('id')?.includes('dateType')
-            );
+            const dateTypeTriggers = allComboboxes.filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[0]);
-            
+
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
             expect(createdOption).not.toBeInTheDocument();
@@ -3723,8 +3772,8 @@ describe('DataCiteForm', () => {
 
             // Should have 2 date picker comboboxes from initialDates
             let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            let datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(2);
 
@@ -3733,8 +3782,8 @@ describe('DataCiteForm', () => {
             await user.click(removeButton);
 
             allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(1);
         });
@@ -3760,15 +3809,13 @@ describe('DataCiteForm', () => {
             const addButton = screen.getByRole('button', { name: 'Add date' });
             await user.click(addButton);
 
-            const dateTypeTriggers = screen.getAllByRole('combobox').filter(el => 
-                el.getAttribute('id')?.includes('dateType')
-            );
+            const dateTypeTriggers = screen.getAllByRole('combobox').filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[1]);
 
             // 'Accepted' should not be available since it's already used
             const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
             expect(acceptedOption).not.toBeInTheDocument();
-            
+
             // 'Created' and 'Updated' should also not be available (auto-managed)
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
@@ -3817,8 +3864,8 @@ describe('DataCiteForm', () => {
             // "valid" date type should have both start and end date fields (date range)
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            const datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(2);
         });
@@ -3843,17 +3890,15 @@ describe('DataCiteForm', () => {
 
             // Initially, "valid" type should have both date pickers with values displayed
             let allComboboxes = screen.getAllByRole('combobox');
-            let datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            let datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(2);
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
             expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
 
             // Open the date type selector and change to "accepted" (since Created is auto-managed)
-            const dateTypeTrigger = allComboboxes.find(el => 
-                el.getAttribute('id')?.includes('dateType')
-            );
+            const dateTypeTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('dateType'));
             expect(dateTypeTrigger).toBeDefined();
             if (dateTypeTrigger) {
                 await user.click(dateTypeTrigger);
@@ -3863,8 +3908,8 @@ describe('DataCiteForm', () => {
 
             // After changing to "accepted", should only have 1 date picker
             allComboboxes = screen.getAllByRole('combobox');
-            datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(1);
             // startDate should be preserved
@@ -3895,8 +3940,8 @@ describe('DataCiteForm', () => {
             // Only 'accepted' should be shown, 'created' and 'updated' are auto-managed
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(el => 
-                el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || '')
+            const datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(1);
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-10');
@@ -3911,7 +3956,7 @@ describe('DataCiteForm', () => {
 
         it('should show toast notification when MSL trigger keyword is added', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3932,8 +3977,8 @@ describe('DataCiteForm', () => {
             await ensureFreeKeywordsOpen(user);
 
             // Find the free keywords input
-            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3958,7 +4003,7 @@ describe('DataCiteForm', () => {
 
         it('should show toast notification when MSL keyword is added', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3978,8 +4023,8 @@ describe('DataCiteForm', () => {
             // Open Free Keywords section
             await ensureFreeKeywordsOpen(user);
 
-            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -3999,7 +4044,7 @@ describe('DataCiteForm', () => {
 
         it('should NOT show toast notification when initial data contains MSL keywords', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4017,14 +4062,17 @@ describe('DataCiteForm', () => {
             );
 
             // Wait a bit to ensure any potential toast would have been called
-            await waitFor(() => {
-                expect(toast.info).not.toHaveBeenCalled();
-            }, { timeout: 1000 });
+            await waitFor(
+                () => {
+                    expect(toast.info).not.toHaveBeenCalled();
+                },
+                { timeout: 1000 },
+            );
         });
 
         it('should NOT show toast notification when MSL keyword from old dataset', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4042,9 +4090,12 @@ describe('DataCiteForm', () => {
             );
 
             // Wait a bit to ensure any potential toast would have been called
-            await waitFor(() => {
-                expect(toast.info).not.toHaveBeenCalled();
-            }, { timeout: 1000 });
+            await waitFor(
+                () => {
+                    expect(toast.info).not.toHaveBeenCalled();
+                },
+                { timeout: 1000 },
+            );
         });
 
         it('should show MSL Laboratories section when EPOS keyword is added', async () => {
@@ -4069,13 +4120,13 @@ describe('DataCiteForm', () => {
 
             // Open Free Keywords section - use getAllByRole and filter for accordion trigger
             const freeKeywordsTriggers = screen.getAllByRole('button', { name: /Free Keywords/i });
-            const freeKeywordsTrigger = freeKeywordsTriggers.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+            const freeKeywordsTrigger = freeKeywordsTriggers.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
             if (freeKeywordsTrigger && freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
                 await user.click(freeKeywordsTrigger);
             }
 
-            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -4122,8 +4173,8 @@ describe('DataCiteForm', () => {
             // Open Free Keywords section and add EPOS keyword
             await ensureFreeKeywordsOpen(user);
 
-            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -4140,9 +4191,49 @@ describe('DataCiteForm', () => {
             });
         });
 
+        it('should show MSL tab when initial controlled MSL keywords exist', async () => {
+            const { toast } = await import('sonner');
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialGcmdKeywords={[
+                        {
+                            id: 'https://epos-msl.uu.nl/voc/keyword/deformation',
+                            text: 'Deformation',
+                            path: 'Rock and Melt Physics > Deformation',
+                            language: 'en',
+                            scheme: 'EPOS MSL vocabulary',
+                            schemeURI: 'https://epos-msl.uu.nl/voc',
+                        },
+                    ]}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            await ensureControlledVocabulariesOpen(user);
+
+            await waitFor(() => {
+                expect(screen.getByRole('tab', { name: /MSL Vocabulary/i })).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('Rock and Melt Physics > Deformation')).toBeInTheDocument();
+            expect(screen.getAllByText(/Originating Multi-Scale Laboratories/i).length).toBeGreaterThan(0);
+            expect(toast.info).not.toHaveBeenCalled();
+        });
+
         it('should only notify once when multiple MSL keywords are added', async () => {
             const { toast } = await import('sonner');
-            
+
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4162,8 +4253,8 @@ describe('DataCiteForm', () => {
             // Open Free Keywords section
             await ensureFreeKeywordsOpen(user);
 
-            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -4210,8 +4301,8 @@ describe('DataCiteForm', () => {
             // Open Free Keywords section
             await ensureFreeKeywordsOpen(user);
 
-            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
-            
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+
             await waitFor(() => {
                 expect(freeKeywordsInput.tagify).toBeTruthy();
             });
@@ -4357,9 +4448,7 @@ describe('DataCiteForm', () => {
 
             const [url, data] = mockedAxios.post.mock.calls[0];
             expect(url).toBe('/editor/resources/draft');
-            expect(data.titles).toEqual([
-                { title: 'Draft Dataset', titleType: 'main-title', language: null },
-            ]);
+            expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
         });
 
         it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {
@@ -4403,9 +4492,12 @@ describe('DataCiteForm', () => {
 
             // Should redirect to resources list (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                    onError: expect.any(Function),
-                }));
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/resources',
+                    expect.objectContaining({
+                        onError: expect.any(Function),
+                    }),
+                );
             });
 
             const { toast } = await import('sonner');
@@ -4469,9 +4561,12 @@ describe('DataCiteForm', () => {
 
             const { toast } = await import('sonner');
             expect(toast.success).toHaveBeenCalledWith('Resource saved!');
-            expect(toast.success).toHaveBeenCalledWith('DataCite metadata synchronized', expect.objectContaining({
-                description: 'DOI 10.5880/test.2024.001 has been updated.',
-            }));
+            expect(toast.success).toHaveBeenCalledWith(
+                'DataCite metadata synchronized',
+                expect.objectContaining({
+                    description: 'DOI 10.5880/test.2024.001 has been updated.',
+                }),
+            );
         });
 
         it('shows DataCite sync warning toast on redirect', { timeout: 60000 }, async () => {
@@ -4506,9 +4601,12 @@ describe('DataCiteForm', () => {
 
             const { toast } = await import('sonner');
             expect(toast.success).toHaveBeenCalledWith('Resource saved!');
-            expect(toast.warning).toHaveBeenCalledWith('DataCite update failed', expect.objectContaining({
-                description: 'API timeout',
-            }));
+            expect(toast.warning).toHaveBeenCalledWith(
+                'DataCite update failed',
+                expect.objectContaining({
+                    description: 'API timeout',
+                }),
+            );
         });
 
         it('handles null DOI in DataCite sync toast gracefully', { timeout: 60000 }, async () => {
@@ -4543,9 +4641,12 @@ describe('DataCiteForm', () => {
 
             const { toast } = await import('sonner');
             // Should use fallback description when DOI is null
-            expect(toast.success).toHaveBeenCalledWith('DataCite metadata synchronized', expect.objectContaining({
-                description: 'Metadata has been updated.',
-            }));
+            expect(toast.success).toHaveBeenCalledWith(
+                'DataCite metadata synchronized',
+                expect.objectContaining({
+                    description: 'Metadata has been updated.',
+                }),
+            );
         });
 
         it('shows warning toast when navigation fails after successful save', { timeout: 60000 }, async () => {
@@ -4880,8 +4981,8 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             await ensureAuthorsOpen(user);
 
-            const addButton = screen.queryByRole('button', { name: /Add [Ff]irst [Aa]uthor/i })
-                ?? screen.getByRole('button', { name: /Add [Aa]uthor/i });
+            const addButton =
+                screen.queryByRole('button', { name: /Add [Ff]irst [Aa]uthor/i }) ?? screen.getByRole('button', { name: /Add [Aa]uthor/i });
             await user.click(addButton);
 
             expect(screen.queryByText('Last name is required', { exact: false })).not.toBeInTheDocument();
@@ -4938,9 +5039,12 @@ describe('DataCiteForm', () => {
 
             // Should redirect to resources list (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                    onError: expect.any(Function),
-                }));
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/resources',
+                    expect.objectContaining({
+                        onError: expect.any(Function),
+                    }),
+                );
             });
 
             // Should NOT show success modal
@@ -4980,9 +5084,12 @@ describe('DataCiteForm', () => {
 
             // Should redirect to resources after draft save (Issue #624)
             await waitFor(() => {
-                expect(mockRouterVisit).toHaveBeenCalledWith('/resources', expect.objectContaining({
-                    onError: expect.any(Function),
-                }));
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/resources',
+                    expect.objectContaining({
+                        onError: expect.any(Function),
+                    }),
+                );
             });
         });
 

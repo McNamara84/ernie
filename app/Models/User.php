@@ -6,36 +6,40 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $email
  * @property string|null $password
- * @property \Illuminate\Support\Carbon|null $password_set_at
+ * @property Carbon|null $password_set_at
  * @property string|null $remember_token
  * @property UserRole $role
  * @property bool $is_active
  * @property string|null $font_size_preference
- * @property \Illuminate\Support\Carbon|null $email_verified_at
- * @property \Illuminate\Support\Carbon|null $deactivated_at
+ * @property array<int, string>|null $curation_accordion_open_items
+ * @property Carbon|null $email_verified_at
+ * @property Carbon|null $deactivated_at
  * @property int|null $deactivated_by
- * @property \Illuminate\Support\Carbon|null $last_seen_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon|null $last_seen_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
-#[Fillable(['name', 'email', 'password', 'password_set_at', 'font_size_preference', 'role', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'password_set_at', 'font_size_preference', 'curation_accordion_open_items', 'role', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -49,6 +53,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'password_set_at' => 'datetime',
+            'curation_accordion_open_items' => 'array',
             'role' => UserRole::class,
             'is_active' => 'boolean',
             'deactivated_at' => 'datetime',
@@ -133,8 +138,8 @@ class User extends Authenticatable
     /**
      * Scope a query to only include active users.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<User>
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
     public function scopeActive($query)
     {
@@ -144,8 +149,8 @@ class User extends Authenticatable
     /**
      * Scope a query to only include inactive users.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<User>
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
     public function scopeInactive($query)
     {
@@ -155,8 +160,8 @@ class User extends Authenticatable
     /**
      * Scope a query to filter by role.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<User>
+     * @param  Builder<User>  $query
+     * @return Builder<User>
      */
     public function scopeRole($query, UserRole $role)
     {
