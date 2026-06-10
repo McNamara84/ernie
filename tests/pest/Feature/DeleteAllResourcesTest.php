@@ -11,6 +11,7 @@ use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\User;
@@ -132,11 +133,21 @@ it('cleans up orphaned creator and contributor affiliations after deleting all r
         'creatorable_id' => $person->id,
         'position' => 0,
     ]);
+    $contributor = $resource->contributors()->create([
+        'contributorable_type' => Person::class,
+        'contributorable_id' => $person->id,
+        'position' => 0,
+    ]);
 
     Affiliation::create([
         'affiliatable_type' => ResourceCreator::class,
         'affiliatable_id' => $creator->id,
         'name' => 'Test Institute',
+    ]);
+    Affiliation::create([
+        'affiliatable_type' => ResourceContributor::class,
+        'affiliatable_id' => $contributor->id,
+        'name' => 'Contributor Test Institute',
     ]);
 
     actingAs($admin)
@@ -279,4 +290,4 @@ it('deletes the reported resource volume within a request-safe time budget', fun
 
     expect(Resource::count())->toBe(0);
     expect($elapsedSeconds)->toBeLessThan($requestTimeoutBudgetSeconds);
-});
+})->group('serial');
