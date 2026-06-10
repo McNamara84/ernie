@@ -24,7 +24,12 @@ test.describe('Delete all test datasets', () => {
       page.getByRole('button', { name: 'Delete All Resources' }).click(),
     ]);
 
-    expect(deleteResponse.status()).toBeLessThan(500);
+    expect([302, 303]).toContain(deleteResponse.status());
+
+    const redirectLocation = deleteResponse.headers().location;
+    expect(redirectLocation).toBeTruthy();
+    expect(new URL(redirectLocation!, page.url()).pathname).toBe('/logs');
+
     await expect(page.getByRole('button', { name: 'Delete all Test Datasets' })).toBeVisible();
   });
 });
