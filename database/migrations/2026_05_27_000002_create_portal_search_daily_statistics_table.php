@@ -161,6 +161,9 @@ return new class extends Migration
         }
     }
 
+    /**
+     * @param  array<int, string>  $columns
+     */
     private function hasIndex(string $table, array $columns, bool $unique = false): bool
     {
         $expectedColumns = array_values($columns);
@@ -193,7 +196,7 @@ return new class extends Migration
         return Schema::getConnection()->getDriverName() === 'sqlite';
     }
 
-    private function alterTableOrFail(string $message, callable $callback): void
+    private function alterTableOrFail(string $message, Closure $callback): void
     {
         try {
             Schema::table('portal_search_daily_statistics', $callback);
