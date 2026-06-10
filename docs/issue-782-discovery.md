@@ -32,7 +32,7 @@ As a curator, I want the assistant to highlight titles that are missing a langua
 
 ## Missing Language
 
-Condition:
+Condition:warum 
 
 - language = NULL
 - language field is empty
