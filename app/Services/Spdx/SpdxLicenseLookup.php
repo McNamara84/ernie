@@ -97,8 +97,10 @@ final readonly class SpdxLicenseLookup
     {
         /** @var Collection<int, Right> $rights */
         $rights = Right::query()
+            ->active()
             ->whereNotNull('identifier')
             ->where('identifier', '!=', '')
+            ->where('scheme_uri', self::SCHEME_URI)
             ->get(['identifier', 'name', 'uri', 'scheme_uri']);
 
         return self::fromLicenses(

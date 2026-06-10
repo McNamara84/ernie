@@ -63,19 +63,20 @@ final readonly class SpdxRightsMatchResult
 
         /** @var SpdxLicenseData $license */
         $license = $this->license;
+        $proposed = $this->filledPayload([
+            'rights' => $license->name,
+            'rights_uri' => $license->rightsUri,
+            'rights_identifier' => $license->identifier,
+            'rights_identifier_scheme' => SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME,
+            'scheme_uri' => $license->schemeUri ?? SpdxLicenseLookup::SCHEME_URI,
+            'language' => $input->language,
+        ]);
 
         return [
             'contract_version' => '1.1',
             'action' => 'link_right',
             'current' => $input->currentPayload(),
-            'proposed' => [
-                'rights' => $license->name,
-                'rights_uri' => $license->rightsUri,
-                'rights_identifier' => $license->identifier,
-                'rights_identifier_scheme' => SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME,
-                'scheme_uri' => $license->schemeUri ?? SpdxLicenseLookup::SCHEME_URI,
-                'language' => $input->language,
-            ],
+            'proposed' => $proposed,
             'source' => 'spdx',
             'source_url' => SpdxLicenseLookup::licensePageUrl($license->identifier),
             'evidence' => [
@@ -83,5 +84,36 @@ final readonly class SpdxRightsMatchResult
                 'reason' => $this->reason,
             ],
         ];
+    }
+
+    /**
+     * Keep suggestion metadata compact and unambiguous.
+     *
+     * Missing fields and explicit null values should mean the same thing for
+     * future UI and acceptance code. Filtering here keeps that rule in one
+     * place, while required SPDX fields remain present because they are filled.
+     *
+     * @param  array<string, string|null>  $payload
+     * @return array<string, string>
+     */
+    private function filledPayload(array $payload): array
+    {
+        $filled = [];
+
+        foreach ($payload as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            $value = trim($value);
+
+            if ($value === '') {
+                continue;
+            }
+
+            $filled[$key] = $value;
+        }
+
+        return $filled;
     }
 }

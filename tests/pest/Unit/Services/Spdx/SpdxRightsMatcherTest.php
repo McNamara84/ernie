@@ -68,7 +68,8 @@ it('matches a reviewed alias when only rights text was imported', function () {
         ->and($metadata['proposed']['rights_uri'])->toBe('https://creativecommons.org/licenses/by/4.0/')
         ->and($metadata['proposed']['rights_identifier'])->toBe('CC-BY-4.0')
         ->and($metadata['proposed']['rights_identifier_scheme'])->toBe('SPDX')
-        ->and($metadata['proposed']['scheme_uri'])->toBe('https://spdx.org/licenses/');
+        ->and($metadata['proposed']['scheme_uri'])->toBe('https://spdx.org/licenses/')
+        ->and($metadata['proposed'])->not->toHaveKey('language');
 });
 
 it('marks custom or non-SPDX rights as unsupported', function () {
@@ -85,4 +86,36 @@ it('marks custom or non-SPDX rights as unsupported', function () {
     expect($result->isMatched())->toBeFalse()
         ->and($result->status)->toBe('unsupported')
         ->and($result->license)->toBeNull();
+});
+
+it('omits empty optional proposed metadata fields', function () {
+    $lookup = SpdxLicenseLookup::fromLicenses([
+        new SpdxLicenseData(
+            identifier: 'Custom-Test',
+            name: 'Custom Test License',
+            rightsUri: null,
+            schemeUri: SpdxLicenseLookup::SCHEME_URI,
+        ),
+    ]);
+
+    $input = new SpdxRightsMatchInput(
+        resourceId: 1,
+        targetType: 'resource_right',
+        targetId: 13,
+        rightsIdentifier: 'Custom-Test',
+        rightsIdentifierScheme: 'SPDX',
+    );
+
+    $result = (new SpdxRightsMatcher)->match(
+        input: $input,
+        lookup: $lookup,
+    );
+
+    $metadata = $result->toSuggestionMetadata($input);
+
+    expect($metadata['proposed'])
+        ->toHaveKey('rights')
+        ->toHaveKey('rights_identifier')
+        ->not->toHaveKey('rights_uri')
+        ->not->toHaveKey('language');
 });
