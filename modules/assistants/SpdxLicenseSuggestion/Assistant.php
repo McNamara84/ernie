@@ -79,7 +79,7 @@ final class Assistant extends GenericTableAssistant
     {
         return [
             'success' => false,
-            'message' => 'Accepting SPDX rights suggestions is planned for a follow-up issue.',
+            'message' => 'Accepting SPDX rights suggestions is not supported yet. Please decline this suggestion to dismiss it for now.',
         ];
     }
 }
