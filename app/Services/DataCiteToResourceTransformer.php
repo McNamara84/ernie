@@ -385,7 +385,9 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $nameType = $creatorData['nameType'] ?? $this->inferNameType($creatorData);
+            $declaredNameType = $this->normaliseNameType($creatorData['nameType'] ?? null);
+            $nameType = $this->resolveNameType($creatorData);
+            $this->logNameTypeOverride('creator', $resource, $position, $creatorData, $declaredNameType, $nameType);
 
             try {
                 if ($nameType === 'Organizational') {
@@ -442,7 +444,9 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $nameType = $contributorData['nameType'] ?? $this->inferNameType($contributorData);
+            $declaredNameType = $this->normaliseNameType($contributorData['nameType'] ?? null);
+            $nameType = $this->resolveNameType($contributorData);
+            $this->logNameTypeOverride('contributor', $resource, $position, $contributorData, $declaredNameType, $nameType);
 
             try {
                 if ($nameType === 'Organizational') {
@@ -670,54 +674,125 @@ class DataCiteToResourceTransformer
     }
 
     /**
-     * Infer nameType when DataCite doesn't provide it.
+     * Resolve the local party type from DataCite data.
      *
-     * A creator/contributor without familyName AND without givenName
-     * but WITH a 'name' field is likely an organization.
+     * Legacy DataCite records can mark institutions as Personal. Strong evidence
+     * from structured names and identifiers wins over the raw nameType value.
      *
      * @param  array<string, mixed>  $data
      */
-    private function inferNameType(array $data): string
+    private function resolveNameType(array $data): string
     {
-        $hasFamilyName = isset($data['familyName']) && trim((string) $data['familyName']) !== '';
-        $hasGivenName = isset($data['givenName']) && trim((string) $data['givenName']) !== '';
+        $declaredNameType = $this->normaliseNameType($data['nameType'] ?? null);
 
-        if ($hasFamilyName || $hasGivenName) {
+        if ($this->hasStructuredPersonName($data) || $this->hasNameIdentifierScheme($data, 'ORCID')) {
             return 'Personal';
+        }
+
+        if ($this->hasNameIdentifierScheme($data, 'ROR')) {
+            return 'Organizational';
         }
 
         $name = isset($data['name']) ? trim((string) $data['name']) : '';
 
         if ($name === '') {
-            return 'Personal';
+            return $declaredNameType ?? 'Personal';
         }
 
-        // Organization names often contain institutional keywords.
-        // Check for these BEFORE parsePersonName, which would split
-        // "Alfred Wegener Institute" into given="Alfred Wegener", family="Institute".
+        if ($declaredNameType === 'Organizational') {
+            return 'Organizational';
+        }
+
         if ($this->looksLikeOrganization($name)) {
             return 'Organizational';
         }
 
-        // Try to parse the name — if parsing yields both a family AND a given
-        // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
-        // Names that only yield a family part (single word like "GEOMAR") default
-        // to Organizational. Comma+suffix names like "Smith, Jr." are treated as
-        // Personal via the comma-detection fallback below.
-        $parts = $this->parsePersonName($name);
-
-        if ($parts['given'] !== null && trim($parts['given']) !== '') {
+        if ($this->looksLikePersonName($name)) {
             return 'Personal';
         }
 
-        // If parsePersonName returned a family name but no given name,
-        // check if the original name contains a comma — this indicates
-        // a structured person name (e.g. "Smith, Jr.") rather than an org.
-        if ($parts['family'] !== null && str_contains($name, ',')) {
-            return 'Personal';
+        return $declaredNameType ?? 'Organizational';
+    }
+
+    private function normaliseNameType(mixed $nameType): ?string
+    {
+        if (! is_string($nameType)) {
+            return null;
         }
 
-        return 'Organizational';
+        return match (strtolower(trim($nameType))) {
+            'personal' => 'Personal',
+            'organizational' => 'Organizational',
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function hasStructuredPersonName(array $data): bool
+    {
+        return (isset($data['familyName']) && trim((string) $data['familyName']) !== '')
+            || (isset($data['givenName']) && trim((string) $data['givenName']) !== '');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function hasNameIdentifierScheme(array $data, string $expectedScheme): bool
+    {
+        foreach ($data['nameIdentifiers'] ?? [] as $nameIdentifier) {
+            if (! is_array($nameIdentifier)) {
+                continue;
+            }
+
+            $scheme = isset($nameIdentifier['nameIdentifierScheme'])
+                ? strtolower(trim((string) $nameIdentifier['nameIdentifierScheme']))
+                : '';
+            $identifier = isset($nameIdentifier['nameIdentifier'])
+                ? strtolower(trim((string) $nameIdentifier['nameIdentifier']))
+                : '';
+
+            if ($scheme === strtolower($expectedScheme)) {
+                return true;
+            }
+
+            if ($expectedScheme === 'ORCID' && str_contains($identifier, 'orcid.org/')) {
+                return true;
+            }
+
+            if ($expectedScheme === 'ROR' && str_contains($identifier, 'ror.org/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function logNameTypeOverride(
+        string $partyRole,
+        Resource $resource,
+        int $position,
+        array $data,
+        ?string $declaredNameType,
+        string $resolvedNameType,
+    ): void {
+        if ($declaredNameType === null || $declaredNameType === $resolvedNameType) {
+            return;
+        }
+
+        Log::debug('Corrected DataCite party nameType during import', [
+            'resource_id' => $resource->id,
+            'doi' => $resource->doi,
+            'role' => $partyRole,
+            'position' => $position,
+            'name' => $data['name'] ?? null,
+            'declared_name_type' => $declaredNameType,
+            'resolved_name_type' => $resolvedNameType,
+        ]);
     }
 
     /**
@@ -735,12 +810,50 @@ class DataCiteToResourceTransformer
             'department', 'ministry', 'bureau', 'authority',
             'association', 'society', 'academy', 'museum',
             'library', 'service', 'survey', 'observatory',
+            'government', 'administration', 'directorate',
+            'geoscience', 'geophysical', 'geological', 'geomagnetic',
+            'meteorological', 'seismology', 'earthquake', 'space',
+            'research', 'resources', 'branch', 'national', 'royal',
+            'observatorio', 'institut', 'instituto', 'ecole', 'universidad',
             'gmbh', 'ltd', 'inc', 'e\.v\.', 'helmholtz',
         ];
 
         $pattern = '/\b('.implode('|', $orgKeywords).')\b/iu';
 
-        return (bool) preg_match($pattern, $name);
+        if ((bool) preg_match($pattern, $name)) {
+            return true;
+        }
+
+        if (preg_match('/^[A-Z0-9&.\- ]{3,}$/', $name) === 1) {
+            return true;
+        }
+
+        if (! str_contains($name, ',') && preg_match('/\([A-Za-z][A-Za-z .&-]{2,}\)\s*$/', $name) === 1) {
+            return true;
+        }
+
+        return $this->wordCount($name) >= 4
+            && preg_match('/(?:[\/&]|\b(?:of|for|and|de|del|du|des|der|la|le|fuer|et)\b)/iu', $name) === 1;
+    }
+
+    private function looksLikePersonName(string $name): bool
+    {
+        $parts = $this->parsePersonName($name);
+
+        if ($parts['given'] !== null && trim($parts['given']) !== '') {
+            return true;
+        }
+
+        return $parts['family'] !== null && str_contains($name, ',');
+    }
+
+    private function wordCount(string $name): int
+    {
+        if (preg_match_all('/[\pL\pN]+/u', $name, $matches) === false) {
+            return 0;
+        }
+
+        return count($matches[0]);
     }
 
     /**
