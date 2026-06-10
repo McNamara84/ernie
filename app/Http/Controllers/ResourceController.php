@@ -10,16 +10,13 @@ use App\Http\Requests\Resource\IndexResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Http\Resources\ResourceListItemResource;
-use App\Models\Institution;
-use App\Models\Person;
-use App\Models\Publisher;
 use App\Models\Resource;
 use App\Services\DataCiteSyncService;
+use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -32,6 +29,7 @@ class ResourceController extends Controller
         private readonly ResourceQueryBuilder $queryBuilder,
         private readonly ResourceStorageService $storageService,
         private readonly DataCiteSyncService $syncService,
+        private readonly DeleteAllResourcesService $deleteAllResourcesService,
     ) {}
 
     /**
@@ -192,30 +190,12 @@ class ResourceController extends Controller
      */
     public function destroyAll(DestroyAllResourcesRequest $request): RedirectResponse
     {
-        DB::transaction(function (): void {
-            // Delete in chunks so ResourceObserver fires per resource for cache invalidation.
-            // DB cascading FKs handle child tables.
-            Resource::query()->chunkById(100, function ($resources): void {
-                foreach ($resources as $resource) {
-                    $resource->delete();
-                }
-            });
-
-            // Clean up orphaned persons, institutions and publishers.
-            Person::whereDoesntHave('resourceCreators')
-                ->whereDoesntHave('resourceContributors')
-                ->delete();
-
-            Institution::whereDoesntHave('resourceCreators')
-                ->whereDoesntHave('resourceContributors')
-                ->delete();
-
-            Publisher::whereDoesntHave('resources')->delete();
-        });
+        $deletedResources = $this->deleteAllResourcesService->deleteAll();
 
         Log::info('All resources deleted by admin', [
             'user_id' => $request->user()?->id,
             'user_email' => $request->user()?->email,
+            'deleted_resources' => $deletedResources,
         ]);
 
         return redirect()
