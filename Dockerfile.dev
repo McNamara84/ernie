@@ -35,6 +35,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     netcat-traditional \
     ca-certificates \
+    libssl3t64 \
+    openssl \
+    openssl-provider-legacy \
     gnupg \
     # Playwright browser runtime dependencies for Pest Browser smoke tests.
     at-spi2-common \
@@ -139,12 +142,9 @@ RUN apt-get update && apt-get install -y \
         libk5crypto3 \
         libkrb5-3 \
         libkrb5support0 \
-        libssl3t64 \
         libsystemd0 \
         libudev1 \
         linux-libc-dev \
-        openssl \
-        openssl-provider-legacy \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \

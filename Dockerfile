@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     netcat-traditional \
     ca-certificates \
+    libssl3t64 \
+    openssl \
+    openssl-provider-legacy \
     gnupg \
     && apt-get install -y --only-upgrade \
         libcap2 \
@@ -26,12 +29,9 @@ RUN apt-get update && apt-get install -y \
         libk5crypto3 \
         libkrb5-3 \
         libkrb5support0 \
-        libssl3t64 \
         libsystemd0 \
         libudev1 \
         linux-libc-dev \
-        openssl \
-        openssl-provider-legacy \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

@@ -41,9 +41,7 @@ final class DeleteAllResourcesService
             $this->trackPublishedResourcesAsDeleted();
 
             $hadAssessments = ResourceAssessment::query()->exists();
-            $deletedResources = Resource::query()->count();
-
-            Resource::withoutEvents(fn (): int => Resource::query()->delete());
+            $deletedResources = Resource::withoutEvents(fn (): int => Resource::query()->delete());
 
             $this->deleteOrphanedAffiliations();
             $this->deleteOrphanedPeopleAndPublishers();
