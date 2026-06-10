@@ -31,12 +31,12 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
-use App\Models\Right;
 use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\Rights\ResourceRightsStorageService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -54,6 +54,7 @@ class DataCiteToResourceTransformer
 
     public function __construct(
         private ?RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService = null,
+        private ?ResourceRightsStorageService $resourceRightsStorage = null,
     ) {}
 
     /**
@@ -1320,29 +1321,12 @@ class DataCiteToResourceTransformer
      */
     private function transformRights(array $rightsList, Resource $resource): void
     {
-        foreach ($rightsList as $rightsData) {
-            $identifier = $rightsData['rightsIdentifier'] ?? null;
-
-            if ($identifier === null) {
-                // Try to find by name if no identifier
-                $name = $rightsData['rights'] ?? null;
-                if ($name !== null) {
-                    $right = Right::where('name', $name)->first();
-                    if ($right) {
-                        $resource->rights()->attach($right->id);
-                    }
-                }
-
-                continue;
-            }
-
-            // Find by SPDX identifier
-            $right = Right::where('identifier', $identifier)->first();
-
-            if ($right) {
-                $resource->rights()->attach($right->id);
-            }
-        }
+        // Store each incoming DataCite rights node as a resource_rights row. If
+        // the local catalog has an exact identifier/name/URI match the row is
+        // linked immediately; otherwise the raw statement remains unresolved so
+        // the SPDX assistant can offer a reviewer-visible suggestion later.
+        ($this->resourceRightsStorage ??= app(ResourceRightsStorageService::class))
+            ->persistImportedStatements($resource, $rightsList, 'datacite-import', $resource->language?->code);
     }
 
     /**

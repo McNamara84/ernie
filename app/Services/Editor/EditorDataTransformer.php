@@ -7,11 +7,15 @@ namespace App\Services\Editor;
 use App\Models\Affiliation;
 use App\Models\ContributorType;
 use App\Models\Datacenter;
+use App\Models\FundingReference;
 use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Support\GemetVocabularyParser;
@@ -61,6 +65,7 @@ class EditorDataTransformer
             'resourceId' => (string) $resource->id,
             'titles' => $this->transformTitles($resource),
             'initialLicenses' => $this->transformLicenses($resource),
+            'initialRawRights' => $this->transformRawRights($resource),
             'authors' => $creators['authors'],
             'contributors' => $creators['contributors'],
             'descriptions' => $this->transformDescriptions($resource),
@@ -128,6 +133,35 @@ class EditorDataTransformer
     }
 
     /**
+     * Transform stored resource-rights statements back to the hidden import
+     * context expected by the editor.
+     *
+     * These values are not displayed as editable UI. They only travel with the
+     * form so a regular resource update does not discard unresolved imported
+     * rights before a reviewer has accepted or declined SPDX suggestions.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function transformRawRights(Resource $resource): array
+    {
+        return $resource->resourceRights
+            ->map(function ($resourceRight): array {
+                return array_filter([
+                    'rights' => $resourceRight->rights_text,
+                    'rightsUri' => $resourceRight->rights_uri,
+                    'rightsIdentifier' => $resourceRight->rights_identifier,
+                    'rightsIdentifierScheme' => $resourceRight->rights_identifier_scheme,
+                    'schemeUri' => $resourceRight->scheme_uri,
+                    'lang' => $resourceRight->language,
+                    'source' => $resourceRight->source,
+                ], fn (?string $value): bool => $value !== null && trim($value) !== '');
+            })
+            ->filter(fn (array $statement): bool => $statement !== [])
+            ->values()
+            ->all();
+    }
+
+    /**
      * Transform resource creators to authors and contributors format.
      *
      * @return array{authors: array<int, array<string, mixed>>, contributors: array<int, array<string, mixed>>}
@@ -157,7 +191,7 @@ class EditorDataTransformer
 
         foreach ($creatorableGroups as $group) {
             // In DataCite 4.6, all ResourceCreator entries are creators (no role distinction)
-            /** @var \App\Models\ResourceCreator $firstEntry */
+            /** @var ResourceCreator $firstEntry */
             $firstEntry = $group->first();
             $creatorable = $firstEntry->creatorable;
 
@@ -207,7 +241,7 @@ class EditorDataTransformer
 
         // Transform ResourceContributor entries to contributors format
         foreach ($resource->contributors as $contributor) {
-            /** @var \App\Models\ResourceContributor $contributor */
+            /** @var ResourceContributor $contributor */
             $data = [
                 'position' => $contributor->position,
                 'roles' => $contributor->contributorTypes->pluck('name')->values()->toArray(),
@@ -488,7 +522,7 @@ class EditorDataTransformer
     {
         return $resource->relatedIdentifiers
             ->sortBy('position')
-            ->map(fn (\App\Models\RelatedIdentifier $relatedId): array => [
+            ->map(fn (RelatedIdentifier $relatedId): array => [
                 'identifier' => $relatedId->identifier,
                 'identifier_type' => $relatedId->identifierType->slug,
                 'relation_type' => $relatedId->relationType->slug,
@@ -509,7 +543,7 @@ class EditorDataTransformer
         return $resource->fundingReferences
             ->sortBy('position')
             ->map(function ($funding): array {
-                /** @var \App\Models\FundingReference $funding */
+                /** @var FundingReference $funding */
                 $identifierType = $funding->funderIdentifierType;
 
                 return [

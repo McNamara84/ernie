@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\ContributorType;
+use App\Models\IgsnMetadata;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
+use App\Models\RelatedItemContributor;
+use App\Models\RelatedItemContributorAffiliation;
+use App\Models\RelatedItemCreator;
+use App\Models\RelatedItemCreatorAffiliation;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -33,7 +38,7 @@ class DataCiteJsonExporter
     /**
      * Export a Resource to DataCite JSON format
      *
-    * @param  Resource  $resource  The resource to export
+     * @param  Resource  $resource  The resource to export
      * @return array<string, mixed> The DataCite JSON structure
      */
     public function export(Resource $resource): array
@@ -334,7 +339,7 @@ class DataCiteJsonExporter
      * Combines sample_type and material with a colon separator when both are available.
      * Returns "Physical Object" as fallback when neither is set.
      */
-    private function buildIgsnResourceType(\App\Models\IgsnMetadata $igsnMetadata): string
+    private function buildIgsnResourceType(IgsnMetadata $igsnMetadata): string
     {
         $parts = array_filter([
             $igsnMetadata->sample_type,
@@ -450,8 +455,8 @@ class DataCiteJsonExporter
         $identifiers = [];
 
         // Always include normalized name for matching
-        $name = strtolower(trim(($person->family_name ?? '') . ',' . ($person->given_name ?? '')));
-        $identifiers[] = 'name:' . $name;
+        $name = strtolower(trim(($person->family_name ?? '').','.($person->given_name ?? '')));
+        $identifiers[] = 'name:'.$name;
 
         // Also include ORCID if available
         // Consistent with buildPersonNameIdentifier(): null scheme defaults to ORCID
@@ -461,7 +466,7 @@ class DataCiteJsonExporter
                 // Normalize ORCID: strip URL prefixes to get bare ID for consistent matching
                 // ORCIDs may be stored as full URLs (https://orcid.org/0000-...) or bare IDs (0000-...)
                 $normalizedOrcid = OrcidNormalizer::extractBareId($person->name_identifier);
-                $identifiers[] = 'orcid:' . $normalizedOrcid;
+                $identifiers[] = 'orcid:'.$normalizedOrcid;
             }
         }
 
@@ -746,7 +751,11 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build rights list from rights table
+     * Build rights list from resource-right statements.
+     *
+     * Linked rows export the trusted catalog values. Unresolved rows export the
+     * raw DataCite values that were imported. This lets a curator delay SPDX
+     * enrichment without losing a valid `rightsList` in downstream exports.
      *
      * @return array<int, array<string, string>>|null
      */
@@ -754,28 +763,46 @@ class DataCiteJsonExporter
     {
         $rightsList = [];
 
-        foreach ($resource->rights as $right) {
-            $rightsData = [
-                'rights' => $right->name,
-            ];
+        $resourceRights = $resource->resourceRights()
+            ->with('right')
+            ->orderBy('id')
+            ->get();
 
-            // Add rightsURI (license reference URL)
-            if ($right->uri) {
-                $rightsData['rightsURI'] = $right->uri;
+        foreach ($resourceRights as $resourceRight) {
+            $right = $resourceRight->right;
+            $rightsText = $right?->name ?? $resourceRight->rights_text;
+
+            if ($rightsText === null || trim($rightsText) === '') {
+                continue;
             }
 
-            // Add rights identifier (SPDX)
-            if ($right->identifier) {
-                $rightsData['rightsIdentifier'] = $right->identifier;
-                $rightsData['rightsIdentifierScheme'] = 'SPDX';
-                if ($right->scheme_uri) {
-                    $rightsData['schemeURI'] = $right->scheme_uri;
+            $rightsData = [
+                'rights' => $rightsText,
+            ];
+
+            $rightsUri = $right?->uri ?? $resourceRight->rights_uri;
+            if ($rightsUri !== null && trim($rightsUri) !== '') {
+                $rightsData['rightsURI'] = $rightsUri;
+            }
+
+            $rightsIdentifier = $right?->identifier ?? $resourceRight->rights_identifier;
+            if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
+                $rightsData['rightsIdentifier'] = $rightsIdentifier;
+
+                $identifierScheme = $resourceRight->rights_identifier_scheme ?? ($right !== null ? 'SPDX' : null);
+                if ($identifierScheme !== null && trim($identifierScheme) !== '') {
+                    $rightsData['rightsIdentifierScheme'] = $identifierScheme;
+                }
+
+                $schemeUri = $right?->scheme_uri ?? $resourceRight->scheme_uri;
+                if ($schemeUri !== null && trim($schemeUri) !== '') {
+                    $rightsData['schemeURI'] = $schemeUri;
                 }
             }
 
-            // Add language if available
-            if ($resource->language) {
-                $rightsData['lang'] = $resource->language->code ?? 'en';
+            $language = $resourceRight->language ?? $resource->language?->code;
+            if ($language !== null && trim($language) !== '') {
+                $rightsData['lang'] = $language;
             }
 
             $rightsList[] = $rightsData;
@@ -995,7 +1022,7 @@ class DataCiteJsonExporter
     /**
      * Build a person entry (creator/contributor) for a related item.
      *
-     * @param \App\Models\RelatedItemCreator|\App\Models\RelatedItemContributor $person
+     * @param  RelatedItemCreator|RelatedItemContributor  $person
      * @return array<string, mixed>
      */
     private function buildRelatedItemPerson($person): array
@@ -1026,7 +1053,7 @@ class DataCiteJsonExporter
 
         $affiliations = [];
         foreach ($person->affiliations as $aff) {
-            /** @var \App\Models\RelatedItemCreatorAffiliation|\App\Models\RelatedItemContributorAffiliation $aff */
+            /** @var RelatedItemCreatorAffiliation|RelatedItemContributorAffiliation $aff */
             $entry = ['name' => $aff->name];
             if (is_string($aff->affiliation_identifier) && $aff->affiliation_identifier !== '') {
                 $entry['affiliationIdentifier'] = $aff->affiliation_identifier;

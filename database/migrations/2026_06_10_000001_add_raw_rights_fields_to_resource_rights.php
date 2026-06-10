@@ -153,11 +153,6 @@ return new class extends Migration
             }
 
             $table->timestamps();
-            $table->unique(['resource_id', 'rights_id'], self::UNIQUE_INDEX);
-
-            if ($includeRawFields) {
-                $table->index(['resource_id', 'source'], self::RESOURCE_SOURCE_INDEX);
-            }
         });
 
         if ($includeRawFields) {
@@ -176,6 +171,19 @@ return new class extends Migration
 
         Schema::drop(self::TABLE);
         Schema::rename(self::TEMP_TABLE, self::TABLE);
+
+        Schema::table(self::TABLE, function (Blueprint $table) use ($includeRawFields): void {
+            // SQLite index names are database-wide, not table-scoped. The old
+            // pivot index still exists while the temporary table is being
+            // created, so we add indexes only after the old table has been
+            // dropped and the rebuilt table has taken the final name.
+            $table->unique(['resource_id', 'rights_id'], self::UNIQUE_INDEX);
+
+            if ($includeRawFields) {
+                $table->index(['resource_id', 'source'], self::RESOURCE_SOURCE_INDEX);
+            }
+        });
+
         Schema::enableForeignKeyConstraints();
     }
 };

@@ -77,7 +77,11 @@ final readonly class DataCiteXmlImportParser
         $mslKeywords = $this->keywordExtractor->extractMslKeywords($reader);
         $gemetKeywords = $this->keywordExtractor->extractGemetKeywords($reader);
 
-        $licenses = $this->rightsParser->parse($reader);
+        $rawRights = $this->rightsParser->parseRawRights($reader);
+        $licenses = array_values(array_filter(array_map(
+            fn (array $rights): ?string => isset($rights['rightsIdentifier']) ? (string) $rights['rightsIdentifier'] : null,
+            $rawRights,
+        )));
         $titles = $this->titleParser->parse($reader);
 
         ['relatedWorks' => $relatedWorks, 'instruments' => $instruments] =
@@ -94,6 +98,7 @@ final readonly class DataCiteXmlImportParser
             resourceType: $resourceType !== null ? (string) $resourceType : null,
             titles: $titles,
             licenses: $licenses,
+            rawRights: $rawRights,
             authors: $authors,
             contributors: $contributors,
             descriptions: $descriptions,
