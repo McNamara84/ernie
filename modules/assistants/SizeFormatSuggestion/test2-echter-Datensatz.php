@@ -1,7 +1,5 @@
-// Starte eine PHP-Datei
 <?php
 
-// strenge Datentyp-Prüfung
 declare(strict_types=1);
 
 // Lädt den Composer-Autoloader
@@ -35,9 +33,15 @@ echo PHP_EOL;
 $service = app(SizeFormatFileProbeService::class);
 
 // Hier beginnt der eigentliche Test
-// Dein Service bekommt die DOI-URL: https://doi.org/10.5880/riesgos.2021.011
+// Der Service bekommt die DOI-URL
+// Getestet: 
+// Idealfall Doi: https://doi.org/10.5880/WSM.2025.001
+// Doi mit mehreren Links bei Files: https://doi.org/10.5880/riesgos.2021.011
+// Doi mit Formular zum ausfüllen bei Files: https://doi.org/10.5880/ICDP.5073.001
+// Doi mit Ordnern bei Files: https://doi.org/10.5880/GFZ_ORBIT/RSO/L06_G_v01
+
 $result = $service->extractAndProbe(
-    'https://doi.org/10.5880/riesgos.2021.011'
+    'https://doi.org/10.5880/GFZ_ORBIT/RSO/L06_G_v01'
 );
 
 // Ergebnis wird in print gespeichert 
