@@ -29,6 +29,9 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { LandingPageTemplateConfig, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
+const DISPLAY_LIMIT_MIN = 1;
+const DISPLAY_LIMIT_MAX = 500;
+const DISPLAY_LIMIT_DEFAULT = 50;
 
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];
@@ -130,6 +133,8 @@ export default function LandingPageTemplatesPage() {
     const [editName, setEditName] = useState('');
     const [editRightOrder, setEditRightOrder] = useState<RightColumnSection[]>([]);
     const [editLeftOrder, setEditLeftOrder] = useState<LeftColumnSection[]>([]);
+    const [editCreatorDisplayLimit, setEditCreatorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
+    const [editContributorDisplayLimit, setEditContributorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [saving, setSaving] = useState(false);
 
     // Delete dialog
@@ -175,18 +180,41 @@ export default function LandingPageTemplatesPage() {
         setEditName(tmpl.name);
         setEditRightOrder(normalizeRightColumnOrder(tmpl.right_column_order));
         setEditLeftOrder(normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type));
+        setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
+        setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditOpen(true);
     };
+
+    const isValidDisplayLimit = (value: string) => {
+        if (!/^\d+$/.test(value)) return false;
+
+        const parsed = Number.parseInt(value, 10);
+
+        return parsed >= DISPLAY_LIMIT_MIN && parsed <= DISPLAY_LIMIT_MAX;
+    };
+
+    const areDisplayLimitsValid =
+        isValidDisplayLimit(editCreatorDisplayLimit) &&
+        isValidDisplayLimit(editContributorDisplayLimit);
 
     const handleSave = async () => {
         if (!editTemplate) return;
         setSaving(true);
         try {
-            await axios.put(`/landing-pages/${editTemplate.id}`, {
-                name: editName.trim(),
-                right_column_order: normalizeRightColumnOrder(editRightOrder),
-                left_column_order: normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
-            });
+            const payload = editTemplate.is_default
+                ? {
+                      creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
+                      contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
+                  }
+                : {
+                      name: editName.trim(),
+                      right_column_order: normalizeRightColumnOrder(editRightOrder),
+                      left_column_order: normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
+                      creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
+                      contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
+                  };
+
+            await axios.put(`/landing-pages/${editTemplate.id}`, payload);
             toast.success('Template updated successfully');
             setEditOpen(false);
             router.reload({ only: ['templates'] });
@@ -353,6 +381,17 @@ export default function LandingPageTemplatesPage() {
                                     </div>
                                 )}
 
+                                <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/20 p-2 text-xs">
+                                    <div>
+                                        <span className="block font-medium text-foreground">Creators shown</span>
+                                        <span className="text-muted-foreground">{tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT}</span>
+                                    </div>
+                                    <div>
+                                        <span className="block font-medium text-foreground">Contributors shown</span>
+                                        <span className="text-muted-foreground">{tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT}</span>
+                                    </div>
+                                </div>
+
                                 {/* Section Order Summary */}
                                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                                     <div>
@@ -379,6 +418,10 @@ export default function LandingPageTemplatesPage() {
                                         <Button variant="outline" size="sm" onClick={() => openClone(tmpl.template_type)}>
                                             <Copy className="mr-1.5 size-3.5" />
                                             Clone this template
+                                        </Button>
+                                        <Button variant="outline" size="sm" onClick={() => openEdit(tmpl)}>
+                                            <Pencil className="mr-1.5 size-3.5" />
+                                            Limits
                                         </Button>
                                     </div>
                                 ) : (
@@ -474,50 +517,91 @@ export default function LandingPageTemplatesPage() {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Pencil className="size-5" />
-                            Edit Template
+                            {editTemplate?.is_default ? 'Edit Display Limits' : 'Edit Template'}
                         </DialogTitle>
                         <DialogDescription>
-                            Customize the template name and drag sections to reorder them.
+                            {editTemplate?.is_default
+                                ? 'Customize how many creators and contributors are shown initially for this built-in template.'
+                                : 'Customize the template name, section order, and initial creator/contributor display limits.'}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-6 py-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-name">Template Name</Label>
-                            <Input
-                                id="edit-name"
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                            />
+                        {!editTemplate?.is_default && (
+                            <>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-name">Template Name</Label>
+                                    <Input
+                                        id="edit-name"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                    />
+                                </div>
+
+                                <Separator />
+                            </>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-creator-display-limit">Creators shown initially</Label>
+                                <Input
+                                    id="edit-creator-display-limit"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={DISPLAY_LIMIT_MIN}
+                                    max={DISPLAY_LIMIT_MAX}
+                                    step={1}
+                                    value={editCreatorDisplayLimit}
+                                    onChange={(e) => setEditCreatorDisplayLimit(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-contributor-display-limit">Contributors shown initially</Label>
+                                <Input
+                                    id="edit-contributor-display-limit"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={DISPLAY_LIMIT_MIN}
+                                    max={DISPLAY_LIMIT_MAX}
+                                    step={1}
+                                    value={editContributorDisplayLimit}
+                                    onChange={(e) => setEditContributorDisplayLimit(e.target.value)}
+                                />
+                            </div>
                         </div>
 
-                        <Separator />
+                        {!editTemplate?.is_default && (
+                            <>
+                                <Separator />
 
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <SectionOrderEditor
-                                title="Right Column (main content)"
-                                items={editRightOrder}
-                                labels={RIGHT_SECTION_LABELS}
-                                description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
-                                onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as RightColumnSection[]))}
-                            />
-                            <SectionOrderEditor
-                                title="Left Column (sidebar)"
-                                items={editLeftOrder}
-                                labels={LEFT_SECTION_LABELS}
-                                description={
-                                    editTemplate?.template_type === 'igsn'
-                                        ? 'IGSN templates use the General and Acquisition modules instead of Files & Downloads.'
-                                        : 'Resource templates render files, contact details, and related material in the sidebar.'
-                                }
-                                onReorder={(items) => setEditLeftOrder(items as LeftColumnSection[])}
-                            />
-                        </div>
+                                <div className="grid gap-6 md:grid-cols-2">
+                                    <SectionOrderEditor
+                                        title="Right Column (main content)"
+                                        items={editRightOrder}
+                                        labels={RIGHT_SECTION_LABELS}
+                                        description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
+                                        onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as RightColumnSection[]))}
+                                    />
+                                    <SectionOrderEditor
+                                        title="Left Column (sidebar)"
+                                        items={editLeftOrder}
+                                        labels={LEFT_SECTION_LABELS}
+                                        description={
+                                            editTemplate?.template_type === 'igsn'
+                                                ? 'IGSN templates use the General and Acquisition modules instead of Files & Downloads.'
+                                                : 'Resource templates render files, contact details, and related material in the sidebar.'
+                                        }
+                                        onReorder={(items) => setEditLeftOrder(items as LeftColumnSection[])}
+                                    />
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                        <LoadingButton loading={saving} disabled={!editName.trim()} onClick={handleSave}>
+                        <LoadingButton loading={saving} disabled={!areDisplayLimitsValid || (!editTemplate?.is_default && !editName.trim())} onClick={handleSave}>
                             Save Changes
                         </LoadingButton>
                     </DialogFooter>

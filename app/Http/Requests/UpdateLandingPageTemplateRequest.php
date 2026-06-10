@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\LandingPageTemplate;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateLandingPageTemplateRequest extends FormRequest
 {
@@ -21,7 +23,7 @@ class UpdateLandingPageTemplateRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -35,15 +37,17 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             'right_column_order.*' => ['required', 'string', Rule::in(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)],
             'left_column_order' => ['sometimes', 'array'],
             'left_column_order.*' => ['required', 'string', Rule::in($allowedLeftColumnSections)],
+            'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
+            'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
         ];
     }
 
     /**
      * Configure the validator instance.
      */
-    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    public function withValidator(Validator $validator): void
     {
-        $validator->after(function (\Illuminate\Validation\Validator $validator): void {
+        $validator->after(function (Validator $validator): void {
             /** @var LandingPageTemplate $template */
             $template = $this->route('landingPageTemplate');
             $allowedLeftColumnSections = LandingPageTemplate::leftColumnSectionsForTemplateType($template->template_type);

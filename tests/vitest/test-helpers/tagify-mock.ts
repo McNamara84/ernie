@@ -38,12 +38,18 @@ export class MockTagify {
     public value: MockTagifyValue[] = [];
     public settings: Record<string, unknown> = {};
     public whitelist: Array<Record<string, unknown>> = [];
+    public dropdownHideCalls = 0;
+    public dropdown = {
+        hide: () => {
+            this.dropdownHideCalls += 1;
+        },
+    };
     private inputElement: HTMLInputElement;
     private handlers = new Map<string, Set<ChangeHandler>>();
 
     constructor(inputElement: HTMLInputElement, settings?: Record<string, unknown>) {
         this.inputElement = inputElement;
-        this.settings = { delimiters: ',', editTags: 1, ...settings };
+        this.settings = { delimiters: ',', editTags: 1, dropdown: { enabled: 0 }, autoComplete: { enabled: true }, ...settings };
 
         const scope = document.createElement('div');
         scope.className = 'tagify';

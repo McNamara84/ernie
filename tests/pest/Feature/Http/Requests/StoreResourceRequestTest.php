@@ -254,6 +254,36 @@ describe('authors validation', function () {
         // prepareForValidation defaults missing type to 'person', so no validation error on type
         $response->assertJsonMissingValidationErrors(['authors.0.type']);
     });
+
+    it('accepts authors without an affiliations field', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        unset($data['authors'][0]['affiliations']);
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'authors.0.affiliations',
+            'authors.0.affiliations.0.value',
+        ]);
+    });
+
+    it('accepts empty and ROR-only author affiliation rows', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['authors'][0]['affiliations'] = [
+            ['value' => '', 'rorId' => ''],
+            ['value' => '', 'rorId' => 'https://ror.org/04wxnsj81'],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'authors.0.affiliations',
+            'authors.0.affiliations.0.value',
+            'authors.0.affiliations.1.value',
+        ]);
+    });
 });
 
 // =========================================================================
@@ -552,6 +582,55 @@ describe('contributor contact person validation', function () {
             ->postJson('/editor/resources', $data);
 
         $response->assertJsonMissingValidationErrors(['contributors.0.email']);
+    });
+
+    it('accepts contributors without an affiliations field', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Other',
+                'lastName' => 'Contributor',
+                'roles' => ['DataCollector'],
+                'email' => '',
+                'website' => '',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'contributors.0.affiliations',
+            'contributors.0.affiliations.0.value',
+        ]);
+    });
+
+    it('accepts empty and ROR-only contributor affiliation rows', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['contributors'] = [
+            [
+                'type' => 'person',
+                'firstName' => 'Other',
+                'lastName' => 'Contributor',
+                'roles' => ['DataCollector'],
+                'email' => '',
+                'website' => '',
+                'affiliations' => [
+                    ['value' => '', 'rorId' => ''],
+                    ['value' => '', 'rorId' => 'https://ror.org/04wxnsj81'],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors([
+            'contributors.0.affiliations',
+            'contributors.0.affiliations.0.value',
+            'contributors.0.affiliations.1.value',
+        ]);
     });
 
     it('requires email when ContactPerson slug role is used', function () {

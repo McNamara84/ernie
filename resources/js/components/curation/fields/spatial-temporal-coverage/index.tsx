@@ -1,5 +1,5 @@
 import { MapPin, Plus } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -90,6 +90,8 @@ const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[], maxCoverages:
  * Main component for managing spatial and temporal coverage entries
  */
 export default function SpatialTemporalCoverageField({ coverages, apiKey, onChange, maxCoverages = 99 }: SpatialTemporalCoverageFieldProps) {
+    const [expandedCoverageIds, setExpandedCoverageIds] = useState<Set<string>>(() => new Set());
+
     // Normalize coverages on mount if they don't have type field
     // This runs only once with the initial coverages prop value to handle legacy data
     useEffect(() => {
@@ -115,12 +117,30 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
 
     const handleAddCoverage = () => {
         if (canAddCoverage(coverages, maxCoverages)) {
-            onChange([...coverages, createEmptyCoverage()]);
+            const newCoverage = createEmptyCoverage();
+
+            setExpandedCoverageIds((current) => {
+                const next = new Set(current);
+                next.add(newCoverage.id);
+                return next;
+            });
+
+            onChange([...coverages, newCoverage]);
         }
     };
 
     const handleRemoveCoverage = (index: number) => {
+        const removedCoverageId = coverages[index]?.id;
         const updated = coverages.filter((_, i) => i !== index);
+
+        if (removedCoverageId) {
+            setExpandedCoverageIds((current) => {
+                const next = new Set(current);
+                next.delete(removedCoverageId);
+                return next;
+            });
+        }
+
         onChange(updated);
     };
 
@@ -138,6 +158,7 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
                         onChange={(field, value) => handleEntryChange(index, field, value)}
                         onBatchChange={(updates) => handleEntryBatchChange(index, updates)}
                         onRemove={() => handleRemoveCoverage(index)}
+                        initiallyExpanded={expandedCoverageIds.has(coverage.id)}
                     />
                 ))
             ) : (

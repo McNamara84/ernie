@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-05-31",
+        "date": "2026-06-03",
         "features": [
             {
                 "title": "Landing Page and Portal Statistics Dashboard",
@@ -255,6 +255,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Global Coverage Handling on Landing Page and Portal Maps",
+                "description": "Landing Page Location sections now treat exact whole-world bounding boxes as global coverage instead of drawing them as oversized rectangles. Global-only resources show a concise spatial coverage notice, mixed global and local coverage keeps the local geometries visible, and Landing Page maps use a 2:1 layout with Leaflet world wrapping disabled. The public portal map also excludes global coverage shapes so worldwide resources no longer cover more specific results on the map while remaining available in the search result list."
+            },
             {
                 "title": "Resources List Actions Stay in Sync",
                 "description": "The /resources page now refreshes immediately after successful legacy imports, draft resources can again be deleted from the per-row trash action by authorized curator, group leader, and admin users, and reopening the landing page setup modal in the same browser tab no longer drops unsaved Download URL or Additional Links input."

@@ -42,6 +42,34 @@ describe('CoordinateInputs', () => {
             expect(screen.getByText(/^Max \(Optional\)$/i)).toBeInTheDocument();
         });
 
+        test('uses min/max tab order by default', async () => {
+            const user = userEvent.setup();
+            const { container } = render(<CoordinateInputs {...defaultProps} />);
+
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lat-min'));
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lon-min'));
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lat-max'));
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lon-max'));
+        });
+
+        test('uses latitude then longitude tab order for bounding boxes', async () => {
+            const user = userEvent.setup();
+            const { container } = render(<CoordinateInputs {...defaultProps} coordinateOrder="lat-lon" />);
+
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lat-min'));
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lat-max'));
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lon-min'));
+            await user.tab();
+            expect(document.activeElement).toBe(container.querySelector('#lon-max'));
+        });
+
         test('hides labels when showLabels is false', () => {
             render(<CoordinateInputs {...defaultProps} showLabels={false} />);
 

@@ -6,13 +6,14 @@ import { OrcidIcon, RorIcon } from './PidIcons';
 
 interface ContributorsSectionProps {
     contributors: LandingPageContributor[];
+    displayLimit?: number;
 }
 
 /**
  * Renders the list of contributors with ORCID/ROR icons and contributor type badges.
- * Collapses when there are more than 10 contributors.
+ * Collapses when there are more contributors than the configured display limit.
  */
-export function ContributorsSection({ contributors }: ContributorsSectionProps) {
+export function ContributorsSection({ contributors, displayLimit = 50 }: ContributorsSectionProps) {
     if (contributors.length === 0) {
         return null;
     }
@@ -22,7 +23,9 @@ export function ContributorsSection({ contributors }: ContributorsSectionProps) 
             <h3 id="heading-contributors" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Contributors</h3>
             <CollapsibleList
                 items={contributors}
+                threshold={displayLimit}
                 itemLabel="contributors"
+                showSummary={true}
                 wrapper={(children) => (
                     <ul className="space-y-2" data-testid="contributors-list">
                         {children}

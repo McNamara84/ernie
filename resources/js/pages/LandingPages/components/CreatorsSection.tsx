@@ -1,16 +1,18 @@
 import type { LandingPageCreator } from '@/types/landing-page';
 
 import { formatPersonName } from '../lib/formatPersonName';
+import { CollapsibleList } from './CollapsibleList';
 import { OrcidIcon, RorIcon } from './PidIcons';
 
 interface CreatorsSectionProps {
     creators: LandingPageCreator[];
+    displayLimit?: number;
 }
 
 /**
  * Renders the list of creators (authors) with ORCID and ROR icons.
  */
-export function CreatorsSection({ creators }: CreatorsSectionProps) {
+export function CreatorsSection({ creators, displayLimit = 50 }: CreatorsSectionProps) {
     if (creators.length === 0) {
         return null;
     }
@@ -18,8 +20,17 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
     return (
         <section className="mt-6" data-testid="creators-section" aria-labelledby="heading-creators">
             <h3 id="heading-creators" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Creators</h3>
-            <ul className="space-y-2" data-testid="creators-list">
-                {creators.map((creator) => {
+            <CollapsibleList
+                items={creators}
+                threshold={displayLimit}
+                itemLabel="creators"
+                showSummary={true}
+                wrapper={(children) => (
+                    <ul className="space-y-2" data-testid="creators-list">
+                        {children}
+                    </ul>
+                )}
+                renderItem={(creator) => {
                     const creatorable = creator.creatorable;
                     const firstAffiliation = creator.affiliations[0];
                     const isPerson = creatorable.type === 'Person';
@@ -63,8 +74,8 @@ export function CreatorsSection({ creators }: CreatorsSectionProps) {
                             )}
                         </li>
                     );
-                })}
-            </ul>
+                }}
+            />
         </section>
     );
 }

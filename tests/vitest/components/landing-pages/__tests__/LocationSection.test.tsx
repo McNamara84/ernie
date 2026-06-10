@@ -7,10 +7,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock react-leaflet components since they require browser APIs
 vi.mock('react-leaflet', () => ({
-    MapContainer: vi.fn(({ children }) => (
-        <div data-testid="leaflet-map">{children}</div>
+    MapContainer: vi.fn(({ children, maxBounds, maxBoundsViscosity, worldCopyJump }) => (
+        <div
+            data-testid="leaflet-map"
+            data-max-bounds={JSON.stringify(maxBounds)}
+            data-max-bounds-viscosity={String(maxBoundsViscosity)}
+            data-world-copy-jump={String(worldCopyJump)}
+        >
+            {children}
+        </div>
     )),
-    TileLayer: vi.fn(({ url }) => <div data-testid="tile-layer" data-url={url} />),
+    TileLayer: vi.fn(({ noWrap, url }) => <div data-testid="tile-layer" data-no-wrap={String(noWrap)} data-url={url} />),
     Marker: vi.fn(({ position }) => (
         <div data-testid="marker" data-position={JSON.stringify(position)} />
     )),
@@ -142,6 +149,33 @@ describe('LocationSection', () => {
             );
 
             expect(screen.getByTestId('map-container')).toBeInTheDocument();
+        });
+
+        it('should render maps with a 2:1 aspect ratio and bounded world tiles', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'GFZ Potsdam',
+                            point_longitude: 13.0661,
+                            point_latitude: 52.3806,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByTestId('map-container')).toHaveClass('aspect-[2/1]');
+            expect(screen.getByTestId('leaflet-map').dataset.maxBounds).toBe('[[-90,-180],[90,180]]');
+            expect(screen.getByTestId('leaflet-map').dataset.maxBoundsViscosity).toBe('1');
+            expect(screen.getByTestId('leaflet-map').dataset.worldCopyJump).toBe('false');
+            expect(screen.getByTestId('tile-layer').dataset.noWrap).toBe('true');
         });
     });
 
@@ -364,6 +398,109 @@ describe('LocationSection', () => {
             expect(screen.getByTestId('marker')).toBeInTheDocument();
             expect(screen.getByTestId('rectangle')).toBeInTheDocument();
             expect(screen.getByTestId('polygon')).toBeInTheDocument();
+        });
+
+        it('should show a global coverage message without rendering a map for global-only coverage', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'World',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: -180,
+                            east_bound_longitude: 180,
+                            south_bound_latitude: -90,
+                            north_bound_latitude: 90,
+                            polygon_points: null,
+                            geo_type: 'box',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByText('Location')).toBeInTheDocument();
+            expect(screen.getByTestId('global-coverage-message')).toHaveTextContent('This dataset has global spatial coverage.');
+            expect(screen.queryByTestId('map-container')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('rectangle')).not.toBeInTheDocument();
+        });
+
+        it('should render local point geometry and the message for mixed global and point coverage', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'World',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: -180,
+                            east_bound_longitude: 180,
+                            south_bound_latitude: -90,
+                            north_bound_latitude: 90,
+                            polygon_points: null,
+                            geo_type: 'box',
+                        },
+                        {
+                            id: 2,
+                            place: 'Potsdam',
+                            point_longitude: 13.0661,
+                            point_latitude: 52.3806,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: null,
+                            geo_type: 'point',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByTestId('global-coverage-message')).toBeInTheDocument();
+            expect(screen.getByTestId('marker')).toBeInTheDocument();
+            expect(screen.queryByTestId('rectangle')).not.toBeInTheDocument();
+        });
+
+        it('should render only local rectangles for mixed global and local box coverage', () => {
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'World',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: -180,
+                            east_bound_longitude: 180,
+                            south_bound_latitude: -90,
+                            north_bound_latitude: 90,
+                            polygon_points: null,
+                            geo_type: 'box',
+                        },
+                        {
+                            id: 2,
+                            place: 'Germany',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: 5.87,
+                            east_bound_longitude: 15.04,
+                            south_bound_latitude: 47.27,
+                            north_bound_latitude: 55.06,
+                            polygon_points: null,
+                            geo_type: 'box',
+                        },
+                    ]}
+                />,
+            );
+
+            const rectangles = screen.getAllByTestId('rectangle');
+            expect(rectangles).toHaveLength(1);
+            expect(JSON.parse(rectangles[0].dataset.bounds || '[]')).toEqual([
+                [47.27, 5.87],
+                [55.06, 15.04],
+            ]);
         });
     });
 

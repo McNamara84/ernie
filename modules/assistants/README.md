@@ -6,6 +6,7 @@ The project team consists of the following members:
 - PiaKruschinski: Scrum Master, planning
 - Leo Weiß: Developer, organizer
 - Maryia Balonnikava: Testing, bug hunting
+- DanielSchaefer: Product Owner, Requirements Engineering and Project Coordination
 - PhilSeidelFH: Developer, (programming)
 - Lennart Ubben: developer, problem solving
 - Mahdi Ahmadi Yeganeh: developer

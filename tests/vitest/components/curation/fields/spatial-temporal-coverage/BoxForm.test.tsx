@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import BoxForm from '@/components/curation/fields/spatial-temporal-coverage/BoxForm';
@@ -43,16 +44,19 @@ vi.mock('@/components/curation/fields/spatial-temporal-coverage/CoordinateInputs
         lonMin,
         latMax,
         lonMax,
+        coordinateOrder,
         onChange,
     }: {
         latMin: string;
         lonMin: string;
         latMax: string;
         lonMax: string;
+        coordinateOrder?: 'min-max' | 'lat-lon';
         onChange: (field: 'latMin' | 'lonMin' | 'latMax' | 'lonMax', value: string) => void;
         showLabels: boolean;
     }) => (
         <div data-testid="coordinate-inputs">
+            <span data-testid="coordinate-order">{coordinateOrder}</span>
             <input data-testid="lat-min-input" value={latMin} onChange={(e) => onChange('latMin', e.target.value)} />
             <input data-testid="lon-min-input" value={lonMin} onChange={(e) => onChange('lonMin', e.target.value)} />
             <input data-testid="lat-max-input" value={latMax} onChange={(e) => onChange('latMax', e.target.value)} />
@@ -107,6 +111,33 @@ describe('BoxForm', () => {
         expect(screen.getByTestId('lon-min-input')).toHaveValue('12.0000');
         expect(screen.getByTestId('lat-max-input')).toHaveValue('53.0000');
         expect(screen.getByTestId('lon-max-input')).toHaveValue('14.0000');
+    });
+
+    it('uses latitude then longitude coordinate order', () => {
+        render(<BoxForm {...defaultProps} />);
+
+        expect(screen.getByTestId('coordinate-order')).toHaveTextContent('lat-lon');
+    });
+
+    it('renders a Global button for world coverage', () => {
+        render(<BoxForm {...defaultProps} />);
+
+        expect(screen.getByRole('button', { name: /global/i })).toBeInTheDocument();
+    });
+
+    it('sets global coverage coordinates when the Global button is clicked', async () => {
+        const user = userEvent.setup();
+        const onBatchChange = vi.fn();
+        render(<BoxForm {...defaultProps} onBatchChange={onBatchChange} />);
+
+        await user.click(screen.getByRole('button', { name: /global/i }));
+
+        expect(onBatchChange).toHaveBeenCalledWith({
+            latMin: '-90.000000',
+            latMax: '90.000000',
+            lonMin: '-180.000000',
+            lonMax: '180.000000',
+        });
     });
 
     it('calls onBatchChange when rectangle is selected on map', async () => {

@@ -70,7 +70,7 @@ export function SectionHeader({
                     <Label id={id} className="text-base font-semibold" data-slot="label">
                         {label}
                         {required && (
-                            <span className="ml-0.5 text-destructive" aria-label="Required">
+                            <span className="ml-0.5 font-bold text-destructive" aria-label="Required">
                                 *
                             </span>
                         )}

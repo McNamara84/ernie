@@ -146,7 +146,7 @@ export function FundingReferenceItem({
             <div className="mt-6 space-y-4">
                 <div className="relative">
                     <Label htmlFor={`${funding.id}-funder-name`}>
-                        Funder Name <span className="text-destructive">*</span>
+                        Funder Name <span className="font-bold text-destructive">*</span>
                     </Label>
                     <Input
                         ref={inputRef}

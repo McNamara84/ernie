@@ -21,6 +21,22 @@ function getTagifyInstance(inputId: string): MockTagify {
     return input.tagify;
 }
 
+function getDropdownSettings(tagify: MockTagify): { enabled: number | boolean } {
+    const dropdown = tagify.settings.dropdown;
+    if (!dropdown || typeof dropdown !== 'object') {
+        throw new Error('Expected dropdown settings to exist');
+    }
+    return dropdown as { enabled: number | boolean };
+}
+
+function getAutoCompleteSettings(tagify: MockTagify): { enabled: boolean } {
+    const autoComplete = tagify.settings.autoComplete;
+    if (!autoComplete || typeof autoComplete !== 'object') {
+        throw new Error('Expected autoComplete settings to exist');
+    }
+    return autoComplete as { enabled: boolean };
+}
+
 describe('TagInputField — edit mode rorId preservation', () => {
     afterEach(() => {
         cleanup();
@@ -76,10 +92,14 @@ describe('TagInputField — edit mode rorId preservation', () => {
         tagify.emit('edit:start', { data: { value: 'GFZ Helmholtz Centre for Geosciences', rorId } });
         expect(tagify.settings.delimiters).toBeInstanceOf(RegExp);
         expect(','.match(tagify.settings.delimiters as RegExp)).toBeNull();
+        expect(getDropdownSettings(tagify).enabled).toBe(false);
+        expect(getAutoCompleteSettings(tagify).enabled).toBe(false);
 
         // Simulate edit:updated — delimiter should be restored
         tagify.emit('edit:updated', { data: { value: 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany' } });
         expect(tagify.settings.delimiters).toBe(',');
+        expect(getDropdownSettings(tagify).enabled).toBe(0);
+        expect(getAutoCompleteSettings(tagify).enabled).toBe(true);
     });
 
     it('does not suspend delimiter when editing a tag without rorId', () => {
@@ -150,5 +170,90 @@ describe('TagInputField — edit mode rorId preservation', () => {
 
         // rorId should NOT be set since the original had none
         expect(editedTagData.rorId).toBeUndefined();
+    });
+
+    it('keeps an edited ROR affiliation label exactly as typed and preserves rorId', () => {
+        const onChange = vi.fn();
+        const rorId = 'https://ror.org/04z8jg394';
+        const editedValue = 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany';
+
+        render(
+            <TagInputField
+                id="affiliations"
+                label="Affiliations"
+                value={[{ value: 'GFZ Helmholtz Centre for Geosciences', rorId }]}
+                onChange={onChange}
+                tagifySettings={{
+                    whitelist: [{ value: 'GFZ Helmholtz Centre for Geosciences', rorId, searchTerms: ['GFZ'] }],
+                    dropdown: {
+                        enabled: 1,
+                        maxItems: 20,
+                        closeOnSelect: true,
+                        searchKeys: ['value', 'searchTerms'],
+                    },
+                }}
+            />,
+        );
+
+        const tagify = getTagifyInstance('affiliations');
+        expect(getDropdownSettings(tagify).enabled).toBe(1);
+
+        tagify.emit('edit:start', { data: { value: 'GFZ Helmholtz Centre for Geosciences', rorId } });
+        expect(getDropdownSettings(tagify).enabled).toBe(false);
+        expect(getAutoCompleteSettings(tagify).enabled).toBe(false);
+
+        const editedTagData: Record<string, unknown> = { value: editedValue };
+        tagify.value = [{ value: editedValue, rorId, data: { rorId } }];
+        tagify.emit('edit:updated', { data: editedTagData });
+        tagify.emit('change', { value: editedValue, tagify });
+
+        expect(editedTagData).toEqual({ value: editedValue, rorId });
+        expect(editedValue.startsWith('(')).toBe(false);
+        expect(onChange).toHaveBeenLastCalledWith({
+            raw: editedValue,
+            tags: [{ value: editedValue, rorId }],
+        });
+        expect(getDropdownSettings(tagify).enabled).toBe(1);
+        expect(getAutoCompleteSettings(tagify).enabled).toBe(true);
+    });
+
+    it('keeps dropdown suspended if affiliation suggestions load while a ROR tag is being edited', () => {
+        const onChange = vi.fn();
+        const rorId = 'https://ror.org/04z8jg394';
+        const initialValue = [{ value: 'GFZ Helmholtz Centre for Geosciences', rorId }];
+
+        const { rerender } = render(
+            <TagInputField
+                id="affiliations"
+                label="Affiliations"
+                value={initialValue}
+                onChange={onChange}
+                tagifySettings={{
+                    whitelist: [],
+                    dropdown: { enabled: 0 },
+                }}
+            />,
+        );
+
+        const tagify = getTagifyInstance('affiliations');
+        tagify.emit('edit:start', { data: { value: 'GFZ Helmholtz Centre for Geosciences', rorId } });
+
+        rerender(
+            <TagInputField
+                id="affiliations"
+                label="Affiliations"
+                value={initialValue}
+                onChange={onChange}
+                tagifySettings={{
+                    whitelist: [{ value: 'GFZ Helmholtz Centre for Geosciences', rorId, searchTerms: ['GFZ'] }],
+                    dropdown: { enabled: 1 },
+                }}
+            />,
+        );
+
+        expect(getDropdownSettings(tagify).enabled).toBe(false);
+
+        tagify.emit('edit:updated', { data: { value: 'GFZ Helmholtz Centre for Geosciences, Potsdam, Germany' } });
+        expect(getDropdownSettings(tagify).enabled).toBe(1);
     });
 });

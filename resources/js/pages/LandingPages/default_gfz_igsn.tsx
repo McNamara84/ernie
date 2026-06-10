@@ -1,7 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import { type ReactNode, useMemo } from 'react';
 
-import type { LandingPageConfig, LandingPageResource, LeftColumnSection, SectionOrder } from '@/types/landing-page';
+import type { LandingPageConfig, LandingPageDisplayLimits, LandingPageResource, LeftColumnSection, SectionOrder } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
 import { AcquisitionSection } from './components/AcquisitionSection';
@@ -29,9 +29,15 @@ interface DefaultGfzIgsnTemplatePageProps {
     schemaOrgJsonLd?: Record<string, unknown>;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
+    displayLimits?: LandingPageDisplayLimits;
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
+
+const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
+    creators: 50,
+    contributors: 50,
+};
 
 /**
  * Default GFZ IGSN Landing Page Template
@@ -41,9 +47,10 @@ interface DefaultGfzIgsnTemplatePageProps {
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl } =
+    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits } =
         usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
+    const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
     const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview);
 
@@ -68,11 +75,12 @@ export default function DefaultGfzIgsnTemplate() {
                     resourceId={resource.id}
                     jsonLdExportUrl={jsonLdExportUrl}
                     sectionOrder={metadataOrder}
+                    displayLimits={peopleDisplayLimits}
                 />
             ),
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
-    }, [resource, landingPage, isDark, metadataOrder]);
+    }, [resource, landingPage, isDark, metadataOrder, peopleDisplayLimits]);
 
     const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
         return {

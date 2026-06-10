@@ -10,6 +10,7 @@ import { MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, useMap }
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GLOBAL_COVERAGE_MESSAGE, isGlobalCoverageBounds } from '@/lib/geo-coverage';
 
 import { LandingPageCard } from './LandingPageCard';
 
@@ -48,6 +49,11 @@ interface LocationSectionProps {
 // GFZ Corporate Blue
 const GFZ_BLUE = '#0C2A63';
 
+const WORLD_BOUNDS: L.LatLngBoundsExpression = [
+    [-90, -180],
+    [90, 180],
+];
+
 /**
  * Check if a GeoLocation has a valid point defined
  */
@@ -64,6 +70,21 @@ function hasBox(geo: GeoLocation): boolean {
         geo.east_bound_longitude !== null &&
         geo.south_bound_latitude !== null &&
         geo.north_bound_latitude !== null
+    );
+}
+
+/**
+ * Check if a GeoLocation box covers the whole world.
+ */
+function isGlobalCoverage(geo: GeoLocation): boolean {
+    return isGlobalCoverageBounds(
+        {
+            west: geo.west_bound_longitude,
+            east: geo.east_bound_longitude,
+            south: geo.south_bound_latitude,
+            north: geo.north_bound_latitude,
+        },
+        geo.geo_type,
     );
 }
 
@@ -341,6 +362,17 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
     );
 }
 
+function GlobalCoverageNotice() {
+    return (
+        <p
+            className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-gray-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-gray-200"
+            data-testid="global-coverage-message"
+        >
+            {GLOBAL_COVERAGE_MESSAGE}
+        </p>
+    );
+}
+
 /**
  * LocationSection Component
  *
@@ -363,8 +395,13 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
         [geoLocations],
     );
 
+    const globalLocations = useMemo(() => validLocations.filter((geo) => isGlobalCoverage(geo)), [validLocations]);
+    const mappableLocations = useMemo(() => validLocations.filter((geo) => !isGlobalCoverage(geo)), [validLocations]);
+
     // Calculate bounds for auto-zoom
-    const bounds = useMemo(() => calculateBounds(validLocations), [validLocations]);
+    const bounds = useMemo(() => calculateBounds(mappableLocations), [mappableLocations]);
+    const hasGlobalCoverage = globalLocations.length > 0;
+    const hasMappableLocations = mappableLocations.length > 0;
 
     // Don't render if no valid locations
     if (validLocations.length === 0) {
@@ -379,13 +416,14 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
         : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
     // Show loading placeholder during SSR — always visible (no fade-in gating)
-    if (!isMounted) {
+    if (!isMounted && hasMappableLocations) {
         return (
             <LandingPageCard disableFadeIn aria-labelledby="heading-location">
                 <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                     Location
                 </h2>
-                <Skeleton className="h-[300px] w-full rounded-lg" />
+                {hasGlobalCoverage && <GlobalCoverageNotice />}
+                <Skeleton className="aspect-[2/1] w-full rounded-lg" />
             </LandingPageCard>
         );
     }
@@ -395,21 +433,32 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
             <h2 id="heading-location" className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Location
             </h2>
-            <div
-                className="relative z-0 h-[300px] w-full overflow-hidden rounded-lg"
-                data-testid="map-container"
-                aria-label="Map showing the geographic location of the dataset"
-            >
-                <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer attribution={tileAttribution} url={tileUrl} />
-                    <FitBoundsControl bounds={bounds} />
-                    <FullscreenControl />
+            {hasGlobalCoverage && <GlobalCoverageNotice />}
+            {hasMappableLocations && (
+                <div
+                    className="relative z-0 aspect-[2/1] w-full overflow-hidden rounded-lg"
+                    data-testid="map-container"
+                    aria-label="Map showing the geographic location of the dataset"
+                >
+                    <MapContainer
+                        bounds={bounds}
+                        className="h-full w-full"
+                        maxBounds={WORLD_BOUNDS}
+                        maxBoundsViscosity={1}
+                        scrollWheelZoom={true}
+                        style={{ height: '100%', width: '100%' }}
+                        worldCopyJump={false}
+                    >
+                        <TileLayer attribution={tileAttribution} noWrap={true} url={tileUrl} />
+                        <FitBoundsControl bounds={bounds} />
+                        <FullscreenControl />
 
-                    {validLocations.map((geo) => (
-                        <GeoLocationLayer key={geo.id} geoLocation={geo} />
-                    ))}
-                </MapContainer>
-            </div>
+                        {mappableLocations.map((geo) => (
+                            <GeoLocationLayer key={geo.id} geoLocation={geo} />
+                        ))}
+                    </MapContainer>
+                </div>
+            )}
         </LandingPageCard>
     );
 }

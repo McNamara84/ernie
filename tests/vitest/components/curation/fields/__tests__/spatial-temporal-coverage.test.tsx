@@ -14,16 +14,21 @@ vi.mock(
         default: ({
             entry,
             index,
+            initiallyExpanded,
             onChange,
             onRemove,
         }: {
             entry: SpatialTemporalCoverageEntry;
             index: number;
+            initiallyExpanded?: boolean;
             onChange: (id: string, changes: Partial<SpatialTemporalCoverageEntry>) => void;
             onRemove: (id: string) => void;
         }) => (
             <div data-testid={`coverage-entry-${index}`}>
                 <span>Coverage {index + 1}</span>
+                <span data-testid={`coverage-entry-${index}-expanded`}>
+                    {initiallyExpanded ? 'expanded' : 'collapsed'}
+                </span>
                 <input
                     aria-label="Latitude *"
                     id="lat-min"
@@ -110,6 +115,56 @@ describe('SpatialTemporalCoverageField', () => {
 
         expect(screen.getByTestId('coverage-entry-0')).toBeInTheDocument();
         expect(screen.queryByText(/no coverage entries yet/i)).not.toBeInTheDocument();
+    });
+
+    test('renders existing coverage entries collapsed initially', () => {
+        const existingEntries: SpatialTemporalCoverageEntry[] = [
+            {
+                id: 'test-1',
+                type: 'point',
+                latMin: '48.137154',
+                lonMin: '11.576124',
+                latMax: '',
+                lonMax: '',
+                startDate: '2024-01-01',
+                endDate: '2024-12-31',
+                startTime: '',
+                endTime: '',
+                timezone: 'UTC',
+                description: '',
+            },
+        ];
+
+        render(
+            <SpatialTemporalCoverageField
+                {...defaultProps}
+                coverages={existingEntries}
+            />,
+        );
+
+        expect(screen.getByTestId('coverage-entry-0-expanded')).toHaveTextContent('collapsed');
+    });
+
+    test('renders newly added coverage entries expanded initially', async () => {
+        const user = userEvent.setup();
+        const { rerender } = render(<SpatialTemporalCoverageField {...defaultProps} />);
+
+        const addButton = screen.getByRole('button', {
+            name: /add.*coverage entry/i,
+        });
+
+        await user.click(addButton);
+
+        const newCoverages = mockOnChange.mock.calls[0][0];
+
+        rerender(
+            <SpatialTemporalCoverageField
+                {...defaultProps}
+                coverages={newCoverages}
+            />,
+        );
+
+        expect(screen.getByTestId('coverage-entry-0-expanded')).toHaveTextContent('expanded');
     });
 
     test('renders multiple coverage entries', () => {

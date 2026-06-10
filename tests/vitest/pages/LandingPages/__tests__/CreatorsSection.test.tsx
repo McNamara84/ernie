@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { render, screen } from '@tests/vitest/utils/render';
+import { fireEvent, render, screen } from '@tests/vitest/utils/render';
 import { describe, expect, it } from 'vitest';
 
 import { CreatorsSection } from '@/pages/LandingPages/components/CreatorsSection';
@@ -103,5 +103,32 @@ describe('CreatorsSection', () => {
         render(<CreatorsSection creators={creators} />);
         expect(screen.getByText('Doe, John')).toBeInTheDocument();
         expect(screen.getByText('Smith, Jane')).toBeInTheDocument();
+    });
+
+    it('limits initially visible creators and shows the full list on request', () => {
+        const creators = Array.from({ length: 4 }, (_, i) => mockCreator({
+            id: i + 1,
+            creatorable: {
+                id: i + 1,
+                type: 'Person',
+                name: `Creator, ${i + 1}`,
+                given_name: `${i + 1}`,
+                family_name: 'Creator',
+                name_identifier: null,
+                name_identifier_scheme: null,
+            },
+        }));
+
+        render(<CreatorsSection creators={creators} displayLimit={2} />);
+
+        expect(screen.getByText('Showing 2 of 4 creators')).toBeInTheDocument();
+        const listItems = screen.getAllByRole('listitem');
+        expect(listItems).toHaveLength(4);
+        expect(listItems.filter((item) => !item.classList.contains('hidden'))).toHaveLength(2);
+
+        fireEvent.click(screen.getByRole('button', { name: /Show all 4 creators/i }));
+
+        expect(screen.getByText('Showing all 4 creators')).toBeInTheDocument();
+        expect(screen.getAllByRole('listitem').filter((item) => !item.classList.contains('hidden'))).toHaveLength(4);
     });
 });

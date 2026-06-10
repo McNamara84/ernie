@@ -236,6 +236,10 @@ erDiagram
         bigint language_id FK
         bigint created_by_user_id FK
         bigint updated_by_user_id FK
+        varchar legacy_source "50, nullable"
+        bigint legacy_source_id "nullable"
+        varchar legacy_source_status "50, nullable"
+        boolean force_review_status "default false"
         timestamp created_at
         timestamp updated_at
     }
@@ -530,6 +534,8 @@ erDiagram
         varchar logo_filename "nullable"
         json right_column_order
         json left_column_order
+        smallint creator_display_limit "default 50"
+        smallint contributor_display_limit "default 50"
         bigint created_by FK "nullable"
         timestamp created_at
         timestamp updated_at

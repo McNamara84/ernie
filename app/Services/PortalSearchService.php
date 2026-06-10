@@ -1028,26 +1028,30 @@ class PortalSearchService
      */
     private function formatGeoLocations(Resource $resource): array
     {
-        return $resource->geoLocations->map(function (GeoLocation $geo): array {
-            return [
-                'id' => $geo->id,
-                'type' => $this->determineGeoType($geo),
-                'point' => $geo->point_latitude !== null && $geo->point_longitude !== null
-                    ? ['lat' => (float) $geo->point_latitude, 'lng' => (float) $geo->point_longitude]
-                    : null,
-                'bounds' => $geo->west_bound_longitude !== null
-                    ? [
-                        'north' => (float) $geo->north_bound_latitude,
-                        'south' => (float) $geo->south_bound_latitude,
-                        'east' => (float) $geo->east_bound_longitude,
-                        'west' => (float) $geo->west_bound_longitude,
-                    ]
-                    : null,
-                'polygon' => $geo->polygon_points !== null
-                    ? array_map(fn (array $p): array => ['lat' => $p['latitude'], 'lng' => $p['longitude']], $geo->polygon_points)
-                    : null,
-            ];
-        })->all();
+        return $resource->geoLocations
+            ->reject(static fn (GeoLocation $geo): bool => $geo->isGlobalCoverage())
+            ->map(function (GeoLocation $geo): array {
+                return [
+                    'id' => $geo->id,
+                    'type' => $this->determineGeoType($geo),
+                    'point' => $geo->point_latitude !== null && $geo->point_longitude !== null
+                        ? ['lat' => (float) $geo->point_latitude, 'lng' => (float) $geo->point_longitude]
+                        : null,
+                    'bounds' => $geo->hasBox()
+                        ? [
+                            'north' => (float) $geo->north_bound_latitude,
+                            'south' => (float) $geo->south_bound_latitude,
+                            'east' => (float) $geo->east_bound_longitude,
+                            'west' => (float) $geo->west_bound_longitude,
+                        ]
+                        : null,
+                    'polygon' => $geo->polygon_points !== null
+                        ? array_map(fn (array $p): array => ['lat' => $p['latitude'], 'lng' => $p['longitude']], $geo->polygon_points)
+                        : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -1065,7 +1069,7 @@ class PortalSearchService
             return 'polygon';
         }
 
-        if ($geo->west_bound_longitude !== null) {
+        if ($geo->hasBox()) {
             return 'box';
         }
 
