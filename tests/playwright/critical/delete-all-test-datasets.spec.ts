@@ -12,8 +12,10 @@ test.describe('Delete all test datasets', () => {
     await loginAsTestUser(page);
     await page.goto('/logs');
 
+    const confirmationDialog = page.getByRole('dialog', { name: 'Delete All Test Datasets' });
+
     await page.getByRole('button', { name: 'Delete all Test Datasets' }).click();
-    await expect(page.getByRole('dialog', { name: 'Delete All Test Datasets' })).toBeVisible();
+    await expect(confirmationDialog).toBeVisible();
     await page.locator('#delete-confirmation').fill('delete');
 
     const [deleteResponse] = await Promise.all([
@@ -30,6 +32,7 @@ test.describe('Delete all test datasets', () => {
     expect(redirectLocation).toBeTruthy();
     expect(new URL(redirectLocation!, page.url()).pathname).toBe('/logs');
 
+    await expect(confirmationDialog).toBeHidden();
     await expect(page.getByRole('button', { name: 'Delete all Test Datasets' })).toBeVisible();
   });
 });
