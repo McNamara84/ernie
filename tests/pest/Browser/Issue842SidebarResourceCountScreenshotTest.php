@@ -41,7 +41,7 @@ describe('Issue 842 sidebar resource count readability', function (): void {
                 const parseRgb = (value) => {
                     const channels = value.match(/\d+(\.\d+)?/g)?.slice(0, 3).map(Number) ?? [];
 
-                    return channels.length === 3 ? channels : null;
+                    return channels.length === 3 ? channels.map(Math.round) : null;
                 };
 
                 const linearize = (channel) => {
@@ -63,8 +63,10 @@ describe('Issue 842 sidebar resource count readability', function (): void {
 
                 if (textRgb === null || backgroundRgb === null) {
                     return {
-                        color: style.color,
-                        backgroundColor: style.backgroundColor,
+                        textRgb,
+                        backgroundRgb,
+                        rawColor: style.color,
+                        rawBackgroundColor: style.backgroundColor,
                         contrastRatio: null,
                     };
                 }
@@ -73,16 +75,18 @@ describe('Issue 842 sidebar resource count readability', function (): void {
                 const darker = Math.min(luminance(textRgb), luminance(backgroundRgb));
 
                 return {
-                    color: style.color,
-                    backgroundColor: style.backgroundColor,
+                    textRgb,
+                    backgroundRgb,
+                    rawColor: style.color,
+                    rawBackgroundColor: style.backgroundColor,
                     contrastRatio: Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2)),
                 };
             }
             JS);
 
         expect($resourceBadgeStyles)->not->toBeNull();
-        expect($resourceBadgeStyles['color'])->toBe('rgb(255, 255, 255)');
-        expect($resourceBadgeStyles['backgroundColor'])->toBe('rgb(12, 42, 99)');
+        expect($resourceBadgeStyles['textRgb'])->toEqual([255, 255, 255]);
+        expect($resourceBadgeStyles['backgroundRgb'])->toEqual([12, 42, 99]);
         expect($resourceBadgeStyles['contrastRatio'])->toBeGreaterThanOrEqual(4.5);
 
         $page->screenshot(fullPage: true, filename: 'issue-842-resources-sidebar-count-light-mode');

@@ -261,7 +261,7 @@
         "fixes": [
             {
                 "title": "Readable Sidebar Count Badges",
-                "description": "Primary sidebar count badges such as Resources and IGSNs List now keep their white foreground color when their navigation item is active or hovered. This preserves readable contrast on the GFZ-blue badge background in light mode while leaving default and warning badges unchanged."
+                "description": "Primary sidebar count badges such as Resources and IGSNs now keep their white foreground color when their navigation item is active or hovered. This preserves readable contrast on the GFZ-blue badge background in light mode while leaving default and warning badges unchanged."
             },
             {
                 "title": "Global Coverage Handling on Landing Page and Portal Maps",
