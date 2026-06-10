@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     netcat-traditional \
     ca-certificates \
+    libssl3t64 \
+    openssl \
+    openssl-provider-legacy \
     gnupg \
     && apt-get install -y --only-upgrade \
         libcap2 \
