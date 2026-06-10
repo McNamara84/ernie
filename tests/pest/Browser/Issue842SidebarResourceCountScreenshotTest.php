@@ -10,9 +10,11 @@ use Tests\TestCase;
 uses()->group('issue-842', 'browser', 'resources');
 
 describe('Issue 842 sidebar resource count readability', function (): void {
-    it('keeps the active Resources count readable in light mode and captures a screenshot', function (): void {
+    it('keeps the active Resources count readable in light mode and matches the screenshot baseline', function (): void {
         /** @var TestCase $this */
         $user = User::factory()->create([
+            'email' => 'issue-842-curator@example.test',
+            'name' => 'Issue 842 Curator',
             'role' => UserRole::CURATOR,
         ]);
 
@@ -63,6 +65,7 @@ describe('Issue 842 sidebar resource count readability', function (): void {
 
                 if (textRgb === null || backgroundRgb === null) {
                     return {
+                        badgeText: badge.textContent?.trim() ?? '',
                         textRgb,
                         backgroundRgb,
                         rawColor: style.color,
@@ -75,6 +78,7 @@ describe('Issue 842 sidebar resource count readability', function (): void {
                 const darker = Math.min(luminance(textRgb), luminance(backgroundRgb));
 
                 return {
+                    badgeText: badge.textContent?.trim() ?? '',
                     textRgb,
                     backgroundRgb,
                     rawColor: style.color,
@@ -85,11 +89,29 @@ describe('Issue 842 sidebar resource count readability', function (): void {
             JS);
 
         expect($resourceBadgeStyles)->not->toBeNull();
+        expect($resourceBadgeStyles['badgeText'])->toBe('12');
         expect($resourceBadgeStyles['textRgb'])->toBeArray()->toHaveCount(3);
         expect($resourceBadgeStyles['backgroundRgb'])->toBeArray()->toHaveCount(3);
         expect($resourceBadgeStyles['contrastRatio'])->not->toBeNull();
         expect($resourceBadgeStyles['contrastRatio'])->toBeGreaterThanOrEqual(4.5);
 
-        $page->screenshot(fullPage: true, filename: 'issue-842-resources-sidebar-count-light-mode');
+        // Keep the visual snapshot focused on the sidebar badge rather than random resource-table content.
+        $page->script(<<<'JS'
+            () => {
+                const style = document.createElement('style');
+                style.textContent = `
+                    main[data-slot="sidebar-inset"] {
+                        display: none !important;
+                    }
+
+                    [data-slot="sidebar-wrapper"] {
+                        background: hsl(var(--sidebar)) !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            JS);
+
+        $page->assertScreenshotMatches();
     });
 });
