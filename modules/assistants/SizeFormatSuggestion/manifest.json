@@ -1,0 +1,24 @@
+{
+    "id": "size-format-suggestion",
+    "name": "Size and Format Suggestions",
+    "description": "Discovers file size and format from approved resource URL's.",
+    "icon": "FileSearch",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\SizeFormatSuggestion\\Assistant",
+    "route_prefix": "size-format",
+    "lock_key": "size_format_discovery_running",
+    "cache_key_prefix": "size_format_discovery",
+    "sort_order": 40,
+    "status_labels": {
+        "checking": "Starting size and format discovery...",
+        "completed_with_results": "Size and format discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "Size and format discovery completed: No new suggestions found.",
+        "failed": "Size and Format discovery failed: {error}",
+        "already_running": "A size and format discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending size and format suggestions",
+        "description": "No new size and format metadata found. Click \"Check\" to search again."
+    },
+    "card_component": null
+}
