@@ -1,0 +1,16 @@
+{
+  "titleId": "title-14302",
+  "titleText": "Le Petit Prince",
+  "currentLanguage": "en",
+  "proposedLanguage": "fr",
+  "confidence": "high",
+  "confidenceScore": 0.96,
+  "suggestionType": "conflict",
+  "explanation": "Der Titeltext entspricht mit hoher Wahrscheinlichkeit Französisch und widerspricht der aktuell hinterlegten Sprache Englisch.",
+  "signals": {
+    "titleDetection": "fr",
+    "titleDetectionConfidence": 0.96,
+    "resourceLanguage": "en",
+    "typedTitleContext": []
+  }
+}
