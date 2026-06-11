@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteToResourceTransformer;
 use Database\Seeders\ContributorTypeSeeder;
+use Database\Seeders\DateTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
 use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\LanguageSeeder;
@@ -739,9 +740,9 @@ describe('DataCiteToResourceTransformer', function (): void {
 describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', function (): void {
 
     beforeEach(function (): void {
-        test()->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        test()->seed(\Database\Seeders\TitleTypeSeeder::class);
-        test()->seed(\Database\Seeders\DateTypeSeeder::class);
+        test()->seed(ResourceTypeSeeder::class);
+        test()->seed(TitleTypeSeeder::class);
+        test()->seed(DateTypeSeeder::class);
     });
 
     it('preserves imported Created date from DataCite response', function (): void {
@@ -894,7 +895,7 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
 
         $creator = $resource->creators()->first();
         expect($creator)->not->toBeNull()
-            ->and($creator->creatorable_type)->toBe(\App\Models\Institution::class);
+            ->and($creator->creatorable_type)->toBe(Institution::class);
     });
 
     it('infers Personal nameType for comma-separated name without nameType', function (): void {
@@ -1075,7 +1076,7 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
 
         $contributor = $resource->contributors()->first();
         expect($contributor)->not->toBeNull()
-            ->and($contributor->contributorable_type)->toBe(\App\Models\Institution::class);
+            ->and($contributor->contributorable_type)->toBe(Institution::class);
     });
 
     it('infers Personal for contributor with parseable name and no nameType', function (): void {
@@ -1154,7 +1155,7 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         expect($creators[0]->creatorable_type)->toBe(Person::class);
 
         // Creator 2: Organizational (explicit)
-        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+        expect($creators[1]->creatorable_type)->toBe(Institution::class);
 
         // Creator 3: Personal (inferred via parsePersonName from "Schmidt, Maria")
         expect($creators[2]->creatorable_type)->toBe(Person::class);
@@ -1318,10 +1319,10 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         $creators = $resource->creators()->orderBy('position')->get();
 
         // "Alfred Wegener Institute" → Organizational (keyword "institute")
-        expect($creators[0]->creatorable_type)->toBe(\App\Models\Institution::class);
+        expect($creators[0]->creatorable_type)->toBe(Institution::class);
 
         // "Helmholtz Centre Potsdam GFZ" → Organizational (keyword "helmholtz"/"centre" + 4 tokens)
-        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+        expect($creators[1]->creatorable_type)->toBe(Institution::class);
 
         // "John Smith" → Personal (2 tokens, no org keyword)
         expect($creators[2]->creatorable_type)->toBe(Person::class);
@@ -1494,6 +1495,71 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         $contributor = $resource->contributors()->firstOrFail();
 
         expect($contributor->contributorable_type)->toBe(Institution::class);
+    });
+
+    it('treats structured contributor names as institutions when the full name is organizational', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/structured-contributor-org-correction.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Structured Contributor Organization Correction Test']],
+                'creators' => [
+                    ['familyName' => 'Creator', 'givenName' => 'Casey', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'secretariat, INTERMAGNET',
+                        'familyName' => 'secretariat',
+                        'givenName' => 'INTERMAGNET',
+                        'nameType' => 'Personal',
+                        'contributorType' => 'ContactPerson',
+                    ],
+                    [
+                        'name' => 'Deutsches GeoForschungsZentrum GFZ',
+                        'familyName' => 'GeoForschungsZentrum GFZ',
+                        'givenName' => 'Deutsches',
+                        'nameType' => 'Personal',
+                        'contributorType' => 'HostingInstitution',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $contributors = $resource->contributors()->orderBy('position')->get();
+
+        expect($contributors)->toHaveCount(2)
+            ->and($contributors[0]->contributorable_type)->toBe(Institution::class)
+            ->and($contributors[1]->contributorable_type)->toBe(Institution::class);
+    });
+
+    it('keeps structured person names with name particles as persons', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/structured-person-particles.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Structured Person Particles Test']],
+                'creators' => [
+                    [
+                        'name' => 'Rodrigo J. Abarca Del Rio',
+                        'familyName' => 'Abarca Del Rio',
+                        'givenName' => 'Rodrigo J.',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creator = $resource->creators()->firstOrFail();
+
+        expect($creator->creatorable_type)->toBe(Person::class);
     });
 
 });

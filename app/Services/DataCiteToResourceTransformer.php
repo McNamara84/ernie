@@ -676,8 +676,8 @@ class DataCiteToResourceTransformer
     /**
      * Resolve the local party type from DataCite data.
      *
-     * Legacy DataCite records can mark institutions as Personal. Strong evidence
-     * from structured names and identifiers wins over the raw nameType value.
+     * Legacy DataCite records can mark institutions as Personal. Identifier
+     * schemes and organization-looking full names win over the raw nameType value.
      *
      * @param  array<string, mixed>  $data
      */
@@ -685,25 +685,29 @@ class DataCiteToResourceTransformer
     {
         $declaredNameType = $this->normaliseNameType($data['nameType'] ?? null);
 
-        if ($this->hasStructuredPersonName($data) || $this->hasNameIdentifierScheme($data, 'ORCID')) {
-            return 'Personal';
-        }
-
         if ($this->hasNameIdentifierScheme($data, 'ROR')) {
             return 'Organizational';
+        }
+
+        if ($this->hasNameIdentifierScheme($data, 'ORCID')) {
+            return 'Personal';
         }
 
         $name = isset($data['name']) ? trim((string) $data['name']) : '';
 
         if ($name === '') {
-            return $declaredNameType ?? 'Personal';
+            return $this->hasStructuredPersonName($data) ? 'Personal' : ($declaredNameType ?? 'Personal');
         }
 
-        if ($declaredNameType === 'Organizational') {
+        if ($this->looksLikeOrganization($name, false)) {
             return 'Organizational';
         }
 
-        if ($this->looksLikeOrganization($name)) {
+        if ($this->hasStructuredPersonName($data)) {
+            return 'Personal';
+        }
+
+        if ($declaredNameType === 'Organizational') {
             return 'Organizational';
         }
 
@@ -800,7 +804,7 @@ class DataCiteToResourceTransformer
      * Uses word-boundary matching to avoid substring false positives
      * (e.g. "inc" must not match inside "Vincenzo").
      */
-    private function looksLikeOrganization(string $name): bool
+    private function looksLikeOrganization(string $name, bool $includeWeakShapeSignals = true): bool
     {
         $orgKeywords = [
             'institute', 'institution', 'university', 'universität',
@@ -812,8 +816,10 @@ class DataCiteToResourceTransformer
             'library', 'service', 'survey', 'observatory',
             'government', 'administration', 'directorate',
             'geoscience', 'geophysical', 'geological', 'geomagnetic',
+            'geoforschungszentrum', 'forschungszentrum',
             'meteorological', 'seismology', 'earthquake', 'space',
             'research', 'resources', 'branch', 'national', 'royal',
+            'intermagnet', 'secretariat',
             'observatorio', 'institut', 'instituto', 'ecole', 'universidad',
             'gmbh', 'ltd', 'inc', 'e\.v\.', 'helmholtz',
         ];
@@ -830,6 +836,10 @@ class DataCiteToResourceTransformer
 
         if (! str_contains($name, ',') && preg_match('/\([A-Za-z][A-Za-z .&-]{2,}\)\s*$/', $name) === 1) {
             return true;
+        }
+
+        if (! $includeWeakShapeSignals) {
+            return false;
         }
 
         return $this->wordCount($name) >= 4

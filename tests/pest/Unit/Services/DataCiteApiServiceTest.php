@@ -200,10 +200,20 @@ describe('getMetadata', function (): void {
 
     it('returns null on HTTP exception', function (): void {
         Http::fake([
-            'doi.org/*' => fn () => throw new \Exception('Connection timeout'),
+            'doi.org/*' => fn () => throw new Exception('Connection timeout'),
         ]);
 
         $result = $this->service->getMetadata('10.5880/test.2024.001');
+
+        expect($result)->toBeNull();
+    });
+
+    it('returns null when doi.org responds successfully without JSON metadata', function (): void {
+        Http::fake([
+            'doi.org/*' => Http::response('', 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $result = $this->service->getMetadata('10.5880/non-json-response');
 
         expect($result)->toBeNull();
     });
@@ -449,6 +459,23 @@ describe('buildCitationFromMetadata', function (): void {
 
         expect($result)->toStartWith('Dupont, J.-P. (2024)');
     });
+
+    it('normalizes array-valued CSL fields before building citations', function (): void {
+        $metadata = [
+            'author' => [
+                ['literal' => ['INTERMAGNET']],
+                ['family' => ['Doe'], 'given' => ['Jane Marie']],
+            ],
+            'issued' => ['date-parts' => [[[2024]]]],
+            'title' => ['Geomagnetic Dataset', 'Alternative Title'],
+            'publisher' => ['GFZ'],
+            'DOI' => ['10.5880/array.2024.001'],
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toBe('INTERMAGNET; Doe, J. M. (2024): Geomagnetic Dataset. GFZ. https://doi.org/10.5880/array.2024.001');
+    });
 });
 
 // =========================================================================
@@ -596,7 +623,7 @@ describe('getDataCiteMetadata', function (): void {
 
     it('returns null on HTTP exception', function (): void {
         Http::fake([
-            'api.datacite.org/*' => fn () => throw new \Exception('Connection timeout'),
+            'api.datacite.org/*' => fn () => throw new Exception('Connection timeout'),
         ]);
 
         $result = $this->service->getDataCiteMetadata('10.5880/test.2024.001');

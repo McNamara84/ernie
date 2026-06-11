@@ -118,7 +118,18 @@ class DataCiteApiService
                 ->get($url);
 
             if ($response->successful()) {
-                return $response->json();
+                $metadata = $response->json();
+
+                if (is_array($metadata)) {
+                    return $metadata;
+                }
+
+                Log::warning("DOI resolution returned non-JSON metadata for {$originalDoi}", [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                return self::CACHE_TRANSIENT_FAILURE;
             }
 
             if ($response->status() === 404) {
@@ -153,41 +164,84 @@ class DataCiteApiService
     public function buildCitationFromMetadata(array $metadata): string
     {
         // Autoren aus CSL JSON Format extrahieren
-        $authors = $metadata['author'] ?? [];
+        $authors = is_array($metadata['author'] ?? null) ? $metadata['author'] : [];
         $authorStrings = [];
         foreach ($authors as $author) {
-            $family = isset($author['family']) && is_string($author['family']) ? $author['family'] : null;
-            $given = isset($author['given']) && is_string($author['given']) ? $author['given'] : null;
-            $literal = isset($author['literal']) && is_string($author['literal']) ? $author['literal'] : null;
+            if (! is_array($author)) {
+                continue;
+            }
 
-            if ($family !== null && $given !== null) {
+            $family = $this->metadataString($author['family'] ?? null);
+            $given = $this->metadataString($author['given'] ?? null);
+            $literal = $this->metadataString($author['literal'] ?? null);
+
+            if ($family !== '' && $given !== '') {
                 $authorStrings[] = $family.', '.$this->abbreviateGivenName($given);
-            } elseif ($literal !== null) {
+            } elseif ($literal !== '') {
                 $authorStrings[] = $literal;
-            } elseif ($family !== null) {
+            } elseif ($family !== '') {
                 $authorStrings[] = $family;
             }
         }
         $authorsString = ! empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
 
         // Jahr extrahieren - verschiedene mögliche Felder prüfen
-        $year = $metadata['issued']['date-parts'][0][0] ??
-                $metadata['published']['date-parts'][0][0] ??
-                $metadata['created']['date-parts'][0][0] ??
-                'n.d.';
+        $year = $this->metadataYear($metadata);
 
         // Titel extrahieren
-        $title = $metadata['title'] ?? 'Untitled';
+        $title = $this->metadataString($metadata['title'] ?? null, 'Untitled');
 
         // Verlag extrahieren
-        $publisher = $metadata['publisher'] ?? 'Unknown Publisher';
+        $publisher = $this->metadataString($metadata['publisher'] ?? null, 'Unknown Publisher');
 
         // DOI extrahieren
-        $doi = $metadata['DOI'] ?? '';
-        $doiUrl = $doi ? "https://doi.org/{$doi}" : '';
+        $doi = $this->metadataString($metadata['DOI'] ?? null);
+        $cleanDoi = $doi !== '' ? $this->normalizeDoi($doi) : null;
+        $doiUrl = $cleanDoi !== null ? "https://doi.org/{$cleanDoi}" : '';
 
         // Zitation aufbauen: [Autoren] ([Jahr]): [Titel]. [Verlag]. [DOI URL]
         return trim("{$authorsString} ({$year}): {$title}. {$publisher}. {$doiUrl}");
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function metadataYear(array $metadata): string
+    {
+        foreach (['issued', 'published', 'created'] as $field) {
+            $year = $this->metadataString($metadata[$field]['date-parts'] ?? null);
+
+            if ($year !== '') {
+                return $year;
+            }
+        }
+
+        return 'n.d.';
+    }
+
+    private function metadataString(mixed $value, string $fallback = ''): string
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+
+            return $value !== '' ? $value : $fallback;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $string = $this->metadataString($item);
+
+                if ($string !== '') {
+                    return $string;
+                }
+            }
+        }
+
+        return $fallback;
     }
 
     /**
