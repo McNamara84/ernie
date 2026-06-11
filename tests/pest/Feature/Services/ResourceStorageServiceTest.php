@@ -128,6 +128,36 @@ describe('ResourceStorageService', function () {
             ->and($resource->titles()->sole()->title_type_id)->toBe($mainTitleType->id);
     });
 
+    it('stores editor title type slugs using the matching DataCite title type', function () {
+        $resourceType = ResourceType::first();
+        $alternativeTitleType = TitleType::where('slug', 'AlternativeTitle')->firstOrFail();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Recovered Alternative Title Resource',
+                    'titleType' => 'alternative-title',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Recovery',
+                    'position' => 0,
+                ],
+            ],
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+        expect($isUpdate)->toBeFalse()
+            ->and($resource->titles()->sole()->title_type_id)->toBe($alternativeTitleType->id);
+    });
+
     it('updates an existing resource', function () {
         $resourceType = ResourceType::first();
 
