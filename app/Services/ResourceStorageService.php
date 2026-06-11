@@ -251,13 +251,8 @@ class ResourceStorageService
 
         // Also add mapping for empty string and 'main-title' to MainTitle ID
         // Note: 'MainTitle' in kebab-case becomes 'main-title'
-        $mainTitleId = $titleTypeMap['main-title'] ?? null;
-        if ($mainTitleId === null) {
-            // MainTitle TitleType is required - throw specific error
-            throw new \RuntimeException(
-                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
-            );
-        }
+        $mainTitleId = $titleTypeMap['main-title'] ?? $this->ensureTitleType('MainTitle', 'Main Title');
+        $titleTypeMap['main-title'] = $mainTitleId;
         $titleTypeMap[''] = $mainTitleId;
 
         $resourceTitles = [];
@@ -285,6 +280,18 @@ class ResourceStorageService
         }
 
         $resource->titles()->createMany($resourceTitles);
+    }
+
+    private function ensureTitleType(string $slug, string $name): int
+    {
+        return (int) TitleType::query()->firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $name,
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        )->id;
     }
 
     /**
