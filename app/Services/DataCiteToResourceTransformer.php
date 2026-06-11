@@ -315,18 +315,11 @@ class DataCiteToResourceTransformer
      * In the database, all titles must reference a TitleType record, including MainTitle.
      *
      * @param  array<int, array<string, mixed>>  $titles
-     *
-     * @throws \RuntimeException If required TitleType records are missing from the database
      */
     private function transformTitles(array $titles, Resource $resource): void
     {
         // Pre-fetch MainTitle ID for titles without titleType attribute
-        $mainTitleId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle');
-        if ($mainTitleId === null) {
-            throw new \RuntimeException(
-                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
-            );
-        }
+        $mainTitleId = $this->resolveTitleTypeId('MainTitle', 'Main Title');
 
         foreach ($titles as $titleData) {
             $titleValue = $titleData['title'] ?? null;
@@ -346,7 +339,7 @@ class DataCiteToResourceTransformer
 
                 // Fall back to Other if specific type not found
                 if ($titleTypeId === null) {
-                    $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'Other');
+                    $titleTypeId = $this->resolveTitleTypeId('Other', 'Other');
                 }
 
                 // If still null, use MainTitle as last resort
@@ -362,6 +355,28 @@ class DataCiteToResourceTransformer
                 'language' => $titleData['lang'] ?? null,
             ]);
         }
+    }
+
+    private function resolveTitleTypeId(string $slug, string $name): int
+    {
+        $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $slug);
+
+        if ($titleTypeId !== null) {
+            return $titleTypeId;
+        }
+
+        $titleType = TitleType::query()->firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $name,
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        );
+
+        unset($this->lookupCache[TitleType::class.':slug']);
+
+        return (int) $titleType->id;
     }
 
     /**

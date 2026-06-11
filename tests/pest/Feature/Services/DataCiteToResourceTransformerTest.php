@@ -222,6 +222,31 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($firstTitle->title_type_id)->toBe($mainTitleType->id);
         });
 
+        it('recreates the required MainTitle type when the lookup table is missing it', function (): void {
+            TitleType::query()->delete();
+
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/missing-main-title-type.2024.001',
+                    'titles' => [
+                        ['title' => 'Main Title From Missing Lookup'],
+                    ],
+                    'creators' => [
+                        ['familyName' => 'Test', 'givenName' => 'User', 'nameType' => 'Personal'],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $mainTitleType = TitleType::where('slug', 'MainTitle')->firstOrFail();
+
+            expect($mainTitleType->name)->toBe('Main Title')
+                ->and($resource->titles()->sole()->title_type_id)->toBe($mainTitleType->id);
+        });
+
         it('creates multiple titles with different types', function (): void {
             $user = User::factory()->create();
             $transformer = new DataCiteToResourceTransformer;
