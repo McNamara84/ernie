@@ -1131,20 +1131,21 @@ class DataCiteToResourceTransformer
                 // Filter out points with missing coordinates instead of coercing to 0
                 $validPoints = array_filter(
                     $polygon['polygonPoints'],
-                    fn (array $p): bool => isset($p['pointLongitude'], $p['pointLatitude']),
+                    fn (array $p): bool => $this->normaliseCoordinate($p['pointLongitude'] ?? null) !== null
+                        && $this->normaliseCoordinate($p['pointLatitude'] ?? null) !== null,
                 );
 
                 // Only store polygon if at least 3 valid points remain
                 if (count($validPoints) >= 3) {
                     $polygonPoints = array_values(array_map(fn (array $p): array => [
-                        'longitude' => (float) $p['pointLongitude'],
-                        'latitude' => (float) $p['pointLatitude'],
+                        'longitude' => $this->normaliseCoordinate($p['pointLongitude']),
+                        'latitude' => $this->normaliseCoordinate($p['pointLatitude']),
                     ], $validPoints));
                 }
 
                 if (isset($polygon['inPolygonPoint'])) {
-                    $inPolygonPointLon = $polygon['inPolygonPoint']['pointLongitude'] ?? null;
-                    $inPolygonPointLat = $polygon['inPolygonPoint']['pointLatitude'] ?? null;
+                    $inPolygonPointLon = $this->normaliseCoordinate($polygon['inPolygonPoint']['pointLongitude'] ?? null);
+                    $inPolygonPointLat = $this->normaliseCoordinate($polygon['inPolygonPoint']['pointLatitude'] ?? null);
                 }
             }
 
@@ -1162,17 +1163,34 @@ class DataCiteToResourceTransformer
                 'resource_id' => $resource->id,
                 'geo_type' => $geoType,
                 'place' => $geoData['geoLocationPlace'] ?? null,
-                'point_longitude' => $point['pointLongitude'] ?? null,
-                'point_latitude' => $point['pointLatitude'] ?? null,
-                'west_bound_longitude' => $box['westBoundLongitude'] ?? null,
-                'east_bound_longitude' => $box['eastBoundLongitude'] ?? null,
-                'south_bound_latitude' => $box['southBoundLatitude'] ?? null,
-                'north_bound_latitude' => $box['northBoundLatitude'] ?? null,
+                'point_longitude' => $this->normaliseCoordinate($point['pointLongitude'] ?? null),
+                'point_latitude' => $this->normaliseCoordinate($point['pointLatitude'] ?? null),
+                'west_bound_longitude' => $this->normaliseCoordinate($box['westBoundLongitude'] ?? null),
+                'east_bound_longitude' => $this->normaliseCoordinate($box['eastBoundLongitude'] ?? null),
+                'south_bound_latitude' => $this->normaliseCoordinate($box['southBoundLatitude'] ?? null),
+                'north_bound_latitude' => $this->normaliseCoordinate($box['northBoundLatitude'] ?? null),
                 'polygon_points' => $polygonPoints,
                 'in_polygon_point_longitude' => $inPolygonPointLon,
                 'in_polygon_point_latitude' => $inPolygonPointLat,
             ]);
         }
+    }
+
+    private function normaliseCoordinate(mixed $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+
+            if ($value === '') {
+                return null;
+            }
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
 
     /**

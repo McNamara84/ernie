@@ -35,6 +35,43 @@ beforeEach(function (): void {
     test()->seed(RelationTypeSeeder::class);
 });
 
+describe('DataCiteToResourceTransformer - geo location normalization', function (): void {
+    it('normalizes empty geo box coordinates to null instead of writing empty strings', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/empty-geo-box.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Empty Geo Box Test']],
+                'creators' => [
+                    ['familyName' => 'Creator', 'givenName' => 'Casey', 'nameType' => 'Personal'],
+                ],
+                'geoLocations' => [
+                    [
+                        'geoLocationPlace' => 'Challa Lake, Kenya',
+                        'geoLocationBox' => [
+                            'westBoundLongitude' => '37.704000',
+                            'eastBoundLongitude' => '',
+                            'southBoundLatitude' => '-3.316760',
+                            'northBoundLatitude' => '   ',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $geoLocation = $resource->geoLocations()->firstOrFail();
+
+        expect((string) $geoLocation->west_bound_longitude)->toBe('37.70400000')
+            ->and($geoLocation->east_bound_longitude)->toBeNull()
+            ->and((string) $geoLocation->south_bound_latitude)->toBe('-3.31676000')
+            ->and($geoLocation->north_bound_latitude)->toBeNull();
+    });
+});
+
 afterEach(function (): void {
     Mockery::close();
 });
