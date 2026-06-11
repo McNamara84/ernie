@@ -16,12 +16,13 @@ return new class extends Migration
         Schema::create('dismissed_size_formats', function (Blueprint $table) {
             $table->id();
             $table->foreignId('resource_id')->constrained('resources')->cascadeOnDelete();
-            $table->foreignId('doi')->constrained('dois')->cascadeOnDelete();
+            $table->string('doi', 19)->constrained('dois')->cascadeOnDelete();
             $table->string('suggested_filetype', 3); // "abc"
             $table->boolean('is_zip')->default(false);
             $table->boolean('discovered_in_fileName')->default(false);
             $table->foreignId('dismissed_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('reason', 255)->nullable();
+            $table->string('reason', 19)->nullable();
+            $table->timestamp('dismissed_at');
             $table->timestamps();
 
             $table->unique(['resource_id', 'doi'], 'dismissed_size_formats_unique');

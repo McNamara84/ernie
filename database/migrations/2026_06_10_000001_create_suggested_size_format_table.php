@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('suggested_size_format', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('resource_id')->constrained('resources')->cascadeOnDelete();
-            $table->foreignId('doi')->constrained('dois')->cascadeOnDelete();
+            $table->string('doi', 19)->constrained('dois')->cascadeOnDelete();
             $table->string('suggested_filetype', 3); // "abc"
             $table->boolean('is_zip')->default(false);
             $table->boolean('discovered_in_fileName')->default(false);
