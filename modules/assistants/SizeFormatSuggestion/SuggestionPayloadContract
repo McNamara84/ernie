@@ -20,3 +20,27 @@ DOI: `https://doi.org/{DOI}`-> `https://dataservices.gfz-potsdam.de/.../{ID}` ->
     - search for file type in file name if ZIP file (lower confidence) 
 - Need to add up all file sizes.
     - inconsistent file sizes between found data and metadata let curator decide action (lower confidence)
+
+
+### Example Suggestion Payload
+
+**DOI**
+10.5880/WSM.2025.001
+
+**Inferred Value** 
+- Format: csv
+- Size: 14M
+    
+**Source URL** 
+https://datapub.gfz.de/download/10.5880.WSM.2025.001-Scbwez
+
+**Probe Method** 
+DIRECTORY_LISTING
+
+**Evidence** 
+- Filename: WSM_Database_2025.csv
+- Extension: csv
+- Displayed Size: 14M
+
+**Confidence** 
+High
