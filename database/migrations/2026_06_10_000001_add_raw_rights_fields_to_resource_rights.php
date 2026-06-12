@@ -34,10 +34,7 @@ return new class extends Migration
             return;
         }
 
-        Schema::table(self::TABLE, function (Blueprint $table): void {
-            $table->dropForeign(['rights_id']);
-            $table->dropUnique(self::UNIQUE_INDEX);
-        });
+        $this->dropForeignKeyIfExists('rights_id');
 
         Schema::table(self::TABLE, function (Blueprint $table): void {
             $table->unsignedBigInteger('rights_id')->nullable()->change();
@@ -61,7 +58,6 @@ return new class extends Migration
                 ->on('rights')
                 ->nullOnDelete();
 
-            $table->unique(['resource_id', 'rights_id'], self::UNIQUE_INDEX);
             $table->index(['resource_id', 'source'], self::RESOURCE_SOURCE_INDEX);
         });
     }
@@ -86,11 +82,13 @@ return new class extends Migration
 
         DB::table(self::TABLE)->whereNull('rights_id')->delete();
 
-        Schema::table(self::TABLE, function (Blueprint $table): void {
-            $table->dropForeign(['rights_id']);
-            $table->dropUnique(self::UNIQUE_INDEX);
-            $table->dropIndex(self::RESOURCE_SOURCE_INDEX);
-        });
+        $this->dropForeignKeyIfExists('rights_id');
+
+        if (Schema::hasIndex(self::TABLE, self::RESOURCE_SOURCE_INDEX)) {
+            Schema::table(self::TABLE, function (Blueprint $table): void {
+                $table->dropIndex(self::RESOURCE_SOURCE_INDEX);
+            });
+        }
 
         Schema::table(self::TABLE, function (Blueprint $table): void {
             $table->dropColumn([
@@ -112,8 +110,40 @@ return new class extends Migration
                 ->on('rights')
                 ->cascadeOnDelete();
 
-            $table->unique(['resource_id', 'rights_id'], self::UNIQUE_INDEX);
         });
+    }
+
+    private function dropForeignKeyIfExists(string $column): void
+    {
+        $constraint = $this->foreignKeyName($column);
+
+        if ($constraint === null) {
+            return;
+        }
+
+        Schema::table(self::TABLE, function (Blueprint $table) use ($constraint): void {
+            $table->dropForeign($constraint);
+        });
+    }
+
+    private function foreignKeyName(string $column): ?string
+    {
+        $result = DB::selectOne(
+            <<<'SQL'
+            SELECT CONSTRAINT_NAME AS constraint_name
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = ?
+                AND COLUMN_NAME = ?
+                AND REFERENCED_TABLE_NAME IS NOT NULL
+            LIMIT 1
+            SQL,
+            [self::TABLE, $column],
+        );
+
+        return is_string($result?->constraint_name ?? null)
+            ? $result->constraint_name
+            : null;
     }
 
     /**
