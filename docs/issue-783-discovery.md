@@ -427,3 +427,282 @@ The issue focuses on:
 - exporting xml:lang attributes correctly
 - preventing duplicate or stale suggestions
 - ensuring stable behaviour through automated tests
+
+# Vorschlag Code Emely für Bib https://github.com/nitotm/nitotm.github.io
+
+## manifest.json
+{
+    "id": "title-language-suggestion",
+    "name": "Suggested Title Languages",
+    "description": "Detect missing or conflicting title language values.",
+    "icon": "Languages",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\TitleLanguageSuggestion\\Assistant",
+    "route_prefix": "title-languages",
+    "lock_key": "title_language_discovery_running",
+    "cache_key_prefix": "title_language_discovery",
+    "sort_order": 50,
+    "card_component": "TitleLanguageCard"
+}
+
+## assistant.php
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Assistants\TitleLanguageSuggestion;
+
+use App\Models\AssistantSuggestion;
+use App\Models\Resource;
+use App\Models\Title;
+use App\Services\Assistance\GenericTableAssistant;
+use Closure;
+
+class Assistant extends GenericTableAssistant
+{
+    /**
+     * Pfad zur manifest.json dieses Assistant-Moduls.
+     * Darüber erkennt ERNIE den Assistant automatisch.
+     */
+    protected function getManifestPath(): string
+    {
+        return __DIR__ . '/manifest.json';
+    }
+
+    /**
+     * Sucht nach fehlenden oder widersprüchlichen Title.language-Werten.
+     *
+     * Diese Methode wird beim Klick auf "Check" ausgeführt.
+     *
+     * @param Closure(string): void $onProgress
+     *        Callback für Fortschrittsmeldungen im Frontend.
+     *
+     * @return int Anzahl neu gespeicherter Suggestions.
+     */
+    protected function discover(Closure $onProgress): int
+    {
+        $count = 0;
+
+        // Alle Resources mit ihren Titles laden.
+        // Name ggf. an euer echtes Relation-Model anpassen.
+        $resources = Resource::with('titles')->get();
+
+        foreach ($resources as $index => $resource) {
+            $onProgress('Checking resource ' . ($index + 1) . ' of ' . $resources->count());
+
+            foreach ($resource->titles as $title) {
+                // Pro Titel prüfen, ob eine Suggestion nötig ist.
+                $suggestion = $this->buildSuggestionPayload($resource, $title);
+
+                // Wenn kein Problem erkannt wurde, wird nichts gespeichert.
+                if ($suggestion === null) {
+                    continue;
+                }
+
+                // Vorschlag in der generischen Tabelle assistant_suggestions speichern.
+                // storeSuggestion vermeidet automatisch Duplikate und bereits abgelehnte Vorschläge.
+                $stored = $this->storeSuggestion(
+                    resourceId: $resource->id,
+                    targetType: 'title',
+                    targetId: $title->id,
+                    suggestedValue: $suggestion['proposed_language'],
+                    suggestedLabel: $suggestion['suggested_label'],
+                    similarityScore: $suggestion['confidence'],
+                    metadata: $suggestion
+                );
+
+                if ($stored) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Baut die eigentliche Suggestion für einen einzelnen Titel.
+     *
+     * Es gibt zwei Fälle:
+     * 1. Die Sprache fehlt.
+     * 2. Die Sprache ist vorhanden, passt aber unter 90 % zur erkannten Sprache.
+     */
+    private function buildSuggestionPayload(Resource $resource, Title $title): ?array
+    {
+        $detector = new TitleLanguageDetector();
+
+        // Titeltext aus dem Model holen.
+        // Falls euer Feld anders heißt, hier z. B. $title->value oder $title->title anpassen.
+        $titleText = trim((string) $title->title);
+
+        // Sprache aus dem Title-Model holen.
+        // Das entspricht dem xml:lang-Wert bzw. Title.language.
+        $currentLanguage = $title->language;
+
+        // Automatische Spracherkennung ausführen.
+        $detection = $detector->detect($titleText);
+
+        // Wenn die Erkennung unsicher ist, keine Suggestion erzeugen.
+        if ($detection === null) {
+            return null;
+        }
+
+        $proposedLanguage = $detection['language'];
+        $confidence = $detection['confidence'];
+        $allMatches = $detection['matches'];
+
+        // Prüfen, wie gut die aktuell gespeicherte Sprache zum Titel passt.
+        // Wenn keine aktuelle Sprache vorhanden ist, ist der Match null.
+        $currentLanguageMatch = $currentLanguage
+            ? ($allMatches[$currentLanguage] ?? 0)
+            : null;
+
+        /**
+         * Fall 1:
+         * Sprache fehlt komplett.
+         * Dann soll eine neue Sprache vorgeschlagen werden.
+         */
+        if (empty($currentLanguage)) {
+            return [
+                'type' => 'missing_title_language',
+                'title_text' => $titleText,
+                'current_language' => null,
+                'proposed_language' => $proposedLanguage,
+                'confidence' => $confidence,
+                'current_language_match' => null,
+                'threshold' => 0.90,
+                'overwrite_warning' => false,
+                'suggested_label' => strtoupper($proposedLanguage),
+                'explanation' => 'Title language is missing. The assistant detected a likely language.',
+            ];
+        }
+
+        /**
+         * Fall 2:
+         * Sprache ist vorhanden, aber der Match liegt unter 90 %.
+         * Dann soll ein Korrekturvorschlag erzeugt werden.
+         */
+        if ($currentLanguageMatch < 0.90 && $currentLanguage !== $proposedLanguage) {
+            return [
+                'type' => 'conflicting_title_language',
+                'title_text' => $titleText,
+                'current_language' => $currentLanguage,
+                'proposed_language' => $proposedLanguage,
+                'confidence' => $confidence,
+                'current_language_match' => $currentLanguageMatch,
+                'threshold' => 0.90,
+                'overwrite_warning' => true,
+                'suggested_label' => strtoupper($proposedLanguage),
+                'explanation' => 'Existing title language does not match the detected language with at least 90 % confidence.',
+            ];
+        }
+
+        // Kein Problem gefunden.
+        return null;
+    }
+
+    /**
+     * Wird ausgeführt, wenn Kurator:innen im Frontend auf "Accept" klicken.
+     *
+     * Die vorgeschlagene Sprache wird in Title.language übernommen.
+     */
+    protected function applyAccepted(AssistantSuggestion $suggestion): array
+    {
+        // Den betroffenen Title laden.
+        $title = Title::findOrFail($suggestion->target_id);
+
+        // Vorgeschlagene Sprache setzen.
+        $title->language = $suggestion->suggested_value;
+
+        // Änderung speichern.
+        $title->save();
+
+        return [
+            'success' => true,
+            'message' => 'Title language updated.',
+        ];
+    }
+}
+
+## TitleLanguageDetector.php
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Assistants\TitleLanguageSuggestion;
+
+use LanguageDetection\Language;
+
+class TitleLanguageDetector
+{
+    /**
+     * Mindestlänge für Titel.
+     * Sehr kurze Titel sind für automatische Spracherkennung oft zu unsicher.
+     */
+    private const MIN_TITLE_LENGTH = 12;
+
+    /**
+     * Mindest-Confidence für den besten Sprachvorschlag.
+     * Darunter wird kein Vorschlag erzeugt.
+     */
+    private const MIN_CONFIDENCE = 0.75;
+
+    /**
+     * Erkennt die Sprache eines Title-Textes.
+     *
+     * @return array{
+     *     language: string,
+     *     confidence: float,
+     *     matches: array<string, float>
+     * }|null
+     */
+    public function detect(string $text): ?array
+    {
+        $text = trim($text);
+
+        // Leere oder sehr kurze Titel überspringen.
+        if ($text === '' || mb_strlen($text) < self::MIN_TITLE_LENGTH) {
+            return null;
+        }
+
+        // Unterstützte Sprachen begrenzen.
+        // Kann bei euch erweitert werden, z. B. ['de', 'en', 'fr'].
+        $detector = new Language(['de', 'en', 'fr', 'es', 'it']);
+
+        // Top 3 erkannte Sprachen holen.
+        $matches = $detector
+            ->detect($text)
+            ->limit(0, 3)
+            ->close();
+
+        // Wenn keine Sprache erkannt wurde, keine Suggestion.
+        if (empty($matches)) {
+            return null;
+        }
+
+        // Beste erkannte Sprache ist der erste Eintrag.
+        $language = array_key_first($matches);
+        $confidence = (float) $matches[$language];
+
+        // Zu unsichere Vorschläge verwerfen.
+        if ($confidence < self::MIN_CONFIDENCE) {
+            return null;
+        }
+
+        return [
+            'language' => $language,
+            'confidence' => round($confidence, 3),
+            'matches' => $matches,
+        ];
+    }
+}
+
+## Logik
+
+if (empty($currentLanguage)) {
+    // Sprache fehlt → Vorschlag
+}
+
+if ($currentLanguageMatch < 0.90) {
+    // Sprache vorhanden, aber wahrscheinlich falsch → Korrekturvorschlag
+}
