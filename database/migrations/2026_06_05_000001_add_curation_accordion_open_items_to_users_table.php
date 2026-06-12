@@ -14,7 +14,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->json('curation_accordion_open_items')->nullable()->after('font_size_preference');
+            if (! Schema::hasColumn('users', 'curation_accordion_open_items')) {
+                $table->json('curation_accordion_open_items')->nullable()->after('font_size_preference');
+            }
         });
     }
 
@@ -24,7 +26,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropColumn('curation_accordion_open_items');
+            if (Schema::hasColumn('users', 'curation_accordion_open_items')) {
+                $table->dropColumn('curation_accordion_open_items');
+            }
         });
     }
 };

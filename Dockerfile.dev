@@ -35,6 +35,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     netcat-traditional \
     ca-certificates \
+    libssl3t64 \
+    openssl \
+    openssl-provider-legacy \
     gnupg \
     # Playwright browser runtime dependencies for Pest Browser smoke tests.
     at-spi2-common \

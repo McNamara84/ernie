@@ -215,50 +215,21 @@ class ResourceStorageService
     private function storeTitles(Resource $resource, array $data, bool $isUpdate): void
     {
         /**
-         * Collect all titleType values for lookup.
-         * prepareForValidation() maps incoming values to DB slugs where possible.
-         * All titles (including MainTitle) are stored with their TitleType ID.
-         *
-         * Note: In DataCite XML, MainTitle has no titleType attribute, but in the
-         * database we always store the reference to the TitleType record.
-         *
-         * @var array<int, string> $titleTypeInputValues
-         */
-        $titleTypeInputValues = [];
-
-        foreach ($data['titles'] as $titleData) {
-            $normalized = Str::kebab($titleData['titleType'] ?? '');
-
-            // Empty or 'main-title' defaults to MainTitle slug
-            if ($normalized === '' || $normalized === 'main-title') {
-                $titleTypeInputValues[] = 'MainTitle';
-            } else {
-                $titleTypeInputValues[] = (string) ($titleData['titleType'] ?? '');
-            }
-        }
-
-        $titleTypeInputValues = array_values(array_unique($titleTypeInputValues));
-
-        /**
          * Map normalized (kebab-case) slugs to DB title type IDs.
+         * Editor and legacy import payloads can provide values like "alternative-title",
+         * while the database stores DataCite slugs like "AlternativeTitle".
          *
          * @var array<string, int> $titleTypeMap
          */
         $titleTypeMap = TitleType::query()
-            ->whereIn('slug', $titleTypeInputValues)
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
             ->all();
 
         // Also add mapping for empty string and 'main-title' to MainTitle ID
         // Note: 'MainTitle' in kebab-case becomes 'main-title'
-        $mainTitleId = $titleTypeMap['main-title'] ?? null;
-        if ($mainTitleId === null) {
-            // MainTitle TitleType is required - throw specific error
-            throw new \RuntimeException(
-                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
-            );
-        }
+        $mainTitleId = $titleTypeMap['main-title'] ?? $this->ensureTitleType('MainTitle', 'Main Title');
+        $titleTypeMap['main-title'] = $mainTitleId;
         $titleTypeMap[''] = $mainTitleId;
 
         $resourceTitles = [];
@@ -286,6 +257,18 @@ class ResourceStorageService
         }
 
         $resource->titles()->createMany($resourceTitles);
+    }
+
+    private function ensureTitleType(string $slug, string $name): int
+    {
+        return (int) TitleType::query()->firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $name,
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        )->id;
     }
 
     /**
