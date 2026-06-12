@@ -763,10 +763,9 @@ class DataCiteJsonExporter
     {
         $rightsList = [];
 
-        $resourceRights = $resource->resourceRights()
-            ->with('right')
-            ->orderBy('id')
-            ->get();
+        $resourceRights = $resource->resourceRights
+            ->sortBy('id')
+            ->values();
 
         foreach ($resourceRights as $resourceRight) {
             $right = $resourceRight->right;

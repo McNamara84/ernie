@@ -1125,10 +1125,9 @@ class DataCiteXmlExporter
      */
     private function buildRightsList(Resource $resource): void
     {
-        $resourceRights = $resource->resourceRights()
-            ->with('right')
-            ->orderBy('id')
-            ->get();
+        $resourceRights = $resource->resourceRights
+            ->sortBy('id')
+            ->values();
 
         if ($resourceRights->isEmpty()) {
             return;

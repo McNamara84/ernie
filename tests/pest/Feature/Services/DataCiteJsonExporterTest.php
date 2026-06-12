@@ -15,6 +15,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\DataCiteJsonExporter;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->exporter = new DataCiteJsonExporter;
@@ -421,6 +422,31 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
             'schemeURI' => 'https://spdx.org/licenses/',
             'lang' => 'de',
         ]);
+    });
+
+    test('uses already loaded resource rights instead of querying them again', function () {
+        $resource = Resource::factory()->create();
+        $license = Right::factory()->ccBy4()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_id' => $license->id,
+            'rights_text' => 'CC BY 4.0',
+        ]);
+
+        $this->exporter->export($resource);
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $this->exporter->export($resource);
+
+        $resourceRightsQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains($query['query'], 'resource_rights'));
+
+        DB::disableQueryLog();
+
+        expect($resourceRightsQueries)->toBeEmpty();
     });
 });
 

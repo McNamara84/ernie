@@ -27,6 +27,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\DataCiteXmlExporter;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->exporter = new DataCiteXmlExporter;
@@ -593,6 +594,33 @@ describe('DataCiteXmlExporter - Rights', function () {
             ->and($xml)->toContain('rightsURI="https://creativecommons.org/licenses/by/4.0/"')
             ->and($xml)->toContain('xml:lang="de"')
             ->and($xml)->toContain('Creative Commons Attribution 4.0 International</rights>');
+    });
+
+    test('uses already loaded resource rights instead of querying them again', function () {
+        $resource = Resource::factory()->create();
+        $right = Right::factory()->ccBy4()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_id' => $right->id,
+            'rights_text' => 'CC BY 4.0',
+        ]);
+
+        $warmupXml = $this->exporter->export($resource);
+        expect($warmupXml)->toBeString();
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $xml = $this->exporter->export($resource);
+        expect($xml)->toBeString();
+
+        $resourceRightsQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains($query['query'], 'resource_rights'));
+
+        DB::disableQueryLog();
+
+        expect($resourceRightsQueries)->toBeEmpty();
     });
 });
 
