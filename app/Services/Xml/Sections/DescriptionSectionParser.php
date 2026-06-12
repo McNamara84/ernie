@@ -54,17 +54,10 @@ final readonly class DescriptionSectionParser
         $xpath = new DOMXPath($document);
         $descriptionNodes = $xpath->query('//*[local-name()="resource"]/*[local-name()="descriptions"]/*[local-name()="description"]');
 
-        if ($descriptionNodes === false) {
-            return [];
-        }
-
         $descriptions = [];
 
-        foreach ($descriptionNodes as $node) {
-            if (! $node instanceof DOMElement) {
-                continue;
-            }
-
+        foreach ($descriptionNodes ?: [] as $node) {
+            /** @var DOMElement $node */
             $description = self::normalizeDescriptionText(self::descriptionTextFromDomNode($node));
 
             if ($description === '') {
@@ -160,11 +153,7 @@ final readonly class DescriptionSectionParser
             return $text;
         }
 
-        if (is_scalar($content)) {
-            return (string) $content;
-        }
-
-        return '';
+        return is_scalar($content) ? (string) $content : '';
     }
 
     private static function isLineBreakKey(string|int|null $key): bool
