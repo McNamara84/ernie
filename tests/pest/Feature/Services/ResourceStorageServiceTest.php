@@ -549,6 +549,41 @@ describe('ResourceStorageService', function () {
             ->and($related->relation_type_information)->toBeNull();
     });
 
+    it('coerces non-array related identifiers to an empty list before storage', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolveBestEffort');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'relatedIdentifiers' => 'not-an-array',
+        ];
+
+        [$resource] = $service->store($data, $this->user->id);
+
+        expect($resource->relatedIdentifiers()->count())->toBe(0);
+    });
+
     it('stores controlled GCMD keywords', function () {
         $resourceType = ResourceType::first();
 

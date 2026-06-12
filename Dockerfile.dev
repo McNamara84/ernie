@@ -12,6 +12,8 @@ FROM php:8.5.6-fpm-trixie@sha256:e88c4218493214d7d2611dea9707359dc3b0c63814c0a5e
 
 WORKDIR /var/www/html
 
+ARG PHP_REDIS_VERSION=6.3.0
+
 # Copy .node-version so the following RUN step can derive the NodeSource major
 # from the repository's single source of truth.
 COPY .node-version /tmp/.node-version
@@ -156,8 +158,13 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl sockets
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Install Redis extension from the official phpredis source tag.
+RUN set -eux; \
+    curl -fsSL "https://github.com/phpredis/phpredis/archive/refs/tags/${PHP_REDIS_VERSION}.tar.gz" -o /tmp/phpredis.tar.gz; \
+    mkdir -p /usr/src/php/ext/redis; \
+    tar -xzf /tmp/phpredis.tar.gz -C /usr/src/php/ext/redis --strip-components=1; \
+    docker-php-ext-install redis; \
+    rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
 # Install Xdebug for debugging (optional, disabled by default)
 RUN pecl install xdebug && docker-php-ext-enable xdebug
