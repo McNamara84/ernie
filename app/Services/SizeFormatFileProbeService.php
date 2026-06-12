@@ -46,10 +46,18 @@ class SizeFormatFileProbeService
     // array bedeutet geordnete Liste 
     public function extractAndProbe(string $url): array
     {
+        // Entfernt Leerzeichen am Anfang und am Ende
+        $url = trim($url);
+
+        if (! str_starts_with($url, 'https://dataservices.gfz-potsdam.de/')) {
+            return [$this->skip($url, 'unsupported_source_url')];
+        }
+
         // prüft, ob die URL mit http:// pder https:// beginnt, wenn nicht wird abgebrochen
         if (! $this->isHttpUrl($url)) {
             return [$this->skip($url, 'unsupported_protocol')];
         }
+
         // alles was hier drin ist kann fehlschlagen (Timeout und Netzwerkfehler)
         try {
             // die Anfrage darf max. 10 sekunden dauern 
@@ -150,7 +158,7 @@ class SizeFormatFileProbeService
 
             // Ergebnis
             // wenn bisher keine Fehler aufgetreten und Dateien gefunden überspringt das Programm den Fehler-Block und gibt Ergebnis als Array
-            return [
+            $result = [
                 'source_url' => $url,
                 'probe_method' => 'DIRECTORY_LISTING',
                 'http_status' => $response->status(),
@@ -158,9 +166,207 @@ class SizeFormatFileProbeService
                     'files' => $files,
                 ],
             ];
+
+            $result['suggestions'] = $this->buildSuggestions([$result]);
+
+            return $result;
+
         } catch (\Throwable $e) {
             return $this->skip($url, 'exception', $e->getMessage());
         }
+    }
+
+    // hier bekommt eine einzelne Datei 
+    public function inferMetadataFromFileUrl(string $fileUrl): array
+    {
+        $fileUrl = trim($fileUrl);
+
+        if (! $this->isHttpUrl($fileUrl)) {
+            return $this->skip($fileUrl, 'unsupported_protocol');
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->connectTimeout(5)
+                ->head($fileUrl);
+
+            // Head: nur header holen
+            // GET würde die datei herunterladen 
+            if ($response->successful()) {
+                // Header auslesen 
+                $contentType = $response->header('Content-Type');
+                // wenn kein Size vorhanden, wird durch Content-Length 'abgefragt' Beispiel: 1048576
+                $contentLength = $response->header('Content-Length');
+
+                // Sammlung für Vorschläge 
+                $suggestions = [];
+
+                // 
+                if ($contentType !== null && trim($contentType) !== '') {
+                    $suggestions[] = [
+                        'type' => 'format',
+                        'inferred_value' => trim(explode(';', $contentType)[0]),
+                        'source_url' => $fileUrl,
+                        'probe_method' => 'CONTENT_TYPE_HEADER',
+                        'evidence' => [
+                            'content_type' => $contentType,
+                        ],
+                        'confidence' => 'high',
+                    ];
+                }
+
+                // prüft, besteht Content-Length nur aus Zahlen
+                if ($contentLength !== null && ctype_digit((string) $contentLength)) {
+                    $suggestions[] = [
+                        'type' => 'size',
+                        // wandelt die Zahlen in MB/GB etc....
+                        'inferred_value' => $this->formatBytes((int) $contentLength),
+                        'source_url' => $fileUrl,
+                        'probe_method' => 'CONTENT_LENGTH_HEADER',
+                        'evidence' => [
+                            'content_length' => (int) $contentLength,
+                        ],
+                        'confidence' => 'high',
+                    ];
+                }
+
+                // wurden Vorschläge gefunden?
+                if (! empty($suggestions)) {
+                    return [
+                        'source_url' => $fileUrl,
+                        'probe_method' => 'HTTP_HEAD',
+                        'http_status' => $response->status(),
+                        'raw_evidence' => [
+                            'headers' => [
+                                'content_type' => $contentType,
+                                'content_length' => $contentLength,
+                            ],
+                        ],
+                        'suggestions' => $suggestions,
+                    ];
+                }
+            }
+
+            // bei keinem Erfolg wird Datei an Namen erkannt 
+            return $this->inferFromFilenameFallback($fileUrl);
+
+        } catch (\Throwable $e) {
+            return $this->inferFromFilenameFallback($fileUrl, $e->getMessage());
+        }
+    }
+
+        // macht aus den Rohdaten-Ergebnissen echte Suggestions
+    public function buildSuggestions(array $probeResults): array
+    {
+        $suggestions = [];
+
+        //geht jedes probe-Ergebnis einzeln durch
+        foreach ($probeResults as $probeResult) {
+            // wenn ein Ergebnis nur ein Skip ist, wird es ignoriert
+            if (($probeResult['probe_method'] ?? null) === 'SKIP') {
+                continue;
+            }
+
+            // holt source_url und raw_evidence 
+            $sourceUrl = $probeResult['source_url'] ?? null;
+            $files = $probeResult['raw_evidence']['files'] ?? [];
+
+            // geht jede gefundene Datei einzeln durch 
+            foreach ($files as $file) {
+                $fileUrl = $file['file_url'] ?? $sourceUrl;
+                $extension = $file['extension'] ?? null;
+                $displayedSize = $file['displayed_size'] ?? null;
+
+                // wenn eine Datei vorhanden ist, wird ein Format-Vorschlag erstellt 
+                if ($extension !== null && $extension !== '') {
+                    $suggestions[] = [
+                        'type' => 'format',
+                        'inferred_value' => $extension,
+                        'source_url' => $fileUrl,
+                        'probe_method' => 'FILENAME_EXTENSION',
+                        'evidence' => [
+                            'filename' => $file['filename'] ?? null,
+                            'extension' => $extension,
+                        ],
+                        // bei zip weiß man nicht was drin ist, deswegen confidence: low
+                        'confidence' => $extension === 'zip' ? 'low' : 'medium',
+                    ];
+                }
+
+                // Size-Vorschlag
+                if ($displayedSize !== null && $displayedSize !== '') {
+                    // wenn eine Größe vorhanden ist...
+                    $suggestions[] = [
+                        'type' => 'size',
+                        'inferred_value' => $displayedSize,
+                        'source_url' => $fileUrl,
+                        'probe_method' => 'DIRECTORY_LISTING',
+                        'evidence' => [
+                            'filename' => $file['filename'] ?? null,
+                            'displayed_size' => $displayedSize,
+                        ],
+                        //... confidence high, weil Größe direkt aus dem Directory Listing
+                        'confidence' => 'high',
+                    ];
+                }
+            }
+        }
+
+        // doppelte Vorschläge werden entfernt 
+        return $this->deduplicateSuggestions($suggestions);
+    }
+
+    // "Notfallplan"
+    /**
+     * Bedeutung:
+     * Head-Request fehlgeschlagen
+     * oder
+     * kein Content-Length vorgeschlagen
+     * oder kein Conten-Length vorhanden 
+     * 
+     * => versuche etwas aus dem Dateinamen abzuleiten
+     * 
+     */
+    private function inferFromFilenameFallback(string $fileUrl, ?string $error = null): array
+    {
+        // liefert den Pfad zur Datei
+        // Beispiel: https://datapub.gfz.de/download/data/report.pdf
+        // basename nimmt nur den letzten Teil = report.pdf
+        $filename = basename(parse_url($fileUrl, PHP_URL_PATH) ?? $fileUrl);
+        // Dateiendungen ermitteln
+        // aus report.pdf wird pdf
+        $extension = $this->extractExtension($filename);
+
+        // Fall: keine Endung gefunden 
+        if ($extension === null) {
+            return $this->skip($fileUrl, 'no_header_or_filename_evidence', $error);
+        }
+
+        // 
+        return [
+            'source_url' => $fileUrl,
+            'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
+            'http_status' => null,
+            'raw_evidence' => [
+                'filename' => $filename,
+                'extension' => $extension,
+                'error' => $error,
+            ],
+            // wenn keine Endung gefunden, werden Vorschläge gemacht
+            'suggestions' => [
+                [
+                    'type' => 'format',
+                    'inferred_value' => $extension,
+                    'source_url' => $fileUrl,
+                    'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
+                    'evidence' => [
+                        'filename' => $filename,
+                        'extension' => $extension,
+                    ],
+                    'confidence' => $extension === 'zip' ? 'low' : 'medium',
+                ],
+            ],
+        ];
     }
 
     // HTML-Code einer Webseite komplett zu durchsuchen
@@ -291,11 +497,11 @@ class SizeFormatFileProbeService
                 // speichert den Dateinamen
                 'filename' => $filename,
                 // leitet das Format aus der Dateiendung ab, z. B. csv, pdf, zip.
-                'format' => $this->extractExtension($filename),
+                'extension' => $this->extractExtension($filename),
                 // speichert das Änderungsdatum der Datei
                 'last_modified' => $lastModified,
                 // speichert die angezeigte Dateigröße, z. B. 14M
-                'file-size' => $displayedSize,
+                'displayed_size' => $displayedSize,
             ];
         }
 
@@ -361,6 +567,10 @@ class SizeFormatFileProbeService
     // $href = der Link aus dem HTML
     private function absoluteUrl(string $baseUrl, string $href): string
     {
+        
+        $baseUrl = trim($baseUrl);
+        $href = trim($href);
+
         // wenn $href schon vollständig ist = wird er zurückgegeben
         if ($this->isHttpUrl($href)) {
 
@@ -412,15 +622,59 @@ class SizeFormatFileProbeService
         return str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
     }
 
+        // wandelt die Dateigröße in Bytes in eine lesbare Größe um
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1024 * 1024 * 1024) {
+            return round($bytes / (1024 * 1024 * 1024), 2) . ' GB';
+        }
+
+        if ($bytes >= 1024 * 1024) {
+            return round($bytes / (1024 * 1024), 2) . ' MB';
+        }
+
+        if ($bytes >= 1024) {
+            return round($bytes / 1024, 2) . ' KB';
+        }
+
+        return $bytes . ' B';
+    }
+
+        // Funktion entfernt doppelte Suggestions
+    /**
+     * mehrere Dateien werden untersucht -> dabei können identische Vorschläge entstehen -> nur eindeutige sollen übrig bleiben
+     */
+    private function deduplicateSuggestions(array $suggestions): array
+    {
+        // welche suggestions habe ich bereits gesehen?
+        $seen = [];
+        // speicherung der eindeutigen entgüligen hier
+        $unique = [];
+
+        foreach ($suggestions as $suggestion) {
+            $key = ($suggestion['type'] ?? '') . '|' . ($suggestion['inferred_value'] ?? '') . '|' . ($suggestion['source_url'] ?? '');
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $unique[] = $suggestion;
+        }
+
+        return $unique;
+    }
+
     // erzeugt ein einheitliches Abbruch-Ergebnis
     private function skip(string $url, string $reason, ?string $error = null): array
     {
         return [
-            'source_url' => $url,
+            'source_url' => trim($url),
             'probe_method' => 'SKIP',
             'skip_reason' => $reason,
             'error' => $error,
             'raw_evidence' => [],
+            'suggestions' => [],
         ];
     }
 }
