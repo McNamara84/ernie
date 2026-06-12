@@ -30,6 +30,51 @@ This README documents the Docker-based development workflow only. For deeper set
 - On macOS, Docker Desktop runs on both Apple Silicon and Intel Macs. On Apple Silicon, enable **Use Rosetta for x86_64/amd64 emulation** under Docker Desktop → Settings → General so images without a native `arm64` build still run reliably.
 - On macOS, the default shell (`zsh`) and the bundled `openssl` (LibreSSL) work out of the box. If Node.js is not installed yet, the easiest route is [Homebrew](https://brew.sh) (`brew install node`) or a version manager such as `nvm`.
 
+### Optional Host-Side PHP And Composer
+
+The Docker-first workflow runs Composer and Laravel Artisan commands inside the `app` container, so PHP extensions such as `bcmath` are already available there:
+
+```bash
+npm run composer:app -- install
+npm run artisan -- make:controller TestController
+```
+
+If you prefer to run `composer install` directly on the host, install PHP 8.5 with the required extensions, including `bcmath`, and verify that the PHP CLI used by Composer sees it.
+
+Linux:
+
+```bash
+# Fedora
+sudo dnf install php-bcmath
+
+# Debian, Ubuntu, or WSL2 with Ubuntu
+sudo apt install php-bcmath
+
+php -m | grep -i '^bcmath$'
+composer install
+```
+
+macOS with Homebrew PHP:
+
+```bash
+brew install php
+php -m | grep -i '^bcmath$'
+composer install
+```
+
+If `bcmath` is still missing on macOS, check `php --ini` and make sure your shell is using the Homebrew PHP binary rather than another PHP installation.
+
+Windows:
+
+- With WSL2, run the Debian/Ubuntu commands above inside your WSL shell.
+- With native Windows PHP, enable `extension=bcmath` in the loaded `php.ini`, then verify it from PowerShell:
+
+```powershell
+php --ini
+php -m | findstr /I bcmath
+composer install
+```
+
 ### Step-By-Step Setup
 
 1. Clone the repository:
@@ -96,7 +141,7 @@ This README documents the Docker-based development workflow only. For deeper set
 6. Generate the application key:
 
 ```
-   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan key:generate
+   npm run artisan -- key:generate
 ```
 
    The development container normally writes `APP_KEY` to `.env` automatically on first boot. If the application reports `No application encryption key has been specified` (or `APP_KEY=` in `.env` is still empty), run this once while the stack is running, then reload the page.
@@ -115,7 +160,7 @@ This README documents the Docker-based development workflow only. For deeper set
 8. Create the first administrator account:
 
 ```
-   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
+   npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
 ```
 
    The first user created in a fresh environment becomes an administrator automatically.
@@ -123,10 +168,16 @@ This README documents the Docker-based development workflow only. For deeper set
 9. Initialize SPDX license data:
 
 ```
-   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan spdx:sync-licenses
+   npm run artisan -- spdx:sync-licenses
 ```
 
 The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
+
+For day-to-day Laravel commands, use the running app container instead of installing Composer dependencies on the host. For example:
+
+```bash
+npm run artisan -- make:controller TestController
+```
 
 ### Common Permission Errors
 
@@ -206,14 +257,16 @@ Host-side frontend commands in this repository require local `node_modules` in y
 | `npm run docker:dev:reset`      | Stop the stack and remove Docker volumes                                                   |
 | `npm run docker:dev:assessment` | Start the stack with the assessment profile, which adds the F-UJI container                |
 | `npm run docker:dev:parity`     | Start the stack with the parity profile, which currently adds the F-UJI container          |
+| `npm run artisan -- <command>`  | Run a Laravel Artisan command inside the app container                                     |
+| `npm run composer:app -- <cmd>` | Run Composer inside the app container                                                      |
 | `npm run check:backend`         | Run Pest and PHPStan against the Docker-backed backend workflow                            |
 | `npm run check:frontend`        | Run ESLint, OpenAPI linting, TypeScript checks, and one-shot Vitest on the host            |
 | `npm run check:parity`          | Run the parity validation flow, including the MySQL-sensitive backend slice and Playwright |
 
-For ad-hoc Laravel commands, use the app container directly:
+For example, create a controller with:
 
 ```bash
-docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan <command>
+npm run artisan -- make:controller TestController
 ```
 
 ## Testing And Quality Checks
