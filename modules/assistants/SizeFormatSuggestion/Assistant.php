@@ -12,6 +12,11 @@ use Closure;
 
 class Assistant extends GenericTableAssistant
 {
+    public function __construct(
+        private readonly SizeFormatFileProbeService $service,
+    ) {
+        parent::__construct();
+    }
     #[\Override]
     protected function getManifestPath(): string
     {
@@ -19,7 +24,7 @@ class Assistant extends GenericTableAssistant
     }
 
     /**
-     * Query an external API and store new suggestions.
+     * Discover size and format suggestions for resources.
      *
      * @param  Closure(string): void  $onProgress
      */
@@ -50,7 +55,7 @@ class Assistant extends GenericTableAssistant
                     targetType: 'resource',
                     targetId: $resource->id,
                     suggestedValue: (string) $suggestion['inferred_value'],
-                    suggestedLabel: strtoupper((string) $suggestion['type']) . ':' . (string) $suggestion['inferred_value'],
+                    suggestedLabel: strtoupper((string) $suggestion['type']) . ': ' . (string) $suggestion['inferred_value'],
                     similarityScore: null,
                 );
 
@@ -75,20 +80,15 @@ class Assistant extends GenericTableAssistant
 
         return [
             'success' => true,
-            'message' => "Format '{$suggestion->suggested_label}' applied.",
+            'message' => "Suggestion '{$suggestion->suggested_label}' applied.",
         ];
     }
 
-    /**
-     * Your custom lookup logic.
-     *
-     * @return array{identifier: string, name: string, confidence: float}|null
-     */
     private function lookupSizeFormats(\App\Models\Resource $resource): array
     {
-        $results = $this->probeService->extractAndProbe(
+        $results = $this->service->extractAndProbe(
             'https://doi.org/' . $resource->doi
         );
-        return $this->probeService->buildSuggestions($results);
+        return $this->service->buildSuggestions($results);
     }
 }
