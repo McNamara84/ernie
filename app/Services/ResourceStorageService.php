@@ -289,7 +289,11 @@ class ResourceStorageService
         $orcid = $this->filledContactString($personData['orcid'] ?? null);
 
         if ($orcid !== null) {
-            $keys[] = 'orcid:'.strtolower(OrcidNormalizer::extractBareId($orcid));
+            $bareOrcid = OrcidNormalizer::extractBareId($orcid);
+
+            if ($bareOrcid !== '' && OrcidNormalizer::isValidFormat($bareOrcid)) {
+                $keys[] = 'orcid:'.strtolower($bareOrcid);
+            }
         }
 
         $firstName = $this->normalisePersonIdentityPart($personData['firstName'] ?? null);

@@ -149,6 +149,40 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             ->and($contributor->contributorTypes->pluck('slug')->sort()->values()->all())->toBe(['ContactPerson', 'DataCollector']);
     });
 
+    it('does not reuse a different contributor through an empty ORCID identity key', function () {
+        ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector', 'category' => 'person'],
+        );
+
+        $data = contributorResourceData([
+            'firstName' => 'Bailey',
+            'lastName' => 'Contact',
+            'orcid' => 'https://orcid.org/',
+            'roles' => ['DataCollector'],
+            'email' => null,
+            'website' => null,
+        ]);
+        $data['authors'][0]['firstName'] = 'Avery';
+        $data['authors'][0]['lastName'] = 'Author';
+        $data['authors'][0]['orcid'] = 'orcid.org/';
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'avery.author@example.org';
+        $data['authors'][0]['website'] = 'https://avery.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        $resource->load(['contributors.contributorable', 'contributors.contributorTypes']);
+
+        $contributorsByGivenName = $resource->contributors
+            ->keyBy(fn ($contributor): string => $contributor->contributorable->given_name);
+
+        expect($resource->contributors)->toHaveCount(2)
+            ->and($contributorsByGivenName->get('Bailey')?->contributorTypes->pluck('slug')->all())->toBe(['DataCollector'])
+            ->and($contributorsByGivenName->get('Bailey')?->email)->toBeNull()
+            ->and($contributorsByGivenName->get('Avery')?->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson'])
+            ->and($contributorsByGivenName->get('Avery')?->email)->toBe('avery.author@example.org');
+    });
+
     it('does not duplicate an explicitly submitted matching ContactPerson contributor', function () {
         $data = contributorResourceData([
             'firstName' => 'Jane',

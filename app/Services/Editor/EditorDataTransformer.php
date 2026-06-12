@@ -345,11 +345,15 @@ class EditorDataTransformer
     {
         $keys = ["person-id:{$person->id}"];
 
-        if ($person->name_identifier !== null && $person->name_identifier !== '') {
+        if ($person->name_identifier !== null && trim($person->name_identifier) !== '') {
             $scheme = $person->name_identifier_scheme ?? 'ORCID';
 
             if (strtoupper($scheme) === 'ORCID') {
-                $keys[] = 'orcid:'.strtolower(OrcidNormalizer::extractBareId($person->name_identifier));
+                $bareOrcid = OrcidNormalizer::extractBareId($person->name_identifier);
+
+                if ($bareOrcid !== '' && OrcidNormalizer::isValidFormat($bareOrcid)) {
+                    $keys[] = 'orcid:'.strtolower($bareOrcid);
+                }
             }
         }
 
