@@ -906,7 +906,7 @@ class StoreResourceRequest extends FormRequest
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $rawRights
+     * @param  array<int, mixed>  $rawRights
      */
     private function rawRightsContainEvidence(array $rawRights): bool
     {

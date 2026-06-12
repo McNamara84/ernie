@@ -416,7 +416,6 @@ class UploadJsonController extends Controller
                 'rightsIdentifierScheme' => $this->filledString($rights['rightsIdentifierScheme'] ?? null),
                 'schemeUri' => $this->filledString($rights['schemeUri'] ?? $rights['schemeURI'] ?? null),
                 'lang' => $this->filledString($rights['lang'] ?? $rights['language'] ?? null),
-                'source' => 'json-upload',
             ];
 
             $statement = array_filter(
@@ -424,9 +423,12 @@ class UploadJsonController extends Controller
                 fn (?string $value): bool => $value !== null,
             );
 
-            if ($statement !== []) {
-                $rawRights[] = $statement;
+            if ($statement === []) {
+                continue;
             }
+
+            $statement['source'] = 'json-upload';
+            $rawRights[] = $statement;
         }
 
         return $rawRights;
