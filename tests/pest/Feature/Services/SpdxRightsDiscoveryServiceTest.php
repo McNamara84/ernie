@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Resource;
+use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Services\Spdx\SpdxRightsDiscoveryService;
 use App\Services\Spdx\SpdxRightsMatcher;
@@ -110,8 +111,34 @@ it('stores suggestions for exact and alias matches while skipping non-SPDX state
         ->and($progressMessages)->toContain('Stored 2 SPDX suggestion(s); skipped 1 unsupported and 0 insufficient statement(s).');
 });
 
-it('returns no pending inputs before raw resource_rights columns exist', function () {
+it('returns no pending inputs when no unresolved raw rights exist', function () {
     $provider = new SpdxRightsMatchInputProvider;
 
     expect($provider->pendingInputs())->toHaveCount(0);
+});
+
+it('reads unresolved raw resource_rights rows and ignores already linked rows', function () {
+    $resource = Resource::factory()->create();
+    $right = Right::factory()->ccBy4()->create();
+
+    $pending = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'CC BY 4.0',
+        'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+        'source' => 'xml-upload',
+    ]);
+
+    ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_id' => $right->id,
+        'rights_text' => 'Creative Commons Attribution 4.0 International',
+        'source' => 'xml-upload',
+    ]);
+
+    $inputs = (new SpdxRightsMatchInputProvider)->pendingInputs();
+
+    expect($inputs)->toHaveCount(1)
+        ->and($inputs->first()->targetId)->toBe($pending->id)
+        ->and($inputs->first()->rightsText)->toBe('CC BY 4.0')
+        ->and($inputs->first()->rightsUri)->toBe('http://creativecommons.org/licenses/by/4.0');
 });

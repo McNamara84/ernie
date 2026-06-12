@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\LandingPage;
 use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceInstrument;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
@@ -91,6 +95,54 @@ describe('ResourceStorageService', function () {
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('stores imported raw rights without a selected catalog license', function () {
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Imported rights resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'licenses' => [],
+            'rawRights' => [
+                [
+                    'rights' => 'CC BY 4.0',
+                    'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                    'source' => 'xml-upload',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Ada',
+                    'lastName' => 'Lovelace',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Imported rights should remain available for SPDX review.',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->first();
+
+        expect($resourceRight)->not->toBeNull()
+            ->and($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+            ->and($resourceRight->source)->toBe('xml-upload');
     });
 
     it('updates an existing resource', function () {
@@ -183,7 +235,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         // Create a test license
-        $license = \App\Models\Right::factory()->create([
+        $license = Right::factory()->create([
             'identifier' => 'test-license',
             'name' => 'Test License',
         ]);
@@ -368,10 +420,10 @@ describe('ResourceStorageService', function () {
     it('stores related identifiers with resolved citation labels and trimmed relation details', function () {
         $resourceType = ResourceType::first();
 
-        $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldReceive('resolveBestEffort')
             ->once()
-            ->with('10.5880/test.related', 'DOI', \Mockery::type('float'))
+            ->with('10.5880/test.related', 'DOI', Mockery::type('float'))
             ->andReturn('Doe, J. (2026): Auto-resolved citation.');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
@@ -435,7 +487,7 @@ describe('ResourceStorageService', function () {
     it('preserves manual related identifier citation labels without calling the resolver', function () {
         $resourceType = ResourceType::first();
 
-        $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldNotReceive('resolveBestEffort');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
@@ -833,7 +885,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
                 ->and($instruments[1]->instrument_pid)->toBe('http://hdl.handle.net/21.12132/NEW002');
 
             // Old instrument should be gone
-            expect(\App\Models\ResourceInstrument::where('instrument_pid', 'http://hdl.handle.net/21.12132/OLD001')->exists())->toBeFalse();
+            expect(ResourceInstrument::where('instrument_pid', 'http://hdl.handle.net/21.12132/OLD001')->exists())->toBeFalse();
         });
 
         it('skips instruments with empty pid or name', function () {
@@ -934,7 +986,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
         it('stores funder_identifier_type_id correctly for ROR funders', function () {
             $resourceType = ResourceType::first();
-            $rorType = \App\Models\FunderIdentifierType::where('name', 'ROR')->first();
+            $rorType = FunderIdentifierType::where('name', 'ROR')->first();
 
             $data = [
                 'resourceId' => null,
@@ -969,7 +1021,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
         it('stores funder_identifier_type_id correctly for Crossref Funder ID', function () {
             $resourceType = ResourceType::first();
-            $crossrefType = \App\Models\FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
+            $crossrefType = FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
 
             $data = [
                 'resourceId' => null,
