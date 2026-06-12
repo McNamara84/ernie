@@ -592,8 +592,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     score.
                                 </p>
                                 <p className="mt-2">
-                                    SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata.
-                                    Accepting links only that rights statement to the shared SPDX catalog; decline keeps the imported statement
+                                    SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
+                                    Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
                                     unchanged and dismisses the suggestion.
                                 </p>
                             </WorkflowSteps.Step>

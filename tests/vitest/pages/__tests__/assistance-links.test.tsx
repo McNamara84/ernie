@@ -300,7 +300,7 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
             'href',
             'https://spdx.org/licenses/CC-BY-4.0.html',
         );
-        expect(screen.getByText(/Accepting links only this rights statement/)).toBeInTheDocument();
+        expect(screen.getByText(/Clicking Accept links only this rights statement/)).toBeInTheDocument();
     });
 });
 

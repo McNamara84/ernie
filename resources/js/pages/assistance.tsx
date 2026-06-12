@@ -289,8 +289,8 @@ function SpdxRightsSuggestionCard({
                         <div className="flex gap-2">
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                             <p>
-                                Accepting links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused and only empty
-                                catalog fields are filled.
+                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only empty
+                                catalog fields may be filled.
                             </p>
                         </div>
                     </div>
