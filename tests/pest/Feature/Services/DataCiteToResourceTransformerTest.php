@@ -1641,6 +1641,56 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
             ->and($institution->name_identifier_scheme)->toBe('ROR');
     });
 
+    it('persists ROR identifiers detected from lowercase or missing schemes', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/ror-signal-persistence.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'ROR Signal Persistence Test']],
+                'creators' => [
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'http://ror.org/05Q1P6X47',
+                                'nameIdentifierScheme' => 'ror',
+                                'schemeUri' => 'http://ror.org',
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'GFZ German Research Centre for Geosciences',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'ror.org/04Z8JG394',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+        $firstInstitution = Institution::findOrFail($creators[0]->creatorable_id);
+        $secondInstitution = Institution::findOrFail($creators[1]->creatorable_id);
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Institution::class)
+            ->and($firstInstitution->name_identifier)->toBe('https://ror.org/05q1p6x47')
+            ->and($firstInstitution->name_identifier_scheme)->toBe('ROR')
+            ->and($firstInstitution->scheme_uri)->toBe('https://ror.org')
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class)
+            ->and($secondInstitution->name_identifier)->toBe('https://ror.org/04z8jg394')
+            ->and($secondInstitution->name_identifier_scheme)->toBe('ROR')
+            ->and($secondInstitution->scheme_uri)->toBe('https://ror.org');
+    });
+
     it('ignores blank name identifiers when resolving creator types', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;

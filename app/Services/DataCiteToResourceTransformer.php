@@ -55,6 +55,7 @@ class DataCiteToResourceTransformer
 
     public function __construct(
         private ?RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService = null,
+        private ?RorLookupService $rorLookupService = null,
     ) {}
 
     /**
@@ -803,16 +804,41 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            if ($scheme === strtolower($expectedScheme)) {
-                return true;
+            if ($expectedScheme === 'ROR') {
+                if ($this->canonicalRorIdentifier($identifier, $scheme) !== null) {
+                    return true;
+                }
+
+                continue;
             }
 
-            if ($expectedScheme === 'ROR' && str_contains($identifier, 'ror.org/')) {
+            if ($scheme === strtolower($expectedScheme)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function canonicalRorIdentifier(string $identifier, string $scheme): ?string
+    {
+        $identifier = trim($identifier);
+        $scheme = strtolower(trim($scheme));
+
+        if ($identifier === '') {
+            return null;
+        }
+
+        if ($scheme !== 'ror' && ! str_contains(strtolower($identifier), 'ror.org/')) {
+            return null;
+        }
+
+        return $this->rorLookupService()->canonicalise($identifier);
+    }
+
+    private function rorLookupService(): RorLookupService
+    {
+        return $this->rorLookupService ??= app(RorLookupService::class);
     }
 
     /**
@@ -941,21 +967,26 @@ class DataCiteToResourceTransformer
 
         if (is_array($nameIdentifiers)) {
             foreach ($nameIdentifiers as $nameId) {
-                if (! is_array($nameId) || ($nameId['nameIdentifierScheme'] ?? '') !== 'ROR') {
+                if (! is_array($nameId)) {
                     continue;
                 }
 
                 $identifier = isset($nameId['nameIdentifier'])
                     ? trim((string) $nameId['nameIdentifier'])
                     : '';
+                $nameIdentifierScheme = isset($nameId['nameIdentifierScheme'])
+                    ? trim((string) $nameId['nameIdentifierScheme'])
+                    : '';
 
-                if ($identifier === '') {
+                $canonicalRor = $this->canonicalRorIdentifier($identifier, $nameIdentifierScheme);
+
+                if ($canonicalRor === null) {
                     continue;
                 }
 
-                $ror = $identifier;
+                $ror = $canonicalRor;
                 $scheme = 'ROR';
-                $schemeUri = $nameId['schemeUri'] ?? 'https://ror.org';
+                $schemeUri = 'https://ror.org';
                 break;
             }
         }
