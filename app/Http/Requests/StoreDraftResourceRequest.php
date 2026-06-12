@@ -251,8 +251,9 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
-        /** @var array<int, mixed> $rawLicenses */
-        $rawLicenses = $this->input('licenses', []);
+        /** @var mixed $rawLicensesInput */
+        $rawLicensesInput = $this->input('licenses', []);
+        $rawLicenses = is_array($rawLicensesInput) ? $rawLicensesInput : [];
 
         $licenses = [];
 
@@ -265,6 +266,10 @@ class StoreDraftResourceRequest extends FormRequest
 
             $licenses[] = $normalized;
         }
+
+        $normalizedLicenses = is_array($rawLicensesInput) || $rawLicensesInput === null
+            ? $licenses
+            : $rawLicensesInput;
 
         /** @var mixed $rawRightsInput */
         $rawRightsInput = $this->input('rawRights', []);
@@ -733,7 +738,7 @@ class StoreDraftResourceRequest extends FormRequest
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
             'language' => $this->filled('language') ? trim((string) $this->input('language')) : null,
             'titles' => $titles,
-            'licenses' => $licenses,
+            'licenses' => $normalizedLicenses,
             'rawRights' => $rawRights,
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
