@@ -27,44 +27,65 @@ class SizeFormatFileProbeService
 
     public function extractAndProbe(string $url): array
     {
+        // Entfernt Leerzeichen am Anfang und am Ende
         $url = trim($url);
 
+        // Wenn URL nicht mit https://dataservices.gfz-potsdam.de/ anfängt wird geskippt
+        if (! str_starts_with($url, 'https://dataservices.gfz-potsdam.de/')) {
+            return [$this->skip($url, 'unsupported_source_url')];
+        }
+
+        // prüft ob URL mit http:// oder https:// beginnt, wenn nicht -> skip
         if (! $this->isHttpUrl($url)) {
             return [$this->skip($url, 'unsupported_protocol')];
         }
 
+        // "Sicherheitsblock": steht alles was schiefgehen kann drin
+        // geht etwas hier schief -> springt zum catch-Block
         try {
+            // Anfrage darf nur max. 10 Sekunden dauern
             $response = Http::timeout(10)
+                // Verbindungsaufbau max. 5 Sekunden 
                 ->connectTimeout(5)
+                // dann wird per GET-Anfrage die URL geöffnet
                 ->get($url);
 
             if (! $response->successful()) {
                 return [$this->skip($url, 'landing_page_unreachable')];
             }
 
-            // speichert die finale URL nach Redirects
+            // wenn Anfrage nicht erfolgreich -> speichert URL nach Redirects
             $landingPageUrl = (string) $response->effectiveUri();
+            // speichert den HTML-Code der Seite 
             $html = $response->body();
 
+            // prüft, ob Seite Hinweis auf Sperren enthält, wenn ja wird abgebrochen ->skip
             if ($this->containsBlockedAccess($html)) {
                 return [$this->skip($landingPageUrl, 'blocked_access_or_form_required')];
             }
 
+            // sucht im HTML nach erlaubten Download-Links wie piwik-Download
+            // wenn nichts passendes gefunden, wird es übersprungen 
             $downloadUrls = $this->extractPiwikDownloadLinks($landingPageUrl, $html);
 
             if (empty($downloadUrls)) {
                 return [$this->skip($landingPageUrl, 'no_eligible_file_links_found')];
             }
 
+            // leere Ergebnisliste 
             $results = [];
 
             // jede gefunde Donwload-URL wird untersucht 
+            // für jede URL wird die Methode probeDirectoryListing aufgerufen 
             foreach ($downloadUrls as $downloadUrl) {
                 $results[] = $this->probeDirectoryListing($downloadUrl);
             }
 
             // gibt alle Ergebnisse zurück 
             return $results;
+
+        // wenn im try-Block irgendein Fehler passiert, wird es hier abgefangen 
+        // \Throwable-> jede Art von Fehler oder Ausnahme
         } catch (\Throwable $e) {
             return [$this->skip($url, 'exception', $e->getMessage())];
         }
@@ -93,8 +114,11 @@ class SizeFormatFileProbeService
                 return $this->skip($url, 'blocked_access_or_form_required');
             }
 
+            // automatische Verzeichnisauflistung
+            // liest aus dem Verzeichnis -> filename, format, file-size
             $files = $this->extractFilesFromApacheIndex($url, $html);
 
+            // wenn keine Dateien gefunden 
             if (empty($files)) {
                 return $this->skip($url, 'no_files_found');
             }
@@ -108,14 +132,23 @@ class SizeFormatFileProbeService
                 ],
             ];
 
+            // Vorschläge erzeugen
+            // hier werden aus den gefundenen Dateien Format- und Size-Vorschläge gebaut
+            /**
+             * Beispiel: 
+             * 'type' => 'xlsx'
+             * 'inferred_value' => '12M'
+             */
             $result['suggestions'] = $this->buildSuggestions([$result]);
 
             return $result;
+
         } catch (\Throwable $e) {
             return $this->skip($url, 'exception', $e->getMessage());
         }
     }
 
+    // hier bekommt eine einzelne Datei 
     public function inferMetadataFromFileUrl(string $fileUrl): array
     {
         $fileUrl = trim($fileUrl);
@@ -129,12 +162,18 @@ class SizeFormatFileProbeService
                 ->connectTimeout(5)
                 ->head($fileUrl);
 
+            // Head: nur header holen
+            // GET würde die datei herunterladen 
             if ($response->successful()) {
+                // Header auslesen 
                 $contentType = $response->header('Content-Type');
+                // wenn kein Size vorhanden, wird durch Content-Length 'abgefragt' Beispiel: 1048576
                 $contentLength = $response->header('Content-Length');
 
+                // Sammlung für Vorschläge 
                 $suggestions = [];
 
+                // 
                 if ($contentType !== null && trim($contentType) !== '') {
                     $suggestions[] = [
                         'type' => 'format',
@@ -148,9 +187,11 @@ class SizeFormatFileProbeService
                     ];
                 }
 
+                // prüft, besteht Content-Length nur aus Zahlen
                 if ($contentLength !== null && ctype_digit((string) $contentLength)) {
                     $suggestions[] = [
                         'type' => 'size',
+                        // wandelt die Zahlen in MB/GB etc....
                         'inferred_value' => $this->formatBytes((int) $contentLength),
                         'source_url' => $fileUrl,
                         'probe_method' => 'CONTENT_LENGTH_HEADER',
@@ -161,6 +202,7 @@ class SizeFormatFileProbeService
                     ];
                 }
 
+                // wurden Vorschläge gefunden?
                 if (! empty($suggestions)) {
                     return [
                         'source_url' => $fileUrl,
@@ -177,29 +219,37 @@ class SizeFormatFileProbeService
                 }
             }
 
+            // bei keinem Erfolg wird Datei an Namen erkannt 
             return $this->inferFromFilenameFallback($fileUrl);
+
         } catch (\Throwable $e) {
             return $this->inferFromFilenameFallback($fileUrl, $e->getMessage());
         }
     }
 
+    // macht aus den Rohdaten-Ergebnissen echte Suggestions
     public function buildSuggestions(array $probeResults): array
     {
         $suggestions = [];
 
+        //geht jedes probe-Ergebnis einzeln durch
         foreach ($probeResults as $probeResult) {
+            // wenn ein Ergebnis nur ein Skip ist, wird es ignoriert
             if (($probeResult['probe_method'] ?? null) === 'SKIP') {
                 continue;
             }
 
+            // holt source_url und raw_evidence 
             $sourceUrl = $probeResult['source_url'] ?? null;
             $files = $probeResult['raw_evidence']['files'] ?? [];
 
+            // geht jede gefundene Datei einzeln durch 
             foreach ($files as $file) {
                 $fileUrl = $file['file_url'] ?? $sourceUrl;
                 $extension = $file['extension'] ?? null;
                 $displayedSize = $file['displayed_size'] ?? null;
 
+                // wenn eine Datei vorhanden ist, wird ein Format-Vorschlag erstellt 
                 if ($extension !== null && $extension !== '') {
                     $suggestions[] = [
                         'type' => 'format',
@@ -210,11 +260,14 @@ class SizeFormatFileProbeService
                             'filename' => $file['filename'] ?? null,
                             'extension' => $extension,
                         ],
+                        // bei zip weiß man nicht was drin ist, deswegen confidence: low
                         'confidence' => $extension === 'zip' ? 'low' : 'medium',
                     ];
                 }
 
+                // Size-Vorschlag
                 if ($displayedSize !== null && $displayedSize !== '') {
+                    // wenn eine Größe vorhanden ist...
                     $suggestions[] = [
                         'type' => 'size',
                         'inferred_value' => $displayedSize,
@@ -224,6 +277,7 @@ class SizeFormatFileProbeService
                             'filename' => $file['filename'] ?? null,
                             'displayed_size' => $displayedSize,
                         ],
+                        //... confidence high, weil Größe direkt aus dem Directory Listing
                         'confidence' => 'high',
                     ];
                 }
