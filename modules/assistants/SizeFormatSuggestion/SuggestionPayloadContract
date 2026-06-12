@@ -2,14 +2,22 @@
 Inferred values
 Size and format
 
-Derived out of: 
-DOI: `https://doi.org/{DOI}`-> `https://dataservices.gfz-potsdam.de/.../{ID}` -> `https://datapub.gfz.de/download/{ID}` 
+Derived out of:
+DOI: `https://doi.org/{DOI}` -> `https://dataservices.gfz-potsdam.de/.../{ID}` -> `https://datapub.gfz.de/download/{ID}`
 
 {DOI}: DOI of a dataset wihch will be pulled out of a database.
 {ID}: Unknown website specified Identifier. 
 
-`https://dataservices.gfz-potsdam.de/.../{ID}`: 
-- Need to find download link leading to webiste specific link. 
+## URL input contract
+
+- The assistant may start with a DOI URL such as `https://doi.org/{DOI}`.
+- DOI URLs are valid input, but they are not the final allowed-source URL.
+- A DOI URL must first be resolved to its final landing page URL.
+- The allowed-source check must happen after DOI resolution, not before.
+- If the resolved landing page URL is not an allowed source, the resource must be skipped with a clear reason.
+
+`https://dataservices.gfz-potsdam.de/.../{ID}`:
+- Need to find download link leading to webiste specific link.
 (`https://datapub.gfz.de/download/{ID}`)
 - multiple links can be a challange
 
@@ -27,12 +35,21 @@ DOI: `https://doi.org/{DOI}`-> `https://dataservices.gfz-potsdam.de/.../{ID}` ->
 **DOI**
 10.5880/WSM.2025.001
 
+**Original DOI URL**
+https://doi.org/10.5880/WSM.2025.001
+
+**Resolved Landing Page URL**
+https://dataservices.gfz-potsdam.de/panmetaworks/showshort.php?id=escidoc:5222337
+
+**Resolved Source URL**
+https://datapub.gfz.de/download/10.5880.WSM.2025.001-Scbwez
+
 **Inferred Value** 
 - Format: csv
 - Size: 14M
-    
-**Source URL** 
-https://datapub.gfz.de/download/10.5880.WSM.2025.001-Scbwez
+
+**Skip Behavior**
+- If the DOI resolves to a non-allowed source, skip with a clear reason such as `resolved_url_not_allowed_source`.
 
 **Probe Method** 
 DIRECTORY_LISTING
@@ -41,6 +58,9 @@ DIRECTORY_LISTING
 - Filename: WSM_Database_2025.csv
 - Extension: csv
 - Displayed Size: 14M
+- Original DOI URL: https://doi.org/10.5880/WSM.2025.001
+- Resolved Landing Page URL: https://dataservices.gfz-potsdam.de/panmetaworks/showshort.php?id=escidoc:5222337
+- Resolved Source URL: https://datapub.gfz.de/download/10.5880.WSM.2025.001-Scbwez
 
 **Confidence** 
 High

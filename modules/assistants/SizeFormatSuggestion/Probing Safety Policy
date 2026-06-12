@@ -2,6 +2,15 @@
 Dieses Dokument soll die Probing Safety Policy für den Download-Derived
 Size and Format Enrichment Assistant definieren. 
 
+## Input URL contract
+
+- The assistant may start with a DOI URL such as `https://doi.org/{DOI}`.
+- DOI URLs are valid input and must be resolved first.
+- Resolve the DOI URL to the final landing page URL before applying any allowed-source restriction.
+- Apply the allowed-source check to the resolved landing page URL, not to the original DOI URL.
+- If the resolved landing page URL is not an allowed source, skip the resource with a clear reason.
+- Keep both the original DOI URL and the resolved URL in probe evidence or suggestion metadata when available.
+
 ## Request Methode
 HEAD Request
 Attribute "Content-Lenght" und "Content-Type" auswerten
@@ -26,6 +35,12 @@ Kette protokollieren
 Andere Protokolle abbrechen
 
 # Regeln: Set maximum amount for redirects. Only allow http(s). Cancel redirects to other protocols. Document the redirection chain. 
+
+Additional rule for DOI handling:
+
+- DOI redirects are expected and may be followed until the final landing page URL is reached.
+- After DOI resolution, validate whether the final landing page URL belongs to an allowed source.
+- If not, skip with a clear reason such as `resolved_url_not_allowed_source`.
 
 ## Retry-Regeln
 Maximale Anzahl an Versuchen
@@ -58,6 +73,8 @@ Skip immediately when:
 # Regel: Skip visited URLs, blacklistet domains and protocols other than http(S).
 
 ## All rules
+Accept DOI URLs as input. Resolve them to the final landing page URL before applying the allowed-source check.
+If the resolved landing page URL is not an allowed source, skip the resource with a clear reason and keep both the original DOI URL and resolved URL in evidence when available.
 Prefer HEAD requests. If HEAD returns 405, 501, or incomplete metadata, perform a single ranged GET request (first 1 KB only). Full content downloads are not allowed during probing.
 Set timeouts for connecting and for the whole request. Mark URL on failure. No infinite loops.
 Set maximum amount for redirects. Only allow http(s). Cancel redirects to other protocols. Document the redirection chain. 
