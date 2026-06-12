@@ -96,6 +96,12 @@ describe('Services', function () {
             'App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser',
             'App\Services\Xml\Sections\RightsSectionParser',
             'App\Services\Xml\Sections\TitleSectionParser',
+            'App\Services\Spdx\SpdxLicenseData',
+            'App\Services\Spdx\SpdxLicenseLookup',
+            'App\Services\Spdx\SpdxRightsMatcher',
+            'App\Services\Spdx\SpdxRightsMatchInput',
+            'App\Services\Spdx\SpdxRightsMatchInputProvider',
+            'App\Services\Spdx\SpdxRightsMatchResult',
         ]);
 
     arch('services are not extending controllers')
