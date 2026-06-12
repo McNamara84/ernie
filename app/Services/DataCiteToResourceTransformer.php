@@ -341,11 +341,6 @@ class DataCiteToResourceTransformer
                 if ($titleTypeId === null) {
                     $titleTypeId = $this->resolveTitleTypeId('Other', 'Other');
                 }
-
-                // If still null, use MainTitle as last resort
-                if ($titleTypeId === null) {
-                    $titleTypeId = $mainTitleId;
-                }
             }
 
             Title::create([
