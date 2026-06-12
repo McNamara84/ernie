@@ -308,6 +308,84 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($person->name_identifier_scheme)->toBe('ORCID');
         });
 
+        it('normalizes valid ORCID identifiers to canonical URLs', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/orcid-normalized.2024.001',
+                    'titles' => [['title' => 'ORCID Normalization Test']],
+                    'creators' => [
+                        [
+                            'familyName' => 'Curie',
+                            'givenName' => 'Marie',
+                            'nameType' => 'Personal',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => '0000-0002-1825-0097',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                    'schemeUri' => 'http://orcid.org',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $transformer->transform($doiData, $user->id);
+            $person = Person::where('family_name', 'Curie')->firstOrFail();
+
+            expect($person->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
+                ->and($person->name_identifier_scheme)->toBe('ORCID')
+                ->and($person->scheme_uri)->toBe('https://orcid.org');
+        });
+
+        it('ignores invalid ORCID identifiers during import', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/orcid-invalid.2024.001',
+                    'publicationYear' => 2024,
+                    'titles' => [['title' => 'Invalid ORCID Test']],
+                    'creators' => [
+                        [
+                            'name' => 'Doe, Jane',
+                            'nameType' => 'Personal',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => '0000-0002-1825-0000',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                ],
+                            ],
+                        ],
+                        [
+                            'name' => 'Royal Meteorological Institute (Belgium)',
+                            'nameType' => 'Personal',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => 'not-an-orcid',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $creators = $resource->creators()->orderBy('position')->get();
+            $person = Person::findOrFail($creators[0]->creatorable_id);
+
+            expect($creators)->toHaveCount(2)
+                ->and($creators[0]->creatorable_type)->toBe(Person::class)
+                ->and($person->name_identifier)->toBeNull()
+                ->and($person->name_identifier_scheme)->toBeNull()
+                ->and($creators[1]->creatorable_type)->toBe(Institution::class);
+        });
+
         it('creates organizational creators (institutions)', function (): void {
             $user = User::factory()->create();
             $transformer = new DataCiteToResourceTransformer;

@@ -37,6 +37,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Support\OrcidNormalizer;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -615,7 +616,10 @@ class DataCiteToResourceTransformer
 
         if (is_array($nameIdentifiers)) {
             foreach ($nameIdentifiers as $nameId) {
-                if (! is_array($nameId) || ($nameId['nameIdentifierScheme'] ?? '') !== 'ORCID') {
+                if (
+                    ! is_array($nameId)
+                    || strtolower(trim((string) ($nameId['nameIdentifierScheme'] ?? ''))) !== 'orcid'
+                ) {
                     continue;
                 }
 
@@ -623,13 +627,13 @@ class DataCiteToResourceTransformer
                     ? trim((string) $nameId['nameIdentifier'])
                     : '';
 
-                if ($identifier === '') {
+                if ($identifier === '' || ! OrcidNormalizer::isValid($identifier)) {
                     continue;
                 }
 
-                $orcid = $identifier;
+                $orcid = OrcidNormalizer::toUrl($identifier);
                 $scheme = 'ORCID';
-                $schemeUri = $nameId['schemeUri'] ?? 'https://orcid.org';
+                $schemeUri = 'https://orcid.org';
                 break;
             }
         }
@@ -791,11 +795,15 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            if ($scheme === strtolower($expectedScheme)) {
-                return true;
+            if ($expectedScheme === 'ORCID') {
+                if ($scheme === 'orcid' || str_contains($identifier, 'orcid.org/')) {
+                    return OrcidNormalizer::isValid($identifier);
+                }
+
+                continue;
             }
 
-            if ($expectedScheme === 'ORCID' && str_contains($identifier, 'orcid.org/')) {
+            if ($scheme === strtolower($expectedScheme)) {
                 return true;
             }
 
