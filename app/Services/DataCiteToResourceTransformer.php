@@ -856,11 +856,14 @@ class DataCiteToResourceTransformer
             return;
         }
 
+        $persistedPosition = $position + 1;
+
         Log::debug('Corrected DataCite party nameType during import', [
             'resource_id' => $resource->id,
             'doi' => $resource->doi,
             'role' => $partyRole,
-            'position' => $position,
+            'position' => $persistedPosition,
+            'source_index' => $position,
             'name' => $data['name'] ?? null,
             'declared_name_type' => $declaredNameType,
             'resolved_name_type' => $resolvedNameType,

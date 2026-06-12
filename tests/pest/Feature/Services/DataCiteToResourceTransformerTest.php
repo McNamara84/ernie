@@ -22,6 +22,7 @@ use Database\Seeders\PublisherSeeder;
 use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Database\Seeders\TitleTypeSeeder;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function (): void {
     // Ensure all required lookup tables are seeded
@@ -1533,6 +1534,48 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
             ->and($creators[0]->creatorable_type)->toBe(Institution::class)
             ->and($creators[1]->creatorable_type)->toBe(Institution::class)
             ->and($creators[2]->creatorable_type)->toBe(Person::class);
+    });
+
+    it('logs corrected nameType with persisted position and source index', function (): void {
+        Log::spy();
+
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/name-type-log-position.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'NameType Log Position Test']],
+                'creators' => [
+                    [
+                        'familyName' => 'Curator',
+                        'givenName' => 'Casey',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        expect($resource->creators()->orderBy('position')->pluck('position')->all())->toBe([1, 2]);
+
+        Log::shouldHaveReceived('debug')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'Corrected DataCite party nameType during import'
+                && $context['resource_id'] === $resource->id
+                && $context['doi'] === '10.5880/name-type-log-position.2024.001'
+                && $context['role'] === 'creator'
+                && $context['position'] === 2
+                && $context['source_index'] === 1
+                && $context['name'] === 'Royal Meteorological Institute (Belgium)'
+                && $context['declared_name_type'] === 'Personal'
+                && $context['resolved_name_type'] === 'Organizational')
+            ->once();
     });
 
     it('infers Intermagnet-style institutional creators when DataCite omits nameType', function (): void {
