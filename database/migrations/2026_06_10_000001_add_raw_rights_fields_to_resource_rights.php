@@ -141,7 +141,7 @@ return new class extends Migration
             [self::TABLE, $column],
         );
 
-        return is_string($result?->constraint_name ?? null)
+        return is_string($result->constraint_name ?? null)
             ? $result->constraint_name
             : null;
     }
