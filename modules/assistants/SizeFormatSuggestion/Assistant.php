@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Assistants\SizeFormatSuggestion;
 
+use App\Services\SizeFormatFileProbeService;
 use App\Models\AssistantSuggestion;
 use App\Services\Assistance\GenericTableAssistant;
 use Closure;
@@ -49,7 +50,7 @@ class Assistant extends GenericTableAssistant
                     targetType: 'resource',
                     targetId: $resource->id,
                     suggestedValue: (string) $suggestion['inferred_value'],
-                    suggestedLabel: strtoupper((string) $suggestion ['type']) . ':' . (string) $suggestion['inferred_value'],
+                    suggestedLabel: strtoupper((string) $suggestion['type']) . ':' . (string) $suggestion['inferred_value'],
                     similarityScore: null,
                 );
 
@@ -71,12 +72,6 @@ class Assistant extends GenericTableAssistant
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
         // TODO: Create the Format or Size record for the resource
-        // Example:
-        // Right::create([
-        //     'resource_id' => $suggestion->resource_id,
-        //     'rights_identifier' => $suggestion->suggested_value,
-        //     'rights' => $suggestion->suggested_label,
-        // ]);
 
         return [
             'success' => true,
@@ -91,7 +86,9 @@ class Assistant extends GenericTableAssistant
      */
     private function lookupSizeFormats(\App\Models\Resource $resource): array
     {
-        // Implement your lookup here
-        return [];
+        $results = $this->probeService->extractAndProbe(
+            'https://doi.org/' . $resource->doi
+        );
+        return $this->probeService->buildSuggestions($results);
     }
 }
