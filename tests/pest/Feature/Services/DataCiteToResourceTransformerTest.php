@@ -341,6 +341,38 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($person->scheme_uri)->toBe('https://orcid.org');
         });
 
+        it('normalizes protocol-less ORCID identifiers during import', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/orcid-protocol-less.2024.001',
+                    'titles' => [['title' => 'Protocol-less ORCID Test']],
+                    'creators' => [
+                        [
+                            'name' => 'Lovelace, Ada',
+                            'nameType' => 'Organizational',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => 'www.orcid.org/0000-0002-1825-0097',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $creator = $resource->creators()->firstOrFail();
+            $person = Person::findOrFail($creator->creatorable_id);
+
+            expect($creator->creatorable_type)->toBe(Person::class)
+                ->and($person->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
+                ->and($person->name_identifier_scheme)->toBe('ORCID');
+        });
+
         it('ignores invalid ORCID identifiers during import', function (): void {
             $user = User::factory()->create();
             $transformer = new DataCiteToResourceTransformer;
