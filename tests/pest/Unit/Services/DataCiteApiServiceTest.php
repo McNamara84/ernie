@@ -7,6 +7,7 @@ use App\Services\DataCiteApiService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 covers(DataCiteApiService::class);
 
@@ -217,6 +218,29 @@ describe('getMetadata', function (): void {
 
         expect($result)->toBeNull();
     });
+
+    it('logs an excerpt and content type for non-JSON DOI responses', function (): void {
+        Log::spy();
+
+        $body = str_repeat('x', 1100);
+
+        Http::fake([
+            'doi.org/*' => Http::response($body, 200, ['Content-Type' => 'text/html; charset=UTF-8']),
+        ]);
+
+        $result = $this->service->getMetadata('10.5880/non-json-response-with-large-body');
+
+        expect($result)->toBeNull();
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'non-JSON metadata')
+                && $context['status'] === 200
+                && $context['content_type'] === 'text/html; charset=UTF-8'
+                && $context['body_excerpt'] === substr($body, 0, 1000)
+                && $context['body_truncated'] === true
+                && ! array_key_exists('body', $context))
+            ->once();
+    });
 });
 
 // =========================================================================
@@ -364,7 +388,7 @@ describe('buildCitationFromMetadata', function (): void {
         expect($result)->toContain('Unknown Publisher');
     });
 
-    it('omits DOI URL when DOI is missing', function (): void {
+    it('omits DOI segment when DOI is missing', function (): void {
         $metadata = [
             'author' => [['family' => 'Doe', 'given' => 'John']],
             'issued' => ['date-parts' => [[2024]]],
@@ -374,7 +398,21 @@ describe('buildCitationFromMetadata', function (): void {
 
         $result = $this->service->buildCitationFromMetadata($metadata);
 
-        expect($result)->not->toContain('https://doi.org/');
+        expect($result)->toBe('Doe, J. (2024): Test. GFZ');
+    });
+
+    it('omits DOI segment when DOI normalization fails', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'John']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => 'https://doi.org/',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toBe('Doe, J. (2024): Test. GFZ');
     });
 
     it('abbreviates multiple space-separated given names', function (): void {

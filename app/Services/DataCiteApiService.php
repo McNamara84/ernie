@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,8 @@ class DataCiteApiService
     use ChecksCacheTagging;
 
     private const DEFAULT_TIMEOUT_SECONDS = 10.0;
+
+    private const RESPONSE_BODY_LOG_EXCERPT_LENGTH = 1000;
 
     /** Sentinel value stored in cache to represent a confirmed 404. */
     private const CACHE_NULL_SENTINEL = '__NULL__';
@@ -125,8 +128,7 @@ class DataCiteApiService
                 }
 
                 Log::warning("DOI resolution returned non-JSON metadata for {$originalDoi}", [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
+                    ...$this->responseLogContext($response),
                 ]);
 
                 return self::CACHE_TRANSIENT_FAILURE;
@@ -139,8 +141,7 @@ class DataCiteApiService
             }
 
             Log::warning("DOI resolution error for {$originalDoi}", [
-                'status' => $response->status(),
-                'body' => $response->body(),
+                ...$this->responseLogContext($response),
             ]);
 
             return self::CACHE_TRANSIENT_FAILURE;
@@ -199,8 +200,16 @@ class DataCiteApiService
         $cleanDoi = $doi !== '' ? $this->normalizeDoi($doi) : null;
         $doiUrl = $cleanDoi !== null ? "https://doi.org/{$cleanDoi}" : '';
 
-        // Build citation: [Authors] ([Year]): [Title]. [Publisher]. [DOI URL]
-        return trim("{$authorsString} ({$year}): {$title}. {$publisher}. {$doiUrl}");
+        $segments = [
+            "{$authorsString} ({$year}): {$title}",
+            $publisher,
+        ];
+
+        if ($doiUrl !== '') {
+            $segments[] = $doiUrl;
+        }
+
+        return implode('. ', $segments);
     }
 
     /**
@@ -322,8 +331,7 @@ class DataCiteApiService
             }
 
             Log::warning("DataCite REST API error for {$originalDoi}", [
-                'status' => $response->status(),
-                'body' => $response->body(),
+                ...$this->responseLogContext($response),
             ]);
 
             return self::CACHE_TRANSIENT_FAILURE;
@@ -334,6 +342,21 @@ class DataCiteApiService
 
             return self::CACHE_TRANSIENT_FAILURE;
         }
+    }
+
+    /**
+     * @return array{status: int, content_type: string|null, body_excerpt: string, body_truncated: bool}
+     */
+    private function responseLogContext(Response $response): array
+    {
+        $body = $response->body();
+
+        return [
+            'status' => $response->status(),
+            'content_type' => $response->header('Content-Type'),
+            'body_excerpt' => substr($body, 0, self::RESPONSE_BODY_LOG_EXCERPT_LENGTH),
+            'body_truncated' => strlen($body) > self::RESPONSE_BODY_LOG_EXCERPT_LENGTH,
+        ];
     }
 
     /**

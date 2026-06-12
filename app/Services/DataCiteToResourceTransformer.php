@@ -893,7 +893,7 @@ class DataCiteToResourceTransformer
 
     private function wordCount(string $name): int
     {
-        if (preg_match_all('/[\pL\pN]+/u', $name, $matches) === false) {
+        if (preg_match_all('/[\p{L}\p{N}]+/u', $name, $matches) === false) {
             return 0;
         }
 
