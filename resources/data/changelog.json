@@ -260,6 +260,10 @@
         ],
         "fixes": [
             {
+                "title": "Merged Contact-Person Authors in the Data Editor",
+                "description": "Legacy DataCite imports now load creators who are also Contact Person contributors as a single author row with the CP checkbox, email, and website fields in /editor. ERNIE still persists and exports the required separate DataCite creator and ContactPerson contributor records, while standalone ContactPerson contributors continue to appear normally in the Contributors section."
+            },
+            {
                 "title": "Readable Sidebar Count Badges",
                 "description": "Primary sidebar count badges such as Resources and IGSNs now keep their white foreground color when their navigation item is active or hovered. This preserves readable contrast on the GFZ-blue badge background in light mode while leaving default and warning badges unchanged."
             },

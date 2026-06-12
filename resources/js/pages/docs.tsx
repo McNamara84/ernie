@@ -1064,6 +1064,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Drag & Drop Reordering</h4>
                         <p>Reorder authors and contributors by dragging them to the desired position.</p>
+
+                        <h4>Contact Persons</h4>
+                        <p>
+                            Authors can be marked as contact persons with the CP checkbox. When imported metadata contains the same person as both
+                            an author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the
+                            separate creator and Contact Person contributor records required for DataCite export.
+                        </p>
                     </>
                 ),
             },

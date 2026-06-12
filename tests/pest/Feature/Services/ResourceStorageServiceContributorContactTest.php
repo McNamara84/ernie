@@ -6,6 +6,9 @@ use App\Models\ContributorType;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteXmlExporter;
+use App\Services\Editor\EditorDataTransformer;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -91,6 +94,132 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
         expect($creator->is_contact)->toBeTrue()
             ->and($creator->email)->toBe('author.contact@example.org')
             ->and($creator->website)->toBe('https://author.example.org');
+    });
+
+    it('stores a matching ContactPerson contributor for a creator marked as contact person', function () {
+        $data = contributorResourceData();
+        $data['contributors'] = [];
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'author.contact@example.org';
+        $data['authors'][0]['website'] = 'https://author.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        $resource->load(['creators.creatorable', 'contributors.contributorable', 'contributors.contributorTypes']);
+
+        $creator = $resource->creators->sole();
+        $contributor = $resource->contributors->sole();
+
+        expect($creator->is_contact)->toBeTrue()
+            ->and($contributor->email)->toBe('author.contact@example.org')
+            ->and($contributor->website)->toBe('https://author.example.org')
+            ->and($contributor->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson']);
+
+        $json = app(DataCiteJsonExporter::class)->export($resource->fresh());
+        $xml = app(DataCiteXmlExporter::class)->export($resource->fresh());
+
+        expect($json['data']['attributes']['creators'])->toHaveCount(1)
+            ->and($json['data']['attributes']['contributors'])->toHaveCount(1)
+            ->and($json['data']['attributes']['contributors'][0]['contributorType'])->toBe('ContactPerson')
+            ->and($xml)->toContain('<contributor contributorType="ContactPerson">');
+    });
+
+    it('adds ContactPerson role to a matching contributor instead of creating a duplicate row', function () {
+        ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector', 'category' => 'person'],
+        );
+
+        $data = contributorResourceData([
+            'firstName' => 'Jane',
+            'lastName' => 'Doe',
+            'roles' => ['DataCollector'],
+            'email' => null,
+            'website' => null,
+        ]);
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'jane.doe@example.org';
+        $data['authors'][0]['website'] = 'https://jane.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        $contributor = $resource->contributors()->with('contributorTypes')->sole();
+
+        expect($resource->contributors()->count())->toBe(1)
+            ->and($contributor->email)->toBe('jane.doe@example.org')
+            ->and($contributor->website)->toBe('https://jane.example.org')
+            ->and($contributor->contributorTypes->pluck('slug')->sort()->values()->all())->toBe(['ContactPerson', 'DataCollector']);
+    });
+
+    it('does not duplicate an explicitly submitted matching ContactPerson contributor', function () {
+        $data = contributorResourceData([
+            'firstName' => 'Jane',
+            'lastName' => 'Doe',
+            'roles' => ['ContactPerson'],
+            'email' => 'stale-contact@example.org',
+            'website' => 'https://stale.example.org',
+        ]);
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'jane.author@example.org';
+        $data['authors'][0]['website'] = 'https://jane-author.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        $contributor = $resource->contributors()->with('contributorTypes')->sole();
+
+        expect($resource->contributors()->count())->toBe(1)
+            ->and($contributor->email)->toBe('jane.author@example.org')
+            ->and($contributor->website)->toBe('https://jane-author.example.org')
+            ->and($contributor->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson']);
+    });
+
+    it('keeps ContactPerson contributor after an editor load-save cycle with merged authors', function () {
+        $data = contributorResourceData();
+        $data['contributors'] = [];
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'cycle.contact@example.org';
+        $data['authors'][0]['website'] = 'https://cycle.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        $editorData = app(EditorDataTransformer::class)->transformResource($resource->fresh([
+            'resourceType',
+            'language',
+            'titles.titleType',
+            'rights',
+            'creators.creatorable',
+            'creators.affiliations',
+            'contributors.contributorable',
+            'contributors.affiliations',
+            'contributors.contributorTypes',
+            'descriptions',
+            'dates',
+            'subjects',
+            'geoLocations',
+            'relatedIdentifiers.identifierType',
+            'relatedIdentifiers.relationType',
+            'fundingReferences.funderIdentifierType',
+            'instruments',
+            'datacenters',
+        ]));
+
+        expect($editorData['authors'])->toHaveCount(1)
+            ->and($editorData['authors'][0]['isContact'])->toBeTrue()
+            ->and($editorData['contributors'])->toBeEmpty();
+
+        $updateData = $data;
+        $updateData['resourceId'] = $resource->id;
+        $updateData['authors'] = $editorData['authors'];
+        $updateData['contributors'] = $editorData['contributors'];
+
+        [$updatedResource] = $this->service->store($updateData, $this->user->id);
+        $updatedResource->load(['creators', 'contributors.contributorTypes']);
+
+        expect($updatedResource->creators)->toHaveCount(1)
+            ->and($updatedResource->contributors)->toHaveCount(1)
+            ->and($updatedResource->contributors->first()?->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson']);
+
+        $json = app(DataCiteJsonExporter::class)->export($updatedResource->fresh());
+
+        expect($json['data']['attributes']['creators'])->toHaveCount(1)
+            ->and($json['data']['attributes']['contributors'])->toHaveCount(1)
+            ->and($json['data']['attributes']['contributors'][0]['contributorType'])->toBe('ContactPerson');
     });
 
     it('drops invalid creator contact email and unsafe website values', function () {
