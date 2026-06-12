@@ -12,10 +12,15 @@ use Illuminate\Support\Facades\DB;
 /**
  * Applies accepted SPDX rights suggestions.
  *
- * The important design rule is: accepting a suggestion links one
- * `resource_rights` row to one shared SPDX catalog right. It does not rewrite
- * the raw imported statement and it does not overwrite curator-maintained
- * catalog fields that already contain values.
+ * The important design rule is: accepting a suggestion links one rights
+ * statement to one shared SPDX catalog right. It does not rewrite the raw
+ * imported statement and it does not overwrite curator-maintained catalog
+ * fields that already contain values.
+ *
+ * If the resource already has the same catalog right selected, acceptance
+ * folds empty raw context into that linked row and removes the redundant
+ * unresolved row. This keeps the database's one-catalog-link-per-resource
+ * invariant intact.
  */
 final class SpdxRightsAcceptanceService
 {
@@ -51,10 +56,37 @@ final class SpdxRightsAcceptanceService
 
             $right = $this->findOrCreateSpdxRight($payload);
 
-            if ($resourceRight->rights_id !== null && $resourceRight->rights_id !== $right->id) {
+            if ($resourceRight->rights_id === $right->id) {
+                $this->fillStatementLanguage($resourceRight, $payload);
+
+                return [
+                    'success' => true,
+                    'message' => "Rights statement is already linked to SPDX license {$right->identifier}.",
+                ];
+            }
+
+            if ($resourceRight->rights_id !== null) {
                 return [
                     'success' => false,
                     'message' => 'This rights statement is already linked to a different catalog right. Please refresh the assistant list.',
+                ];
+            }
+
+            /** @var ResourceRight|null $existingLinkedStatement */
+            $existingLinkedStatement = ResourceRight::query()
+                ->where('resource_id', $resourceRight->resource_id)
+                ->where('rights_id', $right->id)
+                ->where('id', '!=', $resourceRight->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingLinkedStatement instanceof ResourceRight) {
+                $this->mergeRawStatement($resourceRight, $existingLinkedStatement, $payload);
+                $resourceRight->delete();
+
+                return [
+                    'success' => true,
+                    'message' => "Merged imported rights statement with existing SPDX license {$right->identifier}.",
                 ];
             }
 
@@ -63,9 +95,7 @@ final class SpdxRightsAcceptanceService
             // teaching example for how assistants can preserve source evidence.
             $resourceRight->rights_id = $right->id;
 
-            if ($payload['language'] !== null) {
-                $resourceRight->language = $payload['language'];
-            }
+            $this->fillStatementLanguage($resourceRight, $payload);
 
             $resourceRight->save();
 
@@ -188,6 +218,51 @@ final class SpdxRightsAcceptanceService
         }
 
         return $right;
+    }
+
+    /**
+     * @param  array{identifier: string, name: string, rights_uri: string|null, scheme_uri: string, language: string|null}  $payload
+     */
+    private function fillStatementLanguage(ResourceRight $resourceRight, array $payload): void
+    {
+        if ($payload['language'] === null) {
+            return;
+        }
+
+        $resourceRight->language = $payload['language'];
+
+        if ($resourceRight->isDirty()) {
+            $resourceRight->save();
+        }
+    }
+
+    /**
+     * @param  array{identifier: string, name: string, rights_uri: string|null, scheme_uri: string, language: string|null}  $payload
+     */
+    private function mergeRawStatement(ResourceRight $source, ResourceRight $target, array $payload): void
+    {
+        foreach ([
+            'rights_text',
+            'rights_uri',
+            'rights_identifier',
+            'rights_identifier_scheme',
+            'scheme_uri',
+            'source',
+        ] as $column) {
+            $value = $this->filledString($source->{$column});
+
+            if ($value !== null && $this->filledString($target->{$column}) === null) {
+                $target->{$column} = $value;
+            }
+        }
+
+        if ($this->filledString($target->language) === null) {
+            $target->language = $this->filledString($source->language) ?? $payload['language'];
+        }
+
+        if ($target->isDirty()) {
+            $target->save();
+        }
     }
 
     private function filledString(mixed $value): ?string

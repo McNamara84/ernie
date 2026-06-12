@@ -99,6 +99,36 @@ it('reuses an existing catalog right and fills empty SPDX fields without overwri
         ->and(Right::where('identifier', 'CC-BY-4.0')->count())->toBe(1);
 });
 
+it('merges raw rights context when the resource already has the suggested SPDX license', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $right = Right::factory()->ccBy4()->create();
+    $linkedResourceRight = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_id' => $right->id,
+    ]);
+    $rawResourceRight = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'CC BY 4.0',
+        'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+        'source' => 'legacy-sumario',
+    ]);
+    $suggestion = createSpdxSuggestion($assistant, $resource, $rawResourceRight);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+    $linkedResourceRight->refresh();
+
+    expect($result['success'])->toBeTrue()
+        ->and(AssistantSuggestion::find($suggestion->id))->toBeNull()
+        ->and(ResourceRight::find($rawResourceRight->id))->toBeNull()
+        ->and($linkedResourceRight->rights_id)->toBe($right->id)
+        ->and($linkedResourceRight->rights_text)->toBe('CC BY 4.0')
+        ->and($linkedResourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+        ->and($linkedResourceRight->source)->toBe('legacy-sumario')
+        ->and($linkedResourceRight->language)->toBe('en')
+        ->and(ResourceRight::where('resource_id', $resource->id)->where('rights_id', $right->id)->count())->toBe(1);
+});
+
 it('does not accept non-SPDX custom license metadata', function () {
     $assistant = app(Assistant::class);
     $resource = Resource::factory()->create();
