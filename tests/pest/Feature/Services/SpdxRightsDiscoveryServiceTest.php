@@ -9,9 +9,16 @@ use App\Services\Spdx\SpdxRightsDiscoveryService;
 use App\Services\Spdx\SpdxRightsMatcher;
 use App\Services\Spdx\SpdxRightsMatchInput;
 use App\Services\Spdx\SpdxRightsMatchInputProvider;
+use App\Services\Spdx\SpdxRightsMatchResult;
 use Illuminate\Support\Collection;
 
-covers(SpdxRightsDiscoveryService::class);
+covers(
+    SpdxRightsDiscoveryService::class,
+    SpdxRightsMatcher::class,
+    SpdxRightsMatchInput::class,
+    SpdxRightsMatchInputProvider::class,
+    SpdxRightsMatchResult::class,
+);
 
 function spdxRightsDiscoveryTestProvider(Collection $inputs): SpdxRightsMatchInputProvider
 {
