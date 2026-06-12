@@ -1,0 +1,112 @@
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#8690
+    [34mall[39m: [
+      [34;4mApp\Models\Resource[39;24m {#8663
+        [34mid[39m: [35m14[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd79044[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8662
+        [34mid[39m: [35m27[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd9a956[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8665
+        [34mid[39m: [35m26[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd98b48[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8666
+        [34mid[39m: [35m25[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd96d1f[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8667
+        [34mid[39m: [35m24[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd93531[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8668
+        [34mid[39m: [35m23[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd8fa25[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8669
+        [34mid[39m: [35m22[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd8d31c[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8670
+        [34mid[39m: [35m21[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd8aff9[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8671
+        [34mid[39m: [35m20[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd8892a[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8672
+        [34mid[39m: [35m19[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd85d4f[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8673
+        [34mid[39m: [35m18[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd833df[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8674
+        [34mid[39m: [35m17[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd8161b[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8675
+        [34mid[39m: [35m16[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd7eedf[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8676
+        [34mid[39m: [35m15[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd7c91c[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8677
+        [34mid[39m: [35m1[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd3e175[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8678
+        [34mid[39m: [35m13[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd75451[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8679
+        [34mid[39m: [35m12[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd72b75[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8680
+        [34mid[39m: [35m11[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd6a3ce[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8681
+        [34mid[39m: [35m10[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd67990[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8682
+        [34mid[39m: [35m9[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd65b68[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8683
+        [34mid[39m: [35m8[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd62a8c[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8684
+        [34mid[39m: [35m7[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd5daa2[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8685
+        [34mid[39m: [35m6[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd5a887[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8686
+        [34mid[39m: [35m5[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd56e52[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8687
+        [34mid[39m: [35m4[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd5467f[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8688
+        [34mid[39m: [35m3[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd4e9bf[39m[32m"[39m,
+      },
+      [34;4mApp\Models\Resource[39;24m {#8689
+        [34mid[39m: [35m2[39m,
+        [34mdoi[39m: [32m"[39m[32m10.5880/testdata.6a2845cd43b6c[39m[32m"[39m,
+      },
+    ],
+  }
