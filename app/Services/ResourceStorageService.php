@@ -289,17 +289,13 @@ class ResourceStorageService
      */
     private function personDataIdentityKeys(array $personData): array
     {
-        $keys = [];
-        $orcid = $this->filledContactString($personData['orcid'] ?? null);
+        $orcidIdentityKey = $this->personDataOrcidIdentityKey($personData);
 
-        if ($orcid !== null) {
-            $bareOrcid = OrcidNormalizer::extractBareId($orcid);
-
-            if ($bareOrcid !== '' && OrcidNormalizer::isValidFormat($bareOrcid)) {
-                $keys[] = 'orcid:'.strtolower($bareOrcid);
-            }
+        if ($orcidIdentityKey !== null) {
+            return [$orcidIdentityKey];
         }
 
+        $keys = [];
         $firstName = $this->normalisePersonIdentityPart($personData['firstName'] ?? null);
         $lastName = $this->normalisePersonIdentityPart($personData['lastName'] ?? null);
 
@@ -308,6 +304,26 @@ class ResourceStorageService
         }
 
         return array_values(array_unique($keys));
+    }
+
+    /**
+     * @param  array<string, mixed>  $personData
+     */
+    private function personDataOrcidIdentityKey(array $personData): ?string
+    {
+        $orcid = $this->filledContactString($personData['orcid'] ?? null);
+
+        if ($orcid === null) {
+            return null;
+        }
+
+        $bareOrcid = OrcidNormalizer::extractBareId($orcid);
+
+        if ($bareOrcid === '' || ! OrcidNormalizer::isValidFormat($bareOrcid)) {
+            return null;
+        }
+
+        return 'orcid:'.strtolower($bareOrcid);
     }
 
     private function normalisePersonIdentityPart(mixed $value): ?string

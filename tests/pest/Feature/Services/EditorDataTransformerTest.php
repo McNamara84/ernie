@@ -741,6 +741,48 @@ describe('transformCreators', function (): void {
             ->and($result['contributors'][0]['email'])->toBe('bailey.contact@example.org');
     });
 
+    it('does not merge same-name ContactPerson contributors when valid ORCIDs differ', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $author = Person::factory()->create([
+            'given_name' => 'Morgan',
+            'family_name' => 'Shared',
+            'name_identifier' => 'https://orcid.org/0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        $contact = Person::factory()->create([
+            'given_name' => 'Morgan',
+            'family_name' => 'Shared',
+            'name_identifier' => 'https://orcid.org/0000-0002-1694-233X',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        ResourceCreator::factory()->forPerson($author)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+        $contributor = ResourceContributor::factory()->forPerson($contact)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'email' => 'morgan.contact@example.org',
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'])->toHaveCount(1)
+            ->and($result['authors'][0]['firstName'])->toBe('Morgan')
+            ->and($result['authors'][0]['isContact'])->toBeFalse()
+            ->and($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['firstName'])->toBe('Morgan')
+            ->and($result['contributors'][0]['roles'])->toBe(['Contact Person'])
+            ->and($result['contributors'][0]['email'])->toBe('morgan.contact@example.org');
+    });
+
     it('merges only the ContactPerson role when a matching contributor has additional roles', function (): void {
         $contactType = ContributorType::firstOrCreate(
             ['slug' => 'ContactPerson'],

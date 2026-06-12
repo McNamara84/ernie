@@ -183,6 +183,40 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             ->and($contributorsByGivenName->get('Avery')?->email)->toBe('avery.author@example.org');
     });
 
+    it('does not reuse a same-name contributor when valid ORCIDs differ', function () {
+        ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector', 'category' => 'person'],
+        );
+
+        $data = contributorResourceData([
+            'firstName' => 'Morgan',
+            'lastName' => 'Shared',
+            'orcid' => 'https://orcid.org/0000-0002-1694-233X',
+            'roles' => ['DataCollector'],
+            'email' => null,
+            'website' => null,
+        ]);
+        $data['authors'][0]['firstName'] = 'Morgan';
+        $data['authors'][0]['lastName'] = 'Shared';
+        $data['authors'][0]['orcid'] = 'https://orcid.org/0000-0002-1825-0097';
+        $data['authors'][0]['isContact'] = true;
+        $data['authors'][0]['email'] = 'morgan.author@example.org';
+        $data['authors'][0]['website'] = 'https://morgan-author.example.org';
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        $resource->load(['contributors.contributorable', 'contributors.contributorTypes']);
+
+        $contributorsByOrcid = $resource->contributors
+            ->keyBy(fn ($contributor): string => $contributor->contributorable->name_identifier);
+
+        expect($resource->contributors)->toHaveCount(2)
+            ->and($contributorsByOrcid->get('https://orcid.org/0000-0002-1694-233X')?->contributorTypes->pluck('slug')->all())->toBe(['DataCollector'])
+            ->and($contributorsByOrcid->get('https://orcid.org/0000-0002-1694-233X')?->email)->toBeNull()
+            ->and($contributorsByOrcid->get('https://orcid.org/0000-0002-1825-0097')?->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson'])
+            ->and($contributorsByOrcid->get('https://orcid.org/0000-0002-1825-0097')?->email)->toBe('morgan.author@example.org');
+    });
+
     it('does not duplicate an explicitly submitted matching ContactPerson contributor', function () {
         $data = contributorResourceData([
             'firstName' => 'Jane',

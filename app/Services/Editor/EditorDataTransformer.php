@@ -345,16 +345,12 @@ class EditorDataTransformer
     {
         $keys = ["person-id:{$person->id}"];
 
-        if ($person->name_identifier !== null && trim($person->name_identifier) !== '') {
-            $scheme = $person->name_identifier_scheme ?? 'ORCID';
+        $orcidIdentityKey = $this->personOrcidIdentityKey($person);
 
-            if (strtoupper($scheme) === 'ORCID') {
-                $bareOrcid = OrcidNormalizer::extractBareId($person->name_identifier);
+        if ($orcidIdentityKey !== null) {
+            $keys[] = $orcidIdentityKey;
 
-                if ($bareOrcid !== '' && OrcidNormalizer::isValidFormat($bareOrcid)) {
-                    $keys[] = 'orcid:'.strtolower($bareOrcid);
-                }
-            }
+            return array_values(array_unique($keys));
         }
 
         $normalisedName = $this->normalisePersonIdentityName($person);
@@ -364,6 +360,23 @@ class EditorDataTransformer
         }
 
         return array_values(array_unique($keys));
+    }
+
+    private function personOrcidIdentityKey(Person $person): ?string
+    {
+        if ($person->name_identifier !== null && trim($person->name_identifier) !== '') {
+            $scheme = $person->name_identifier_scheme ?? 'ORCID';
+
+            if (strtoupper($scheme) === 'ORCID') {
+                $bareOrcid = OrcidNormalizer::extractBareId($person->name_identifier);
+
+                if ($bareOrcid !== '' && OrcidNormalizer::isValidFormat($bareOrcid)) {
+                    return 'orcid:'.strtolower($bareOrcid);
+                }
+            }
+        }
+
+        return null;
     }
 
     private function normalisePersonIdentityName(Person $person): ?string
