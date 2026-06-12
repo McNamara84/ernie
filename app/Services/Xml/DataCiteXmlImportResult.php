@@ -12,6 +12,7 @@ final readonly class DataCiteXmlImportResult
     /**
      * @param  array<int, array{title: mixed, titleType: string, language: string|null}>  $titles
      * @param  array<int, string>  $licenses
+     * @param  array<int, array<string, mixed>>  $rawRights
      * @param  array<int, array<string, mixed>>  $authors
      * @param  array<int, array<string, mixed>>  $contributors
      * @param  array<int, array<string, mixed>>  $descriptions
@@ -35,6 +36,7 @@ final readonly class DataCiteXmlImportResult
         public ?string $resourceType,
         public array $titles,
         public array $licenses,
+        public array $rawRights,
         public array $authors,
         public array $contributors,
         public array $descriptions,
@@ -64,6 +66,7 @@ final readonly class DataCiteXmlImportResult
             'resourceType' => $this->resourceType,
             'titles' => $this->titles,
             'licenses' => $this->licenses,
+            'rawRights' => $this->rawRights,
             'authors' => $this->authors,
             'contributors' => $this->contributors,
             'descriptions' => $this->descriptions,

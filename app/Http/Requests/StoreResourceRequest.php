@@ -55,8 +55,16 @@ class StoreResourceRequest extends FormRequest
             // Title types are validated in after(): allow 'main-title' even if there is no DB TitleType row.
             'titles.*.titleType' => ['required', 'string', 'max:255'],
             'titles.*.language' => ['nullable', 'string', 'max:10'],
-            'licenses' => ['required', 'array', 'min:1'],
+            'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
+            'rawRights' => ['nullable', 'array'],
+            'rawRights.*.rights' => ['nullable', 'string'],
+            'rawRights.*.rightsUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.rightsIdentifier' => ['nullable', 'string', 'max:255'],
+            'rawRights.*.rightsIdentifierScheme' => ['nullable', 'string', 'max:100'],
+            'rawRights.*.schemeUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.lang' => ['nullable', 'string', 'max:10'],
+            'rawRights.*.source' => ['nullable', 'string', 'max:100'],
             'authors' => ['required', 'array', 'min:1'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'authors.*.position' => ['required', 'integer', 'min:0'],
@@ -303,8 +311,9 @@ class StoreResourceRequest extends FormRequest
             ];
         }
 
-        /** @var array<int, mixed> $rawLicenses */
-        $rawLicenses = $this->input('licenses', []);
+        /** @var mixed $rawLicensesInput */
+        $rawLicensesInput = $this->input('licenses', []);
+        $rawLicenses = is_array($rawLicensesInput) ? $rawLicensesInput : [];
 
         $licenses = [];
 
@@ -317,6 +326,14 @@ class StoreResourceRequest extends FormRequest
 
             $licenses[] = $normalized;
         }
+
+        $normalizedLicenses = is_array($rawLicensesInput) || $rawLicensesInput === null
+            ? $licenses
+            : $rawLicensesInput;
+
+        /** @var mixed $rawRightsInput */
+        $rawRightsInput = $this->input('rawRights', []);
+        $rawRights = $this->normalizeRawRightsInput($rawRightsInput);
 
         /** @var array<int, array<string, mixed>|mixed> $rawAuthors */
         $rawAuthors = $this->input('authors', []);
@@ -825,7 +842,8 @@ class StoreResourceRequest extends FormRequest
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
             'language' => $this->filled('language') ? trim((string) $this->input('language')) : null,
             'titles' => $titles,
-            'licenses' => $licenses,
+            'licenses' => $normalizedLicenses,
+            'rawRights' => $rawRights,
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
             'contributors' => $contributors,
@@ -840,6 +858,98 @@ class StoreResourceRequest extends FormRequest
         ]);
 
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
+    }
+
+    /**
+     * Normalize raw DataCite rights input to the camelCase keys used by the UI.
+     *
+     * The storage layer later maps these keys to database columns. Keeping this
+     * step in the request avoids passing arrays, objects, or whitespace-only
+     * strings further into the application.
+     *
+     * @return array<int, array<string, string>>|mixed
+     */
+    private function normalizeRawRightsInput(mixed $rawRightsInput): mixed
+    {
+        if (! is_array($rawRightsInput)) {
+            return $rawRightsInput;
+        }
+
+        $rawRights = [];
+
+        foreach ($rawRightsInput as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [
+                'rights' => $this->rightsStringValue($statement, ['rights', 'rights_text']),
+                'rightsUri' => $this->rightsStringValue($statement, ['rightsUri', 'rightsURI', 'rights_uri']),
+                'rightsIdentifier' => $this->rightsStringValue($statement, ['rightsIdentifier', 'rights_identifier']),
+                'rightsIdentifierScheme' => $this->rightsStringValue($statement, ['rightsIdentifierScheme', 'rights_identifier_scheme']),
+                'schemeUri' => $this->rightsStringValue($statement, ['schemeUri', 'schemeURI', 'scheme_uri']),
+                'lang' => $this->rightsStringValue($statement, ['lang', 'language']),
+                'source' => $this->rightsStringValue($statement, ['source']),
+            ];
+
+            $normalized = array_filter(
+                $normalized,
+                fn (?string $value): bool => $value !== null,
+            );
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rawRights
+     */
+    private function rawRightsContainEvidence(array $rawRights): bool
+    {
+        foreach ($rawRights as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            foreach (['rights', 'rightsUri', 'rightsIdentifier'] as $key) {
+                $value = $statement[$key] ?? null;
+
+                if ($value !== null && ! is_array($value) && ! is_object($value) && trim((string) $value) !== '') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $statement
+     * @param  list<string>  $keys
+     */
+    private function rightsStringValue(array $statement, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $statement)) {
+                continue;
+            }
+
+            $value = $statement[$key];
+
+            if ($value === null || is_array($value) || is_object($value)) {
+                return null;
+            }
+
+            $value = trim((string) $value);
+
+            return $value === '' ? null : $value;
+        }
+
+        return null;
     }
 
     /**
@@ -990,6 +1100,20 @@ class StoreResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $licenses = $this->input('licenses', []);
+                $rawRights = $this->input('rawRights', []);
+
+                $hasSelectedLicense = is_array($licenses) && count($licenses) > 0;
+                $hasRawRightsEvidence = is_array($rawRights) && $this->rawRightsContainEvidence($rawRights);
+
+                if (! $hasSelectedLicense && ! $hasRawRightsEvidence) {
+                    $validator->errors()->add(
+                        'licenses',
+                        '[Licenses & Rights] At least one license or imported rights statement is required.',
+                    );
+                }
+            },
             function (Validator $validator): void {
                 /** @var mixed $candidateTitles */
                 $candidateTitles = $this->input('titles', []);

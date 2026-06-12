@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Attributes\Connection;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @property int $id
@@ -32,7 +34,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table('resource')]
 class OldDataset extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     /**
@@ -183,7 +185,7 @@ class OldDataset extends Model
         // MySQL 5.7 compatible version using MIN(order) instead of ROW_NUMBER()
         // Using parameterized query for 'Creator' role to prevent SQL injection
         $query->leftJoin(
-            \Illuminate\Support\Facades\DB::raw('(
+            DB::raw('(
                 SELECT 
                     ra.resource_id,
                     ra.lastname as first_author_lastname,
@@ -278,7 +280,7 @@ class OldDataset extends Model
             'first_author.first_author_name',
         ])
             ->leftJoin(
-                \Illuminate\Support\Facades\DB::raw('(
+                DB::raw('(
                     SELECT t1.resource_id, t1.title
                     FROM title t1
                     INNER JOIN (
@@ -294,7 +296,7 @@ class OldDataset extends Model
 
         // Always join first author data for display
         $query->leftJoin(
-            \Illuminate\Support\Facades\DB::raw('(
+            DB::raw('(
                 SELECT 
                     ra.resource_id,
                     ra.lastname as first_author_lastname,
@@ -399,13 +401,55 @@ class OldDataset extends Model
      */
     public function getLicenses(): array
     {
-        $licenses = \Illuminate\Support\Facades\DB::connection($this->connection)
+        $licenses = DB::connection($this->connection)
             ->table('license')
             ->where('resource_id', $this->id)
             ->pluck('name')
             ->toArray();
 
         return array_values(array_unique($licenses));
+    }
+
+    /**
+     * Get raw license statements from the legacy license table.
+     *
+     * Legacy installations are not always perfectly documented. Instead of
+     * assuming a fixed column list beyond `name`, this method reads complete
+     * rows and copies optional URI columns only when they exist on the result.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function getLicenseStatements(): array
+    {
+        $rows = DB::connection($this->connection)
+            ->table('license')
+            ->where('resource_id', $this->id)
+            ->get();
+
+        $statements = [];
+
+        foreach ($rows as $row) {
+            $name = isset($row->name) ? trim((string) $row->name) : '';
+
+            if ($name === '') {
+                continue;
+            }
+
+            $statement = [
+                'rights' => $name,
+                'rightsUri' => isset($row->url) && trim((string) $row->url) !== ''
+                    ? trim((string) $row->url)
+                    : null,
+                'source' => 'legacy-sumario',
+            ];
+
+            $statements[] = array_filter(
+                $statement,
+                fn (?string $value): bool => $value !== null,
+            );
+        }
+
+        return $statements;
     }
 
     /**
@@ -447,7 +491,7 @@ class OldDataset extends Model
      */
     public function getAuthors(): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all resourceagents for this resource that have the "Creator" role
         $resourceAgents = $db->table('resourceagent')
@@ -637,7 +681,7 @@ class OldDataset extends Model
      */
     public function getContributors(): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all resourceagents for this resource
         $allResourceAgents = $db->table('resourceagent')
@@ -790,7 +834,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all resourceagents with labid identifier (case-insensitive)
         $labAgents = $db->table('resourceagent')
@@ -882,7 +926,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all descriptions for this resource
         $descriptions = $db->table('description')
@@ -913,7 +957,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all dates for this resource
         $dates = $db->table('date')
@@ -950,7 +994,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all coverage entries for this resource
         $coverages = $db->table('coverage')
@@ -1109,7 +1153,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all related identifiers for this resource
         // Note: old database doesn't have position field, so we use id for ordering
@@ -1136,7 +1180,7 @@ class OldDataset extends Model
      */
     public function getFundingReferences(): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         $fundings = $db->table('funding')
             ->where('resource_id', $this->id)

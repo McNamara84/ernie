@@ -94,10 +94,16 @@ If the repository stays under `D:\` or another NTFS path:
 7. Create the first administrator account.
 
    ```bash
-   docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
+   npm run artisan -- add-user "Admin Name" admin@example.com SecurePassword
    ```
 
 The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
+
+For day-to-day Laravel commands, use the npm wrappers. They run inside the app container, and generated files are written into the bind-mounted repository, so they still appear in your host checkout:
+
+```bash
+npm run artisan -- make:controller TestController
+```
 
 ## Profiles And Services
 
@@ -133,8 +139,9 @@ npm run docker:dev:parity
 | Start the backend services needed for PHP checks | Host shell | `npm run docker:dev:backend:d` |
 | Stop the stack | Host shell | `npm run docker:dev:down` |
 | Reset Docker volumes | Host shell | `npm run docker:dev:reset` |
-| Laravel Artisan | app container | `docker compose --env-file .env.docker -f docker-compose.dev.yml exec app php artisan <command>` |
-| Composer | app container | `docker compose --env-file .env.docker -f docker-compose.dev.yml exec app composer <command>` |
+| Laravel Artisan | npm wrapper into app container | `npm run artisan -- <command>` |
+| Example controller generator | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
+| Composer | npm wrapper into app container | `npm run composer:app -- <command>` |
 | Pest | Host shell via npm wrapper | `npm run test:php` |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` |
 | PHPStan | Host shell via npm wrapper | `npm run phpstan:check` |

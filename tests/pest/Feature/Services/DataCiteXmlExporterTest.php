@@ -1,20 +1,33 @@
 <?php
 
 use App\Models\ContributorType;
+use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\Format;
+use App\Models\FunderIdentifierType;
+use App\Models\FundingReference;
+use App\Models\IdentifierType;
 use App\Models\Institution;
+use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
+use App\Models\ResourceInstrument;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\DataCiteXmlExporter;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->exporter = new DataCiteXmlExporter;
@@ -541,6 +554,74 @@ describe('DataCiteXmlExporter - Rights', function () {
             ->and($xml)->toContain('rightsURI="https://creativecommons.org/licenses/by/4.0/"')
             ->and($xml)->toContain('Creative Commons Attribution 4.0 International</rights>');
     });
+
+    test('exports unresolved raw rights', function () {
+        $resource = Resource::factory()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_text' => 'CC BY 4.0',
+            'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'source' => 'xml-upload',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<rightsList>')
+            ->and($xml)->toContain('rightsURI="http://creativecommons.org/licenses/by/4.0"')
+            ->and($xml)->toContain('xml:lang="en"')
+            ->and($xml)->toContain('CC BY 4.0</rights>')
+            ->and($xml)->not->toContain('rightsIdentifier=');
+    });
+
+    test('exports accepted SPDX rights with catalog metadata and statement language', function () {
+        $resource = Resource::factory()->create();
+        $right = Right::factory()->ccBy4()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_id' => $right->id,
+            'rights_text' => 'CC BY 4.0',
+            'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'language' => 'de',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('rightsIdentifier="CC-BY-4.0"')
+            ->and($xml)->toContain('rightsIdentifierScheme="SPDX"')
+            ->and($xml)->toContain('schemeURI="https://spdx.org/licenses/"')
+            ->and($xml)->toContain('rightsURI="https://creativecommons.org/licenses/by/4.0/"')
+            ->and($xml)->toContain('xml:lang="de"')
+            ->and($xml)->toContain('Creative Commons Attribution 4.0 International</rights>');
+    });
+
+    test('uses already loaded resource rights instead of querying them again', function () {
+        $resource = Resource::factory()->create();
+        $right = Right::factory()->ccBy4()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_id' => $right->id,
+            'rights_text' => 'CC BY 4.0',
+        ]);
+
+        $warmupXml = $this->exporter->export($resource);
+        expect($warmupXml)->toBeString();
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $xml = $this->exporter->export($resource);
+        expect($xml)->toBeString();
+
+        $resourceRightsQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains($query['query'], 'resource_rights'));
+
+        DB::disableQueryLog();
+
+        expect($resourceRightsQueries)->toBeEmpty();
+    });
 });
 
 describe('DataCiteXmlExporter - GeoLocations', function () {
@@ -562,7 +643,7 @@ describe('DataCiteXmlExporter - FundingReferences', function () {
     test('exports fundingReference with funder name only', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $resource->id,
             'funder_name' => 'Deutsche Forschungsgemeinschaft',
         ]);
@@ -576,12 +657,12 @@ describe('DataCiteXmlExporter - FundingReferences', function () {
     test('exports fundingReference with full details', function () {
         $resource = Resource::factory()->create();
 
-        $funderType = \App\Models\FunderIdentifierType::firstOrCreate(
+        $funderType = FunderIdentifierType::firstOrCreate(
             ['slug' => 'Crossref Funder ID'],
             ['name' => 'Crossref Funder ID', 'slug' => 'Crossref Funder ID', 'is_active' => true]
         );
 
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $resource->id,
             'funder_name' => 'European Commission',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
@@ -615,16 +696,16 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
     test('exports relatedIdentifier with DOI', function () {
         $resource = Resource::factory()->create();
 
-        $doiType = \App\Models\IdentifierType::firstOrCreate(
+        $doiType = IdentifierType::firstOrCreate(
             ['slug' => 'DOI'],
             ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true]
         );
-        $relationType = \App\Models\RelationType::firstOrCreate(
+        $relationType = RelationType::firstOrCreate(
             ['slug' => 'References'],
             ['name' => 'References', 'slug' => 'References', 'is_active' => true]
         );
 
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.1234/example.2024',
             'identifier_type_id' => $doiType->id,
@@ -643,24 +724,24 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
     test('exports multiple relatedIdentifiers with different types', function () {
         $resource = Resource::factory()->create();
 
-        $doiType = \App\Models\IdentifierType::firstOrCreate(
+        $doiType = IdentifierType::firstOrCreate(
             ['slug' => 'DOI'],
             ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true]
         );
-        $urlType = \App\Models\IdentifierType::firstOrCreate(
+        $urlType = IdentifierType::firstOrCreate(
             ['slug' => 'URL'],
             ['name' => 'URL', 'slug' => 'URL', 'is_active' => true]
         );
-        $referencesType = \App\Models\RelationType::firstOrCreate(
+        $referencesType = RelationType::firstOrCreate(
             ['slug' => 'References'],
             ['name' => 'References', 'slug' => 'References', 'is_active' => true]
         );
-        $isSupplementToType = \App\Models\RelationType::firstOrCreate(
+        $isSupplementToType = RelationType::firstOrCreate(
             ['slug' => 'IsSupplementTo'],
             ['name' => 'Is Supplement To', 'slug' => 'IsSupplementTo', 'is_active' => true]
         );
 
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.1234/example.2024',
             'identifier_type_id' => $doiType->id,
@@ -668,7 +749,7 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
             'position' => 1,
         ]);
 
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => 'https://example.com/data',
             'identifier_type_id' => $urlType->id,
@@ -695,7 +776,7 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
     test('exports instrument as relatedIdentifier with IsCollectedBy', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
             'instrument_pid_type' => 'Handle',
@@ -714,7 +795,7 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
     test('exports multiple instruments as relatedIdentifiers', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
             'instrument_pid_type' => 'Handle',
@@ -722,7 +803,7 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
             'position' => 0,
         ]);
 
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST002',
             'instrument_pid_type' => 'Handle',
@@ -744,16 +825,16 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
         $resource = Resource::factory()->create();
 
         // Add a regular relatedIdentifier
-        $doiType = \App\Models\IdentifierType::firstOrCreate(
+        $doiType = IdentifierType::firstOrCreate(
             ['slug' => 'DOI'],
             ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true]
         );
-        $relationType = \App\Models\RelationType::firstOrCreate(
+        $relationType = RelationType::firstOrCreate(
             ['slug' => 'References'],
             ['name' => 'References', 'slug' => 'References', 'is_active' => true]
         );
 
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.1234/example.2024',
             'identifier_type_id' => $doiType->id,
@@ -762,7 +843,7 @@ describe('DataCiteXmlExporter - RelatedIdentifiers', function () {
         ]);
 
         // Add an instrument
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST003',
             'instrument_pid_type' => 'Handle',
@@ -784,12 +865,12 @@ describe('DataCiteXmlExporter - Dates', function () {
     test('exports date with dateType', function () {
         $resource = Resource::factory()->create();
 
-        $dateType = \App\Models\DateType::firstOrCreate(
+        $dateType = DateType::firstOrCreate(
             ['slug' => 'Created'],
             ['name' => 'Created', 'slug' => 'Created', 'is_active' => true]
         );
 
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_value' => '2024-01-15',
             'date_type_id' => $dateType->id,
@@ -805,12 +886,12 @@ describe('DataCiteXmlExporter - Dates', function () {
     test('exports date range with start and end date', function () {
         $resource = Resource::factory()->create();
 
-        $collectedType = \App\Models\DateType::firstOrCreate(
+        $collectedType = DateType::firstOrCreate(
             ['slug' => 'Collected'],
             ['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]
         );
 
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'start_date' => '2023-01-01',
             'end_date' => '2023-12-31',
@@ -826,12 +907,12 @@ describe('DataCiteXmlExporter - Dates', function () {
     test('exports date with dateInformation attribute', function () {
         $resource = Resource::factory()->create();
 
-        $dateType = \App\Models\DateType::firstOrCreate(
+        $dateType = DateType::firstOrCreate(
             ['slug' => 'Other'],
             ['name' => 'Other', 'slug' => 'Other', 'is_active' => true]
         );
 
-        \App\Models\ResourceDate::create([
+        ResourceDate::create([
             'resource_id' => $resource->id,
             'date_value' => '2024-06-01',
             'date_type_id' => $dateType->id,
@@ -856,12 +937,12 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
     test('exports sizes', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 1.5,
             'unit' => 'GB',
         ]);
-        \App\Models\Size::create([
+        Size::create([
             'resource_id' => $resource->id,
             'numeric_value' => 1000,
             'unit' => 'files',
@@ -877,11 +958,11 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
     test('exports formats', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\Format::create([
+        Format::create([
             'resource_id' => $resource->id,
             'value' => 'application/netcdf',
         ]);
-        \App\Models\Format::create([
+        Format::create([
             'resource_id' => $resource->id,
             'value' => 'text/csv',
         ]);
@@ -914,7 +995,7 @@ describe('DataCiteXmlExporter - Version & Language', function () {
 
     test('exports language from resource', function () {
         // Use existing language from the factory or seeder
-        $language = \App\Models\Language::factory()->create([
+        $language = Language::factory()->create([
             'code' => 'de',
             'name' => 'German',
         ]);

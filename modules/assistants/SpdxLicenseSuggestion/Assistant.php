@@ -6,6 +6,7 @@ namespace Modules\Assistants\SpdxLicenseSuggestion;
 
 use App\Models\AssistantSuggestion;
 use App\Services\Assistance\GenericTableAssistant;
+use App\Services\Spdx\SpdxRightsAcceptanceService;
 use App\Services\Spdx\SpdxRightsDiscoveryService;
 use Closure;
 
@@ -21,6 +22,7 @@ final class Assistant extends GenericTableAssistant
 {
     public function __construct(
         private readonly SpdxRightsDiscoveryService $discoveryService,
+        private readonly SpdxRightsAcceptanceService $acceptanceService,
     ) {
         parent::__construct();
     }
@@ -65,21 +67,10 @@ final class Assistant extends GenericTableAssistant
         );
     }
 
-    /**
-     * Issue 820 stops at suggestion generation.
-     *
-     * Accepting a suggestion means updating the targeted `resource_rights` row
-     * and is intentionally left for the follow-up issue. Returning success=false
-     * makes that boundary explicit and prevents accidental data writes.
-     *
-     * @return array{success: bool, message: string}
-     */
+    /** @return array{success: bool, message: string} */
     #[\Override]
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
-        return [
-            'success' => false,
-            'message' => 'Accepting SPDX rights suggestions is not supported yet. Please decline this suggestion to dismiss it for now.',
-        ];
+        return $this->acceptanceService->accept($suggestion);
     }
 }

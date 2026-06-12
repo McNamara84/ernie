@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
+import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem, SuggestedSpdxRightsItem } from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
@@ -63,6 +63,43 @@ function makeRorSuggestion(overrides: Partial<SuggestedRorItem> = {}): Suggested
         ror_aliases: ['GFZ Potsdam', 'Helmholtz-Zentrum Potsdam'],
         existing_identifier: null,
         existing_identifier_type: null,
+        discovered_at: '2024-06-15T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
+function makeSpdxRightsSuggestion(overrides: Partial<SuggestedSpdxRightsItem> = {}): SuggestedSpdxRightsItem {
+    return {
+        id: 3,
+        resource_id: 30,
+        resource_doi: '10.5880/fidgeo.2017.003',
+        resource_title: 'FID GEO example resource',
+        target_type: 'resource_right',
+        target_id: 300,
+        suggested_value: 'CC-BY-4.0',
+        suggested_label: 'Creative Commons Attribution 4.0 International',
+        similarity_score: 0.98,
+        metadata: {
+            current: {
+                rights: 'CC BY 4.0',
+                rights_uri: 'http://creativecommons.org/licenses/by/4.0',
+                source: 'datacite-import',
+            },
+            proposed: {
+                rights: 'Creative Commons Attribution 4.0 International',
+                rights_uri: 'https://creativecommons.org/licenses/by/4.0/',
+                scheme_uri: 'https://spdx.org/licenses/',
+                rights_identifier: 'CC-BY-4.0',
+                rights_identifier_scheme: 'SPDX',
+                language: 'en',
+            },
+            source: 'spdx',
+            source_url: 'https://spdx.org/licenses/CC-BY-4.0.html',
+            evidence: {
+                matched_from: 'rights',
+                reason: 'Alias matched normalized SPDX license name.',
+            },
+        },
         discovered_at: '2024-06-15T10:00:00+00:00',
         ...overrides,
     };
@@ -239,6 +276,31 @@ describe('OrcidSuggestionCard – ORCID link', () => {
 
         expect(screen.queryByRole('link', { name: '0000-0001-2345-6780' })).not.toBeInTheDocument();
         expect(screen.getByText(/0000-0001-2345-6780/)).toBeInTheDocument();
+    });
+});
+
+describe('SpdxRightsSuggestionCard - SPDX preview', () => {
+    it('shows imported rights next to the proposed SPDX metadata', () => {
+        const suggestion = makeSpdxRightsSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'spdx-license-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('spdx-license-suggestion', 'spdx-license-suggestion', 'SPDX License Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Current imported rights')).toBeInTheDocument();
+        expect(screen.getByText('Proposed SPDX metadata')).toBeInTheDocument();
+        expect(screen.getByText('CC BY 4.0')).toBeInTheDocument();
+        expect(screen.getByText('Creative Commons Attribution 4.0 International')).toBeInTheDocument();
+        expect(screen.getAllByText('CC-BY-4.0')).not.toHaveLength(0);
+        expect(screen.getByText('https://spdx.org/licenses/')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'SPDX reference' })).toHaveAttribute(
+            'href',
+            'https://spdx.org/licenses/CC-BY-4.0.html',
+        );
+        expect(screen.getByText(/Clicking Accept links only this rights statement/)).toBeInTheDocument();
     });
 });
 

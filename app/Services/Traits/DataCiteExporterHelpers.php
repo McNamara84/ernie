@@ -54,7 +54,7 @@ trait DataCiteExporterHelpers
             'dates.dateType',
             'subjects',
             'geoLocations',
-            'rights',
+            'resourceRights.right',
             'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',

@@ -37,6 +37,16 @@ export interface TitleEntry {
     language?: string | null;
 }
 
+export interface RawRightsInput {
+    rights?: string | null;
+    rightsUri?: string | null;
+    rightsIdentifier?: string | null;
+    rightsIdentifierScheme?: string | null;
+    schemeUri?: string | null;
+    lang?: string | null;
+    source?: string | null;
+}
+
 export interface LicenseEntry {
     id: string;
     license: string;
@@ -176,6 +186,7 @@ export interface DataCiteFormProps {
     initialResourceType?: string;
     initialTitles?: { title: string; titleType: string; language?: string | null }[];
     initialLicenses?: string[];
+    initialRawRights?: RawRightsInput[];
     initialResourceId?: string;
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];

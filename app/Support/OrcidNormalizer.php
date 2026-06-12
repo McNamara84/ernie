@@ -22,6 +22,8 @@ final class OrcidNormalizer
         'http://orcid.org/',
         'https://www.orcid.org/',
         'http://www.orcid.org/',
+        'orcid.org/',
+        'www.orcid.org/',
     ];
 
     /**
@@ -35,6 +37,7 @@ final class OrcidNormalizer
      * Examples:
      *  - "https://orcid.org/0000-0002-1825-0097"  → "0000-0002-1825-0097"
      *  - "https://www.orcid.org/0000-0002-1825-0097" → "0000-0002-1825-0097"
+     *  - "orcid.org/0000-0002-1825-0097" → "0000-0002-1825-0097"
      *  - "0000-0002-1825-0097" → "0000-0002-1825-0097"
      */
     public static function extractBareId(string $orcid): string

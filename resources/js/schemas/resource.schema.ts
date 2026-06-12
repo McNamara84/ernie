@@ -39,7 +39,21 @@ export const licenseSchema = z.object({
 
 export type LicenseFormData = z.infer<typeof licenseSchema>;
 
-export const licensesArraySchema = z.array(licenseSchema).min(1, 'At least one license is required');
+export const licensesArraySchema = z.array(licenseSchema);
+
+export const rawRightsSchema = z.object({
+    rights: z.string().nullable().optional(),
+    rightsUri: z.string().nullable().optional(),
+    rightsIdentifier: z.string().nullable().optional(),
+    rightsIdentifierScheme: z.string().nullable().optional(),
+    schemeUri: z.string().nullable().optional(),
+    lang: z.string().nullable().optional(),
+    source: z.string().nullable().optional(),
+});
+
+export type RawRightsFormData = z.infer<typeof rawRightsSchema>;
+
+export const rawRightsArraySchema = z.array(rawRightsSchema).default([]);
 
 // =============================================================================
 // Date Schema
@@ -130,8 +144,9 @@ export const resourceSchema = z.object({
     // Contributors (optional)
     contributors: contributorsArraySchema,
 
-    // Licenses (at least one required)
+    // Licenses / imported rights (validated together below)
     licenses: licensesArraySchema,
+    rawRights: rawRightsArraySchema,
 
     // Descriptions (optional)
     descriptions: descriptionsArraySchema,
@@ -157,6 +172,17 @@ export const resourceSchema = z.object({
 
     // Resource ID (for updates)
     resourceId: z.string().optional(),
+}).superRefine((data, ctx) => {
+    const hasLicense = data.licenses.some((entry) => entry.license.trim() !== '');
+    const hasRawRights = data.rawRights.some((entry) => Boolean(entry.rights?.trim() || entry.rightsUri?.trim() || entry.rightsIdentifier?.trim()));
+
+    if (!hasLicense && !hasRawRights) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'At least one license or imported rights statement is required',
+            path: ['licenses'],
+        });
+    }
 });
 
 export type ResourceFormData = z.infer<typeof resourceSchema>;

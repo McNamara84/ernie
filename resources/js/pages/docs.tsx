@@ -572,6 +572,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and
                                 funders via the ROR API v2
                             </li>
+                            <li>
+                                <strong>SPDX License Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
+                                license metadata before export
+                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -586,6 +590,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
                                     score.
+                                </p>
+                                <p className="mt-2">
+                                    SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
+                                    Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
+                                    unchanged and dismisses the suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
