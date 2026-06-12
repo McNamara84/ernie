@@ -611,9 +611,23 @@ class DataCiteToResourceTransformer
         $scheme = null;
         $schemeUri = null;
 
-        foreach ($data['nameIdentifiers'] ?? [] as $nameId) {
-            if (($nameId['nameIdentifierScheme'] ?? '') === 'ORCID') {
-                $orcid = $nameId['nameIdentifier'] ?? null;
+        $nameIdentifiers = $data['nameIdentifiers'] ?? [];
+
+        if (is_array($nameIdentifiers)) {
+            foreach ($nameIdentifiers as $nameId) {
+                if (! is_array($nameId) || ($nameId['nameIdentifierScheme'] ?? '') !== 'ORCID') {
+                    continue;
+                }
+
+                $identifier = isset($nameId['nameIdentifier'])
+                    ? trim((string) $nameId['nameIdentifier'])
+                    : '';
+
+                if ($identifier === '') {
+                    continue;
+                }
+
+                $orcid = $identifier;
                 $scheme = 'ORCID';
                 $schemeUri = $nameId['schemeUri'] ?? 'https://orcid.org';
                 break;
@@ -755,7 +769,13 @@ class DataCiteToResourceTransformer
      */
     private function hasNameIdentifierScheme(array $data, string $expectedScheme): bool
     {
-        foreach ($data['nameIdentifiers'] ?? [] as $nameIdentifier) {
+        $nameIdentifiers = $data['nameIdentifiers'] ?? [];
+
+        if (! is_array($nameIdentifiers)) {
+            return false;
+        }
+
+        foreach ($nameIdentifiers as $nameIdentifier) {
             if (! is_array($nameIdentifier)) {
                 continue;
             }
@@ -766,6 +786,10 @@ class DataCiteToResourceTransformer
             $identifier = isset($nameIdentifier['nameIdentifier'])
                 ? strtolower(trim((string) $nameIdentifier['nameIdentifier']))
                 : '';
+
+            if ($identifier === '') {
+                continue;
+            }
 
             if ($scheme === strtolower($expectedScheme)) {
                 return true;
@@ -905,9 +929,23 @@ class DataCiteToResourceTransformer
         $scheme = null;
         $schemeUri = null;
 
-        foreach ($data['nameIdentifiers'] ?? [] as $nameId) {
-            if (($nameId['nameIdentifierScheme'] ?? '') === 'ROR') {
-                $ror = $nameId['nameIdentifier'] ?? null;
+        $nameIdentifiers = $data['nameIdentifiers'] ?? [];
+
+        if (is_array($nameIdentifiers)) {
+            foreach ($nameIdentifiers as $nameId) {
+                if (! is_array($nameId) || ($nameId['nameIdentifierScheme'] ?? '') !== 'ROR') {
+                    continue;
+                }
+
+                $identifier = isset($nameId['nameIdentifier'])
+                    ? trim((string) $nameId['nameIdentifier'])
+                    : '';
+
+                if ($identifier === '') {
+                    continue;
+                }
+
+                $ror = $identifier;
                 $scheme = 'ROR';
                 $schemeUri = $nameId['schemeUri'] ?? 'https://ror.org';
                 break;

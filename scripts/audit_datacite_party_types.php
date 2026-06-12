@@ -248,7 +248,11 @@ function looksLikePersonName(string $name): bool
 
 function wordCount(string $name): int
 {
-    return preg_match_all('/[\p{L}\p{N}]+/u', $name);
+    if (preg_match_all('/[\p{L}\p{N}]+/u', $name, $matches) === false) {
+        return 0;
+    }
+
+    return count($matches[0]);
 }
 
 /**

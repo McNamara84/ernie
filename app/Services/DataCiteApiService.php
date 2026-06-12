@@ -11,11 +11,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Service für den Abruf von DOI-Metadaten über die doi.org Content Negotiation API.
+ * Service for fetching DOI metadata through the doi.org Content Negotiation API.
  *
- * Funktioniert registrarunabhängig mit allen DOI-Registraren (DataCite, Crossref, mEDRA, etc.)
+ * Works independently of the DOI registrar (DataCite, Crossref, mEDRA, etc.).
  *
- * API-Dokumentation: https://citation.crosscite.org/docs.html
+ * API documentation: https://citation.crosscite.org/docs.html
  */
 class DataCiteApiService
 {
@@ -55,12 +55,12 @@ class DataCiteApiService
     }
 
     /**
-     * Ruft Metadaten für eine DOI über Content Negotiation ab.
+     * Fetch metadata for a DOI through Content Negotiation.
      *
      * Results are cached for 24 hours to reduce load on doi.org.
      *
-     * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
-     * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
+     * @param  string  $doi  The DOI to fetch metadata for
+     * @return array<string, mixed>|null The metadata array, or null on failure
      */
     public function getMetadata(string $doi, ?float $timeoutSeconds = null, bool $cacheTransientFailure = true): ?array
     {
@@ -154,16 +154,16 @@ class DataCiteApiService
     }
 
     /**
-     * Erstellt einen Zitationsstring aus CSL JSON Metadaten.
+     * Build a citation string from CSL JSON metadata.
      *
-     * CSL JSON ist das Standardformat der doi.org Content Negotiation API.
+     * CSL JSON is the standard format returned by the doi.org Content Negotiation API.
      *
-     * @param  array<string, mixed>  $metadata  Die Metadaten von doi.org
-     * @return string Die formatierte Zitation
+     * @param  array<string, mixed>  $metadata  The metadata from doi.org
+     * @return string The formatted citation
      */
     public function buildCitationFromMetadata(array $metadata): string
     {
-        // Autoren aus CSL JSON Format extrahieren
+        // Extract authors from CSL JSON.
         $authors = is_array($metadata['author'] ?? null) ? $metadata['author'] : [];
         $authorStrings = [];
         foreach ($authors as $author) {
@@ -185,21 +185,21 @@ class DataCiteApiService
         }
         $authorsString = ! empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
 
-        // Jahr extrahieren - verschiedene mögliche Felder prüfen
+        // Extract the year from several possible CSL date fields.
         $year = $this->metadataYear($metadata);
 
-        // Titel extrahieren
+        // Extract the title.
         $title = $this->metadataString($metadata['title'] ?? null, 'Untitled');
 
-        // Verlag extrahieren
+        // Extract the publisher.
         $publisher = $this->metadataString($metadata['publisher'] ?? null, 'Unknown Publisher');
 
-        // DOI extrahieren
+        // Extract the DOI.
         $doi = $this->metadataString($metadata['DOI'] ?? null);
         $cleanDoi = $doi !== '' ? $this->normalizeDoi($doi) : null;
         $doiUrl = $cleanDoi !== null ? "https://doi.org/{$cleanDoi}" : '';
 
-        // Zitation aufbauen: [Autoren] ([Jahr]): [Titel]. [Verlag]. [DOI URL]
+        // Build citation: [Authors] ([Year]): [Title]. [Publisher]. [DOI URL]
         return trim("{$authorsString} ({$year}): {$title}. {$publisher}. {$doiUrl}");
     }
 
@@ -209,7 +209,13 @@ class DataCiteApiService
     private function metadataYear(array $metadata): string
     {
         foreach (['issued', 'published', 'created'] as $field) {
-            $year = $this->metadataString($metadata[$field]['date-parts'] ?? null);
+            $date = $metadata[$field] ?? null;
+
+            if (! is_array($date)) {
+                continue;
+            }
+
+            $year = $this->metadataString($date['date-parts'] ?? null);
 
             if ($year !== '') {
                 return $year;

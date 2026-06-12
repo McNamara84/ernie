@@ -1531,6 +1531,48 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
             ->and($institution->name_identifier_scheme)->toBe('ROR');
     });
 
+    it('ignores blank name identifiers when resolving creator types', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/blank-name-identifier-signals.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Blank Name Identifier Signals Test']],
+                'creators' => [
+                    [
+                        'name' => 'Doe, Jane',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => '   ',
+                                'nameIdentifierScheme' => 'ROR',
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => '',
+                                'nameIdentifierScheme' => 'ORCID',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Person::class)
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class);
+    });
+
     it('applies the same institutional correction to contributors', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;

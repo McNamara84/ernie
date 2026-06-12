@@ -296,6 +296,21 @@ describe('buildCitationFromMetadata', function (): void {
         expect($result)->toContain('(2023)');
     });
 
+    it('falls back when an earlier CSL date field is malformed', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'John']],
+            'issued' => '2024',
+            'published' => ['date-parts' => [[2023]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test.2024.001',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toContain('(2023)');
+    });
+
     it('falls back to created date-parts when issued and published are missing', function (): void {
         $metadata = [
             'author' => [['family' => 'Doe', 'given' => 'John']],
