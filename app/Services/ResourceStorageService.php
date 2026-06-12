@@ -156,53 +156,57 @@ class ResourceStorageService
     {
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
-        if (is_array($relatedIdentifiers)) {
-            $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
+        if (! is_array($relatedIdentifiers)) {
+            $data['relatedIdentifiers'] = [];
 
-            foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
-                if (! is_array($relatedIdentifier)) {
-                    continue;
-                }
+            return $this->ensureAuthorContactPersonContributors($data);
+        }
 
-                $identifier = isset($relatedIdentifier['identifier'])
-                    ? trim((string) $relatedIdentifier['identifier'])
-                    : '';
+        $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
-                if ($identifier === '') {
-                    unset($relatedIdentifiers[$index]['citationLabel']);
-
-                    continue;
-                }
-
-                $relatedIdentifiers[$index]['identifier'] = $identifier;
-
-                $citationLabel = isset($relatedIdentifier['citationLabel'])
-                    ? trim((string) $relatedIdentifier['citationLabel'])
-                    : '';
-
-                if ($citationLabel !== '') {
-                    $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
-
-                    continue;
-                }
-
-                $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
-                    $identifier,
-                    (string) ($relatedIdentifier['identifierType'] ?? ''),
-                    $citationResolutionDeadline,
-                );
-
-                if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
-                    $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
-
-                    continue;
-                }
-
-                unset($relatedIdentifiers[$index]['citationLabel']);
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
             }
 
-            $data['relatedIdentifiers'] = $relatedIdentifiers;
+            $identifier = isset($relatedIdentifier['identifier'])
+                ? trim((string) $relatedIdentifier['identifier'])
+                : '';
+
+            if ($identifier === '') {
+                unset($relatedIdentifiers[$index]['citationLabel']);
+
+                continue;
+            }
+
+            $relatedIdentifiers[$index]['identifier'] = $identifier;
+
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+
+                continue;
+            }
+
+            $resolvedCitationLabel = $this->relatedIdentifierCitationLabelService->resolveBestEffort(
+                $identifier,
+                (string) ($relatedIdentifier['identifierType'] ?? ''),
+                $citationResolutionDeadline,
+            );
+
+            if (is_string($resolvedCitationLabel) && trim($resolvedCitationLabel) !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = trim($resolvedCitationLabel);
+
+                continue;
+            }
+
+            unset($relatedIdentifiers[$index]['citationLabel']);
         }
+
+        $data['relatedIdentifiers'] = $relatedIdentifiers;
 
         return $this->ensureAuthorContactPersonContributors($data);
     }
