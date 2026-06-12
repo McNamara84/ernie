@@ -279,15 +279,64 @@ class ResourceStorageService
         // Sync selected catalog rights and keep raw imported statements. This
         // lets an import store "CC BY 4.0" as-is while the SPDX assistant later
         // proposes whether it should link to the shared SPDX catalog entry.
-        $licenseIdentifiers = $data['licenses'] ?? [];
-        $rawRights = $data['rawRights'] ?? [];
-
         $this->resourceRightsStorage->syncEditorRights(
             $resource,
-            is_array($licenseIdentifiers) ? $licenseIdentifiers : [],
-            is_array($rawRights) ? $rawRights : [],
+            $this->licenseIdentifierList($data['licenses'] ?? []),
+            $this->rawRightsList($data['rawRights'] ?? []),
             $resource->language?->code,
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function licenseIdentifierList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $identifiers = [];
+
+        foreach ($value as $identifier) {
+            if (is_string($identifier)) {
+                $identifiers[] = $identifier;
+            }
+        }
+
+        return $identifiers;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rawRightsList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rawRights = [];
+
+        foreach ($value as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [];
+
+            foreach ($statement as $key => $item) {
+                if (is_string($key)) {
+                    $normalized[$key] = $item;
+                }
+            }
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
     }
 
     /**

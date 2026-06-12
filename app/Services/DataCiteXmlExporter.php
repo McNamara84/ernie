@@ -1137,7 +1137,7 @@ class DataCiteXmlExporter
 
         foreach ($resourceRights as $resourceRight) {
             $right = $resourceRight->right;
-            $rightsText = $right?->name ?? $resourceRight->rights_text;
+            $rightsText = $right->name ?? $resourceRight->rights_text;
 
             if ($rightsText === null || trim($rightsText) === '') {
                 continue;
@@ -1145,12 +1145,12 @@ class DataCiteXmlExporter
 
             $rightsElement = $this->dom->createElement('rights', htmlspecialchars($rightsText));
 
-            $rightsUri = $right?->uri ?? $resourceRight->rights_uri;
+            $rightsUri = $right->uri ?? $resourceRight->rights_uri;
             if ($rightsUri !== null && trim($rightsUri) !== '') {
                 $rightsElement->setAttribute('rightsURI', htmlspecialchars($rightsUri));
             }
 
-            $rightsIdentifier = $right?->identifier ?? $resourceRight->rights_identifier;
+            $rightsIdentifier = $right->identifier ?? $resourceRight->rights_identifier;
             if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
                 $rightsElement->setAttribute('rightsIdentifier', htmlspecialchars($rightsIdentifier));
 
@@ -1159,7 +1159,7 @@ class DataCiteXmlExporter
                     $rightsElement->setAttribute('rightsIdentifierScheme', htmlspecialchars($identifierScheme));
                 }
 
-                $schemeUri = $right?->scheme_uri ?? $resourceRight->scheme_uri;
+                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
                 if ($schemeUri !== null && trim($schemeUri) !== '') {
                     $rightsElement->setAttribute('schemeURI', htmlspecialchars($schemeUri));
                 }

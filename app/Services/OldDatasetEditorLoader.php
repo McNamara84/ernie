@@ -323,7 +323,7 @@ class OldDatasetEditorLoader
      */
     private function loadRawRights(OldDataset $dataset): array
     {
-        return $dataset->getLicenseStatements();
+        return array_values($dataset->getLicenseStatements());
     }
 
     /**

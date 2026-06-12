@@ -276,6 +276,7 @@ final class ResourceRightsStorageService
     }
 
     /**
+     * @param  array<string, mixed>  $statement
      * @param  list<string>  $keys
      */
     private function stringValue(array $statement, array $keys): ?string

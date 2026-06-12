@@ -48,7 +48,6 @@ final readonly class RightsSectionParser
                 'rightsIdentifierScheme' => $this->filled($element->getAttribute('rightsIdentifierScheme')),
                 'schemeUri' => $this->filled($element->getAttribute('schemeURI')),
                 'lang' => $this->filled($element->getAttribute('xml:lang')),
-                'source' => 'xml-upload',
             ];
 
             $statement = array_filter(
@@ -56,9 +55,12 @@ final readonly class RightsSectionParser
                 fn (?string $value): bool => $value !== null,
             );
 
-            if ($statement !== []) {
-                $rightsStatements[] = $statement;
+            if ($statement === []) {
+                continue;
             }
+
+            $statement['source'] = 'xml-upload';
+            $rightsStatements[] = $statement;
         }
 
         return $rightsStatements;

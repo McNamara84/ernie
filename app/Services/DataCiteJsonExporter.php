@@ -769,7 +769,7 @@ class DataCiteJsonExporter
 
         foreach ($resourceRights as $resourceRight) {
             $right = $resourceRight->right;
-            $rightsText = $right?->name ?? $resourceRight->rights_text;
+            $rightsText = $right->name ?? $resourceRight->rights_text;
 
             if ($rightsText === null || trim($rightsText) === '') {
                 continue;
@@ -779,12 +779,12 @@ class DataCiteJsonExporter
                 'rights' => $rightsText,
             ];
 
-            $rightsUri = $right?->uri ?? $resourceRight->rights_uri;
+            $rightsUri = $right->uri ?? $resourceRight->rights_uri;
             if ($rightsUri !== null && trim($rightsUri) !== '') {
                 $rightsData['rightsURI'] = $rightsUri;
             }
 
-            $rightsIdentifier = $right?->identifier ?? $resourceRight->rights_identifier;
+            $rightsIdentifier = $right->identifier ?? $resourceRight->rights_identifier;
             if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
                 $rightsData['rightsIdentifier'] = $rightsIdentifier;
 
@@ -793,7 +793,7 @@ class DataCiteJsonExporter
                     $rightsData['rightsIdentifierScheme'] = $identifierScheme;
                 }
 
-                $schemeUri = $right?->scheme_uri ?? $resourceRight->scheme_uri;
+                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
                 if ($schemeUri !== null && trim($schemeUri) !== '') {
                     $rightsData['schemeURI'] = $schemeUri;
                 }
