@@ -284,18 +284,37 @@ class SizeFormatFileProbeService
             }
         }
 
+        // doppelte Vorschläge werden entfernt 
         return $this->deduplicateSuggestions($suggestions);
     }
 
+    // "Notfallplan"
+    /**
+     * Bedeutung:
+     * Head-Request fehlgeschlagen
+     * oder
+     * kein Content-Length vorgeschlagen
+     * oder kein Conten-Length vorhanden 
+     * 
+     * => versuche etwas aus dem Dateinamen abzuleiten
+     * 
+     */
     private function inferFromFilenameFallback(string $fileUrl, ?string $error = null): array
     {
+        // liefert den Pfad zur Datei
+        // Beispiel: https://datapub.gfz.de/download/data/report.pdf
+        // basename nimmt nur den letzten Teil = report.pdf
         $filename = basename(parse_url($fileUrl, PHP_URL_PATH) ?? $fileUrl);
+        // Dateiendungen ermitteln
+        // aus report.pdf wird pdf
         $extension = $this->extractExtension($filename);
 
+        // Fall: keine Endung gefunden 
         if ($extension === null) {
             return $this->skip($fileUrl, 'no_header_or_filename_evidence', $error);
         }
 
+        // 
         return [
             'source_url' => $fileUrl,
             'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
@@ -305,6 +324,7 @@ class SizeFormatFileProbeService
                 'extension' => $extension,
                 'error' => $error,
             ],
+            // wenn keine Endung gefunden, werden Vorschläge gemacht
             'suggestions' => [
                 [
                     'type' => 'format',
@@ -321,6 +341,7 @@ class SizeFormatFileProbeService
         ];
     }
 
+    // Funktion sucht nach den erlaubten Piwik-Download-Links
     private function extractPiwikDownloadLinks(string $landingPageUrl, string $html): array
     {
         preg_match_all(
@@ -341,6 +362,7 @@ class SizeFormatFileProbeService
                 continue;
             }
 
+            // ist der Linktext erlaubt? Beispiel: Download data
             if (! $this->isAllowedLinkText($linkText)) {
                 continue;
             }
@@ -351,55 +373,86 @@ class SizeFormatFileProbeService
         return array_values(array_unique($urls));
     }
 
+    // bekommt die Downloadseite als URL und den HTML-Code dieser Seite
     private function extractFilesFromApacheIndex(string $baseUrl, string $html): array
     {
+        // hier wird alle html-code durchsucht
+        // preg_match_all: Führt eine vollständige Suche mit einem regulären Ausdruck durch (sucht auf der kompletten Seite)
+        /** Flags: (übersetzt: Schalter oder Markierungen) spezielle Parameter oder Variablen, die das Verhalten von Funktionen steuern 
+         * oder bestimmte Zustände (wahr/falsch, an/aus) repräsentieren */ 
+        // sucht nach allen klassischen Text-Links, die so aufgebaut sind: <a href="adresse">Text</a>.
+        /**
+         * sucht im HTML nach Dateizeilen mit diesem Muster:
+         * Link + Dateiname + Änderungsdatum + Größe
+         */
         preg_match_all(
             '/<a\s+href=["\']([^"\']+)["\']>([^<]+)<\/a>\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s+([0-9.]+[KMGTP]?)/i',
             $html,
+            // $matches: mehrdimensionales Array mit allen gefundenen Übereinstimmungen/ gefundene Dateien
             $matches,
+            /**
+            *Sortier-Befehl für PHP. Er sorgt dafür, dass jeder gefundene Link als ein eigenes, ordentliches Paket im Array 
+            *abgelegt wird. ($matches[0] ist der erste Link, $matches[1] der zweite usw..
+            */ 
             PREG_SET_ORDER
         );
 
+        // leere Liste für die fertigen Dateiergebnisse
         $files = [];
 
+        // geht jede gefundene Datei einzeln durch
         foreach ($matches as $match) {
             $href = trim($match[1]);
             $filename = trim($match[2]);
             $lastModified = trim($match[3]);
             $displayedSize = trim($match[4]);
 
+            // leere Einträge und „Parent Directory“ werden ignoriert
             if ($filename === '' || str_contains(strtolower($filename), 'parent directory')) {
                 continue;
             }
 
+            // Ordner werden ignoriert. Es sollen nur Dateien gespeichert werden
             if (str_ends_with($href, '/')) {
                 continue;
             }
 
+            // Fügt eine Datei zur Ergebnisliste hinzu
             $files[] = [
+                // macht aus dem relativen Dateilink eine vollständige URL
                 'file_url' => $this->absoluteUrl($baseUrl, $href),
+                // speichert den Dateinamen
                 'filename' => $filename,
+                // leitet das Format aus der Dateiendung ab, z. B. csv, pdf, zip
                 'extension' => $this->extractExtension($filename),
+                // speichert das Änderungsdatum der Datei
                 'last_modified' => $lastModified,
+                // speichert die angezeigte Dateigröße, z. B. 14M
                 'displayed_size' => $displayedSize,
             ];
         }
 
         return $files;
     }
-
+    // "Hilfsmethoden"
     private function extractExtension(string $filename): ?string
     {
+        // Holt die Dateiendung
         $extension = pathinfo($filename, PATHINFO_EXTENSION);
 
+        // Wenn eine Endung existiert, wird sie klein geschrieben zurückgegeben. Sonst null
         return $extension !== '' ? strtolower($extension) : null;
     }
 
+    // prüft, ob ein Linktext erlaubt ist
     private function isAllowedLinkText(string $text): bool
     {
+        // mehrere Leerzeichen werden zu einem Leerzeichen gemacht
         $normalizedText = trim(preg_replace('/\s+/', ' ', $text) ?? '');
 
+        // geht alle erlaubten Texte durch
         foreach (self::ALLOWED_LINK_TEXTS as $allowedText) {
+            // vergleicht ohne Groß-/Kleinschreibung
             if (strcasecmp($normalizedText, $allowedText) === 0) {
                 return true;
             }
@@ -408,8 +461,10 @@ class SizeFormatFileProbeService
         return false;
     }
 
+    // sucht Hinweise auf blockierten Zugriff
     private function containsBlockedAccess(string $html): bool
     {
+        // Liste mit Wörtern, die auf Formular/CAPTCHA/Registrierung hindeuten
         $blockedIndicators = [
             'Full Name',
             'Purpose of use',
@@ -422,6 +477,7 @@ class SizeFormatFileProbeService
 
         foreach ($blockedIndicators as $indicator) {
             if (stripos($html, $indicator) !== false) {
+                // wenn eines dieser Wörter im HTML gefunden wird, wird true zurückgegeben
                 return true;
             }
         }
@@ -429,35 +485,50 @@ class SizeFormatFileProbeService
         return false;
     }
 
+    // macht aus relativen Links vollständige Links
+    // $baseUrl = die aktuelle Seite
+    // $href = der Link aus dem HTML
     private function absoluteUrl(string $baseUrl, string $href): string
     {
         $baseUrl = trim($baseUrl);
         $href = trim($href);
 
+        // wenn $href schon vollständig ist = wird er zurückgegeben
         if ($this->isHttpUrl($href)) {
             return $href;
         }
 
+        // zerlegt die Basis-URL in Teile.
         $parts = parse_url($baseUrl);
 
+        // wenn die Basis-URL keine gültige Domain hat, wird einfach $href zurückgegeben
         if (! isset($parts['scheme'], $parts['host'])) {
             return $href;
         }
 
+        // baut die Domain zusammen
         $origin = $parts['scheme'] . '://' . $parts['host'];
 
+        // wenn der Link mit / beginnt, ist er relativ zur Domain.
         if (str_starts_with($href, '/')) {
             return $origin . $href;
         }
 
+        // holt den Pfad aus der Basis-URL
         $basePath = $parts['path'] ?? '';
 
+        /**
+         * Hier wird entschieden, welcher Ordner als Grundlage benutzt wird
+         * Wenn $basePath mit / endet, gilt er schon als Ordner
+         * Wenn nicht, nimmt dirname() den übergeordneten Ordner
+         */      
         if ($basePath === '' || str_ends_with($basePath, '/')) {
             $directory = $basePath;
         } else {
             $directory = dirname($basePath) . '/';
         }
 
+        // baut finale URL zusammen
         return $origin . rtrim($directory, '/') . '/' . ltrim($href, '/');
     }
 
@@ -468,6 +539,7 @@ class SizeFormatFileProbeService
         return str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
     }
 
+    // wandelt die Dateigröße in Bytes in eine lesbare Größe um
     private function formatBytes(int $bytes): string
     {
         if ($bytes >= 1024 * 1024 * 1024) {
@@ -485,9 +557,15 @@ class SizeFormatFileProbeService
         return $bytes . ' B';
     }
 
+    // Funktion entfernt doppelte Suggestions
+    /**
+     * mehrere Dateien werden untersucht -> dabei können identische Vorschläge entstehen -> nur eindeutige sollen übrig bleiben
+     */
     private function deduplicateSuggestions(array $suggestions): array
     {
+        // welche suggestions habe ich bereits gesehen?
         $seen = [];
+        // speicherung der eindeutigen entgüligen hier
         $unique = [];
 
         foreach ($suggestions as $suggestion) {
@@ -504,6 +582,7 @@ class SizeFormatFileProbeService
         return $unique;
     }
 
+    // Skip-Methode
     private function skip(string $url, string $reason, ?string $error = null): array
     {
         return [
