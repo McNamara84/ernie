@@ -84,7 +84,7 @@ export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
-const SECTION_TRIGGER_CLASS_NAME = 'py-3 hover:no-underline';
+const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
 
 function normalizeAccordionItems(
     items: readonly string[],
