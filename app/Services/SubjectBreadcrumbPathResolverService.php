@@ -63,6 +63,9 @@ final class SubjectBreadcrumbPathResolverService
     /** @var array<string, array<string, array{id: string, text: string, path: string, schemeURI: string|null}>> */
     private array $nodesByPath = [];
 
+    /** @var array<string, array<string, array<string, array{id: string, text: string, path: string, schemeURI: string|null}>>> */
+    private array $nodesByLeafPath = [];
+
     /** @var array<string, array<string, true>> */
     private array $ambiguousLeafKeys = [];
 
@@ -124,7 +127,9 @@ final class SubjectBreadcrumbPathResolverService
             return null;
         }
 
-        $node = $this->nodesByPath[$normalizedScheme][$pathKey] ?? null;
+        $node = $this->nodesByPath[$normalizedScheme][$pathKey]
+            ?? $this->resolveUniqueNodeFromLegacyPath($normalizedScheme, $subjectValue);
+
         if ($node === null) {
             return null;
         }
@@ -198,8 +203,7 @@ final class SubjectBreadcrumbPathResolverService
                 }
             }
 
-            $pathKey = $this->normalizePathLookup($currentPath, $scheme);
-            if ($pathKey !== null && $nodeId !== '' && ! isset($this->ambiguousPathKeys[$scheme][$pathKey])) {
+            if ($nodeId !== '') {
                 $schemeUri = $this->filledString($node['schemeURI'] ?? null) ?? $this->fallbackSchemeUri($scheme);
                 $resolvedNode = [
                     'id' => $nodeId,
@@ -208,6 +212,13 @@ final class SubjectBreadcrumbPathResolverService
                     'schemeURI' => $schemeUri,
                 ];
 
+                if ($leafKey !== null) {
+                    $this->nodesByLeafPath[$scheme][$leafKey][$nodeId.'|'.$currentPath] = $resolvedNode;
+                }
+            }
+
+            $pathKey = $this->normalizePathLookup($currentPath, $scheme);
+            if ($pathKey !== null && $nodeId !== '' && ! isset($this->ambiguousPathKeys[$scheme][$pathKey])) {
                 if (! isset($this->nodesByPath[$scheme][$pathKey])) {
                     $this->nodesByPath[$scheme][$pathKey] = $resolvedNode;
                 } elseif ($this->nodesByPath[$scheme][$pathKey] !== $resolvedNode) {
@@ -359,6 +370,93 @@ final class SubjectBreadcrumbPathResolverService
         );
 
         return $normalizedPath !== null ? mb_strtolower($normalizedPath) : null;
+    }
+
+    /**
+     * Some legacy DataCite subjects carry paths from older GCMD hierarchy
+     * versions. If current vocabularies inserted extra intermediate nodes, the
+     * legacy path can still be resolved as long as it identifies exactly one
+     * current node with the same ordered breadcrumb segments.
+     *
+     * @return array{id: string, text: string, path: string, schemeURI: string|null}|null
+     */
+    private function resolveUniqueNodeFromLegacyPath(string $scheme, ?string $path): ?array
+    {
+        $segments = $this->pathSegmentsForLookup($path, $scheme);
+        if (count($segments) < 2) {
+            return null;
+        }
+
+        $leafKey = $segments[array_key_last($segments)];
+        $candidates = $this->nodesByLeafPath[$scheme][$leafKey] ?? [];
+        if ($candidates === []) {
+            return null;
+        }
+
+        $matches = [];
+        foreach ($candidates as $candidateKey => $candidate) {
+            if ($this->isOrderedSubsequence(
+                $segments,
+                $this->pathSegmentsForLookup($candidate['path'], $scheme),
+            )) {
+                $matches[$candidateKey] = $candidate;
+            }
+        }
+
+        if (count($matches) !== 1) {
+            return null;
+        }
+
+        $match = reset($matches);
+
+        return is_array($match) ? $match : null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pathSegmentsForLookup(?string $path, ?string $scheme): array
+    {
+        $segments = SubjectBreadcrumbPath::segments($path);
+        if ($segments === []) {
+            return [];
+        }
+
+        if ($scheme !== null && $this->shouldDropLeadingSegment($segments[0], $scheme)) {
+            array_shift($segments);
+        }
+
+        return array_values(array_map(
+            static fn (string $segment): string => mb_strtolower(trim($segment)),
+            array_filter($segments, static fn (string $segment): bool => trim($segment) !== ''),
+        ));
+    }
+
+    /**
+     * @param  array<int, string>  $needles
+     * @param  array<int, string>  $haystack
+     */
+    private function isOrderedSubsequence(array $needles, array $haystack): bool
+    {
+        if ($needles === [] || count($needles) > count($haystack)) {
+            return false;
+        }
+
+        $needleIndex = 0;
+        $needleCount = count($needles);
+
+        foreach ($haystack as $segment) {
+            if ($segment !== $needles[$needleIndex]) {
+                continue;
+            }
+
+            $needleIndex++;
+            if ($needleIndex === $needleCount) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function fallbackSchemeUri(string $scheme): ?string

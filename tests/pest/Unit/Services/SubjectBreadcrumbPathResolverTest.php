@@ -126,6 +126,57 @@ it('resolves a controlled keyword from a legacy full path without value_uri', fu
     ]);
 });
 
+it('resolves a controlled keyword from a legacy path that omits a unique intermediate node', function (): void {
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'data' => [[
+            'id' => 'science-root',
+            'text' => 'Science Keywords',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'children' => [[
+                'id' => 'earth-science',
+                'text' => 'EARTH SCIENCE',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [[
+                    'id' => 'biosphere',
+                    'text' => 'BIOSPHERE',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'children' => [[
+                        'id' => 'ecosystems',
+                        'text' => 'ECOSYSTEMS',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'children' => [[
+                            'id' => 'terrestrial-ecosystems',
+                            'text' => 'TERRESTRIAL ECOSYSTEMS',
+                            'scheme' => 'NASA/GCMD Earth Science Keywords',
+                            'children' => [[
+                                'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/forest-uuid',
+                                'text' => 'FORESTS',
+                                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                                'children' => [],
+                            ]],
+                        ]],
+                    ]],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    $resolver = new SubjectBreadcrumbPathResolverService;
+
+    $result = $resolver->resolveKeywordFromPath(
+        subjectScheme: 'NASA/GCMD Earth Science Keywords',
+        subjectValue: 'EARTH SCIENCE &gt; BIOSPHERE &gt; TERRESTRIAL ECOSYSTEMS &gt; FORESTS',
+    );
+
+    expect($result)->toBe([
+        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/forest-uuid',
+        'text' => 'FORESTS',
+        'path' => 'EARTH SCIENCE > BIOSPHERE > ECOSYSTEMS > TERRESTRIAL ECOSYSTEMS > FORESTS',
+        'scheme' => 'Science Keywords',
+        'schemeURI' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+    ]);
+});
+
 it('does not resolve a value_uri from ambiguous legacy full paths', function (): void {
     Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
         'data' => [[
