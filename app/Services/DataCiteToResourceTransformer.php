@@ -38,6 +38,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Support\OrcidNormalizer;
+use App\Support\SubjectBreadcrumbPath;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -56,6 +57,7 @@ class DataCiteToResourceTransformer
     public function __construct(
         private ?RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService = null,
         private ?RorLookupService $rorLookupService = null,
+        private ?SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver = null,
     ) {}
 
     /**
@@ -1087,16 +1089,66 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
+            $rawSubjectValue = is_string($value) ? $value : null;
+            $subjectValue = $rawSubjectValue !== null ? (SubjectBreadcrumbPath::normalize($rawSubjectValue) ?? $value) : $value;
+            $subjectScheme = $subjectData['subjectScheme'] ?? null;
+            $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
+            $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
+            $classificationCode = $subjectData['classificationCode'] ?? null;
+            $breadcrumbPath = SubjectBreadcrumbPath::preferredPath(null, $rawSubjectValue);
+
+            if ($valueUri === null || $schemeUri === null) {
+                $resolvedKeyword = $this->subjectPathResolver()->resolveKeywordFromPath(
+                    is_string($subjectScheme) ? $subjectScheme : null,
+                    $rawSubjectValue,
+                );
+
+                if ($resolvedKeyword !== null) {
+                    $subjectScheme = $resolvedKeyword['scheme'];
+                    $schemeUri = $schemeUri ?? $resolvedKeyword['schemeURI'];
+                    $valueUri = $valueUri ?? $resolvedKeyword['id'];
+                    $breadcrumbPath = $resolvedKeyword['path'];
+                }
+            }
+
+            $breadcrumbPath = $breadcrumbPath ?? $this->subjectPathResolver()->resolve(
+                is_string($subjectScheme) ? $subjectScheme : null,
+                $valueUri,
+                is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
+                $rawSubjectValue,
+            );
+
+            $schemeUri = $schemeUri ?? $this->subjectPathResolver()->resolveSchemeUri(
+                is_string($subjectScheme) ? $subjectScheme : null,
+            );
+
             Subject::create([
                 'resource_id' => $resource->id,
-                'value' => $value,
+                'value' => $subjectValue,
                 'language' => $subjectData['lang'] ?? 'en',
-                'subject_scheme' => $subjectData['subjectScheme'] ?? null,
-                'scheme_uri' => $subjectData['schemeUri'] ?? null,
-                'value_uri' => $subjectData['valueUri'] ?? null,
-                'classification_code' => $subjectData['classificationCode'] ?? null,
+                'subject_scheme' => $subjectScheme,
+                'scheme_uri' => $schemeUri,
+                'value_uri' => $valueUri,
+                'classification_code' => $classificationCode,
+                'breadcrumb_path' => $breadcrumbPath,
             ]);
         }
+    }
+
+    private function subjectPathResolver(): SubjectBreadcrumbPathResolverService
+    {
+        return $this->subjectBreadcrumbPathResolver ??= app(SubjectBreadcrumbPathResolverService::class);
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**

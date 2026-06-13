@@ -49,6 +49,7 @@ class ResourceStorageService
         protected RorLookupService $rorLookupService,
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
+        protected SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver,
     ) {}
 
     /**
@@ -1051,22 +1052,54 @@ class ResourceStorageService
         $controlledKeywordsData = [];
         foreach ($controlledKeywords as $keyword) {
             // Validate required fields (scheme is now the discriminator instead of vocabularyType)
-            if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
-                $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
-                $classificationCode = $rawCode !== '' ? $rawCode : null;
-                $valueUri = filter_var($keyword['id'], FILTER_VALIDATE_URL) ? $keyword['id'] : null;
-
-                $controlledKeywordsData[] = [
-                    'value' => $keyword['text'],
-                    'subject_scheme' => $keyword['scheme'],
-                    'scheme_uri' => $keyword['schemeURI'] ?? null,
-                    'value_uri' => $valueUri,
-                    'classification_code' => $classificationCode,
-                    'breadcrumb_path' => SubjectBreadcrumbPath::normalize(
-                        is_string($keyword['path'] ?? null) ? $keyword['path'] : null,
-                    ),
-                ];
+            if (empty($keyword['text']) || empty($keyword['scheme'])) {
+                continue;
             }
+
+            $keywordId = trim((string) ($keyword['id'] ?? ''));
+            $keywordText = trim((string) $keyword['text']);
+            $keywordText = SubjectBreadcrumbPath::normalize($keywordText) ?? $keywordText;
+            $keywordScheme = trim((string) $keyword['scheme']);
+            $keywordSchemeUri = is_string($keyword['schemeURI'] ?? null) ? trim((string) $keyword['schemeURI']) : null;
+            $keywordPath = is_string($keyword['path'] ?? null) ? $keyword['path'] : null;
+
+            if ($keywordId === '' || $keywordSchemeUri === null || $keywordSchemeUri === '') {
+                $resolvedKeyword = $this->subjectBreadcrumbPathResolver->resolveKeywordFromPath(
+                    $keywordScheme,
+                    $keywordPath ?? $keywordText,
+                );
+
+                if ($resolvedKeyword !== null) {
+                    $keywordId = $keywordId !== '' ? $keywordId : $resolvedKeyword['id'];
+                    $keywordText = $keywordText !== '' ? $keywordText : $resolvedKeyword['text'];
+                    $keywordScheme = $resolvedKeyword['scheme'];
+                    $keywordSchemeUri = $keywordSchemeUri !== null && $keywordSchemeUri !== ''
+                        ? $keywordSchemeUri
+                        : $resolvedKeyword['schemeURI'];
+                    $keywordPath = $resolvedKeyword['path'];
+                }
+            }
+
+            if ($keywordId === '' || $keywordText === '' || $keywordScheme === '') {
+                continue;
+            }
+
+            $keywordSchemeUri = $keywordSchemeUri !== null && $keywordSchemeUri !== ''
+                ? $keywordSchemeUri
+                : $this->subjectBreadcrumbPathResolver->resolveSchemeUri($keywordScheme);
+
+            $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
+            $classificationCode = $rawCode !== '' ? $rawCode : null;
+            $valueUri = filter_var($keywordId, FILTER_VALIDATE_URL) ? $keywordId : null;
+
+            $controlledKeywordsData[] = [
+                'value' => $keywordText,
+                'subject_scheme' => $keywordScheme,
+                'scheme_uri' => $keywordSchemeUri,
+                'value_uri' => $valueUri,
+                'classification_code' => $classificationCode,
+                'breadcrumb_path' => SubjectBreadcrumbPath::normalize($keywordPath),
+            ];
         }
 
         // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
