@@ -85,6 +85,91 @@ it('keeps an embedded hierarchical subject value as the breadcrumb path', functi
     ))->toBe('EARTH SCIENCE > SOLID EARTH > SEISMOLOGY');
 });
 
+it('resolves a controlled keyword from a legacy full path without value_uri', function (): void {
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'data' => [[
+            'id' => 'earth-science',
+            'text' => 'EARTH SCIENCE',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'children' => [[
+                'id' => 'biosphere',
+                'text' => 'BIOSPHERE',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [[
+                    'id' => 'terrestrial-ecosystems',
+                    'text' => 'TERRESTRIAL ECOSYSTEMS',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'children' => [[
+                        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/forest-uuid',
+                        'text' => 'FORESTS',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'children' => [],
+                    ]],
+                ]],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    $resolver = new SubjectBreadcrumbPathResolverService;
+
+    $result = $resolver->resolveKeywordFromPath(
+        subjectScheme: 'NASA/GCMD Earth Science Keywords',
+        subjectValue: 'EARTH SCIENCE &gt; BIOSPHERE &gt; TERRESTRIAL ECOSYSTEMS &gt; FORESTS',
+    );
+
+    expect($result)->toBe([
+        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/forest-uuid',
+        'text' => 'FORESTS',
+        'path' => 'EARTH SCIENCE > BIOSPHERE > TERRESTRIAL ECOSYSTEMS > FORESTS',
+        'scheme' => 'Science Keywords',
+        'schemeURI' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+    ]);
+});
+
+it('does not resolve a value_uri from ambiguous legacy full paths', function (): void {
+    Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+        'data' => [[
+            'id' => 'earth-science-a',
+            'text' => 'EARTH SCIENCE',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'children' => [[
+                'id' => 'shared-a',
+                'text' => 'SHARED',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [],
+            ]],
+        ], [
+            'id' => 'earth-science-b',
+            'text' => 'EARTH SCIENCE',
+            'scheme' => 'NASA/GCMD Earth Science Keywords',
+            'children' => [[
+                'id' => 'shared-b',
+                'text' => 'SHARED',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [],
+            ]],
+        ]],
+    ], JSON_THROW_ON_ERROR));
+
+    $resolver = new SubjectBreadcrumbPathResolverService;
+
+    expect($resolver->resolveKeywordFromPath(
+        subjectScheme: 'NASA/GCMD Earth Science Keywords',
+        subjectValue: 'EARTH SCIENCE > SHARED',
+    ))->toBeNull();
+});
+
+it('infers known scheme URIs from legacy subject scheme names', function (): void {
+    $resolver = new SubjectBreadcrumbPathResolverService;
+
+    expect($resolver->resolveSchemeUri('NASA/GCMD Earth Science Keywords'))
+        ->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
+        ->and($resolver->resolveSchemeUri('NASA/GCMD Instruments'))
+        ->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments')
+        ->and($resolver->resolveSchemeUri('Invented Scheme'))
+        ->toBeNull();
+});
+
 it('returns null when no embedded hierarchy or normalized scheme is available', function (): void {
     $resolver = new SubjectBreadcrumbPathResolverService;
 
