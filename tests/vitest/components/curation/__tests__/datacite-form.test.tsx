@@ -410,6 +410,57 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('Consolidated accordion section headers', () => {
+        it('renders Resource Information as one visible section header with metadata in the trigger', () => {
+            renderDataCiteForm();
+
+            const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+
+            expect(screen.getAllByText('Resource Information')).toHaveLength(1);
+            expect(within(resourceTrigger).getByText('Resource Information')).toBeInTheDocument();
+            expect(within(resourceTrigger).getByText('Basic metadata about your dataset including identifiers and type.')).toBeInTheDocument();
+            expect(within(resourceTrigger).getByLabelText('Required')).toBeInTheDocument();
+            expect(within(resourceTrigger).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+
+            const helpButton = screen.getByRole('button', { name: /Help for Resource Information/i });
+            expect(helpButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
+        });
+
+        it('keeps counters and status indicators in accordion triggers without duplicate content headings', () => {
+            renderDataCiteForm();
+
+            const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+            const authorsTrigger = getAccordionTrigger(/Authors/i);
+            const contributorsTrigger = getAccordionTrigger(/Contributors/i);
+
+            expect(screen.getAllByText('Licenses and Rights')).toHaveLength(1);
+            expect(within(licensesTrigger).getByText('Specify usage rights and restrictions for your dataset.')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByText('(1 / 99)')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByLabelText('Required')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+
+            expect(screen.getAllByText('Authors')).toHaveLength(1);
+            expect(within(authorsTrigger).getByText('(0 / 100)')).toBeInTheDocument();
+            expect(within(authorsTrigger).getByLabelText('Required')).toBeInTheDocument();
+
+            expect(screen.getAllByText('Contributors')).toHaveLength(1);
+            expect(within(contributorsTrigger).getByText('(0 / 100)')).toBeInTheDocument();
+            expect(within(contributorsTrigger).getByLabelText('Optional section')).toBeInTheDocument();
+        });
+
+        it('keeps help actions outside accordion trigger buttons', () => {
+            renderDataCiteForm();
+
+            const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+            const resourceHelp = screen.getByRole('button', { name: /Help for Resource Information/i });
+            const licenseHelp = screen.getByRole('button', { name: /Help for Licenses and Rights/i });
+
+            expect(resourceTrigger).toHaveAttribute('data-slot', 'accordion-trigger');
+            expect(resourceHelp.closest('[data-slot="accordion-trigger"]')).toBeNull();
+            expect(licenseHelp.closest('[data-slot="accordion-trigger"]')).toBeNull();
+        });
+    });
+
     describe('Accordion bulk controls', () => {
         it('renders collapse-all actions next to visible field group triggers and hides expand-all while all are open', async () => {
             renderDataCiteForm();
