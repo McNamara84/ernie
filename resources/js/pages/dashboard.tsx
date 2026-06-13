@@ -109,15 +109,18 @@ type DashboardPageProps = SharedData & {
     dataInstitutionCount?: number;
     igsnInstitutionCount?: number;
     draftCount?: number;
-    recentDrafts?: Array<{
+    recentResources?: Array<{
         id: number;
         title: string;
         updated_at: string | null;
+        status?: 'draft' | 'curation' | 'review' | 'published';
     }>;
     guidedTour?: GuidedTourAutostartPayload | null;
     phpVersion?: string;
     laravelVersion?: string;
 };
+
+type RecentResource = NonNullable<DashboardPageProps['recentResources']>[number];
 
 type DashboardQuickAction = {
     title: string;
@@ -183,6 +186,21 @@ function OverviewMetric({ label, value, description }: { label: string; value: s
     );
 }
 
+function formatResourceStatus(status?: RecentResource['status']) {
+    switch (status) {
+        case 'draft':
+            return 'Draft';
+        case 'curation':
+            return 'Curation';
+        case 'review':
+            return 'Review';
+        case 'published':
+            return 'Published';
+        default:
+            return null;
+    }
+}
+
 function EnvironmentVersionRow({
     label,
     href,
@@ -214,7 +232,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         dataInstitutionCount,
         igsnInstitutionCount,
         draftCount,
-        recentDrafts,
+        recentResources,
         pendingAssistanceTotalCount,
         guidedTour = null,
         phpVersion = '8.4.12',
@@ -236,7 +254,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
     const dataInstitutions = typeof dataInstitutionCount === 'number' ? dataInstitutionCount : 0;
     const igsnInstitutions = typeof igsnInstitutionCount === 'number' ? igsnInstitutionCount : 0;
 
-    const recentDraftHref = recentDrafts?.[0] ? editorRoute({ query: { resourceId: recentDrafts[0].id } }).url : '/resources';
+    const hasRecentResources = Boolean(recentResources?.length);
+    const recentResourceHref = recentResources?.[0] ? editorRoute({ query: { resourceId: recentResources[0].id } }).url : '/resources';
 
     const quickActions = useMemo<DashboardQuickAction[]>(() => {
         const actions: DashboardQuickAction[] = [
@@ -248,12 +267,12 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                 variant: 'default',
             },
             {
-                title: draftCount && draftCount > 0 ? 'Resume latest draft' : 'Browse resources',
+                title: hasRecentResources ? 'Resume latest resource' : 'Browse resources',
                 description:
-                    draftCount && draftCount > 0
-                        ? `Jump back into your most recent draft and keep the momentum.`
+                    hasRecentResources
+                        ? `Jump back into the resource you edited most recently.`
                         : 'Open the resource list to review published and draft records.',
-                href: recentDraftHref,
+                href: recentResourceHref,
                 icon: FolderClock,
             },
             {
@@ -293,7 +312,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
         }
 
         return actions;
-    }, [auth.user, draftCount, recentDraftHref]);
+    }, [auth.user, hasRecentResources, recentResourceHref]);
 
     // Easter Egg: Reset everything
     const resetEasterEgg = useCallback(() => {
@@ -442,7 +461,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                         <div className="space-y-1.5">
                                             <CardTitle className="text-2xl leading-tight break-words">Hello {auth.user.name}!</CardTitle>
                                             <CardDescription className="max-w-2xl text-sm leading-6">
-                                                Start from the task you actually need right now: resume a draft, create a new record, or jump into import without hunting through the navigation.
+                                                Start from the task you actually need right now: resume recent work, create a new record, or jump into import without hunting through the navigation.
                                             </CardDescription>
                                         </div>
                                     </div>
@@ -468,36 +487,47 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="space-y-1">
                                     <CardTitle className="text-lg">Continue where you left off</CardTitle>
-                                    <CardDescription>Your current drafts stay close at hand so you can jump back into work immediately.</CardDescription>
+                                    <CardDescription>Resources you recently edited stay close at hand so you can jump back into work immediately.</CardDescription>
                                 </div>
-                                {(draftCount ?? 0) > 0 && (
+                                {hasRecentResources && (
                                     <Button asChild variant="ghost" className="px-0 text-sm">
-                                        <Link href={recentDraftHref}>Open latest draft</Link>
+                                        <Link href={recentResourceHref}>Open latest resource</Link>
                                     </Button>
                                 )}
                             </CardHeader>
                             <CardContent className="pt-0">
-                                {recentDrafts && recentDrafts.length > 0 ? (
+                                {recentResources && recentResources.length > 0 ? (
                                     <div className="grid gap-3 md:grid-cols-2">
-                                        {recentDrafts.slice(0, 4).map((draft) => (
-                                            <Link
-                                                key={draft.id}
-                                                href={editorRoute({ query: { resourceId: draft.id } }).url}
-                                                className="group rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-accent/30"
-                                            >
-                                                <p className="line-clamp-2 font-medium leading-6 text-foreground transition-colors group-hover:text-primary">{draft.title}</p>
-                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                    {draft.updated_at ? `Updated ${new Date(draft.updated_at).toLocaleDateString()}` : 'Draft available to resume'}
-                                                </p>
-                                            </Link>
-                                        ))}
+                                        {recentResources.slice(0, 4).map((resource) => {
+                                            const statusLabel = formatResourceStatus(resource.status);
+
+                                            return (
+                                                <Link
+                                                    key={resource.id}
+                                                    href={editorRoute({ query: { resourceId: resource.id } }).url}
+                                                    className="group rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-accent/30"
+                                                >
+                                                    <div className="flex min-w-0 items-start justify-between gap-2">
+                                                        <p className="line-clamp-2 font-medium leading-6 text-foreground transition-colors group-hover:text-primary">{resource.title}</p>
+                                                        {statusLabel && (
+                                                            <Badge variant="secondary" className="shrink-0 rounded-full text-[0.68rem]">
+                                                                {statusLabel}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-1 text-sm text-muted-foreground">
+                                                        {resource.updated_at ? `Updated ${new Date(resource.updated_at).toLocaleDateString()}` : 'Resource available to resume'}
+                                                    </p>
+                                                </Link>
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="rounded-xl border border-dashed bg-muted/30 p-2">
                                         <EmptyState
                                             icon={<FolderClock className="h-8 w-8" />}
-                                            title="No drafts waiting"
-                                            description="Start a fresh metadata record or import an existing file to create your next working draft."
+                                            title="No recent resources"
+                                            description="Create a metadata record or edit an existing resource to build your personal recent work list."
                                         />
                                     </div>
                                 )}
