@@ -247,6 +247,16 @@ class SizeFormatServiceTest
                 }
             }
 
+            // Wenn HEAD keine vollständigen Metadaten liefert oder nicht unterstützt wird,
+            // wird einmalig ein begrenzter GET-Request mit den ersten 1024 Bytes gemacht.
+            if (in_array($response->status(), [405, 501], true) || empty($suggestions)) {
+                $rangeResult = $this->inferFromRangedGet($fileUrl);
+                if (($rangeResult['probe_method'] ?? null) !== 'SKIP') {
+                    return $rangeResult;
+                    }
+
+            }
+
             // bei keinem Erfolg wird Datei an Namen erkannt 
             return $this->inferFromFilenameFallback($fileUrl);
 
@@ -315,6 +325,102 @@ class SizeFormatServiceTest
         // doppelte Vorschläge werden entfernt 
         return $this->deduplicateSuggestions($suggestions);
     }
+
+    /**
+     * HEAD hat nicht gereicht
+     * ↓
+     * GET mit Range: bytes=0-1023
+     * ↓
+     * nur 1 KB anfragen
+     * ↓
+     * Content-Type und Content-Range auslesen
+     * ↓
+     * Format/Size-Suggestion bauen
+     * ↓
+     * sonst skippen
+     */
+    
+    private function inferFromRangedGet(string $fileUrl): array
+    {
+        try {
+            $response = Http::timeout(10)
+                ->connectTimeout(5)
+                // Safety-Teil: Es wird nur der Bereich von Byte 0 bis 1023 angefragt, also maximal 1 KB
+                ->withHeaders([
+                    'Range' => 'bytes=0-1023',
+                ])
+                // Get Request mit Range Header
+                ->get($fileUrl);
+
+            // wenn der Request nicht erfolgreich ist, wird sauber abgebrochen    
+            if (! $response->successful()) {
+                return $this->skip($fileUrl, 'ranged_get_unreachable');
+            }
+
+            // Content-Type sagt etwas über das Format,
+            $contentType = $response->header('Content-Type');
+            // Content-Range kann die Gesamtgröße enthalten z.B. bytes 0-1023/1048576
+            $contentRange = $response->header('Content-Range');
+
+            $suggestions = [];
+
+            // Prüft, ob ein Content-Type vorhanden ist
+            if ($contentType !== null && trim($contentType) !== '') {
+                $suggestions[] = [
+                    'type' => 'format',
+                    'inferred_value' => trim(explode(';', $contentType)[0]),
+                    'source_url' => $fileUrl,
+                    'probe_method' => 'RANGED_GET_CONTENT_TYPE',
+                    'evidence' => [
+                        'content_type' => $contentType,
+                        'range' => 'bytes=0-1023',
+                    ],
+                    'confidence' => 'medium',
+                ];
+            }
+
+            // prüft, ob Content-Range eine Gesamtgröße enthält
+            if ($contentRange !== null && preg_match('/\/(\d+)$/', $contentRange, $matches)) {
+                $suggestions[] = [
+                    'type' => 'size',
+                    'inferred_value' => $this->formatBytes((int) $matches[1]),
+                    'source_url' => $fileUrl,
+                    'probe_method' => 'RANGED_GET_CONTENT_RANGE',
+                    'evidence' => [
+                        'content_range' => $contentRange,
+                        'range' => 'bytes=0-1023',
+                    ],
+                    'confidence' => 'medium',
+                ];
+            }
+
+            // wenn mindestens eine Suggestion gefunden wurde, wird ein normales Ergebnis zurückgegeben
+            if (! empty($suggestions)) {
+                return [
+                    'source_url' => $fileUrl,
+                    'probe_method' => 'RANGED_GET',
+                    'http_status' => $response->status(),
+                    'raw_evidence' => [
+                        'headers' => [
+                            'content_type' => $contentType,
+                            'content_range' => $contentRange,
+                            'range' => 'bytes=0-1023',
+                        ],
+                    ],
+                    'suggestions' => $suggestions,
+                ];
+            }
+
+            return $this->skip($fileUrl, 'no_ranged_get_metadata');
+
+        } catch (\Throwable $e) {
+            return $this->skip($fileUrl, 'ranged_get_exception', $e->getMessage());
+        }
+    }
+
+
+
+
 
     // "Notfallplan"
     /**
