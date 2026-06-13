@@ -407,9 +407,7 @@ final class SubjectBreadcrumbPathResolverService
             return null;
         }
 
-        $match = reset($matches);
-
-        return is_array($match) ? $match : null;
+        return array_values($matches)[0];
     }
 
     /**
