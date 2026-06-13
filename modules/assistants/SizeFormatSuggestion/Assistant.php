@@ -6,6 +6,8 @@ namespace Modules\Assistants\SizeFormatSuggestion;
 
 use App\Services\SizeFormatFileProbeService;
 use App\Models\AssistantSuggestion;
+use App\Models\Format;
+use App\Models\Size;
 use App\Services\Assistance\GenericTableAssistant;
 use Closure;
 
@@ -119,13 +121,6 @@ class Assistant extends GenericTableAssistant
             'success' => false,
             'message' => 'Unknown suggestion type.',
             ];
-
-
-
-        return [
-            'success' => true,
-            'message' => "Suggestion '{$suggestion->suggested_label}' applied.",
-        ];
     }
 
     private function lookupSizeFormats(\App\Models\Resource $resource): array
