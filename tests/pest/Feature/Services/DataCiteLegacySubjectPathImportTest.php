@@ -82,3 +82,34 @@ it('hydrates path-only legacy DataCite GCMD subjects during resource import', fu
         ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/forests')
         ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > BIOSPHERE > TERRESTRIAL ECOSYSTEMS > FORESTS');
 });
+
+it('does not store breadcrumb paths for free-text DataCite subjects', function (): void {
+    $user = User::factory()->create();
+    $transformer = new DataCiteToResourceTransformer;
+
+    $resource = $transformer->transform([
+        'attributes' => [
+            'doi' => '10.5880/free-text-subject.2026.001',
+            'publicationYear' => 2026,
+            'titles' => [
+                ['title' => 'Free-text subject import'],
+            ],
+            'creators' => [
+                ['familyName' => 'Importer', 'givenName' => 'Test', 'nameType' => 'Personal'],
+            ],
+            'subjects' => [
+                [
+                    'subject' => 'Forest ecology',
+                ],
+            ],
+        ],
+    ], $user->id);
+
+    $subject = $resource->subjects()->sole();
+
+    expect($subject->value)->toBe('Forest ecology')
+        ->and($subject->subject_scheme)->toBeNull()
+        ->and($subject->scheme_uri)->toBeNull()
+        ->and($subject->value_uri)->toBeNull()
+        ->and($subject->breadcrumb_path)->toBeNull();
+});

@@ -683,8 +683,8 @@ describe('ResourceStorageService', function () {
             'gcmdKeywords' => [
                 [
                     'id' => '',
-                    'text' => 'EARTH SCIENCE > BIOSPHERE > FORESTS',
-                    'path' => 'EARTH SCIENCE > BIOSPHERE > FORESTS',
+                    'text' => 'EARTH SCIENCE &gt;  BIOSPHERE  &gt; FORESTS',
+                    'path' => 'EARTH SCIENCE &gt;  BIOSPHERE  &gt; FORESTS',
                     'scheme' => 'NASA/GCMD Earth Science Keywords',
                 ],
             ],

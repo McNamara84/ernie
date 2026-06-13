@@ -1058,6 +1058,7 @@ class ResourceStorageService
 
             $keywordId = trim((string) ($keyword['id'] ?? ''));
             $keywordText = trim((string) $keyword['text']);
+            $keywordText = SubjectBreadcrumbPath::normalize($keywordText) ?? $keywordText;
             $keywordScheme = trim((string) $keyword['scheme']);
             $keywordSchemeUri = is_string($keyword['schemeURI'] ?? null) ? trim((string) $keyword['schemeURI']) : null;
             $keywordPath = is_string($keyword['path'] ?? null) ? $keyword['path'] : null;

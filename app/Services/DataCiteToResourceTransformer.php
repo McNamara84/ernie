@@ -1089,16 +1089,18 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $subjectValue = is_string($value) ? (SubjectBreadcrumbPath::normalize($value) ?? $value) : $value;
+            $rawSubjectValue = is_string($value) ? $value : null;
+            $subjectValue = $rawSubjectValue !== null ? (SubjectBreadcrumbPath::normalize($rawSubjectValue) ?? $value) : $value;
             $subjectScheme = $subjectData['subjectScheme'] ?? null;
             $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
             $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
-            $breadcrumbPath = SubjectBreadcrumbPath::normalize(is_string($value) ? $value : null);
+            $classificationCode = $subjectData['classificationCode'] ?? null;
+            $breadcrumbPath = SubjectBreadcrumbPath::preferredPath(null, $rawSubjectValue);
 
             if ($valueUri === null || $schemeUri === null) {
                 $resolvedKeyword = $this->subjectPathResolver()->resolveKeywordFromPath(
                     is_string($subjectScheme) ? $subjectScheme : null,
-                    is_string($value) ? $value : null,
+                    $rawSubjectValue,
                 );
 
                 if ($resolvedKeyword !== null) {
@@ -1108,6 +1110,13 @@ class DataCiteToResourceTransformer
                     $breadcrumbPath = $resolvedKeyword['path'];
                 }
             }
+
+            $breadcrumbPath = $breadcrumbPath ?? $this->subjectPathResolver()->resolve(
+                is_string($subjectScheme) ? $subjectScheme : null,
+                $valueUri,
+                is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
+                $rawSubjectValue,
+            );
 
             $schemeUri = $schemeUri ?? $this->subjectPathResolver()->resolveSchemeUri(
                 is_string($subjectScheme) ? $subjectScheme : null,
@@ -1120,7 +1129,7 @@ class DataCiteToResourceTransformer
                 'subject_scheme' => $subjectScheme,
                 'scheme_uri' => $schemeUri,
                 'value_uri' => $valueUri,
-                'classification_code' => $subjectData['classificationCode'] ?? null,
+                'classification_code' => $classificationCode,
                 'breadcrumb_path' => $breadcrumbPath,
             ]);
         }
