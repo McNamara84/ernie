@@ -1,6 +1,7 @@
 import { HelpCircle } from 'lucide-react';
 import * as React from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -67,13 +68,15 @@ export function SectionHelpAction({ label, tooltip }: SectionHelpActionProps) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <button
+                <Button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-sm text-muted-foreground ring-offset-background hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground hover:text-foreground"
                     aria-label={`Help for ${label}`}
                 >
-                    <HelpCircle className="h-4 w-4" />
-                </button>
+                    <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                </Button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs">
                 {tooltip}
