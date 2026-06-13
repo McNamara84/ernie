@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-12",
+        "date": "2026-06-13",
         "features": [
             {
                 "title": "Landing Page and Portal Statistics Dashboard",
@@ -259,6 +259,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Funding Reference Card Affordance",
+                "description": "Updated Funding References cards in the Data Editor so editable entries no longer look disabled. The card, expanded award details, and reorder handle now use active editor styling while preserving validation, ROR autocomplete, and drag-and-drop behavior."
+            },
             {
                 "title": "XML Upload Preserves Mixed Description Text",
                 "description": "XML uploads now keep DataCite descriptions that contain inline XML elements such as <br/>. ERNIE converts line break elements to readable editor line breaks and preserves nested text instead of dropping the whole description during upload."
