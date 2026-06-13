@@ -34,7 +34,12 @@ class Assistant extends GenericTableAssistant
         $count = 0;
 
         // iterate over resources that have no format or size
-        $resources = \App\Models\Resource::whereDoesntHave('formats')->orWhereDoesntHave('sizes')->get();
+        $resources = \App\Models\Resource::whereNotNull('doi')
+            ->where(function ($query) {
+                $query->whereDoesntHave('formats')->orWhereDoesntHave('sizes');
+
+            })
+            ->get();
 
         foreach ($resources as $index => $resource) {
             $onProgress("Checking resource " . ($index + 1) . " of " . $resources->count());
@@ -50,13 +55,20 @@ class Assistant extends GenericTableAssistant
                     continue;
                 }
 
+                $metadata = $suggestion;
+
+                if ($suggestion['type'] === 'size') {
+                    $metadata['parsed_size'] = $this->parseSizeValue((string) $suggestion['inferred_value']);
+                }
+
                 $stored = $this->storeSuggestion(
                     resourceId: $resource->id,
-                    targetType: 'resource',
+                    targetType: (string) $suggestion['type'],
                     targetId: $resource->id,
                     suggestedValue: (string) $suggestion['inferred_value'],
                     suggestedLabel: strtoupper((string) $suggestion['type']) . ': ' . (string) $suggestion['inferred_value'],
                     similarityScore: null,
+                    metadata: $metadata,
                 );
 
                 if ($stored) {
@@ -76,7 +88,39 @@ class Assistant extends GenericTableAssistant
     #[\Override]
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
-        // TODO: Create the Format or Size record for the resource
+        if ($suggestion->target_type === 'format') {
+            Format::create([
+                'resource_id' => $suggestion->resource_id,
+                'value' => $suggestion->suggested_value,
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Format '{$suggestion->suggested_value}' applied.",
+                ];
+        }
+        if ($suggestion->target_type === 'size') {
+            $parsedSize = $suggestion->metadata['parsed_size'] ?? null;
+
+            Size::create([
+                'resource_id' => $suggestion->resource_id,
+                'numeric_value' => $parsedSize['numeric_value'] ?? null,
+                'unit' => $parsedSize['unit'] ?? null,
+                'type' => $parsedSize['type'] ?? null, 
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Size '{$suggestion->suggested_value}' applied.",
+                ];
+
+        }
+        return [
+            'success' => false,
+            'message' => 'Unknown suggestion type.',
+            ];
+
+
 
         return [
             'success' => true,
@@ -91,4 +135,17 @@ class Assistant extends GenericTableAssistant
         );
         return $this->service->buildSuggestions($results);
     }
+
+    private function parseSizeValue(string $value): array {
+        if (preg_match('/^\s*([0-9.]+)\s*([A-Za-z]+)?\s*$/', $value, $matches)) {
+            return [
+                'numeric_value' => $matches[1],
+                'unit' => $matches[2] ?? null,
+                'type' => null,];
+            }
+            return [
+                'numeric_value' => null,
+                'unit' => null,
+                'type' => null,];
+        }
 }
