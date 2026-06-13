@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
-import { SectionHeader } from '@/components/curation/section-header';
+import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -84,6 +84,7 @@ export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
+const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
 
 function normalizeAccordionItems(
     items: readonly string[],
@@ -2286,6 +2287,13 @@ export default function DataCiteForm({
         </>
     );
 
+    const renderSectionActions = (label: string, tooltip?: string) => (
+        <>
+            <SectionHelpAction label={label} tooltip={tooltip} />
+            {renderAccordionActions()}
+        </>
+    );
+
     // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
         if (errorMessage && mappedValidationErrors.length === 0) {
@@ -2336,19 +2344,18 @@ export default function DataCiteForm({
             )}
             <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
                 <AccordionItem value="resource-info">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Resource Information</span>
-                            {renderStatusBadge(resourceInfoStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-6">
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
+                    >
+                        <AccordionSectionHeader
                             label="Resource Information"
                             description="Basic metadata about your dataset including identifiers and type."
-                            tooltip="Required fields: Year, Resource Type, Main Title, Language, Datacenter"
                             required
+                            status={renderStatusBadge(resourceInfoStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-12">
                             <InputField
                                 id="doi"
@@ -2478,20 +2485,22 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="licenses-rights">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Licenses and Rights</span>
-                            {renderStatusBadge(licensesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Licenses and Rights',
+                            'At least one license is required. Choose a license that matches your data sharing policy.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Licenses and Rights"
                             description="Specify usage rights and restrictions for your dataset."
-                            tooltip="At least one license is required. Choose a license that matches your data sharing policy."
                             required
                             counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
+                            status={renderStatusBadge(licensesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <div className="space-y-4">
                             {licenseEntries.map((entry, index) => (
                                 <LicenseField
@@ -2518,20 +2527,19 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="authors">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Authors</span>
-                            {renderStatusBadge(authorsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Authors', 'At least one author is required. Drag to reorder authors.')}
+                    >
+                        <AccordionSectionHeader
                             label="Authors"
                             description="People or institutions who created this work."
-                            tooltip="At least one author is required. Drag to reorder authors."
                             required
                             counter={{ current: authors.length, max: 100 }}
+                            status={renderStatusBadge(authorsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         {/* Validation issues notification (only after save attempt — Issue #625) */}
                         {hasAttemptedSubmit && <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />}
                         {authorRoleNames.length > 0 && (
@@ -2543,19 +2551,18 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Contributors</span>
-                            {renderStatusBadge(contributorsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Contributors', 'Optional. Contributors can have different roles like Editor, Data Curator, etc.')}
+                    >
+                        <AccordionSectionHeader
                             label="Contributors"
                             description="Additional people who contributed to this work."
-                            tooltip="Optional. Contributors can have different roles like Editor, Data Curator, etc."
                             counter={{ current: contributors.length, max: 100 }}
+                            status={renderStatusBadge(contributorsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <ContributorField
                             contributors={contributors}
                             onChange={setContributors}
@@ -2566,19 +2573,21 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="descriptions">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Descriptions</span>
-                            {renderStatusBadge(descriptionsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Descriptions',
+                            `Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Descriptions"
                             description="Detailed information about your dataset."
-                            tooltip={`Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`}
                             required
+                            status={renderStatusBadge(descriptionsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <DescriptionField
                             descriptions={descriptions}
                             onChange={handleDescriptionChange}
@@ -2590,19 +2599,18 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Controlled Vocabularies</span>
-                            {renderStatusBadge(controlledVocabulariesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Controlled Vocabularies', 'Improves discoverability by using NASA GCMD and MSL keywords.')}
+                    >
+                        <AccordionSectionHeader
                             label="Controlled Vocabularies"
                             description="Select keywords from standardized vocabularies."
-                            tooltip="Improves discoverability by using NASA GCMD and MSL keywords."
                             counter={{ current: gcmdKeywords.length, max: 100 }}
+                            status={renderStatusBadge(controlledVocabulariesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         {isLoadingVocabularies ? (
                             <div className="py-8 text-center text-muted-foreground">Loading vocabularies...</div>
                         ) : (
@@ -2629,57 +2637,57 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="free-keywords">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Free Keywords</span>
-                            {renderStatusBadge(freeKeywordsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Free Keywords', 'Separate keywords with commas or press Enter.')}
+                    >
+                        <AccordionSectionHeader
                             label="Free Keywords"
                             description="Custom keywords for your dataset."
-                            tooltip="Separate keywords with commas or press Enter."
                             counter={{ current: freeKeywords.length, max: 100 }}
+                            status={renderStatusBadge(freeKeywordsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
                     </AccordionContent>
                 </AccordionItem>
                 {shouldShowMSLSection && (
                     <AccordionItem value="msl-laboratories">
-                        <AccordionTrigger actions={renderAccordionActions()}>
-                            <div className="flex items-center gap-2">
-                                <span>🔬 Originating Multi-Scale Laboratories</span>
-                                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>
-                                {renderStatusBadge(mslLaboratoriesStatus)}
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <SectionHeader
+                        <AccordionTrigger
+                            className={SECTION_TRIGGER_CLASS_NAME}
+                            actions={renderSectionActions(
+                                'Originating Multi-Scale Laboratories',
+                                'Appears when EPOS/MSL keywords are detected in your dataset.',
+                            )}
+                        >
+                            <AccordionSectionHeader
                                 label="Originating Multi-Scale Laboratories"
                                 description="Select associated EPOS/MSL laboratories."
-                                tooltip="Appears when EPOS/MSL keywords are detected in your dataset."
                                 counter={{ current: mslLaboratories.length, max: 20 }}
+                                badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>}
+                                status={renderStatusBadge(mslLaboratoriesStatus)}
                             />
+                        </AccordionTrigger>
+                        <AccordionContent>
                             {mslValidationInfo && <ValidationAlert severity="info" title="Recommendation" messages={[mslValidationInfo.message]} />}
                             <MSLLaboratoriesField selectedLaboratories={mslLaboratories} onChange={setMslLaboratories} />
                         </AccordionContent>
                     </AccordionItem>
                 )}
                 <AccordionItem value="spatial-temporal-coverage">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Spatial and Temporal Coverage</span>
-                            {renderStatusBadge(spatialTemporalCoverageStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Spatial and Temporal Coverage', 'Supports points, boxes, and polygons for geographic coverage.')}
+                    >
+                        <AccordionSectionHeader
                             label="Spatial and Temporal Coverage"
                             description="Geographic and time boundaries of your dataset."
-                            tooltip="Supports points, boxes, and polygons for geographic coverage."
                             counter={{ current: spatialTemporalCoverages.length, max: 50 }}
+                            status={renderStatusBadge(spatialTemporalCoverageStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <SpatialTemporalCoverageField
                             coverages={spatialTemporalCoverages}
                             apiKey={googleMapsApiKey}
@@ -2688,19 +2696,18 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="dates">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Dates</span>
-                            {renderStatusBadge(datesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Dates', 'Add dates like collection period, validity, or other relevant temporal information.')}
+                    >
+                        <AccordionSectionHeader
                             label="Dates"
                             description="Important dates for your dataset."
-                            tooltip="Add dates like collection period, validity, or other relevant temporal information."
                             counter={{ current: dates.length, max: MAX_DATES }}
+                            status={renderStatusBadge(datesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         {hasAttemptedSubmit && <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />}
                         <div className="space-y-4">
                             {dates.length === 0 ? (
@@ -2751,19 +2758,22 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="related-work" data-testid="related-work-section">
-                    <AccordionTrigger data-testid="related-work-accordion-trigger" actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Related Work</span>
-                            {renderStatusBadge(relatedWorkStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent data-testid="related-work-accordion-content">
-                        <SectionHeader
+                    <AccordionTrigger
+                        data-testid="related-work-accordion-trigger"
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Related Work',
+                            'DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."
-                            tooltip="DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them."
                             counter={{ current: relatedWorks.length, max: 100 }}
+                            status={renderStatusBadge(relatedWorkStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="related-work-accordion-content">
                         <RelatedWorkField
                             relatedWorks={relatedWorks}
                             onChange={setRelatedWorks}
@@ -2773,53 +2783,58 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="citations" data-testid="citations-section">
-                    <AccordionTrigger data-testid="citations-accordion-trigger" actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Citations</span>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent data-testid="citations-accordion-content">
-                        <SectionHeader
+                    <AccordionTrigger
+                        data-testid="citations-accordion-trigger"
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Citations',
+                            'Use the Citation Manager to add publications cited by or supplementing this dataset. Each entry carries full metadata (authors, title, year, pages).',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Citations"
                             description="Inline citation metadata (DataCite 4.7 relatedItem)."
-                            tooltip="Use the Citation Manager to add publications cited by or supplementing this dataset. Each entry carries full metadata (authors, title, year, pages)."
                         />
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="citations-accordion-content">
                         <CitationsField resourceId={resolvedResourceId} />
                     </AccordionContent>
                 </AccordionItem>
                 {shouldShowUsedInstrumentsSection && (
                     <AccordionItem value="used-instruments" data-testid="used-instruments-section">
-                        <AccordionTrigger data-testid="used-instruments-accordion-trigger" actions={renderAccordionActions()}>
-                            <div className="flex items-center gap-2">
-                                <span>Used Instruments</span>
-                                {renderStatusBadge(instrumentsStatus)}
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent data-testid="used-instruments-accordion-content">
-                            <SectionHeader
+                        <AccordionTrigger
+                            data-testid="used-instruments-accordion-trigger"
+                            className={SECTION_TRIGGER_CLASS_NAME}
+                            actions={renderSectionActions(
+                                'Used Instruments',
+                                'Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers.',
+                            )}
+                        >
+                            <AccordionSectionHeader
                                 label="Used Instruments"
                                 description="Research instruments used for data collection."
-                                tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
                                 counter={{ current: instruments.length, max: 100 }}
+                                status={renderStatusBadge(instrumentsStatus)}
                             />
+                        </AccordionTrigger>
+                        <AccordionContent data-testid="used-instruments-accordion-content">
                             <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
                         </AccordionContent>
                     </AccordionItem>
                 )}
                 <AccordionItem value="funding-references">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Funding References</span>
-                            {renderStatusBadge(fundingReferencesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent id="funding-references-section">
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Funding References', 'ROR lookup available for funder identification. Include grant numbers when available.')}
+                    >
+                        <AccordionSectionHeader
                             label="Funding References"
                             description="Grant and funder information."
-                            tooltip="ROR lookup available for funder identification. Include grant numbers when available."
                             counter={{ current: fundingReferences.length, max: 50 }}
+                            status={renderStatusBadge(fundingReferencesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent id="funding-references-section">
                         <FundingReferenceField value={fundingReferences} onChange={setFundingReferences} />
                     </AccordionContent>
                 </AccordionItem>
