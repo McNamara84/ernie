@@ -24,12 +24,6 @@ class OldDatasetKeywordTransformer
         'GCMD Instruments' => 'Instruments',
     ];
 
-    private const SCHEME_URI_MAP = [
-        'Science Keywords' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-        'Platforms' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms',
-        'Instruments' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments',
-    ];
-
     /**
      * Extract UUID from old GCMD URI format.
      *
@@ -140,6 +134,6 @@ class OldDatasetKeywordTransformer
 
     private static function schemeUriForScheme(string $scheme): ?string
     {
-        return self::SCHEME_URI_MAP[$scheme] ?? null;
+        return app(SubjectBreadcrumbPathResolverService::class)->resolveSchemeUri($scheme);
     }
 }

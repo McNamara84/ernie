@@ -211,12 +211,16 @@ it('does not resolve a value_uri from ambiguous legacy full paths', function ():
 });
 
 it('infers known scheme URIs from legacy subject scheme names', function (): void {
+    config(['euroscivoc.concept_scheme_uri' => 'http://example.test/euroscivoc/scheme']);
+
     $resolver = new SubjectBreadcrumbPathResolverService;
 
     expect($resolver->resolveSchemeUri('NASA/GCMD Earth Science Keywords'))
         ->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
         ->and($resolver->resolveSchemeUri('NASA/GCMD Instruments'))
         ->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments')
+        ->and($resolver->resolveSchemeUri('European Science Vocabulary (EuroSciVoc)'))
+        ->toBe('http://example.test/euroscivoc/scheme')
         ->and($resolver->resolveSchemeUri('Invented Scheme'))
         ->toBeNull();
 });

@@ -29,6 +29,7 @@ describe('transform', function () {
             ->and($result['text'])->toBe('EARTH SCIENCE > Atmosphere > Clouds')
             ->and($result['uuid'])->toBe('12345678-abcd-1234-abcd-123456789012')
             ->and($result['id'])->toContain('12345678-abcd-1234-abcd-123456789012')
+            ->and($result['schemeURI'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
             ->and($result['description'])->toBe('Cloud patterns');
     });
 

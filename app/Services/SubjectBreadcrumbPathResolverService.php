@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 final class SubjectBreadcrumbPathResolverService
 {
-    /** @var array<string, array{file: string, fallback_scheme: string, fallback_scheme_uri?: string}> */
+    /** @var array<string, array{file: string, fallback_scheme: string, fallback_scheme_uri?: string, fallback_scheme_uri_config?: string}> */
     private const SOURCES = [
         'Science Keywords' => [
             'file' => 'gcmd-science-keywords.json',
@@ -48,7 +48,11 @@ final class SubjectBreadcrumbPathResolverService
             'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS,
             'fallback_scheme_uri' => 'https://w3id.org/geochem/1.0/analyticalmethod/method',
         ],
-        'European Science Vocabulary (EuroSciVoc)' => ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)'],
+        'European Science Vocabulary (EuroSciVoc)' => [
+            'file' => 'euroscivoc.json',
+            'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)',
+            'fallback_scheme_uri_config' => 'euroscivoc.concept_scheme_uri',
+        ],
     ];
 
     /** @var array<string, array<string, string>> */
@@ -459,7 +463,20 @@ final class SubjectBreadcrumbPathResolverService
 
     private function fallbackSchemeUri(string $scheme): ?string
     {
-        return self::SOURCES[$scheme]['fallback_scheme_uri'] ?? null;
+        $source = self::SOURCES[$scheme] ?? null;
+        if ($source === null) {
+            return null;
+        }
+
+        $configKey = $source['fallback_scheme_uri_config'] ?? null;
+        if ($configKey !== null) {
+            $configuredSchemeUri = $this->filledString(config($configKey));
+            if ($configuredSchemeUri !== null) {
+                return $configuredSchemeUri;
+            }
+        }
+
+        return $source['fallback_scheme_uri'] ?? null;
     }
 
     private function filledString(mixed $value): ?string
