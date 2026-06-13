@@ -69,7 +69,7 @@ export function SectionHelpAction({ label, tooltip }: SectionHelpActionProps) {
             <TooltipTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="inline-flex items-center justify-center rounded-sm text-muted-foreground ring-offset-background hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={`Help for ${label}`}
                 >
                     <HelpCircle className="h-4 w-4" />
