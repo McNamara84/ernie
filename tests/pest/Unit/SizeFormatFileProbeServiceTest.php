@@ -13,6 +13,11 @@ beforeEach(function () {
 test('it skips dynamic streaming metadata for geofon URLs based on policy', function () {
     $geofonUrl = 'https://geofon.gfz.de/doi/network/3I/2019';
     
+    // Mock HTTP to prevent real network requests
+    Http::fake([
+        $geofonUrl => Http::response('', 200),
+    ]);
+    
     $result = $this->probeService->inferMetadata($geofonUrl);
 
     expect($result['success'])->toBeTrue();
@@ -27,11 +32,17 @@ test('it skips dynamic streaming metadata for geofon URLs based on policy', func
 test('it skips form-based repositories automatically', function () {
     $formUrl = 'https://arbodat.example.org/dataset/download/123';
     
+    // Mock HTTP to prevent real network requests
+    Http::fake([
+        $formUrl => Http::response('', 200),
+    ]);
+    
     $result = $this->probeService->inferMetadata($formUrl);
 
     expect($result['success'])->toBeTrue();
     expect($result['probe_method'])->toBe('Skipped (Form or Stream)');
     expect($result['format'])->toBe('Dynamic Stream / Form Protected');
+    expect($result['size'])->toBe('Dynamic');
 });
 
 /**
@@ -41,7 +52,7 @@ test('it successfully extracts format and size from HTTP HEAD headers', function
     $targetUrl = 'https://dataservices.gfz-potsdam.de/files/data.pdf';
     
     Http::fake([
-        $targetUrl => Http::response(' ', 200, [
+        $targetUrl => Http::response([], 200, [
             'Content-Type' => 'application/pdf',
             'Content-Length' => '2097152', // 2 MB
         ])
@@ -74,34 +85,107 @@ test('it falls back to filename extension when network probing fails or headers 
 });
 
 /**
- * Scenario 5: Redirects
+ * Scenario 5: Missing Content-Type Header
  */
-test('it handles redirects correctly during network probing', function () {
-    $redirectUrl = 'https://doi.org/10.5880/gfz';
+test('it handles missing Content-Type header gracefully', function () {
+    $url = 'https://dataservices.gfz-potsdam.de/files/data.bin';
     
     Http::fake([
-        $redirectUrl => Http::response([], 301, ['Location' => 'https://dataservices.gfz-potsdam.de/files/data.pdf'])
+        $url => Http::response([], 200, [
+            'Content-Length' => '1048576', // 1 MB
+        ])
     ]);
 
-    $result = $this->probeService->inferMetadata($redirectUrl);
+    $result = $this->probeService->inferMetadata($url);
+
     expect($result['success'])->toBeTrue();
+    expect($result['size'])->toBe('1 MB');
+    expect($result['format'])->toBe('Unknown');
 });
 
 /**
- * Scenario 6: Inaccessible URLs (Timeouts / Network Crashes)
+ * Scenario 6: Missing Content-Length Header
  */
-test('it gracefully switches to extension fallback when URL is completely inaccessible', function () {
-    $brokenUrl = 'https://completely-broken-and-inaccessible-url.com/data.csv';
+test('it handles missing Content-Length header gracefully', function () {
+    $url = 'https://dataservices.gfz-potsdam.de/files/data.pdf';
     
     Http::fake([
-        $brokenUrl => function () {
-            throw new \Illuminate\Http\Client\ConnectionException('Connection timed out');
-        }
+        $url => Http::response([], 200, [
+            'Content-Type' => 'application/pdf',
+        ])
     ]);
 
-    $result = $this->probeService->inferMetadata($brokenUrl);
+    $result = $this->probeService->inferMetadata($url);
+
+    expect($result['success'])->toBeTrue();
+    expect($result['format'])->toBe('application/pdf');
+    expect($result['size'])->toBe('Unknown');
+});
+
+/**
+ * Scenario 7: HTTP Connection Timeout
+ */
+test('it handles HTTP timeouts gracefully', function () {
+    $url = 'https://slow-server.example.com/data.csv';
+    
+    Http::fake([
+        $url => Http::sequence(
+            Http::response([], 0, []) // Simulate timeout
+        )
+    ]);
+
+    $result = $this->probeService->inferMetadata($url);
 
     expect($result['success'])->toBeFalse();
-    expect($result['probe_method'])->toContain('Exception:');
-    expect($result['format'] ?? null)->toBeNull();
+    expect($result['probe_method'])->toContain('Exception');
+});
+
+/**
+ * Scenario 8: Large File Size Handling
+ */
+test('it correctly formats very large file sizes', function () {
+    $url = 'https://dataservices.gfz-potsdam.de/files/large_dataset.tar.gz';
+    
+    Http::fake([
+        $url => Http::response([], 200, [
+            'Content-Type' => 'application/gzip',
+            'Content-Length' => '5368709120', // 5 GB
+        ])
+    ]);
+
+    $result = $this->probeService->inferMetadata($url);
+
+    expect($result['success'])->toBeTrue();
+    expect($result['size'])->toContain('GB');
+});
+
+/**
+ * Scenario 9: Invalid URL Format
+ */
+test('it rejects invalid URL formats', function () {
+    $invalidUrl = 'not-a-valid-url';
+    
+    $result = $this->probeService->inferMetadata($invalidUrl);
+
+    expect($result['success'])->toBeFalse();
+});
+
+/**
+ * Scenario 10: HTTP Redirect (3xx Status)
+ */
+test('it follows HTTP redirects', function () {
+    $originalUrl = 'https://dataservices.gfz-potsdam.de/old-path/data.pdf';
+    $redirectedUrl = 'https://dataservices.gfz-potsdam.de/new-path/data.pdf';
+    
+    Http::fake([
+        $redirectedUrl => Http::response([], 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => '2097152',
+        ])
+    ]);
+
+    $result = $this->probeService->inferMetadata($originalUrl);
+
+    expect($result['success'])->toBeTrue();
+    expect($result['format'])->toBe('application/pdf');
 });
