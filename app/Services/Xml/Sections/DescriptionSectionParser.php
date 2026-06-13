@@ -83,7 +83,7 @@ final readonly class DescriptionSectionParser
 
         foreach ($node->childNodes as $childNode) {
             if ($childNode instanceof DOMText) {
-                $text .= $childNode->wholeText;
+                $text .= $childNode->data;
 
                 continue;
             }

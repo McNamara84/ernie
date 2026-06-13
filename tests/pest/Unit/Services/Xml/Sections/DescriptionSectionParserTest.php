@@ -32,6 +32,25 @@ XML;
     ]);
 });
 
+test('does not duplicate adjacent text nodes when parsing raw XML descriptions', function () {
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <descriptions>
+    <description descriptionType="Abstract">Before <![CDATA[cdata content]]> after.</description>
+  </descriptions>
+</resource>
+XML;
+
+    expect(parseDescriptions($xml, $xml))->toBe([
+        [
+            'type' => 'Abstract',
+            'description' => 'Before cdata content after.',
+            'language' => null,
+        ],
+    ]);
+});
+
 test('filters empty descriptions when parsing from raw XML', function () {
     $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
