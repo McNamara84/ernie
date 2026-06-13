@@ -159,7 +159,33 @@ describe('Dashboard', () => {
         expect(screen.getByRole('link', { name: /arctic campaign dataset/i })).toHaveAttribute('href', '/editor?resourceId=12');
         expect(screen.getByText('Curation')).toBeInTheDocument();
         expect(screen.getByText('Draft')).toBeInTheDocument();
+        expect(screen.getByText('Resource available to resume')).toBeInTheDocument();
         expect(screen.getByText(/updated/i)).toBeInTheDocument();
+    });
+
+    it('renders review and published status labels while skipping unknown status labels', () => {
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
+                draftCount: 2,
+                recentResources: [
+                    { id: 21, title: 'Review resource', updated_at: null, status: 'review' },
+                    { id: 22, title: 'Published resource', updated_at: null, status: 'published' },
+                    { id: 23, title: 'Resource without status', updated_at: null },
+                ],
+            },
+        });
+
+        render(<Dashboard />);
+
+        expect(screen.getByText('Review')).toBeInTheDocument();
+        expect(screen.getByText('Published')).toBeInTheDocument();
+        expect(screen.getByText('Resource without status')).toBeInTheDocument();
+        expect(screen.getAllByText('Resource available to resume')).toHaveLength(3);
     });
 
     it('keeps the page container overflow-safe and surfaces the import hub in the side column', () => {

@@ -417,6 +417,35 @@ test('dashboard includes resources created by the authenticated user when they h
         );
 });
 
+test('dashboard recent resources exclude IGSNs because they use the separate IGSN workflow', function () {
+    $user = User::factory()->create();
+    $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $physicalObjectType = ResourceType::create(['name' => 'PhysicalObject', 'slug' => 'physical-object']);
+
+    $datasetResource = createDashboardResource([
+        'resource_type_id' => $datasetType->id,
+        'created_by_user_id' => $user->id,
+        'updated_by_user_id' => null,
+        'updated_at' => now()->subMinutes(10),
+    ], 'Dataset resource');
+
+    createDashboardResource([
+        'resource_type_id' => $physicalObjectType->id,
+        'created_by_user_id' => $user->id,
+        'updated_by_user_id' => null,
+        'updated_at' => now(),
+    ], 'IGSN resource');
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 1)
+            ->where('recentResources.0.id', $datasetResource->id)
+            ->where('recentResources.0.title', 'Dataset resource')
+        );
+});
+
 test('dashboard excludes resources created by the user when another user was the last editor', function () {
     $user = User::factory()->create();
     $otherUser = User::factory()->create();

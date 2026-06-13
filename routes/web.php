@@ -586,7 +586,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         $draftCount = $draftQuery->count();
 
-        $recentResources = Resource::query()
+        $recentResourceQuery = Resource::query();
+
+        $applyNonIgsnResourceFilter($recentResourceQuery);
+
+        $recentResources = $recentResourceQuery
             ->with([
                 'titles.titleType',
                 'creators',
