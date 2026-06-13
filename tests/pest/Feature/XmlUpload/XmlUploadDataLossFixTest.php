@@ -126,8 +126,102 @@ XML;
 });
 
 // ──────────────────────────────────────────────────────────────────
-// Fix 3: Coverage date with time and timezone is fully extracted
+// Issue 856: Description mixed XML content is preserved
 // ──────────────────────────────────────────────────────────────────
+
+test('preserves mixed description content with line break elements', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <descriptions>
+    <description descriptionType="Abstract" xml:lang="en">First paragraph.<br/><br/>Second paragraph with fire data.<br/>Third paragraph.</description>
+  </descriptions>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('desc-with-breaks.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(1, 'descriptions');
+    $response->assertSessionDataPath('descriptions.0.type', 'Abstract');
+    $response->assertSessionDataPath('descriptions.0.language', 'en');
+    $response->assertSessionDataPath(
+        'descriptions.0.description',
+        "First paragraph.\n\nSecond paragraph with fire data.\nThird paragraph."
+    );
+});
+
+test('preserves text inside nested mixed description elements', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <descriptions>
+    <description>This keeps <em>emphasized text</em> and <custom>custom child text</custom> intact.</description>
+  </descriptions>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('desc-with-nested-elements.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(1, 'descriptions');
+    $response->assertSessionDataPath('descriptions.0.type', 'Other');
+    $response->assertSessionDataPath(
+        'descriptions.0.description',
+        'This keeps emphasized text and custom child text intact.'
+    );
+});
+
+test('filters mixed descriptions that only contain line breaks and whitespace', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators><creator><creatorName>Test</creatorName></creator></creators>
+  <titles><title>Test</title></titles>
+  <publisher>Test</publisher>
+  <publicationYear>2026</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <descriptions>
+    <description descriptionType="Methods"> <br/> <custom>   </custom> </description>
+    <description descriptionType="Other">Still useful.</description>
+  </descriptions>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('empty-mixed-description.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(1, 'descriptions');
+    $response->assertSessionDataPath('descriptions.0.type', 'Other');
+    $response->assertSessionDataPath('descriptions.0.description', 'Still useful.');
+});
+
+// Coverage date with time and timezone is fully extracted
 
 test('extracts time and timezone from coverage date range', function () {
     $this->actingAs(User::factory()->create());

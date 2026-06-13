@@ -260,6 +260,10 @@
         ],
         "fixes": [
             {
+                "title": "XML Upload Preserves Mixed Description Text",
+                "description": "XML uploads now keep DataCite descriptions that contain inline XML elements such as <br/>. ERNIE converts line break elements to readable editor line breaks and preserves nested text instead of dropping the whole description during upload."
+            },
+            {
                 "title": "Merged Contact-Person Authors in the Data Editor",
                 "description": "Legacy DataCite imports now load creators who are also Contact Person contributors as a single author row with the CP checkbox, email, and website fields in /editor. ERNIE still persists and exports the required separate DataCite creator and ContactPerson contributor records, while standalone ContactPerson contributors continue to appear normally in the Contributors section."
             },
