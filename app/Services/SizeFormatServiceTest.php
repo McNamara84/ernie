@@ -7,7 +7,8 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 
-class SizeFormatFileProbeService
+
+class SizeFormatServiceTest
 {
     // erlaubte Linkexte
     private const ALLOWED_LINK_TEXTS = [
@@ -29,6 +30,33 @@ class SizeFormatFileProbeService
     {
         // Entfernt Leerzeichen am Anfang und am Ende
         $url = trim($url);
+
+            // Prüft ob URL mit http:// oder https:// beginnt
+        if (! $this->isHttpUrl($url)) {
+
+            return [$this->skip($url, 'unsupported_protocol')];
+
+        }
+
+        // DOI-URLs zuerst auflösen
+        if (str_starts_with($url, 'https://doi.org/')) {
+
+            try {
+                $response = Http::timeout(10)
+                    ->connectTimeout(5)
+                    ->get($url);
+                if (! $response->successful()) {
+                    return [$this->skip($url, 'doi_redirect_unreachable')];
+                }
+
+                // Nach Redirects die echte Ziel-URL speichern
+                $url = (string) $response->effectiveUri();
+            } catch (\Throwable $e) {
+                return [$this->skip($url, 'doi_redirect_failed', $e->getMessage())];
+
+            }
+
+        }
 
         // Wenn URL nicht mit https://dataservices.gfz-potsdam.de/ anfängt wird geskippt
         if (! str_starts_with($url, 'https://dataservices.gfz-potsdam.de/')) {
