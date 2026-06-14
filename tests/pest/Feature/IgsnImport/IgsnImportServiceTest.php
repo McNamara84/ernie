@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\IgsnImportService;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 
@@ -142,27 +143,25 @@ describe('IgsnImportService', function () {
         Http::assertNothingSent();
     });
 
-    it('returns null for non-404 single IGSN API errors', function () {
+    it('throws for non-404 single IGSN API errors', function () {
         Http::fake([
             'api.datacite.org/dois/*' => Http::response(['errors' => [['title' => 'Server error']]], 500),
         ]);
 
         $service = new IgsnImportService;
-        $result = $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
 
-        expect($result)->toBeNull();
-    });
+        $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
+    })->throws(RequestException::class);
 
-    it('returns null when a single IGSN request throws an exception', function () {
+    it('throws when a single IGSN request throws an exception', function () {
         Http::fake([
             'api.datacite.org/dois/*' => fn () => throw new RuntimeException('DataCite unavailable'),
         ]);
 
         $service = new IgsnImportService;
-        $result = $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
 
-        expect($result)->toBeNull();
-    });
+        $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
+    })->throws(RuntimeException::class, 'Failed to fetch single IGSN from DataCite.');
 
     it('exposes the configured IGSN prefix', function () {
         $service = new IgsnImportService;

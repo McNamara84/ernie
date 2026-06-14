@@ -24,7 +24,7 @@ describe('IgsnChildDiscoveryService', function () {
             'password' => 'solr-pass', // ggignore
         ]);
 
-        $matchingDif = '<DIF><supplementalMetadata><record><sample><parent_igsn>ICDPPARENT001</parent_igsn></sample></record></supplementalMetadata></DIF>';
+        $matchingDif = '<DIF><supplementalMetadata><record><sample><parent_igsn>ICDP-PARENT_001.2</parent_igsn></sample></record></supplementalMetadata></DIF>';
         $otherDif = '<DIF><supplementalMetadata><record><sample><parent_igsn>OTHERPARENT</parent_igsn></sample></record></supplementalMetadata></DIF>';
 
         Http::fake([
@@ -44,7 +44,11 @@ describe('IgsnChildDiscoveryService', function () {
 
         $service = new IgsnChildDiscoveryService;
 
-        expect($service->discoverDirectChildHandles('ICDPPARENT001'))->toBe(['ICDPCHILD001']);
+        expect($service->discoverDirectChildHandles('ICDP-PARENT_001.2'))->toBe(['ICDPCHILD001']);
+
+        Http::assertSent(
+            fn ($request): bool => $request['q'] === 'parent_igsn:"ICDP-PARENT_001.2" OR dif:"ICDP-PARENT_001.2"',
+        );
     });
 
     it('handles Solr HTTP failures and malformed Solr payloads without discovering children', function () {
@@ -120,7 +124,7 @@ describe('IgsnChildDiscoveryService', function () {
         $builder->shouldReceive('table')->with('metadata')->andReturnSelf();
         $builder->shouldReceive('join')->with('dataset', 'metadata.dataset', '=', 'dataset.id')->andReturnSelf();
         $builder->shouldReceive('whereNotNull')->with('metadata.dif')->andReturnSelf();
-        $builder->shouldReceive('where')->with('metadata.dif', 'like', '%ICDPPARENT002%')->andReturnSelf();
+        $builder->shouldReceive('whereRaw')->with('metadata.dif like ? escape ?', ['%ICDPPARENT002%', '\\'])->andReturnSelf();
         $builder->shouldReceive('orderByDesc')->with('metadata.id')->andReturnSelf();
         $builder->shouldReceive('limit')->with(1000)->andReturnSelf();
         $builder->shouldReceive('select')->with('dataset.doi', 'metadata.dif')->andReturnSelf();
@@ -139,7 +143,7 @@ describe('IgsnChildDiscoveryService', function () {
         Config::set('datacite.solr.user', null);
         Config::set('datacite.solr.password', null);
 
-        $matchingDif = '<DIF><sample><parent_igsn>ICDPPARENTLEGACYGZIP</parent_igsn></sample></DIF>';
+        $matchingDif = '<DIF><sample><parent_igsn>ICDPPARENT_LEGACYGZIP</parent_igsn></sample></DIF>';
 
         $builder = Mockery::mock();
         DB::shouldReceive('connection')
@@ -149,7 +153,7 @@ describe('IgsnChildDiscoveryService', function () {
         $builder->shouldReceive('table')->with('metadata')->andReturnSelf();
         $builder->shouldReceive('join')->with('dataset', 'metadata.dataset', '=', 'dataset.id')->andReturnSelf();
         $builder->shouldReceive('whereNotNull')->with('metadata.dif')->andReturnSelf();
-        $builder->shouldReceive('where')->with('metadata.dif', 'like', '%ICDPPARENTLEGACYGZIP%')->andReturnSelf();
+        $builder->shouldReceive('whereRaw')->with('metadata.dif like ? escape ?', ['%ICDPPARENT\\_LEGACYGZIP%', '\\'])->andReturnSelf();
         $builder->shouldReceive('orderByDesc')->with('metadata.id')->andReturnSelf();
         $builder->shouldReceive('limit')->with(1000)->andReturnSelf();
         $builder->shouldReceive('select')->with('dataset.doi', 'metadata.dif')->andReturnSelf();
@@ -161,7 +165,7 @@ describe('IgsnChildDiscoveryService', function () {
 
         $service = new IgsnChildDiscoveryService;
 
-        expect($service->discoverDirectChildHandles('ICDPPARENTLEGACYGZIP'))->toBe(['ICDPCHILDLEGACYGZIP']);
+        expect($service->discoverDirectChildHandles('ICDPPARENT_LEGACYGZIP'))->toBe(['ICDPCHILDLEGACYGZIP']);
     });
 
     it('deduplicates children and excludes the parent handle', function () {

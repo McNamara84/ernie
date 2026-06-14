@@ -244,6 +244,9 @@ class IgsnImportService
      * Fetch a single IGSN DOI record from DataCite.
      *
      * @return array<string, mixed>|null
+     *
+     * @throws RequestException
+     * @throws \RuntimeException
      */
     public function fetchSingleIgsn(string $doi): ?array
     {
@@ -270,14 +273,20 @@ class IgsnImportService
                 'status' => $response->status(),
             ]);
 
-            return null;
+            throw new RequestException($response);
+        } catch (RequestException $e) {
+            if ($e->response->status() === 404) {
+                return null;
+            }
+
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Exception fetching single IGSN from DataCite', [
                 'doi' => $normalizedDoi,
                 'error' => $e->getMessage(),
             ]);
 
-            return null;
+            throw new \RuntimeException('Failed to fetch single IGSN from DataCite.', 0, $e);
         }
     }
 

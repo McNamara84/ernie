@@ -1,5 +1,3 @@
-const IGSN_PREFIX = '10.60510';
-
 export interface IgsnValidationResult {
     isValid: boolean;
     doi?: string;
@@ -7,7 +5,8 @@ export interface IgsnValidationResult {
     message?: string;
 }
 
-export function normalizeIgsnInput(input: string): IgsnValidationResult {
+export function normalizeIgsnInput(input: string, igsnPrefix = '10.60510'): IgsnValidationResult {
+    const normalizedPrefix = igsnPrefix.trim().toLowerCase();
     const trimmed = input.trim();
     if (trimmed.length === 0) {
         return {
@@ -21,12 +20,12 @@ export function normalizeIgsnInput(input: string): IgsnValidationResult {
     const lowerValue = value.toLowerCase();
 
     let handle = value;
-    if (lowerValue.startsWith(`${IGSN_PREFIX}/`)) {
-        handle = value.slice(IGSN_PREFIX.length + 1);
+    if (lowerValue.startsWith(`${normalizedPrefix}/`)) {
+        handle = value.slice(normalizedPrefix.length + 1);
     } else if (lowerValue.startsWith('10.')) {
         return {
             isValid: false,
-            message: `Use the IGSN prefix ${IGSN_PREFIX} or enter the IGSN handle only.`,
+            message: `Use the IGSN prefix ${normalizedPrefix} or enter the IGSN handle only.`,
         };
     }
 
@@ -40,7 +39,7 @@ export function normalizeIgsnInput(input: string): IgsnValidationResult {
 
     return {
         isValid: true,
-        doi: `${IGSN_PREFIX}/${normalizedHandle.toLowerCase()}`,
+        doi: `${normalizedPrefix}/${normalizedHandle.toLowerCase()}`,
         handle: normalizedHandle,
     };
 }

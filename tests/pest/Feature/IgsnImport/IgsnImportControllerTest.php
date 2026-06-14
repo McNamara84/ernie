@@ -148,6 +148,20 @@ describe('IgsnImportController', function () {
             $response->assertJsonValidationErrors('igsn');
             Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
         });
+
+        it('returns service unavailable when DataCite cannot verify a single IGSN', function () {
+            Queue::fake();
+            Http::fake([
+                'api.datacite.org/dois/*' => Http::response(['errors' => [['title' => 'Server error']]], 500),
+            ]);
+
+            $response = $this->actingAs($this->adminUser)
+                ->postJson('/igsns/import/start-single', ['igsn' => 'ICDP5052EUYY001']);
+
+            $response->assertStatus(503);
+            $response->assertJsonPath('message', 'DataCite is currently unavailable. Please try again later.');
+            Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
+        });
     });
 
     describe('status endpoint', function () {
@@ -251,6 +265,17 @@ describe('IgsnImportController', function () {
 });
 
 describe('IgsnController canImport prop', function () {
+    it('returns configured IGSN prefix for client-side validation', function () {
+        Config::set('datacite.production.igsn_prefix', '10.12345');
+
+        $response = $this->actingAs($this->adminUser)
+            ->get('/igsns');
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('igsnPrefix', '10.12345')
+        );
+    });
+
     it('returns true for admin users', function () {
         $response = $this->actingAs($this->adminUser)
             ->get('/igsns');

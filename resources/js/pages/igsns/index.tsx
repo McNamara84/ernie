@@ -72,6 +72,7 @@ interface IgsnsPageProps {
     canDelete: boolean;
     canImport: boolean;
     canRegister: boolean;
+    igsnPrefix: string;
     search: string;
     totalCount: number;
     filters: {
@@ -136,7 +137,19 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canImport, canRegister, search: initialSearch, totalCount, filters: initialFilters, filterOptions: initialFilterOptions }: IgsnsPageProps) {
+function IgsnsPage({
+    igsns: initialIgsns,
+    pagination: initialPagination,
+    sort: initialSort,
+    canDelete,
+    canImport,
+    canRegister,
+    igsnPrefix,
+    search: initialSearch,
+    totalCount,
+    filters: initialFilters,
+    filterOptions: initialFilterOptions,
+}: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -835,6 +848,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             />
             <ImportSingleIgsnModal
                 isOpen={isSingleImportModalOpen}
+                igsnPrefix={igsnPrefix}
                 onClose={() => setIsSingleImportModalOpen(false)}
                 onSuccess={() => router.reload()}
             />

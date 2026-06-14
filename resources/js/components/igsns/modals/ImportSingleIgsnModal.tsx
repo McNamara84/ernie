@@ -42,13 +42,14 @@ interface SingleIgsnImportErrorResponse {
 
 interface ImportSingleIgsnModalProps {
     isOpen: boolean;
+    igsnPrefix?: string;
     onClose: () => void;
     onSuccess?: () => void;
 }
 
 type ModalState = 'confirm' | 'running' | 'completed' | 'cancelled' | 'failed';
 
-export default function ImportSingleIgsnModal({ isOpen, onClose, onSuccess }: ImportSingleIgsnModalProps) {
+export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510', onClose, onSuccess }: ImportSingleIgsnModalProps) {
     const [igsnInput, setIgsnInput] = useState('');
     const [submittedIgsn, setSubmittedIgsn] = useState<string | null>(null);
     const [fieldError, setFieldError] = useState<string | null>(null);
@@ -154,7 +155,7 @@ export default function ImportSingleIgsnModal({ isOpen, onClose, onSuccess }: Im
     }, [importId, modalState]);
 
     const startImport = useCallback(async () => {
-        const normalized = normalizeIgsnInput(igsnInput);
+        const normalized = normalizeIgsnInput(igsnInput, igsnPrefix);
 
         if (!normalized.isValid || !normalized.handle) {
             setFieldError(normalized.message ?? 'Enter a valid IGSN.');
@@ -224,7 +225,7 @@ export default function ImportSingleIgsnModal({ isOpen, onClose, onSuccess }: Im
         } finally {
             setIsStarting(false);
         }
-    }, [igsnInput]);
+    }, [igsnInput, igsnPrefix]);
 
     const cancelImport = useCallback(async () => {
         if (!importId || isCancelling) {

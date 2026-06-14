@@ -66,9 +66,9 @@ vi.mock('@/components/igsns/modals/ImportIgsnsModal', () => ({
     default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="import-all-igsns-modal">Import all modal</div> : null),
 }));
 vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
-    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess?: () => void }) =>
+    default: ({ isOpen, igsnPrefix, onClose, onSuccess }: { isOpen: boolean; igsnPrefix?: string; onClose: () => void; onSuccess?: () => void }) =>
         isOpen ? (
-            <div data-testid="import-single-igsn-modal">
+            <div data-testid="import-single-igsn-modal" data-prefix={igsnPrefix}>
                 Import single modal
                 <button onClick={onClose}>Close single import modal</button>
                 <button onClick={onSuccess}>Finish single import</button>
@@ -149,6 +149,7 @@ const defaultProps = {
     canDelete: true,
     canRegister: true,
     canImport: false,
+    igsnPrefix: '10.60510',
     search: '',
     totalCount: 2,
     filters: { prefix: '', status: '' },
@@ -214,6 +215,7 @@ describe('IgsnsPage', () => {
             await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
 
             expect(screen.getByTestId('import-single-igsn-modal')).toBeInTheDocument();
+            expect(screen.getByTestId('import-single-igsn-modal')).toHaveAttribute('data-prefix', '10.60510');
         });
 
         it('wires single IGSN import modal close and success callbacks', async () => {

@@ -100,6 +100,42 @@ describe('ImportSingleIgsnModal', () => {
         });
     });
 
+    it('uses the configured IGSN prefix for client-side DOI validation', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'single-igsn-import-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'running',
+                total: 1,
+                processed: 0,
+                imported: 0,
+                skipped: 0,
+                failed: 0,
+                enriched: 0,
+                skipped_dois: [],
+                failed_dois: [],
+                requested_igsn: 'CUSTOM001',
+                discovered_children: [],
+            },
+        });
+
+        render(<ImportSingleIgsnModal isOpen={true} igsnPrefix="10.12345" onClose={mockOnClose} />);
+
+        await user.type(screen.getByLabelText('IGSN'), '10.12345/CUSTOM001');
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        await waitFor(() => {
+            expect(axios.post).toHaveBeenCalledWith(
+                '/igsns/import/start-single',
+                { igsn: 'CUSTOM001' },
+                { headers: { 'X-CSRF-TOKEN': 'test-token' } },
+            );
+        });
+    });
+
     it('shows backend validation errors inline', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

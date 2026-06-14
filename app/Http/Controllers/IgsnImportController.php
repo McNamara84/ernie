@@ -10,9 +10,11 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\IgsnImportService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -58,7 +60,20 @@ class IgsnImportController extends Controller
         $doi = $request->getDoi();
         $handle = $request->getHandle();
 
-        if ($importService->fetchSingleIgsn($doi) === null) {
+        try {
+            $igsnRecord = $importService->fetchSingleIgsn($doi);
+        } catch (RequestException|\RuntimeException $e) {
+            Log::warning('Unable to verify single IGSN at DataCite before import', [
+                'doi' => $doi,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'DataCite is currently unavailable. Please try again later.',
+            ], 503);
+        }
+
+        if ($igsnRecord === null) {
             throw ValidationException::withMessages([
                 'igsn' => 'This IGSN could not be found at DataCite.',
             ]);

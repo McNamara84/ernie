@@ -35,4 +35,16 @@ describe('normalizeIgsnInput', () => {
             message: 'Enter a valid IGSN handle, for example ICDP5052EUYY001.',
         });
     });
+
+    it('uses the configured IGSN prefix when one is provided', () => {
+        expect(normalizeIgsnInput('10.12345/CUSTOM001', '10.12345')).toEqual({
+            isValid: true,
+            doi: '10.12345/custom001',
+            handle: 'CUSTOM001',
+        });
+        expect(normalizeIgsnInput('10.60510/CUSTOM001', '10.12345')).toEqual({
+            isValid: false,
+            message: 'Use the IGSN prefix 10.12345 or enter the IGSN handle only.',
+        });
+    });
 });

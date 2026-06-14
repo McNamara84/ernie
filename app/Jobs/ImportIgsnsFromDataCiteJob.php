@@ -451,19 +451,11 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 return ['status' => 'skipped', 'enriched' => false];
             }
 
-            $result = DB::transaction(function () use ($transformer, $igsnRecord, $doi) {
-                if (Resource::where('doi', $doi)->exists()) {
-                    return ['status' => 'skipped', 'resource' => null];
-                }
-
+            $result = DB::transaction(function () use ($transformer, $igsnRecord) {
                 $resource = $transformer->transform($igsnRecord, $this->userId);
 
                 return ['status' => 'imported', 'resource' => $resource];
             });
-
-            if ($result['status'] === 'skipped') {
-                return ['status' => 'skipped', 'enriched' => false];
-            }
         } catch (QueryException $e) {
             if ($this->isDuplicateEntry($e)) {
                 return ['status' => 'skipped', 'enriched' => false];

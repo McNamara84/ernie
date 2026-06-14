@@ -48,11 +48,12 @@ class IgsnChildDiscoveryService
 
         try {
             $url = "https://{$solrHost}:{$solrPort}/solr/igsnaa/select";
+            $quotedParentHandle = $this->quoteSolrPhraseValue($parentHandle);
 
             $response = Http::withBasicAuth((string) $solrUser, (string) $solrPassword)
                 ->timeout(15)
                 ->get($url, [
-                    'q' => sprintf('parent_igsn:%1$s OR dif:%1$s', $parentHandle),
+                    'q' => sprintf('parent_igsn:%1$s OR dif:%1$s', $quotedParentHandle),
                     'wt' => 'json',
                     'rows' => 1000,
                     'fl' => 'igsn,dif,has_dif',
@@ -108,11 +109,13 @@ class IgsnChildDiscoveryService
     private function discoverFromLegacyDb(string $parentHandle): array
     {
         try {
+            $likePattern = '%'.$this->escapeLikeValue($parentHandle).'%';
+
             $rows = DB::connection('igsn_legacy')
                 ->table('metadata')
                 ->join('dataset', 'metadata.dataset', '=', 'dataset.id')
                 ->whereNotNull('metadata.dif')
-                ->where('metadata.dif', 'like', '%'.$parentHandle.'%')
+                ->whereRaw('metadata.dif like ? escape ?', [$likePattern, '\\'])
                 ->orderByDesc('metadata.id')
                 ->limit(1000)
                 ->select('dataset.doi', 'metadata.dif')
@@ -185,7 +188,7 @@ class IgsnChildDiscoveryService
 
     private function extractParentHandleFromDif(string $difXml): ?string
     {
-        $xml = @simplexml_load_string($difXml);
+        $xml = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
         if ($xml === false) {
             return null;
         }
@@ -196,5 +199,15 @@ class IgsnChildDiscoveryService
         }
 
         return $this->normalizeHandle((string) $matches[0]);
+    }
+
+    private function quoteSolrPhraseValue(string $value): string
+    {
+        return '"'.str_replace(['\\', '"'], ['\\\\', '\\"'], $value).'"';
+    }
+
+    private function escapeLikeValue(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }
