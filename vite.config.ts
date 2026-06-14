@@ -75,6 +75,11 @@ export default defineConfig(({ command }) => {
         },
         test: {
             environment: 'jsdom',
+            environmentOptions: {
+                jsdom: {
+                    url: 'http://localhost/',
+                },
+            },
             globals: true,
             setupFiles: './vitest.setup.ts',
             include: ['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'],

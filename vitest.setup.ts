@@ -18,6 +18,15 @@ afterEach(() => {
     server.resetHandlers();
 });
 
+afterEach(() => {
+    try {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+    } catch {
+        // Some tests intentionally replace storage to exercise failure paths.
+    }
+});
+
 afterAll(() => {
     server.close();
 });
@@ -146,37 +155,21 @@ if (typeof window.scrollTo !== 'function') {
 process.env.VITE_APP_URL = '';
 process.env.APP_URL = '';
 
-// Mock localStorage for tests
-class LocalStorageMock {
-    private store: Record<string, string> = {};
+const jsdomLocalStorage = window.localStorage;
+const jsdomSessionStorage = window.sessionStorage;
 
-    clear() {
-        this.store = {};
-    }
-
-    getItem(key: string) {
-        return this.store[key] || null;
-    }
-
-    setItem(key: string, value: string) {
-        this.store[key] = value.toString();
-    }
-
-    removeItem(key: string) {
-        delete this.store[key];
-    }
-
-    get length() {
-        return Object.keys(this.store).length;
-    }
-
-    key(index: number) {
-        const keys = Object.keys(this.store);
-        return keys[index] || null;
-    }
-}
-
-global.localStorage = new LocalStorageMock() as Storage;
+Object.defineProperties(globalThis, {
+    localStorage: {
+        configurable: true,
+        value: jsdomLocalStorage,
+        writable: true,
+    },
+    sessionStorage: {
+        configurable: true,
+        value: jsdomSessionStorage,
+        writable: true,
+    },
+});
 
 // Mock Clipboard API for tests
 if (typeof navigator !== 'undefined') {
