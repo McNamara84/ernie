@@ -104,6 +104,34 @@ describe('IgsnImportService', function () {
         expect($result['next_cursor'])->toBeNull();
     });
 
+    it('fetches a single IGSN by DOI', function () {
+        Http::fake([
+            'api.datacite.org/dois/*' => Http::response([
+                'data' => [
+                    'id' => '10.60510/icdp5052euyy001',
+                    'attributes' => ['doi' => '10.60510/icdp5052euyy001'],
+                ],
+            ], 200),
+        ]);
+
+        $service = new IgsnImportService;
+        $result = $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
+
+        expect($result)->not->toBeNull();
+        expect($result['attributes']['doi'])->toBe('10.60510/icdp5052euyy001');
+    });
+
+    it('returns null when a single IGSN is not found', function () {
+        Http::fake([
+            'api.datacite.org/dois/*' => Http::response([], 404),
+        ]);
+
+        $service = new IgsnImportService;
+        $result = $service->fetchSingleIgsn('10.60510/MISSING001');
+
+        expect($result)->toBeNull();
+    });
+
     it('extracts next cursor from pagination links', function () {
         Http::fake([
             'api.datacite.org/dois*' => Http::response([

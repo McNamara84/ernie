@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Support\IgsnIdentifier;
 use App\Support\UriHelper;
 use Generator;
+use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
@@ -50,7 +52,7 @@ class IgsnImportService
 
         if (! str_starts_with($this->endpoint, 'https://')) {
             throw new \RuntimeException(
-                'DataCite production endpoint must use HTTPS. Current: ' . $this->endpoint
+                'DataCite production endpoint must use HTTPS. Current: '.$this->endpoint
             );
         }
 
@@ -72,15 +74,15 @@ class IgsnImportService
         if (empty($username) || empty($password)) {
             throw new \RuntimeException(
                 'DataCite production credentials are not configured. '
-                . 'Please set DATACITE_USERNAME and DATACITE_PASSWORD.'
+                .'Please set DATACITE_USERNAME and DATACITE_PASSWORD.'
             );
         }
 
         $this->client = Http::withBasicAuth($username, $password)
             ->withHeaders([
-            'Accept' => 'application/vnd.api+json',
-            'User-Agent' => 'ERNIE/1.0 (GFZ Helmholtz Centre; mailto:ernie@gfz.de)',
-        ])
+                'Accept' => 'application/vnd.api+json',
+                'User-Agent' => 'ERNIE/1.0 (GFZ Helmholtz Centre; mailto:ernie@gfz.de)',
+            ])
             ->timeout(30)
             ->retry(3, 500, function (\Throwable $exception): bool {
                 if (! ($exception instanceof RequestException)) {
@@ -92,8 +94,8 @@ class IgsnImportService
                         }
                     }
 
-                    if (class_exists(\GuzzleHttp\Exception\ConnectException::class)
-                        && $exception instanceof \GuzzleHttp\Exception\ConnectException) {
+                    if (class_exists(ConnectException::class)
+                        && $exception instanceof ConnectException) {
                         return true;
                     }
 
@@ -236,5 +238,51 @@ class IgsnImportService
             'data' => $json['data'] ?? [],
             'next_cursor' => $nextCursor,
         ];
+    }
+
+    /**
+     * Fetch a single IGSN DOI record from DataCite.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function fetchSingleIgsn(string $doi): ?array
+    {
+        $normalizedDoi = IgsnIdentifier::normalizeDoi($doi, $this->igsnPrefix);
+        if ($normalizedDoi === null) {
+            return null;
+        }
+
+        try {
+            $encodedDoi = urlencode($normalizedDoi);
+
+            $response = $this->client->get("{$this->endpoint}/dois/{$encodedDoi}");
+
+            if ($response->successful()) {
+                return $response->json()['data'] ?? null;
+            }
+
+            if ($response->status() === 404) {
+                return null;
+            }
+
+            Log::warning('Failed to fetch single IGSN from DataCite', [
+                'doi' => $normalizedDoi,
+                'status' => $response->status(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Exception fetching single IGSN from DataCite', [
+                'doi' => $normalizedDoi,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    public function getIgsnPrefix(): string
+    {
+        return $this->igsnPrefix;
     }
 }

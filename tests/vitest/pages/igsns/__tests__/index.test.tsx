@@ -62,6 +62,12 @@ vi.mock('@/components/igsns/igsn-filters', () => ({
 vi.mock('@/components/landing-pages/modals/SetupIgsnLandingPageModal', () => ({
     default: () => null,
 }));
+vi.mock('@/components/igsns/modals/ImportIgsnsModal', () => ({
+    default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="import-all-igsns-modal">Import all modal</div> : null),
+}));
+vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
+    default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="import-single-igsn-modal">Import single modal</div> : null),
+}));
 vi.mock('@/components/ui/validation-error-modal', () => ({
     ValidationErrorModal: () => null,
 }));
@@ -179,6 +185,28 @@ describe('IgsnsPage', () => {
             render(<IgsnsPage {...defaultProps} />);
             const badges = screen.getAllByTestId('status-badge');
             expect(badges).toHaveLength(2);
+        });
+
+        it('shows both import buttons when canImport is true', () => {
+            render(<IgsnsPage {...defaultProps} canImport={true} />);
+
+            expect(screen.getByRole('button', { name: /import all igsns/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import single igsn/i })).toBeInTheDocument();
+        });
+
+        it('hides import buttons when canImport is false', () => {
+            render(<IgsnsPage {...defaultProps} canImport={false} />);
+
+            expect(screen.queryByRole('button', { name: /import all igsns/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /import single igsn/i })).not.toBeInTheDocument();
+        });
+
+        it('opens the single IGSN import modal', async () => {
+            render(<IgsnsPage {...defaultProps} canImport={true} />);
+
+            await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
+
+            expect(screen.getByTestId('import-single-igsn-modal')).toBeInTheDocument();
         });
 
         it('shows pagination info', () => {

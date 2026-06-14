@@ -3,6 +3,8 @@
 use App\Enums\UserRole;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\User;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
@@ -10,6 +12,16 @@ beforeEach(function () {
     $this->groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
     $this->curator = User::factory()->create(['role' => UserRole::CURATOR]);
     $this->beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+
+    Config::set('datacite.production', [
+        'endpoint' => 'https://api.datacite.org',
+        'username' => 'test-user',
+        'password' => 'test-password',
+        'client_id' => 'tib.gfz',
+        'prefixes' => ['10.5880'],
+        'igsn_prefix' => '10.60510',
+        'igsn_client_id' => 'gfz.igsn',
+    ]);
 });
 
 describe('IgsnImportController', function () {
@@ -60,6 +72,80 @@ describe('IgsnImportController', function () {
             $response = $this->postJson('/igsns/import/start');
 
             expect(in_array($response->status(), [401, 302]))->toBeTrue();
+            Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
+        });
+
+        it('allows admin to start single IGSN import', function () {
+            Queue::fake();
+            Http::fake([
+                'api.datacite.org/dois/*' => Http::response([
+                    'data' => [
+                        'id' => '10.60510/icdp5052euyy001',
+                        'attributes' => ['doi' => '10.60510/icdp5052euyy001'],
+                    ],
+                ], 200),
+            ]);
+
+            $response = $this->actingAs($this->adminUser)
+                ->postJson('/igsns/import/start-single', ['igsn' => 'ICDP5052EUYY001']);
+
+            $response->assertOk();
+            Queue::assertPushed(
+                ImportIgsnsFromDataCiteJob::class,
+                fn (ImportIgsnsFromDataCiteJob $job): bool => $job->getSingleDoi() === '10.60510/icdp5052euyy001',
+            );
+        });
+
+        it('allows group leader to start single IGSN import', function () {
+            Queue::fake();
+            Http::fake([
+                'api.datacite.org/dois/*' => Http::response([
+                    'data' => [
+                        'id' => '10.60510/icdp5052euyy001',
+                        'attributes' => ['doi' => '10.60510/icdp5052euyy001'],
+                    ],
+                ], 200),
+            ]);
+
+            $response = $this->actingAs($this->groupLeader)
+                ->postJson('/igsns/import/start-single', ['igsn' => '10.60510/ICDP5052EUYY001']);
+
+            $response->assertOk();
+            Queue::assertPushed(ImportIgsnsFromDataCiteJob::class);
+        });
+
+        it('denies curator from starting single IGSN import', function () {
+            Queue::fake();
+
+            $response = $this->actingAs($this->curator)
+                ->postJson('/igsns/import/start-single', ['igsn' => 'ICDP5052EUYY001']);
+
+            expect($response->status())->toBe(403);
+            Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
+        });
+
+        it('validates the single IGSN input', function () {
+            Queue::fake();
+
+            $response = $this->actingAs($this->adminUser)
+                ->postJson('/igsns/import/start-single', ['igsn' => '10.99999/not-an-igsn']);
+
+            $response->assertStatus(422);
+            $response->assertJsonValidationErrors('igsn');
+            Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
+        });
+
+        it('returns validation error when the single IGSN is not found at DataCite', function () {
+            Queue::fake();
+            Http::fake([
+                'api.datacite.org/dois/*' => Http::response([], 404),
+            ]);
+
+            $response = $this->actingAs($this->adminUser)
+                ->postJson('/igsns/import/start-single', ['igsn' => 'ICDPMISSING001']);
+
+            $response->assertStatus(422);
+            $response->assertJsonValidationErrors('igsn');
             Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
         });
     });
