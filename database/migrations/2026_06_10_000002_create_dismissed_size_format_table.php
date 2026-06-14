@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('resource_id')->constrained('resources')->cascadeOnDelete();
             $table->string('doi');
-            $table->string('suggested_filetype', 3); // "abc"
+            $table->string('suggested_filetype', 10); // "abc"
             $table->boolean('is_zip')->default(false);
             $table->boolean('discovered_in_fileName')->default(false);
             $table->foreignId('dismissed_by')->nullable()->constrained('users')->nullOnDelete();

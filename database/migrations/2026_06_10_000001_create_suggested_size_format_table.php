@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('resource_id')->constrained('resources')->cascadeOnDelete();
             $table->string('doi');
-            $table->string('suggested_filetype', 3); // "abc"
+            $table->string('suggested_filetype', 10); // "abc"
             $table->string('source_url')->nullable();
             $table->string('probe_method', 30)->nullable();
             $table->string('confidence', 10)->nullable();
