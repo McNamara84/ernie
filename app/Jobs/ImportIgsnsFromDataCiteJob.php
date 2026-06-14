@@ -308,11 +308,15 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             return;
         }
 
-        $childHandles = $childDiscoveryService->discoverDirectChildHandles($requestedHandle);
-        $targetDois = array_values(array_unique([
-            $requestedDoi,
-            ...array_map(fn (string $handle): string => IgsnIdentifier::doiFromHandle($handle), $childHandles),
-        ]));
+        $targets = $this->buildSingleImportTargets(
+            requestedDoi: $requestedDoi,
+            requestedRecord: $parentRecord,
+            importService: $importService,
+            childDiscoveryService: $childDiscoveryService,
+        );
+        $childHandles = $targets['childHandles'];
+        $targetDois = $targets['dois'];
+        $targetRecords = $targets['records'];
         $targetHandles = array_values(array_filter(array_map(
             fn (string $doi): ?string => IgsnIdentifier::handleFromDoi($doi),
             $targetDois,
@@ -357,14 +361,12 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
             $processed++;
 
-            $igsnRecord = $doi === $requestedDoi
-                ? $parentRecord
-                : $importService->fetchSingleIgsn($doi);
+            $igsnRecord = $targetRecords[$doi] ?? $importService->fetchSingleIgsn($doi);
 
             if ($igsnRecord === null) {
                 $failed++;
                 if (count($failedDois) < $maxStoredDois) {
-                    $failedDois[] = ['doi' => $doi, 'error' => 'IGSN was discovered as a child but was not found at DataCite.'];
+                    $failedDois[] = ['doi' => $doi, 'error' => 'IGSN was discovered as a related import target but was not found at DataCite.'];
                 }
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $enriched, $skippedDois, $failedDois, $total);
 
@@ -434,6 +436,151 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'failed' => $failed,
             'enriched' => $enriched,
         ]);
+    }
+
+    /**
+     * Build the complete single-import target set from the requested IGSN.
+     *
+     * The set includes the requested IGSN, direct children when the request is a parent,
+     * and, when the request is a child, the DataCite parent chain plus sibling groups.
+     *
+     * @param  array<string, mixed>  $requestedRecord
+     * @return array{dois: list<string>, records: array<string, array<string, mixed>>, childHandles: list<string>}
+     */
+    private function buildSingleImportTargets(
+        string $requestedDoi,
+        array $requestedRecord,
+        IgsnImportService $importService,
+        IgsnChildDiscoveryService $childDiscoveryService,
+    ): array {
+        /** @var list<string> $targetDois */
+        $targetDois = [$requestedDoi];
+        /** @var array<string, array<string, mixed>> $targetRecords */
+        $targetRecords = [$requestedDoi => $requestedRecord];
+        /** @var list<string> $childHandles */
+        $childHandles = [];
+
+        /** @var list<string> $pendingParentDois */
+        $pendingParentDois = $importService->extractParentDois($requestedRecord);
+        /** @var array<string, true> $visitedParentDois */
+        $visitedParentDois = [];
+        $maxParentDepth = 10;
+
+        foreach ($pendingParentDois as $parentDoi) {
+            $this->addTargetDoi($targetDois, $parentDoi);
+        }
+
+        while ($pendingParentDois !== [] && count($visitedParentDois) < $maxParentDepth) {
+            $parentDoi = array_shift($pendingParentDois);
+            if (isset($visitedParentDois[$parentDoi])) {
+                continue;
+            }
+
+            $visitedParentDois[$parentDoi] = true;
+            $parentRecord = $targetRecords[$parentDoi] ?? $importService->fetchSingleIgsn($parentDoi);
+
+            if ($parentRecord === null) {
+                continue;
+            }
+
+            $targetRecords[$parentDoi] = $parentRecord;
+
+            foreach ($importService->extractParentDois($parentRecord) as $ancestorDoi) {
+                $this->addTargetDoi($targetDois, $ancestorDoi);
+
+                if (! isset($visitedParentDois[$ancestorDoi])) {
+                    $pendingParentDois[] = $ancestorDoi;
+                }
+            }
+        }
+
+        $parentDoisForChildren = array_values(array_unique([
+            $requestedDoi,
+            ...array_keys($visitedParentDois),
+        ]));
+
+        foreach ($parentDoisForChildren as $parentDoi) {
+            $this->addChildrenForParentDoi(
+                parentDoi: $parentDoi,
+                targetDois: $targetDois,
+                targetRecords: $targetRecords,
+                childHandles: $childHandles,
+                importService: $importService,
+                childDiscoveryService: $childDiscoveryService,
+            );
+        }
+
+        return [
+            'dois' => $targetDois,
+            'records' => $targetRecords,
+            'childHandles' => $childHandles,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $targetDois
+     * @param  array<string, array<string, mixed>>  $targetRecords
+     * @param  list<string>  $childHandles
+     */
+    private function addChildrenForParentDoi(
+        string $parentDoi,
+        array &$targetDois,
+        array &$targetRecords,
+        array &$childHandles,
+        IgsnImportService $importService,
+        IgsnChildDiscoveryService $childDiscoveryService,
+    ): void {
+        foreach ($importService->fetchChildIgsnsForParent($parentDoi) as $childRecord) {
+            $childDoi = $this->doiFromIgsnRecord($childRecord);
+            if ($childDoi === null) {
+                continue;
+            }
+
+            $targetRecords[$childDoi] = $childRecord;
+            $this->addTargetDoi($targetDois, $childDoi);
+            $this->addChildHandle($childHandles, $childDoi);
+        }
+
+        $parentHandle = IgsnIdentifier::handleFromDoi($parentDoi);
+        if ($parentHandle === null) {
+            return;
+        }
+
+        foreach ($childDiscoveryService->discoverDirectChildHandles($parentHandle) as $childHandle) {
+            $this->addTargetDoi($targetDois, IgsnIdentifier::doiFromHandle($childHandle));
+            $this->addChildHandle($childHandles, IgsnIdentifier::doiFromHandle($childHandle));
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    private function doiFromIgsnRecord(array $record): ?string
+    {
+        $doi = $record['attributes']['doi'] ?? $record['id'] ?? null;
+
+        return is_string($doi) ? IgsnIdentifier::normalizeDoi($doi) : null;
+    }
+
+    /**
+     * @param  list<string>  $targetDois
+     */
+    private function addTargetDoi(array &$targetDois, string $doi): void
+    {
+        if (! in_array($doi, $targetDois, true)) {
+            $targetDois[] = $doi;
+        }
+    }
+
+    /**
+     * @param  list<string>  $childHandles
+     */
+    private function addChildHandle(array &$childHandles, string $childDoi): void
+    {
+        $childHandle = IgsnIdentifier::handleFromDoi($childDoi);
+        if ($childHandle !== null && ! in_array($childHandle, $childHandles, true)) {
+            $childHandles[] = $childHandle;
+        }
     }
 
     /**

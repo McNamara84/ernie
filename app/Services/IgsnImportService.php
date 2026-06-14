@@ -290,8 +290,118 @@ class IgsnImportService
         }
     }
 
+    /**
+     * Fetch direct DataCite children that declare the parent DOI via IsPartOf.
+     *
+     * @return list<array<string, mixed>>
+     *
+     * @throws RequestException
+     */
+    public function fetchChildIgsnsForParent(string $parentDoi): array
+    {
+        $normalizedParentDoi = IgsnIdentifier::normalizeDoi($parentDoi, $this->igsnPrefix);
+        if ($normalizedParentDoi === null) {
+            return [];
+        }
+
+        $records = [];
+        $cursor = '1';
+
+        do {
+            $response = $this->client->get("{$this->endpoint}/dois", [
+                'client-id' => $this->igsnClientId,
+                'prefix' => $this->igsnPrefix,
+                'query' => $this->relatedIdentifierQuery($normalizedParentDoi),
+                'page[cursor]' => $cursor,
+                'page[size]' => self::MAX_PAGE_SIZE,
+            ]);
+
+            if (! $response->successful()) {
+                Log::error('DataCite API request failed for IGSN child discovery', [
+                    'parent_doi' => $normalizedParentDoi,
+                    'status' => $response->status(),
+                ]);
+
+                throw new RequestException($response);
+            }
+
+            $json = $response->json();
+            $data = is_array($json) ? ($json['data'] ?? []) : [];
+            if (is_array($data)) {
+                foreach ($data as $record) {
+                    if (is_array($record) && $this->recordHasParentDoi($record, $normalizedParentDoi)) {
+                        $records[] = $record;
+                    }
+                }
+            }
+
+            $cursor = null;
+            if (is_array($json) && isset($json['links']['next'])) {
+                $queryParams = UriHelper::getQueryParams($json['links']['next']);
+                $cursor = $queryParams['page']['cursor'] ?? $queryParams['page[cursor]'] ?? null;
+            }
+        } while ($cursor !== null);
+
+        return $records;
+    }
+
+    /**
+     * Extract configured-prefix parent DOI references from a DataCite IGSN record.
+     *
+     * @param  array<string, mixed>  $igsnRecord
+     * @return list<string>
+     */
+    public function extractParentDois(array $igsnRecord): array
+    {
+        $relatedIdentifiers = $igsnRecord['attributes']['relatedIdentifiers'] ?? [];
+        if (! is_array($relatedIdentifiers)) {
+            return [];
+        }
+
+        $parentDois = [];
+        foreach ($relatedIdentifiers as $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
+            }
+
+            $relationType = strtolower((string) ($relatedIdentifier['relationType'] ?? ''));
+            if ($relationType !== 'ispartof') {
+                continue;
+            }
+
+            $identifierType = strtolower((string) ($relatedIdentifier['relatedIdentifierType'] ?? ''));
+            if ($identifierType !== '' && $identifierType !== 'doi') {
+                continue;
+            }
+
+            $parentDoi = IgsnIdentifier::normalizeDoi(
+                (string) ($relatedIdentifier['relatedIdentifier'] ?? ''),
+                $this->igsnPrefix,
+            );
+
+            if ($parentDoi !== null) {
+                $parentDois[] = $parentDoi;
+            }
+        }
+
+        return array_values(array_unique($parentDois));
+    }
+
     public function getIgsnPrefix(): string
     {
         return $this->igsnPrefix;
+    }
+
+    private function relatedIdentifierQuery(string $doi): string
+    {
+        return 'relatedIdentifiers.relatedIdentifier:"'.str_replace(['\\', '"'], ['\\\\', '\\"'], $doi).'"';
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    private function recordHasParentDoi(array $record, string $parentDoi): bool
+    {
+        return in_array($parentDoi, $this->extractParentDois($record), true);
     }
 }

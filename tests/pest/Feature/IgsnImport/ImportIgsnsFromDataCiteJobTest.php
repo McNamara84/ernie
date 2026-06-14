@@ -18,6 +18,14 @@ beforeEach(function () {
 
     $this->importService = Mockery::mock(IgsnImportService::class);
     $this->app->instance(IgsnImportService::class, $this->importService);
+    $this->importService
+        ->shouldReceive('extractParentDois')
+        ->byDefault()
+        ->andReturn([]);
+    $this->importService
+        ->shouldReceive('fetchChildIgsnsForParent')
+        ->byDefault()
+        ->andReturn([]);
 
     $this->transformer = Mockery::mock(DataCiteToIgsnTransformer::class);
     $this->app->instance(DataCiteToIgsnTransformer::class, $this->transformer);
@@ -808,6 +816,163 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         $parent = Resource::where('doi', '10.60510/icdpparent001')->firstOrFail();
         $child = Resource::where('doi', '10.60510/icdpchild001')->firstOrFail();
         expect($child->igsnMetadata->parent_resource_id)->toBe($parent->id);
+    });
+
+    it('imports a child IGSN with its parent chain and sibling groups from DataCite relationships', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+        $childDiscoveryService
+            ->shouldReceive('discoverDirectChildHandles')
+            ->byDefault()
+            ->andReturn([]);
+
+        $records = [
+            '10.60510/icdpchild001' => [
+                'id' => '10.60510/ICDPCHILD001',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPCHILD001',
+                    'relatedIdentifiers' => [[
+                        'relationType' => 'IsPartOf',
+                        'relatedIdentifierType' => 'DOI',
+                        'relatedIdentifier' => '10.60510/ICDPPARENT001',
+                    ]],
+                ],
+            ],
+            '10.60510/icdpsibling001' => [
+                'id' => '10.60510/ICDPSIBLING001',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPSIBLING001',
+                    'relatedIdentifiers' => [[
+                        'relationType' => 'IsPartOf',
+                        'relatedIdentifierType' => 'DOI',
+                        'relatedIdentifier' => '10.60510/ICDPPARENT001',
+                    ]],
+                ],
+            ],
+            '10.60510/icdpparent001' => [
+                'id' => '10.60510/ICDPPARENT001',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPPARENT001',
+                    'relatedIdentifiers' => [[
+                        'relationType' => 'IsPartOf',
+                        'relatedIdentifierType' => 'DOI',
+                        'relatedIdentifier' => '10.60510/ICDPGRANDPARENT001',
+                    ]],
+                ],
+            ],
+            '10.60510/icdpuncle001' => [
+                'id' => '10.60510/ICDPUNCLE001',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPUNCLE001',
+                    'relatedIdentifiers' => [[
+                        'relationType' => 'IsPartOf',
+                        'relatedIdentifierType' => 'DOI',
+                        'relatedIdentifier' => '10.60510/ICDPGRANDPARENT001',
+                    ]],
+                ],
+            ],
+            '10.60510/icdpgrandparent001' => [
+                'id' => '10.60510/ICDPGRANDPARENT001',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPGRANDPARENT001',
+                    'relatedIdentifiers' => [],
+                ],
+            ],
+        ];
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/icdpchild001')
+            ->andReturn($records['10.60510/icdpchild001']);
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/icdpparent001')
+            ->andReturn($records['10.60510/icdpparent001']);
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/icdpgrandparent001')
+            ->andReturn($records['10.60510/icdpgrandparent001']);
+
+        $this->importService
+            ->shouldReceive('extractParentDois')
+            ->andReturnUsing(fn (array $record): array => match (strtolower((string) ($record['attributes']['doi'] ?? ''))) {
+                '10.60510/icdpchild001', '10.60510/icdpsibling001' => ['10.60510/icdpparent001'],
+                '10.60510/icdpparent001', '10.60510/icdpuncle001' => ['10.60510/icdpgrandparent001'],
+                default => [],
+            });
+
+        $this->importService
+            ->shouldReceive('fetchChildIgsnsForParent')
+            ->once()
+            ->with('10.60510/icdpchild001')
+            ->andReturn([]);
+
+        $this->importService
+            ->shouldReceive('fetchChildIgsnsForParent')
+            ->once()
+            ->with('10.60510/icdpparent001')
+            ->andReturn([
+                $records['10.60510/icdpchild001'],
+                $records['10.60510/icdpsibling001'],
+            ]);
+
+        $this->importService
+            ->shouldReceive('fetchChildIgsnsForParent')
+            ->once()
+            ->with('10.60510/icdpgrandparent001')
+            ->andReturn([
+                $records['10.60510/icdpparent001'],
+                $records['10.60510/icdpuncle001'],
+            ]);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->times(5)
+            ->andReturnUsing(function (array $record): Resource {
+                $doi = strtolower((string) $record['attributes']['doi']);
+                $parentHandle = match ($doi) {
+                    '10.60510/icdpchild001', '10.60510/icdpsibling001' => 'ICDPPARENT001',
+                    '10.60510/icdpparent001', '10.60510/icdpuncle001' => 'ICDPGRANDPARENT001',
+                    default => null,
+                };
+
+                return createMockResourceWithIgsn($doi, $parentHandle);
+            });
+
+        $this->enrichmentService
+            ->shouldReceive('enrich')
+            ->times(5)
+            ->andReturn(true);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPCHILD001');
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('completed');
+        expect($status['total'])->toBe(5);
+        expect($status['imported'])->toBe(5);
+        expect($status['discovered_children'])->toBe([
+            'ICDPCHILD001',
+            'ICDPSIBLING001',
+            'ICDPPARENT001',
+            'ICDPUNCLE001',
+        ]);
+
+        $child = Resource::where('doi', '10.60510/icdpchild001')->firstOrFail();
+        $sibling = Resource::where('doi', '10.60510/icdpsibling001')->firstOrFail();
+        $parent = Resource::where('doi', '10.60510/icdpparent001')->firstOrFail();
+        $uncle = Resource::where('doi', '10.60510/icdpuncle001')->firstOrFail();
+        $grandparent = Resource::where('doi', '10.60510/icdpgrandparent001')->firstOrFail();
+
+        expect($child->igsnMetadata->parent_resource_id)->toBe($parent->id);
+        expect($sibling->igsnMetadata->parent_resource_id)->toBe($parent->id);
+        expect($parent->igsnMetadata->parent_resource_id)->toBe($grandparent->id);
+        expect($uncle->igsnMetadata->parent_resource_id)->toBe($grandparent->id);
     });
 
     it('skips an existing single IGSN', function () {

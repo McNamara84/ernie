@@ -163,6 +163,84 @@ describe('IgsnImportService', function () {
         $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
     })->throws(RuntimeException::class, 'Failed to fetch single IGSN from DataCite.');
 
+    it('extracts DataCite parent DOI relationships from IGSN records', function () {
+        $service = new IgsnImportService;
+
+        $parents = $service->extractParentDois([
+            'attributes' => [
+                'relatedIdentifiers' => [
+                    [
+                        'relationType' => 'IsIdenticalTo',
+                        'relatedIdentifierType' => 'IGSN',
+                        'relatedIdentifier' => '10273/CHILD001',
+                    ],
+                    [
+                        'relationType' => 'IsPartOf',
+                        'relatedIdentifierType' => 'DOI',
+                        'relatedIdentifier' => '10.60510/PARENT001',
+                    ],
+                    [
+                        'relationType' => 'IsPartOf',
+                        'relatedIdentifierType' => 'DOI',
+                        'relatedIdentifier' => '10.99999/FOREIGN001',
+                    ],
+                ],
+            ],
+        ]);
+
+        expect($parents)->toBe(['10.60510/parent001']);
+    });
+
+    it('fetches direct child IGSNs from DataCite parent relationships', function () {
+        Http::fake([
+            'api.datacite.org/dois*' => Http::response([
+                'data' => [
+                    [
+                        'id' => '10.60510/child001',
+                        'attributes' => [
+                            'doi' => '10.60510/child001',
+                            'relatedIdentifiers' => [
+                                [
+                                    'relationType' => 'IsPartOf',
+                                    'relatedIdentifierType' => 'DOI',
+                                    'relatedIdentifier' => '10.60510/PARENT001',
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => '10.60510/unrelated001',
+                        'attributes' => [
+                            'doi' => '10.60510/unrelated001',
+                            'relatedIdentifiers' => [
+                                [
+                                    'relationType' => 'IsIdenticalTo',
+                                    'relatedIdentifierType' => 'DOI',
+                                    'relatedIdentifier' => '10.60510/PARENT001',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'links' => [],
+            ], 200),
+        ]);
+
+        $service = new IgsnImportService;
+        $children = $service->fetchChildIgsnsForParent('10.60510/PARENT001');
+
+        expect($children)->toHaveCount(1);
+        expect($children[0]['id'])->toBe('10.60510/child001');
+
+        Http::assertSent(function ($request): bool {
+            $url = urldecode($request->url());
+
+            return str_contains($url, 'query=relatedIdentifiers.relatedIdentifier:"10.60510/parent001"')
+                && str_contains($url, 'client-id=gfz.igsn')
+                && str_contains($url, 'prefix=10.60510');
+        });
+    });
+
     it('exposes the configured IGSN prefix', function () {
         $service = new IgsnImportService;
 
