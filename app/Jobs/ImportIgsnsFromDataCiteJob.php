@@ -240,7 +240,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $this->updateProgress([
+            $this->updateProgressKeys([
                 'status' => 'failed',
                 'error' => $e->getMessage(),
                 'completed_at' => now()->toIso8601String(),
@@ -818,7 +818,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'error' => $exception?->getMessage(),
         ]);
 
-        $this->updateProgress([
+        $this->updateProgressKeys([
             'status' => 'failed',
             'error' => $exception?->getMessage() ?? 'Unknown error',
             'completed_at' => now()->toIso8601String(),

@@ -1114,6 +1114,22 @@ describe('ImportIgsnsFromDataCiteJob', function () {
 
     it('stores failure status from the queue failed callback', function () {
         $importId = Str::uuid()->toString();
+        Cache::put("igsn_import:{$importId}", [
+            'status' => 'running',
+            'total' => 3,
+            'processed' => 1,
+            'imported' => 1,
+            'skipped' => 0,
+            'failed' => 0,
+            'enriched' => 1,
+            'skipped_dois' => [],
+            'failed_dois' => [],
+            'requested_igsn' => 'ICDPFAILED001',
+            'discovered_children' => ['ICDPCHILD001', 'ICDPCHILD002'],
+            'started_at' => now()->subMinute()->toIso8601String(),
+            'completed_at' => null,
+        ], now()->addHours(24));
+
         $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPFAILED001');
 
         $job->failed(new RuntimeException('Queue worker failed'));
@@ -1121,7 +1137,12 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         $status = Cache::get("igsn_import:{$importId}");
         expect($status['status'])->toBe('failed')
             ->and($status['error'])->toBe('Queue worker failed')
-            ->and($status['completed_at'])->not->toBeNull();
+            ->and($status['completed_at'])->not->toBeNull()
+            ->and($status['total'])->toBe(3)
+            ->and($status['processed'])->toBe(1)
+            ->and($status['failed_dois'])->toBe([])
+            ->and($status['requested_igsn'])->toBe('ICDPFAILED001')
+            ->and($status['discovered_children'])->toBe(['ICDPCHILD001', 'ICDPCHILD002']);
     });
 });
 

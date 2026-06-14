@@ -129,7 +129,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
 
                 if (response.data.status === 'failed') {
                     setModalState('failed');
-                    setError(response.data.error || response.data.failed_dois[0]?.error || 'Import failed');
+                    setError(response.data.error || response.data.failed_dois?.[0]?.error || 'Import failed');
                     return;
                 }
 

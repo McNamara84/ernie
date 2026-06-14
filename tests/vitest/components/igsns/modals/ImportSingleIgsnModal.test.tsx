@@ -401,6 +401,29 @@ describe('ImportSingleIgsnModal', () => {
         expect(screen.getByText('Transform failed')).toBeInTheDocument();
     });
 
+    it('shows failed status from a partial failed progress payload', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'single-igsn-import-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'failed',
+                error: 'Queue worker failed',
+                completed_at: '2026-06-14T07:00:00+00:00',
+            },
+        });
+
+        render(<ImportSingleIgsnModal isOpen={true} onClose={mockOnClose} />);
+
+        await user.type(screen.getByLabelText('IGSN'), 'ICDPFAIL001');
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Import failed')).toBeInTheDocument();
+        expect(screen.getByText('Queue worker failed')).toBeInTheDocument();
+    });
+
     it('shows cancelled status from polling', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
