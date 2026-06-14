@@ -66,7 +66,14 @@ vi.mock('@/components/igsns/modals/ImportIgsnsModal', () => ({
     default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="import-all-igsns-modal">Import all modal</div> : null),
 }));
 vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
-    default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="import-single-igsn-modal">Import single modal</div> : null),
+    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess?: () => void }) =>
+        isOpen ? (
+            <div data-testid="import-single-igsn-modal">
+                Import single modal
+                <button onClick={onClose}>Close single import modal</button>
+                <button onClick={onSuccess}>Finish single import</button>
+            </div>
+        ) : null,
 }));
 vi.mock('@/components/ui/validation-error-modal', () => ({
     ValidationErrorModal: () => null,
@@ -207,6 +214,19 @@ describe('IgsnsPage', () => {
             await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
 
             expect(screen.getByTestId('import-single-igsn-modal')).toBeInTheDocument();
+        });
+
+        it('wires single IGSN import modal close and success callbacks', async () => {
+            render(<IgsnsPage {...defaultProps} canImport={true} />);
+
+            await userEvent.click(screen.getByRole('button', { name: /import single igsn/i }));
+            await userEvent.click(screen.getByRole('button', { name: /finish single import/i }));
+
+            expect(mockRouterReload).toHaveBeenCalledOnce();
+
+            await userEvent.click(screen.getByRole('button', { name: /close single import modal/i }));
+
+            expect(screen.queryByTestId('import-single-igsn-modal')).not.toBeInTheDocument();
         });
 
         it('shows pagination info', () => {

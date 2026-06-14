@@ -530,6 +530,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
      *
      * During import, parent_igsn handles are stored in description_json.
      * This pass resolves them to actual parent_resource_id values.
+     *
+     * @param  list<string>|null  $onlyHandles
      */
     private function resolveParentRelationships(?array $onlyHandles = null): void
     {

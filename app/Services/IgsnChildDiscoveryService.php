@@ -170,7 +170,7 @@ class IgsnChildDiscoveryService
         }
 
         if (str_starts_with($value, "\x1f\x8b")) {
-            $decoded = gzdecode($value);
+            $decoded = @gzdecode($value);
 
             return $decoded !== false ? $decoded : null;
         }

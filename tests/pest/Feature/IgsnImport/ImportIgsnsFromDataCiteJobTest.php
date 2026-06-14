@@ -9,6 +9,7 @@ use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -290,6 +291,120 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['failed_dois'][0]['error'])->toBe('No DOI found in record');
     });
 
+    it('treats duplicate-entry race conditions as skipped imports', function () {
+        $this->importService
+            ->shouldReceive('getTotalIgsnCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllIgsns')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.60510/RACE001',
+                    'attributes' => ['doi' => '10.60510/RACE001'],
+                ];
+            })());
+
+        $pdoException = new PDOException('Duplicate entry');
+        $pdoException->errorInfo = ['23000', 1062, 'Duplicate entry'];
+        $queryException = new QueryException('mysql', 'insert into `resources`', [], $pdoException);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow($queryException);
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['failed'])->toBe(0)
+            ->and($status['skipped_dois'])->toContain('10.60510/race001');
+    });
+
+    it('treats sqlite unique constraint race conditions as skipped imports', function () {
+        $this->importService
+            ->shouldReceive('getTotalIgsnCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllIgsns')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.60510/SQLITERACE001',
+                    'attributes' => ['doi' => '10.60510/SQLITERACE001'],
+                ];
+            })());
+
+        $queryException = new QueryException(
+            'sqlite',
+            'insert into "resources"',
+            [],
+            new PDOException('SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: resources.doi'),
+        );
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow($queryException);
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['failed'])->toBe(0)
+            ->and($status['skipped_dois'])->toContain('10.60510/sqliterace001');
+    });
+
+    it('records a failed IGSN when a non-duplicate query exception is thrown', function () {
+        $this->importService
+            ->shouldReceive('getTotalIgsnCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllIgsns')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.60510/QUERYFAIL001',
+                    'attributes' => ['doi' => '10.60510/QUERYFAIL001'],
+                ];
+            })());
+
+        $pdoException = new PDOException('Deadlock found');
+        $pdoException->errorInfo = ['40001', 1213, 'Deadlock found'];
+        $queryException = new QueryException('mysql', 'insert into `resources`', [], $pdoException);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andThrow($queryException);
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(0)
+            ->and($status['failed'])->toBe(1)
+            ->and($status['failed_dois'][0]['doi'])->toBe('10.60510/queryfail001');
+    });
+
     it('enrichment failure does not stop import', function () {
         $this->importService
             ->shouldReceive('getTotalIgsnCount')
@@ -508,6 +623,110 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['enriched'])->toBe(1);
     });
 
+    it('returns cancelled status when a single IGSN import was cancelled before starting', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+
+        $importId = Str::uuid()->toString();
+        $cacheKey = "igsn_import:{$importId}";
+        Cache::put($cacheKey, ['status' => 'cancelled'], 3600);
+
+        $this->importService->shouldReceive('fetchSingleIgsn')->never();
+        $childDiscoveryService->shouldReceive('discoverDirectChildHandles')->never();
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPCANCELLED001');
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+
+        $status = Cache::get($cacheKey);
+        expect($status['status'])->toBe('cancelled')
+            ->and($status['requested_igsn'])->toBe('ICDPCANCELLED001')
+            ->and($status['total'])->toBe(0);
+    });
+
+    it('marks a single IGSN import as failed when the requested IGSN no longer exists at DataCite', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/icdpmissingparent')
+            ->andReturn(null);
+
+        $childDiscoveryService->shouldReceive('discoverDirectChildHandles')->never();
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPMISSINGPARENT');
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['processed'])->toBe(1)
+            ->and($status['failed'])->toBe(1)
+            ->and($status['failed_dois'][0]['doi'])->toBe('10.60510/icdpmissingparent');
+    });
+
+    it('fails the job when a single import is created with an invalid DOI', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+
+        $this->importService->shouldReceive('fetchSingleIgsn')->never();
+        $childDiscoveryService->shouldReceive('discoverDirectChildHandles')->never();
+        $this->transformer->shouldReceive('transform')->never();
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, '10.99999/not-an-igsn');
+
+        expect(fn () => $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService))
+            ->toThrow(RuntimeException::class, 'Single IGSN import requested without a valid IGSN DOI.');
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('Single IGSN import requested without a valid IGSN DOI.');
+    });
+
+    it('continues a single import when an imported resource has no IGSN metadata relation', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/icdpnometadata001')
+            ->andReturn([
+                'id' => '10.60510/ICDPNOMETADATA001',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPNOMETADATA001',
+                    'titles' => [['title' => 'No metadata relation']],
+                    'publicationYear' => 2024,
+                    'types' => ['resourceTypeGeneral' => 'PhysicalObject'],
+                ],
+            ]);
+
+        $childDiscoveryService
+            ->shouldReceive('discoverDirectChildHandles')
+            ->once()
+            ->with('ICDPNOMETADATA001')
+            ->andReturn([]);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn (array $record) => Resource::factory()->create(['doi' => $record['attributes']['doi']]));
+
+        $this->enrichmentService->shouldReceive('enrich')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPNOMETADATA001');
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(1)
+            ->and($status['enriched'])->toBe(0);
+    });
+
     it('imports a parent IGSN and discovered child IGSNs', function () {
         $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
 
@@ -671,6 +890,73 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['imported'])->toBe(1);
         expect($status['failed'])->toBe(1);
         expect($status['failed_dois'][0]['doi'])->toBe('10.60510/icdpmissingchild');
+    });
+
+    it('marks a single import as cancelled when cancellation happens during processing', function () {
+        $childDiscoveryService = Mockery::mock(IgsnChildDiscoveryService::class);
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->once()
+            ->with('10.60510/icdpcancelmidrun')
+            ->andReturn([
+                'id' => '10.60510/ICDPCANCELMIDRUN',
+                'attributes' => [
+                    'doi' => '10.60510/ICDPCANCELMIDRUN',
+                    'titles' => [['title' => 'Parent IGSN']],
+                    'publicationYear' => 2024,
+                    'types' => ['resourceTypeGeneral' => 'PhysicalObject'],
+                ],
+            ]);
+
+        $this->importService
+            ->shouldReceive('fetchSingleIgsn')
+            ->with('10.60510/icdpchildcancelled')
+            ->never();
+
+        $childDiscoveryService
+            ->shouldReceive('discoverDirectChildHandles')
+            ->once()
+            ->with('ICDPCANCELMIDRUN')
+            ->andReturn(['ICDPCHILDCANCELLED']);
+
+        $importId = Str::uuid()->toString();
+        $cacheKey = "igsn_import:{$importId}";
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(function (array $record) use ($cacheKey): Resource {
+                Cache::put($cacheKey, ['status' => 'cancelled'], 3600);
+
+                return createMockResourceWithIgsn($record['attributes']['doi']);
+            });
+
+        $this->enrichmentService
+            ->shouldReceive('enrich')
+            ->once()
+            ->andReturn(false);
+
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPCANCELMIDRUN');
+        $job->handle($this->importService, $this->transformer, $this->enrichmentService, $childDiscoveryService);
+
+        $status = Cache::get($cacheKey);
+        expect($status['status'])->toBe('cancelled')
+            ->and($status['processed'])->toBe(1)
+            ->and($status['total'])->toBe(2)
+            ->and($status['imported'])->toBe(1);
+    });
+
+    it('stores failure status from the queue failed callback', function () {
+        $importId = Str::uuid()->toString();
+        $job = new ImportIgsnsFromDataCiteJob($this->user->id, $importId, 'ICDPFAILED001');
+
+        $job->failed(new RuntimeException('Queue worker failed'));
+
+        $status = Cache::get("igsn_import:{$importId}");
+        expect($status['status'])->toBe('failed')
+            ->and($status['error'])->toBe('Queue worker failed')
+            ->and($status['completed_at'])->not->toBeNull();
     });
 });
 

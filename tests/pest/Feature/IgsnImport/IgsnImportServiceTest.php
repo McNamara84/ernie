@@ -132,6 +132,44 @@ describe('IgsnImportService', function () {
         expect($result)->toBeNull();
     });
 
+    it('returns null without an HTTP request for invalid single IGSN DOI input', function () {
+        Http::fake();
+
+        $service = new IgsnImportService;
+        $result = $service->fetchSingleIgsn('10.99999/not-an-igsn');
+
+        expect($result)->toBeNull();
+        Http::assertNothingSent();
+    });
+
+    it('returns null for non-404 single IGSN API errors', function () {
+        Http::fake([
+            'api.datacite.org/dois/*' => Http::response(['errors' => [['title' => 'Server error']]], 500),
+        ]);
+
+        $service = new IgsnImportService;
+        $result = $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
+
+        expect($result)->toBeNull();
+    });
+
+    it('returns null when a single IGSN request throws an exception', function () {
+        Http::fake([
+            'api.datacite.org/dois/*' => fn () => throw new RuntimeException('DataCite unavailable'),
+        ]);
+
+        $service = new IgsnImportService;
+        $result = $service->fetchSingleIgsn('10.60510/ICDP5052EUYY001');
+
+        expect($result)->toBeNull();
+    });
+
+    it('exposes the configured IGSN prefix', function () {
+        $service = new IgsnImportService;
+
+        expect($service->getIgsnPrefix())->toBe('10.60510');
+    });
+
     it('extracts next cursor from pagination links', function () {
         Http::fake([
             'api.datacite.org/dois*' => Http::response([
