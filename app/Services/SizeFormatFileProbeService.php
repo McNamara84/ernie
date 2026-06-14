@@ -7,9 +7,12 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 
-
 class SizeFormatFileProbeService
 {
+    private const MAX_DIRECTORY_DEPTH = 5;
+
+    private const MAX_DIRECTORY_COUNT = 100;
+
     // erlaubte Linkexte
     private const ALLOWED_LINK_TEXTS = [
         'Download data',
@@ -31,7 +34,7 @@ class SizeFormatFileProbeService
         // Entfernt Leerzeichen am Anfang und am Ende
         $url = trim($url);
 
-            // Prüft ob URL mit http:// oder https:// beginnt
+        // Prüft ob URL mit http:// oder https:// beginnt
         if (! $this->isHttpUrl($url)) {
 
             return [$this->skip($url, 'unsupported_protocol')];
@@ -73,7 +76,7 @@ class SizeFormatFileProbeService
         try {
             // Anfrage darf nur max. 10 Sekunden dauern
             $response = Http::timeout(10)
-                // Verbindungsaufbau max. 5 Sekunden 
+                // Verbindungsaufbau max. 5 Sekunden
                 ->connectTimeout(5)
                 // dann wird per GET-Anfrage die URL geöffnet
                 ->get($url);
@@ -84,7 +87,7 @@ class SizeFormatFileProbeService
 
             // wenn Anfrage nicht erfolgreich -> speichert URL nach Redirects
             $landingPageUrl = (string) $response->effectiveUri();
-            // speichert den HTML-Code der Seite 
+            // speichert den HTML-Code der Seite
             $html = $response->body();
 
             // prüft, ob Seite Hinweis auf Sperren enthält, wenn ja wird abgebrochen ->skip
@@ -93,27 +96,27 @@ class SizeFormatFileProbeService
             }
 
             // sucht im HTML nach erlaubten Download-Links wie piwik-Download
-            // wenn nichts passendes gefunden, wird es übersprungen 
+            // wenn nichts passendes gefunden, wird es übersprungen
             $downloadUrls = $this->extractPiwikDownloadLinks($landingPageUrl, $html);
 
             if (empty($downloadUrls)) {
                 return [$this->skip($landingPageUrl, 'no_eligible_file_links_found')];
             }
 
-            // leere Ergebnisliste 
+            // leere Ergebnisliste
             $results = [];
 
-            // jede gefunde Donwload-URL wird untersucht 
-            // für jede URL wird die Methode probeDirectoryListing aufgerufen 
+            // jede gefunde Donwload-URL wird untersucht
+            // für jede URL wird die Methode probeDirectoryListing aufgerufen
             foreach ($downloadUrls as $downloadUrl) {
                 $results[] = $this->probeDirectoryListing($downloadUrl);
             }
 
-            // gibt alle Ergebnisse zurück 
+            // gibt alle Ergebnisse zurück
             return $results;
 
-        // wenn im try-Block irgendein Fehler passiert, wird es hier abgefangen 
-        // \Throwable-> jede Art von Fehler oder Ausnahme
+            // wenn im try-Block irgendein Fehler passiert, wird es hier abgefangen
+            // \Throwable-> jede Art von Fehler oder Ausnahme
         } catch (\Throwable $e) {
             return [$this->skip($url, 'exception', $e->getMessage())];
         }
@@ -136,23 +139,43 @@ class SizeFormatFileProbeService
                 return $this->skip($url, 'directory_listing_unreachable');
             }
 
+            $directoryUrl = (string) $response->effectiveUri();
             $html = $response->body();
 
             if ($this->containsBlockedAccess($html)) {
-                return $this->skip($url, 'blocked_access_or_form_required');
+                return $this->skip($directoryUrl, 'blocked_access_or_form_required');
             }
 
             // automatische Verzeichnisauflistung
             // liest aus dem Verzeichnis -> filename, format, file-size
-            $files = $this->extractFilesFromApacheIndex($url, $html);
+            $files = $this->extractFilesFromApacheIndex($directoryUrl, $html);
+            $visitedDirectories = [
+                $this->canonicalDirectoryUrl($directoryUrl) => true,
+            ];
+            $directoryCount = 1;
 
-            // wenn keine Dateien gefunden 
+            foreach ($this->extractSubdirectoryUrls($directoryUrl, $directoryUrl, $html) as $subdirectoryUrl) {
+                $files = array_merge(
+                    $files,
+                    $this->probeSubdirectory(
+                        $subdirectoryUrl,
+                        $directoryUrl,
+                        1,
+                        $visitedDirectories,
+                        $directoryCount,
+                    ),
+                );
+            }
+
+            $files = $this->deduplicateFiles($files);
+
+            // wenn keine Dateien gefunden
             if (empty($files)) {
                 return $this->skip($url, 'no_files_found');
             }
 
             $result = [
-                'source_url' => $url,
+                'source_url' => $directoryUrl,
                 'probe_method' => 'DIRECTORY_LISTING',
                 'http_status' => $response->status(),
                 'raw_evidence' => [
@@ -163,7 +186,7 @@ class SizeFormatFileProbeService
             // Vorschläge erzeugen
             // hier werden aus den gefundenen Dateien Format- und Size-Vorschläge gebaut
             /**
-             * Beispiel: 
+             * Beispiel:
              * 'type' => 'xlsx'
              * 'inferred_value' => '12M'
              */
@@ -176,7 +199,7 @@ class SizeFormatFileProbeService
         }
     }
 
-    // hier bekommt eine einzelne Datei 
+    // hier bekommt eine einzelne Datei
     public function inferMetadataFromFileUrl(string $fileUrl): array
     {
         $fileUrl = trim($fileUrl);
@@ -191,17 +214,17 @@ class SizeFormatFileProbeService
                 ->head($fileUrl);
 
             // Head: nur header holen
-            // GET würde die datei herunterladen 
+            // GET würde die datei herunterladen
             if ($response->successful()) {
-                // Header auslesen 
+                // Header auslesen
                 $contentType = $response->header('Content-Type');
                 // wenn kein Size vorhanden, wird durch Content-Length 'abgefragt' Beispiel: 1048576
                 $contentLength = $response->header('Content-Length');
 
-                // Sammlung für Vorschläge 
+                // Sammlung für Vorschläge
                 $suggestions = [];
 
-                // 
+                //
                 if ($contentType !== null && trim($contentType) !== '') {
                     $suggestions[] = [
                         'type' => 'format',
@@ -253,11 +276,11 @@ class SizeFormatFileProbeService
                 $rangeResult = $this->inferFromRangedGet($fileUrl);
                 if (($rangeResult['probe_method'] ?? null) !== 'SKIP') {
                     return $rangeResult;
-                    }
+                }
 
             }
 
-            // bei keinem Erfolg wird Datei an Namen erkannt 
+            // bei keinem Erfolg wird Datei an Namen erkannt
             return $this->inferFromFilenameFallback($fileUrl);
 
         } catch (\Throwable $e) {
@@ -270,7 +293,7 @@ class SizeFormatFileProbeService
     {
         $suggestions = [];
 
-        //geht jedes probe-Ergebnis einzeln durch
+        // geht jedes probe-Ergebnis einzeln durch
         foreach ($probeResults as $probeResult) {
             // wenn ein Ergebnis nur ein Skip ist, wird es ignoriert
             if (($probeResult['probe_method'] ?? null) === 'SKIP') {
@@ -284,22 +307,24 @@ class SizeFormatFileProbeService
                 foreach ($probeResult['suggestions'] as $suggestion) {
                     // wird der aktuelle Vorschlag auf dem Bildschirm angezeigt
                     $suggestions[] = $suggestion;
-                    }
-                    // mit dem nächsten Eintrag weitermachen 
-                    continue;
-                    }
+                }
 
-            // holt source_url und raw_evidence 
+                // mit dem nächsten Eintrag weitermachen
+                continue;
+            }
+
+            // holt source_url und raw_evidence
             $sourceUrl = $probeResult['source_url'] ?? null;
             $files = $probeResult['raw_evidence']['files'] ?? [];
 
-            // geht jede gefundene Datei einzeln durch 
+            $directoryFiles = [];
+
+            // geht jede gefundene Datei einzeln durch
             foreach ($files as $file) {
                 $fileUrl = $file['file_url'] ?? $sourceUrl;
                 $format = $file['format'] ?? null;
-                $fileSize = $file['file-size'] ?? null;
 
-                // wenn eine Datei vorhanden ist, wird ein Format-Vorschlag erstellt 
+                // wenn eine Datei vorhanden ist, wird ein Format-Vorschlag erstellt
                 if ($format !== null && $format !== '') {
                     $suggestions[] = [
                         'type' => 'format',
@@ -315,26 +340,42 @@ class SizeFormatFileProbeService
                     ];
                 }
 
-                // Size-Vorschlag
-                if ($fileSize !== null && $fileSize !== '') {
-                    // wenn eine Größe vorhanden ist...
-                    $suggestions[] = [
-                        'type' => 'size',
-                        'inferred_value' => $fileSize,
-                        'source_url' => $fileUrl,
-                        'probe_method' => 'DIRECTORY_LISTING',
-                        'evidence' => [
-                            'filename' => $file['filename'] ?? null,
-                            'file-size' => $fileSize,
-                        ],
-                        //... confidence high, weil Größe direkt aus dem Directory Listing
-                        'confidence' => 'high',
-                    ];
+                if (is_array($file)) {
+                    $directoryFiles[] = $file;
                 }
+            }
+
+            $totalBytes = 0.0;
+            $parsedSizeCount = 0;
+
+            foreach ($directoryFiles as $file) {
+                $bytes = $this->displayedSizeToBytes((string) ($file['file-size'] ?? ''));
+
+                if ($bytes === null) {
+                    continue;
+                }
+
+                $totalBytes += $bytes;
+                $parsedSizeCount++;
+            }
+
+            if ($parsedSizeCount > 0) {
+                $suggestions[] = [
+                    'type' => 'size',
+                    'inferred_value' => $this->formatByteSize($totalBytes),
+                    'source_url' => $sourceUrl,
+                    'probe_method' => 'DIRECTORY_LISTING',
+                    'evidence' => [
+                        'files' => $directoryFiles,
+                        'parsed_file_count' => $parsedSizeCount,
+                        'total_file_count' => count($directoryFiles),
+                    ],
+                    'confidence' => $parsedSizeCount === count($directoryFiles) ? 'high' : 'low',
+                ];
             }
         }
 
-        // doppelte Vorschläge werden entfernt 
+        // doppelte Vorschläge werden entfernt
         return $this->deduplicateSuggestions($suggestions);
     }
 
@@ -351,7 +392,6 @@ class SizeFormatFileProbeService
      * ↓
      * sonst skippen
      */
-    
     private function inferFromRangedGet(string $fileUrl): array
     {
         try {
@@ -364,7 +404,7 @@ class SizeFormatFileProbeService
                 // Get Request mit Range Header
                 ->get($fileUrl);
 
-            // wenn der Request nicht erfolgreich ist, wird sauber abgebrochen    
+            // wenn der Request nicht erfolgreich ist, wird sauber abgebrochen
             if (! $response->successful()) {
                 return $this->skip($fileUrl, 'ranged_get_unreachable');
             }
@@ -430,20 +470,15 @@ class SizeFormatFileProbeService
         }
     }
 
-
-
-
-
     // "Notfallplan"
     /**
      * Bedeutung:
      * Head-Request fehlgeschlagen
      * oder
      * kein Content-Length vorgeschlagen
-     * oder kein Conten-Length vorhanden 
-     * 
+     * oder kein Conten-Length vorhanden
+     *
      * => versuche etwas aus dem Dateinamen abzuleiten
-     * 
      */
     private function inferFromFilenameFallback(string $fileUrl, ?string $error = null): array
     {
@@ -455,12 +490,12 @@ class SizeFormatFileProbeService
         // aus report.pdf wird pdf
         $extension = $this->extractExtension($filename);
 
-        // Fall: keine Endung gefunden 
+        // Fall: keine Endung gefunden
         if ($extension === null) {
             return $this->skip($fileUrl, 'no_header_or_filename_evidence', $error);
         }
 
-        // 
+        //
         return [
             'source_url' => $fileUrl,
             'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
@@ -500,7 +535,7 @@ class SizeFormatFileProbeService
         $urls = [];
 
         foreach ($matches as $match) {
-            $attributes = $match[1] . ' ' . $match[3];
+            $attributes = $match[1].' '.$match[3];
             $href = trim($match[2]);
             $linkText = trim(strip_tags($match[4]));
 
@@ -524,8 +559,8 @@ class SizeFormatFileProbeService
     {
         // hier wird alle html-code durchsucht
         // preg_match_all: Führt eine vollständige Suche mit einem regulären Ausdruck durch (sucht auf der kompletten Seite)
-        /** Flags: (übersetzt: Schalter oder Markierungen) spezielle Parameter oder Variablen, die das Verhalten von Funktionen steuern 
-         * oder bestimmte Zustände (wahr/falsch, an/aus) repräsentieren */ 
+        /** Flags: (übersetzt: Schalter oder Markierungen) spezielle Parameter oder Variablen, die das Verhalten von Funktionen steuern
+         * oder bestimmte Zustände (wahr/falsch, an/aus) repräsentieren */
         // sucht nach allen klassischen Text-Links, die so aufgebaut sind: <a href="adresse">Text</a>.
         /**
          * sucht im HTML nach Dateizeilen mit diesem Muster:
@@ -537,9 +572,9 @@ class SizeFormatFileProbeService
             // $matches: mehrdimensionales Array mit allen gefundenen Übereinstimmungen/ gefundene Dateien
             $matches,
             /**
-            *Sortier-Befehl für PHP. Er sorgt dafür, dass jeder gefundene Link als ein eigenes, ordentliches Paket im Array 
-            *abgelegt wird. ($matches[0] ist der erste Link, $matches[1] der zweite usw..
-            */ 
+             *Sortier-Befehl für PHP. Er sorgt dafür, dass jeder gefundene Link als ein eigenes, ordentliches Paket im Array
+             *abgelegt wird. ($matches[0] ist der erste Link, $matches[1] der zweite usw..
+             */
             PREG_SET_ORDER
         );
 
@@ -580,6 +615,178 @@ class SizeFormatFileProbeService
 
         return $files;
     }
+
+    /**
+     * @param  array<string, bool>  $visitedDirectories
+     * @return array<int, array<string, string|null>>
+     */
+    private function probeSubdirectory(
+        string $url,
+        string $rootUrl,
+        int $depth,
+        array &$visitedDirectories,
+        int &$directoryCount,
+    ): array {
+        if ($depth > self::MAX_DIRECTORY_DEPTH || $directoryCount >= self::MAX_DIRECTORY_COUNT) {
+            return [];
+        }
+
+        $canonicalUrl = $this->canonicalDirectoryUrl($url);
+
+        if (isset($visitedDirectories[$canonicalUrl])) {
+            return [];
+        }
+
+        $visitedDirectories[$canonicalUrl] = true;
+        $directoryCount++;
+
+        try {
+            $response = Http::timeout(10)
+                ->connectTimeout(5)
+                ->get($canonicalUrl);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $effectiveUrl = $this->canonicalDirectoryUrl((string) $response->effectiveUri());
+            $visitedDirectories[$effectiveUrl] = true;
+            $html = $response->body();
+
+            if ($this->containsBlockedAccess($html)) {
+                return [];
+            }
+
+            $files = $this->extractFilesFromApacheIndex($effectiveUrl, $html);
+
+            foreach ($this->extractSubdirectoryUrls($effectiveUrl, $rootUrl, $html) as $subdirectoryUrl) {
+                $files = array_merge(
+                    $files,
+                    $this->probeSubdirectory(
+                        $subdirectoryUrl,
+                        $rootUrl,
+                        $depth + 1,
+                        $visitedDirectories,
+                        $directoryCount,
+                    ),
+                );
+            }
+
+            return $files;
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function extractSubdirectoryUrls(string $currentUrl, string $rootUrl, string $html): array
+    {
+        preg_match_all(
+            '/<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>/i',
+            $html,
+            $matches,
+        );
+
+        $directories = [];
+
+        foreach ($matches[1] ?? [] as $matchedHref) {
+            $href = html_entity_decode(trim((string) $matchedHref), ENT_QUOTES | ENT_HTML5);
+            $hrefPath = (string) (parse_url($href, PHP_URL_PATH) ?? '');
+
+            if (
+                $href === ''
+                || $hrefPath === ''
+                || ! str_ends_with($hrefPath, '/')
+                || str_starts_with($hrefPath, '../')
+                || $hrefPath === './'
+                || $hrefPath === '/'
+            ) {
+                continue;
+            }
+
+            $directoryUrl = $this->canonicalDirectoryUrl(
+                $this->absoluteUrl($currentUrl, $href),
+            );
+
+            if (! $this->isDescendantDirectory($rootUrl, $directoryUrl)) {
+                continue;
+            }
+
+            $directories[] = $directoryUrl;
+        }
+
+        return array_values(array_unique($directories));
+    }
+
+    private function isDescendantDirectory(string $rootUrl, string $candidateUrl): bool
+    {
+        $root = parse_url($this->canonicalDirectoryUrl($rootUrl));
+        $candidate = parse_url($this->canonicalDirectoryUrl($candidateUrl));
+
+        if (
+            ! is_array($root)
+            || ! is_array($candidate)
+            || strtolower((string) ($root['scheme'] ?? '')) !== strtolower((string) ($candidate['scheme'] ?? ''))
+            || strtolower((string) ($root['host'] ?? '')) !== strtolower((string) ($candidate['host'] ?? ''))
+            || ($root['port'] ?? null) !== ($candidate['port'] ?? null)
+        ) {
+            return false;
+        }
+
+        $rootPath = (string) ($root['path'] ?? '/');
+        $candidatePath = (string) ($candidate['path'] ?? '/');
+
+        return $candidatePath !== $rootPath && str_starts_with($candidatePath, $rootPath);
+    }
+
+    private function canonicalDirectoryUrl(string $url): string
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || ! isset($parts['scheme'], $parts['host'])) {
+            return $url;
+        }
+
+        $pathSegments = [];
+
+        foreach (explode('/', (string) ($parts['path'] ?? '/')) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($pathSegments);
+
+                continue;
+            }
+
+            $pathSegments[] = $segment;
+        }
+
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $path = '/'.implode('/', $pathSegments).'/';
+
+        return strtolower($parts['scheme']).'://'.strtolower($parts['host']).$port.$path;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $files
+     * @return array<int, array<string, mixed>>
+     */
+    private function deduplicateFiles(array $files): array
+    {
+        $uniqueFiles = [];
+
+        foreach ($files as $file) {
+            $key = (string) ($file['file_url'] ?? $file['filename'] ?? count($uniqueFiles));
+            $uniqueFiles[$key] = $file;
+        }
+
+        return array_values($uniqueFiles);
+    }
+
     // "Hilfsmethoden"
     private function extractExtension(string $filename): ?string
     {
@@ -653,11 +860,11 @@ class SizeFormatFileProbeService
         }
 
         // baut die Domain zusammen
-        $origin = $parts['scheme'] . '://' . $parts['host'];
+        $origin = $parts['scheme'].'://'.$parts['host'];
 
         // wenn der Link mit / beginnt, ist er relativ zur Domain.
         if (str_starts_with($href, '/')) {
-            return $origin . $href;
+            return $origin.$href;
         }
 
         // holt den Pfad aus der Basis-URL
@@ -667,15 +874,15 @@ class SizeFormatFileProbeService
          * Hier wird entschieden, welcher Ordner als Grundlage benutzt wird
          * Wenn $basePath mit / endet, gilt er schon als Ordner
          * Wenn nicht, nimmt dirname() den übergeordneten Ordner
-         */      
+         */
         if ($basePath === '' || str_ends_with($basePath, '/')) {
             $directory = $basePath;
         } else {
-            $directory = dirname($basePath) . '/';
+            $directory = dirname($basePath).'/';
         }
 
         // baut finale URL zusammen
-        return $origin . rtrim($directory, '/') . '/' . ltrim($href, '/');
+        return $origin.rtrim($directory, '/').'/'.ltrim($href, '/');
     }
 
     private function isHttpUrl(string $url): bool
@@ -689,18 +896,52 @@ class SizeFormatFileProbeService
     private function formatBytes(int $bytes): string
     {
         if ($bytes >= 1024 * 1024 * 1024) {
-            return round($bytes / (1024 * 1024 * 1024), 2) . ' GB';
+            return round($bytes / (1024 * 1024 * 1024), 2).' GB';
         }
 
         if ($bytes >= 1024 * 1024) {
-            return round($bytes / (1024 * 1024), 2) . ' MB';
+            return round($bytes / (1024 * 1024), 2).' MB';
         }
 
         if ($bytes >= 1024) {
-            return round($bytes / 1024, 2) . ' KB';
+            return round($bytes / 1024, 2).' KB';
         }
 
-        return $bytes . ' B';
+        return $bytes.' B';
+    }
+
+    private function displayedSizeToBytes(string $size): ?float
+    {
+        if (! preg_match('/^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMGTP]?)B?\s*$/i', $size, $matches)) {
+            return null;
+        }
+
+        $powers = [
+            '' => 0,
+            'K' => 1,
+            'M' => 2,
+            'G' => 3,
+            'T' => 4,
+            'P' => 5,
+        ];
+        $unit = strtoupper($matches[2]);
+
+        return (float) $matches[1] * (1024 ** $powers[$unit]);
+    }
+
+    private function formatByteSize(float $bytes): string
+    {
+        $units = ['B', 'K', 'M', 'G', 'T', 'P'];
+        $unitIndex = 0;
+
+        while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
+            $bytes /= 1024;
+            $unitIndex++;
+        }
+
+        $value = rtrim(rtrim(number_format($bytes, 2, '.', ''), '0'), '.');
+
+        return $value.$units[$unitIndex];
     }
 
     // Funktion entfernt doppelte Suggestions
@@ -715,7 +956,7 @@ class SizeFormatFileProbeService
         $unique = [];
 
         foreach ($suggestions as $suggestion) {
-            $key = ($suggestion['type'] ?? '') . '|' . ($suggestion['inferred_value'] ?? '') . '|' . ($suggestion['source_url'] ?? '');
+            $key = ($suggestion['type'] ?? '').'|'.($suggestion['inferred_value'] ?? '').'|'.($suggestion['source_url'] ?? '');
 
             if (isset($seen[$key])) {
                 continue;
