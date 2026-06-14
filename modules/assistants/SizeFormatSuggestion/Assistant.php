@@ -61,6 +61,14 @@ class Assistant extends GenericTableAssistant
 
                 if ($suggestion['type'] === 'size') {
                     $metadata['parsed_size'] = $this->parseSizeValue((string) $suggestion['inferred_value']);
+
+                    // A resource has one aggregate file size. Remove totals from
+                    // earlier discovery runs before storing the latest result.
+                    AssistantSuggestion::where('assistant_id', $this->getId())
+                        ->where('target_type', 'size')
+                        ->where('target_id', $resource->id)
+                        ->where('suggested_value', '!=', (string) $suggestion['inferred_value'])
+                        ->delete();
                 }
 
                 $stored = $this->storeSuggestion(
