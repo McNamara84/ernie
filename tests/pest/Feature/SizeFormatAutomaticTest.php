@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\SizeFormatFileProbeServicet;
+use App\Services\SizeFormatFileProbeService;
 use Illuminate\Support\Facades\Http;
+
+
 
 // Wenn der Content-Type und Content-Length vorhanden sind, sollen diese verwendet werden
 test('it prefers head request for file metadata', function (): void {
