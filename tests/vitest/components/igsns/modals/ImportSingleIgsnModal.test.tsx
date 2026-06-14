@@ -219,7 +219,8 @@ describe('ImportSingleIgsnModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
-        expect(screen.getByText(/2 direct child IGSNs included/i)).toBeInTheDocument();
+        expect(screen.getByText('Related IGSNs included')).toBeInTheDocument();
+        expect(screen.getByText(/2 related IGSNs included/i)).toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
     });
 
@@ -255,6 +256,10 @@ describe('ImportSingleIgsnModal', () => {
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /cancel import/i })).toBeInTheDocument();
         });
+
+        expect(screen.getByText('Related IGSNs detected')).toBeInTheDocument();
+        expect(screen.getByText(/2 related IGSNs were discovered and added to this import/i)).toBeInTheDocument();
+        expect(screen.queryByText(/Parent IGSN detected/i)).not.toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: /cancel import/i }));
 

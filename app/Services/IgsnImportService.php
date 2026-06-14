@@ -94,8 +94,7 @@ class IgsnImportService
                         }
                     }
 
-                    if (class_exists(ConnectException::class)
-                        && $exception instanceof ConnectException) {
+                    if ($exception instanceof ConnectException) {
                         return true;
                     }
 

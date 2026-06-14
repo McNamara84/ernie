@@ -253,7 +253,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
     }, [modalState, onClose]);
 
     const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
-    const childCount = progress?.discovered_children?.length ?? 0;
+    const relatedIgsnCount = progress?.discovered_children?.length ?? 0;
     const isAlreadyImported = progress?.imported === 0 && progress?.skipped === progress?.total && progress?.failed === 0;
 
     return (
@@ -319,12 +319,13 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                 <Progress value={progressPercent} className="h-2" />
                             </div>
 
-                            {childCount > 0 && (
+                            {relatedIgsnCount > 0 && (
                                 <Alert>
                                     <AlertCircle className="size-4" />
-                                    <AlertTitle>Parent IGSN detected</AlertTitle>
+                                    <AlertTitle>Related IGSNs detected</AlertTitle>
                                     <AlertDescription>
-                                        {childCount} direct child {childCount === 1 ? 'IGSN was' : 'IGSNs were'} discovered and added to this import.
+                                        {relatedIgsnCount} related {relatedIgsnCount === 1 ? 'IGSN was' : 'IGSNs were'} discovered and added to this
+                                        import.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -359,11 +360,11 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                 </AlertDescription>
                             </Alert>
 
-                            {childCount > 0 && (
+                            {relatedIgsnCount > 0 && (
                                 <div className="rounded-md border p-3 text-sm">
-                                    <div className="font-medium">Discovered child IGSNs</div>
+                                    <div className="font-medium">Related IGSNs included</div>
                                     <div className="mt-1 text-muted-foreground">
-                                        {childCount} direct child {childCount === 1 ? 'IGSN' : 'IGSNs'} included.
+                                        {relatedIgsnCount} related {relatedIgsnCount === 1 ? 'IGSN' : 'IGSNs'} included.
                                     </div>
                                 </div>
                             )}
