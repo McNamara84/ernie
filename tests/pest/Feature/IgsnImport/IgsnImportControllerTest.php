@@ -146,6 +146,7 @@ describe('IgsnImportController', function () {
 
             $response->assertStatus(422);
             $response->assertJsonValidationErrors('igsn');
+            $response->assertJsonPath('errors.igsn.0', 'This IGSN could not be found at DataCite.');
             Queue::assertNotPushed(ImportIgsnsFromDataCiteJob::class);
         });
 

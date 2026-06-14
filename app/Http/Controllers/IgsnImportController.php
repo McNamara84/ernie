@@ -75,7 +75,7 @@ class IgsnImportController extends Controller
 
         if ($igsnRecord === null) {
             throw ValidationException::withMessages([
-                'igsn' => 'This IGSN could not be found at DataCite.',
+                'igsn' => ['This IGSN could not be found at DataCite.'],
             ]);
         }
 
