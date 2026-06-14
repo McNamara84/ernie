@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 # Stage: PHP-FPM Application (Development)
 # -----------------------------------------------------------------------------
-FROM php:8.5.6-fpm-trixie@sha256:e88c4218493214d7d2611dea9707359dc3b0c63814c0a5e9869bd60c1fc92928 AS app
+FROM php:8.5.7-fpm-trixie@sha256:a16de52d0ebd4b5f49dc811010d1437f6c70c6c142b75175ac2a94f2d5db9b4f AS app
 
 WORKDIR /var/www/html
 
@@ -176,7 +176,7 @@ RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.in
     && echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # Install Composer
-COPY --from=composer:2.9.8@sha256:b09bccd91a78fe8a9ab4b33d707b862e8fe54fec17782e32683ad2a69c46867d /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.1@sha256:c883af18892268b3b8369c4a39c08f80b393383e79d80b75140a3ea489dbbb78 /usr/bin/composer /usr/bin/composer
 
 # Create symlink for php in /bin so it's available in all shells
 RUN ln -s /usr/local/bin/php /bin/php
