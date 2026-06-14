@@ -44,7 +44,7 @@ jobs:
           LARAVEL_BYPASS_ENV_CHECK: 1
           VITE_APP_URL: ""
           APP_URL: ""
-        run: npx vitest run --coverage
+        run: npm run test:coverage
 
       - name: Upload coverage to Codecov
         if: always()
@@ -54,4 +54,3 @@ jobs:
           files: coverage/lcov.info
           flags: frontend
           fail_ci_if_error: false
-
