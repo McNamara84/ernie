@@ -5,8 +5,6 @@ declare(strict_types=1);
 use App\Services\SizeFormatServiceTest;
 use Illuminate\Support\Facades\Http;
 
-uses(Tests\TestCase::class);
-
 // Wenn der Content-Type und Content-Length vorhanden sind, sollen diese verwendet werden
 test('it prefers head request for file metadata', function (): void {
 
