@@ -424,6 +424,8 @@ describe('ImportSingleIgsnModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import cancelled')).toBeInTheDocument();
+        expect(screen.getByText('Import cancelled').closest('[role="alert"]')).toHaveClass('border-yellow-200');
+        expect(screen.getByText('Import cancelled').closest('[role="alert"]')).not.toHaveClass('border-green-200');
         expect(screen.getByText(/Import stopped after processing 1 of 3 IGSNs/i)).toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
     });

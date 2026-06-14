@@ -333,8 +333,20 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
 
                     {(modalState === 'completed' || modalState === 'cancelled') && progress && (
                         <div className="space-y-4">
-                            <Alert className={isAlreadyImported ? undefined : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'}>
-                                {isAlreadyImported ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />}
+                            <Alert
+                                className={
+                                    modalState === 'cancelled'
+                                        ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950'
+                                        : isAlreadyImported
+                                          ? undefined
+                                          : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'
+                                }
+                            >
+                                {modalState === 'cancelled' || isAlreadyImported ? (
+                                    <AlertCircle className={modalState === 'cancelled' ? 'size-4 text-yellow-600 dark:text-yellow-400' : 'size-4'} />
+                                ) : (
+                                    <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+                                )}
                                 <AlertTitle>
                                     {modalState === 'cancelled' ? 'Import cancelled' : isAlreadyImported ? 'Already imported' : 'Import complete'}
                                 </AlertTitle>
