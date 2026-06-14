@@ -4,97 +4,143 @@ declare(strict_types=1);
 
 namespace Modules\Assistants\SizeFormatSuggestion;
 
-use App\Models\AssistantSuggestion;
-use App\Models\Resource;
-use App\Services\Assistance\GenericTableAssistant;
 use App\Services\SizeFormatFileProbeService;
+use App\Models\AssistantSuggestion;
+use App\Models\Format;
+use App\Models\Size;
+use App\Services\Assistance\GenericTableAssistant;
 use Closure;
+
 
 class Assistant extends GenericTableAssistant
 {
     public function __construct(
-        private readonly SizeFormatFileProbeService $probeService,
+        private readonly SizeFormatFileProbeService $service,
     ) {
         parent::__construct();
     }
-
     #[\Override]
     protected function getManifestPath(): string
     {
         return __DIR__ . '/manifest.json';
     }
 
+    /**
+     * Discover size and format suggestions for resources.
+     *
+     * @param  Closure(string): void  $onProgress
+     */
     #[\Override]
     protected function discover(Closure $onProgress): int
     {
-        $stored = 0;
+        $count = 0;
 
-        Resource::query()
-            ->whereNotNull('doi')
-            ->select(['id', 'doi'])
-            ->eachById(function (Resource $resource) use (&$stored, $onProgress): void {
-                $onProgress("Checking {$resource->doi}");
+        // iterate over resources that have no format or size
+        $resources = \App\Models\Resource::whereNotNull('doi')
+            ->where(function ($query) {
+                $query->whereDoesntHave('formats')->orWhereDoesntHave('sizes');
 
-                $evidence = array_values(array_filter(
-                    $this->probeService->extractAndProbe('https://doi.org/' . ltrim($resource->doi, '/')),
-                    static fn (array $result): bool => ($result['probe_method'] ?? 'SKIP') !== 'SKIP'
-                        && ! empty($result['raw_evidence']['files']),
-                ));
+            })
+            ->get();
 
-                if ($evidence === []) {
-                    return;
+        foreach ($resources as $index => $resource) {
+            $onProgress("Checking resource " . ($index + 1) . " of " . $resources->count());
+
+            //Call Size/Format probing logic here
+            $suggestedSizeFormats = $this->lookupSizeFormats($resource);
+
+            foreach ($suggestedSizeFormats as $suggestion) {
+                if ($suggestion['type'] === 'format' && $resource->formats()->exists()) {
+                    continue;
+                }
+                if ($suggestion['type'] === 'size' && $resource->sizes()->exists()) {
+                    continue;
                 }
 
-                $formats = [];
-                $sizes = [];
+                $metadata = $suggestion;
 
-                foreach ($evidence as $result) {
-                    foreach ($result['raw_evidence']['files'] as $file) {
-                        if (! empty($file['format'])) {
-                            $formats[] = $file['format'];
-                        }
-
-                        if (! empty($file['file-size'])) {
-                            $sizes[] = $file['file-size'];
-                        }
-                    }
+                if ($suggestion['type'] === 'size') {
+                    $metadata['parsed_size'] = $this->parseSizeValue((string) $suggestion['inferred_value']);
                 }
 
-                $formats = array_values(array_unique($formats));
-                $sizes = array_values(array_unique($sizes));
-                $value = hash('sha256', json_encode($evidence, JSON_THROW_ON_ERROR));
-                $label = sprintf(
-                    '%d file(s): %s',
-                    array_sum(array_map(
-                        static fn (array $result): int => count($result['raw_evidence']['files']),
-                        $evidence,
-                    )),
-                    $formats === [] ? 'unknown format' : implode(', ', $formats),
-                );
-
-                $stored += (int) $this->storeSuggestion(
+                $stored = $this->storeSuggestion(
                     resourceId: $resource->id,
-                    targetType: 'resource',
+                    targetType: (string) $suggestion['type'],
                     targetId: $resource->id,
-                    suggestedValue: $value,
-                    suggestedLabel: $label,
-                    metadata: [
-                        'formats' => $formats,
-                        'sizes' => $sizes,
-                        'evidence' => $evidence,
-                    ],
+                    suggestedValue: (string) $suggestion['inferred_value'],
+                    suggestedLabel: strtoupper((string) $suggestion['type']) . ': ' . (string) $suggestion['inferred_value'],
+                    similarityScore: null,
+                    metadata: $metadata,
                 );
-            });
 
-        return $stored;
+                if ($stored) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
     }
 
+    /**
+     * Apply the suggestion when a curator clicks "Accept".
+     *
+     * @return array{success: bool, message: string}
+     */
     #[\Override]
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
+        if ($suggestion->target_type === 'format') {
+            Format::create([
+                'resource_id' => $suggestion->resource_id,
+                'value' => $suggestion->suggested_value,
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Format '{$suggestion->suggested_value}' applied.",
+                ];
+        }
+        if ($suggestion->target_type === 'size') {
+            $parsedSize = $suggestion->metadata['parsed_size'] ?? null;
+
+            Size::create([
+                'resource_id' => $suggestion->resource_id,
+                'numeric_value' => $parsedSize['numeric_value'] ?? null,
+                'unit' => $parsedSize['unit'] ?? null,
+                'type' => $parsedSize['type'] ?? null, 
+                ]);
+
+                return [
+                    'success' => true,
+                    'message' => "Size '{$suggestion->suggested_value}' applied.",
+                ];
+
+        }
         return [
             'success' => false,
-            'message' => 'Size and format suggestions require curator review before they can be applied.',
-        ];
+            'message' => 'Unknown suggestion type.',
+            ];
     }
+
+    private function lookupSizeFormats(\App\Models\Resource $resource): array
+    {
+        $results = $this->service->extractAndProbe(
+            'https://doi.org/' . $resource->doi
+        );
+        return $this->service->buildSuggestions($results);
+    }
+
+    private function parseSizeValue(string $value): array {
+        if (preg_match('/^\s*([0-9.]+)\s*([A-Za-z]+)?\s*$/', $value, $matches)) {
+            return [
+                'numeric_value' => $matches[1],
+                'unit' => $matches[2] ?? null,
+                'type' => null,];
+            }
+            return [
+                'numeric_value' => null,
+                'unit' => null,
+                'type' => null,];
+        }
 }

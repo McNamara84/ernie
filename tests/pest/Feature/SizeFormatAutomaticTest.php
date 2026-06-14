@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\SizeFormatServiceTest;
+use App\Services\SizeFormatFileProbeServicet;
 use Illuminate\Support\Facades\Http;
 
 // Wenn der Content-Type und Content-Length vorhanden sind, sollen diese verwendet werden
@@ -23,7 +23,7 @@ test('it prefers head request for file metadata', function (): void {
     ]);
 
     // Service-Objekt wird erstellt
-    $service = app(SizeFormatServiceTest::class);
+    $service = app(SizeFormatFileProbeService::class);
 
     /**
      * HEAD Request
@@ -58,7 +58,7 @@ test('it uses filename extension fallback when head fails', function (): void {
         'https://files.example.org/data.zip' => Http::response('', 404),
     ]);
 
-    $service = app(SizeFormatServiceTest::class);
+    $service = app(SizeFormatFileProbeService::class);
 
     /**
      * HEAD
@@ -84,7 +84,7 @@ test('it uses filename extension fallback when head fails', function (): void {
 // FTP darf laut Safety Policy nicht verarbeitet werden.
 test('it skips unsupported protocols', function (): void {
 
-    $service = app(SizeFormatServiceTest::class);
+    $service = app(SizeFormatFileProbeService::class);
 
     $result = $service->extractAndProbe(
         'ftp://example.org/file.zip'
@@ -103,7 +103,7 @@ test('it skips doi redirects to unsupported sources', function (): void {
     ]);
 
     // Service: DOI erkennen-> auflösen-> echte URL bestimmen-> prüfen: beginnt sie mit https://dataservices.gfz-potsdam.de/? Antwort Nein
-    $service = app(SizeFormatServiceTest::class);
+    $service = app(SizeFormatFileProbeService::class);
 
     $result = $service->extractAndProbe(
         'https://doi.org/10.1234/test'
@@ -129,7 +129,7 @@ test('it skips inaccessible urls', function (): void {
     ]);
 
     // bei 404 liefert false
-    $service = app(SizeFormatServiceTest::class);
+    $service = app(SizeFormatFileProbeService::class);
 
     $result = $service->extractAndProbe(
         'https://dataservices.gfz-potsdam.de/test'
