@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Exceptions\JsonValidationException;
 use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\IgsnMetadata;
@@ -14,11 +15,11 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\TitleType;
-use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\JsonSchemaValidator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -136,6 +137,7 @@ class IgsnController extends Controller
             'canDelete' => $canDelete,
             'canRegister' => $canRegister,
             'canImport' => $canImport,
+            'igsnPrefix' => (string) config('datacite.production.igsn_prefix', '10.60510'),
             'filters' => [
                 'prefix' => $prefix,
                 'status' => $status,
@@ -160,10 +162,10 @@ class IgsnController extends Controller
      *
      * Shared between the JSON endpoint and the Inertia page props.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Resource>  $base
+     * @param  Builder<\App\Models\Resource>  $base
      * @return array{prefixes: list<string>, statuses: list<string>}
      */
-    private function getFilterOptionsData(\Illuminate\Database\Eloquent\Builder $base): array
+    private function getFilterOptionsData(Builder $base): array
     {
         /** @var list<string> $prefixes */
         $prefixes = [];
@@ -256,7 +258,7 @@ class IgsnController extends Controller
         }
 
         // Generate DataCite JSON
-        $exporter = new DataCiteJsonExporter();
+        $exporter = new DataCiteJsonExporter;
         $dataCiteData = $exporter->export($resource);
 
         // Validate attributes against DataCite 4.7 schema
@@ -491,9 +493,9 @@ class IgsnController extends Controller
      * Shared by buildQueryFrom(), filterOptions(), and other methods
      * to ensure consistent scoping (Physical Object type + igsnMetadata).
      *
-     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     * @return Builder<Resource>
      */
-    private function baseQuery(): \Illuminate\Database\Eloquent\Builder
+    private function baseQuery(): Builder
     {
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
 
@@ -510,10 +512,10 @@ class IgsnController extends Controller
     /**
      * Clone a base query and add eager-loading for the IGSN list.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $base
-     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     * @param  Builder<Resource>  $base
+     * @return Builder<Resource>
      */
-    private function buildQueryFrom(\Illuminate\Database\Eloquent\Builder $base): \Illuminate\Database\Eloquent\Builder
+    private function buildQueryFrom(Builder $base): Builder
     {
         return (clone $base)
             ->with([
@@ -622,7 +624,7 @@ class IgsnController extends Controller
         }
 
         if ($person->family_name && $person->given_name) {
-            return $person->family_name . ', ' . $person->given_name;
+            return $person->family_name.', '.$person->given_name;
         }
 
         return $person->family_name ?? $person->given_name ?? null;
@@ -652,18 +654,18 @@ class IgsnController extends Controller
     /**
      * Apply prefix and status filters to the query.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     * @param  Builder<Resource>  $query
      */
-    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, string $prefix, string $status): void
+    private function applyFilters(Builder $query, string $prefix, string $status): void
     {
         if ($prefix !== '') {
             // Escape SQL LIKE meta-characters in the prefix
             $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $prefix);
-            $query->whereRaw('doi like ? escape ?', [$escaped . '/%', '\\']);
+            $query->whereRaw('doi like ? escape ?', [$escaped.'/%', '\\']);
         }
 
         if ($status !== '') {
-            $query->whereHas('igsnMetadata', function (\Illuminate\Database\Eloquent\Builder $q) use ($status): void {
+            $query->whereHas('igsnMetadata', function (Builder $q) use ($status): void {
                 $q->where('upload_status', $status);
             });
         }
@@ -674,9 +676,9 @@ class IgsnController extends Controller
      *
      * Searches in the DOI field (where IGSN is stored) and in title values.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     * @param  Builder<Resource>  $query
      */
-    private function applySearch(\Illuminate\Database\Eloquent\Builder $query, string $search): void
+    private function applySearch(Builder $query, string $search): void
     {
         if ($search === '') {
             return;
@@ -687,9 +689,9 @@ class IgsnController extends Controller
         $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
         $pattern = "%{$escaped}%";
 
-        $query->where(function (\Illuminate\Database\Eloquent\Builder $q) use ($pattern): void {
+        $query->where(function (Builder $q) use ($pattern): void {
             $q->whereRaw('doi like ? escape ?', [$pattern, '\\'])
-                ->orWhereHas('titles', function (\Illuminate\Database\Eloquent\Builder $titleQuery) use ($pattern): void {
+                ->orWhereHas('titles', function (Builder $titleQuery) use ($pattern): void {
                     $titleQuery->whereRaw('value like ? escape ?', [$pattern, '\\']);
                 });
         });
@@ -698,9 +700,9 @@ class IgsnController extends Controller
     /**
      * Apply sorting to the query.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     * @param  Builder<Resource>  $query
      */
-    private function applySorting(\Illuminate\Database\Eloquent\Builder $query, string $sortKey, string $sortDirection): void
+    private function applySorting(Builder $query, string $sortKey, string $sortDirection): void
     {
         $direction = $sortDirection === 'asc' ? 'asc' : 'desc';
 

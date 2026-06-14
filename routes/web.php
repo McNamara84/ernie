@@ -488,6 +488,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // IGSN Import from DataCite
     Route::post('igsns/import/start', [IgsnImportController::class, 'start'])
         ->name('igsns.import.start');
+    Route::post('igsns/import/start-single', [IgsnImportController::class, 'startSingle'])
+        ->name('igsns.import.start-single');
     Route::get('igsns/import/{importId}/status', [IgsnImportController::class, 'status'])
         ->name('igsns.import.status');
     Route::post('igsns/import/{importId}/cancel', [IgsnImportController::class, 'cancel'])

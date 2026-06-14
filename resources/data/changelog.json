@@ -64,6 +64,10 @@
                 "description": "Admins and Group Leaders can now bulk-import all ~38,500 IGSNs registered under the GFZ IGSN prefix (10.60510) directly from the DataCite API. The import automatically enriches each IGSN with legacy metadata (sample type, material, coordinates, collector, classifications, geological ages) from Solr and the legacy IGSN database (~94% enrichment rate). Parent-child relationships between samples are resolved after import. Progress is tracked in real-time with counters for imported, enriched, skipped, and failed records."
             },
             {
+                "title": "Single IGSN Import with Relationship Discovery",
+                "description": "The IGSNs page now offers an Import single IGSN dialog for admins and group leaders. Users can enter an IGSN handle, configured-prefix DOI, or doi.org URL; ERNIE verifies the record at DataCite before queueing the import. Parent IGSNs include their discovered child samples, while child IGSNs import their DataCite parent chain and sibling groups so hierarchy links are available immediately after import."
+            },
+            {
                 "title": "DataCite JSON and JSON-LD Upload",
                 "description": "Resources can now be created by uploading DataCite JSON or JSON-LD files in addition to XML. The dropzone routes files by extension (XML, JSON/JSON-LD, CSV) and automatically distinguishes standard DataCite JSON from JSON-LD based on the file content. All metadata fields are extracted including authors, contributors, subjects, geo locations, funding references, and related identifiers."
             },
