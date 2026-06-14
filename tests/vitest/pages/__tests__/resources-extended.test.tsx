@@ -657,17 +657,22 @@ describe('ResourcesPage – extended', () => {
 
     // ── localStorage sort preference ─────────────────────────────────
     describe('sort preference persistence', () => {
-        it('writes sort state to localStorage', () => {
+        it('writes sort state to localStorage', async () => {
             renderPage({ sort: { key: 'title', direction: 'asc' } });
-            const stored = JSON.parse(localStorage.getItem('resources.sort-preference')!);
-            expect(stored).toEqual({ key: 'title', direction: 'asc' });
+
+            await waitFor(() => {
+                const stored = JSON.parse(localStorage.getItem('resources.sort-preference')!);
+                expect(stored).toEqual({ key: 'title', direction: 'asc' });
+            });
         });
 
-        it('reads valid sort from localStorage on mount', () => {
+        it('reads valid sort from localStorage on mount', async () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'doi', direction: 'asc' }));
             renderPage();
-            // The badge should reflect the localStorage preference
-            expect(screen.getByText(/sorted by: doi/i)).toBeInTheDocument();
+
+            await waitFor(() => {
+                expect(screen.getByText(/sorted by: doi/i)).toBeInTheDocument();
+            });
         });
 
         it('ignores invalid sort in localStorage', () => {

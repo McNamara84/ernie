@@ -450,9 +450,12 @@ describe('OldDatasets page', () => {
         await screen.findByText('Ascending dataset first');
 
         expect(idSortButton).toHaveAttribute('aria-pressed', 'true');
-        let storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY);
-        expect(storedPreference).not.toBeNull();
-        expect(JSON.parse(storedPreference ?? '{}')).toEqual({ key: 'id', direction: 'asc' });
+        let storedPreference = '';
+        await waitFor(() => {
+            storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY) ?? '';
+            expect(storedPreference).not.toBe('');
+            expect(JSON.parse(storedPreference)).toEqual({ key: 'id', direction: 'asc' });
+        });
 
         let bodyRows = screen.getAllByRole('row').slice(1);
         expect(within(bodyRows[0]).getByText('Ascending dataset first')).toBeVisible();
@@ -466,9 +469,11 @@ describe('OldDatasets page', () => {
 
         await screen.findByText('Descending dataset first');
 
-        storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY);
-        expect(storedPreference).not.toBeNull();
-        expect(JSON.parse(storedPreference ?? '{}')).toEqual({ key: 'id', direction: 'desc' });
+        await waitFor(() => {
+            storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY) ?? '';
+            expect(storedPreference).not.toBe('');
+            expect(JSON.parse(storedPreference)).toEqual({ key: 'id', direction: 'desc' });
+        });
 
         bodyRows = screen.getAllByRole('row').slice(1);
         expect(within(bodyRows[0]).getByText('Descending dataset first')).toBeVisible();

@@ -1,27 +1,23 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const storageFile = '.tmp/node-localstorage-vitest.json';
-const storageFlag = `--localstorage-file=${storageFile}`;
+const webStorageFlag = '--no-experimental-webstorage';
 
-function withStorageFlag(nodeOptions = '') {
+function withWebStorageFlag(nodeOptions = '') {
     const options = nodeOptions.trim();
 
-    if (options.includes('--localstorage-file=')) {
+    if (options.includes('--no-experimental-webstorage') || options.includes('--localstorage-file=')) {
         return options;
     }
 
-    return options ? `${options} ${storageFlag}` : storageFlag;
+    return options ? `${options} ${webStorageFlag}` : webStorageFlag;
 }
 
-if (!process.execArgv.some((arg) => arg.startsWith('--localstorage-file='))) {
-    mkdirSync('.tmp', { recursive: true });
-
-    const result = spawnSync(process.execPath, [storageFlag, fileURLToPath(import.meta.url), ...process.argv.slice(2)], {
+if (!process.execArgv.includes(webStorageFlag)) {
+    const result = spawnSync(process.execPath, [webStorageFlag, fileURLToPath(import.meta.url), ...process.argv.slice(2)], {
         env: {
             ...process.env,
-            NODE_OPTIONS: withStorageFlag(process.env.NODE_OPTIONS),
+            NODE_OPTIONS: withWebStorageFlag(process.env.NODE_OPTIONS),
         },
         stdio: 'inherit',
     });
@@ -33,6 +29,6 @@ if (!process.execArgv.some((arg) => arg.startsWith('--localstorage-file='))) {
     process.exit(result.status ?? 1);
 }
 
-process.env.NODE_OPTIONS = withStorageFlag(process.env.NODE_OPTIONS);
+process.env.NODE_OPTIONS = withWebStorageFlag(process.env.NODE_OPTIONS);
 
 await import('../node_modules/vitest/vitest.mjs');

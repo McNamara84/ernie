@@ -144,12 +144,9 @@ if (!Element.prototype.scrollIntoView) {
     };
 }
 
-// Mock window.scrollTo
-if (typeof window.scrollTo !== 'function') {
-    window.scrollTo = function () {
-        // No-op
-    };
-}
+window.scrollTo = function () {
+    // No-op
+};
 
 // Set environment variables for consistent URL generation in tests
 process.env.VITE_APP_URL = '';
