@@ -52,6 +52,9 @@ jobs:
       - name: Build application image
         run: docker build --target app -t ernie-security-scan:${{ github.sha }} .
 
+      - name: Export application image
+        run: docker save -o ernie-security-scan.tar ernie-security-scan:${{ github.sha }}
+
       - name: Prepare Trivy cache
         run: mkdir -p .trivy-cache
 
@@ -61,10 +64,10 @@ jobs:
         run: |
           docker run --rm \
             -e TRIVY_DISABLE_VEX_NOTICE \
-            -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            --input /work/ernie-security-scan.tar \
             --cache-dir /work/.trivy-cache \
             --scanners vuln \
             --format sarif \
@@ -72,13 +75,22 @@ jobs:
             --ignore-unfixed \
             --pkg-types os,library \
             --severity CRITICAL,HIGH \
-            ernie-security-scan:${{ github.sha }}
+            --skip-version-check
 
       - name: Upload Trivy scan results
         if: ${{ always() && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-results.sarif
+          category: trivy-app-image
+
+      - name: Upload Trivy SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: trivy-results.sarif
+          if-no-files-found: ignore
 
       - name: Fail on high or critical image vulnerabilities
         env:
@@ -86,10 +98,10 @@ jobs:
         run: |
           docker run --rm \
             -e TRIVY_DISABLE_VEX_NOTICE \
-            -v /var/run/docker.sock:/var/run/docker.sock \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e image \
+            --input /work/ernie-security-scan.tar \
             --cache-dir /work/.trivy-cache \
             --scanners vuln \
             --format table \
@@ -97,4 +109,4 @@ jobs:
             --ignore-unfixed \
             --pkg-types os,library \
             --severity CRITICAL,HIGH \
-            ernie-security-scan:${{ github.sha }}
+            --skip-version-check
