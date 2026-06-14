@@ -284,36 +284,36 @@ class SizeFormatServiceTest
             // geht jede gefundene Datei einzeln durch 
             foreach ($files as $file) {
                 $fileUrl = $file['file_url'] ?? $sourceUrl;
-                $extension = $file['extension'] ?? null;
-                $displayedSize = $file['displayed_size'] ?? null;
+                $format = $file['format'] ?? null;
+                $fileSize = $file['file-size'] ?? null;
 
                 // wenn eine Datei vorhanden ist, wird ein Format-Vorschlag erstellt 
-                if ($extension !== null && $extension !== '') {
+                if ($format !== null && $format !== '') {
                     $suggestions[] = [
                         'type' => 'format',
-                        'inferred_value' => $extension,
+                        'inferred_value' => $format,
                         'source_url' => $fileUrl,
                         'probe_method' => 'FILENAME_EXTENSION',
                         'evidence' => [
                             'filename' => $file['filename'] ?? null,
-                            'extension' => $extension,
+                            'format' => $format,
                         ],
                         // bei zip weiß man nicht was drin ist, deswegen confidence: low
-                        'confidence' => $extension === 'zip' ? 'low' : 'medium',
+                        'confidence' => $format === 'zip' ? 'low' : 'medium',
                     ];
                 }
 
                 // Size-Vorschlag
-                if ($displayedSize !== null && $displayedSize !== '') {
+                if ($fileSize !== null && $fileSize !== '') {
                     // wenn eine Größe vorhanden ist...
                     $suggestions[] = [
                         'type' => 'size',
-                        'inferred_value' => $displayedSize,
+                        'inferred_value' => $fileSize,
                         'source_url' => $fileUrl,
                         'probe_method' => 'DIRECTORY_LISTING',
                         'evidence' => [
                             'filename' => $file['filename'] ?? null,
-                            'displayed_size' => $displayedSize,
+                            'file-size' => $fileSize,
                         ],
                         //... confidence high, weil Größe direkt aus dem Directory Listing
                         'confidence' => 'high',
@@ -558,11 +558,11 @@ class SizeFormatServiceTest
                 // speichert den Dateinamen
                 'filename' => $filename,
                 // leitet das Format aus der Dateiendung ab, z. B. csv, pdf, zip
-                'extension' => $this->extractExtension($filename),
+                'format' => $this->extractExtension($filename),
                 // speichert das Änderungsdatum der Datei
                 'last_modified' => $lastModified,
                 // speichert die angezeigte Dateigröße, z. B. 14M
-                'displayed_size' => $displayedSize,
+                'file-size' => $displayedSize,
             ];
         }
 
