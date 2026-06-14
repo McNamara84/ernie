@@ -4,6 +4,17 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 
 import { server } from './tests/vitest/helpers/msw-server';
 
+const originalConsoleError = console.error;
+const ignoredJsdomErrors = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
+
+console.error = (...args: Parameters<typeof console.error>) => {
+    if (args.length === 1 && typeof args[0] === 'string' && ignoredJsdomErrors.has(args[0])) {
+        return;
+    }
+
+    originalConsoleError(...args);
+};
+
 // Start MSW before any test runs so that fetch calls inside hooks/components
 // are intercepted deterministically. `onUnhandledRequest: 'error'` prevents
 // the suite from silently hitting the real network when a handler is missing
@@ -146,6 +157,16 @@ if (!Element.prototype.scrollIntoView) {
 
 window.scrollTo = function () {
     // No-op
+};
+
+const nativeAnchorClick = HTMLAnchorElement.prototype.click;
+
+HTMLAnchorElement.prototype.click = function () {
+    if (this.hasAttribute('download')) {
+        return;
+    }
+
+    return nativeAnchorClick.call(this);
 };
 
 // Set environment variables for consistent URL generation in tests
