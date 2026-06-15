@@ -444,7 +444,31 @@ The issue focuses on:
     "sort_order": 50,
     "card_component": "TitleLanguageCard"
 }
-
+## manifest Paul 
+{
+    "id": "title-language-suggestion",
+    "name": "Title Language Detection",
+    "description": "Detects the language of titles and suggests the code to save.",
+    "icon": "Globe",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\TitleSuggestion\\Assistant",
+    "route_prefix": "title-language",
+    "lock_key": "title_language_detection_running",
+    "cache_key_prefix": "title_language_detection",
+    "sort_order": 45,
+    "status_labels": {
+        "checking": "Detecting title languages...",
+        "completed_with_results": "Language detection completed: {count} new suggestion(s) found.",
+        "completed_empty": "Language detection completed: No new suggestions found.",
+        "failed": "Language detection failed: {error}",
+        "already_running": "A language detection job is already running."
+    },
+    "empty_state": {
+        "title": "No pending title language suggestions",
+        "description": "All titles already have a language code or no suggestions were found."
+    },
+    "card_component": null
+}
 ## assistant.php
 <?php
 
