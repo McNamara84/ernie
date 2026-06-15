@@ -146,3 +146,62 @@ it('syncs editor rights without losing unresolved imports and rejects unknown se
     expect(fn () => $this->service->syncEditorRights($this->resource, ['Unknown-License'], [], null))
         ->toThrow(ValidationException::class);
 });
+
+it('does not recreate removed linked rights from round-tripped raw import context', function (): void {
+    $right = Right::factory()->ccBy4()->create();
+
+    ResourceRight::create([
+        'resource_id' => $this->resource->id,
+        'rights_id' => $right->id,
+        'rights_text' => 'CC BY 4.0',
+        'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+        'rights_identifier' => 'CC-BY-4.0',
+        'rights_identifier_scheme' => 'SPDX',
+        'scheme_uri' => 'https://spdx.org/licenses/',
+        'source' => 'xml-upload',
+    ]);
+
+    $this->service->syncEditorRights($this->resource, [], [
+        [
+            'rights' => 'CC BY 4.0',
+            'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rightsIdentifier' => 'CC-BY-4.0',
+            'rightsIdentifierScheme' => 'SPDX',
+            'schemeUri' => 'https://spdx.org/licenses/',
+            'source' => 'xml-upload',
+        ],
+    ], 'en');
+
+    expect(ResourceRight::where('resource_id', $this->resource->id)->where('rights_id', $right->id)->exists())->toBeFalse();
+
+    $rawStatement = ResourceRight::where('resource_id', $this->resource->id)
+        ->whereNull('rights_id')
+        ->sole();
+
+    expect($rawStatement->rights_identifier)->toBe('CC-BY-4.0')
+        ->and($rawStatement->rights_identifier_scheme)->toBe('SPDX')
+        ->and($rawStatement->rights_text)->toBe('CC BY 4.0');
+});
+
+it('keeps round-tripped raw import context linked when the matching right is still selected', function (): void {
+    $right = Right::factory()->ccBy4()->create();
+
+    $this->service->syncEditorRights($this->resource, [$right->identifier], [
+        [
+            'rights' => 'CC BY 4.0',
+            'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rightsIdentifier' => 'CC-BY-4.0',
+            'rightsIdentifierScheme' => 'SPDX',
+            'schemeUri' => 'https://spdx.org/licenses/',
+            'source' => 'xml-upload',
+        ],
+    ], 'en');
+
+    $linkedStatement = ResourceRight::where('resource_id', $this->resource->id)
+        ->where('rights_id', $right->id)
+        ->sole();
+
+    expect($linkedStatement->rights_identifier)->toBe('CC-BY-4.0')
+        ->and($linkedStatement->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+        ->and(ResourceRight::where('resource_id', $this->resource->id)->whereNull('rights_id')->exists())->toBeFalse();
+});

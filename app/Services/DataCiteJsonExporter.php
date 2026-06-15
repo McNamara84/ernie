@@ -16,6 +16,8 @@ use App\Models\RelatedItemCreatorAffiliation;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\Right;
+use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use App\Support\OrcidNormalizer;
 
@@ -769,7 +771,20 @@ class DataCiteJsonExporter
 
         foreach ($resourceRights as $resourceRight) {
             $right = $resourceRight->right;
-            $rightsText = $right->name ?? $resourceRight->rights_text;
+
+            if ($right instanceof Right) {
+                $rightsText = $right->name;
+                $rightsUri = $right->uri ?? $resourceRight->rights_uri;
+                $rightsIdentifier = $right->identifier;
+                $identifierScheme = SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME;
+                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
+            } else {
+                $rightsText = $resourceRight->rights_text;
+                $rightsUri = $resourceRight->rights_uri;
+                $rightsIdentifier = $resourceRight->rights_identifier;
+                $identifierScheme = $resourceRight->rights_identifier_scheme;
+                $schemeUri = $resourceRight->scheme_uri;
+            }
 
             if ($rightsText === null || trim($rightsText) === '') {
                 continue;
@@ -779,21 +794,17 @@ class DataCiteJsonExporter
                 'rights' => $rightsText,
             ];
 
-            $rightsUri = $right->uri ?? $resourceRight->rights_uri;
             if ($rightsUri !== null && trim($rightsUri) !== '') {
                 $rightsData['rightsURI'] = $rightsUri;
             }
 
-            $rightsIdentifier = $right->identifier ?? $resourceRight->rights_identifier;
             if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
                 $rightsData['rightsIdentifier'] = $rightsIdentifier;
 
-                $identifierScheme = $resourceRight->rights_identifier_scheme ?? ($right !== null ? 'SPDX' : null);
                 if ($identifierScheme !== null && trim($identifierScheme) !== '') {
                     $rightsData['rightsIdentifierScheme'] = $identifierScheme;
                 }
 
-                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
                 if ($schemeUri !== null && trim($schemeUri) !== '') {
                     $rightsData['schemeURI'] = $schemeUri;
                 }

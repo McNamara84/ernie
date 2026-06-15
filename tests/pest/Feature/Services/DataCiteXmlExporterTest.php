@@ -574,6 +574,27 @@ describe('DataCiteXmlExporter - Rights', function () {
             ->and($xml)->not->toContain('rightsIdentifier=');
     });
 
+    test('exports unresolved raw rights identifier metadata', function () {
+        $resource = Resource::factory()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_text' => 'Custom imported license',
+            'rights_uri' => 'https://example.test/custom-license',
+            'rights_identifier' => 'CUSTOM-1.0',
+            'rights_identifier_scheme' => 'LocalScheme',
+            'scheme_uri' => 'https://example.test/schemes/licenses',
+            'source' => 'xml-upload',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('rightsIdentifier="CUSTOM-1.0"')
+            ->and($xml)->toContain('rightsIdentifierScheme="LocalScheme"')
+            ->and($xml)->toContain('schemeURI="https://example.test/schemes/licenses"')
+            ->and($xml)->toContain('Custom imported license</rights>');
+    });
+
     test('exports accepted SPDX rights with catalog metadata and statement language', function () {
         $resource = Resource::factory()->create();
         $right = Right::factory()->ccBy4()->create();
@@ -583,6 +604,8 @@ describe('DataCiteXmlExporter - Rights', function () {
             'rights_id' => $right->id,
             'rights_text' => 'CC BY 4.0',
             'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rights_identifier_scheme' => 'LocalScheme',
+            'scheme_uri' => 'https://example.test/schemes/licenses',
             'language' => 'de',
         ]);
 
@@ -593,7 +616,8 @@ describe('DataCiteXmlExporter - Rights', function () {
             ->and($xml)->toContain('schemeURI="https://spdx.org/licenses/"')
             ->and($xml)->toContain('rightsURI="https://creativecommons.org/licenses/by/4.0/"')
             ->and($xml)->toContain('xml:lang="de"')
-            ->and($xml)->toContain('Creative Commons Attribution 4.0 International</rights>');
+            ->and($xml)->toContain('Creative Commons Attribution 4.0 International</rights>')
+            ->and($xml)->not->toContain('rightsIdentifierScheme="LocalScheme"');
     });
 
     test('uses already loaded resource rights instead of querying them again', function () {

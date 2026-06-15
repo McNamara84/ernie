@@ -12,6 +12,8 @@ use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\Right;
+use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use DOMDocument;
 use DOMElement;
@@ -1137,7 +1139,20 @@ class DataCiteXmlExporter
 
         foreach ($resourceRights as $resourceRight) {
             $right = $resourceRight->right;
-            $rightsText = $right->name ?? $resourceRight->rights_text;
+
+            if ($right instanceof Right) {
+                $rightsText = $right->name;
+                $rightsUri = $right->uri ?? $resourceRight->rights_uri;
+                $rightsIdentifier = $right->identifier;
+                $identifierScheme = SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME;
+                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
+            } else {
+                $rightsText = $resourceRight->rights_text;
+                $rightsUri = $resourceRight->rights_uri;
+                $rightsIdentifier = $resourceRight->rights_identifier;
+                $identifierScheme = $resourceRight->rights_identifier_scheme;
+                $schemeUri = $resourceRight->scheme_uri;
+            }
 
             if ($rightsText === null || trim($rightsText) === '') {
                 continue;
@@ -1145,21 +1160,17 @@ class DataCiteXmlExporter
 
             $rightsElement = $this->dom->createElement('rights', htmlspecialchars($rightsText));
 
-            $rightsUri = $right->uri ?? $resourceRight->rights_uri;
             if ($rightsUri !== null && trim($rightsUri) !== '') {
                 $rightsElement->setAttribute('rightsURI', htmlspecialchars($rightsUri));
             }
 
-            $rightsIdentifier = $right->identifier ?? $resourceRight->rights_identifier;
             if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
                 $rightsElement->setAttribute('rightsIdentifier', htmlspecialchars($rightsIdentifier));
 
-                $identifierScheme = $resourceRight->rights_identifier_scheme ?? ($right !== null ? 'SPDX' : null);
                 if ($identifierScheme !== null && trim($identifierScheme) !== '') {
                     $rightsElement->setAttribute('rightsIdentifierScheme', htmlspecialchars($identifierScheme));
                 }
 
-                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
                 if ($schemeUri !== null && trim($schemeUri) !== '') {
                     $rightsElement->setAttribute('schemeURI', htmlspecialchars($schemeUri));
                 }

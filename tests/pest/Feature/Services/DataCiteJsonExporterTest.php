@@ -398,6 +398,31 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
             ->and($rightsList[0])->not->toHaveKey('rightsIdentifier');
     });
 
+    test('exports unresolved imported rights identifier metadata', function () {
+        $resource = Resource::factory()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_text' => 'Custom imported license',
+            'rights_uri' => 'https://example.test/custom-license',
+            'rights_identifier' => 'CUSTOM-1.0',
+            'rights_identifier_scheme' => 'LocalScheme',
+            'scheme_uri' => 'https://example.test/schemes/licenses',
+            'source' => 'json-upload',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $rights = $result['data']['attributes']['rightsList'][0];
+
+        expect($rights)->toMatchArray([
+            'rights' => 'Custom imported license',
+            'rightsURI' => 'https://example.test/custom-license',
+            'rightsIdentifier' => 'CUSTOM-1.0',
+            'rightsIdentifierScheme' => 'LocalScheme',
+            'schemeURI' => 'https://example.test/schemes/licenses',
+        ]);
+    });
+
     test('exports accepted SPDX rights using catalog values and statement language', function () {
         $resource = Resource::factory()->create();
         $license = Right::factory()->ccBy4()->create();
@@ -407,6 +432,8 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
             'rights_id' => $license->id,
             'rights_text' => 'CC BY 4.0',
             'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rights_identifier_scheme' => 'LocalScheme',
+            'scheme_uri' => 'https://example.test/schemes/licenses',
             'language' => 'de',
             'source' => 'xml-upload',
         ]);

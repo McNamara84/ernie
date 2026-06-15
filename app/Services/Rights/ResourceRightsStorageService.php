@@ -58,7 +58,7 @@ final class ResourceRightsStorageService
             ]);
         }
 
-        $this->persistImportedStatements($resource, $rawRights, 'editor-import', $fallbackLanguage);
+        $this->persistImportedStatements($resource, $rawRights, 'editor-import', $fallbackLanguage, $selectedRightIds);
     }
 
     /**
@@ -69,12 +69,14 @@ final class ResourceRightsStorageService
      * linking to the local catalog only when there is an exact known match.
      *
      * @param  array<int, array<string, mixed>>  $rawRights
+     * @param  list<int>|null  $allowedCatalogRightIds
      */
     public function persistImportedStatements(
         Resource $resource,
         array $rawRights,
         string $source,
         ?string $fallbackLanguage = null,
+        ?array $allowedCatalogRightIds = null,
     ): void {
         foreach ($rawRights as $statement) {
             $payload = $this->normalizeStatement($statement, $source, $fallbackLanguage);
@@ -84,6 +86,15 @@ final class ResourceRightsStorageService
             }
 
             $rightId = $this->resolveCatalogRightId($payload);
+            // During editor saves, hidden raw import context must not recreate
+            // a linked catalog row that the curator just removed.
+            if (
+                $allowedCatalogRightIds !== null
+                && ($rightId === null || ! in_array($rightId, $allowedCatalogRightIds, true))
+            ) {
+                $rightId = null;
+            }
+
             $row = $this->findOrCreateStatementRow($resource, $payload, $rightId);
 
             $this->fillEmptyRawColumns($row, $payload);
