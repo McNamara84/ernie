@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Modules\Assistants\SizeFormatSuggestion;
 
-use App\Services\SizeFormatFileProbeService;
 use App\Models\AssistantSuggestion;
 use App\Models\Format;
+use App\Models\Resource;
 use App\Models\Size;
 use App\Services\Assistance\GenericTableAssistant;
+use App\Services\SizeFormatFileProbeService;
 use Closure;
-
 
 class Assistant extends GenericTableAssistant
 {
@@ -19,10 +19,11 @@ class Assistant extends GenericTableAssistant
     ) {
         parent::__construct();
     }
+
     #[\Override]
     protected function getManifestPath(): string
     {
-        return __DIR__ . '/manifest.json';
+        return __DIR__.'/manifest.json';
     }
 
     /**
@@ -44,9 +45,9 @@ class Assistant extends GenericTableAssistant
             ->get();
 
         foreach ($resources as $index => $resource) {
-            $onProgress("Checking resource " . ($index + 1) . " of " . $resources->count());
+            $onProgress('Checking resource '.($index + 1).' of '.$resources->count());
 
-            //Call Size/Format probing logic here
+            // Call Size/Format probing logic here
             $suggestedSizeFormats = $this->lookupSizeFormats($resource);
 
             foreach ($suggestedSizeFormats as $suggestion) {
@@ -61,7 +62,6 @@ class Assistant extends GenericTableAssistant
 
                 if ($suggestion['type'] === 'size') {
                     $metadata['parsed_size'] = $this->parseSizeValue((string) $suggestion['inferred_value']);
-                
 
                     // A resource has one aggregate file size. Remove totals from
                     // earlier discovery runs before storing the latest result.
@@ -77,7 +77,7 @@ class Assistant extends GenericTableAssistant
                     targetType: (string) $suggestion['type'],
                     targetId: $resource->id,
                     suggestedValue: (string) $suggestion['inferred_value'],
-                    suggestedLabel: strtoupper((string) $suggestion['type']) . ': ' . (string) $suggestion['inferred_value'],
+                    suggestedLabel: strtoupper((string) $suggestion['type']).': '.(string) $suggestion['inferred_value'],
                     similarityScore: null,
                     metadata: $metadata,
                 );
@@ -100,56 +100,66 @@ class Assistant extends GenericTableAssistant
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
         if ($suggestion->target_type === 'format') {
-            Format::create([
+            Format::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,
                 'value' => $suggestion->suggested_value,
-                ]);
+            ]);
 
-                return [
-                    'success' => true,
-                    'message' => "Format '{$suggestion->suggested_value}' applied.",
-                ];
+            return [
+                'success' => true,
+                'message' => "Format '{$suggestion->suggested_value}' applied.",
+            ];
         }
+
         if ($suggestion->target_type === 'size') {
-            $parsedSize = $suggestion->metadata['parsed_size'] ?? null;
+            $parsedSize = $suggestion->metadata['parsed_size']
+                ?? $this->parseSizeValue($suggestion->suggested_value);
 
-            Size::create([
+            Size::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,
-                'numeric_value' => $parsedSize['numeric_value'] ?? null,
-                'unit' => $parsedSize['unit'] ?? null,
-                'type' => $parsedSize['type'] ?? null, 
-                ]);
+                'numeric_value' => $parsedSize['numeric_value'],
+                'unit' => $parsedSize['unit'],
+                'type' => $parsedSize['type'],
+            ]);
 
-                return [
-                    'success' => true,
-                    'message' => "Size '{$suggestion->suggested_value}' applied.",
-                ];
-
+            return [
+                'success' => true,
+                'message' => "Size '{$suggestion->suggested_value}' applied.",
+            ];
         }
+
         return [
             'success' => false,
             'message' => 'Unknown suggestion type.',
-            ];
+        ];
     }
 
     private function lookupSizeFormats(\App\Models\Resource $resource): array
     {
         $results = $this->service->extractAndProbe(
-            'https://doi.org/' . $resource->doi
+            'https://doi.org/'.$resource->doi
         );
+
         return $this->service->buildSuggestions($results);
     }
 
-    private function parseSizeValue(string $value): array {
+    /**
+     * @return array{numeric_value: string|null, unit: string|null, type: null}
+     */
+    private function parseSizeValue(string $value): array
+    {
         if (preg_match('/^\s*([0-9.]+)\s*([A-Za-z]+)?\s*$/', $value, $matches)) {
             return [
                 'numeric_value' => $matches[1],
                 'unit' => $matches[2] ?? null,
-                'type' => null,];
-            }
-            return [
-                'numeric_value' => null,
-                'unit' => null,
-                'type' => null,];
+                'type' => null,
+            ];
         }
+
+        return [
+            'numeric_value' => null,
+            'unit' => null,
+            'type' => null,
+        ];
+    }
 }
