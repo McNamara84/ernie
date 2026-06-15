@@ -187,6 +187,8 @@ class EditorDataTransformer
             });
 
         $authors = [];
+        /** @var array<string, int> $authorIndexesByIdentity */
+        $authorIndexesByIdentity = [];
         $contributors = [];
 
         foreach ($creatorableGroups as $group) {
@@ -194,6 +196,20 @@ class EditorDataTransformer
             /** @var ResourceCreator $firstEntry */
             $firstEntry = $group->first();
             $creatorable = $firstEntry->creatorable;
+
+            $isContact = false;
+            $email = null;
+            $website = null;
+
+            foreach ($group as $creatorEntry) {
+                if (! (bool) $creatorEntry->is_contact) {
+                    continue;
+                }
+
+                $isContact = true;
+                $email ??= $creatorEntry->email;
+                $website ??= $creatorEntry->website;
+            }
 
             // Collect all unique affiliations from all entries of this creator
             $allAffiliations = $group->flatMap(function ($creator) {
@@ -206,8 +222,16 @@ class EditorDataTransformer
             // All ResourceCreator entries are creators in DataCite 4.6
             $data = [
                 'position' => $firstEntry->position,
-                'isContact' => false, // Contact tracking will be handled differently
+                'isContact' => $isContact,
             ];
+
+            if ($isContact && $email !== null) {
+                $data['email'] = $email;
+            }
+
+            if ($isContact && $website !== null) {
+                $data['website'] = $website;
+            }
 
             if ($firstEntry->creatorable_type === Person::class) {
                 /** @var Person $creatorable */
@@ -237,14 +261,41 @@ class EditorDataTransformer
             ])->values()->toArray();
 
             $authors[] = $data;
+
+            if ($creatorable instanceof Person) {
+                $authorIndex = array_key_last($authors);
+
+                foreach ($this->personIdentityKeys($creatorable) as $identityKey) {
+                    $authorIndexesByIdentity[$identityKey] ??= $authorIndex;
+                }
+            }
         }
 
         // Transform ResourceContributor entries to contributors format
         foreach ($resource->contributors as $contributor) {
             /** @var ResourceContributor $contributor */
+            $contributorTypes = $contributor->contributorTypes;
+            $hasContactPersonRole = $contributorTypes
+                ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');
+            $matchingAuthorIndex = $hasContactPersonRole
+                ? $this->matchingAuthorIndexForContributor($contributor, $authorIndexesByIdentity)
+                : null;
+
+            if ($matchingAuthorIndex !== null) {
+                $this->mergeContributorContactIntoAuthor($authors[$matchingAuthorIndex], $contributor);
+
+                $contributorTypes = $contributorTypes
+                    ->reject(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson')
+                    ->values();
+
+                if ($contributorTypes->isEmpty()) {
+                    continue;
+                }
+            }
+
             $data = [
                 'position' => $contributor->position,
-                'roles' => $contributor->contributorTypes->pluck('name')->values()->toArray(),
+                'roles' => $contributorTypes->pluck('name')->values()->toArray(),
             ];
 
             if ($contributor->contributorable_type === Person::class) {
@@ -262,10 +313,10 @@ class EditorDataTransformer
                     $person->name_identifier_scheme,
                 );
 
-                $hasContactPersonRole = $contributor->contributorTypes
+                $hasVisibleContactPersonRole = $contributorTypes
                     ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');
-                $data['email'] = $hasContactPersonRole ? ($contributor->email ?? '') : '';
-                $data['website'] = $hasContactPersonRole ? ($contributor->website ?? '') : '';
+                $data['email'] = $hasVisibleContactPersonRole ? ($contributor->email ?? '') : '';
+                $data['website'] = $hasVisibleContactPersonRole ? ($contributor->website ?? '') : '';
             } elseif ($contributor->contributorable_type === Institution::class) {
                 /** @var Institution $institution */
                 $institution = $contributor->contributorable;
@@ -291,6 +342,104 @@ class EditorDataTransformer
             'authors' => $authors,
             'contributors' => $contributors,
         ];
+    }
+
+    /**
+     * @param  array<string, int>  $authorIndexesByIdentity
+     */
+    private function matchingAuthorIndexForContributor(ResourceContributor $contributor, array $authorIndexesByIdentity): ?int
+    {
+        if ($contributor->contributorable_type !== Person::class) {
+            return null;
+        }
+
+        $person = $contributor->contributorable;
+
+        if (! $person instanceof Person) {
+            return null;
+        }
+
+        foreach ($this->personIdentityKeys($person) as $identityKey) {
+            if (array_key_exists($identityKey, $authorIndexesByIdentity)) {
+                return $authorIndexesByIdentity[$identityKey];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function personIdentityKeys(Person $person): array
+    {
+        $keys = ["person-id:{$person->id}"];
+
+        $orcidIdentityKey = $this->personOrcidIdentityKey($person);
+
+        if ($orcidIdentityKey !== null) {
+            $keys[] = $orcidIdentityKey;
+
+            return array_values(array_unique($keys));
+        }
+
+        $normalisedName = $this->normalisePersonIdentityName($person);
+
+        if ($normalisedName !== null) {
+            $keys[] = 'name:'.$normalisedName;
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    private function personOrcidIdentityKey(Person $person): ?string
+    {
+        if ($person->name_identifier !== null && trim($person->name_identifier) !== '') {
+            $scheme = $person->name_identifier_scheme ?? 'ORCID';
+
+            if (strtoupper($scheme) === 'ORCID') {
+                $bareOrcid = OrcidNormalizer::extractBareId($person->name_identifier);
+
+                if ($bareOrcid !== '' && OrcidNormalizer::isValidFormat($bareOrcid)) {
+                    return 'orcid:'.strtolower($bareOrcid);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function normalisePersonIdentityName(Person $person): ?string
+    {
+        $givenName = trim((string) ($person->given_name ?? ''));
+        $familyName = trim((string) ($person->family_name ?? ''));
+
+        if ($givenName === '' || $familyName === '') {
+            return null;
+        }
+
+        $normalised = mb_strtolower($familyName.'|'.$givenName, 'UTF-8');
+        $normalised = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalised) ?: $normalised;
+        $normalised = preg_replace('/[^\p{L}\p{N}|]+/u', ' ', $normalised) ?? '';
+        $normalised = preg_replace('/\s+/', ' ', $normalised) ?? '';
+
+        return trim($normalised);
+    }
+
+    /**
+     * @param  array<string, mixed>  $author
+     */
+    private function mergeContributorContactIntoAuthor(array &$author, ResourceContributor $contributor): void
+    {
+        $author['isContact'] = true;
+
+        if (($author['email'] ?? '') === '' && $contributor->email !== null) {
+            $author['email'] = $contributor->email;
+        }
+
+        if (($author['website'] ?? '') === '' && $contributor->website !== null) {
+            $author['website'] = $contributor->website;
+        }
     }
 
     /**

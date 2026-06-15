@@ -23,6 +23,7 @@ Run `npm install` once after cloning and again whenever frontend dependencies ch
 | Check | Where to run it | Command | Notes |
 | --- | --- | --- | --- |
 | Pest fast path | Host shell via npm wrapper | `npm run test:php` | Starts backend containers if needed |
+| Pest deprecation details | Host shell via npm wrapper | `npm run test:php:deprecations` | Use this instead of forwarding `--display-*` flags through npm |
 | PHPStan | Host shell via npm wrapper | `npm run phpstan:check` | Required before finishing PHP changes |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` | Uses isolated `ernie_test` schema |
 | Vitest one-shot | Host shell | `npm run test:run` | Preferred for focused frontend validation |
@@ -62,6 +63,7 @@ Recommended commands:
 
 ```bash
 npm run test:php
+npm run test:php:deprecations -- tests/pest/Unit/Enums/UserRoleTest.php
 npm run phpstan:check
 npm run test:php:mysql-sensitive
 ```
@@ -71,6 +73,7 @@ Why backend validation stays Docker-backed:
 - PHP version and extensions remain aligned with the local app container.
 - Laravel configuration matches the local Docker runtime.
 - Windows developers do not need a separate local PHP installation.
+- Deprecation detail mode has a dedicated npm script because some npm versions treat forwarded `--display-*` flags as npm config and emit warning noise.
 
 ## Frontend Validation
 

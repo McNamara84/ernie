@@ -2,17 +2,21 @@
 
 use App\Enums\CacheKey;
 use App\Models\Affiliation;
+use App\Models\Description;
 use App\Models\GuidedTour;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
-use App\Models\UserGuidedTourAssignment;
+use App\Models\Right;
+use App\Models\Title;
 use App\Models\User;
+use App\Models\UserGuidedTourAssignment;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     if (method_exists(Cache::getStore(), 'tags')) {
@@ -23,6 +27,33 @@ beforeEach(function () {
 
     Cache::flush();
 });
+
+function createDashboardResource(array $attributes = [], ?string $title = null): Resource
+{
+    $resource = Resource::factory()->create($attributes);
+
+    if ($title !== null) {
+        Title::factory()->create([
+            'resource_id' => $resource->id,
+            'value' => $title,
+        ]);
+    }
+
+    return $resource;
+}
+
+function completeDashboardResource(Resource $resource): Resource
+{
+    if ($resource->titles()->count() === 0) {
+        Title::factory()->create(['resource_id' => $resource->id]);
+    }
+
+    ResourceCreator::factory()->create(['resource_id' => $resource->id]);
+    Description::factory()->abstract()->create(['resource_id' => $resource->id]);
+    $resource->rights()->attach(Right::factory()->create());
+
+    return $resource;
+}
 
 test('guests are redirected to the login page', function () {
     $this->get(route('dashboard'))->assertRedirect(route('login'));
@@ -336,7 +367,143 @@ test('dashboard treats all resources as non-IGSN when physical object type is mi
             ->where('dataInstitutionCount', 1)
             ->where('igsnInstitutionCount', 0)
             ->where('draftCount', 1)
-            ->has('recentDrafts', 1)
+            ->has('recentResources', 0)
+        );
+});
+
+test('dashboard shows resources last updated by the authenticated user', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+
+    $myResource = createDashboardResource([
+        'created_by_user_id' => $otherUser->id,
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now()->subMinutes(5),
+    ], 'Resource I edited');
+
+    createDashboardResource([
+        'created_by_user_id' => $otherUser->id,
+        'updated_by_user_id' => $otherUser->id,
+        'updated_at' => now(),
+    ], 'Resource edited by someone else');
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 1)
+            ->where('recentResources.0.id', $myResource->id)
+            ->where('recentResources.0.title', 'Resource I edited')
+            ->where('recentResources.0.status', 'draft')
+        );
+});
+
+test('dashboard includes resources created by the authenticated user when they have never been updated separately', function () {
+    $user = User::factory()->create();
+
+    $createdResource = createDashboardResource([
+        'created_by_user_id' => $user->id,
+        'updated_by_user_id' => null,
+        'updated_at' => now()->subMinutes(10),
+    ], 'Freshly created resource');
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 1)
+            ->where('recentResources.0.id', $createdResource->id)
+            ->where('recentResources.0.title', 'Freshly created resource')
+        );
+});
+
+test('dashboard recent resources exclude IGSNs because they use the separate IGSN workflow', function () {
+    $user = User::factory()->create();
+    $datasetType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $physicalObjectType = ResourceType::create(['name' => 'PhysicalObject', 'slug' => 'physical-object']);
+
+    $datasetResource = createDashboardResource([
+        'resource_type_id' => $datasetType->id,
+        'created_by_user_id' => $user->id,
+        'updated_by_user_id' => null,
+        'updated_at' => now()->subMinutes(10),
+    ], 'Dataset resource');
+
+    createDashboardResource([
+        'resource_type_id' => $physicalObjectType->id,
+        'created_by_user_id' => $user->id,
+        'updated_by_user_id' => null,
+        'updated_at' => now(),
+    ], 'IGSN resource');
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 1)
+            ->where('recentResources.0.id', $datasetResource->id)
+            ->where('recentResources.0.title', 'Dataset resource')
+        );
+});
+
+test('dashboard excludes resources created by the user when another user was the last editor', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+
+    createDashboardResource([
+        'created_by_user_id' => $user->id,
+        'updated_by_user_id' => $otherUser->id,
+        'updated_at' => now(),
+    ], 'Taken over by another editor');
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 0)
+        );
+});
+
+test('dashboard recent resources include non-draft resources', function () {
+    $user = User::factory()->create();
+
+    $completeResource = completeDashboardResource(createDashboardResource([
+        'doi' => null,
+        'created_by_user_id' => User::factory()->create()->id,
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now(),
+    ], 'Complete curation resource'));
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 1)
+            ->where('recentResources.0.id', $completeResource->id)
+            ->where('recentResources.0.title', 'Complete curation resource')
+            ->where('recentResources.0.status', 'curation')
+        );
+});
+
+test('dashboard recent resources are sorted by update time and limited to five', function () {
+    $user = User::factory()->create();
+
+    $resources = collect(range(0, 6))->map(fn (int $index): Resource => createDashboardResource([
+        'created_by_user_id' => User::factory()->create()->id,
+        'updated_by_user_id' => $user->id,
+        'updated_at' => now()->subMinutes($index),
+    ], "Recent resource {$index}"));
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('recentResources', 5)
+            ->where('recentResources.0.id', $resources[0]->id)
+            ->where('recentResources.1.id', $resources[1]->id)
+            ->where('recentResources.2.id', $resources[2]->id)
+            ->where('recentResources.3.id', $resources[3]->id)
+            ->where('recentResources.4.id', $resources[4]->id)
         );
 });
 

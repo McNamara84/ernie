@@ -42,6 +42,11 @@
             "name": "DataCite",
             "summary": "Citation and DOI metadata lookup endpoints",
             "description": "Endpoints for retrieving citation metadata and author information for DOIs via the DataCite API and doi.org Content Negotiation"
+        },
+        {
+            "name": "IGSN Imports",
+            "summary": "Authenticated IGSN import operations",
+            "description": "Session-authenticated endpoints for starting IGSN imports from DataCite."
         }
     ],
     "security": [],
@@ -1344,6 +1349,108 @@
                     }
                 }
             }
+        },
+        "/igsns/import/start-single": {
+            "post": {
+                "tags": ["IGSN Imports"],
+                "summary": "Start a single IGSN import from DataCite",
+                "description": "Starts an authenticated background import for one IGSN. The value can be a bare IGSN handle, a configured-prefix DOI, or a doi.org URL. ERNIE verifies the record at DataCite before queueing the job. If the requested IGSN is a parent, direct children discovered through DataCite relationships and legacy sources are included. If the requested IGSN is a child, DataCite parent-chain and sibling groups are included as import targets.",
+                "security": [
+                    {
+                        "LaravelSession": [],
+                        "CsrfToken": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SingleIgsnImportRequest"
+                            },
+                            "examples": {
+                                "handle": {
+                                    "summary": "Bare IGSN handle",
+                                    "value": {
+                                        "igsn": "ICDP5052EUYY001"
+                                    }
+                                },
+                                "doi": {
+                                    "summary": "Configured-prefix DOI",
+                                    "value": {
+                                        "igsn": "10.60510/GFBNO7002EHG0001"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Single IGSN import job was queued successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IgsnImportStartResponse"
+                                },
+                                "example": {
+                                    "import_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e",
+                                    "message": "Single IGSN import started successfully"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required. The request must include a valid ERNIE session."
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/ForbiddenError"
+                    },
+                    "422": {
+                        "description": "The IGSN input is missing, malformed, uses a foreign prefix, or could not be found at DataCite.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationErrorResponse"
+                                },
+                                "examples": {
+                                    "invalid": {
+                                        "summary": "Invalid IGSN format",
+                                        "value": {
+                                            "message": "The IGSN must be a valid configured-prefix DOI or IGSN handle.",
+                                            "errors": {
+                                                "igsn": ["The IGSN must be a valid configured-prefix DOI or IGSN handle."]
+                                            }
+                                        }
+                                    },
+                                    "notFound": {
+                                        "summary": "IGSN not found at DataCite",
+                                        "value": {
+                                            "message": "This IGSN could not be found at DataCite.",
+                                            "errors": {
+                                                "igsn": ["This IGSN could not be found at DataCite."]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "DataCite is temporarily unavailable, so ERNIE could not verify the requested IGSN before queueing the import.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "DataCite is currently unavailable. Please try again later."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -1353,6 +1460,18 @@
                 "in": "header",
                 "name": "X-API-Key",
                 "description": "API key required to access ELMO-specific endpoints. Must be provided in the `X-API-Key` header. Query parameter authentication is not supported for security reasons. Contact the ERNIE team to obtain an API key."
+            },
+            "LaravelSession": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "ernie_session",
+                "description": "Authenticated ERNIE browser session cookie used by web routes."
+            },
+            "CsrfToken": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-CSRF-TOKEN",
+                "description": "Laravel CSRF token required for authenticated mutating web requests."
             }
         },
         "responses": {
@@ -1387,9 +1506,85 @@
                         }
                     }
                 }
+            },
+            "ForbiddenError": {
+                "description": "The authenticated user is not allowed to start IGSN imports.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/MessageResponse"
+                        },
+                        "example": {
+                            "message": "This action is unauthorized."
+                        }
+                    }
+                }
             }
         },
         "schemas": {
+            "SingleIgsnImportRequest": {
+                "type": "object",
+                "description": "Payload for starting a single IGSN import from DataCite.",
+                "properties": {
+                    "igsn": {
+                        "type": "string",
+                        "description": "IGSN handle, configured-prefix DOI, or doi.org URL.",
+                        "examples": ["ICDP5052EUYY001", "10.60510/GFBNO7002EHG0001", "https://doi.org/10.60510/SSDPRR02ES84601"]
+                    }
+                },
+                "required": ["igsn"]
+            },
+            "IgsnImportStartResponse": {
+                "type": "object",
+                "description": "Response returned after a single IGSN import job has been queued.",
+                "properties": {
+                    "import_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Cache key suffix used to poll the import status endpoint.",
+                        "example": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Single IGSN import started successfully"
+                    }
+                },
+                "required": ["import_id", "message"]
+            },
+            "ValidationErrorResponse": {
+                "type": "object",
+                "description": "Laravel validation error response.",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "The IGSN must be a valid configured-prefix DOI or IGSN handle."
+                    },
+                    "errors": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "example": {
+                            "igsn": ["This IGSN could not be found at DataCite."]
+                        }
+                    }
+                },
+                "required": ["message", "errors"]
+            },
+            "MessageResponse": {
+                "type": "object",
+                "description": "Generic JSON response containing a user-facing message.",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "DataCite is currently unavailable. Please try again later."
+                    }
+                },
+                "required": ["message"]
+            },
             "ElmoResourceType": {
                 "type": "object",
                 "description": "A resource type configuration for ELMO editor",

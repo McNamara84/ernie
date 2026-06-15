@@ -143,6 +143,7 @@ npm run docker:dev:parity
 | Example controller generator | npm wrapper into app container | `npm run artisan -- make:controller TestController` |
 | Composer | npm wrapper into app container | `npm run composer:app -- <command>` |
 | Pest | Host shell via npm wrapper | `npm run test:php` |
+| Pest deprecation details | Host shell via npm wrapper | `npm run test:php:deprecations` |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` |
 | PHPStan | Host shell via npm wrapper | `npm run phpstan:check` |
 | Vitest | Host shell | `npm run test:run` |

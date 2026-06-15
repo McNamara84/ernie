@@ -598,6 +598,41 @@ describe('ResourceStorageService', function () {
             ->and($related->relation_type_information)->toBeNull();
     });
 
+    it('coerces non-array related identifiers to an empty list before storage', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolveBestEffort');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'relatedIdentifiers' => 'not-an-array',
+        ];
+
+        [$resource] = $service->store($data, $this->user->id);
+
+        expect($resource->relatedIdentifiers()->count())->toBe(0);
+    });
+
     it('stores controlled GCMD keywords', function () {
         $resourceType = ResourceType::first();
 
@@ -644,6 +679,75 @@ describe('ResourceStorageService', function () {
             ->and($subject->subject_scheme)->toBe('Science Keywords')
             ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid')
             ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > SOLID EARTH > Test GCMD Keyword');
+    });
+
+    it('resolves legacy path-only controlled keywords before storing them', function () {
+        Storage::fake('local');
+        Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+            'data' => [[
+                'id' => 'earth-science',
+                'text' => 'EARTH SCIENCE',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [[
+                    'id' => 'biosphere',
+                    'text' => 'BIOSPHERE',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'children' => [[
+                        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/forests-uri',
+                        'text' => 'FORESTS',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'schemeURI' => 'https://example.test/sciencekeywords',
+                        'children' => [],
+                    ]],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Legacy path keyword resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'gcmdKeywords' => [
+                [
+                    'id' => '',
+                    'text' => 'EARTH SCIENCE &gt;  BIOSPHERE  &gt; FORESTS',
+                    'path' => 'EARTH SCIENCE &gt;  BIOSPHERE  &gt; FORESTS',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $subject = $resource->subjects()->sole();
+
+        expect($subject->value)->toBe('EARTH SCIENCE > BIOSPHERE > FORESTS')
+            ->and($subject->subject_scheme)->toBe('Science Keywords')
+            ->and($subject->scheme_uri)->toBe('https://example.test/sciencekeywords')
+            ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/forests-uri')
+            ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > BIOSPHERE > FORESTS');
     });
 
     it('stores classificationCode for controlled keywords', function () {

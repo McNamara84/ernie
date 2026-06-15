@@ -44,7 +44,7 @@ final readonly class DataCiteXmlImportParser
         private XmlKeywordExtractor $keywordExtractor,
     ) {}
 
-    public function parse(XmlReader $reader, string $filename): DataCiteXmlImportResult
+    public function parse(XmlReader $reader, string $filename, ?string $xmlContents = null): DataCiteXmlImportResult
     {
         $identifierData = $this->identifierParser->parse($reader);
         $resourceType = $identifierData['resourceType'];
@@ -58,7 +58,7 @@ final readonly class DataCiteXmlImportParser
         $isoContactInfo = $this->isoContactParser->parse($reader);
         $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons, $isoContactInfo);
 
-        $descriptions = $this->descriptionParser->parse($reader);
+        $descriptions = $this->descriptionParser->parse($reader, $xmlContents);
         $dates = $this->dateParser->parse($reader);
         $coverages = $this->coverageParser->parse($reader, $dates);
 

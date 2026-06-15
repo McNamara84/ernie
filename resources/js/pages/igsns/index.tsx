@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { BulkActionsToolbar } from '@/components/igsns/bulk-actions-toolbar';
 import { type IgsnFilterOptions, IgsnFilters, type IgsnFilterState } from '@/components/igsns/igsn-filters';
 import ImportIgsnsModal from '@/components/igsns/modals/ImportIgsnsModal';
+import ImportSingleIgsnModal from '@/components/igsns/modals/ImportSingleIgsnModal';
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -71,6 +72,7 @@ interface IgsnsPageProps {
     canDelete: boolean;
     canImport: boolean;
     canRegister: boolean;
+    igsnPrefix: string;
     search: string;
     totalCount: number;
     filters: {
@@ -135,7 +137,19 @@ const determineNextDirection = (currentState: SortState<SortKey>, targetKey: Sor
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete, canImport, canRegister, search: initialSearch, totalCount, filters: initialFilters, filterOptions: initialFilterOptions }: IgsnsPageProps) {
+function IgsnsPage({
+    igsns: initialIgsns,
+    pagination: initialPagination,
+    sort: initialSort,
+    canDelete,
+    canImport,
+    canRegister,
+    igsnPrefix,
+    search: initialSearch,
+    totalCount,
+    filters: initialFilters,
+    filterOptions: initialFilterOptions,
+}: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState<SortKey>>(initialSort || DEFAULT_SORT);
@@ -149,6 +163,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isSingleImportModalOpen, setIsSingleImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
     const [registeringIgsns, setRegisteringIgsns] = useState<Set<number>>(new Set());
@@ -516,10 +531,16 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                 </CardDescription>
                             </div>
                             {canImport && (
-                                <Button onClick={() => setIsImportModalOpen(true)}>
-                                    <Download className="mr-2 h-4 w-4" />
-                                    Import from DataCite
-                                </Button>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Import all IGSNs
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setIsSingleImportModalOpen(true)}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Import single IGSN
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     </CardHeader>
@@ -823,6 +844,12 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
             <ImportIgsnsModal
                 isOpen={isImportModalOpen}
                 onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => router.reload()}
+            />
+            <ImportSingleIgsnModal
+                isOpen={isSingleImportModalOpen}
+                igsnPrefix={igsnPrefix}
+                onClose={() => setIsSingleImportModalOpen(false)}
                 onSuccess={() => router.reload()}
             />
         </AppLayout>

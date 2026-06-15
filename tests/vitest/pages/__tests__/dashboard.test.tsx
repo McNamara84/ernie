@@ -87,9 +87,9 @@ describe('Dashboard', () => {
                 phpVersion: '8.4.12',
                 laravelVersion: '12.28.1',
                 draftCount: 2,
-                recentDrafts: [
-                    { id: 12, title: 'Arctic campaign dataset', updated_at: '2026-05-11T10:00:00Z' },
-                    { id: 15, title: 'Rock core collection', updated_at: null },
+                recentResources: [
+                    { id: 12, title: 'Arctic campaign dataset', updated_at: '2026-05-11T10:00:00Z', status: 'curation' },
+                    { id: 15, title: 'Rock core collection', updated_at: null, status: 'draft' },
                 ],
             } 
         });
@@ -149,15 +149,43 @@ describe('Dashboard', () => {
         expect(screen.getByText('0 institutions with sample records')).toBeInTheDocument();
     });
 
-    it('renders role-aware quick actions and recent drafts', () => {
+    it('renders role-aware quick actions and recent resources', () => {
         render(<Dashboard />);
 
         expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('href', '/editor');
-        expect(screen.getByRole('link', { name: /resume latest draft/i })).toHaveAttribute('href', '/editor?resourceId=12');
+        expect(screen.getByRole('link', { name: /resume latest resource/i })).toHaveAttribute('href', '/editor?resourceId=12');
         expect(screen.getByRole('link', { name: /review assistance/i })).toHaveAttribute('href', '/assistance');
         expect(screen.getByRole('link', { name: /adjust settings/i })).toHaveAttribute('href', '/settings');
         expect(screen.getByRole('link', { name: /arctic campaign dataset/i })).toHaveAttribute('href', '/editor?resourceId=12');
+        expect(screen.getByText('Curation')).toBeInTheDocument();
+        expect(screen.getByText('Draft')).toBeInTheDocument();
+        expect(screen.getByText('Resource available to resume')).toBeInTheDocument();
         expect(screen.getByText(/updated/i)).toBeInTheDocument();
+    });
+
+    it('renders review and published status labels while skipping unknown status labels', () => {
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
+                draftCount: 2,
+                recentResources: [
+                    { id: 21, title: 'Review resource', updated_at: null, status: 'review' },
+                    { id: 22, title: 'Published resource', updated_at: null, status: 'published' },
+                    { id: 23, title: 'Resource without status', updated_at: null },
+                ],
+            },
+        });
+
+        render(<Dashboard />);
+
+        expect(screen.getByText('Review')).toBeInTheDocument();
+        expect(screen.getByText('Published')).toBeInTheDocument();
+        expect(screen.getByText('Resource without status')).toBeInTheDocument();
+        expect(screen.getAllByText('Resource available to resume')).toHaveLength(3);
     });
 
     it('keeps the page container overflow-safe and surfaces the import hub in the side column', () => {
@@ -181,7 +209,7 @@ describe('Dashboard', () => {
         expect(screen.queryByRole('link', { name: /upload metadata/i })).not.toBeInTheDocument();
     });
 
-    it('renders an actionable empty state when there are no drafts', () => {
+    it('renders an actionable empty state when there are no recent resources', () => {
         usePageMock.mockReturnValueOnce({
             props: {
                 auth: { user: { name: 'Jane' } },
@@ -190,13 +218,13 @@ describe('Dashboard', () => {
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 draftCount: 0,
-                recentDrafts: [],
+                recentResources: [],
             },
         });
 
         render(<Dashboard />);
 
-        expect(screen.getByText('No drafts waiting')).toBeInTheDocument();
+        expect(screen.getByText('No recent resources')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /browse resources/i })).toHaveAttribute('href', '/resources');
     });
 
@@ -493,4 +521,3 @@ describe('handleJsonFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
-

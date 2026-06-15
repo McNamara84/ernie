@@ -75,7 +75,13 @@ export default defineConfig(({ command }) => {
         },
         test: {
             environment: 'jsdom',
+            environmentOptions: {
+                jsdom: {
+                    url: 'http://localhost/',
+                },
+            },
             globals: true,
+            css: false,
             setupFiles: './vitest.setup.ts',
             include: ['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'],
             testTimeout: 10000, // Increased from default 5000ms for controlled vocabulary (GCMD) loading in DataCiteForm initialization

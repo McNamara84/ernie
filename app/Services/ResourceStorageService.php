@@ -24,6 +24,7 @@ use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
 use App\Services\Rights\ResourceRightsStorageService;
+use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
 use Carbon\Carbon;
@@ -49,6 +50,7 @@ class ResourceStorageService
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
         protected ResourceRightsStorageService $resourceRightsStorage,
+        protected SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver,
     ) {}
 
     /**
@@ -157,7 +159,9 @@ class ResourceStorageService
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
-            return $data;
+            $data['relatedIdentifiers'] = [];
+
+            return $this->ensureAuthorContactPersonContributors($data);
         }
 
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
@@ -206,7 +210,180 @@ class ResourceStorageService
 
         $data['relatedIdentifiers'] = $relatedIdentifiers;
 
+        return $this->ensureAuthorContactPersonContributors($data);
+    }
+
+    /**
+     * Expand the editor's author-level CP flag back into the DataCite-compatible
+     * contributor representation required for storage and export.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function ensureAuthorContactPersonContributors(array $data): array
+    {
+        $authors = $data['authors'] ?? [];
+
+        if (! is_array($authors)) {
+            return $data;
+        }
+
+        $contributors = $data['contributors'] ?? [];
+
+        if (! is_array($contributors)) {
+            $contributors = [];
+        }
+
+        foreach ($authors as $author) {
+            if (! is_array($author) || ($author['type'] ?? 'person') !== 'person' || ! (bool) ($author['isContact'] ?? false)) {
+                continue;
+            }
+
+            $matchingContributorIndex = $this->matchingPersonContributorIndex($contributors, $author);
+
+            if ($matchingContributorIndex !== null) {
+                /** @var array<string, mixed> $contributor */
+                $contributor = $contributors[$matchingContributorIndex];
+                $contributor['roles'] = $this->rolesWithContactPerson($contributor['roles'] ?? []);
+                $contributor['email'] = $author['email'] ?? null;
+                $contributor['website'] = $author['website'] ?? null;
+                $contributors[$matchingContributorIndex] = $contributor;
+
+                continue;
+            }
+
+            $contributors[] = $this->authorContactContributorData($author, count($contributors));
+        }
+
+        $data['contributors'] = array_values($contributors);
+
         return $data;
+    }
+
+    /**
+     * @param  array<int, mixed>  $contributors
+     * @param  array<string, mixed>  $author
+     */
+    private function matchingPersonContributorIndex(array $contributors, array $author): ?int
+    {
+        $authorKeys = $this->personDataIdentityKeys($author);
+
+        if ($authorKeys === []) {
+            return null;
+        }
+
+        foreach ($contributors as $index => $contributor) {
+            if (! is_array($contributor) || ($contributor['type'] ?? 'person') !== 'person') {
+                continue;
+            }
+
+            if (array_intersect($authorKeys, $this->personDataIdentityKeys($contributor)) !== []) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $personData
+     * @return list<string>
+     */
+    private function personDataIdentityKeys(array $personData): array
+    {
+        $orcidIdentityKey = $this->personDataOrcidIdentityKey($personData);
+
+        if ($orcidIdentityKey !== null) {
+            return [$orcidIdentityKey];
+        }
+
+        $keys = [];
+        $firstName = $this->normalisePersonIdentityPart($personData['firstName'] ?? null);
+        $lastName = $this->normalisePersonIdentityPart($personData['lastName'] ?? null);
+
+        if ($firstName !== null && $lastName !== null) {
+            $keys[] = 'name:'.$lastName.'|'.$firstName;
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * @param  array<string, mixed>  $personData
+     */
+    private function personDataOrcidIdentityKey(array $personData): ?string
+    {
+        $orcid = $this->filledContactString($personData['orcid'] ?? null);
+
+        if ($orcid === null) {
+            return null;
+        }
+
+        $bareOrcid = OrcidNormalizer::extractBareId($orcid);
+
+        if ($bareOrcid === '' || ! OrcidNormalizer::isValidFormat($bareOrcid)) {
+            return null;
+        }
+
+        return 'orcid:'.strtolower($bareOrcid);
+    }
+
+    private function normalisePersonIdentityPart(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $normalised = mb_strtolower($value, 'UTF-8');
+        $normalised = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalised) ?: $normalised;
+        $normalised = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $normalised) ?? '';
+        $normalised = preg_replace('/\s+/', ' ', $normalised) ?? '';
+
+        return trim($normalised);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rolesWithContactPerson(mixed $roles): array
+    {
+        $roles = is_array($roles)
+            ? array_values(array_filter(
+                $roles,
+                fn (mixed $role): bool => is_string($role) && trim($role) !== '',
+            ))
+            : [];
+
+        if (! $this->hasContactPersonRole(['roles' => $roles])) {
+            $roles[] = 'ContactPerson';
+        }
+
+        return array_values(array_unique($roles));
+    }
+
+    /**
+     * @param  array<string, mixed>  $author
+     * @return array<string, mixed>
+     */
+    private function authorContactContributorData(array $author, int $position): array
+    {
+        return [
+            'type' => 'person',
+            'firstName' => $author['firstName'] ?? null,
+            'lastName' => $author['lastName'] ?? null,
+            'orcid' => $author['orcid'] ?? null,
+            'roles' => ['ContactPerson'],
+            'email' => $author['email'] ?? null,
+            'website' => $author['website'] ?? null,
+            'affiliations' => $author['affiliations'] ?? [],
+            'position' => $position,
+        ];
     }
 
     /**
@@ -918,22 +1095,54 @@ class ResourceStorageService
         $controlledKeywordsData = [];
         foreach ($controlledKeywords as $keyword) {
             // Validate required fields (scheme is now the discriminator instead of vocabularyType)
-            if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
-                $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
-                $classificationCode = $rawCode !== '' ? $rawCode : null;
-                $valueUri = filter_var($keyword['id'], FILTER_VALIDATE_URL) ? $keyword['id'] : null;
-
-                $controlledKeywordsData[] = [
-                    'value' => $keyword['text'],
-                    'subject_scheme' => $keyword['scheme'],
-                    'scheme_uri' => $keyword['schemeURI'] ?? null,
-                    'value_uri' => $valueUri,
-                    'classification_code' => $classificationCode,
-                    'breadcrumb_path' => SubjectBreadcrumbPath::normalize(
-                        is_string($keyword['path'] ?? null) ? $keyword['path'] : null,
-                    ),
-                ];
+            if (empty($keyword['text']) || empty($keyword['scheme'])) {
+                continue;
             }
+
+            $keywordId = trim((string) ($keyword['id'] ?? ''));
+            $keywordText = trim((string) $keyword['text']);
+            $keywordText = SubjectBreadcrumbPath::normalize($keywordText) ?? $keywordText;
+            $keywordScheme = trim((string) $keyword['scheme']);
+            $keywordSchemeUri = is_string($keyword['schemeURI'] ?? null) ? trim((string) $keyword['schemeURI']) : null;
+            $keywordPath = is_string($keyword['path'] ?? null) ? $keyword['path'] : null;
+
+            if ($keywordId === '' || $keywordSchemeUri === null || $keywordSchemeUri === '') {
+                $resolvedKeyword = $this->subjectBreadcrumbPathResolver->resolveKeywordFromPath(
+                    $keywordScheme,
+                    $keywordPath ?? $keywordText,
+                );
+
+                if ($resolvedKeyword !== null) {
+                    $keywordId = $keywordId !== '' ? $keywordId : $resolvedKeyword['id'];
+                    $keywordText = $keywordText !== '' ? $keywordText : $resolvedKeyword['text'];
+                    $keywordScheme = $resolvedKeyword['scheme'];
+                    $keywordSchemeUri = $keywordSchemeUri !== null && $keywordSchemeUri !== ''
+                        ? $keywordSchemeUri
+                        : $resolvedKeyword['schemeURI'];
+                    $keywordPath = $resolvedKeyword['path'];
+                }
+            }
+
+            if ($keywordId === '' || $keywordText === '' || $keywordScheme === '') {
+                continue;
+            }
+
+            $keywordSchemeUri = $keywordSchemeUri !== null && $keywordSchemeUri !== ''
+                ? $keywordSchemeUri
+                : $this->subjectBreadcrumbPathResolver->resolveSchemeUri($keywordScheme);
+
+            $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
+            $classificationCode = $rawCode !== '' ? $rawCode : null;
+            $valueUri = filter_var($keywordId, FILTER_VALIDATE_URL) ? $keywordId : null;
+
+            $controlledKeywordsData[] = [
+                'value' => $keywordText,
+                'subject_scheme' => $keywordScheme,
+                'scheme_uri' => $keywordSchemeUri,
+                'value_uri' => $valueUri,
+                'classification_code' => $classificationCode,
+                'breadcrumb_path' => SubjectBreadcrumbPath::normalize($keywordPath),
+            ];
         }
 
         // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
