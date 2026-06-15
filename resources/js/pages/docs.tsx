@@ -573,7 +573,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 funders via the ROR API v2
                             </li>
                             <li>
-                                <strong>SPDX License Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
+                                <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
                                 license metadata before export
                             </li>
                         </ul>

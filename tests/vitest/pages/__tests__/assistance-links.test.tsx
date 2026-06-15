@@ -1,5 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import axios from 'axios';
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem, SuggestedSpdxRightsItem } from '@/types/assistance';
 
@@ -19,6 +22,18 @@ vi.mock('sonner', () => ({
     toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
+vi.mock('axios', () => {
+    const post = vi.fn();
+    const get = vi.fn();
+    const isAxiosError = vi.fn((value: unknown): value is { isAxiosError: true } => {
+        return typeof value === 'object' && value !== null && (value as { isAxiosError?: boolean }).isAxiosError === true;
+    });
+
+    return { default: { post, get, isAxiosError }, post, get, isAxiosError };
+});
+
+const mockedAxiosPost = axios.post as Mock;
+
 // ── Import component under test (after mocks) ───────────────────────
 
 // The card components are not exported individually, so we render the
@@ -27,6 +42,14 @@ vi.mock('sonner', () => ({
 import AssistancePage from '@/pages/assistance';
 
 // ── Fixtures ─────────────────────────────────────────────────────────
+
+const SPDX_ASSISTANT_ID = 'spdx-license-suggestion';
+const SPDX_ROUTE_PREFIX = 'spdx-rights';
+const SPDX_ASSISTANT_NAME = 'SPDX Rights Suggestions';
+
+beforeEach(() => {
+    mockedAxiosPost.mockReset();
+});
 
 function makeOrcidSuggestion(overrides: Partial<SuggestedOrcidItem> = {}): SuggestedOrcidItem {
     return {
@@ -285,8 +308,8 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
 
         render(
             <AssistancePage
-                sections={{ 'spdx-license-suggestion': paginated([suggestion]) }}
-                manifests={[makeManifest('spdx-license-suggestion', 'spdx-license-suggestion', 'SPDX License Suggestions')]}
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
             />,
         );
 
@@ -311,14 +334,43 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
 
         render(
             <AssistancePage
-                sections={{ 'spdx-license-suggestion': paginated([suggestion]) }}
-                manifests={[makeManifest('spdx-license-suggestion', 'spdx-license-suggestion', 'SPDX License Suggestions')]}
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
             />,
         );
 
         expect(screen.getAllByText('No metadata captured.')).toHaveLength(2);
         expect(screen.queryByText(/% match/)).not.toBeInTheDocument();
         expect(screen.queryByRole('link', { name: 'SPDX reference' })).not.toBeInTheDocument();
+    });
+
+    it('posts accept and decline requests through the manifest route prefix', async () => {
+        const suggestion = makeSpdxRightsSuggestion({ id: 42 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'SPDX suggestion accepted.' } })
+            .mockResolvedValueOnce({ data: {} });
+
+        render(
+            <AssistancePage
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/spdx-rights/42/accept');
+            expect(screen.getByRole('button', { name: 'Accept' })).not.toBeDisabled();
+        });
+
+        await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/spdx-rights/42/decline');
+        });
     });
 });
 
