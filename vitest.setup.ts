@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { afterAll, afterEach, beforeAll, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 
 import { server } from './tests/vitest/helpers/msw-server';
 
@@ -36,10 +36,6 @@ afterEach(() => {
     } catch {
         // Some tests intentionally replace storage to exercise failure paths.
     }
-});
-
-afterAll(() => {
-    server.close();
 });
 
 // Global cleanup after each test to prevent Tagify timer errors
@@ -169,24 +165,56 @@ HTMLAnchorElement.prototype.click = function () {
     return nativeAnchorClick.call(this);
 };
 
+afterAll(() => {
+    server.close();
+    console.error = originalConsoleError;
+    HTMLAnchorElement.prototype.click = nativeAnchorClick;
+});
+
 // Set environment variables for consistent URL generation in tests
 process.env.VITE_APP_URL = '';
 process.env.APP_URL = '';
 
-const jsdomLocalStorage = window.localStorage;
-const jsdomSessionStorage = window.sessionStorage;
+function bindJsdomStorageGlobals() {
+    if (typeof window === 'undefined') {
+        return;
+    }
 
-Object.defineProperties(globalThis, {
-    localStorage: {
-        configurable: true,
-        value: jsdomLocalStorage,
-        writable: true,
-    },
-    sessionStorage: {
-        configurable: true,
-        value: jsdomSessionStorage,
-        writable: true,
-    },
+    const descriptors: PropertyDescriptorMap = {};
+
+    try {
+        descriptors.localStorage = {
+            configurable: true,
+            value: window.localStorage,
+            writable: true,
+        };
+    } catch {
+        // jsdom storage can be intentionally made unavailable in focused tests.
+    }
+
+    try {
+        descriptors.sessionStorage = {
+            configurable: true,
+            value: window.sessionStorage,
+            writable: true,
+        };
+    } catch {
+        // jsdom storage can be intentionally made unavailable in focused tests.
+    }
+
+    if (Object.keys(descriptors).length > 0) {
+        Object.defineProperties(globalThis, descriptors);
+    }
+}
+
+bindJsdomStorageGlobals();
+
+beforeEach(() => {
+    bindJsdomStorageGlobals();
+});
+
+afterEach(() => {
+    bindJsdomStorageGlobals();
 });
 
 // Mock Clipboard API for tests
