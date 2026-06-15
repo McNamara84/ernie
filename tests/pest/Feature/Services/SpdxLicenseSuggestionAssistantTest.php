@@ -122,6 +122,34 @@ it('reuses an existing catalog right and fills empty SPDX fields without overwri
         ->and(Right::where('identifier', 'CC-BY-4.0')->count())->toBe(1);
 });
 
+it('reuses an existing catalog right when optional SPDX URI metadata is absent', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $existingRight = Right::create([
+        'identifier' => 'CC-BY-4.0',
+        'name' => 'Creative Commons Attribution 4.0 International',
+        'uri' => null,
+        'scheme_uri' => null,
+    ]);
+    $resourceRight = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'CC BY 4.0',
+    ]);
+    $suggestion = createSpdxSuggestion($assistant, $resource, $resourceRight, [
+        'proposed' => [
+            'rights_uri' => null,
+        ],
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+    $existingRight->refresh();
+
+    expect($result['success'])->toBeTrue()
+        ->and($resourceRight->fresh()->rights_id)->toBe($existingRight->id)
+        ->and($existingRight->uri)->toBeNull()
+        ->and($existingRight->scheme_uri)->toBe(SpdxLicenseLookup::SCHEME_URI);
+});
+
 it('merges raw rights context when the resource already has the suggested SPDX license', function () {
     $assistant = app(Assistant::class);
     $resource = Resource::factory()->create();
@@ -170,6 +198,26 @@ it('treats an already linked target row as accepted when it points to the sugges
         ->and($resourceRight->fresh()->language)->toBe('en');
 });
 
+it('accepts an already linked target row without changing language when no language is proposed', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $right = Right::factory()->ccBy4()->create();
+    $resourceRight = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_id' => $right->id,
+    ]);
+    $suggestion = createSpdxSuggestion($assistant, $resource, $resourceRight, [
+        'proposed' => [
+            'language' => ' ',
+        ],
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeTrue()
+        ->and($resourceRight->fresh()->language)->toBeNull();
+});
+
 it('does not accept a suggestion when the targeted rights row disappeared', function () {
     $assistant = app(Assistant::class);
     $resource = Resource::factory()->create();
@@ -207,6 +255,48 @@ it('does not accept a SPDX suggestion for an unsupported target type', function 
     expect($result['success'])->toBeFalse()
         ->and($result['message'])->toBe('This SPDX suggestion targets an unsupported entity type.')
         ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
+it('does not accept incomplete SPDX proposal metadata', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $resourceRight = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'CC BY 4.0',
+    ]);
+    $suggestion = createSpdxSuggestion($assistant, $resource, $resourceRight, [
+        'proposed' => [
+            'rights' => ' ',
+            'rights_identifier' => ' ',
+        ],
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toBe('This suggestion does not contain a complete SPDX license identifier and name.')
+        ->and($resourceRight->fresh()->rights_id)->toBeNull();
+});
+
+it('does not accept proposals with non-SPDX identifier metadata', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $resourceRight = ResourceRight::create([
+        'resource_id' => $resource->id,
+        'rights_text' => 'CC BY 4.0',
+    ]);
+    $suggestion = createSpdxSuggestion($assistant, $resource, $resourceRight, [
+        'proposed' => [
+            'rights_identifier_scheme' => 'Other',
+            'scheme_uri' => 'https://example.test/licenses/',
+        ],
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toBe('Only SPDX rights suggestions can be accepted by this assistant.')
+        ->and($resourceRight->fresh()->rights_id)->toBeNull();
 });
 
 it('does not accept mismatched suggestion values and proposed identifiers', function () {

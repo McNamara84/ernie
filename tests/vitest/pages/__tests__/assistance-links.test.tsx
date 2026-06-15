@@ -302,6 +302,24 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         );
         expect(screen.getByText(/Clicking Accept links only this rights statement/)).toBeInTheDocument();
     });
+
+    it('shows empty metadata fallbacks when SPDX suggestion metadata is absent', () => {
+        const suggestion = makeSpdxRightsSuggestion({
+            similarity_score: null,
+            metadata: null,
+        } as Partial<SuggestedSpdxRightsItem>);
+
+        render(
+            <AssistancePage
+                sections={{ 'spdx-license-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('spdx-license-suggestion', 'spdx-license-suggestion', 'SPDX License Suggestions')]}
+            />,
+        );
+
+        expect(screen.getAllByText('No metadata captured.')).toHaveLength(2);
+        expect(screen.queryByText(/% match/)).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'SPDX reference' })).not.toBeInTheDocument();
+    });
 });
 
 describe('RorSuggestionCard – ROR link', () => {
