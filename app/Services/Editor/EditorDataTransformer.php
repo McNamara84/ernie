@@ -65,6 +65,7 @@ class EditorDataTransformer
             'resourceId' => (string) $resource->id,
             'titles' => $this->transformTitles($resource),
             'initialLicenses' => $this->transformLicenses($resource),
+            'initialRawRights' => $this->transformRawRights($resource),
             'authors' => $creators['authors'],
             'contributors' => $creators['contributors'],
             'descriptions' => $this->transformDescriptions($resource),
@@ -129,6 +130,35 @@ class EditorDataTransformer
     public function transformLicenses(Resource $resource): array
     {
         return $resource->rights->pluck('identifier')->toArray();
+    }
+
+    /**
+     * Transform stored resource-rights statements back to the hidden import
+     * context expected by the editor.
+     *
+     * These values are not displayed as editable UI. They only travel with the
+     * form so a regular resource update does not discard unresolved imported
+     * rights before a reviewer has accepted or declined SPDX suggestions.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function transformRawRights(Resource $resource): array
+    {
+        return $resource->resourceRights
+            ->map(function ($resourceRight): array {
+                return array_filter([
+                    'rights' => $resourceRight->rights_text,
+                    'rightsUri' => $resourceRight->rights_uri,
+                    'rightsIdentifier' => $resourceRight->rights_identifier,
+                    'rightsIdentifierScheme' => $resourceRight->rights_identifier_scheme,
+                    'schemeUri' => $resourceRight->scheme_uri,
+                    'lang' => $resourceRight->language,
+                    'source' => $resourceRight->source,
+                ], fn (?string $value): bool => $value !== null && trim($value) !== '');
+            })
+            ->filter(fn (array $statement): bool => $statement !== [])
+            ->values()
+            ->all();
     }
 
     /**

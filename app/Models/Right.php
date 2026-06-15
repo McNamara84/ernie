@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Carbon;
 
 /**
  * Rights Model (DataCite #16) - formerly License
@@ -24,15 +26,15 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
  * @property bool $is_active
  * @property bool $is_elmo_active
  * @property int $usage_count
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/rights/
  */
 #[Fillable(['identifier', 'name', 'uri', 'scheme_uri', 'is_active', 'is_elmo_active', 'usage_count'])]
 class Right extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     protected $casts = [
@@ -79,11 +81,20 @@ class Right extends Model
         return $query->orderBy('usage_count', 'desc')->orderBy('name');
     }
 
-    /** @return BelongsToMany<Resource, static, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'> */
+    /** @return BelongsToMany<Resource, static, Pivot, 'pivot'> */
     public function resources(): BelongsToMany
     {
-        /** @var BelongsToMany<Resource, static, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'> $relation */
+        /** @var BelongsToMany<Resource, static, Pivot, 'pivot'> $relation */
         $relation = $this->belongsToMany(Resource::class, 'resource_rights')
+            ->withPivot([
+                'rights_text',
+                'rights_uri',
+                'rights_identifier',
+                'rights_identifier_scheme',
+                'scheme_uri',
+                'language',
+                'source',
+            ])
             ->withTimestamps();
 
         return $relation;

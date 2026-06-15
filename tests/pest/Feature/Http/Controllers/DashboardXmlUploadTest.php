@@ -1,11 +1,12 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
-    $this->actingAs(\App\Models\User::factory()->create(['role' => 'curator']));
+    $this->actingAs(User::factory()->create(['role' => 'curator']));
 });
 
 it('can upload XML file and returns session key', function () {
@@ -284,6 +285,9 @@ it('passes licenses from xml session to editor as initialLicenses prop', functio
         'year' => '2024',
         'titles' => [['title' => 'Test Title', 'titleType' => 'main-title']],
         'licenses' => ['CC-BY-4.0', 'MIT'],
+        'rawRights' => [
+            ['rights' => 'CC BY 4.0', 'rightsUri' => 'http://creativecommons.org/licenses/by/4.0', 'source' => 'xml-upload'],
+        ],
         'authors' => [],
         'contributors' => [],
         'descriptions' => [],
@@ -305,5 +309,8 @@ it('passes licenses from xml session to editor as initialLicenses prop', functio
             ->has('initialLicenses', 2)
             ->where('initialLicenses.0', 'CC-BY-4.0')
             ->where('initialLicenses.1', 'MIT')
+            ->has('initialRawRights', 1)
+            ->where('initialRawRights.0.rights', 'CC BY 4.0')
+            ->where('initialRawRights.0.rightsUri', 'http://creativecommons.org/licenses/by/4.0')
     );
 });

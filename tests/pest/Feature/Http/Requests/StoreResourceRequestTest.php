@@ -205,6 +205,57 @@ describe('licenses validation', function () {
         $response->assertJsonValidationErrors(['licenses']);
     });
 
+    it('accepts imported raw rights when no catalog license is selected', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['rawRights'] = [
+            [
+                'rights' => 'CC BY 4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                'source' => 'xml-upload',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('accepts null licenses when imported raw rights evidence is present', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = null;
+        $data['rawRights'] = [
+            [
+                'rights' => 'CC BY 4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                'source' => 'xml-upload',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('rejects non-array licenses without throwing during normalization', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = 'CC-BY-4.0';
+        $data['rawRights'] = [
+            [
+                'rights' => 'CC BY 4.0',
+                'source' => 'xml-upload',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['licenses']);
+    });
+
     it('rejects non-existent license identifier', function () {
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
         $data['licenses'] = ['NON-EXISTENT-LICENSE'];

@@ -8,6 +8,7 @@ use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
@@ -34,6 +35,40 @@ beforeEach(function (): void {
     test()->seed(LanguageSeeder::class);
     test()->seed(PublisherSeeder::class);
     test()->seed(RelationTypeSeeder::class);
+});
+
+describe('DataCiteToResourceTransformer - rights import', function (): void {
+    it('stores raw rights statements without immediately linking alias-only SPDX data', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/fidgeo.2017.003',
+                'publicationYear' => 2017,
+                'language' => 'en',
+                'titles' => [['title' => 'Raw rights import test']],
+                'creators' => [
+                    ['familyName' => 'Tester', 'givenName' => 'Rights', 'nameType' => 'Personal'],
+                ],
+                'rightsList' => [
+                    [
+                        'rights' => 'CC BY 4.0',
+                        'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->sole();
+
+        expect($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+            ->and($resourceRight->language)->toBe('en')
+            ->and($resourceRight->source)->toBe('datacite-import');
+    });
 });
 
 describe('DataCiteToResourceTransformer - geo location normalization', function (): void {
