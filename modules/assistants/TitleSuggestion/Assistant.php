@@ -57,21 +57,29 @@ class Assistant extends GenericTableAssistant
             }
 
             $currentLanguage = $this->currentLanguage($title);
+            $overwriteWarning = $this->overwriteWarning($currentLanguage, $detection['code']);
 
             $stored = $this->storeSuggestion(
                 resourceId: $title->resource_id,
                 targetType: 'title',
                 targetId: $title->id,
                 suggestedValue: $detection['code'],
-                suggestedLabel: $this->suggestionLabel((string) $title->value, $detection),
+                suggestedLabel: $this->suggestionLabel((string) $title->value, $detection, $currentLanguage),
                 similarityScore: $detection['confidence'],
                 metadata: [
                     'title_text' => (string) $title->value,
                     'current_language' => $currentLanguage,
+                    'current_language_label' => $currentLanguage !== null
+                        ? $this->languageLabel($currentLanguage)
+                        : null,
                     'proposed_language' => $detection['code'],
                     'proposed_language_label' => $detection['label'],
                     'confidence' => $detection['confidence'],
+                    'confidence_percent' => $this->confidencePercent($detection['confidence']),
                     'reason' => $detection['reason'],
+                    'warning' => $overwriteWarning,
+                    'has_overwrite_warning' => $overwriteWarning !== null,
+                    'is_stale' => false,
                     'source_hash' => $this->sourceHash($title),
                     'source_snapshot' => [
                         'title_id' => $title->id,
@@ -197,16 +205,43 @@ class Assistant extends GenericTableAssistant
     /**
      * Build a human-readable label for the generic Assistance card.
      *
+     * The generic card shows the suggested label prominently. Therefore this label
+     * includes the main reviewer-preview information until a custom card exists.
+     *
      * @param array{code: string, label: string, confidence: float, reason: string} $detection
      */
-    private function suggestionLabel(string $titleText, array $detection): string
+    private function suggestionLabel(string $titleText, array $detection, ?string $currentLanguage = null): string
     {
+        $currentLanguageLabel = $currentLanguage !== null
+            ? $currentLanguage
+            : 'not set';
+
         return sprintf(
-            '%s (%s) for "%s"',
+            '%s (%s) · %d%% confidence · current: %s · "%s"',
             $detection['label'],
             $detection['code'],
+            $this->confidencePercent($detection['confidence']),
+            $currentLanguageLabel,
             $this->shortTitle($titleText),
         );
+    }
+
+    private function confidencePercent(float $confidence): int
+    {
+        return (int) round(max(0.0, min(1.0, $confidence)) * 100);
+    }
+
+    private function overwriteWarning(?string $currentLanguage, string $proposedLanguage): ?string
+    {
+        if ($currentLanguage === null || $currentLanguage === '') {
+            return null;
+        }
+
+        if ($currentLanguage === $proposedLanguage) {
+            return null;
+        }
+
+        return 'This title already has a language value. Accepting this suggestion may overwrite the existing value.';
     }
 
     private function shortTitle(string $title): string
