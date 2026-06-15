@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
+import {Archive, FileArchive, AlertCircle, AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -300,6 +300,58 @@ function RorSuggestionCard({
     );
 }
 
+function SizeFormatSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: BaseSuggestionItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const value = String(suggestion.suggested_value ?? '');
+    const label = String(suggestion.suggested_label ?? value);
+    const isZip = value.toLowerCase() === 'zip' || value.toLowerCase().includes('application/zip');
+
+    return (
+        <div
+            className={
+                isZip
+                    ? 'rounded-lg border-2 border-orange-500 bg-orange-50 p-4 shadow-sm transition-all hover:shadow-md dark:bg-orange-950/20'
+                    : 'rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md'
+}
+        >
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>
+                            {isZip ? 'ZIP Archive' : String(suggestion.target_type)}
+                        </Badge>
+                    </div>
+
+                    <p className="text-sm font-medium">{label}</p>
+
+                    <p className="text-xs text-muted-foreground">
+                        Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
+                    </p>
+                </div>
+
+                <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 // ── Per-section state ────────────────────────────────────────────────
 
 interface SectionState {
@@ -597,6 +649,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         isProcessing={isProcessing}
                     />
                 );
+            case 'size-format-suggestion':
+    return (
+        <SizeFormatSuggestionCard
+            suggestion={item}
+            onAccept={onAccept}
+            onDecline={onDecline}
+            isProcessing={isProcessing}
+        />
+    );
             default:
                 // Generic card for future student modules
                 return (
