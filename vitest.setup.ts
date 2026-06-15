@@ -1,8 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 
-import { afterAll, afterEach, beforeAll, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 
 import { server } from './tests/vitest/helpers/msw-server';
+
+const originalConsoleError = console.error;
+const ignoredJsdomErrors = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
+
+console.error = (...args: Parameters<typeof console.error>) => {
+    if (args.length === 1 && typeof args[0] === 'string' && ignoredJsdomErrors.has(args[0])) {
+        return;
+    }
+
+    originalConsoleError(...args);
+};
 
 // Start MSW before any test runs so that fetch calls inside hooks/components
 // are intercepted deterministically. `onUnhandledRequest: 'error'` prevents
@@ -18,8 +29,13 @@ afterEach(() => {
     server.resetHandlers();
 });
 
-afterAll(() => {
-    server.close();
+afterEach(() => {
+    try {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+    } catch {
+        // Some tests intentionally replace storage to exercise failure paths.
+    }
 });
 
 // Global cleanup after each test to prevent Tagify timer errors
@@ -135,48 +151,71 @@ if (!Element.prototype.scrollIntoView) {
     };
 }
 
-// Mock window.scrollTo
-if (typeof window.scrollTo !== 'function') {
-    window.scrollTo = function () {
-        // No-op
-    };
-}
+window.scrollTo = function () {
+    // No-op
+};
+
+const nativeAnchorClick = HTMLAnchorElement.prototype.click;
+
+HTMLAnchorElement.prototype.click = function () {
+    if (this.hasAttribute('download')) {
+        return;
+    }
+
+    return nativeAnchorClick.call(this);
+};
+
+afterAll(() => {
+    server.close();
+    console.error = originalConsoleError;
+    HTMLAnchorElement.prototype.click = nativeAnchorClick;
+});
 
 // Set environment variables for consistent URL generation in tests
 process.env.VITE_APP_URL = '';
 process.env.APP_URL = '';
 
-// Mock localStorage for tests
-class LocalStorageMock {
-    private store: Record<string, string> = {};
-
-    clear() {
-        this.store = {};
+function bindJsdomStorageGlobals() {
+    if (typeof window === 'undefined') {
+        return;
     }
 
-    getItem(key: string) {
-        return this.store[key] || null;
+    const descriptors: PropertyDescriptorMap = {};
+
+    try {
+        descriptors.localStorage = {
+            configurable: true,
+            value: window.localStorage,
+            writable: true,
+        };
+    } catch {
+        // jsdom storage can be intentionally made unavailable in focused tests.
     }
 
-    setItem(key: string, value: string) {
-        this.store[key] = value.toString();
+    try {
+        descriptors.sessionStorage = {
+            configurable: true,
+            value: window.sessionStorage,
+            writable: true,
+        };
+    } catch {
+        // jsdom storage can be intentionally made unavailable in focused tests.
     }
 
-    removeItem(key: string) {
-        delete this.store[key];
-    }
-
-    get length() {
-        return Object.keys(this.store).length;
-    }
-
-    key(index: number) {
-        const keys = Object.keys(this.store);
-        return keys[index] || null;
+    if (Object.keys(descriptors).length > 0) {
+        Object.defineProperties(globalThis, descriptors);
     }
 }
 
-global.localStorage = new LocalStorageMock() as Storage;
+bindJsdomStorageGlobals();
+
+beforeEach(() => {
+    bindJsdomStorageGlobals();
+});
+
+afterEach(() => {
+    bindJsdomStorageGlobals();
+});
 
 // Mock Clipboard API for tests
 if (typeof navigator !== 'undefined') {

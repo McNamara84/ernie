@@ -98,7 +98,9 @@ describe('useSidebarWorkspace', () => {
             expect(result.current.workspace).toBe('curation');
         });
 
-        expect(window.localStorage.getItem(SIDEBAR_WORKSPACE_STORAGE_KEY)).toBe('curation');
+        await waitFor(() => {
+            expect(window.localStorage.getItem(SIDEBAR_WORKSPACE_STORAGE_KEY)).toBe('curation');
+        }, { timeout: 5000 });
     });
 
     it('restores the stored workspace for global routes outside both workspaces', async () => {

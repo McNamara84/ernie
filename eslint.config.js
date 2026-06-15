@@ -48,10 +48,20 @@ export default [
         },
     },
     {
+        files: ['scripts/**/*.mjs'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+    },
+    {
         ignores: [
             'vendor',
             'node_modules',
             'public',
+            'resources/js/actions/**',
+            'resources/js/routes/**',
             'bootstrap/ssr',
             'tailwind.config.js',
             'playwright-report',
