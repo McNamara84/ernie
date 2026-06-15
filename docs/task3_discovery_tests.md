@@ -72,7 +72,7 @@ Prüft, ob die Erkennungslogik auch in schwierigen Fällen korrekt reagiert.
 ## Offene Fragen *(vor Sprint-Start zu klären)*
 
 1. **Welche Spracherkennungsbibliothek soll verwendet werden?**
-   Kandidaten: `langdetect`, `lingua`, `cld3`
+   Kandidaten: `langdetect`, `lingua`, `cld3`, `nitotm`
    Relevant für: Konfidenzverhalten bei kurzen Titeln, Umgang mit geliehenen englischen Begriffen.
 
 2. **Welcher Konfidenzschwellenwert gilt für "geringe Konfidenz"?**
