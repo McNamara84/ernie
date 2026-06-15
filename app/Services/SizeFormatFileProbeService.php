@@ -488,7 +488,7 @@ class SizeFormatFileProbeService
         $filename = basename(parse_url($fileUrl, PHP_URL_PATH) ?? $fileUrl);
         // Dateiendungen ermitteln
         // aus report.pdf wird pdf
-        $extension = $this->extractExtension($filename);
+        $extension = $this->extractFileMetadata($filename);
 
         // Fall: keine Endung gefunden
         if ($extension === null) {
@@ -598,6 +598,9 @@ class SizeFormatFileProbeService
                 continue;
             }
 
+            // ruft die neue Funktion zur Erkennung der Dateiendung auf
+            $fileMetadata = $this->extractFileMetadata($filename);
+
             // Fügt eine Datei zur Ergebnisliste hinzu
             $files[] = [
                 // macht aus dem relativen Dateilink eine vollständige URL
@@ -605,7 +608,7 @@ class SizeFormatFileProbeService
                 // speichert den Dateinamen
                 'filename' => $filename,
                 // leitet das Format aus der Dateiendung ab, z. B. csv, pdf, zip
-                'format' => $this->extractExtension($filename),
+                'format' => $fileMetadata,
                 // speichert das Änderungsdatum der Datei
                 'last_modified' => $lastModified,
                 // speichert die angezeigte Dateigröße, z. B. 14M
@@ -795,6 +798,33 @@ class SizeFormatFileProbeService
 
         // Wenn eine Endung existiert, wird sie klein geschrieben zurückgegeben. Sonst null
         return $extension !== '' ? strtolower($extension) : null;
+    }
+
+    // Funktion, um das Problem mit zwei Formaten im Namen zu bereinigen: z.B.: GFZOP_RSO_L06_G_20051231_220000_20060101_120000_v01.sp3.gz
+    private function extractFileMetadata(string $filename): ?string
+    {
+        // Dateiname wird klein geschrieben und an Punkten getrennt
+        $parts = explode('.', strtolower($filename));
+
+        // bei keinem vorhandenen Punkt -> gibt es keine Dateiendung = Null
+        if (count($parts) < 2) {
+            return null;
+        }
+        
+        // Endungen die als Komprimierung erkannt werden
+        $compressionFormats = ['gz', 'bz2', 'xz'];
+
+        // holt die letzte Endung 
+        $last = end($parts);
+
+        // prüft, ist die letzte Endung eine Komprimierung und gibt es davor noch eine weitere Endung?
+        if (in_array($last, $compressionFormats, true) && count($parts) >= 3) {
+            // wird die vorletzte und letzte Endung zurückgegeben
+            return $parts[count($parts) - 2] . '.' . $last;
+        }
+
+        // wenn keine Komprimierung erkannt, wird letzte Endung zurückgegeben
+        return $last;
     }
 
     // prüft, ob ein Linktext erlaubt ist
