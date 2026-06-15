@@ -51,3 +51,26 @@ Confidence:
 
 Warning:
 No existing title language will be overwritten.
+```
+
+
+---
+
+## Implementation Notes / Possible Approach
+
+The reviewer preview may need enough suggestion data to show the curator what will happen before accepting a title language suggestion.
+
+A suggestion should provide or derive at least the following information:
+
+```ts
+type TitleLanguageSuggestionPreview = {
+  id: string;
+  titleId: string;
+  titleText: string;
+  currentLanguage: string | null;
+  proposedLanguage: string;
+  confidence?: number;
+  reason?: string;
+  createdAt?: string;
+  isStale?: boolean;
+};
