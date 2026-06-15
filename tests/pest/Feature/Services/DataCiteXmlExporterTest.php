@@ -574,12 +574,11 @@ describe('DataCiteXmlExporter - Rights', function () {
             ->and($xml)->not->toContain('rightsIdentifier=');
     });
 
-    test('exports unresolved raw rights identifier metadata', function () {
+    test('exports unresolved raw rights identifier metadata when rights text is missing', function () {
         $resource = Resource::factory()->create();
 
         ResourceRight::create([
             'resource_id' => $resource->id,
-            'rights_text' => 'Custom imported license',
             'rights_uri' => 'https://example.test/custom-license',
             'rights_identifier' => 'CUSTOM-1.0',
             'rights_identifier_scheme' => 'LocalScheme',
@@ -592,7 +591,7 @@ describe('DataCiteXmlExporter - Rights', function () {
         expect($xml)->toContain('rightsIdentifier="CUSTOM-1.0"')
             ->and($xml)->toContain('rightsIdentifierScheme="LocalScheme"')
             ->and($xml)->toContain('schemeURI="https://example.test/schemes/licenses"')
-            ->and($xml)->toContain('Custom imported license</rights>');
+            ->and($xml)->toContain('CUSTOM-1.0</rights>');
     });
 
     test('exports accepted SPDX rights with catalog metadata and statement language', function () {

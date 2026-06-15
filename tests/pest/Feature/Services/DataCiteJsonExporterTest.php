@@ -398,12 +398,11 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
             ->and($rightsList[0])->not->toHaveKey('rightsIdentifier');
     });
 
-    test('exports unresolved imported rights identifier metadata', function () {
+    test('exports unresolved imported rights identifier metadata when rights text is missing', function () {
         $resource = Resource::factory()->create();
 
         ResourceRight::create([
             'resource_id' => $resource->id,
-            'rights_text' => 'Custom imported license',
             'rights_uri' => 'https://example.test/custom-license',
             'rights_identifier' => 'CUSTOM-1.0',
             'rights_identifier_scheme' => 'LocalScheme',
@@ -415,7 +414,7 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
         $rights = $result['data']['attributes']['rightsList'][0];
 
         expect($rights)->toMatchArray([
-            'rights' => 'Custom imported license',
+            'rights' => 'CUSTOM-1.0',
             'rightsURI' => 'https://example.test/custom-license',
             'rightsIdentifier' => 'CUSTOM-1.0',
             'rightsIdentifierScheme' => 'LocalScheme',

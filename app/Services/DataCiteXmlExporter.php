@@ -1154,11 +1154,16 @@ class DataCiteXmlExporter
                 $schemeUri = $resourceRight->scheme_uri;
             }
 
-            if ($rightsText === null || trim($rightsText) === '') {
+            $exportedRightsText = $rightsText;
+            if ($exportedRightsText === null || trim($exportedRightsText) === '') {
+                $exportedRightsText = $rightsIdentifier;
+            }
+
+            if ($exportedRightsText === null || trim($exportedRightsText) === '') {
                 continue;
             }
 
-            $rightsElement = $this->dom->createElement('rights', htmlspecialchars($rightsText));
+            $rightsElement = $this->dom->createElement('rights', htmlspecialchars($exportedRightsText));
 
             if ($rightsUri !== null && trim($rightsUri) !== '') {
                 $rightsElement->setAttribute('rightsURI', htmlspecialchars($rightsUri));

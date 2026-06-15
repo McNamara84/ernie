@@ -786,12 +786,17 @@ class DataCiteJsonExporter
                 $schemeUri = $resourceRight->scheme_uri;
             }
 
-            if ($rightsText === null || trim($rightsText) === '') {
+            $exportedRightsText = $rightsText;
+            if ($exportedRightsText === null || trim($exportedRightsText) === '') {
+                $exportedRightsText = $rightsIdentifier;
+            }
+
+            if ($exportedRightsText === null || trim($exportedRightsText) === '') {
                 continue;
             }
 
             $rightsData = [
-                'rights' => $rightsText,
+                'rights' => $exportedRightsText,
             ];
 
             if ($rightsUri !== null && trim($rightsUri) !== '') {
