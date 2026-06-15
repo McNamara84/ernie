@@ -691,7 +691,16 @@ describe('JSON Upload - License and description edge cases', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['licenses'])->toBe(['CC-BY-4.0']);
+        expect($data['licenses'])->toBe(['CC-BY-4.0'])
+            ->and($data['rawRights'])->toHaveCount(2)
+            ->and($data['rawRights'][0])->toMatchArray([
+                'rights' => 'Open Access',
+                'source' => 'json-upload',
+            ])
+            ->and($data['rawRights'][1])->toMatchArray([
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'source' => 'json-upload',
+            ]);
     });
 
     test('skips empty descriptions', function () {

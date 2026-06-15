@@ -17,13 +17,13 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
-use App\Models\Right;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
@@ -49,6 +49,7 @@ class ResourceStorageService
         protected RorLookupService $rorLookupService,
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
+        protected ResourceRightsStorageService $resourceRightsStorage,
         protected SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver,
     ) {}
 
@@ -452,25 +453,67 @@ class ResourceStorageService
      */
     private function syncLicenses(Resource $resource, array $data): void
     {
-        // Sync rights (pivot table) based on the validated license identifiers.
-        $licenseIdentifiers = $data['licenses'] ?? [];
+        // Sync selected catalog rights and keep raw imported statements. This
+        // lets an import store "CC BY 4.0" as-is while the SPDX assistant later
+        // proposes whether it should link to the shared SPDX catalog entry.
+        $this->resourceRightsStorage->syncEditorRights(
+            $resource,
+            $this->licenseIdentifierList($data['licenses'] ?? []),
+            $this->rawRightsList($data['rawRights'] ?? []),
+            $resource->language?->code,
+        );
+    }
 
-        /**
-         * @var array<string, int> $rightsByIdentifier
-         */
-        $rightsByIdentifier = Right::query()
-            ->whereIn('identifier', $licenseIdentifiers)
-            ->pluck('id', 'identifier')
-            ->all();
-
-        $missingLicenses = array_values(array_diff($licenseIdentifiers, array_keys($rightsByIdentifier)));
-        if (count($missingLicenses) > 0) {
-            throw ValidationException::withMessages([
-                'licenses' => 'Some provided licenses are unknown: '.implode(', ', $missingLicenses),
-            ]);
+    /**
+     * @return list<string>
+     */
+    private function licenseIdentifierList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
         }
 
-        $resource->rights()->sync(array_values($rightsByIdentifier));
+        $identifiers = [];
+
+        foreach ($value as $identifier) {
+            if (is_string($identifier)) {
+                $identifiers[] = $identifier;
+            }
+        }
+
+        return $identifiers;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rawRightsList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rawRights = [];
+
+        foreach ($value as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [];
+
+            foreach ($statement as $key => $item) {
+                if (is_string($key)) {
+                    $normalized[$key] = $item;
+                }
+            }
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
     }
 
     /**

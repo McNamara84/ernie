@@ -66,6 +66,61 @@ it('normalizes related identifiers and keeps optional related-work fields only w
     ]);
 });
 
+it('normalizes raw rights statements for draft saves', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [' CC-BY-4.0 ', '', 'CC-BY-4.0'],
+        'rawRights' => [
+            [
+                'rights_text' => ' CC BY 4.0 ',
+                'rightsURI' => ' http://creativecommons.org/licenses/by/4.0 ',
+                'rights_identifier' => ' CC-BY-4.0 ',
+                'rightsIdentifierScheme' => ' SPDX ',
+                'schemeURI' => ' https://spdx.org/licenses/ ',
+                'language' => ' en ',
+                'source' => ' xml-upload ',
+            ],
+            [
+                'rights' => '   ',
+                'rightsUri' => null,
+                'rightsIdentifier' => [],
+                'source' => (object) ['ignored' => true],
+            ],
+            'not-a-statement',
+        ],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('licenses'))->toBe(['CC-BY-4.0'])
+        ->and($request->input('rawRights'))->toBe([
+            [
+                'rights' => 'CC BY 4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'lang' => 'en',
+                'source' => 'xml-upload',
+            ],
+        ]);
+});
+
+it('keeps non-array raw rights input unchanged for draft validation', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'rawRights' => 'not-an-array',
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('rawRights'))->toBe('not-an-array');
+});
+
 it('keeps related-work citation label limits aligned between draft and store requests', function (): void {
     $draftRequest = new StoreDraftResourceRequest;
     $storeRequest = new StoreResourceRequest;

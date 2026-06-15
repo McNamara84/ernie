@@ -62,6 +62,14 @@ class StoreDraftResourceRequest extends FormRequest
             // Licenses are optional for drafts
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
+            'rawRights' => ['nullable', 'array'],
+            'rawRights.*.rights' => ['nullable', 'string'],
+            'rawRights.*.rightsUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.rightsIdentifier' => ['nullable', 'string', 'max:255'],
+            'rawRights.*.rightsIdentifierScheme' => ['nullable', 'string', 'max:100'],
+            'rawRights.*.schemeUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.lang' => ['nullable', 'string', 'max:10'],
+            'rawRights.*.source' => ['nullable', 'string', 'max:100'],
             // Authors are optional for drafts
             'authors' => ['nullable', 'array'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
@@ -243,8 +251,9 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
-        /** @var array<int, mixed> $rawLicenses */
-        $rawLicenses = $this->input('licenses', []);
+        /** @var mixed $rawLicensesInput */
+        $rawLicensesInput = $this->input('licenses', []);
+        $rawLicenses = is_array($rawLicensesInput) ? $rawLicensesInput : [];
 
         $licenses = [];
 
@@ -257,6 +266,14 @@ class StoreDraftResourceRequest extends FormRequest
 
             $licenses[] = $normalized;
         }
+
+        $normalizedLicenses = is_array($rawLicensesInput) || $rawLicensesInput === null
+            ? $licenses
+            : $rawLicensesInput;
+
+        /** @var mixed $rawRightsInput */
+        $rawRightsInput = $this->input('rawRights', []);
+        $rawRights = $this->normalizeRawRightsInput($rawRightsInput);
 
         /** @var array<int, array<string, mixed>|mixed> $rawAuthors */
         $rawAuthors = $this->input('authors', []);
@@ -721,7 +738,8 @@ class StoreDraftResourceRequest extends FormRequest
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
             'language' => $this->filled('language') ? trim((string) $this->input('language')) : null,
             'titles' => $titles,
-            'licenses' => $licenses,
+            'licenses' => $normalizedLicenses,
+            'rawRights' => $rawRights,
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
             'contributors' => $contributors,
@@ -734,6 +752,76 @@ class StoreDraftResourceRequest extends FormRequest
         ]);
 
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
+    }
+
+    /**
+     * Normalize raw DataCite rights input while keeping drafts lenient.
+     *
+     * Drafts do not require rights, but when an upload already supplied them we
+     * keep the same cleaned structure that StoreResourceRequest uses so a later
+     * final save can persist the statements without reparsing the upload.
+     *
+     * @return array<int, array<string, string>>|mixed
+     */
+    private function normalizeRawRightsInput(mixed $rawRightsInput): mixed
+    {
+        if (! is_array($rawRightsInput)) {
+            return $rawRightsInput;
+        }
+
+        $rawRights = [];
+
+        foreach ($rawRightsInput as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [
+                'rights' => $this->rightsStringValue($statement, ['rights', 'rights_text']),
+                'rightsUri' => $this->rightsStringValue($statement, ['rightsUri', 'rightsURI', 'rights_uri']),
+                'rightsIdentifier' => $this->rightsStringValue($statement, ['rightsIdentifier', 'rights_identifier']),
+                'rightsIdentifierScheme' => $this->rightsStringValue($statement, ['rightsIdentifierScheme', 'rights_identifier_scheme']),
+                'schemeUri' => $this->rightsStringValue($statement, ['schemeUri', 'schemeURI', 'scheme_uri']),
+                'lang' => $this->rightsStringValue($statement, ['lang', 'language']),
+                'source' => $this->rightsStringValue($statement, ['source']),
+            ];
+
+            $normalized = array_filter(
+                $normalized,
+                fn (?string $value): bool => $value !== null,
+            );
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
+    }
+
+    /**
+     * @param  array<string, mixed>  $statement
+     * @param  list<string>  $keys
+     */
+    private function rightsStringValue(array $statement, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $statement)) {
+                continue;
+            }
+
+            $value = $statement[$key];
+
+            if ($value === null || is_array($value) || is_object($value)) {
+                return null;
+            }
+
+            $value = trim((string) $value);
+
+            return $value === '' ? null : $value;
+        }
+
+        return null;
     }
 
     /**

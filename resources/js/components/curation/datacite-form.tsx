@@ -76,7 +76,7 @@ import {
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
 // Re-export types for backward compatibility with existing imports
-export type { DataCiteFormProps, InitialAuthor, InitialContributor } from './types/datacite-form-types';
+export type { DataCiteFormProps, InitialAuthor, InitialContributor, RawRightsInput } from './types/datacite-form-types';
 
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
@@ -143,6 +143,7 @@ export default function DataCiteForm({
     initialResourceType = '',
     initialTitles = [],
     initialLicenses = [],
+    initialRawRights = [],
     initialResourceId,
     initialAuthors = [],
     initialContributors = [],
@@ -1827,6 +1828,7 @@ export default function DataCiteForm({
             datacenters: number[];
             importedCreatedDate: string | null;
             resourceId?: number;
+            rawRights: DataCiteFormProps['initialRawRights'];
         } = {
             doi: form.doi?.trim() || null,
             year: form.year ? Number(form.year) : null,
@@ -1839,6 +1841,7 @@ export default function DataCiteForm({
                 language: entry.language ?? null,
             })),
             licenses: licenseEntries.map((entry) => entry.license).filter((license): license is string => Boolean(license)),
+            rawRights: initialRawRights ?? [],
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({

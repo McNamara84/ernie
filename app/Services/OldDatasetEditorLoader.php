@@ -160,6 +160,8 @@ class OldDatasetEditorLoader
                 'resourceType' => $this->mapResourceType($dataset->resourcetypegeneral),
                 'titles' => $this->loadTitles($dataset),
                 'initialRights' => $this->loadLicenses($dataset),
+                'initialLicenses' => $this->loadLicenses($dataset),
+                'initialRawRights' => $this->loadRawRights($dataset),
                 'authors' => $this->loadAuthors($id),
                 'contributors' => $this->loadContributors($id),
                 'descriptions' => $this->loadDescriptions($id),
@@ -308,6 +310,20 @@ class OldDatasetEditorLoader
         }
 
         return $mappedLicenses;
+    }
+
+    /**
+     * Load raw legacy license statements for SPDX review.
+     *
+     * Mapped identifiers are still useful for immediate catalog links, but raw
+     * statements keep the original legacy license text and URI available when a
+     * name cannot be mapped safely.
+     *
+     * @return list<array<string, string>>
+     */
+    private function loadRawRights(OldDataset $dataset): array
+    {
+        return array_values($dataset->getLicenseStatements());
     }
 
     /**

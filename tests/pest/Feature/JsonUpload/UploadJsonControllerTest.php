@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Models\ResourceType;
 use App\Models\User;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -198,7 +198,14 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['licenses'])->toBe(['CC-BY-4.0']);
+        expect($data['licenses'])->toBe(['CC-BY-4.0'])
+            ->and($data['rawRights'])->toHaveCount(1)
+            ->and($data['rawRights'][0])->toMatchArray([
+                'rights' => 'Creative Commons Attribution 4.0',
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/',
+                'source' => 'json-upload',
+            ]);
     });
 
     test('extracts resource type', function () {

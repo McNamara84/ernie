@@ -8,6 +8,7 @@ use App\Models\LandingPage;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceInstrument;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -94,6 +95,54 @@ describe('ResourceStorageService', function () {
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('stores imported raw rights without a selected catalog license', function () {
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Imported rights resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'licenses' => [],
+            'rawRights' => [
+                [
+                    'rights' => 'CC BY 4.0',
+                    'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                    'source' => 'xml-upload',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Ada',
+                    'lastName' => 'Lovelace',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Imported rights should remain available for SPDX review.',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->first();
+
+        expect($resourceRight)->not->toBeNull()
+            ->and($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+            ->and($resourceRight->source)->toBe('xml-upload');
     });
 
     it('recreates MainTitle title type when storing a resource and the lookup row is missing', function () {

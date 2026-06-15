@@ -7,6 +7,8 @@ use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\FunderIdentifierType;
+use App\Models\FundingReference;
 use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\Institution;
@@ -17,6 +19,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\Setting;
 use App\Models\Subject;
@@ -24,6 +27,10 @@ use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
+use Database\Seeders\DateTypeSeeder;
+use Database\Seeders\DescriptionTypeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
+use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -198,6 +205,46 @@ describe('transformLicenses', function (): void {
         $result = $this->transformer->transformLicenses($this->resource);
 
         expect($result)->toBeEmpty();
+    });
+});
+
+// =========================================================================
+// transformRawRights
+// =========================================================================
+
+describe('transformRawRights', function (): void {
+    it('returns cleaned imported rights statements for editor round-trips', function (): void {
+        ResourceRight::create([
+            'resource_id' => $this->resource->id,
+            'rights_text' => 'CC BY 4.0',
+            'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rights_identifier' => 'CC-BY-4.0',
+            'rights_identifier_scheme' => 'SPDX',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'language' => 'en',
+            'source' => 'xml-upload',
+        ]);
+        ResourceRight::create([
+            'resource_id' => $this->resource->id,
+            'rights_text' => null,
+            'rights_uri' => null,
+            'rights_identifier' => null,
+        ]);
+        $this->resource->load('resourceRights');
+
+        $result = $this->transformer->transformRawRights($this->resource);
+
+        expect($result)->toBe([
+            [
+                'rights' => 'CC BY 4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'lang' => 'en',
+                'source' => 'xml-upload',
+            ],
+        ]);
     });
 });
 
@@ -853,7 +900,7 @@ describe('transformCreators', function (): void {
 
 describe('transformDescriptions', function (): void {
     beforeEach(function (): void {
-        $this->seed(\Database\Seeders\DescriptionTypeSeeder::class);
+        $this->seed(DescriptionTypeSeeder::class);
     });
 
     it('correctly maps PascalCase slug Abstract to frontend format', function (): void {
@@ -1105,9 +1152,9 @@ describe('transformDates', function (): void {
     });
 
     it('loads imported DataCite single dates into the editor payload', function (): void {
-        test()->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        test()->seed(\Database\Seeders\TitleTypeSeeder::class);
-        test()->seed(\Database\Seeders\DateTypeSeeder::class);
+        test()->seed(ResourceTypeSeeder::class);
+        test()->seed(TitleTypeSeeder::class);
+        test()->seed(DateTypeSeeder::class);
 
         $user = User::factory()->create();
         $importTransformer = new DataCiteToResourceTransformer;
@@ -1301,7 +1348,7 @@ describe('transformGemetKeywords', function (): void {
             'value' => 'Environmental monitoring',
             'subject_scheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
             'scheme_uri' => 'https://www.eionet.europa.eu/gemet/',
-            'value_uri' => 'https://www.eionet.europa.eu/gemet/concept/' . fake()->numberBetween(1000, 9999),
+            'value_uri' => 'https://www.eionet.europa.eu/gemet/concept/'.fake()->numberBetween(1000, 9999),
         ]);
         $this->resource->load('subjects');
 
@@ -1462,7 +1509,7 @@ describe('transformRelatedIdentifiers', function (): void {
 
 describe('transformFundingReferences', function (): void {
     it('transforms funding references sorted by position', function (): void {
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'DFG',
             'funder_identifier' => 'https://doi.org/10.13039/501100001659',
@@ -1471,7 +1518,7 @@ describe('transformFundingReferences', function (): void {
             'award_title' => 'Research Grant',
             'position' => 2,
         ]);
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'EU',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
@@ -1493,23 +1540,23 @@ describe('transformFundingReferences', function (): void {
     });
 
     it('returns funderIdentifierType name from relationship', function (): void {
-        $rorType = \App\Models\FunderIdentifierType::firstOrCreate(
+        $rorType = FunderIdentifierType::firstOrCreate(
             ['slug' => 'ROR'],
             ['name' => 'ROR', 'is_active' => true]
         );
-        $crossrefType = \App\Models\FunderIdentifierType::firstOrCreate(
+        $crossrefType = FunderIdentifierType::firstOrCreate(
             ['slug' => 'Crossref Funder ID'],
             ['name' => 'Crossref Funder ID', 'is_active' => true]
         );
 
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'DFG',
             'funder_identifier' => 'https://ror.org/018mejw64',
             'funder_identifier_type_id' => $rorType->id,
             'position' => 1,
         ]);
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'EU',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
@@ -1525,7 +1572,7 @@ describe('transformFundingReferences', function (): void {
     });
 
     it('returns empty string for funderIdentifierType when none is set', function (): void {
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Generic Funder',
             'funder_identifier' => null,

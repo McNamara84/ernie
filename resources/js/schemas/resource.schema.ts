@@ -39,7 +39,21 @@ export const licenseSchema = z.object({
 
 export type LicenseFormData = z.infer<typeof licenseSchema>;
 
-export const licensesArraySchema = z.array(licenseSchema).min(1, 'At least one license is required');
+export const licensesArraySchema = z.array(licenseSchema);
+
+export const rawRightsSchema = z.object({
+    rights: z.string().nullable().optional(),
+    rightsUri: z.string().nullable().optional(),
+    rightsIdentifier: z.string().nullable().optional(),
+    rightsIdentifierScheme: z.string().nullable().optional(),
+    schemeUri: z.string().nullable().optional(),
+    lang: z.string().nullable().optional(),
+    source: z.string().nullable().optional(),
+});
+
+export type RawRightsFormData = z.infer<typeof rawRightsSchema>;
+
+export const rawRightsArraySchema = z.array(rawRightsSchema).default([]);
 
 // =============================================================================
 // Date Schema
@@ -113,7 +127,7 @@ export const mslLaboratoriesArraySchema = z.array(mslLaboratorySchema).default([
 // Main Resource Schema
 // =============================================================================
 
-export const resourceSchema = z.object({
+const resourceBaseSchema = z.object({
     // Basic Information
     doi: doiSchema,
     year: yearSchema,
@@ -130,8 +144,9 @@ export const resourceSchema = z.object({
     // Contributors (optional)
     contributors: contributorsArraySchema,
 
-    // Licenses (at least one required)
+    // Licenses / imported rights (validated together below)
     licenses: licensesArraySchema,
+    rawRights: rawRightsArraySchema,
 
     // Descriptions (optional)
     descriptions: descriptionsArraySchema,
@@ -159,15 +174,35 @@ export const resourceSchema = z.object({
     resourceId: z.string().optional(),
 });
 
+type RightsEvidenceData = {
+    licenses: z.infer<typeof licensesArraySchema>;
+    rawRights: z.infer<typeof rawRightsArraySchema>;
+};
+
+const requireRightsEvidence = (data: RightsEvidenceData, ctx: z.RefinementCtx) => {
+    const hasLicense = data.licenses.some((entry) => entry.license.trim() !== '');
+    const hasRawRights = data.rawRights.some((entry) => Boolean(entry.rights?.trim() || entry.rightsUri?.trim() || entry.rightsIdentifier?.trim()));
+
+    if (!hasLicense && !hasRawRights) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'At least one license or imported rights statement is required',
+            path: ['licenses'],
+        });
+    }
+};
+
+export const resourceSchema = resourceBaseSchema.superRefine(requireRightsEvidence);
+
 export type ResourceFormData = z.infer<typeof resourceSchema>;
 
 // =============================================================================
 // Resource Schema with Contact Validation
 // =============================================================================
 
-export const resourceWithContactSchema = resourceSchema.extend({
+export const resourceWithContactSchema = resourceBaseSchema.safeExtend({
     authors: authorsWithContactSchema,
-});
+}).superRefine(requireRightsEvidence);
 
 export type ResourceWithContactFormData = z.infer<typeof resourceWithContactSchema>;
 
@@ -175,6 +210,6 @@ export type ResourceWithContactFormData = z.infer<typeof resourceWithContactSche
 // Partial Resource Schema (for drafts/partial saves)
 // =============================================================================
 
-export const partialResourceSchema = resourceSchema.partial();
+export const partialResourceSchema = resourceBaseSchema.partial();
 
 export type PartialResourceFormData = z.infer<typeof partialResourceSchema>;

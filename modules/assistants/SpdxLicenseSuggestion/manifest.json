@@ -1,0 +1,24 @@
+{
+    "id": "spdx-license-suggestion",
+    "name": "SPDX Rights Suggestions",
+    "description": "Proposes SPDX license links for unresolved resource rights metadata.",
+    "icon": "Scale",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\SpdxLicenseSuggestion\\Assistant",
+    "route_prefix": "spdx-rights",
+    "lock_key": "spdx_rights_discovery_running",
+    "cache_key_prefix": "spdx_rights_discovery",
+    "sort_order": 40,
+    "status_labels": {
+        "checking": "Starting SPDX rights discovery...",
+        "completed_with_results": "SPDX rights discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "SPDX rights discovery completed: No new suggestions found.",
+        "failed": "SPDX rights discovery failed: {error}",
+        "already_running": "An SPDX rights discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending SPDX suggestions",
+        "description": "No unresolved rights statements currently match SPDX."
+    },
+    "card_component": null
+}
