@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Reads unresolved rights statements from `resource_rights`.
  *
- * Issue 820 only implements SPDX matching and suggestion generation. The raw
- * import columns are planned separately, so this provider is schema-aware: if
- * the columns are not present yet, discovery safely returns no inputs instead
- * of failing at runtime.
+ * The SPDX enrichment migration adds raw import columns beside the optional
+ * catalog `rights_id` link. Discovery only reads unresolved rows and remains
+ * schema-aware so partially migrated installations fail closed instead of
+ * crashing while the database is being updated.
  */
 class SpdxRightsMatchInputProvider
 {
