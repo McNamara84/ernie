@@ -1,854 +1,497 @@
-# Issue #783: Apply Accepted Title Languages and Protect Export Behavior
+# Discovery: Apply Accepted Title Languages and Protect Export Behavior (#783)
 
 ## Purpose
 
-This issue defines how accepted title language suggestions are applied to title records and how the resulting language values are handled during XML export.
+This discovery describes the implementation of the Title Language Assistant that applies accepted title language suggestions to title records while protecting existing metadata and preparing title-level language information for downstream XML export.
 
-The goal is to improve xml:lang coverage while preventing unintended metadata changes.
+The implementation is based on:
 
----
-
-# User Story
-
-As a curator, I want accepted title language suggestions to update exports cleanly so that DataCite XML gains xml:lang coverage without side effects.
+- `modules/assistants/TitleSuggestion/Assistant.php`
+- `modules/assistants/TitleSuggestion/manifest.json`
+- Composer dependency integration for `nitotm/efficient-language-detector`
 
 ---
 
-# Position Within the Overall Workflow
+# Overview
 
-This issue builds on the previous title language issues.
+The assistant discovers title records without a language value, detects the title language using the Efficient Language Detector (ELD), and creates reviewable suggestions.
 
-## Issue #781
+Accepted suggestions update `Title.language`.
 
-Defined how title languages can be inferred.
-
-Topics included:
-
-- language detection signals
-- multilingual edge cases
-- title-level language inference rules
-- confidence handling
-
-Result:
-
-- rules for determining title languages
+The implementation intentionally protects existing metadata, prevents stale suggestions from being applied, and provides title-level language metadata that can later be used by XML export components.
 
 ---
 
-## Issue #782
+# Assistant Registration
 
-Defined how titles are selected for review.
+The assistant is registered through:
 
-Topics included:
+```json
+{
+    "id": "title-language-suggestion",
+    "name": "Title Language Detection",
+    "assistant_class": "Modules\\Assistants\\TitleSuggestion\\Assistant"
+}
+```
 
-- missing language values
-- suspicious language mismatches
-- suggestion generation
-- duplicate suppression
+The assistant appears in the generic Assistance interface and does not use a custom card component.
 
-Result:
+```json
+"card_component": null
+```
 
-- language suggestions can be generated for curator review
-
----
-
-## Issue #783
-
-Defines what happens after a curator accepts a language suggestion.
-
-Topics include:
-
-- reviewer preview
-- acceptance workflow
-- metadata update
-- XML export behavior
-- regression testing
-
-Result:
-
-- accepted language suggestions become part of the title metadata and are exported correctly
+The generic Assistance UI is therefore reused.
 
 ---
 
-# Acceptance Criteria
+# Language Detection
 
-## Accepted Suggestions
+## Detection Library
 
-Accepting a suggestion should:
+Language detection is implemented using:
 
-- update the title language field
-- remove the pending suggestion
+```php
+Nitotm\Eld\LanguageDetector
+```
+
+The dependency is provided through Composer:
+
+```json
+"nitotm/efficient-language-detector": "^3.2"
+```
+
+---
+
+## Supported Languages
+
+The current implementation only generates suggestions for:
+
+```php
+private const SUPPORTED_LANGUAGES = [
+    'de',
+    'en',
+    'fr',
+];
+```
+
+Detected languages outside this list are ignored.
+
+---
+
+# Discovery Scope
+
+The assistant currently evaluates titles that:
+
+- have no language value
+- contain non-empty title text
+
+Query:
+
+```php
+Title::query()
+    ->where(function ($query): void {
+        $query
+            ->whereNull('language')
+            ->orWhere('language', '');
+    })
+```
+
+As a result:
+
+- missing language values are discovered
+- already populated language values are not rediscovered
+
+---
+
+# Suggestion Generation
+
+For each matching title:
+
+1. title text is analyzed
+2. language is detected
+3. confidence score is calculated
+4. a suggestion is stored
 
 Example:
 
 Before:
 
 Title:
+
 Groundwater Recharge
 
 Language:
+
 NULL
 
-Suggestion:
+Detected Language:
+
 en
 
-After:
+Result:
 
-Title:
-Groundwater Recharge
-
-Language:
-en
-
-Suggestion:
-removed
+Suggestion created.
 
 ---
 
-## Existing Language Values
+# Reviewer Preview
 
-Existing language values must not be overwritten automatically.
+The implementation enriches suggestion metadata to support review in the generic Assistance interface.
 
-Example:
+Stored metadata includes:
 
-Current Language:
-de
-
-Suggested Language:
-en
-
-Expected Behaviour:
-
-- display overwrite warning
-- require explicit confirmation
-- do not overwrite silently
-
----
-
-## XML Export
-
-Accepted language values should appear as xml:lang attributes in exported XML.
-
-Example:
-
-Before:
-
-```xml
-<title>
-Groundwater Recharge
-</title>
-```
-
-After:
-
-```xml
-<title xml:lang="en">
-Groundwater Recharge
-</title>
+```php
+'title_text'
+'current_language'
+'current_language_label'
+'proposed_language'
+'proposed_language_label'
+'confidence'
+'confidence_percent'
+'reason'
+'warning'
+'has_overwrite_warning'
+'source_hash'
+'source_snapshot'
 ```
 
 ---
 
-## Duplicate Prevention
+## Preview Information
 
-Duplicate suggestions must not be recreated.
-
-Example:
-
-Existing suggestion:
-
-- Groundwater Recharge → en
-
-Expected Behaviour:
-
-- no additional identical suggestion created
-
----
-
-## Mixed-Language Title Sets
-
-Each title should preserve its own language assignment.
-
-Example:
-
-Main Title:
-
-Groundwater Recharge
-
-Alternative Title:
-
-Grundwasserneubildung
-
-Expected Export:
-
-```xml
-<title xml:lang="en">
-Groundwater Recharge
-</title>
-
-<title xml:lang="de">
-Grundwasserneubildung
-</title>
-```
-
----
-
-# Task 1: Build the Reviewer Preview
-
-The reviewer should be able to inspect a suggestion before accepting it.
-
-The preview should display:
+The reviewer receives:
 
 - title text
 - current language
 - proposed language
 - confidence score
-- evidence summary
+- explanation text
 
 Example:
 
 Title:
+
 Groundwater Recharge
 
 Current Language:
-NULL
 
-Suggested Language:
-en
+not set
+
+Proposed Language:
+
+English (en)
 
 Confidence:
+
 95%
 
-Evidence:
-Detected title language with high confidence.
+Reason:
+
+Detected from title text using ELD language detection.
 
 ---
 
-## Overwrite Warning
+# Existing Language Protection
 
-If a title already contains a language value, a warning should be displayed.
+The implementation explicitly protects existing language values.
 
-Example:
+During acceptance:
 
-Current Language:
-de
+```php
+if ($currentLanguage !== null
+    && $currentLanguage !== $proposedLanguage) {
+```
 
-Suggested Language:
-en
+the suggestion is rejected.
 
-Warning:
+Returned message:
 
-Existing language value will be overwritten only after explicit approval.
+```text
+Title already has language 'de'.
+It was not overwritten automatically.
+```
 
 ---
 
-# Task 2: Implement the Accept Flow
+## Current Behaviour
 
-## Accept Suggestion
+The current implementation:
 
-When a reviewer accepts a suggestion:
+- generates overwrite warnings in suggestion metadata
+- refuses automatic replacement of existing language values
+- preserves curator-supplied language assignments
+- does not currently provide a separate explicit overwrite workflow
 
-1. update Title.language
-2. remove pending suggestion
-3. persist changes
+As a result, existing metadata cannot be silently replaced.
+
+---
+
+# Accept Flow
+
+## Successful Acceptance
+
+When a suggestion is accepted:
+
+```php
+$title->language = $proposedLanguage;
+$title->save();
+```
+
+The language value is persisted to the title record.
 
 Example:
 
 Before:
 
 Language:
+
 NULL
 
 Suggestion:
+
 en
 
 After:
 
 Language:
+
 en
 
-Suggestion:
-removed
+---
+
+## Suggestion Removal
+
+Accepted suggestions are handled through the generic Assistance workflow.
+
+After successful acceptance:
+
+- the title is updated
+- the suggestion is resolved
+- the suggestion is removed from the review queue
+
+This behavior is provided by `GenericTableAssistant`.
 
 ---
 
-## Existing Language Protection
+# Stale Suggestion Protection
 
-Existing language values should not be replaced automatically.
+Suggestions store a snapshot of the original title state.
 
-Expected Behaviour:
+Stored values include:
 
-- require explicit confirmation
-- preserve metadata integrity
+```php
+source_hash
+source_snapshot
+```
+
+Example snapshot:
+
+```php
+[
+    'title_id',
+    'title_text',
+    'current_language',
+    'resource_id'
+]
+```
 
 ---
 
-## Stale Suggestion Handling
+## Validation During Acceptance
 
-Suggestions may become outdated if the title changes after discovery.
+Before applying a suggestion:
 
-Example:
+```php
+isStale()
+```
 
-Day 1:
+compares:
 
-Title:
+- current title state
+- stored discovery snapshot
+
+using:
+
+```php
+hash_equals()
+```
+
+---
+
+## Behaviour
+
+If the title changed after discovery:
+
+- the suggestion is considered stale
+- the suggestion cannot be applied
+- a new discovery run is required
+
+Returned message:
+
+```text
+Suggestion is stale because the title data changed after discovery.
+Please run discovery again.
+```
+
+This protects against outdated review decisions.
+
+---
+
+# Duplicate Prevention
+
+Suggestions are stored through:
+
+```php
+storeSuggestion(...)
+```
+
+The generic assistant framework suppresses:
+
+- identical suggestions
+- previously dismissed suggestions
+- duplicate discovery results
+
+Result:
+
+The same title-language suggestion is not repeatedly recreated.
+
+---
+
+# XML Export Behaviour
+
+The assistant itself does not modify XML export code.
+
+Instead:
+
+1. accepted suggestions populate `Title.language`
+2. export components can consume the stored title language
+3. XML export support for `xml:lang` must be implemented and verified separately in the DataCite export layer
+
+Expected export behaviour after export integration:
+
+```xml
+<title xml:lang="en">
 Groundwater Recharge
+</title>
+```
 
-Suggestion:
-en
-
-Day 2:
-
-Title modified
-
-Expected Behaviour:
-
-- invalidate suggestion
-- require new discovery process
+The assistant provides the title-level language metadata required for XML export.
 
 ---
 
-## Duplicate Prevention
+# Mixed-Language Title Sets
 
-Accepted suggestions should not be recreated.
+Language values are stored per title record.
 
 Example:
 
-Title:
+Title 1:
+
 Groundwater Recharge
 
 Language:
+
 en
 
-Expected Behaviour:
+Title 2:
 
-- no new suggestion for the same title-language combination
+Grundwasserneubildung
 
----
+Language:
 
-# Task 3: Documentation Updates
+de
 
-Update:
+Result:
 
-- resources/js/pages/docs.tsx
+Each title preserves its own language assignment.
 
-README updates are only required if implementation changes:
-
-- developer setup
-- operations
-- workflow guidance
+The implementation does not force a single language across all titles of a resource.
 
 ---
 
-# Task 4: Browser Workflow and Regression Coverage
+# User Interface Impact
 
-## Browser Workflow Test
+No custom React component was introduced.
 
-Verify:
+Manifest:
 
-1. suggestion appears
-2. reviewer opens preview
-3. reviewer accepts suggestion
-4. title language is updated
-5. suggestion is removed
+```json
+"card_component": null
+```
 
----
+The implementation intentionally relies on:
 
-## Export Regression Test
+- existing generic Assistance cards
+- existing review workflow
+- existing acceptance controls
 
-Verify:
-
-- xml:lang is exported correctly
-- existing export functionality remains unchanged
+This avoids introducing additional UI complexity.
 
 ---
 
-## Duplicate Prevention Test
+# Risks Addressed
 
-Verify:
+## Existing Metadata Protection
 
-- accepted suggestions are not recreated
+Mitigation:
 
----
+- overwrite attempts are rejected automatically
+- existing language values are preserved
 
-## Mixed-Language Title Set Test
+Result:
 
-Verify:
-
-- multilingual titles export correctly
-- language assignments remain independent
-
----
-
-# Risks
-
-## Export Assumptions
-
-Existing export logic may contain assumptions about NULL language values.
-
-Potential Impact:
-
-- incorrect XML export behaviour
-- missing xml:lang attributes
+No silent metadata replacement.
 
 ---
 
 ## Stale Suggestions
 
-Suggestions may target title records that have changed after discovery.
+Mitigation:
 
-Potential Impact:
+- source snapshot
+- source hash validation
 
-- incorrect language assignment
-- outdated review information
+Result:
+
+Suggestions cannot be applied after title changes.
+
+---
+
+## Duplicate Suggestions
+
+Mitigation:
+
+- generic `storeSuggestion()` duplicate handling
+
+Result:
+
+Repeated suggestions are suppressed.
 
 ---
 
 # Out of Scope
 
-The following topics are not part of this issue:
+The implementation does not currently include:
 
-- refactoring unrelated export functionality
-- implementing custom review interfaces
-- automatic metadata correction without curator approval
-- changes unrelated to title language assignment
+- custom reviewer components
+- multilingual conflict detection
+- language correction suggestions for already populated titles
+- XML export implementation
+- export refactoring
+- automatic language replacement
 
 ---
 
 # Summary
 
-Issue #783 completes the title-language workflow.
-
-The issue focuses on:
-
-- reviewing language suggestions
-- accepting language suggestions safely
-- protecting existing metadata
-- exporting xml:lang attributes correctly
-- preventing duplicate or stale suggestions
-- ensuring stable behaviour through automated tests
-
-# Vorschlag Code Emely für Bib https://github.com/nitotm/nitotm.github.io
-
-## manifest.json
-{
-    "id": "title-language-suggestion",
-    "name": "Suggested Title Languages",
-    "description": "Detect missing or conflicting title language values.",
-    "icon": "Languages",
-    "version": "1.0.0",
-    "assistant_class": "Modules\\Assistants\\TitleLanguageSuggestion\\Assistant",
-    "route_prefix": "title-languages",
-    "lock_key": "title_language_discovery_running",
-    "cache_key_prefix": "title_language_discovery",
-    "sort_order": 50,
-    "card_component": "TitleLanguageCard"
-}
-## manifest Paul 
-{
-    "id": "title-language-suggestion",
-    "name": "Title Language Detection",
-    "description": "Detects the language of titles and suggests the code to save.",
-    "icon": "Globe",
-    "version": "1.0.0",
-    "assistant_class": "Modules\\Assistants\\TitleSuggestion\\Assistant",
-    "route_prefix": "title-language",
-    "lock_key": "title_language_detection_running",
-    "cache_key_prefix": "title_language_detection",
-    "sort_order": 45,
-    "status_labels": {
-        "checking": "Detecting title languages...",
-        "completed_with_results": "Language detection completed: {count} new suggestion(s) found.",
-        "completed_empty": "Language detection completed: No new suggestions found.",
-        "failed": "Language detection failed: {error}",
-        "already_running": "A language detection job is already running."
-    },
-    "empty_state": {
-        "title": "No pending title language suggestions",
-        "description": "All titles already have a language code or no suggestions were found."
-    },
-    "card_component": null
-}
-## assistant.php
-<?php
-
-declare(strict_types=1);
-
-namespace Modules\Assistants\TitleLanguageSuggestion;
-
-use App\Models\AssistantSuggestion;
-use App\Models\Resource;
-use App\Models\Title;
-use App\Services\Assistance\GenericTableAssistant;
-use Closure;
-
-class Assistant extends GenericTableAssistant
-{
-    /**
-     * Pfad zur manifest.json dieses Assistant-Moduls.
-     * Darüber erkennt ERNIE den Assistant automatisch.
-     */
-    protected function getManifestPath(): string
-    {
-        return __DIR__ . '/manifest.json';
-    }
-
-    /**
-     * Sucht nach fehlenden oder widersprüchlichen Title.language-Werten.
-     *
-     * Diese Methode wird beim Klick auf "Check" ausgeführt.
-     *
-     * @param Closure(string): void $onProgress
-     *        Callback für Fortschrittsmeldungen im Frontend.
-     *
-     * @return int Anzahl neu gespeicherter Suggestions.
-     */
-    protected function discover(Closure $onProgress): int
-    {
-        $count = 0;
-
-        // Alle Resources mit ihren Titles laden.
-        // Name ggf. an euer echtes Relation-Model anpassen.
-        $resources = Resource::with('titles')->get();
-
-        foreach ($resources as $index => $resource) {
-            $onProgress('Checking resource ' . ($index + 1) . ' of ' . $resources->count());
-
-            foreach ($resource->titles as $title) {
-                // Pro Titel prüfen, ob eine Suggestion nötig ist.
-                $suggestion = $this->buildSuggestionPayload($resource, $title);
-
-                // Wenn kein Problem erkannt wurde, wird nichts gespeichert.
-                if ($suggestion === null) {
-                    continue;
-                }
-
-                // Vorschlag in der generischen Tabelle assistant_suggestions speichern.
-                // storeSuggestion vermeidet automatisch Duplikate und bereits abgelehnte Vorschläge.
-                $stored = $this->storeSuggestion(
-                    resourceId: $resource->id,
-                    targetType: 'title',
-                    targetId: $title->id,
-                    suggestedValue: $suggestion['proposed_language'],
-                    suggestedLabel: $suggestion['suggested_label'],
-                    similarityScore: $suggestion['confidence'],
-                    metadata: $suggestion
-                );
-
-                if ($stored) {
-                    $count++;
-                }
-            }
-        }
-
-        return $count;
-    }
-
-    /**
-     * Baut die eigentliche Suggestion für einen einzelnen Titel.
-     *
-     * Es gibt zwei Fälle:
-     * 1. Die Sprache fehlt.
-     * 2. Die Sprache ist vorhanden, passt aber unter 90 % zur erkannten Sprache.
-     */
-    private function buildSuggestionPayload(Resource $resource, Title $title): ?array
-    {
-        $detector = new TitleLanguageDetector();
-
-        // Titeltext aus dem Model holen.
-        // Falls euer Feld anders heißt, hier z. B. $title->value oder $title->title anpassen.
-        $titleText = trim((string) $title->title);
-
-        // Sprache aus dem Title-Model holen.
-        // Das entspricht dem xml:lang-Wert bzw. Title.language.
-        $currentLanguage = $title->language;
-
-        // Automatische Spracherkennung ausführen.
-        $detection = $detector->detect($titleText);
-
-        // Wenn die Erkennung unsicher ist, keine Suggestion erzeugen.
-        if ($detection === null) {
-            return null;
-        }
-
-        $proposedLanguage = $detection['language'];
-        $confidence = $detection['confidence'];
-        $allMatches = $detection['matches'];
-
-        // Prüfen, wie gut die aktuell gespeicherte Sprache zum Titel passt.
-        // Wenn keine aktuelle Sprache vorhanden ist, ist der Match null.
-        $currentLanguageMatch = $currentLanguage
-            ? ($allMatches[$currentLanguage] ?? 0)
-            : null;
-
-        /**
-         * Fall 1:
-         * Sprache fehlt komplett.
-         * Dann soll eine neue Sprache vorgeschlagen werden.
-         */
-        if (empty($currentLanguage)) {
-            return [
-                'type' => 'missing_title_language',
-                'title_text' => $titleText,
-                'current_language' => null,
-                'proposed_language' => $proposedLanguage,
-                'confidence' => $confidence,
-                'current_language_match' => null,
-                'threshold' => 0.90,
-                'overwrite_warning' => false,
-                'suggested_label' => strtoupper($proposedLanguage),
-                'explanation' => 'Title language is missing. The assistant detected a likely language.',
-            ];
-        }
-
-        /**
-         * Fall 2:
-         * Sprache ist vorhanden, aber der Match liegt unter 90 %.
-         * Dann soll ein Korrekturvorschlag erzeugt werden.
-         */
-        if ($currentLanguageMatch < 0.90 && $currentLanguage !== $proposedLanguage) {
-            return [
-                'type' => 'conflicting_title_language',
-                'title_text' => $titleText,
-                'current_language' => $currentLanguage,
-                'proposed_language' => $proposedLanguage,
-                'confidence' => $confidence,
-                'current_language_match' => $currentLanguageMatch,
-                'threshold' => 0.90,
-                'overwrite_warning' => true,
-                'suggested_label' => strtoupper($proposedLanguage),
-                'explanation' => 'Existing title language does not match the detected language with at least 90 % confidence.',
-            ];
-        }
-
-        // Kein Problem gefunden.
-        return null;
-    }
-
-    /**
-     * Wird ausgeführt, wenn Kurator:innen im Frontend auf "Accept" klicken.
-     *
-     * Die vorgeschlagene Sprache wird in Title.language übernommen.
-     */
-    protected function applyAccepted(AssistantSuggestion $suggestion): array
-    {
-        // Den betroffenen Title laden.
-        $title = Title::findOrFail($suggestion->target_id);
-
-        // Vorgeschlagene Sprache setzen.
-        $title->language = $suggestion->suggested_value;
-
-        // Änderung speichern.
-        $title->save();
-
-        return [
-            'success' => true,
-            'message' => 'Title language updated.',
-        ];
-    }
-}
-
-## TitleLanguageDetector.php
-<?php
-
-declare(strict_types=1);
-
-namespace Modules\Assistants\TitleLanguageSuggestion;
-
-use LanguageDetection\Language;
-
-class TitleLanguageDetector
-{
-    /**
-     * Mindestlänge für Titel.
-     * Sehr kurze Titel sind für automatische Spracherkennung oft zu unsicher.
-     */
-    private const MIN_TITLE_LENGTH = 12;
-
-    /**
-     * Mindest-Confidence für den besten Sprachvorschlag.
-     * Darunter wird kein Vorschlag erzeugt.
-     */
-    private const MIN_CONFIDENCE = 0.75;
-
-    /**
-     * Erkennt die Sprache eines Title-Textes.
-     *
-     * @return array{
-     *     language: string,
-     *     confidence: float,
-     *     matches: array<string, float>
-     * }|null
-     */
-    public function detect(string $text): ?array
-    {
-        $text = trim($text);
-
-        // Leere oder sehr kurze Titel überspringen.
-        if ($text === '' || mb_strlen($text) < self::MIN_TITLE_LENGTH) {
-            return null;
-        }
-
-        // Unterstützte Sprachen begrenzen.
-        // Kann bei euch erweitert werden, z. B. ['de', 'en', 'fr'].
-        $detector = new Language(['de', 'en', 'fr', 'es', 'it']);
-
-        // Top 3 erkannte Sprachen holen.
-        $matches = $detector
-            ->detect($text)
-            ->limit(0, 3)
-            ->close();
-
-        // Wenn keine Sprache erkannt wurde, keine Suggestion.
-        if (empty($matches)) {
-            return null;
-        }
-
-        // Beste erkannte Sprache ist der erste Eintrag.
-        $language = array_key_first($matches);
-        $confidence = (float) $matches[$language];
-
-        // Zu unsichere Vorschläge verwerfen.
-        if ($confidence < self::MIN_CONFIDENCE) {
-            return null;
-        }
-
-        return [
-            'language' => $language,
-            'confidence' => round($confidence, 3),
-            'matches' => $matches,
-        ];
-    }
-}
-
-## Logik
-
-if (empty($currentLanguage)) {
-    // Sprache fehlt → Vorschlag
-}
-
-if ($currentLanguageMatch < 0.90) {
-    // Sprache vorhanden, aber wahrscheinlich falsch → Korrekturvorschlag
-}
-
-## Paul VS Code 
-<?php
-
-declare(strict_types=1);
-
-namespace Modules\Assistants\TitleSuggestion;
-
-use App\Models\AssistantSuggestion;
-use App\Models\Title;
-use App\Services\Assistance\GenericTableAssistant;
-use Closure;
-use Nitotm\Eld\Eld;
-
-class Assistant extends GenericTableAssistant
-{
-    private Eld $detector;
-
-    public function __construct()
-    {
-        parent::__construct();
-
-        $this->detector = new Eld();
-    }
-
-    protected function getManifestPath(): string
-    {
-        return __DIR__ . '/manifest.json';
-    }
-
-    protected function discover(Closure $onProgress): int
-    {
-        $titles = Title::whereNull('language')
-            ->orWhere('language', '')
-            ->cursor();
-
-        $count = 0;
-
-        foreach ($titles as $title) {
-            $onProgress("Detecting language for title #{$title->id}");
-
-            $detection = $this->detectLanguage($title->value);
-
-            if ($detection === null) {
-                continue;
-            }
-
-            if ($this->storeSuggestion(
-                resourceId: $title->resource_id,
-                targetType: 'title',
-                targetId: $title->id,
-                suggestedValue: $detection['code'],
-                suggestedLabel: $detection['label'],
-                similarityScore: $detection['confidence'],
-                metadata: ['title' => $title->value],
-            )) {
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
-    protected function applyAccepted(AssistantSuggestion $suggestion): array
-    {
-        $title = Title::find($suggestion->target_id);
-
-        if ($title === null) {
-            return [
-                'success' => false,
-                'message' => 'Title record not found.',
-            ];
-        }
-
-        $title->language = $suggestion->suggested_value;
-        $title->save();
-
-        return [
-            'success' => true,
-            'message' => "Title language set to {$suggestion->suggested_label}.",
-        ];
-    }
-
-    private function detectLanguage(string $text): ?array
-    {
-        $result = $this->detector->detect($text);
-
-        if ($result === null || empty($result->language)) {
-            return null;
-        }
-
-        $languageCode = (string) $result->language;
-        $confidence = isset($result->score) ? (float) $result->score : null;
-
-        if ($languageCode === '' || $confidence === null) {
-            return null;
-        }
-
-        return [
-            'code' => $languageCode,
-            'label' => $this->languageLabel($languageCode),
-            'confidence' => $confidence,
-        ];
-    }
-
-    private function languageLabel(string $code): string
-    {
-        return match ($code) {
-            'de' => 'German',
-            'en' => 'English',
-            'fr' => 'French',
-            'es' => 'Spanish',
-            'it' => 'Italian',
-            'pt' => 'Portuguese',
-            'nl' => 'Dutch',
-            'ru' => 'Russian',
-            'zh' => 'Chinese',
-            'ja' => 'Japanese',
-            default => strtoupper($code),
-        };
-    }
-}
+The implemented Title Language Assistant provides:
+
+- automatic title language detection
+- reviewer preview information
+- confidence reporting
+- overwrite protection
+- stale suggestion protection
+- duplicate suppression
+- title language persistence
+
+Accepted suggestions update `Title.language` safely and provide the title-level language metadata required for future `xml:lang` support in DataCite XML exports.
