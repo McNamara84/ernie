@@ -102,14 +102,14 @@ class UploadJsonController extends Controller
         } catch (\JsonException $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::JSON_PARSE_ERROR,
-                'The JSON file could not be parsed: ' . $e->getMessage()
+                'The JSON file could not be parsed: '.$e->getMessage()
             );
             $this->uploadLogService->logFailure('json', $filename, $error);
 
             return $this->errorResponse(
                 UploadErrorCode::JSON_PARSE_ERROR,
                 $filename,
-                'The JSON file could not be parsed: ' . $e->getMessage()
+                'The JSON file could not be parsed: '.$e->getMessage()
             );
         }
 
@@ -151,7 +151,7 @@ class UploadJsonController extends Controller
 
             $error = UploadError::withMessage(
                 UploadErrorCode::JSON_SCHEMA_VALIDATION_ERROR,
-                'Schema validation failed: ' . implode('; ', array_slice($errorMessages, 0, 5))
+                'Schema validation failed: '.implode('; ', array_slice($errorMessages, 0, 5))
             );
             $this->uploadLogService->logFailure('json', $filename, $error);
 
@@ -187,6 +187,7 @@ class UploadJsonController extends Controller
 
             $resourceType = $this->extractResourceType($attributes);
             $titles = $this->extractTitles($attributes['titles'] ?? []);
+            $rawRights = $this->extractRawRights($attributes['rightsList'] ?? []);
             $licenses = $this->extractLicenses($attributes['rightsList'] ?? []);
             $authors = $this->extractAuthors($attributes['creators'] ?? []);
 
@@ -231,7 +232,7 @@ class UploadJsonController extends Controller
         }
 
         // Store data in session
-        $sessionKey = 'json_upload_' . Str::random(32);
+        $sessionKey = 'json_upload_'.Str::random(32);
 
         session()->put($sessionKey, [
             'doi' => $doi,
@@ -241,6 +242,7 @@ class UploadJsonController extends Controller
             'resourceType' => $resourceType !== null ? (string) $resourceType : null,
             'titles' => $titles,
             'licenses' => $licenses,
+            'rawRights' => $rawRights,
             'authors' => $authors,
             'contributors' => $contributors,
             'descriptions' => $descriptions,
@@ -282,7 +284,7 @@ class UploadJsonController extends Controller
                 Log::warning('JSON-LD conversion failed', ['error' => $e->getMessage()]);
 
                 throw new JsonLdConversionException(
-                    'Failed to convert JSON-LD to DataCite JSON: ' . $e->getMessage(),
+                    'Failed to convert JSON-LD to DataCite JSON: '.$e->getMessage(),
                     previous: $e,
                 );
             }
@@ -396,6 +398,51 @@ class UploadJsonController extends Controller
         }
 
         return $licenses;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rightsList
+     * @return array<int, array<string, string>>
+     */
+    private function extractRawRights(array $rightsList): array
+    {
+        $rawRights = [];
+
+        foreach ($rightsList as $rights) {
+            $statement = [
+                'rights' => $this->filledString($rights['rights'] ?? null),
+                'rightsUri' => $this->filledString($rights['rightsUri'] ?? $rights['rightsURI'] ?? null),
+                'rightsIdentifier' => $this->filledString($rights['rightsIdentifier'] ?? null),
+                'rightsIdentifierScheme' => $this->filledString($rights['rightsIdentifierScheme'] ?? null),
+                'schemeUri' => $this->filledString($rights['schemeUri'] ?? $rights['schemeURI'] ?? null),
+                'lang' => $this->filledString($rights['lang'] ?? $rights['language'] ?? null),
+            ];
+
+            $statement = array_filter(
+                $statement,
+                fn (?string $value): bool => $value !== null,
+            );
+
+            if ($statement === []) {
+                continue;
+            }
+
+            $statement['source'] = 'json-upload';
+            $rawRights[] = $statement;
+        }
+
+        return $rawRights;
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if ($value === null || is_array($value) || is_object($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     /**
@@ -628,7 +675,7 @@ class UploadJsonController extends Controller
 
         foreach ($geoLocations as $geo) {
             $coverage = [
-                'id' => 'coverage-' . $index,
+                'id' => 'coverage-'.$index,
                 'type' => 'point',
                 'latMin' => '',
                 'latMax' => '',
@@ -1241,7 +1288,7 @@ class UploadJsonController extends Controller
 
     private function buildNameKey(string $lastName, string $firstName): string
     {
-        return mb_strtolower(trim($lastName) . '|' . trim($firstName));
+        return mb_strtolower(trim($lastName).'|'.trim($firstName));
     }
 
     private function normalizeDateString(string $dateValue): string
@@ -1265,11 +1312,11 @@ class UploadJsonController extends Controller
         }
 
         if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
-            return $matches[1] . '-' . $matches[2] . '-01';
+            return $matches[1].'-'.$matches[2].'-01';
         }
 
         if (preg_match('/^\d{4}$/', $dateValue)) {
-            return $dateValue . '-01-01';
+            return $dateValue.'-01-01';
         }
 
         $timestamp = strtotime($dateValue);

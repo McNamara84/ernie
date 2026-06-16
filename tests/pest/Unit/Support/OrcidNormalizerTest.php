@@ -27,6 +27,14 @@ describe('extractBareId', function (): void {
         expect(OrcidNormalizer::extractBareId('http://www.orcid.org/0000-0002-1825-0097'))->toBe('0000-0002-1825-0097');
     });
 
+    it('strips protocol-less orcid.org prefix', function (): void {
+        expect(OrcidNormalizer::extractBareId('orcid.org/0000-0002-1825-0097'))->toBe('0000-0002-1825-0097');
+    });
+
+    it('strips protocol-less www.orcid.org prefix', function (): void {
+        expect(OrcidNormalizer::extractBareId('www.orcid.org/0000-0002-1825-0097'))->toBe('0000-0002-1825-0097');
+    });
+
     it('handles case-insensitive prefixes', function (): void {
         expect(OrcidNormalizer::extractBareId('HTTPS://ORCID.ORG/0000-0002-1825-0097'))->toBe('0000-0002-1825-0097');
     });
@@ -47,6 +55,11 @@ describe('toUrl', function (): void {
 
     it('normalizes http variant to canonical https URL', function (): void {
         expect(OrcidNormalizer::toUrl('http://orcid.org/0000-0002-1825-0097'))->toBe('https://orcid.org/0000-0002-1825-0097');
+    });
+
+    it('normalizes protocol-less variants to canonical URL', function (): void {
+        expect(OrcidNormalizer::toUrl('orcid.org/0000-0002-1825-0097'))->toBe('https://orcid.org/0000-0002-1825-0097');
+        expect(OrcidNormalizer::toUrl('www.orcid.org/0000-0002-1825-0097'))->toBe('https://orcid.org/0000-0002-1825-0097');
     });
 });
 
@@ -71,6 +84,11 @@ describe('isValidFormat', function (): void {
         expect(OrcidNormalizer::isValidFormat('https://www.orcid.org/0000-0002-1825-0097'))->toBeTrue();
     });
 
+    it('accepts protocol-less ORCID URLs', function (): void {
+        expect(OrcidNormalizer::isValidFormat('orcid.org/0000-0002-1825-0097'))->toBeTrue();
+        expect(OrcidNormalizer::isValidFormat('www.orcid.org/0000-0002-1825-0097'))->toBeTrue();
+    });
+
     it('rejects malformed strings', function (): void {
         expect(OrcidNormalizer::isValidFormat('not-an-orcid'))->toBeFalse();
         expect(OrcidNormalizer::isValidFormat('1234'))->toBeFalse();
@@ -91,6 +109,11 @@ describe('isValidChecksum', function (): void {
         expect(OrcidNormalizer::isValidChecksum('https://www.orcid.org/0000-0002-1825-0097'))->toBeTrue();
     });
 
+    it('validates checksum from protocol-less URL format', function (): void {
+        expect(OrcidNormalizer::isValidChecksum('orcid.org/0000-0002-1825-0097'))->toBeTrue();
+        expect(OrcidNormalizer::isValidChecksum('www.orcid.org/0000-0002-1825-0097'))->toBeTrue();
+    });
+
     it('rejects non-ORCID strings', function (): void {
         expect(OrcidNormalizer::isValidChecksum('not-valid'))->toBeFalse();
     });
@@ -107,6 +130,11 @@ describe('isValid', function (): void {
 
     it('accepts valid www ORCID URL', function (): void {
         expect(OrcidNormalizer::isValid('https://www.orcid.org/0000-0002-1825-0097'))->toBeTrue();
+    });
+
+    it('accepts valid protocol-less ORCID URLs', function (): void {
+        expect(OrcidNormalizer::isValid('orcid.org/0000-0002-1825-0097'))->toBeTrue();
+        expect(OrcidNormalizer::isValid('www.orcid.org/0000-0002-1825-0097'))->toBeTrue();
     });
 
     it('rejects valid format with bad checksum', function (): void {

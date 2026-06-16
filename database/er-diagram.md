@@ -485,7 +485,14 @@ erDiagram
     resource_rights {
         bigint id PK
         bigint resource_id FK
-        bigint rights_id FK
+        bigint rights_id FK "nullable, optional catalog link"
+        text rights_text "nullable, imported DataCite rights"
+        varchar rights_uri "512, nullable"
+        varchar rights_identifier "nullable"
+        varchar rights_identifier_scheme "100, nullable"
+        varchar scheme_uri "512, nullable"
+        varchar language "10, nullable"
+        varchar source "100, nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -1018,8 +1025,8 @@ erDiagram
     identifier_type_patterns }o--|| identifier_types : "patterns for"
     funding_references }o--o| funder_identifier_types : "identifier type"
 
-    %% Rights pivot
-    resource_rights }o--|| rights : "license"
+    %% Rights statements with optional catalog links
+    resource_rights }o--o| rights : "optional catalog license"
 
     %% Polymorphic creator/contributor relationships
     resource_creators }o--o| persons : "creator (Person)"

@@ -41,7 +41,7 @@ class UploadXmlController extends Controller
 
         try {
             $reader = XmlReader::fromString($contents);
-            $result = $this->importParser->parse($reader, $filename);
+            $result = $this->importParser->parse($reader, $filename, $contents);
         } catch (XmlReaderException|XmlRuntimeException $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::XML_PARSE_ERROR,

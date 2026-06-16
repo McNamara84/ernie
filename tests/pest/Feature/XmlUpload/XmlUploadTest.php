@@ -57,6 +57,23 @@ XML;
             ['title' => 'Example AlternativeTitle', 'titleType' => 'alternative-title'],
         ],
         'licenses' => ['CC-BY-4.0', 'MIT'],
+        'rawRights' => [
+            [
+                'rights' => 'Creative Commons Attribution 4.0 International',
+                'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/legalcode',
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'source' => 'xml-upload',
+            ],
+            [
+                'rights' => 'MIT License',
+                'rightsIdentifier' => 'MIT',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'source' => 'xml-upload',
+            ],
+        ],
         'authors' => [],
     ]);
 });

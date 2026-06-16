@@ -16,6 +16,18 @@ describe('RorLookupService', function () {
         expect($service->canonicalise('http://ror.org/04z8jg394'))->toBe('https://ror.org/04z8jg394');
     });
 
+    test('canonicalises protocol-less ROR URL', function () {
+        $service = new RorLookupService;
+
+        expect($service->canonicalise('ror.org/04z8jg394'))->toBe('https://ror.org/04z8jg394');
+    });
+
+    test('canonicalises protocol-less www ROR URL', function () {
+        $service = new RorLookupService;
+
+        expect($service->canonicalise('www.ror.org/04z8jg394'))->toBe('https://ror.org/04z8jg394');
+    });
+
     test('canonicalises bare ROR ID', function () {
         $service = new RorLookupService;
 
@@ -45,6 +57,8 @@ describe('RorLookupService', function () {
 
         expect($service->isRorUrl('https://ror.org/04z8jg394'))->toBeTrue()
             ->and($service->isRorUrl('http://ror.org/04z8jg394'))->toBeTrue()
+            ->and($service->isRorUrl('ror.org/04z8jg394'))->toBeTrue()
+            ->and($service->isRorUrl('www.ror.org/04z8jg394'))->toBeTrue()
             ->and($service->isRorUrl('https://example.com'))->toBeFalse()
             ->and($service->isRorUrl('GFZ Potsdam'))->toBeFalse()
             ->and($service->isRorUrl(''))->toBeFalse();

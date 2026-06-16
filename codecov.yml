@@ -28,6 +28,8 @@ ignore:
   - "resources/js/types/old-datasets.ts"
   - "resources/js/types/portal.ts"
   - "resources/js/types/resources.ts"
+  # Schema migrations are exercised by tests but not treated as line-coverage targets
+  - "database/migrations/**"
   # Legacy migration backups
   - "database/migrations_backup/**"
   # Framework boilerplate

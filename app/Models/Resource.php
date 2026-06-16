@@ -250,11 +250,29 @@ class Resource extends Model
         return $relation;
     }
 
+    /** @return HasMany<ResourceRight, static> */
+    public function resourceRights(): HasMany
+    {
+        /** @var HasMany<ResourceRight, static> $relation */
+        $relation = $this->hasMany(ResourceRight::class);
+
+        return $relation;
+    }
+
     /** @return BelongsToMany<Right, static> */
     public function rights(): BelongsToMany
     {
         /** @var BelongsToMany<Right, static> $relation */
         $relation = $this->belongsToMany(Right::class, 'resource_rights', 'resource_id', 'rights_id')
+            ->withPivot([
+                'rights_text',
+                'rights_uri',
+                'rights_identifier',
+                'rights_identifier_scheme',
+                'scheme_uri',
+                'language',
+                'source',
+            ])
             ->withTimestamps();
 
         return $relation;

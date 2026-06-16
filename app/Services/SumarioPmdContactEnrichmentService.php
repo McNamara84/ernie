@@ -233,7 +233,7 @@ class SumarioPmdContactEnrichmentService
 
         $normalised = mb_strtolower(trim($name), 'UTF-8');
         $normalised = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalised) ?: $normalised;
-        $normalised = preg_replace('/[^\pL\pN]+/u', ' ', $normalised) ?? '';
+        $normalised = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $normalised) ?? '';
         $normalised = preg_replace('/\s+/', ' ', $normalised) ?? '';
 
         return trim($normalised);

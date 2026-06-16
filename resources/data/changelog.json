@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-03",
+        "date": "2026-06-13",
         "features": [
             {
                 "title": "Landing Page and Portal Statistics Dashboard",
@@ -64,6 +64,10 @@
                 "description": "Admins and Group Leaders can now bulk-import all ~38,500 IGSNs registered under the GFZ IGSN prefix (10.60510) directly from the DataCite API. The import automatically enriches each IGSN with legacy metadata (sample type, material, coordinates, collector, classifications, geological ages) from Solr and the legacy IGSN database (~94% enrichment rate). Parent-child relationships between samples are resolved after import. Progress is tracked in real-time with counters for imported, enriched, skipped, and failed records."
             },
             {
+                "title": "Single IGSN Import with Relationship Discovery",
+                "description": "The IGSNs page now offers an Import single IGSN dialog for admins and group leaders. Users can enter an IGSN handle, configured-prefix DOI, or doi.org URL; ERNIE verifies the record at DataCite before queueing the import. Parent IGSNs include their discovered child samples, while child IGSNs import their DataCite parent chain and sibling groups so hierarchy links are available immediately after import."
+            },
+            {
                 "title": "DataCite JSON and JSON-LD Upload",
                 "description": "Resources can now be created by uploading DataCite JSON or JSON-LD files in addition to XML. The dropzone routes files by extension (XML, JSON/JSON-LD, CSV) and automatically distinguishes standard DataCite JSON from JSON-LD based on the file content. All metadata fields are extracted including authors, contributors, subjects, geo locations, funding references, and related identifiers."
             },
@@ -94,6 +98,10 @@
             {
                 "title": "Assistance: Suggested ROR-IDs Discovery",
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
+            },
+            {
+                "title": "Assistance: SPDX Rights Suggestions",
+                "description": "Imported DataCite rights statements are now preserved as raw resource-right rows even before they are linked to the shared SPDX license catalog. The new SPDX Rights Suggestions assistant on /assistance reviews unresolved rights metadata from legacy, XML, and JSON imports, proposes trusted SPDX matches with evidence, and lets curators accept or decline each suggestion. Accepted suggestions link only the affected rights statement to the catalog while keeping the imported evidence for audit and export round-tripping."
             }
         ],
         "improvements": [
@@ -259,6 +267,22 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Funding Reference Card Affordance",
+                "description": "Updated Funding Reference cards in the Data Editor so editable entries no longer look disabled. The card, expanded award details, and reorder handle now use active editor styling while preserving validation, ROR autocomplete, and drag-and-drop behavior."
+            },
+            {
+                "title": "XML Upload Preserves Mixed Description Text",
+                "description": "XML uploads now keep DataCite descriptions that contain inline XML elements such as <br/>. ERNIE converts line break elements to readable editor line breaks and preserves nested text instead of dropping the whole description during upload."
+            },
+            {
+                "title": "Merged Contact-Person Authors in the Data Editor",
+                "description": "Legacy DataCite imports now load creators who are also Contact Person contributors as a single author row with the CP checkbox, email, and website fields in /editor. ERNIE still persists and exports the required separate DataCite creator and ContactPerson contributor records, while standalone ContactPerson contributors continue to appear normally in the Contributors section."
+            },
+            {
+                "title": "Readable Sidebar Count Badges",
+                "description": "Primary sidebar count badges such as Resources and IGSNs now keep their white foreground color when their navigation item is active or hovered. This preserves readable contrast on the GFZ-blue badge background in light mode while leaving default and warning badges unchanged."
+            },
             {
                 "title": "Global Coverage Handling on Landing Page and Portal Maps",
                 "description": "Landing Page Location sections now treat exact whole-world bounding boxes as global coverage instead of drawing them as oversized rectangles. Global-only resources show a concise spatial coverage notice, mixed global and local coverage keeps the local geometries visible, and Landing Page maps use a 2:1 layout with Leaflet world wrapping disabled. The public portal map also excludes global coverage shapes so worldwide resources no longer cover more specific results on the map while remaining available in the search result list."

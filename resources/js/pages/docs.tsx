@@ -572,6 +572,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and
                                 funders via the ROR API v2
                             </li>
+                            <li>
+                                <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
+                                license metadata before export
+                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -586,6 +590,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
                                     score.
+                                </p>
+                                <p className="mt-2">
+                                    SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
+                                    Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
+                                    unchanged and dismisses the suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
@@ -1064,6 +1073,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Drag & Drop Reordering</h4>
                         <p>Reorder authors and contributors by dragging them to the desired position.</p>
+
+                        <h4>Contact Persons</h4>
+                        <p>
+                            Authors can be marked as contact persons with the CP checkbox. When imported metadata contains the same person as both
+                            an author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the
+                            separate creator and Contact Person contributor records required for DataCite export.
+                        </p>
                     </>
                 ),
             },

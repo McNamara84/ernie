@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import {Archive, FileArchive, AlertCircle, AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -20,6 +20,7 @@ import {
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
+    type SuggestedSpdxRightsItem,
 } from '@/types/assistance';
 import { validateORCID } from '@/utils/validation-rules';
 
@@ -214,6 +215,111 @@ function entityTypeBadgeColor(type: SuggestedRorItem['entity_type']): string {
             return _exhaustive;
         }
     }
+}
+
+const RIGHTS_FIELD_LABELS: Record<string, string> = {
+    rights: 'rights',
+    rights_uri: 'rightsURI',
+    rights_identifier: 'rightsIdentifier',
+    rights_identifier_scheme: 'rightsIdentifierScheme',
+    scheme_uri: 'schemeURI',
+    language: 'lang',
+    source: 'source',
+};
+
+function RightsMetadataBlock({ title, values }: { title: string; values: Record<string, string> | undefined }) {
+    const entries = Object.entries(RIGHTS_FIELD_LABELS)
+        .map(([key, label]) => [label, values?.[key]] as const)
+        .filter(([, value]) => typeof value === 'string' && value.trim() !== '');
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</p>
+            {entries.length > 0 ? (
+                <dl className="space-y-1 text-xs">
+                    {entries.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className="break-words font-mono text-foreground">{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : (
+                <p className="text-xs text-muted-foreground">No metadata captured.</p>
+            )}
+        </div>
+    );
+}
+
+function SpdxRightsSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedSpdxRightsItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata ?? null;
+    const percent = suggestion.similarity_score !== null ? Math.round(suggestion.similarity_score * 100) : null;
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            SPDX
+                        </Badge>
+                        {percent !== null && <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>{percent}% match</Badge>}
+                        <Badge variant="secondary" className="text-xs">
+                            resource_right #{suggestion.target_id}
+                        </Badge>
+                        <span className="font-mono text-sm break-all">{suggestion.suggested_value}</span>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <RightsMetadataBlock title="Current imported rights" values={metadata?.current} />
+                        <RightsMetadataBlock title="Proposed SPDX metadata" values={metadata?.proposed} />
+                    </div>
+
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        <div className="flex gap-2">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <p>
+                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only empty
+                                catalog fields may be filled.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {metadata?.evidence?.matched_from && <span>Matched from: {metadata.evidence.matched_from}</span>}
+                        {metadata?.evidence?.reason && <span>Reason: {metadata.evidence.reason}</span>}
+                        {metadata?.source_url && (
+                            <a href={metadata.source_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                                SPDX reference
+                            </a>
+                        )}
+                        <span>Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function RorSuggestionCard({
@@ -650,14 +756,23 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     />
                 );
             case 'size-format-suggestion':
-    return (
-        <SizeFormatSuggestionCard
-            suggestion={item}
-            onAccept={onAccept}
-            onDecline={onDecline}
-            isProcessing={isProcessing}
-        />
-    );
+                return (
+                    <SizeFormatSuggestionCard
+                        suggestion={item}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'spdx-license-suggestion':
+                return (
+                    <SpdxRightsSuggestionCard
+                        suggestion={item as unknown as SuggestedSpdxRightsItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
             default:
                 // Generic card for future student modules
                 return (

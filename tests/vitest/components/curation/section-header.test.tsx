@@ -3,7 +3,7 @@ import { render, screen } from '@tests/vitest/utils/render';
 import { Upload } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 
-import { SectionHeader } from '@/components/curation/section-header';
+import { AccordionSectionHeader, SectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { Button } from '@/components/ui/button';
 
 describe('SectionHeader', () => {
@@ -196,5 +196,51 @@ describe('SectionHeader', () => {
             const flexContainer = container.querySelector('.flex.items-center.justify-between');
             expect(flexContainer).toBeInTheDocument();
         });
+    });
+});
+
+describe('AccordionSectionHeader', () => {
+    it('renders title, description, required indicator, counter, badge, and status', () => {
+        render(
+            <AccordionSectionHeader
+                label="Authors"
+                description="People or institutions who created this work."
+                required
+                counter={{ current: 2, max: 100 }}
+                badge={<span>EPOS/MSL</span>}
+                status={<span aria-label="Section incomplete or has errors">status</span>}
+                data-testid="accordion-section-header"
+            />,
+        );
+
+        expect(screen.getByTestId('accordion-section-header')).toBeInTheDocument();
+        expect(screen.getByText('Authors')).toBeInTheDocument();
+        expect(screen.getByText('People or institutions who created this work.')).toBeInTheDocument();
+        expect(screen.getByLabelText('Required')).toBeInTheDocument();
+        expect(screen.getByText('(2 / 100)')).toBeInTheDocument();
+        expect(screen.getByText('EPOS/MSL')).toBeInTheDocument();
+        expect(screen.getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+    });
+
+    it('omits optional metadata when not provided', () => {
+        render(<AccordionSectionHeader label="Citations" />);
+
+        expect(screen.getByText('Citations')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Required')).not.toBeInTheDocument();
+        expect(screen.queryByText(/\(/)).not.toBeInTheDocument();
+    });
+});
+
+describe('SectionHelpAction', () => {
+    it('renders a help button when tooltip content is provided', () => {
+        render(<SectionHelpAction label="Resource Information" tooltip="Required fields: Year and Resource Type" />);
+
+        expect(screen.getByRole('button', { name: /help for resource information/i })).toBeInTheDocument();
+    });
+
+    it('renders nothing when tooltip content is missing', () => {
+        const { container } = render(<SectionHelpAction label="Resource Information" />);
+
+        expect(container).toBeEmptyDOMElement();
     });
 });
