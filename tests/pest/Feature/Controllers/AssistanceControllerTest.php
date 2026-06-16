@@ -5,8 +5,8 @@ declare(strict_types=1);
 use App\Http\Controllers\AssistanceController;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 
 covers(AssistanceController::class);
