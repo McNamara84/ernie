@@ -105,58 +105,18 @@ class Assistant extends GenericTableAssistant
      */
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
-        $title = Title::find($suggestion->target_id);
-
-        if ($title === null) {
-            return [
-                'success' => false,
-                'message' => 'Title record not found.',
-            ];
-        }
-
-        $metadata = $this->metadata($suggestion);
-
-        if ($this->isStale($title, $metadata)) {
-            return [
-                'success' => false,
-                'message' => 'Suggestion is stale because the title data changed after discovery. Please run discovery again.',
-            ];
-        }
-
-        $currentLanguage = $this->currentLanguage($title);
-        $proposedLanguage = strtolower((string) $suggestion->suggested_value);
-
-        if (! in_array($proposedLanguage, self::SUPPORTED_LANGUAGES, true)) {
-            return [
-                'success' => false,
-                'message' => "Unsupported language '{$proposedLanguage}'. Only de, en and fr are supported.",
-            ];
-        }
-
-        if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
-            return [
-                'success' => false,
-                'message' => "Title already has language '{$currentLanguage}'. It was not overwritten automatically.",
-            ];
-        }
-
-        if ($currentLanguage === $proposedLanguage) {
-            return [
-                'success' => true,
-                'message' => "Title language is already set to {$proposedLanguage}.",
-            ];
-        }
-
-        $title->language = $proposedLanguage;
+        // 1. Finde die Title anhand target_id
+        $title = Title::findOrFail($suggestion->target_id);
+        
+        // 2. Setze die Sprache
+        $title->language_id = $suggestion->suggested_value; // z.B. 'en'
         $title->save();
-
-        $languageLabel = $metadata['proposed_language_label']
-            ?? $suggestion->suggested_label
-            ?? strtoupper($proposedLanguage);
-
+        
+        // 3. Gib Feedback zurück
         return [
             'success' => true,
-            'message' => "Title language set to {$languageLabel}.",
+            'message' => "Title language set to {$suggestion->suggested_label}",
+            'updated_title_id' => $title->id,
         ];
     }
 
