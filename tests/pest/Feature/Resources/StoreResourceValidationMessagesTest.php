@@ -769,6 +769,53 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ->and($websiteErrors[0])->toStartWith('[Contributors]');
     });
 
+    test('draft with invalid author and contributor types still reports validation errors', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'authors' => [
+                [
+                    'type' => 'alien',
+                    'position' => 0,
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'affiliations' => [],
+                ],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'alien',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => ['Data Collector'],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['authors.0.type', 'contributors.0.type']);
+
+        $allErrors = $response->json('errors');
+        $authorErrors = $allErrors['authors.0.type'] ?? null;
+        $contributorErrors = $allErrors['contributors.0.type'] ?? null;
+
+        expect($authorErrors)->toBeArray()
+            ->and($contributorErrors)->toBeArray()
+            ->and($authorErrors[0])->toStartWith('[Authors]')
+            ->and($contributorErrors[0])->toStartWith('[Contributors]');
+    });
+
     test('draft with polygon with fewer than 3 points returns [Spatial & Temporal Coverage] prefix', function () {
         $user = User::factory()->create();
         seedValidationLookupTables();
