@@ -469,16 +469,20 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             // Normalize roles
-            $roles = [];
-            $rawRoles = $contributor['roles'] ?? [];
+            $roles = null;
+            $rawRoles = $contributor['roles'] ?? null;
 
             if (is_array($rawRoles)) {
+                $roles = [];
+
                 foreach ($rawRoles as $role) {
                     $normalizedRole = trim((string) $role);
                     if ($normalizedRole !== '') {
                         $roles[] = $normalizedRole;
                     }
                 }
+            } elseif (array_key_exists('roles', $contributor)) {
+                $roles = $rawRoles;
             }
 
             if (! in_array($type, ['person', 'institution'], true)) {
@@ -892,6 +896,7 @@ class StoreDraftResourceRequest extends FormRequest
             // Contributors
             'contributors.*.type.required' => '[Contributors] Contributor #:position must have a type (person or institution).',
             'contributors.*.type.in' => '[Contributors] Contributor #:position has an invalid type.',
+            'contributors.*.roles.array' => '[Contributors] Contributor #:position roles must be a valid list.',
             'contributors.*.roles.required' => '[Contributors] Contributor #:position must have at least one role.',
             'contributors.*.roles.min' => '[Contributors] Contributor #:position must have at least one role.',
             'contributors.*.email.email' => '[Contributors] Contributor #:position has an invalid email address.',
