@@ -109,7 +109,7 @@ class Assistant extends GenericTableAssistant
         $title = Title::findOrFail($suggestion->target_id);
         
         // 2. Setze die Sprache
-        $title->language_id = $suggestion->suggested_value; // z.B. 'en'
+        $title->language = $suggestion->suggested_value; // z.B. 'en'
         $title->save();
         
         // 3. Gib Feedback zurück
