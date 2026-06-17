@@ -10,10 +10,12 @@ use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\Spdx\SpdxRightsMatchInputProvider;
 use Database\Seeders\ContributorTypeSeeder;
 use Database\Seeders\DateTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
@@ -68,6 +70,69 @@ describe('DataCiteToResourceTransformer - rights import', function (): void {
             ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
             ->and($resourceRight->language)->toBe('en')
             ->and($resourceRight->source)->toBe('datacite-import');
+    });
+
+    it('prefers embedded DataCite XML rights over API-normalized SPDX rights during legacy import', function (): void {
+        Right::create([
+            'identifier' => 'CC-BY-4.0',
+            'name' => 'Creative Commons Attribution 4.0 International',
+            'uri' => 'https://spdx.org/licenses/CC-BY-4.0.html',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+        ]);
+
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $originalXml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <rightsList>
+    <rights rightsURI="http://creativecommons.org/licenses/by/4.0/">CC BY 4.0</rights>
+  </rightsList>
+</resource>
+XML;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/fidgeo.2026.052',
+                'publicationYear' => 2026,
+                'language' => 'en',
+                'titles' => [['title' => 'Original XML rights test']],
+                'creators' => [
+                    ['familyName' => 'Tester', 'givenName' => 'Rights', 'nameType' => 'Personal'],
+                ],
+                'rightsList' => [
+                    [
+                        'rights' => 'Creative Commons Attribution 4.0 International',
+                        'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/legalcode',
+                        'rightsIdentifier' => 'cc-by-4.0',
+                        'rightsIdentifierScheme' => 'SPDX',
+                        'schemeUri' => 'https://spdx.org/licenses/',
+                    ],
+                ],
+                'xml' => base64_encode($originalXml),
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->sole();
+
+        expect($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0/')
+            ->and($resourceRight->rights_identifier)->toBeNull()
+            ->and($resourceRight->rights_identifier_scheme)->toBeNull()
+            ->and($resourceRight->scheme_uri)->toBeNull()
+            ->and($resourceRight->source)->toBe('datacite-import');
+
+        $pendingInputs = (new SpdxRightsMatchInputProvider)
+            ->pendingInputs()
+            ->where('resourceId', $resource->id)
+            ->values();
+
+        expect($pendingInputs)->toHaveCount(1)
+            ->and($pendingInputs->first()->rightsText)->toBe('CC BY 4.0')
+            ->and($pendingInputs->first()->rightsIdentifier)->toBeNull();
     });
 });
 
