@@ -178,6 +178,9 @@ describe('Title Language Detection assistant', function (): void {
         expect($title->fresh()->language)->toBe('en');
         expect(AssistantSuggestion::where('id', $suggestion->id)->exists())->toBeFalse();
 
+        visit('/assistance')
+            ->assertNoSmoke();
+
         expect(
             AssistantSuggestion::where('assistant_id', 'title-language-suggestion')
                 ->where('target_type', 'title')
