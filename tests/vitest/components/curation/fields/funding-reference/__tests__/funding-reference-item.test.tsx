@@ -73,10 +73,12 @@ describe('FundingReferenceItem', () => {
         render(<FundingReferenceItem {...defaultProps} funding={validFunding} />);
 
         const card = screen.getByTestId('funding-reference-card');
-        expect(card).toHaveClass('bg-background');
-        expect(card).toHaveClass('border-input');
+        expect(card).toHaveClass('bg-card');
+        expect(card).toHaveClass('text-card-foreground');
+        expect(card).toHaveClass('border-border');
         expect(card).toHaveClass('border-l-4');
-        expect(card).toHaveClass('border-l-gfz-primary/70');
+        expect(card).toHaveClass('border-l-gfz-primary');
+        expect(card).toHaveClass('shadow-md');
         expect(card).toHaveClass('focus-within:ring-[3px]');
         expect(card).not.toHaveClass('bg-muted');
         expect(card).not.toHaveClass('bg-muted/30');
