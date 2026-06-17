@@ -19,6 +19,13 @@ function loadRepairResourceRightsRawFieldsSchemaMigration(): Migration
     return $migration;
 }
 
+function dropRepairResourceRightsForeignKeyNamed(Migration $migration, string $constraint): void
+{
+    $method = new ReflectionMethod($migration, 'dropForeignKeyNamed');
+    $method->setAccessible(true);
+    $method->invoke($migration, $constraint);
+}
+
 function skipUnlessMysqlForResourceRightsRepair(): void
 {
     $driver = DB::connection()->getDriverName();
@@ -123,6 +130,21 @@ it('repairs resource_rights when rights_id has a non-standard foreign key name',
     expect($foreignKey->CONSTRAINT_NAME)->toBe('resource_rights_rights_id_foreign')
         ->and($foreignKey->DELETE_RULE)->toBe('SET NULL')
         ->and(Schema::hasIndex('resource_rights', 'resource_rights_resource_source_idx'))->toBeTrue();
+});
+
+it('ignores a stale rights_id foreign key name that is already absent during repair', function (): void {
+    skipUnlessMysqlForResourceRightsRepair();
+    recreateLegacyResourceRightsTable(null);
+
+    $migration = loadRepairResourceRightsRawFieldsSchemaMigration();
+
+    dropRepairResourceRightsForeignKeyNamed($migration, 'resource_rights_rights_id_foreign');
+
+    /** @phpstan-ignore method.notFound */
+    $migration->up();
+
+    expect(resourceRightsColumn('rights_id')->IS_NULLABLE)->toBe('YES')
+        ->and(resourceRightsRightsForeignKey()->DELETE_RULE)->toBe('SET NULL');
 });
 
 it('repairs resource_rights when the rights_id foreign key is already missing', function (): void {
