@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
@@ -163,9 +165,7 @@ return new class extends Migration
         $sqlState = (string) ($exception->errorInfo[0] ?? '');
         $driverCode = (string) ($exception->errorInfo[1] ?? '');
 
-        return $driverCode === '1091'
-            && in_array($sqlState, ['42000', '42S02'], true)
-            && str_contains($exception->getMessage(), "Can't DROP");
+        return $sqlState === '42000' && $driverCode === '1091';
     }
 
     /**
