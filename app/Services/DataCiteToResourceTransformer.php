@@ -37,11 +37,13 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Rights\ResourceRightsStorageService;
+use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Saloon\XmlWrangler\XmlReader;
 
 /**
  * Transforms DataCite API JSON responses into ERNIE Resource models.
@@ -59,6 +61,7 @@ class DataCiteToResourceTransformer
         private ?ResourceRightsStorageService $resourceRightsStorage = null,
         private ?RorLookupService $rorLookupService = null,
         private ?SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver = null,
+        private ?RightsSectionParser $xmlRightsParser = null,
     ) {}
 
     /**
@@ -140,6 +143,8 @@ class DataCiteToResourceTransformer
      */
     private function prepareAttributes(array $attributes): array
     {
+        $attributes = $this->preferOriginalXmlRights($attributes);
+
         $relatedIdentifiers = $attributes['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
@@ -189,6 +194,67 @@ class DataCiteToResourceTransformer
         $attributes['relatedIdentifiers'] = $relatedIdentifiers;
 
         return $attributes;
+    }
+
+    /**
+     * Prefer the embedded original DataCite XML rights over API-normalized rights.
+     *
+     * The `/resources` legacy import consumes the DataCite REST API. That API may
+     * expose SPDX-like fields in `attributes.rightsList` even when the deposited
+     * XML only contained a plain legacy rights statement. For import review, the
+     * embedded original XML is the source of truth; SPDX completion belongs to
+     * the assistant workflow.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function preferOriginalXmlRights(array $attributes): array
+    {
+        $xml = $this->decodedOriginalXml($attributes['xml'] ?? null);
+
+        if ($xml === null) {
+            return $attributes;
+        }
+
+        try {
+            $rightsList = ($this->xmlRightsParser ??= new RightsSectionParser)
+                ->parseRawRights(XmlReader::fromString($xml));
+        } catch (\Throwable $exception) {
+            Log::debug('Could not parse original DataCite XML rights during import; using API rightsList fallback.', [
+                'doi' => $attributes['doi'] ?? null,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $attributes;
+        }
+
+        if ($rightsList === []) {
+            return $attributes;
+        }
+
+        $attributes['rightsList'] = array_map(
+            function (array $statement): array {
+                $statement['source'] = 'datacite-import';
+
+                return $statement;
+            },
+            $rightsList,
+        );
+
+        return $attributes;
+    }
+
+    private function decodedOriginalXml(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $value = trim($value);
+        $decoded = base64_decode($value, true);
+        $xml = $decoded === false ? $value : $decoded;
+
+        return str_contains($xml, '<') ? $xml : null;
     }
 
     private function citationLabelService(): RelatedIdentifierCitationLabelService
