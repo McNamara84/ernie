@@ -348,7 +348,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             if (! in_array($type, ['person', 'institution'], true)) {
-                $authors[] = [
+                $authors[$index] = [
                     'type' => $type,
                     'affiliations' => $affiliations,
                     'position' => (int) $index,
@@ -358,7 +358,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             if ($type === 'institution') {
-                $authors[] = [
+                $authors[$index] = [
                     'type' => 'institution',
                     'institutionName' => $this->normalizeString($author['institutionName'] ?? null),
                     'rorId' => $this->normalizeString($author['rorId'] ?? null),
@@ -379,7 +379,7 @@ class StoreDraftResourceRequest extends FormRequest
                 $website = null;
             }
 
-            $authors[] = [
+            $authors[$index] = [
                 'type' => 'person',
                 'orcid' => $this->normalizeString($author['orcid'] ?? null),
                 'firstName' => $this->normalizeString($author['firstName'] ?? null),
@@ -392,10 +392,10 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
-        $authors = array_values(array_filter(
+        $authors = array_filter(
             $authors,
             fn (array $author): bool => $this->shouldKeepDraftAuthor($author),
-        ));
+        );
 
         /** @var array<int, array<string, mixed>|mixed> $rawContributors */
         $rawContributors = $this->input('contributors', []);
@@ -482,7 +482,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             if (! in_array($type, ['person', 'institution'], true)) {
-                $contributors[] = [
+                $contributors[$index] = [
                     'type' => $type,
                     'roles' => $roles,
                     'affiliations' => $affiliations,
@@ -493,7 +493,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             if ($type === 'institution') {
-                $contributors[] = [
+                $contributors[$index] = [
                     'type' => 'institution',
                     'institutionName' => $this->normalizeString($contributor['institutionName'] ?? null),
                     'identifier' => $this->normalizeString($contributor['identifier'] ?? null),
@@ -506,7 +506,7 @@ class StoreDraftResourceRequest extends FormRequest
                 continue;
             }
 
-            $contributors[] = [
+            $contributors[$index] = [
                 'type' => 'person',
                 'orcid' => $this->normalizeString($contributor['orcid'] ?? null),
                 'firstName' => $this->normalizeString($contributor['firstName'] ?? null),
@@ -519,10 +519,10 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
-        $contributors = array_values(array_filter(
+        $contributors = array_filter(
             $contributors,
             fn (array $contributor): bool => $this->shouldKeepDraftContributor($contributor),
-        ));
+        );
 
         // Normalize descriptions
         /** @var array<int, array<string, mixed>|mixed> $rawDescriptions */

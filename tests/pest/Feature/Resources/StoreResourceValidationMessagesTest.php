@@ -769,7 +769,7 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ->and($websiteErrors[0])->toStartWith('[Contributors]');
     });
 
-    test('draft with invalid author and contributor types still reports validation errors', function () {
+    test('draft with invalid author and contributor types preserves original error indexes after filtering', function () {
         $user = User::factory()->create();
         seedValidationLookupTables();
 
@@ -781,8 +781,15 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ],
             'authors' => [
                 [
-                    'type' => 'alien',
+                    'type' => 'person',
                     'position' => 0,
+                    'firstName' => 'Filtered',
+                    'lastName' => '',
+                    'affiliations' => [],
+                ],
+                [
+                    'type' => 'alien',
+                    'position' => 1,
                     'firstName' => 'Jane',
                     'lastName' => 'Doe',
                     'affiliations' => [],
@@ -790,8 +797,16 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ],
             'contributors' => [
                 [
-                    'type' => 'alien',
+                    'type' => 'person',
                     'position' => 0,
+                    'firstName' => 'Filtered',
+                    'lastName' => '',
+                    'roles' => ['Data Collector'],
+                    'affiliations' => [],
+                ],
+                [
+                    'type' => 'alien',
+                    'position' => 1,
                     'firstName' => 'John',
                     'lastName' => 'Smith',
                     'roles' => ['Data Collector'],
@@ -804,16 +819,17 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ->postJson(route('editor.resources.store-draft'), $payload);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['authors.0.type', 'contributors.0.type']);
+        $response->assertJsonValidationErrors(['authors.1.type', 'contributors.1.type']);
 
         $allErrors = $response->json('errors');
-        $authorErrors = $allErrors['authors.0.type'] ?? null;
-        $contributorErrors = $allErrors['contributors.0.type'] ?? null;
+        $authorErrors = $allErrors['authors.1.type'] ?? null;
+        $contributorErrors = $allErrors['contributors.1.type'] ?? null;
 
         expect($authorErrors)->toBeArray()
             ->and($contributorErrors)->toBeArray()
             ->and($authorErrors[0])->toStartWith('[Authors]')
-            ->and($contributorErrors[0])->toStartWith('[Contributors]');
+            ->and($contributorErrors[0])->toStartWith('[Contributors]')
+            ->and($allErrors)->not->toHaveKeys(['authors.0.type', 'contributors.0.type']);
     });
 
     test('draft with polygon with fewer than 3 points returns [Spatial & Temporal Coverage] prefix', function () {
