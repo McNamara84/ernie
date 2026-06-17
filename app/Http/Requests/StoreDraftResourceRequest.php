@@ -17,8 +17,9 @@ use Illuminate\Validation\Validator;
 /**
  * Relaxed validation for saving draft resources (Issue #548).
  *
- * Only requires a Main Title. All other fields are optional but still
- * structurally validated when provided (e.g. valid email format, existing FKs).
+ * Only requires a Main Title. All other fields are optional. Complete related
+ * entries are structurally validated when provided, while incomplete draft-only
+ * author/contributor rows are ignored until they can be saved safely.
  */
 class StoreDraftResourceRequest extends FormRequest
 {
@@ -88,7 +89,7 @@ class StoreDraftResourceRequest extends FormRequest
             'contributors' => ['nullable', 'array'],
             'contributors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'contributors.*.position' => ['required', 'integer', 'min:0'],
-            'contributors.*.roles' => ['required', 'array', 'min:1'],
+            'contributors.*.roles' => ['nullable', 'array'],
             'contributors.*.roles.*' => ['required', 'string', 'max:255'],
             'contributors.*.orcid' => ['nullable', 'string', 'max:255'],
             'contributors.*.firstName' => ['nullable', 'string', 'max:255'],
@@ -286,7 +287,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             $typeCandidate = isset($author['type']) ? trim((string) $author['type']) : '';
-            $type = in_array($typeCandidate, ['person', 'institution'], true) ? $typeCandidate : 'person';
+            $type = $typeCandidate !== '' ? $typeCandidate : 'person';
 
             $affiliations = [];
             $seenAffiliations = [];
@@ -346,6 +347,16 @@ class StoreDraftResourceRequest extends FormRequest
                 }
             }
 
+            if (! in_array($type, ['person', 'institution'], true)) {
+                $authors[] = [
+                    'type' => $type,
+                    'affiliations' => $affiliations,
+                    'position' => (int) $index,
+                ];
+
+                continue;
+            }
+
             if ($type === 'institution') {
                 $authors[] = [
                     'type' => 'institution',
@@ -381,6 +392,11 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
+        $authors = array_values(array_filter(
+            $authors,
+            fn (array $author): bool => $this->shouldKeepDraftAuthor($author),
+        ));
+
         /** @var array<int, array<string, mixed>|mixed> $rawContributors */
         $rawContributors = $this->input('contributors', []);
 
@@ -392,7 +408,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             $typeCandidate = isset($contributor['type']) ? trim((string) $contributor['type']) : '';
-            $type = in_array($typeCandidate, ['person', 'institution'], true) ? $typeCandidate : 'person';
+            $type = $typeCandidate !== '' ? $typeCandidate : 'person';
 
             $affiliations = [];
             $seenAffiliations = [];
@@ -465,6 +481,17 @@ class StoreDraftResourceRequest extends FormRequest
                 }
             }
 
+            if (! in_array($type, ['person', 'institution'], true)) {
+                $contributors[] = [
+                    'type' => $type,
+                    'roles' => $roles,
+                    'affiliations' => $affiliations,
+                    'position' => (int) $index,
+                ];
+
+                continue;
+            }
+
             if ($type === 'institution') {
                 $contributors[] = [
                     'type' => 'institution',
@@ -491,6 +518,11 @@ class StoreDraftResourceRequest extends FormRequest
                 'position' => (int) $index,
             ];
         }
+
+        $contributors = array_values(array_filter(
+            $contributors,
+            fn (array $contributor): bool => $this->shouldKeepDraftContributor($contributor),
+        ));
 
         // Normalize descriptions
         /** @var array<int, array<string, mixed>|mixed> $rawDescriptions */
@@ -994,97 +1026,6 @@ class StoreDraftResourceRequest extends FormRequest
                     );
                 }
             },
-            // Validate person authors have lastName if provided, contact persons have email
-            function (Validator $validator): void {
-                /** @var mixed $candidateAuthors */
-                $candidateAuthors = $this->input('authors', []);
-
-                if (! is_array($candidateAuthors) || count($candidateAuthors) === 0) {
-                    // Authors are optional for drafts
-                    return;
-                }
-
-                foreach ($candidateAuthors as $index => $author) {
-                    if (! is_array($author)) {
-                        $validator->errors()->add(
-                            "authors.$index",
-                            '[Authors] Author #'.($index + 1).' must be a valid entry.',
-                        );
-
-                        continue;
-                    }
-
-                    $type = $author['type'] ?? 'person';
-
-                    if ($type === 'person') {
-                        if (empty($author['lastName'])) {
-                            $validator->errors()->add(
-                                "authors.$index.lastName",
-                                '[Authors] Author #'.($index + 1).' requires a last name.',
-                            );
-                        }
-
-                        $isContact = BooleanNormalizer::isTrue($author['isContact'] ?? false);
-                        $email = $author['email'] ?? null;
-
-                        if ($isContact && ($email === null || $email === '')) {
-                            $validator->errors()->add(
-                                "authors.$index.email",
-                                '[Authors] Author #'.($index + 1).' requires a contact email when marked as contact person.',
-                            );
-                        }
-
-                        continue;
-                    }
-
-                    if (empty($author['institutionName'])) {
-                        $validator->errors()->add(
-                            "authors.$index.institutionName",
-                            '[Authors] Author #'.($index + 1).' requires an institution name.',
-                        );
-                    }
-                }
-            },
-            // Validate contributor structure if provided
-            function (Validator $validator): void {
-                /** @var mixed $candidateContributors */
-                $candidateContributors = $this->input('contributors', []);
-
-                if (! is_array($candidateContributors)) {
-                    return;
-                }
-
-                foreach ($candidateContributors as $index => $contributor) {
-                    if (! is_array($contributor)) {
-                        $validator->errors()->add(
-                            "contributors.$index",
-                            '[Contributors] Contributor #'.($index + 1).' must be a valid entry.',
-                        );
-
-                        continue;
-                    }
-
-                    $type = $contributor['type'] ?? 'person';
-
-                    if ($type === 'person') {
-                        if (empty($contributor['lastName'])) {
-                            $validator->errors()->add(
-                                "contributors.$index.lastName",
-                                '[Contributors] Contributor #'.($index + 1).' requires a last name.',
-                            );
-                        }
-                    } else {
-                        if (empty($contributor['institutionName'])) {
-                            $validator->errors()->add(
-                                "contributors.$index.institutionName",
-                                '[Contributors] Contributor #'.($index + 1).' requires an institution name.',
-                            );
-                        }
-                    }
-
-                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
-                }
-            },
             // Validate polygon coverages have at least 3 points
             function (Validator $validator): void {
                 $coverages = $this->input('spatialTemporalCoverages', []);
@@ -1146,5 +1087,47 @@ class StoreDraftResourceRequest extends FormRequest
         }
 
         return null;
+    }
+
+    /**
+     * Keep invalid typed entries so validation can report them, but drop draft
+     * rows that cannot be represented by the current creator tables yet.
+     *
+     * @param  array<string, mixed>  $author
+     */
+    private function shouldKeepDraftAuthor(array $author): bool
+    {
+        $type = $author['type'] ?? null;
+
+        if ($type === 'person') {
+            return $this->normalizeString($author['lastName'] ?? null) !== null;
+        }
+
+        if ($type === 'institution') {
+            return $this->normalizeString($author['institutionName'] ?? null) !== null;
+        }
+
+        return true;
+    }
+
+    /**
+     * Keep invalid typed entries so validation can report them, but drop draft
+     * rows that cannot be represented by the current contributor tables yet.
+     *
+     * @param  array<string, mixed>  $contributor
+     */
+    private function shouldKeepDraftContributor(array $contributor): bool
+    {
+        $type = $contributor['type'] ?? null;
+
+        if ($type === 'person') {
+            return $this->normalizeString($contributor['lastName'] ?? null) !== null;
+        }
+
+        if ($type === 'institution') {
+            return $this->normalizeString($contributor['institutionName'] ?? null) !== null;
+        }
+
+        return true;
     }
 }
