@@ -474,7 +474,7 @@ Strong title evidence has higher priority than resource language.
 
 ## Condition
 
-Related titles strongly indicate the same language.
+Related titles strongly indicate the same language. Typed-title context should influence language suggestions when at least one other title in the same title set has been detected with high confidence, and the title under evaluation belongs to a semantically subordinate or parallel title type (e.g. subtitle, parallel title). It should not be applied when the related title itself is ambiguous or when the title types are independent (e.g. alternative titles in a different language).
 
 ### Example
 
@@ -559,7 +559,7 @@ Automatic suggestions should only be created when confidence is sufficient.
 
 ## Condition
 
-Multiple languages appear within the same title.
+Multiple languages appear within the same title. A title is considered mixed-language when language detection returns two or more distinct languages with high confidence, or when clearly identifiable fragments of a different language appear within the same title string (e.g. a German phrase appended to an English main title).
 
 ### Example
 
@@ -648,16 +648,6 @@ The payload provides:
 
 ## Payload Structure
 
-```json
-{
-  "titleText": "Climate Change Impacts on Coastal Regions",
-  "proposedLanguage": "en",
-  "confidence": 0.98,
-  "explanation": "Detected as English based on language detection with high confidence and consistency with resource language."
-}
-
-Emely-Lotta Behrendt
-
 { 
 
 "titleId": "title-14302", 
@@ -690,5 +680,3 @@ Emely-Lotta Behrendt
 
 } 
 
-Für Payload 
-Paul Ubben
