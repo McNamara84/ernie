@@ -475,10 +475,16 @@ class StoreDraftResourceRequest extends FormRequest
             if (is_array($rawRoles)) {
                 $roles = [];
 
-                foreach ($rawRoles as $role) {
-                    $normalizedRole = trim((string) $role);
+                foreach ($rawRoles as $roleIndex => $role) {
+                    if (! is_string($role)) {
+                        $roles[$roleIndex] = $role;
+
+                        continue;
+                    }
+
+                    $normalizedRole = trim($role);
                     if ($normalizedRole !== '') {
-                        $roles[] = $normalizedRole;
+                        $roles[$roleIndex] = $normalizedRole;
                     }
                 }
             } elseif (array_key_exists('roles', $contributor)) {
@@ -897,8 +903,9 @@ class StoreDraftResourceRequest extends FormRequest
             'contributors.*.type.required' => '[Contributors] Contributor #:position must have a type (person or institution).',
             'contributors.*.type.in' => '[Contributors] Contributor #:position has an invalid type.',
             'contributors.*.roles.array' => '[Contributors] Contributor #:position roles must be a valid list.',
-            'contributors.*.roles.required' => '[Contributors] Contributor #:position must have at least one role.',
-            'contributors.*.roles.min' => '[Contributors] Contributor #:position must have at least one role.',
+            'contributors.*.roles.*.required' => '[Contributors] Contributor #:position has an empty role.',
+            'contributors.*.roles.*.string' => '[Contributors] Contributor #:position roles must contain only text values.',
+            'contributors.*.roles.*.max' => '[Contributors] Contributor #:position role exceeds the maximum length.',
             'contributors.*.email.email' => '[Contributors] Contributor #:position has an invalid email address.',
             'contributors.*.website.url' => '[Contributors] Contributor #:position has an invalid website URL.',
 

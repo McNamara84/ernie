@@ -724,6 +724,50 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ->and($roleErrors[0])->toStartWith('[Contributors]');
     });
 
+    test('draft with non-string contributor role items returns [Contributors] prefix', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => [
+                        ['slug' => 'ContactPerson'],
+                        42,
+                    ],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors([
+            'contributors.0.roles.0',
+            'contributors.0.roles.1',
+        ]);
+
+        $allErrors = $response->json('errors');
+        $arrayRoleErrors = $allErrors['contributors.0.roles.0'] ?? null;
+        $integerRoleErrors = $allErrors['contributors.0.roles.1'] ?? null;
+
+        expect($arrayRoleErrors)->toBeArray()
+            ->and($integerRoleErrors)->toBeArray()
+            ->and($arrayRoleErrors[0])->toStartWith('[Contributors]')
+            ->and($integerRoleErrors[0])->toStartWith('[Contributors]');
+    });
+
     test('draft with malformed author contact fields still returns [Authors] prefix', function () {
         $user = User::factory()->create();
         seedValidationLookupTables();
