@@ -167,10 +167,11 @@ it('falls back to compressed filename extensions when remote metadata is unavail
         ->and($result['suggestions'])->toHaveCount(1)
         ->and($result['suggestions'][0])->toMatchArray([
             'type' => 'format',
-            'inferred_value' => 'csv.gz',
+            'inferred_value' => 'application/gzip',
             'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
             'confidence' => 'medium',
-        ]);
+        ])
+        ->and($result['suggestions'][0]['evidence']['extension'])->toBe('csv.gz');
 
     Http::assertSentCount(2);
 });
@@ -212,13 +213,15 @@ it('builds low confidence aggregate size when only some directory file sizes par
 
     expect($formatSuggestions)->toHaveCount(2)
         ->and($formatSuggestions[0])->toMatchArray([
-            'inferred_value' => 'tar.gz',
+            'inferred_value' => 'application/gzip',
             'confidence' => 'medium',
         ])
+        ->and($formatSuggestions[0]['evidence']['extension'])->toBe('tar.gz')
         ->and($formatSuggestions[1])->toMatchArray([
-            'inferred_value' => 'zip',
+            'inferred_value' => 'application/zip',
             'confidence' => 'low',
         ])
+        ->and($formatSuggestions[1]['evidence']['extension'])->toBe('zip')
         ->and($sizeSuggestions)->toHaveCount(1)
         ->and($sizeSuggestions[0])->toMatchArray([
             'inferred_value' => '1GB',

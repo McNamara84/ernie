@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
+use App\Services\SizeFormat\SizeFormatFormatNormalizer;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use DOMDocument;
@@ -1098,13 +1099,24 @@ class DataCiteXmlExporter
         }
 
         $formats = $this->dom->createElement('formats');
+        $formatValues = [];
 
         foreach ($resource->formats as $format) {
-            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->value));
+            $value = SizeFormatFormatNormalizer::normalize($format->value);
+
+            if ($value !== '') {
+                $formatValues[] = $value;
+            }
+        }
+
+        foreach (array_unique($formatValues) as $formatValue) {
+            $formatElement = $this->dom->createElement('format', htmlspecialchars($formatValue));
             $formats->appendChild($formatElement);
         }
 
-        $this->root->appendChild($formats);
+        if ($formats->hasChildNodes()) {
+            $this->root->appendChild($formats);
+        }
     }
 
     /**

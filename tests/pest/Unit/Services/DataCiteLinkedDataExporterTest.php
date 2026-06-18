@@ -330,7 +330,7 @@ describe('sizes and formats', function () {
         ]);
         Format::create([
             'resource_id' => $resource->id,
-            'value' => 'application/zip',
+            'value' => 'zip',
         ]);
 
         $result = $this->exporter->export($resource->fresh());

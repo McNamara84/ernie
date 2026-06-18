@@ -105,7 +105,8 @@ it('falls back to filename extension when head and ranged get fail', function ()
     $result = $this->probeService->inferMetadataFromFileUrl('https://files.example.org/data.zip');
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
         ->and($result['suggestions'][0]['type'])->toBe('format')
-        ->and($result['suggestions'][0]['inferred_value'])->toBe('zip')
+        ->and($result['suggestions'][0]['inferred_value'])->toBe('application/zip')
+        ->and($result['suggestions'][0]['evidence']['extension'])->toBe('zip')
         ->and($result['suggestions'][0]['confidence'])->toBe('low');
 });
 
@@ -119,7 +120,8 @@ it('detects composite filename extensions', function (): void {
     $result = $this->probeService->inferMetadataFromFileUrl('https://files.example.org/orbit/file.sp3.gz');
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
-        ->and($result['suggestions'][0]['inferred_value'])->toBe('sp3.gz')
+        ->and($result['suggestions'][0]['inferred_value'])->toBe('application/gzip')
+        ->and($result['suggestions'][0]['evidence']['extension'])->toBe('sp3.gz')
         ->and($result['suggestions'][0]['confidence'])->toBe('medium');
 });
 

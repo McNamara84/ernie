@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\SizeFormat\SizeFormatFormatNormalizer;
 use Illuminate\Support\Facades\Http;
 
 class SizeFormatFileProbeService
@@ -346,16 +347,19 @@ class SizeFormatFileProbeService
                 $format = $file['format'] ?? null;
 
                 if ($format !== null && $format !== '') {
+                    $mimeType = $this->mimeTypeFromExtension((string) $format);
+
                     $suggestions[] = [
                         'type' => 'format',
-                        'inferred_value' => $format,
+                        'inferred_value' => $mimeType,
                         'source_url' => $fileUrl,
                         'probe_method' => 'FILENAME_EXTENSION',
                         'evidence' => [
                             'filename' => $file['filename'] ?? null,
-                            'format' => $format,
+                            'extension' => $format,
+                            'mime_type' => $mimeType,
                         ],
-                        'confidence' => $format === 'zip' ? 'low' : 'medium',
+                        'confidence' => $mimeType === 'application/zip' ? 'low' : 'medium',
                     ];
                 }
 
@@ -483,7 +487,8 @@ class SizeFormatFileProbeService
             return $this->skip($fileUrl, 'no_header_or_filename_evidence', $error);
         }
 
-        //
+        $mimeType = $this->mimeTypeFromExtension($extension);
+
         return [
             'source_url' => $fileUrl,
             'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
@@ -491,19 +496,21 @@ class SizeFormatFileProbeService
             'raw_evidence' => [
                 'filename' => $filename,
                 'extension' => $extension,
+                'mime_type' => $mimeType,
                 'error' => $error,
             ],
             'suggestions' => [
                 [
                     'type' => 'format',
-                    'inferred_value' => $extension,
+                    'inferred_value' => $mimeType,
                     'source_url' => $fileUrl,
                     'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
                     'evidence' => [
                         'filename' => $filename,
                         'extension' => $extension,
+                        'mime_type' => $mimeType,
                     ],
-                    'confidence' => $extension === 'zip' ? 'low' : 'medium',
+                    'confidence' => $mimeType === 'application/zip' ? 'low' : 'medium',
                 ],
             ],
         ];
@@ -772,6 +779,11 @@ class SizeFormatFileProbeService
         }
 
         return $last;
+    }
+
+    private function mimeTypeFromExtension(string $extension): string
+    {
+        return SizeFormatFormatNormalizer::normalize($extension);
     }
 
     private function isAllowedLinkText(string $text): bool

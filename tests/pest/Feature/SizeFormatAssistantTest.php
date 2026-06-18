@@ -58,13 +58,13 @@ it('exposes size and format suggestion preview metadata', function () {
         'resource_id' => $resource->id,
         'target_type' => 'format',
         'target_id' => $resource->id,
-        'suggested_value' => 'zip',
-        'suggested_label' => 'FORMAT: zip',
+        'suggested_value' => 'application/zip',
+        'suggested_label' => 'FORMAT: application/zip',
         'similarity_score' => null,
         'discovered_at' => now(),
         'metadata' => [
             'type' => 'format',
-            'inferred_value' => 'zip',
+            'inferred_value' => 'application/zip',
             'source_url' => 'https://datapub.gfz.de/download/10.5880/TEST.SIZEFORMAT',
             'probe_method' => 'DIRECTORY_LISTING',
             'evidence' => 'File extension detected from download listing.',
@@ -78,9 +78,9 @@ it('exposes size and format suggestion preview metadata', function () {
         ->assertInertia(fn ($page) => $page
             ->component('assistance')
             ->has('sections.size-format-suggestion.data', 1)
-            ->where('sections.size-format-suggestion.data.0.suggested_value', 'zip')
-            ->where('sections.size-format-suggestion.data.0.suggested_label', 'FORMAT: zip')
-            ->where('sections.size-format-suggestion.data.0.metadata.inferred_value', 'zip')
+            ->where('sections.size-format-suggestion.data.0.suggested_value', 'application/zip')
+            ->where('sections.size-format-suggestion.data.0.suggested_label', 'FORMAT: application/zip')
+            ->where('sections.size-format-suggestion.data.0.metadata.inferred_value', 'application/zip')
             ->where('sections.size-format-suggestion.data.0.metadata.source_url', 'https://datapub.gfz.de/download/10.5880/TEST.SIZEFORMAT')
             ->where('sections.size-format-suggestion.data.0.metadata.probe_method', 'DIRECTORY_LISTING')
             ->where('sections.size-format-suggestion.data.0.metadata.evidence', 'File extension detected from download listing.')
@@ -112,7 +112,7 @@ it('accepts a format suggestion and creates a format record', function (): void 
     $result = applySizeFormatSuggestion(app(Assistant::class), $suggestion);
 
     expect($result['success'])->toBeTrue()
-        ->and(Format::where('resource_id', $resource->id)->where('value', 'pdf')->exists())->toBeTrue();
+        ->and(Format::where('resource_id', $resource->id)->where('value', 'application/pdf')->exists())->toBeTrue();
 });
 
 it('does not create duplicate format records when accepting the same suggestion twice', function (): void {
@@ -137,6 +137,8 @@ it('does not create duplicate format records when accepting the same suggestion 
     applySizeFormatSuggestion($assistant, $suggestion);
 
     expect(Format::where('resource_id', $resource->id)->where('value', 'pdf')->count())
+        ->toBe(0);
+    expect(Format::where('resource_id', $resource->id)->where('value', 'application/pdf')->count())
         ->toBe(1);
 
 });

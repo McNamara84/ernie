@@ -58,6 +58,26 @@ it('accepts a format suggestion by creating one resource format and deleting the
     expect(Format::where('resource_id', $resource->id)->where('value', 'text/csv')->count())->toBe(1);
 });
 
+it('normalizes extension-only format suggestions before storing them', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $suggestion = createSizeFormatSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        targetType: 'format',
+        suggestedValue: 'zip',
+    );
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toMatchArray([
+        'success' => true,
+        'message' => "Format 'application/zip' applied.",
+    ])
+        ->and(Format::where('resource_id', $resource->id)->where('value', 'zip')->exists())->toBeFalse()
+        ->and(Format::where('resource_id', $resource->id)->where('value', 'application/zip')->exists())->toBeTrue();
+});
+
 it('accepts a size suggestion using parsed metadata from discovery', function () {
     $assistant = app(Assistant::class);
     $resource = Resource::factory()->create();

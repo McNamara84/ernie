@@ -463,8 +463,8 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
 
     it('renders filename-extension evidence without exposing internal probe constants', () => {
         const suggestion = makeSizeFormatSuggestion({
-            suggested_value: 'pdf',
-            suggested_label: 'FORMAT: pdf',
+            suggested_value: 'application/pdf',
+            suggested_label: 'FORMAT: application/pdf',
             target_type: 'format',
             metadata: {
                 source_url: 'https://datapub.gfz.de/download/example.pdf',
@@ -483,7 +483,7 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
             />,
         );
 
-        expect(screen.getByText('Suggested format: PDF document (.pdf)')).toBeInTheDocument();
+        expect(screen.getByText('Suggested format: PDF document (application/pdf)')).toBeInTheDocument();
         expect(screen.getByText('Medium confidence')).toBeInTheDocument();
         expect(screen.getByText('Detected from file name')).toBeInTheDocument();
         expect(screen.queryByText('FILENAME_EXTENSION')).not.toBeInTheDocument();

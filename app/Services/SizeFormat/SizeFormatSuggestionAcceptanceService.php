@@ -18,14 +18,16 @@ final class SizeFormatSuggestionAcceptanceService
     public function accept(AssistantSuggestion $suggestion): array
     {
         if ($suggestion->target_type === 'format') {
+            $formatValue = SizeFormatFormatNormalizer::normalize($suggestion->suggested_value);
+
             Format::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,
-                'value' => $suggestion->suggested_value,
+                'value' => $formatValue,
             ]);
 
             return [
                 'success' => true,
-                'message' => "Format '{$suggestion->suggested_value}' applied.",
+                'message' => "Format '{$formatValue}' applied.",
             ];
         }
 

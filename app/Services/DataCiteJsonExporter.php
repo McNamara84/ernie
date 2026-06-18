@@ -17,6 +17,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
+use App\Services\SizeFormat\SizeFormatFormatNormalizer;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use App\Support\OrcidNormalizer;
@@ -1153,7 +1154,7 @@ class DataCiteJsonExporter
         $formats = [];
 
         foreach ($resource->formats as $format) {
-            $value = trim($format->value);
+            $value = SizeFormatFormatNormalizer::normalize($format->value);
             if ($value !== '') {
                 $formats[] = $value;
             }
