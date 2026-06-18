@@ -32,11 +32,11 @@ final class SizeFormatSuggestionAcceptanceService
         }
 
         if ($suggestion->target_type === 'size') {
-            /** @var array{numeric_value?: string|null, unit?: string|null, type?: string|null}|null $storedParsedSize */
-            $storedParsedSize = is_array($suggestion->metadata)
-                ? ($suggestion->metadata['parsed_size'] ?? null)
-                : null;
-            $parsedSize = $storedParsedSize ?? $this->sizeParser->parse($suggestion->suggested_value);
+            $metadata = is_array($suggestion->metadata) ? $suggestion->metadata : [];
+            $storedParsedSize = $metadata['parsed_size'] ?? null;
+            $parsedSize = is_array($storedParsedSize)
+                ? $storedParsedSize
+                : $this->sizeParser->parse($suggestion->suggested_value);
 
             $size = Size::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,

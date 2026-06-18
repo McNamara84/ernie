@@ -129,6 +129,28 @@ it('parses size suggestions on accept when discovery metadata is missing', funct
         ->and($size?->unit)->toBe('MB');
 });
 
+it('falls back to parsing suggested size values when stored parsed metadata is malformed', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $suggestion = createSizeFormatSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        targetType: 'size',
+        suggestedValue: '512 MB',
+        metadata: [
+            'parsed_size' => 'not an array',
+        ],
+    );
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+    $size = Size::where('resource_id', $resource->id)->first();
+
+    expect($result['success'])->toBeTrue()
+        ->and($size)->not->toBeNull()
+        ->and($size?->numeric_value)->toBe('512.0000')
+        ->and($size?->unit)->toBe('MB');
+});
+
 it('uses the persisted size export string in the success message', function () {
     $assistant = app(Assistant::class);
     $resource = Resource::factory()->create();

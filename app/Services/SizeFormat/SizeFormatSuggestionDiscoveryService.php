@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\SizeFormat;
 
-use App\Models\AssistantSuggestion;
 use App\Models\Resource;
 use App\Services\SizeFormatFileProbeService;
 use Closure;
@@ -80,7 +79,6 @@ final class SizeFormatSuggestionDiscoveryService
 
             if ($type === 'size') {
                 $metadata['parsed_size'] = $this->sizeParser->parse($suggestedValue);
-                $this->deleteOutdatedSizeSuggestions($assistantId, $resource, $suggestedValue);
             }
 
             $stored = $storeSuggestion(
@@ -131,15 +129,6 @@ final class SizeFormatSuggestionDiscoveryService
         $results = $this->probeService->extractAndProbe('https://doi.org/'.$doi);
 
         return $this->probeService->buildSuggestions($results);
-    }
-
-    private function deleteOutdatedSizeSuggestions(string $assistantId, Resource $resource, string $suggestedValue): void
-    {
-        AssistantSuggestion::where('assistant_id', $assistantId)
-            ->where('target_type', 'size')
-            ->where('target_id', $resource->id)
-            ->where('suggested_value', '!=', $suggestedValue)
-            ->delete();
     }
 
     private function confidenceToScore(mixed $confidence): ?float

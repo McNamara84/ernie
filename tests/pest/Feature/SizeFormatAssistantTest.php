@@ -49,6 +49,58 @@ it('does not discover suggestions for physical object resources', function (): v
     Http::assertNothingSent();
 });
 
+it('keeps multiple discovered size suggestions for the same resource', function (): void {
+    Resource::factory()->create(['doi' => '10.1234/MULTI.SIZE']);
+
+    Http::fake(function ($request) {
+        $url = $request->url();
+
+        if ($url === 'https://doi.org/10.1234/MULTI.SIZE') {
+            return Http::response('', 302, [
+                'Location' => 'https://dataservices.gfz-potsdam.de/landing-multi-size',
+            ]);
+        }
+
+        if ($url === 'https://dataservices.gfz-potsdam.de/landing-multi-size') {
+            return Http::response(<<<'HTML'
+                <html>
+                    <body>
+                        <a class="piwik_download" href="/download/first/">Download data</a>
+                        <a class="piwik_download" href="/download/second/">Download data</a>
+                    </body>
+                </html>
+                HTML);
+        }
+
+        if ($url === 'https://dataservices.gfz-potsdam.de/download/first/') {
+            return Http::response(<<<'HTML'
+                <a href="first.csv">first.csv</a> 2026-06-14 10:00 1M
+                HTML, 200, [
+                'Content-Type' => 'text/html',
+            ]);
+        }
+
+        if ($url === 'https://dataservices.gfz-potsdam.de/download/second/') {
+            return Http::response(<<<'HTML'
+                <a href="second.csv">second.csv</a> 2026-06-14 10:00 2M
+                HTML, 200, [
+                'Content-Type' => 'text/html',
+            ]);
+        }
+
+        return Http::response('', 404);
+    });
+
+    app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    $sizeSuggestions = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('target_type', 'size')
+        ->pluck('suggested_value')
+        ->all();
+
+    expect($sizeSuggestions)->toEqualCanonicalizing(['1 MB', '2 MB']);
+});
+
 it('exposes size and format suggestion preview metadata', function () {
     $user = User::factory()->create(['role' => 'admin']);
     $resource = Resource::factory()->create(['doi' => '10.5880/TEST.SIZEFORMAT']);
