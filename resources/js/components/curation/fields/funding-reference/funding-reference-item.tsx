@@ -123,7 +123,7 @@ export function FundingReferenceItem({
 
     return (
         <section
-            className="rounded-lg border border-l-4 border-input border-l-gfz-primary/70 bg-background p-6 shadow-sm transition-colors focus-within:border-ring focus-within:border-l-gfz-primary focus-within:ring-[3px] focus-within:ring-ring/50 hover:border-ring/70 hover:border-l-gfz-primary"
+            className="rounded-lg border border-l-4 border-border border-l-gfz-primary bg-card p-6 text-card-foreground shadow-md transition-[border-color,box-shadow] focus-within:border-ring focus-within:border-l-gfz-primary focus-within:ring-[3px] focus-within:ring-ring/50 hover:border-ring/70 hover:border-l-gfz-primary hover:shadow-lg"
             aria-labelledby={`${funding.id}-heading`}
             data-testid="funding-reference-card"
         >

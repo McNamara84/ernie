@@ -1,6 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -121,9 +124,20 @@ return new class extends Migration
             return;
         }
 
-        Schema::table(self::TABLE, function (Blueprint $table) use ($constraint): void {
-            $table->dropForeign($constraint);
-        });
+        $this->dropForeignKeyNamed($constraint);
+    }
+
+    private function dropForeignKeyNamed(string $constraint): void
+    {
+        try {
+            Schema::table(self::TABLE, function (Blueprint $table) use ($constraint): void {
+                $table->dropForeign($constraint);
+            });
+        } catch (QueryException $exception) {
+            if (! $this->isMissingForeignKeyDropError($exception)) {
+                throw $exception;
+            }
+        }
     }
 
     private function foreignKeyName(string $column): ?string
@@ -141,9 +155,21 @@ return new class extends Migration
             [self::TABLE, $column],
         );
 
-        return is_string($result->constraint_name ?? null)
+        if ($result === null) {
+            return null;
+        }
+
+        return is_string($result->constraint_name)
             ? $result->constraint_name
             : null;
+    }
+
+    private function isMissingForeignKeyDropError(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? '');
+        $driverCode = (string) ($exception->errorInfo[1] ?? '');
+
+        return $sqlState === '42000' && $driverCode === '1091';
     }
 
     /**
