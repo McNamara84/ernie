@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\SizeFormat;
 
-final class SizeFormatFormatNormalizer
+final class SizeFormatFormatNormalizerService
 {
     public static function normalize(string $value): string
     {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Services\SizeFormat\SizeFormatFormatNormalizer;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use Illuminate\Support\Facades\Http;
 
 class SizeFormatFileProbeService
@@ -783,7 +783,7 @@ class SizeFormatFileProbeService
 
     private function mimeTypeFromExtension(string $extension): string
     {
-        return SizeFormatFormatNormalizer::normalize($extension);
+        return SizeFormatFormatNormalizerService::normalize($extension);
     }
 
     private function isAllowedLinkText(string $text): bool

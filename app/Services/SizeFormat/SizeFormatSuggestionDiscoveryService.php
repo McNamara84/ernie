@@ -16,7 +16,7 @@ final class SizeFormatSuggestionDiscoveryService
 
     public function __construct(
         private readonly SizeFormatFileProbeService $probeService,
-        private readonly SizeFormatSizeParser $sizeParser,
+        private readonly SizeFormatSizeParserService $sizeParser,
     ) {}
 
     /**

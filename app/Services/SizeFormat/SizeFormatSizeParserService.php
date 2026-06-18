@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\SizeFormat;
 
-final class SizeFormatSizeParser
+final class SizeFormatSizeParserService
 {
     /**
      * @return array{numeric_value: string|null, unit: string|null, type: null}

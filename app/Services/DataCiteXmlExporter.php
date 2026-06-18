@@ -13,7 +13,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
-use App\Services\SizeFormat\SizeFormatFormatNormalizer;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use DOMDocument;
@@ -1102,7 +1102,7 @@ class DataCiteXmlExporter
         $formatValues = [];
 
         foreach ($resource->formats as $format) {
-            $value = SizeFormatFormatNormalizer::normalize($format->value);
+            $value = SizeFormatFormatNormalizerService::normalize($format->value);
 
             if ($value !== '') {
                 $formatValues[] = $value;

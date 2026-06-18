@@ -11,14 +11,14 @@ use App\Models\Size;
 final class SizeFormatSuggestionAcceptanceService
 {
     public function __construct(
-        private readonly SizeFormatSizeParser $sizeParser,
+        private readonly SizeFormatSizeParserService $sizeParser,
     ) {}
 
     /** @return array{success: bool, message: string} */
     public function accept(AssistantSuggestion $suggestion): array
     {
         if ($suggestion->target_type === 'format') {
-            $formatValue = SizeFormatFormatNormalizer::normalize($suggestion->suggested_value);
+            $formatValue = SizeFormatFormatNormalizerService::normalize($suggestion->suggested_value);
 
             Format::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,
