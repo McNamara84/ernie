@@ -103,6 +103,11 @@ class DataCiteJsonLdToJsonConverterService
             $attributes['sizes'] = $this->convertSizes($jsonLd['sizes']);
         }
 
+        // Formats
+        if (isset($jsonLd['formats'])) {
+            $attributes['formats'] = $this->convertFormats($jsonLd['formats']);
+        }
+
         // Version
         if (isset($jsonLd['version'])) {
             $attributes['version'] = $this->unwrapValue($jsonLd['version']);
@@ -564,6 +569,20 @@ class DataCiteJsonLdToJsonConverterService
         }
 
         $items = $this->unwrapSingularKey($data, 'size');
+
+        return array_values(array_map(fn (mixed $item): mixed => $this->unwrapValue($item), $items));
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function convertFormats(mixed $data): array
+    {
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $items = $this->unwrapSingularKey($data, 'format');
 
         return array_values(array_map(fn (mixed $item): mixed => $this->unwrapValue($item), $items));
     }

@@ -136,6 +136,10 @@ class DataCiteJsonExporter
             $attributes['sizes'] = $sizes;
         }
 
+        if ($formats = $this->buildFormats($resource)) {
+            $attributes['formats'] = $formats;
+        }
+
         if ($fundingReferences = $this->buildFundingReferences($resource)) {
             $attributes['fundingReferences'] = $fundingReferences;
         }
@@ -1130,5 +1134,31 @@ class DataCiteJsonExporter
         }
 
         return $sizes !== [] ? $sizes : null;
+    }
+
+    /**
+     * Build formats array.
+     *
+     * DataCite formats is a simple array of strings (e.g., "text/csv",
+     * "application/zip").
+     *
+     * @return list<string>|null
+     */
+    private function buildFormats(Resource $resource): ?array
+    {
+        if ($resource->formats->isEmpty()) {
+            return null;
+        }
+
+        $formats = [];
+
+        foreach ($resource->formats as $format) {
+            $value = trim($format->value);
+            if ($value !== '') {
+                $formats[] = $value;
+            }
+        }
+
+        return $formats !== [] ? array_values(array_unique($formats)) : null;
     }
 }
