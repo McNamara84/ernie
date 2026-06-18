@@ -27,9 +27,10 @@ final class SizeFormatSuggestionDiscoveryService
     {
         $count = 0;
         $processed = 0;
-        $total = $this->candidateQuery()->count();
+        $query = $this->candidateQuery();
+        $total = (clone $query)->count();
 
-        $this->candidateQuery()
+        $query
             ->withExists(['formats', 'sizes'])
             ->orderBy('id')
             ->chunkById(self::CHUNK_SIZE, function ($resources) use (&$count, &$processed, $total, $assistantId, $storeSuggestion, $onProgress): void {

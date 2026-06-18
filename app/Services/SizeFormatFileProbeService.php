@@ -22,6 +22,11 @@ class SizeFormatFileProbeService
         'dataservices.gfz-potsdam.de',
     ];
 
+    private const ALLOWED_LANDING_PAGE_HOSTS = [
+        'dataservices.gfz.de',
+        'dataservices.gfz-potsdam.de',
+    ];
+
     private const DIRECT_FILE_EXTENSIONS = [
         '7z',
         'asc',
@@ -112,7 +117,7 @@ class SizeFormatFileProbeService
 
         }
 
-        if (! str_starts_with($url, 'https://dataservices.gfz-potsdam.de/')) {
+        if (! $this->isAllowedLandingPageUrl($url)) {
             return [$this->skip($url, 'unsupported_source_url')];
         }
 
@@ -864,6 +869,23 @@ class SizeFormatFileProbeService
         }
 
         return in_array(strtolower($host), self::ALLOWED_DOWNLOAD_HOSTS, true);
+    }
+
+    private function isAllowedLandingPageUrl(string $url): bool
+    {
+        $parts = parse_url($url);
+
+        if (! is_array($parts) || strtolower((string) ($parts['scheme'] ?? '')) !== 'https') {
+            return false;
+        }
+
+        $host = $parts['host'] ?? null;
+
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        return in_array(strtolower($host), self::ALLOWED_LANDING_PAGE_HOSTS, true);
     }
 
     private function isLikelyDirectFileUrl(string $url): bool

@@ -188,6 +188,30 @@ it('resolves DOI redirects to allowed landing page URLs before probing', functio
         ->and($result[0]['suggestions'])->not->toBeEmpty();
 });
 
+it('resolves DOI redirects to dataservices.gfz.de landing page URLs', function (): void {
+    Http::fake([
+        'https://doi.org/10.1234/allowed-short-host' => Http::response('', 302, [
+            'Location' => 'https://dataservices.gfz.de/landing-page',
+        ]),
+        'https://dataservices.gfz.de/landing-page' => Http::response(<<<'HTML'
+            <html>
+                <body>
+                    <a class="piwik_download" href="/download/dataset/">Download data</a>
+                </body>
+            </html>
+            HTML),
+        'https://dataservices.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="data.pdf">data.pdf</a> 2026-06-14 10:00 8M
+            HTML),
+    ]);
+
+    $result = $this->probeService->extractAndProbe('https://doi.org/10.1234/allowed-short-host');
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['probe_method'])->toBe('DIRECTORY_LISTING')
+        ->and($result[0]['suggestions'])->not->toBeEmpty();
+});
+
 it('skips blocked or form protected landing pages', function (): void {
     Http::fake([
         'https://dataservices.gfz-potsdam.de/protected' => Http::response(
