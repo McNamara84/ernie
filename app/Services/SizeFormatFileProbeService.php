@@ -171,6 +171,10 @@ class SizeFormatFileProbeService
             return $this->skip($url, 'unsupported_protocol');
         }
 
+        if (! $this->isAllowedDownloadUrl($url)) {
+            return $this->skip($url, 'unsupported_source_url');
+        }
+
         if ($this->isLikelyDirectFileUrl($url)) {
             return $this->inferMetadataFromFileUrl($url);
         }
@@ -200,6 +204,10 @@ class SizeFormatFileProbeService
 
         if (! $this->isHttpUrl($url)) {
             return $this->skip($url, 'unsupported_protocol');
+        }
+
+        if (! $this->isAllowedDownloadUrl($url)) {
+            return $this->skip($url, 'unsupported_source_url');
         }
 
         try {
@@ -270,6 +278,10 @@ class SizeFormatFileProbeService
 
         if (! $this->isHttpUrl($fileUrl)) {
             return $this->skip($fileUrl, 'unsupported_protocol');
+        }
+
+        if (! $this->isAllowedDownloadUrl($fileUrl)) {
+            return $this->skip($fileUrl, 'unsupported_source_url');
         }
 
         try {
@@ -370,7 +382,6 @@ class SizeFormatFileProbeService
                     'source_url' => $sourceUrl,
                     'probe_method' => 'DIRECTORY_LISTING',
                     'evidence' => [
-                        'files' => $directoryFiles,
                         'parsed_file_count' => $parsedSizeCount,
                         'total_file_count' => count($directoryFiles),
                     ],

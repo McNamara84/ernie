@@ -110,14 +110,14 @@ it('keeps Apache listing files with unknown size for format and confidence evide
 
 it('infers high confidence size and format suggestions from HEAD headers', function () {
     Http::fake([
-        'https://files.example.org/data.csv' => Http::response('', 200, [
+        'https://datapub.gfz.de/download/data.csv' => Http::response('', 200, [
             'Content-Type' => 'text/csv; charset=utf-8',
             'Content-Length' => '1536',
         ]),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);
-    $result = $service->inferMetadataFromFileUrl('https://files.example.org/data.csv');
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/data.csv');
 
     expect($result['probe_method'])->toBe('HTTP_HEAD')
         ->and($result['suggestions'])->toHaveCount(2)
@@ -148,7 +148,7 @@ it('falls back to ranged GET metadata when HEAD has no usable headers', function
     });
 
     $service = app(SizeFormatFileProbeService::class);
-    $result = $service->inferMetadataFromFileUrl('https://files.example.org/archive.zip');
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive.zip');
 
     expect($result['probe_method'])->toBe('RANGED_GET')
         ->and($result['suggestions'])->toHaveCount(2)
@@ -184,7 +184,7 @@ it('ignores ranged GET responses when the server returns the full body', functio
     });
 
     $service = app(SizeFormatFileProbeService::class);
-    $result = $service->inferMetadataFromFileUrl('https://files.example.org/archive.zip');
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive.zip');
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
         ->and($result['suggestions'])->toHaveCount(1)
@@ -285,13 +285,34 @@ it('does not probe absolute piwik download links on disallowed hosts', function 
     Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
 });
 
-it('falls back to compressed filename extensions when remote metadata is unavailable', function () {
+it('does not probe disallowed hosts through public direct probe methods', function () {
     Http::fake([
-        'https://files.example.org/export.csv.gz' => Http::response('', 404),
+        'https://example.org/*' => Http::response('', 200),
     ]);
 
     $service = app(SizeFormatFileProbeService::class);
-    $result = $service->inferMetadataFromFileUrl('https://files.example.org/export.csv.gz');
+
+    $downloadResult = $service->probeDownloadUrl('https://example.org/data.zip');
+    $directoryResult = $service->probeDirectoryListing('https://example.org/dataset/');
+    $fileResult = $service->inferMetadataFromFileUrl('https://example.org/data.zip');
+
+    expect($downloadResult['probe_method'])->toBe('SKIP')
+        ->and($downloadResult['skip_reason'])->toBe('unsupported_source_url')
+        ->and($directoryResult['probe_method'])->toBe('SKIP')
+        ->and($directoryResult['skip_reason'])->toBe('unsupported_source_url')
+        ->and($fileResult['probe_method'])->toBe('SKIP')
+        ->and($fileResult['skip_reason'])->toBe('unsupported_source_url');
+
+    Http::assertNothingSent();
+});
+
+it('falls back to compressed filename extensions when remote metadata is unavailable', function () {
+    Http::fake([
+        'https://datapub.gfz.de/download/export.csv.gz' => Http::response('', 404),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/export.csv.gz');
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
         ->and($result['suggestions'])->toHaveCount(1)
@@ -357,6 +378,7 @@ it('builds low confidence aggregate size when only some directory file sizes par
             'inferred_value' => '1 GB',
             'confidence' => 'low',
         ])
+        ->and(array_key_exists('files', $sizeSuggestions[0]['evidence']))->toBeFalse()
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)
         ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2);
 });

@@ -71,7 +71,7 @@ it('infers metadata from file headers via http head request', function (): void 
 
 it('uses ranged get when head has no usable metadata', function (): void {
     Http::fake([
-        'https://files.example.org/data.bin' => Http::sequence()
+        'https://datapub.gfz.de/download/data.bin' => Http::sequence()
             ->push('', 200, [
                 'Content-Type' => '',
                 'Content-Length' => '',
@@ -83,7 +83,7 @@ it('uses ranged get when head has no usable metadata', function (): void {
             ]),
     ]);
 
-    $result = $this->probeService->inferMetadataFromFileUrl('https://files.example.org/data.bin');
+    $result = $this->probeService->inferMetadataFromFileUrl('https://datapub.gfz.de/download/data.bin');
 
     expect($result['probe_method'])->toBe('RANGED_GET')
         ->and($result['suggestions'])->toHaveCount(2)
@@ -95,12 +95,12 @@ it('uses ranged get when head has no usable metadata', function (): void {
 
 it('falls back to filename extension when head and ranged get fail', function (): void {
     Http::fake([
-        'https://files.example.org/data.zip' => Http::sequence()
+        'https://datapub.gfz.de/download/data.zip' => Http::sequence()
             ->push('', 404)
             ->push('', 404),
     ]);
 
-    $result = $this->probeService->inferMetadataFromFileUrl('https://files.example.org/data.zip');
+    $result = $this->probeService->inferMetadataFromFileUrl('https://datapub.gfz.de/download/data.zip');
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
         ->and($result['suggestions'][0]['type'])->toBe('format')
         ->and($result['suggestions'][0]['inferred_value'])->toBe('application/zip')
@@ -110,12 +110,12 @@ it('falls back to filename extension when head and ranged get fail', function ()
 
 it('detects composite filename extensions', function (): void {
     Http::fake([
-        'https://files.example.org/orbit/file.sp3.gz' => Http::sequence()
+        'https://datapub.gfz.de/download/orbit/file.sp3.gz' => Http::sequence()
             ->push('', 404)
             ->push('', 404),
     ]);
 
-    $result = $this->probeService->inferMetadataFromFileUrl('https://files.example.org/orbit/file.sp3.gz');
+    $result = $this->probeService->inferMetadataFromFileUrl('https://datapub.gfz.de/download/orbit/file.sp3.gz');
 
     expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
         ->and($result['suggestions'][0]['inferred_value'])->toBe('application/gzip')
