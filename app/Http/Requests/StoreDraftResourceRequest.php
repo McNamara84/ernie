@@ -482,10 +482,7 @@ class StoreDraftResourceRequest extends FormRequest
                         continue;
                     }
 
-                    $normalizedRole = trim($role);
-                    if ($normalizedRole !== '') {
-                        $roles[$roleIndex] = $normalizedRole;
-                    }
+                    $roles[$roleIndex] = trim($role);
                 }
             } elseif (array_key_exists('roles', $contributor)) {
                 $roles = $rawRoles;
