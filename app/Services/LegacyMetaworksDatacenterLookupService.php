@@ -221,7 +221,7 @@ class LegacyMetaworksDatacenterLookupService
     {
         return DB::connection(self::CONNECTION)
             ->table($table)
-            ->whereRaw('LOWER(doi) = ?', [strtolower($doi)])
+            ->where('doi', $doi)
             ->exists();
     }
 

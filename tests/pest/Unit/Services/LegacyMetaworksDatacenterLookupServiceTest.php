@@ -56,12 +56,12 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
 
         Schema::connection('legacy_metaworks')->create('gipp_dataset', function (Blueprint $table): void {
             $table->id();
-            $table->string('doi')->nullable();
+            $table->string('doi')->nullable()->collation('NOCASE');
         });
 
         Schema::connection('legacy_metaworks')->create('sddb_dataset', function (Blueprint $table): void {
             $table->id();
-            $table->string('doi')->nullable();
+            $table->string('doi')->nullable()->collation('NOCASE');
         });
 
         foreach (legacyImportDatacenterNames() as $name) {

@@ -33,7 +33,7 @@ describe('SumarioPendingResourceImportService', function () {
         Schema::connection('metaworks')->create('resource', function (Blueprint $table): void {
             $table->id();
             $table->string('publicstatus')->nullable();
-            $table->string('identifier')->nullable();
+            $table->string('identifier')->nullable()->collation('NOCASE');
             $table->integer('publicationyear')->nullable();
             $table->string('title')->nullable();
         });
@@ -165,12 +165,12 @@ describe('SumarioPendingResourceImportService', function () {
 
         Schema::connection('legacy_metaworks')->create('gipp_dataset', function (Blueprint $table): void {
             $table->id();
-            $table->string('doi')->nullable();
+            $table->string('doi')->nullable()->collation('NOCASE');
         });
 
         Schema::connection('legacy_metaworks')->create('sddb_dataset', function (Blueprint $table): void {
             $table->id();
-            $table->string('doi')->nullable();
+            $table->string('doi')->nullable()->collation('NOCASE');
         });
 
         DB::connection('metaworks')->table('resource')->insert([
