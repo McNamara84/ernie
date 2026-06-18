@@ -1,7 +1,7 @@
 {
     "id": "size-format-suggestion",
     "name": "Size and Format Suggestions",
-    "description": "Discovers file size and format from approved resource URL's.",
+    "description": "Discovers file size and format from approved resource URLs.",
     "icon": "FileSearch",
     "version": "1.0.0",
     "assistant_class": "Modules\\Assistants\\SizeFormatSuggestion\\Assistant",

@@ -155,6 +155,67 @@ it('probes direct file links from landing pages with HEAD instead of full GET', 
     );
 });
 
+it('reuses the preflight HEAD response for extensionless direct downloads', function () {
+    Http::fake(function (Request $request) {
+        if ($request->url() === 'https://dataservices.gfz-potsdam.de/landing') {
+            return Http::response(<<<'HTML'
+                <html>
+                    <body>
+                        <a class="piwik_download" href="/download/direct">Download data</a>
+                    </body>
+                </html>
+                HTML);
+        }
+
+        return Http::response('', 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => '4096',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $results = $service->extractAndProbe('https://dataservices.gfz-potsdam.de/landing');
+
+    expect($results)->toHaveCount(1)
+        ->and($results[0]['probe_method'])->toBe('HTTP_HEAD')
+        ->and($results[0]['suggestions'])->toHaveCount(2);
+
+    Http::assertSentCount(2);
+    Http::assertSent(
+        fn (Request $request): bool => $request->method() === 'HEAD'
+            && $request->url() === 'https://dataservices.gfz-potsdam.de/download/direct',
+    );
+    Http::assertNotSent(
+        fn (Request $request): bool => $request->method() === 'GET'
+            && $request->url() === 'https://dataservices.gfz-potsdam.de/download/direct',
+    );
+});
+
+it('does not probe absolute piwik download links on disallowed hosts', function () {
+    Http::fake([
+        'https://dataservices.gfz-potsdam.de/landing' => Http::response(<<<'HTML'
+            <html>
+                <body>
+                    <a class="piwik_download" href="https://example.org/data.zip">Download data</a>
+                </body>
+            </html>
+            HTML),
+        'https://example.org/data.zip' => Http::response('', 200, [
+            'Content-Type' => 'application/zip',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $results = $service->extractAndProbe('https://dataservices.gfz-potsdam.de/landing');
+
+    expect($results)->toHaveCount(1)
+        ->and($results[0]['probe_method'])->toBe('SKIP')
+        ->and($results[0]['skip_reason'])->toBe('no_eligible_file_links_found');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
+});
+
 it('falls back to compressed filename extensions when remote metadata is unavailable', function () {
     Http::fake([
         'https://files.example.org/export.csv.gz' => Http::response('', 404),

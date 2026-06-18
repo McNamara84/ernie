@@ -1,11 +1,12 @@
 <?php
 
-// dadurch passieren weniger versteckte Fehler.
+// Enforce strict scalar types to catch hidden type coercion bugs.
 declare(strict_types=1);
 
 namespace App\Services;
 
 use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 class SizeFormatFileProbeService
@@ -13,6 +14,13 @@ class SizeFormatFileProbeService
     private const MAX_DIRECTORY_DEPTH = 5;
 
     private const MAX_DIRECTORY_COUNT = 100;
+
+    private const ALLOWED_DOWNLOAD_HOSTS = [
+        'datapub.gfz.de',
+        'datapub.gfz-potsdam.de',
+        'dataservices.gfz.de',
+        'dataservices.gfz-potsdam.de',
+    ];
 
     private const DIRECT_FILE_EXTENSIONS = [
         '7z',
@@ -158,7 +166,7 @@ class SizeFormatFileProbeService
                 ->head($url);
 
             if ($response->successful() && $this->isNonHtmlContentType($response->header('Content-Type'))) {
-                return $this->inferMetadataFromFileUrl($url);
+                return $this->inferMetadataFromFileUrl($url, $response);
             }
         } catch (\Throwable) {
             // Directory listings often do not handle HEAD consistently. Fall
@@ -241,7 +249,7 @@ class SizeFormatFileProbeService
     /**
      * @return array<string, mixed>
      */
-    public function inferMetadataFromFileUrl(string $fileUrl): array
+    public function inferMetadataFromFileUrl(string $fileUrl, ?Response $headResponse = null): array
     {
         $fileUrl = trim($fileUrl);
 
@@ -250,56 +258,14 @@ class SizeFormatFileProbeService
         }
 
         try {
-            $response = Http::timeout(10)
+            $response = $headResponse ?? Http::timeout(10)
                 ->connectTimeout(5)
                 ->head($fileUrl);
 
-            $suggestions = [];
+            $headResult = $this->buildHeadMetadataResult($fileUrl, $response);
 
-            if ($response->successful()) {
-                $contentType = $response->header('Content-Type');
-                $contentLength = $response->header('Content-Length');
-
-                if (trim((string) $contentType) !== '') {
-                    $suggestions[] = [
-                        'type' => 'format',
-                        'inferred_value' => trim(explode(';', $contentType)[0]),
-                        'source_url' => $fileUrl,
-                        'probe_method' => 'CONTENT_TYPE_HEADER',
-                        'evidence' => [
-                            'content_type' => $contentType,
-                        ],
-                        'confidence' => 'high',
-                    ];
-                }
-
-                if (ctype_digit((string) $contentLength)) {
-                    $suggestions[] = [
-                        'type' => 'size',
-                        'inferred_value' => $this->formatBytes((int) $contentLength),
-                        'source_url' => $fileUrl,
-                        'probe_method' => 'CONTENT_LENGTH_HEADER',
-                        'evidence' => [
-                            'content_length' => (int) $contentLength,
-                        ],
-                        'confidence' => 'high',
-                    ];
-                }
-
-                if (! empty($suggestions)) {
-                    return [
-                        'source_url' => $fileUrl,
-                        'probe_method' => 'HTTP_HEAD',
-                        'http_status' => $response->status(),
-                        'raw_evidence' => [
-                            'headers' => [
-                                'content_type' => $contentType,
-                                'content_length' => $contentLength,
-                            ],
-                        ],
-                        'suggestions' => $suggestions,
-                    ];
-                }
+            if ($headResult !== null) {
+                return $headResult;
             }
 
             $rangeResult = $this->inferFromRangedGet($fileUrl);
@@ -315,7 +281,7 @@ class SizeFormatFileProbeService
         }
     }
 
-    // macht aus den Rohdaten-Ergebnissen echte Suggestions
+    // Converts raw probe results into assistant suggestions.
     /**
      * @param  array<int, array<string, mixed>>  $probeResults
      * @return array<int, array<string, mixed>>
@@ -543,7 +509,13 @@ class SizeFormatFileProbeService
                 continue;
             }
 
-            $urls[] = $this->absoluteUrl($landingPageUrl, $href);
+            $downloadUrl = $this->absoluteUrl($landingPageUrl, $href);
+
+            if (! $this->isAllowedDownloadUrl($downloadUrl)) {
+                continue;
+            }
+
+            $urls[] = $downloadUrl;
         }
 
         return array_values(array_unique($urls));
@@ -859,6 +831,21 @@ class SizeFormatFileProbeService
         return str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
     }
 
+    private function isAllowedDownloadUrl(string $url): bool
+    {
+        if (! $this->isHttpUrl($url)) {
+            return false;
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        return in_array(strtolower($host), self::ALLOWED_DOWNLOAD_HOSTS, true);
+    }
+
     private function isLikelyDirectFileUrl(string $url): bool
     {
         $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
@@ -876,6 +863,63 @@ class SizeFormatFileProbeService
         }
 
         return ! in_array($normalized, ['text/html', 'application/xhtml+xml'], true);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function buildHeadMetadataResult(string $fileUrl, Response $response): ?array
+    {
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $contentType = $response->header('Content-Type');
+        $contentLength = $response->header('Content-Length');
+        $suggestions = [];
+
+        if (trim((string) $contentType) !== '') {
+            $suggestions[] = [
+                'type' => 'format',
+                'inferred_value' => trim(explode(';', $contentType)[0]),
+                'source_url' => $fileUrl,
+                'probe_method' => 'CONTENT_TYPE_HEADER',
+                'evidence' => [
+                    'content_type' => $contentType,
+                ],
+                'confidence' => 'high',
+            ];
+        }
+
+        if (ctype_digit((string) $contentLength)) {
+            $suggestions[] = [
+                'type' => 'size',
+                'inferred_value' => $this->formatBytes((int) $contentLength),
+                'source_url' => $fileUrl,
+                'probe_method' => 'CONTENT_LENGTH_HEADER',
+                'evidence' => [
+                    'content_length' => (int) $contentLength,
+                ],
+                'confidence' => 'high',
+            ];
+        }
+
+        if (empty($suggestions)) {
+            return null;
+        }
+
+        return [
+            'source_url' => $fileUrl,
+            'probe_method' => 'HTTP_HEAD',
+            'http_status' => $response->status(),
+            'raw_evidence' => [
+                'headers' => [
+                    'content_type' => $contentType,
+                    'content_length' => $contentLength,
+                ],
+            ],
+            'suggestions' => $suggestions,
+        ];
     }
 
     private function formatBytes(int $bytes): string
