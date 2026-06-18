@@ -36,7 +36,7 @@ it('explores nested directories and creates one total size suggestion', function
 
     expect($sizeSuggestions)
         ->toHaveCount(1)
-        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2MB')
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2 MB')
         ->and($sizeSuggestions[0]['confidence'])->toBe('high')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3);
 
@@ -62,6 +62,19 @@ it('does not explore directories outside the original download tree', function (
         fn (Request $request): bool => str_contains($request->url(), 'example.org')
             || str_contains($request->url(), '/download/other/'),
     );
+});
+
+it('keeps base URL ports when resolving relative directory file links', function () {
+    Http::fake([
+        'https://datapub.gfz.de:8443/download/dataset/' => Http::response(<<<'HTML'
+            <a href="data.csv">data.csv</a> 2026-06-14 10:00 1M
+            HTML),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de:8443/download/dataset/');
+
+    expect($result['raw_evidence']['files'][0]['file_url'])->toBe('https://datapub.gfz.de:8443/download/dataset/data.csv');
 });
 
 it('keeps Apache listing files with unknown size for format and confidence evidence', function () {
@@ -341,7 +354,7 @@ it('builds low confidence aggregate size when only some directory file sizes par
         ->and($formatSuggestions[1]['evidence']['extension'])->toBe('zip')
         ->and($sizeSuggestions)->toHaveCount(1)
         ->and($sizeSuggestions[0])->toMatchArray([
-            'inferred_value' => '1GB',
+            'inferred_value' => '1 GB',
             'confidence' => 'low',
         ])
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)

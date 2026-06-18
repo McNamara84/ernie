@@ -152,6 +152,18 @@ it('does not follow DOI redirects to unsupported hosts', function (): void {
     Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
 });
 
+it('handles DOI redirects without a Location header gracefully', function (): void {
+    Http::fake([
+        'https://doi.org/10.1234/missing-location' => Http::response('', 302),
+    ]);
+
+    $result = $this->probeService->extractAndProbe('https://doi.org/10.1234/missing-location');
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['probe_method'])->toBe('SKIP')
+        ->and($result[0]['skip_reason'])->toBe('doi_redirect_unreachable');
+});
+
 it('resolves DOI redirects to allowed landing page URLs before probing', function (): void {
     Http::fake([
         'https://doi.org/10.1234/allowed' => Http::response('', 302, [
@@ -268,7 +280,7 @@ it('explores nested directories and creates one total size suggestion', function
 
     expect($sizeSuggestions)
         ->toHaveCount(1)
-        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2MB')
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2 MB')
         ->and($sizeSuggestions[0]['confidence'])->toBe('high')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3);
     Http::assertSentCount(3);

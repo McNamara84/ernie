@@ -576,6 +576,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
                                 license metadata before export
                             </li>
+                            <li>
+                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose
+                                missing DataCite size and file-format metadata
+                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -595,6 +599,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
                                     Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
                                     unchanged and dismisses the suggestion.
+                                </p>
+                                <p className="mt-2">
+                                    Size and format suggestions show the detected value, source URL, probe method, and confidence level. Size values
+                                    use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
+                                    a suggestion when a resource has multiple download locations.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">

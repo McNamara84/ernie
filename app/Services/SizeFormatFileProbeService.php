@@ -93,7 +93,7 @@ class SizeFormatFileProbeService
                     ->get($url);
 
                 if ($response->redirect()) {
-                    $location = trim($response->header('Location'));
+                    $location = trim((string) $response->header('Location'));
 
                     if ($location === '') {
                         return [$this->skip($url, 'doi_redirect_unreachable')];
@@ -361,7 +361,7 @@ class SizeFormatFileProbeService
             if ($parsedSizeCount > 0) {
                 $suggestions[] = [
                     'type' => 'size',
-                    'inferred_value' => $this->formatByteSize($totalBytes),
+                    'inferred_value' => $this->formatBytes($totalBytes),
                     'source_url' => $sourceUrl,
                     'probe_method' => 'DIRECTORY_LISTING',
                     'evidence' => [
@@ -826,7 +826,8 @@ class SizeFormatFileProbeService
             return $href;
         }
 
-        $origin = (string) $parts['scheme'].'://'.(string) $parts['host'];
+        $port = isset($parts['port']) ? ':'.(string) $parts['port'] : '';
+        $origin = (string) $parts['scheme'].'://'.(string) $parts['host'].$port;
 
         if (str_starts_with($href, '/')) {
             return $origin.$href;
@@ -941,7 +942,7 @@ class SizeFormatFileProbeService
         ];
     }
 
-    private function formatBytes(int $bytes): string
+    private function formatBytes(float $bytes): string
     {
         if ($bytes >= 1024 * 1024 * 1024) {
             return round($bytes / (1024 * 1024 * 1024), 2).' GB';
@@ -975,21 +976,6 @@ class SizeFormatFileProbeService
         $unit = strtoupper($matches[2]);
 
         return (float) $matches[1] * (1024 ** $powers[$unit]);
-    }
-
-    private function formatByteSize(float $bytes): string
-    {
-        $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
-        $unitIndex = 0;
-
-        while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
-            $bytes /= 1024;
-            $unitIndex++;
-        }
-
-        $value = rtrim(rtrim(number_format($bytes, 2, '.', ''), '0'), '.');
-
-        return $value.$units[$unitIndex];
     }
 
     /**
