@@ -13,6 +13,40 @@ class SizeFormatFileProbeService
 
     private const MAX_DIRECTORY_COUNT = 100;
 
+    private const DIRECT_FILE_EXTENSIONS = [
+        '7z',
+        'asc',
+        'bin',
+        'bz2',
+        'csv',
+        'dat',
+        'gz',
+        'h5',
+        'hdf',
+        'hdf5',
+        'jpg',
+        'jpeg',
+        'json',
+        'kmz',
+        'md',
+        'nc',
+        'netcdf',
+        'pdf',
+        'png',
+        'rar',
+        'tar',
+        'tgz',
+        'tif',
+        'tiff',
+        'tsv',
+        'txt',
+        'xls',
+        'xlsx',
+        'xml',
+        'xz',
+        'zip',
+    ];
+
     private const ALLOWED_LINK_TEXTS = [
         'Download data',
         'Download data and description',
@@ -92,7 +126,7 @@ class SizeFormatFileProbeService
             $results = [];
 
             foreach ($downloadUrls as $downloadUrl) {
-                $results[] = $this->probeDirectoryListing($downloadUrl);
+                $results[] = $this->probeDownloadUrl($downloadUrl);
             }
 
             return $results;
@@ -100,6 +134,37 @@ class SizeFormatFileProbeService
         } catch (\Throwable $e) {
             return [$this->skip($url, 'exception', $e->getMessage())];
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function probeDownloadUrl(string $url): array
+    {
+        $url = trim($url);
+
+        if (! $this->isHttpUrl($url)) {
+            return $this->skip($url, 'unsupported_protocol');
+        }
+
+        if ($this->isLikelyDirectFileUrl($url)) {
+            return $this->inferMetadataFromFileUrl($url);
+        }
+
+        try {
+            $response = Http::timeout(10)
+                ->connectTimeout(5)
+                ->head($url);
+
+            if ($response->successful() && $this->isNonHtmlContentType($response->header('Content-Type'))) {
+                return $this->inferMetadataFromFileUrl($url);
+            }
+        } catch (\Throwable) {
+            // Directory listings often do not handle HEAD consistently. Fall
+            // through to the HTML listing probe, which keeps its own timeout.
+        }
+
+        return $this->probeDirectoryListing($url);
     }
 
     /**
@@ -173,7 +238,7 @@ class SizeFormatFileProbeService
     }
 
     /**
-     *  @return array<string, mixed>
+     * @return array<string, mixed>
      */
     public function inferMetadataFromFileUrl(string $fileUrl): array
     {
@@ -238,10 +303,10 @@ class SizeFormatFileProbeService
 
             $rangeResult = $this->inferFromRangedGet($fileUrl);
 
-            if (($rangeResult['probe_method'] ?? null) !== 'SKIP' ){
+            if (($rangeResult['probe_method'] ?? null) !== 'SKIP') {
                 return $rangeResult;
             }
-            
+
             return $this->inferFromFilenameFallback($fileUrl);
 
         } catch (\Throwable $e) {
@@ -251,7 +316,7 @@ class SizeFormatFileProbeService
 
     // macht aus den Rohdaten-Ergebnissen echte Suggestions
     /**
-     * @param array<int, array<string, mixed>> $probeResults
+     * @param  array<int, array<string, mixed>>  $probeResults
      * @return array<int, array<string, mixed>>
      */
     public function buildSuggestions(array $probeResults): array
@@ -445,7 +510,7 @@ class SizeFormatFileProbeService
     }
 
     /**
-     *  @return array<int, string>
+     * @return array<int, string>
      */
     private function extractPiwikDownloadLinks(string $landingPageUrl, string $html): array
     {
@@ -703,7 +768,7 @@ class SizeFormatFileProbeService
         $last = end($parts);
 
         if (in_array($last, $compressionFormats, true) && count($parts) >= 3) {
-            return $parts[count($parts) - 2] . '.' . $last;
+            return $parts[count($parts) - 2].'.'.$last;
         }
 
         return $last;
@@ -782,6 +847,25 @@ class SizeFormatFileProbeService
         return str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
     }
 
+    private function isLikelyDirectFileUrl(string $url): bool
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return $extension !== '' && in_array($extension, self::DIRECT_FILE_EXTENSIONS, true);
+    }
+
+    private function isNonHtmlContentType(?string $contentType): bool
+    {
+        $normalized = strtolower(trim(explode(';', (string) $contentType)[0]));
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        return ! in_array($normalized, ['text/html', 'application/xhtml+xml'], true);
+    }
+
     private function formatBytes(int $bytes): string
     {
         if ($bytes >= 1024 * 1024 * 1024) {
@@ -820,7 +904,7 @@ class SizeFormatFileProbeService
 
     private function formatByteSize(float $bytes): string
     {
-        $units = ['B', 'K', 'M', 'G', 'T', 'P'];
+        $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
         $unitIndex = 0;
 
         while ($bytes >= 1024 && $unitIndex < count($units) - 1) {
@@ -834,7 +918,7 @@ class SizeFormatFileProbeService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $suggestions
+     * @param  array<int, array<string, mixed>>  $suggestions
      * @return array<int, array<string, mixed>>
      */
     private function deduplicateSuggestions(array $suggestions): array
