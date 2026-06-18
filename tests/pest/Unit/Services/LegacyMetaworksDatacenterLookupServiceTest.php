@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Datacenter;
 use App\Models\Resource;
+use App\Services\DoiSuggestionService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,7 +78,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             'doi' => '10.5880/sddb.dataset',
         ]);
 
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames('10.5880/gipp.dataset'))
             ->toBe([LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER])
@@ -86,7 +87,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
     });
 
     it('resolves datacenters from legacy DOI patterns', function (string $doi, array $expectedDatacenters): void {
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames($doi))->toBe($expectedDatacenters);
     })->with([
@@ -205,7 +206,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
     ]);
 
     it('normalises DOI URLs and doi scheme before matching datacenter patterns', function (string $doi): void {
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames($doi))
             ->toBe([LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER]);
@@ -215,19 +216,33 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
         'doi scheme' => ['doi:10.5880/hA-ArboDat_AK1'],
     ]);
 
+    it('delegates DOI normalization after stripping the doi scheme prefix', function () {
+        $doiSuggestionService = Mockery::mock(DoiSuggestionService::class);
+        $doiSuggestionService
+            ->shouldReceive('normalizeDoi')
+            ->once()
+            ->with('10.5880/hA-ArboDat_AK1')
+            ->andReturn('10.5880/ha-arbodat_ak1');
+
+        $service = new LegacyMetaworksDatacenterLookupService($doiSuggestionService);
+
+        expect($service->resolveDatacenterNames('doi:10.5880/hA-ArboDat_AK1'))
+            ->toBe([LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER]);
+    });
+
     it('matches legacy Metaworks table DOIs case-insensitively', function () {
         DB::connection('legacy_metaworks')->table('gipp_dataset')->insert([
             'doi' => '10.5880/Legacy.Table.Mixed',
         ]);
 
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames('https://doi.org/10.5880/legacy.table.mixed'))
             ->toBe([LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER]);
     });
 
     it('does not infer the GFZ datacenter from GFZ-prefixed specialist DOI namespaces', function () {
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames('10.5880/GFZ.DEKORP-1-8701.001'))
             ->toBe([LegacyMetaworksDatacenterLookupService::DEKORP_DATACENTER])
@@ -237,7 +252,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
     it('uses DOI pattern datacenters when the legacy Metaworks tables are unavailable', function () {
         Schema::connection('legacy_metaworks')->drop('gipp_dataset');
 
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames('10.5880/GFZ.DEKORP-1-8701.001'))
             ->toBe([LegacyMetaworksDatacenterLookupService::DEKORP_DATACENTER]);
@@ -248,14 +263,14 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             'doi' => '10.5880/GIPP-MT.202403.1',
         ]);
 
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames('10.5880/GIPP-MT.202403.1'))
             ->toBe([LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER]);
     });
 
     it('falls back to the GFZ datacenter when no specialised table contains the DOI', function () {
-        $service = new LegacyMetaworksDatacenterLookupService;
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames('10.5880/default.dataset'))
             ->toBe([LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER]);
@@ -268,7 +283,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
 
         $resource = Resource::factory()->create(['doi' => '10.5880/gipp.sync']);
 
-        (new LegacyMetaworksDatacenterLookupService)->syncDatacenters($resource, '10.5880/gipp.sync');
+        app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, '10.5880/gipp.sync');
 
         expect($resource->fresh()->datacenters->pluck('name')->all())
             ->toBe([LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER]);
@@ -277,7 +292,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
     it('syncs DOI pattern datacenters onto the imported resource', function () {
         $resource = Resource::factory()->create(['doi' => '10.5880/hA-ArboDat_AK1']);
 
-        (new LegacyMetaworksDatacenterLookupService)->syncDatacenters($resource, '10.5880/hA-ArboDat_AK1');
+        app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, '10.5880/hA-ArboDat_AK1');
 
         expect($resource->fresh()->datacenters->pluck('name')->all())
             ->toBe([LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER]);

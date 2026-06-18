@@ -239,7 +239,7 @@ describe('SumarioPendingResourceImportService', function () {
         $service = new SumarioPendingResourceImportService(
             editorLoader: $editorLoader,
             resourceStorage: $resourceStorage,
-            datacenterLookup: new LegacyMetaworksDatacenterLookupService,
+            datacenterLookup: app(LegacyMetaworksDatacenterLookupService::class),
             downloadUrlService: $downloadUrlService,
             landingPageImport: new LegacyLandingPageImportService,
             doiSuggestionService: app(DoiSuggestionService::class),

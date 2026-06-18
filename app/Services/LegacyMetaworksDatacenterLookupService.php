@@ -57,6 +57,10 @@ class LegacyMetaworksDatacenterLookupService
 
     private const CONNECTION = 'legacy_metaworks';
 
+    public function __construct(
+        private readonly DoiSuggestionService $doiSuggestionService,
+    ) {}
+
     /**
      * DOI suffix patterns that identify datacenters in legacy SUMARIO records.
      *
@@ -253,9 +257,9 @@ class LegacyMetaworksDatacenterLookupService
     {
         $doi = trim($doi);
 
-        $doi = preg_replace('/^(?:https?:\/\/(?:dx\.)?doi\.org\/|doi:)/i', '', $doi) ?? $doi;
+        $doi = preg_replace('/^doi:\s*/i', '', $doi) ?? $doi;
 
-        return trim($doi);
+        return $this->doiSuggestionService->normalizeDoi($doi);
     }
 
     private function doiSuffix(string $doi): ?string
