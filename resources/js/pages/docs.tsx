@@ -576,10 +576,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
                                 license metadata before export
                             </li>
-                            <li>
-                                <strong>Size &amp; Format Suggestions</strong> &ndash; Discovers missing Size and Format metadata from
-                                approved resource URLs and DOI-derived download URLs using bounded, non-crawling probes
-                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -588,10 +584,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>
                                     Click &quot;Check all&quot; to scan all resources at once, or use the individual &quot;Check&quot; button
                                     on each card.
-                                </p>
-                                <p className="mt-2">
-                                    Size &amp; Format checks only probe approved resource URLs and DOI-derived download URLs. They do not
-                                    perform uncontrolled web crawling and use request limits, redirects, retries, timeouts, and skip rules.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Review suggestions">
@@ -604,34 +596,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
                                     unchanged and dismisses the suggestion.
                                 </p>
-                                <p className="mt-2">
-                                    Size &amp; Format suggestions can infer format from MIME headers, filename extensions, or other approved
-                                    evidence. Size is usually inferred from content-length or equivalent metadata without downloading whole
-                                    files by default.
-                                </p>
-                                <p className="mt-2">
-                                    The preview shows the inferred value, source URL, probe method, evidence, and confidence or warnings when
-                                    available.
-                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to
                                     permanently dismiss that suggestion.
                                 </p>
-                                <p className="mt-2">
-                                    Accepting a Size or Format suggestion creates the corresponding metadata record while avoiding duplicates.
-                                    Declining dismisses the suggestion without changing the resource metadata.
-                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
-
-                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
-                            <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>ZIP archives:</strong> ZIP files can contain multiple files or mixed formats. Review ZIP suggestions
-                                carefully before accepting them, and note that ZIP suggestions may be highlighted in the preview.
-                            </p>
-                        </div>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
