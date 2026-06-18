@@ -102,6 +102,10 @@
             {
                 "title": "Assistance: SPDX Rights Suggestions",
                 "description": "Imported DataCite rights statements are now preserved as raw resource-right rows even before they are linked to the shared SPDX license catalog. The new SPDX Rights Suggestions assistant on /assistance reviews unresolved rights metadata from legacy, XML, and JSON imports, proposes trusted SPDX matches with evidence, and lets curators accept or decline each suggestion. Accepted suggestions link only the affected rights statement to the catalog while keeping the imported evidence for audit and export round-tripping."
+            },
+            {
+                "title": "Assistance: Size and Format Suggestions",
+                "description": "New 'Size and Format Suggestions' assistant on /assistance for discovering missing DataCite size and format metadata from approved GFZ download URLs. The assistant resolves allowed doi.org targets safely, inspects landing-page download links, HTTP headers, ranged metadata, Apache directory listings, and file names, then proposes evidence-backed size and MIME format suggestions with confidence levels. Curators can accept suggestions to add the corresponding DataCite size or format record, or decline suggestions that should not be applied."
             }
         ],
         "improvements": [

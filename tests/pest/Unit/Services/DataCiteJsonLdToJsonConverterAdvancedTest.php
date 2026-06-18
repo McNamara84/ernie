@@ -175,6 +175,23 @@ describe('sizes conversion', function () {
     });
 });
 
+describe('formats conversion', function () {
+    it('converts formats with value wrapping', function () {
+        $converter = new DataCiteJsonLdToJsonConverterService;
+
+        $result = $converter->convert([
+            'formats' => [
+                'format' => [
+                    ['value' => 'text/csv'],
+                    ['value' => 'application/zip'],
+                ],
+            ],
+        ]);
+
+        expect($result['formats'])->toBe(['text/csv', 'application/zip']);
+    });
+});
+
 describe('geo location polygon conversion', function () {
     it('converts polygon with points and inPolygonPoint', function () {
         $jsonLd = [

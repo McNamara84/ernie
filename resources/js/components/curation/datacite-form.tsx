@@ -1935,6 +1935,7 @@ export default function DataCiteForm({
         gcmdKeywords,
         importedCreatedDate,
         initialRelatedItems,
+        initialRawRights,
         instruments,
         licenseEntries,
         mslLaboratories,

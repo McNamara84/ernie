@@ -17,6 +17,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use App\Support\OrcidNormalizer;
@@ -134,6 +135,10 @@ class DataCiteJsonExporter
 
         if ($sizes = $this->buildSizes($resource)) {
             $attributes['sizes'] = $sizes;
+        }
+
+        if ($formats = $this->buildFormats($resource)) {
+            $attributes['formats'] = $formats;
         }
 
         if ($fundingReferences = $this->buildFundingReferences($resource)) {
@@ -1130,5 +1135,31 @@ class DataCiteJsonExporter
         }
 
         return $sizes !== [] ? $sizes : null;
+    }
+
+    /**
+     * Build formats array.
+     *
+     * DataCite formats is a simple array of strings (e.g., "text/csv",
+     * "application/zip").
+     *
+     * @return list<string>|null
+     */
+    private function buildFormats(Resource $resource): ?array
+    {
+        if ($resource->formats->isEmpty()) {
+            return null;
+        }
+
+        $formats = [];
+
+        foreach ($resource->formats as $format) {
+            $value = SizeFormatFormatNormalizerService::normalize($format->value);
+            if ($value !== '') {
+                $formats[] = $value;
+            }
+        }
+
+        return $formats !== [] ? array_values(array_unique($formats)) : null;
     }
 }

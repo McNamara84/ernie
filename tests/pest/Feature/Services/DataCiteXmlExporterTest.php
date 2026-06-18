@@ -989,12 +989,18 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
             'resource_id' => $resource->id,
             'value' => 'text/csv',
         ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'zip',
+        ]);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<formats>')
             ->and($xml)->toContain('<format>application/netcdf</format>')
-            ->and($xml)->toContain('<format>text/csv</format>');
+            ->and($xml)->toContain('<format>text/csv</format>')
+            ->and($xml)->toContain('<format>application/zip</format>')
+            ->and($xml)->not->toContain('<format>zip</format>');
     });
 
     test('skips sizes and formats when none exist', function () {

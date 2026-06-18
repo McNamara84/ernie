@@ -3,6 +3,7 @@
 use App\Models\ContributorType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\Format;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
@@ -11,6 +12,7 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
@@ -49,6 +51,41 @@ describe('DataCiteJsonExporter - JSON Structure', function () {
             ->and($attributes)->toHaveKey('publisher')
             ->and($attributes)->toHaveKey('types')
             ->and($attributes)->not->toHaveKey('schemaVersion');
+    });
+});
+
+describe('DataCiteJsonExporter - Sizes & Formats', function () {
+    test('exports sizes and formats', function () {
+        $resource = Resource::factory()->create();
+
+        Size::create([
+            'resource_id' => $resource->id,
+            'numeric_value' => 2,
+            'unit' => 'MB',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'text/csv',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'zip',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $attributes = $result['data']['attributes'];
+
+        expect($attributes)->toHaveKey('sizes', ['2 MB'])
+            ->and($attributes)->toHaveKey('formats', ['text/csv', 'application/zip']);
+    });
+
+    test('omits sizes and formats when none exist', function () {
+        $resource = Resource::factory()->create();
+
+        $attributes = $this->exporter->export($resource)['data']['attributes'];
+
+        expect($attributes)->not->toHaveKey('sizes')
+            ->and($attributes)->not->toHaveKey('formats');
     });
 });
 
