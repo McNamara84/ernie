@@ -375,17 +375,28 @@ class SizeFormatFileProbeService
         try {
             $response = Http::timeout(10)
                 ->connectTimeout(5)
+                ->withOptions([
+                    'stream' => true,
+                ])
                 ->withHeaders([
                     'Range' => 'bytes=0-1023',
                 ])
                 ->get($fileUrl);
 
-            if (! $response->successful()) {
+            $status = $response->status();
+            $successful = $response->successful();
+            $contentType = $response->header('Content-Type');
+            $contentRange = $response->header('Content-Range');
+
+            $response->close();
+
+            if (! $successful) {
                 return $this->skip($fileUrl, 'ranged_get_unreachable');
             }
 
-            $contentType = $response->header('Content-Type');
-            $contentRange = $response->header('Content-Range');
+            if ($status !== 206) {
+                return $this->skip($fileUrl, 'ranged_get_unexpected_status');
+            }
 
             $suggestions = [];
 
@@ -421,7 +432,7 @@ class SizeFormatFileProbeService
                 return [
                     'source_url' => $fileUrl,
                     'probe_method' => 'RANGED_GET',
-                    'http_status' => $response->status(),
+                    'http_status' => $status,
                     'raw_evidence' => [
                         'headers' => [
                             'content_type' => $contentType,

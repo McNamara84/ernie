@@ -129,6 +129,26 @@ it('parses size suggestions on accept when discovery metadata is missing', funct
         ->and($size?->unit)->toBe('MB');
 });
 
+it('uses the persisted size export string in the success message', function () {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $suggestion = createSizeFormatSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        targetType: 'size',
+        suggestedValue: '2MB',
+    );
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+    $size = Size::where('resource_id', $resource->id)->sole();
+
+    expect($result)->toMatchArray([
+        'success' => true,
+        'message' => "Size '2 MB' applied.",
+    ])
+        ->and($size->export_string)->toBe('2 MB');
+});
+
 it('keeps an unsupported suggestion pending and reports failure', function () {
     $assistant = app(Assistant::class);
     $resource = Resource::factory()->create();

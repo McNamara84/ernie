@@ -38,7 +38,7 @@ final class SizeFormatSuggestionAcceptanceService
                 : null;
             $parsedSize = $storedParsedSize ?? $this->sizeParser->parse($suggestion->suggested_value);
 
-            Size::firstOrCreate([
+            $size = Size::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,
                 'numeric_value' => $parsedSize['numeric_value'] ?? null,
                 'unit' => $parsedSize['unit'] ?? null,
@@ -47,7 +47,7 @@ final class SizeFormatSuggestionAcceptanceService
 
             return [
                 'success' => true,
-                'message' => "Size '{$suggestion->suggested_value}' applied.",
+                'message' => "Size '{$size->export_string}' applied.",
             ];
         }
 

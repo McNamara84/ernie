@@ -127,6 +127,31 @@ it('falls back to ranged GET metadata when HEAD has no usable headers', function
     );
 });
 
+it('ignores ranged GET responses when the server returns the full body', function () {
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response('full file body', 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => '999999999',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://files.example.org/archive.zip');
+
+    expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
+        ->and($result['suggestions'])->toHaveCount(1)
+        ->and($result['suggestions'][0]['inferred_value'])->toBe('application/zip');
+
+    Http::assertSent(
+        fn (Request $request): bool => $request->method() === 'GET'
+            && $request->hasHeader('Range', ['bytes=0-1023']),
+    );
+});
+
 it('probes direct file links from landing pages with HEAD instead of full GET', function () {
     Http::fake([
         'https://dataservices.gfz-potsdam.de/landing' => Http::response(<<<'HTML'
