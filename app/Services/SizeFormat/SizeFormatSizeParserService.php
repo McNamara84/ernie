@@ -21,7 +21,15 @@ final class SizeFormatSizeParserService
             ];
         }
 
-        if (preg_match('/^([\d.]+)\s*(.+)$/', $value, $matches) === 1 && $this->looksLikeSizeUnit($matches[2])) {
+        if (preg_match('/^\d+(?:\.\d+)?$/', $value) === 1) {
+            return [
+                'numeric_value' => $value,
+                'unit' => null,
+                'type' => null,
+            ];
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)(?:\s+|(?=[^\d.\s]))(.+)$/', $value, $matches) === 1 && $this->looksLikeSizeUnit($matches[2])) {
             return [
                 'numeric_value' => $matches[1],
                 'unit' => trim($matches[2]),

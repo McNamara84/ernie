@@ -64,6 +64,37 @@ it('does not explore directories outside the original download tree', function (
     );
 });
 
+it('keeps Apache listing files with unknown size for format and confidence evidence', function () {
+    Http::fake([
+        'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="known.csv">known.csv</a> 2026-06-14 10:00 1M
+            <a href="unknown.zip">unknown.zip</a> 2026-06-14 10:01 -
+            HTML),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    expect($result['raw_evidence']['files'])->toHaveCount(2);
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($formatSuggestions)
+        ->toHaveCount(2)
+        ->and($formatSuggestions[1]['evidence']['filename'])->toBe('unknown.zip')
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['confidence'])->toBe('low')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2);
+});
+
 it('infers high confidence size and format suggestions from HEAD headers', function () {
     Http::fake([
         'https://files.example.org/data.csv' => Http::response('', 200, [

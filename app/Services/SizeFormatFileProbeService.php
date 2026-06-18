@@ -538,7 +538,7 @@ class SizeFormatFileProbeService
     private function extractFilesFromApacheIndex(string $baseUrl, string $html): array
     {
         preg_match_all(
-            '/<a\s+href=["\']([^"\']+)["\']>([^<]+)<\/a>\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s+([0-9.]+[KMGTP]?)/i',
+            '/<a\s+href=["\']([^"\']+)["\']>([^<]+)<\/a>\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})\s+([0-9.]+[KMGTP]?|-)/i',
             $html,
             $matches,
             PREG_SET_ORDER
