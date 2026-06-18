@@ -405,7 +405,7 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         );
 
         expect(screen.getByText('ZIP Archive')).toHaveClass('bg-orange-600');
-        expect(screen.getByText('ZIP archive (download package)')).toBeInTheDocument();
+        expect(screen.getByText('Suggested format: ZIP archive (application/zip)')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
@@ -424,9 +424,70 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
             />,
         );
 
-        expect(screen.getByText('format')).toBeInTheDocument();
-        expect(screen.getByText('CSV file')).toBeInTheDocument();
+        expect(screen.getByText('File format')).toBeInTheDocument();
+        expect(screen.getByText('Suggested format: CSV file (text/csv)')).toBeInTheDocument();
         expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
+    });
+
+    it('renders source, confidence, friendly probe method and evidence metadata', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_value: '2 MB',
+            suggested_label: 'SIZE: 2 MB',
+            target_type: 'size',
+            metadata: {
+                source_url: 'https://datapub.gfz.de/download/example/',
+                probe_method: 'DIRECTORY_LISTING',
+                confidence: 'high',
+                evidence: {
+                    parsed_file_count: 2,
+                    total_file_count: 3,
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('File size')).toBeInTheDocument();
+        expect(screen.getByText('Suggested size: 2 MB')).toBeInTheDocument();
+        expect(screen.getByText('High confidence')).toBeInTheDocument();
+        expect(screen.getByText('Calculated from download page')).toBeInTheDocument();
+        expect(screen.queryByText('DIRECTORY_LISTING')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://datapub.gfz.de/download/example/');
+        expect(screen.getByText('Files counted: 2 of 3')).toBeInTheDocument();
+    });
+
+    it('renders filename-extension evidence without exposing internal probe constants', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_value: 'pdf',
+            suggested_label: 'FORMAT: pdf',
+            target_type: 'format',
+            metadata: {
+                source_url: 'https://datapub.gfz.de/download/example.pdf',
+                probe_method: 'FILENAME_EXTENSION',
+                confidence: 'medium',
+                evidence: {
+                    filename: 'example.pdf',
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('Suggested format: PDF document (.pdf)')).toBeInTheDocument();
+        expect(screen.getByText('Medium confidence')).toBeInTheDocument();
+        expect(screen.getByText('Detected from file name')).toBeInTheDocument();
+        expect(screen.queryByText('FILENAME_EXTENSION')).not.toBeInTheDocument();
+        expect(screen.getByText('Detected from file: example.pdf')).toBeInTheDocument();
     });
 
     it('posts accept and decline requests through the size-format route prefix', async () => {

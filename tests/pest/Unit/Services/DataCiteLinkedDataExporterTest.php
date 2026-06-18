@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Models\DescriptionType;
+use App\Models\Format;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\Right;
+use App\Models\Size;
 use App\Models\TitleType;
 use App\Services\DataCiteLinkedDataExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -313,11 +316,42 @@ describe('funding references', function () {
     });
 });
 
+describe('sizes and formats', function () {
+    it('transforms sizes and formats with value wrappers', function () {
+        $resource = createResourceWithTitle();
+        Size::create([
+            'resource_id' => $resource->id,
+            'numeric_value' => 2,
+            'unit' => 'MB',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'text/csv',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'application/zip',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+
+        expect($result['sizes'])->toBe([
+            'size' => ['value' => '2 MB'],
+        ])
+            ->and($result['formats'])->toBe([
+                'format' => [
+                    ['value' => 'text/csv'],
+                    ['value' => 'application/zip'],
+                ],
+            ]);
+    });
+});
+
 describe('rights', function () {
     it('transforms rights with attrs/value pattern', function () {
         $resource = createResourceWithTitle();
 
-        $right = \App\Models\Right::firstOrCreate(
+        $right = Right::firstOrCreate(
             ['identifier' => 'CC-BY-4.0'],
             [
                 'name' => 'Creative Commons Attribution 4.0 International',

@@ -36,7 +36,7 @@ it('explores nested directories and creates one total size suggestion', function
 
     expect($sizeSuggestions)
         ->toHaveCount(1)
-        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2M')
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2MB')
         ->and($sizeSuggestions[0]['confidence'])->toBe('high')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3);
 
@@ -127,6 +127,34 @@ it('falls back to ranged GET metadata when HEAD has no usable headers', function
     );
 });
 
+it('probes direct file links from landing pages with HEAD instead of full GET', function () {
+    Http::fake([
+        'https://dataservices.gfz-potsdam.de/landing' => Http::response(<<<'HTML'
+            <html>
+                <body>
+                    <a class="piwik_download" href="/download/data.csv">Download data</a>
+                </body>
+            </html>
+            HTML),
+        'https://dataservices.gfz-potsdam.de/download/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Length' => '2048',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $results = $service->extractAndProbe('https://dataservices.gfz-potsdam.de/landing');
+
+    expect($results)->toHaveCount(1)
+        ->and($results[0]['probe_method'])->toBe('HTTP_HEAD')
+        ->and($results[0]['suggestions'])->toHaveCount(2);
+
+    Http::assertNotSent(
+        fn (Request $request): bool => $request->method() === 'GET'
+            && $request->url() === 'https://dataservices.gfz-potsdam.de/download/data.csv',
+    );
+});
+
 it('falls back to compressed filename extensions when remote metadata is unavailable', function () {
     Http::fake([
         'https://files.example.org/export.csv.gz' => Http::response('', 404),
@@ -193,7 +221,7 @@ it('builds low confidence aggregate size when only some directory file sizes par
         ])
         ->and($sizeSuggestions)->toHaveCount(1)
         ->and($sizeSuggestions[0])->toMatchArray([
-            'inferred_value' => '1G',
+            'inferred_value' => '1GB',
             'confidence' => 'low',
         ])
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)

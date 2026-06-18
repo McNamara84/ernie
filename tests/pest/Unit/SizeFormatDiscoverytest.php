@@ -1,17 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Http;
 use App\Services\SizeFormatFileProbeService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
-    $this->probeService = new SizeFormatFileProbeService();
+    $this->probeService = new SizeFormatFileProbeService;
 });
 
 // 1. Professor Request: Test inaccessible URLs when the server returns a 500 error
 it('handles inaccessible urls gracefully when server returns a 500 error', function () {
     $url = 'https://dataservices.gfz-potsdam.de/broken-link';
-    
+
     Http::fake([
         $url => Http::response('Internal Server Error', 500),
     ]);
@@ -26,9 +27,9 @@ it('handles inaccessible urls gracefully when server returns a 500 error', funct
 // 2. Professor Request: Test inaccessible URLs when connection times out completely
 it('handles inaccessible urls when connection times out completely', function (): void {
     $url = 'https://dataservices.gfz-potsdam.de/timeout-link';
-    
+
     Http::fake([
-    $url => fn () => throw new \Illuminate\Http\Client\ConnectionException('Connection timed out'),
+        $url => fn () => throw new ConnectionException('Connection timed out'),
     ]);
 
     $results = $this->probeService->extractAndProbe($url);
@@ -52,9 +53,9 @@ it('infers metadata from file headers via http head request', function (): void 
     $fileUrl = 'https://dataservices.gfz-potsdam.de/download/report.pdf';
 
     Http::fake([
-        $fileUrl => Http::response([], 200, [
+        $fileUrl => Http::response('', 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Length' => '1048576'
+            'Content-Length' => '1048576',
         ]),
     ]);
 
@@ -63,7 +64,7 @@ it('infers metadata from file headers via http head request', function (): void 
     expect($result['probe_method'])->toBe('HTTP_HEAD')
         ->and($result['suggestions'])->toHaveCount(2)
         ->and($result['suggestions'][0]['type'])->toBe('format')
-        ->and($result['suggestions'][0]['inferred_value'])->toBe('application/json')
+        ->and($result['suggestions'][0]['inferred_value'])->toBe('application/pdf')
         ->and($result['suggestions'][0]['confidence'])->toBe('high')
         ->and($result['suggestions'][1]['type'])->toBe('size')
         ->and($result['suggestions'][1]['inferred_value'])->toBe('1 MB')
@@ -225,7 +226,7 @@ it('explores nested directories and creates one total size suggestion', function
 
     expect($sizeSuggestions)
         ->toHaveCount(1)
-        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2M')
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('2MB')
         ->and($sizeSuggestions[0]['confidence'])->toBe('high')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3);
     Http::assertSentCount(3);

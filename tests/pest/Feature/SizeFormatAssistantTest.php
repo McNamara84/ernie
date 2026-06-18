@@ -4,22 +4,49 @@ declare(strict_types=1);
 
 use App\Models\AssistantSuggestion;
 use App\Models\Format;
-use App\Models\Size;
-use App\Services\Assistance\AssistantRegistrar;
-use Modules\Assistants\SizeFormatSuggestion\Assistant;
+use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use App\Models\ResourceType;
+use App\Models\Size;
 use App\Models\User;
-
+use App\Services\Assistance\AssistantRegistrar;
+use Illuminate\Support\Facades\Http;
+use Modules\Assistants\SizeFormatSuggestion\Assistant;
 
 function applySizeFormatSuggestion(Assistant $assistant, AssistantSuggestion $suggestion): array
 {
     $method = new ReflectionMethod($assistant, 'applyAccepted');
+
     return $method->invoke($assistant, $suggestion);
 }
 
 it('registers via auto-discovery', function (): void {
     $registrar = app(AssistantRegistrar::class);
     expect($registrar->has('size-format-suggestion'))->toBeTrue();
+});
+
+it('does not discover suggestions for physical object resources', function (): void {
+    $physicalObjectType = ResourceType::factory()->create([
+        'name' => 'Physical Object',
+        'slug' => 'physical-object',
+    ]);
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/IGSN.TEST.001',
+        'resource_type_id' => $physicalObjectType->id,
+    ]);
+    IgsnMetadata::create([
+        'resource_id' => $resource->id,
+        'sample_type' => 'rock',
+        'material' => 'granite',
+    ]);
+
+    Http::fake();
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect($count)->toBe(0)
+        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->count())->toBe(0);
+    Http::assertNothingSent();
 });
 
 it('exposes size and format suggestion preview metadata', function () {
