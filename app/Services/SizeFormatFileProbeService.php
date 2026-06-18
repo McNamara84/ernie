@@ -89,12 +89,22 @@ class SizeFormatFileProbeService
             try {
                 $response = Http::timeout(10)
                     ->connectTimeout(5)
+                    ->withoutRedirecting()
                     ->get($url);
-                if (! $response->successful()) {
+
+                if ($response->redirect()) {
+                    $location = trim($response->header('Location'));
+
+                    if ($location === '') {
+                        return [$this->skip($url, 'doi_redirect_unreachable')];
+                    }
+
+                    $url = $this->absoluteUrl($url, $location);
+                } elseif ($response->successful()) {
+                    $url = (string) $response->effectiveUri();
+                } else {
                     return [$this->skip($url, 'doi_redirect_unreachable')];
                 }
-
-                $url = (string) $response->effectiveUri();
             } catch (\Throwable $e) {
                 return [$this->skip($url, 'doi_redirect_failed', $e->getMessage())];
 
@@ -387,8 +397,6 @@ class SizeFormatFileProbeService
             $successful = $response->successful();
             $contentType = $response->header('Content-Type');
             $contentRange = $response->header('Content-Range');
-
-            $response->close();
 
             if (! $successful) {
                 return $this->skip($fileUrl, 'ranged_get_unreachable');

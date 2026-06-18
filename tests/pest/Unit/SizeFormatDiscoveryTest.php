@@ -11,8 +11,7 @@ beforeEach(function () {
     $this->probeService = new SizeFormatFileProbeService;
 });
 
-// 1. Professor Request: Test inaccessible URLs when the server returns a 500 error
-it('handles inaccessible urls gracefully when server returns a 500 error', function () {
+it('handles inaccessible URLs gracefully when server returns a 500 error', function () {
     $url = 'https://dataservices.gfz-potsdam.de/broken-link';
 
     Http::fake([
@@ -26,8 +25,7 @@ it('handles inaccessible urls gracefully when server returns a 500 error', funct
     expect($results[0]['skip_reason'])->toBe('landing_page_unreachable');
 });
 
-// 2. Professor Request: Test inaccessible URLs when connection times out completely
-it('handles inaccessible urls when connection times out completely', function (): void {
+it('handles inaccessible URLs when connection times out completely', function (): void {
     $url = 'https://dataservices.gfz-potsdam.de/timeout-link';
 
     Http::fake([
@@ -40,7 +38,6 @@ it('handles inaccessible urls when connection times out completely', function ()
     expect($results[0]['skip_reason'])->toBe('exception');
 });
 
-// 3. Coverage Optimization: Skip unsupported protocols instantly
 it('skips unsupported protocols instantly', function () {
     $url = 'ftp://dataservices.gfz-potsdam.de/file.zip';
 
@@ -50,7 +47,6 @@ it('skips unsupported protocols instantly', function () {
     expect($results[0]['skip_reason'])->toBe('unsupported_protocol');
 });
 
-// 4. Coverage Optimization: Infers metadata from file headers via HTTP HEAD request
 it('infers metadata from file headers via http head request', function (): void {
     $fileUrl = 'https://dataservices.gfz-potsdam.de/download/report.pdf';
 
@@ -127,7 +123,7 @@ it('detects composite filename extensions', function (): void {
         ->and($result['suggestions'][0]['confidence'])->toBe('medium');
 });
 
-it('skips unsupported source urls after doi resolution', function (): void {
+it('skips unsupported source URLs after DOI resolution', function (): void {
     Http::fake([
         'https://doi.org/10.1234/test' => Http::response('', 200),
     ]);
@@ -136,6 +132,48 @@ it('skips unsupported source urls after doi resolution', function (): void {
     expect($result)->toHaveCount(1)
         ->and($result[0]['probe_method'])->toBe('SKIP')
         ->and($result[0]['skip_reason'])->toBe('unsupported_source_url');
+});
+
+it('does not follow DOI redirects to unsupported hosts', function (): void {
+    Http::fake([
+        'https://doi.org/10.1234/external' => Http::response('', 302, [
+            'Location' => 'https://example.org/download/data.zip',
+        ]),
+        'https://example.org/download/data.zip' => Http::response('external body', 200),
+    ]);
+
+    $result = $this->probeService->extractAndProbe('https://doi.org/10.1234/external');
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['probe_method'])->toBe('SKIP')
+        ->and($result[0]['skip_reason'])->toBe('unsupported_source_url');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
+});
+
+it('resolves DOI redirects to allowed landing page URLs before probing', function (): void {
+    Http::fake([
+        'https://doi.org/10.1234/allowed' => Http::response('', 302, [
+            'Location' => 'https://dataservices.gfz-potsdam.de/landing-page',
+        ]),
+        'https://dataservices.gfz-potsdam.de/landing-page' => Http::response(<<<'HTML'
+            <html>
+                <body>
+                    <a class="piwik_download" href="/download/dataset/">Download data</a>
+                </body>
+            </html>
+            HTML),
+        'https://dataservices.gfz-potsdam.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="data.pdf">data.pdf</a> 2026-06-14 10:00 8M
+            HTML),
+    ]);
+
+    $result = $this->probeService->extractAndProbe('https://doi.org/10.1234/allowed');
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['probe_method'])->toBe('DIRECTORY_LISTING')
+        ->and($result[0]['suggestions'])->not->toBeEmpty();
 });
 
 it('skips blocked or form protected landing pages', function (): void {
