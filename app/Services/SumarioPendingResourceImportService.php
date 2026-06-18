@@ -143,10 +143,7 @@ class SumarioPendingResourceImportService
     {
         return OldDataset::query()
             ->where('publicstatus', 'pending')
-            ->where(function ($query) use ($doi): void {
-                $query->where('identifier', $doi)
-                    ->orWhere('identifier', strtoupper($doi));
-            })
+            ->whereRaw('LOWER(identifier) = ?', [strtolower($doi)])
             ->first();
     }
 
