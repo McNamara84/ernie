@@ -46,6 +46,9 @@ import AssistancePage from '@/pages/assistance';
 const SPDX_ASSISTANT_ID = 'spdx-license-suggestion';
 const SPDX_ROUTE_PREFIX = 'spdx-rights';
 const SPDX_ASSISTANT_NAME = 'SPDX Rights Suggestions';
+const SIZE_FORMAT_ASSISTANT_ID = 'size-format-suggestion';
+const SIZE_FORMAT_ROUTE_PREFIX = 'size-format';
+const SIZE_FORMAT_ASSISTANT_NAME = 'Size and Format Suggestions';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
@@ -123,6 +126,22 @@ function makeSpdxRightsSuggestion(overrides: Partial<SuggestedSpdxRightsItem> = 
                 reason: 'Alias matched normalized SPDX license name.',
             },
         },
+        discovered_at: '2024-06-15T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
+function makeSizeFormatSuggestion(overrides: Partial<BaseSuggestionItem> = {}): BaseSuggestionItem {
+    return {
+        id: 4,
+        resource_id: 40,
+        resource_doi: '10.5880/test.2026.004',
+        resource_title: 'Size and format example resource',
+        target_type: 'format',
+        target_id: 40,
+        suggested_value: 'application/zip',
+        suggested_label: 'ZIP archive (download package)',
+        metadata: null,
         discovered_at: '2024-06-15T10:00:00+00:00',
         ...overrides,
     };
@@ -370,6 +389,71 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/spdx-rights/42/decline');
+        });
+    });
+});
+
+describe('SizeFormatSuggestionCard - size and format preview', () => {
+    it('highlights ZIP archive suggestions as review-sensitive download packages', () => {
+        const suggestion = makeSizeFormatSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('ZIP Archive')).toHaveClass('bg-orange-600');
+        expect(screen.getByText('ZIP archive (download package)')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
+    });
+
+    it('renders non-ZIP format suggestions with their target type and label', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            target_type: 'format',
+            suggested_value: 'text/csv',
+            suggested_label: 'CSV file',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('format')).toBeInTheDocument();
+        expect(screen.getByText('CSV file')).toBeInTheDocument();
+        expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
+    });
+
+    it('posts accept and decline requests through the size-format route prefix', async () => {
+        const suggestion = makeSizeFormatSuggestion({ id: 77 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'Format applied.' } })
+            .mockResolvedValueOnce({ data: {} });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/size-format/77/accept');
+        });
+
+        await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/size-format/77/decline');
         });
     });
 });

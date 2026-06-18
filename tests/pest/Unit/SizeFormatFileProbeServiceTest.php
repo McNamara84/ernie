@@ -63,3 +63,139 @@ it('does not explore directories outside the original download tree', function (
             || str_contains($request->url(), '/download/other/'),
     );
 });
+
+it('infers high confidence size and format suggestions from HEAD headers', function () {
+    Http::fake([
+        'https://files.example.org/data.csv' => Http::response('', 200, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Length' => '1536',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://files.example.org/data.csv');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'])->toHaveCount(2)
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'text/csv',
+            'probe_method' => 'CONTENT_TYPE_HEADER',
+            'confidence' => 'high',
+        ])
+        ->and($result['suggestions'][1])->toMatchArray([
+            'type' => 'size',
+            'inferred_value' => '1.5 KB',
+            'probe_method' => 'CONTENT_LENGTH_HEADER',
+            'confidence' => 'high',
+        ]);
+});
+
+it('falls back to ranged GET metadata when HEAD has no usable headers', function () {
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200);
+        }
+
+        return Http::response('PK', 206, [
+            'Content-Type' => 'application/zip',
+            'Content-Range' => 'bytes 0-1023/4096',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://files.example.org/archive.zip');
+
+    expect($result['probe_method'])->toBe('RANGED_GET')
+        ->and($result['suggestions'])->toHaveCount(2)
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'probe_method' => 'RANGED_GET_CONTENT_TYPE',
+            'confidence' => 'medium',
+        ])
+        ->and($result['suggestions'][1])->toMatchArray([
+            'type' => 'size',
+            'inferred_value' => '4 KB',
+            'probe_method' => 'RANGED_GET_CONTENT_RANGE',
+            'confidence' => 'medium',
+        ]);
+
+    Http::assertSent(
+        fn (Request $request): bool => $request->method() === 'GET'
+            && $request->hasHeader('Range', ['bytes=0-1023']),
+    );
+});
+
+it('falls back to compressed filename extensions when remote metadata is unavailable', function () {
+    Http::fake([
+        'https://files.example.org/export.csv.gz' => Http::response('', 404),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://files.example.org/export.csv.gz');
+
+    expect($result['probe_method'])->toBe('FILENAME_EXTENSION_FALLBACK')
+        ->and($result['suggestions'])->toHaveCount(1)
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'csv.gz',
+            'probe_method' => 'FILENAME_EXTENSION_FALLBACK',
+            'confidence' => 'medium',
+        ]);
+
+    Http::assertSentCount(2);
+});
+
+it('builds low confidence aggregate size when only some directory file sizes parse', function () {
+    $service = app(SizeFormatFileProbeService::class);
+
+    $suggestions = $service->buildSuggestions([
+        [
+            'source_url' => 'https://datapub.gfz.de/download/dataset/',
+            'probe_method' => 'DIRECTORY_LISTING',
+            'raw_evidence' => [
+                'files' => [
+                    [
+                        'file_url' => 'https://datapub.gfz.de/download/dataset/archive.tar.gz',
+                        'filename' => 'archive.tar.gz',
+                        'format' => 'tar.gz',
+                        'file-size' => '1G',
+                    ],
+                    [
+                        'file_url' => 'https://datapub.gfz.de/download/dataset/bundle.zip',
+                        'filename' => 'bundle.zip',
+                        'format' => 'zip',
+                        'file-size' => '-',
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $formatSuggestions = array_values(array_filter(
+        $suggestions,
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $suggestions,
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($formatSuggestions)->toHaveCount(2)
+        ->and($formatSuggestions[0])->toMatchArray([
+            'inferred_value' => 'tar.gz',
+            'confidence' => 'medium',
+        ])
+        ->and($formatSuggestions[1])->toMatchArray([
+            'inferred_value' => 'zip',
+            'confidence' => 'low',
+        ])
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0])->toMatchArray([
+            'inferred_value' => '1G',
+            'confidence' => 'low',
+        ])
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2);
+});
