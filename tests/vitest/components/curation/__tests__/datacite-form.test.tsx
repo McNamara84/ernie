@@ -2808,8 +2808,8 @@ describe('DataCiteForm', () => {
         }
 
         await user.click(screen.getByRole('button', { name: 'Custom' }));
-        await user.type(screen.getByLabelText('License name'), 'Community Data License');
-        await user.type(screen.getByLabelText('License text URL'), 'https://example.test/licenses/community-data');
+        await user.type(screen.getByRole('textbox', { name: /^License name/ }), 'Community Data License');
+        await user.type(screen.getByRole('textbox', { name: /^License text URL/ }), 'https://example.test/licenses/community-data');
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);
 
@@ -2865,8 +2865,8 @@ describe('DataCiteForm', () => {
             await user.click(licensesTrigger);
         }
 
-        expect(screen.getByLabelText('License name')).toHaveValue('Imported Community License');
-        expect(screen.getByLabelText('License text URL')).toHaveValue('https://example.test/licenses/imported-community');
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue('Imported Community License');
+        expect(screen.getByRole('textbox', { name: /^License text URL/ })).toHaveValue('https://example.test/licenses/imported-community');
 
         await fillRequiredAuthor(user);
         await fillRequiredAbstract(user);

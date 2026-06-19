@@ -157,6 +157,18 @@ class EditorDataTransformer
                     return [];
                 }
 
+                $hasRawEvidence = false;
+                foreach ([$resourceRight->rights_text, $resourceRight->rights_uri, $resourceRight->rights_identifier] as $value) {
+                    if (is_string($value) && trim($value) !== '') {
+                        $hasRawEvidence = true;
+                        break;
+                    }
+                }
+
+                if (! $right instanceof Right && ! $hasRawEvidence) {
+                    return [];
+                }
+
                 return array_filter([
                     'sourceResourceRightId' => $resourceRight->id,
                     'rights' => $right instanceof Right ? $right->name : $resourceRight->rights_text,

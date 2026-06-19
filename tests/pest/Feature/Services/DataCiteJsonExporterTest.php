@@ -404,6 +404,7 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
             [
                 'name' => 'Creative Commons Attribution 4.0 International',
                 'uri' => 'https://creativecommons.org/licenses/by/4.0/',
+                'scheme_uri' => 'https://spdx.org/licenses/',
             ]
         );
         $resource->rights()->attach($license->id);

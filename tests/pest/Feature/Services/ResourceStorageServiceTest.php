@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\LandingPage;
@@ -1456,6 +1457,10 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
     it('stores custom licenses as reusable rights catalog entries', function () {
         $resourceType = ResourceType::first();
+        DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract']
+        );
 
         $data = [
             'resourceId' => null,

@@ -844,6 +844,10 @@ describe('custom licenses validation', function () {
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['customLicenses.0.uri']);
 
-        expect($response->json('errors.customLicenses.0.uri.0'))->toStartWith('[Licenses & Rights]');
+        $errors = $response->json('errors');
+        $message = $errors['customLicenses.0.uri'][0] ?? null;
+
+        expect($message)->toBeString();
+        expect($message)->toStartWith('[Licenses & Rights]');
     });
 });
