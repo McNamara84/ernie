@@ -481,7 +481,7 @@ class EditorDataTransformer
      * Excludes 'coverage', 'created', and 'updated' dates as they are handled separately.
      * Preserves full ISO 8601 datetime+timezone values for dates that include time components.
      *
-     * @return array<int, array{dateType: string, startDate: string, endDate: string}>
+     * @return array<int, array{dateType: string, dateMode: 'single'|'range', startDate: string, endDate: string}>
      */
     public function transformDates(Resource $resource): array
     {
@@ -494,10 +494,17 @@ class EditorDataTransformer
                 return ! in_array($slug, ['coverage', 'created', 'updated'], true);
             })
             ->map(function (ResourceDate $date): array {
+                $dateType = $date->dateType?->slug ?? '';
+                $dateTypeSlug = Str::kebab(mb_strtolower($dateType));
+                $hasClosedRange = ($date->start_date ?? '') !== '' && ($date->end_date ?? '') !== '';
+
                 return [
                     // Use null-safe operator to handle missing dateType relationship
                     // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
-                    'dateType' => $date->dateType?->slug ?? '',
+                    'dateType' => $dateType,
+                    'dateMode' => $hasClosedRange && in_array($dateTypeSlug, ['collected', 'valid', 'other'], true)
+                        ? 'range'
+                        : 'single',
                     'startDate' => $this->formatStoredDate($date->start_date ?? $date->date_value),
                     'endDate' => $this->formatStoredDate($date->end_date),
                 ];

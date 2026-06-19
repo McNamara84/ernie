@@ -1010,13 +1010,16 @@ class ResourceStorageService
             }
 
             // Date storage strategy:
-            // - When BOTH startDate AND endDate are provided: store as a date range
-            //   (date_value=null, start_date/end_date populated)
-            // - When only ONE date is provided: store as a single date
-            //   (date_value=the provided date, start_date/end_date=null)
-            // This allows the model to distinguish between point-in-time dates
-            // and date ranges while maintaining backward compatibility.
-            $hasRange = ($date['startDate'] ?? null) && ($date['endDate'] ?? null);
+            // - Only Collected, Valid, and Other support editor-managed periods.
+            // - Explicit dateMode=range stores start_date/end_date.
+            // - For backwards compatibility, allowed date types with both dates and
+            //   no dateMode are still treated as ranges.
+            // - Everything else is stored as a single date using startDate first.
+            $hasBothDates = ($date['startDate'] ?? null) && ($date['endDate'] ?? null);
+            $mode = $date['dateMode'] ?? ($hasBothDates ? 'range' : 'single');
+            $hasRange = $mode === 'range'
+                && $hasBothDates
+                && in_array($dateTypeKey, ['collected', 'valid', 'other'], true);
 
             $resource->dates()->create([
                 'date_type_id' => $dateTypeId,

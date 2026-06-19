@@ -1019,8 +1019,28 @@ describe('transformDates', function (): void {
 
         expect($result)->toHaveCount(1)
             ->and($result[0]['dateType'])->toBe('Collected')
+            ->and($result[0]['dateMode'])->toBe('range')
             ->and($result[0]['startDate'])->toBe('2024-01-15')
             ->and($result[0]['endDate'])->toBe('2024-06-30');
+    });
+
+    it('keeps unsupported stored date ranges in single mode for editor hydration', function (): void {
+        $dateType = DateType::factory()->create(['slug' => 'Available', 'name' => 'Available']);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2024-01-01',
+            'end_date' => '2024-12-31',
+        ]);
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['dateType'])->toBe('Available')
+            ->and($result[0]['dateMode'])->toBe('single')
+            ->and($result[0]['startDate'])->toBe('2024-01-01')
+            ->and($result[0]['endDate'])->toBe('2024-12-31');
     });
 
     it('falls back to date_value for imported single dates', function (): void {
@@ -1038,6 +1058,7 @@ describe('transformDates', function (): void {
 
         expect($result)->toHaveCount(1)
             ->and($result[0]['dateType'])->toBe('Issued')
+            ->and($result[0]['dateMode'])->toBe('single')
             ->and($result[0]['startDate'])->toBe('2026-02-10')
             ->and($result[0]['endDate'])->toBe('');
     });
@@ -1188,9 +1209,12 @@ describe('transformDates', function (): void {
             ->and($result->keys()->all())->toContain('Collected')
             ->and($result->keys()->all())->toContain('Issued')
             ->and($result->keys()->all())->toContain('Available')
+            ->and($result['Collected']['dateMode'])->toBe('single')
             ->and($result['Collected']['startDate'])->toBe('2025-06-03')
             ->and($result['Collected']['endDate'])->toBe('')
+            ->and($result['Issued']['dateMode'])->toBe('single')
             ->and($result['Issued']['startDate'])->toBe('2026-02-10')
+            ->and($result['Available']['dateMode'])->toBe('single')
             ->and($result['Available']['startDate'])->toBe('2027-06-01');
     });
 });

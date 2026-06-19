@@ -110,6 +110,10 @@
         ],
         "improvements": [
             {
+                "title": "Date Period Editing and Export",
+                "description": "The Data Editor now supports explicit Single date and Period modes for DataCite date types Collected, Valid, and Other. Coverage dates stay in Spatial and Temporal Coverage, while landing pages show a dedicated Dates section and DataCite JSON, XML, and JSON-LD exports serialize periods as start/end interval strings."
+            },
+            {
                 "title": "Portal Navigation and Search Result Preview",
                 "description": "Authenticated users now get a dedicated Portal entry in the Data Curation section of the main menu, opening the public /portal search in a new browser tab. Inside the portal result list, long titles now truncate more predictably so author and year metadata remain visible in the row. Hovering or focusing a result opens a richer preview with the full main title, the full creator list, and the abstract when one is available, allowing faster triage before opening the landing page."
             },

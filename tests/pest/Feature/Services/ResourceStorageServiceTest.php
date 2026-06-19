@@ -816,6 +816,72 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
         $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
     });
 
+    it('stores explicit Collected periods as start and end dates', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Collected Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id);
+
+        $collectedDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['collected']);
+        })->first();
+
+        expect($collectedDate)->not->toBeNull()
+            ->and($collectedDate->date_value)->toBeNull()
+            ->and($collectedDate->start_date)->toBe('2024-01-01')
+            ->and($collectedDate->end_date)->toBe('2024-12-31');
+    });
+
+    it('stores explicit single dates as date_value even when legacy data includes an end date', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Available Single Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id);
+
+        $availableDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['available']);
+        })->first();
+
+        expect($availableDate)->not->toBeNull()
+            ->and($availableDate->date_value)->toBe('2024-01-01')
+            ->and($availableDate->start_date)->toBeNull()
+            ->and($availableDate->end_date)->toBeNull();
+    });
+
     it('uses imported created date when provided for new resources', function () {
         $resourceType = ResourceType::first();
         $importedDate = '2023-05-15';
