@@ -3918,7 +3918,7 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            expect(screen.getByRole('group', { name: /date mode/i })).toBeInTheDocument();
+            expect(screen.getByRole('radiogroup', { name: /date mode/i })).toBeInTheDocument();
             expect(screen.getByText('Single date')).toBeInTheDocument();
             expect(screen.getByText('Period')).toBeInTheDocument();
 
