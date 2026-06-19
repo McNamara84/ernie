@@ -149,6 +149,7 @@ function validateDraftDatePayload(array $dates): \Illuminate\Validation\Validato
     $rules = array_intersect_key($request->rules(), array_flip([
         'dates',
         'dates.*.dateType',
+        'dates.*.dateMode',
         'dates.*.startDate',
         'dates.*.endDate',
     ]));
@@ -166,7 +167,7 @@ function validateDraftDatePayload(array $dates): \Illuminate\Validation\Validato
 
 it('allows closed draft periods for collected, valid, and other dates', function (string $dateType): void {
     $validator = validateDraftDatePayload([
-        ['dateType' => $dateType, 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+        ['dateType' => $dateType, 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
     ]);
 
     expect($validator->errors()->has('dates.0.endDate'))->toBeFalse()
@@ -175,7 +176,7 @@ it('allows closed draft periods for collected, valid, and other dates', function
 
 it('rejects unsupported draft date periods', function (): void {
     $validator = validateDraftDatePayload([
-        ['dateType' => 'available', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+        ['dateType' => 'available', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
     ]);
 
     expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
@@ -183,7 +184,7 @@ it('rejects unsupported draft date periods', function (): void {
 
 it('rejects draft end dates without start dates', function (): void {
     $validator = validateDraftDatePayload([
-        ['dateType' => 'collected', 'startDate' => null, 'endDate' => '2024-01-31'],
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => null, 'endDate' => '2024-01-31'],
     ]);
 
     expect($validator->errors()->has('dates.0.startDate'))->toBeTrue();
@@ -191,8 +192,39 @@ it('rejects draft end dates without start dates', function (): void {
 
 it('rejects draft periods whose end date is before the start date', function (): void {
     $validator = validateDraftDatePayload([
-        ['dateType' => 'other', 'startDate' => '2024-02-01', 'endDate' => '2024-01-31'],
+        ['dateType' => 'other', 'dateMode' => 'range', 'startDate' => '2024-02-01', 'endDate' => '2024-01-31'],
     ]);
 
     expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+it('rejects draft range date mode without an end date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => null],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('rejects unknown draft date modes', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'period', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.dateMode'))->toBeTrue();
+});
+
+it('rejects draft single date mode with an end date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'valid', 'dateMode' => 'single', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('keeps date mode validation aligned between draft and final resource requests', function (): void {
+    $draftRequest = new StoreDraftResourceRequest;
+    $storeRequest = new StoreResourceRequest;
+
+    expect($draftRequest->rules())->toHaveKey('dates.*.dateMode')
+        ->and($storeRequest->rules())->toHaveKey('dates.*.dateMode');
 });

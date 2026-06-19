@@ -32,19 +32,50 @@ trait ValidatesEditorDates
             }
 
             $dateType = Str::kebab((string) ($date['dateType'] ?? ''));
+            $dateMode = $this->normalizedDateMode($date['dateMode'] ?? null);
             $startDate = $this->nonEmptyDateValue($date['startDate'] ?? null);
             $endDate = $this->nonEmptyDateValue($date['endDate'] ?? null);
 
-            if ($endDate !== null && $startDate === null) {
+            if ($dateMode !== null && ! in_array($dateMode, ['single', 'range'], true)) {
                 $validator->errors()->add(
-                    "dates.$index.startDate",
-                    '[Dates] Date #'.($index + 1).' requires a start date when an end date is provided.',
+                    "dates.$index.dateMode",
+                    '[Dates] Date #'.($index + 1).' has an invalid date mode.',
                 );
 
                 continue;
             }
 
-            if ($endDate === null) {
+            if ($dateMode === 'single' && $endDate !== null) {
+                $validator->errors()->add(
+                    "dates.$index.endDate",
+                    '[Dates] Date #'.($index + 1).' is set to single-date mode and must not include an end date.',
+                );
+
+                continue;
+            }
+
+            if ($dateMode === 'range' && $startDate === null) {
+                $validator->errors()->add(
+                    "dates.$index.startDate",
+                    '[Dates] Date #'.($index + 1).' requires a start date for period mode.',
+                );
+            } elseif ($endDate !== null && $startDate === null) {
+                $validator->errors()->add(
+                    "dates.$index.startDate",
+                    '[Dates] Date #'.($index + 1).' requires a start date when an end date is provided.',
+                );
+            }
+
+            if ($dateMode === 'range' && $endDate === null) {
+                $validator->errors()->add(
+                    "dates.$index.endDate",
+                    '[Dates] Date #'.($index + 1).' requires an end date for period mode.',
+                );
+            }
+
+            $hasPeriodIntent = $dateMode === 'range' || ($dateMode === null && $endDate !== null);
+
+            if (! $hasPeriodIntent || $startDate === null || $endDate === null) {
                 continue;
             }
 
@@ -69,6 +100,16 @@ trait ValidatesEditorDates
         }
     }
 
+    private function normalizedDateMode(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : Str::kebab($trimmed);
+    }
     private function nonEmptyDateValue(mixed $value): ?string
     {
         if ($value === null) {

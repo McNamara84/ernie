@@ -301,8 +301,12 @@ export default function DataCiteForm({
                     // Parse ISO 8601 datetime values to separate date, time, and timezone
                     const parsedStart = parseDateTime(date.startDate);
                     const parsedEnd = parseDateTime(date.endDate);
+                    const isRangeCapable = isDateRangeCapable(date.dateType);
                     const dateMode: DateMode =
-                        isDateRangeCapable(date.dateType) && parsedStart.date !== '' && parsedEnd.date !== '' ? 'range' : 'single';
+                        (date.dateMode === 'range' && isRangeCapable) ||
+                        (date.dateMode === undefined && isRangeCapable && parsedStart.date !== '' && parsedEnd.date !== '')
+                            ? 'range'
+                            : 'single';
 
                     return {
                         id: crypto.randomUUID(),
@@ -1901,6 +1905,7 @@ export default function DataCiteForm({
                 })),
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
+                dateMode: date.dateMode,
                 startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
                 endDate: date.dateMode === 'range' ? buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null : null,
             })),

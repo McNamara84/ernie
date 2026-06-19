@@ -205,7 +205,7 @@ export interface DataCiteFormProps {
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string; language?: string | null }[];
-    initialDates?: { dateType: string; startDate: string; endDate: string }[];
+    initialDates?: { dateType: string; dateMode?: DateMode; startDate: string; endDate: string }[];
     initialGcmdKeywords?: {
         id: string;
         path: string;

@@ -849,7 +849,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($collectedDate->end_date)->toBe('2024-12-31');
     });
 
-    it('stores explicit single dates as date_value even when legacy data includes an end date', function () {
+    it('stores explicit single dates as date_value when only a start date is provided', function () {
         $resourceType = ResourceType::first();
 
         [$resource] = $this->service->store([
@@ -867,7 +867,6 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
                     'dateType' => 'Available',
                     'dateMode' => 'single',
                     'startDate' => '2024-01-01',
-                    'endDate' => '2024-12-31',
                 ],
             ],
         ], $this->user->id);
@@ -880,6 +879,101 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($availableDate->date_value)->toBe('2024-01-01')
             ->and($availableDate->start_date)->toBeNull()
             ->and($availableDate->end_date)->toBeNull();
+    });
+
+    it('rejects explicit range dates without an end date before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Incomplete Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => null,
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects unsupported explicit range date types before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Unsupported Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects unknown date modes before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Unknown Date Mode Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'period',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects non-range date types with start and end dates before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Legacy Unsupported Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
     });
 
     it('uses imported created date when provided for new resources', function () {
