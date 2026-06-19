@@ -103,6 +103,52 @@ describe('required fields', function () {
     });
 });
 
+
+// =========================================================================
+// Date period validation
+// =========================================================================
+
+describe('date period validation', function () {
+    it('rejects periods for unsupported date types', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['dates'] = [
+            ['dateType' => 'available', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['dates.0.endDate']);
+    });
+
+    it('rejects end dates without start dates', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['dates'] = [
+            ['dateType' => 'collected', 'startDate' => null, 'endDate' => '2024-01-31'],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['dates.0.startDate']);
+    });
+
+    it('rejects periods whose end date is before the start date', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['dates'] = [
+            ['dateType' => 'valid', 'startDate' => '2024-02-01', 'endDate' => '2024-01-31'],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['dates.0.endDate']);
+    });
+});
+
 // =========================================================================
 // Year validation
 // =========================================================================

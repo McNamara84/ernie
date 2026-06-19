@@ -22,6 +22,7 @@ export const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
     files: 'Files & Downloads',
     general: 'General',
     acquisition: 'Acquisition',
+    dates: 'Dates',
     contact: 'Contact Person',
     model_description: 'Model / Method Description',
     related_work: 'Related Work',
@@ -37,29 +38,11 @@ export const RIGHT_COLUMN_SECTIONS: RightColumnSection[] = [
     'location',
 ];
 
-export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
-    'files',
-    'contact',
-    'model_description',
-    'related_work',
-];
+export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'dates', 'contact', 'model_description', 'related_work'];
 
-export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
-    'general',
-    'acquisition',
-    'contact',
-    'model_description',
-    'related_work',
-];
+export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work'];
 
-export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
-    'files',
-    'general',
-    'acquisition',
-    'contact',
-    'model_description',
-    'related_work',
-];
+export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work'];
 
 export function getCanonicalLeftOrder(templateType: LandingPageTemplateConfig['template_type']): LeftColumnSection[] {
     return templateType === 'igsn' ? IGSN_LEFT_COLUMN_SECTIONS : RESOURCE_LEFT_COLUMN_SECTIONS;
@@ -86,12 +69,13 @@ function normalizeOrder<T extends string>(stored: readonly T[], canonical: reado
 }
 
 export function normalizeRightColumnOrder(stored: readonly RightColumnSection[]): RightColumnSection[] {
-    const locationBeforeMetadata = stored.find((key) => {
-        if (key === 'location') return true;
-        if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) return true;
+    const locationBeforeMetadata =
+        stored.find((key) => {
+            if (key === 'location') return true;
+            if (key === LEGACY_DESCRIPTIONS_SECTION_KEY) return true;
 
-        return RIGHT_COLUMN_SECTIONS.includes(key);
-    }) === 'location';
+            return RIGHT_COLUMN_SECTIONS.includes(key);
+        }) === 'location';
 
     const metadataItems: RightColumnSection[] = [];
     const seen = new Set<RightColumnSection>();

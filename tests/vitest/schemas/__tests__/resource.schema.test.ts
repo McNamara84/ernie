@@ -50,7 +50,7 @@ describe('Resource Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('accepts null dates', () => {
+        it('accepts null dates and defaults to single-date mode', () => {
             const result = dateEntrySchema.safeParse({
                 id: '1',
                 startDate: null,
@@ -58,6 +58,21 @@ describe('Resource Schemas', () => {
                 dateType: 'Created',
             });
             expect(result.success).toBe(true);
+            if (!result.success) throw new Error('Expected date entry schema to parse');
+            expect(result.data.dateMode).toBe('single');
+        });
+
+        it('accepts range date mode', () => {
+            const result = dateEntrySchema.safeParse({
+                id: '1',
+                startDate: '2024-01-01',
+                endDate: '2024-01-31',
+                dateType: 'Collected',
+                dateMode: 'range',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('Expected range date entry schema to parse');
+            expect(result.data.dateMode).toBe('range');
         });
 
         it('requires dateType', () => {

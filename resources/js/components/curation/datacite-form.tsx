@@ -64,6 +64,7 @@ import {
     type SerializedContributor,
     type TitleEntry,
 } from './types/datacite-form-types';
+import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
 import {
     canAddDate,
     canAddLicense,
@@ -168,23 +169,19 @@ export default function DataCiteForm({
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
 
-    // Date types that are automatically managed by the system and not editable by users
-    // This is a constant array that never changes, so no useMemo needed
-    const AUTO_MANAGED_DATE_TYPES = ['created', 'updated'] as const;
+    // Date types shown in the Dates section. Created/Updated are automatic;
+    // Coverage is edited exclusively in Spatial and Temporal Coverage.
+    const MAX_DATES = dateTypes.filter((dt) => isEditableDateType(dt.slug)).length;
 
-    // MAX_DATES excludes auto-managed types since users can't select them
-    // Simple calculation - dateTypes is stable from props, no memoization needed
-    const MAX_DATES = dateTypes.filter((dt) => !AUTO_MANAGED_DATE_TYPES.includes(dt.slug as (typeof AUTO_MANAGED_DATE_TYPES)[number])).length;
-
-    // Transform dateTypes prop to the format used by the form
-    // Note: 'Created' and 'Updated' are excluded as they are automatically managed
     const dateTypeOptions = useMemo(
         () =>
-            dateTypes.map((dt) => ({
-                value: dt.slug,
-                label: dt.name,
-                description: dt.description ?? '',
-            })),
+            dateTypes
+                .filter((dt) => isEditableDateType(dt.slug))
+                .map((dt) => ({
+                    value: dt.slug,
+                    label: dt.name,
+                    description: dt.description ?? '',
+                })),
         [dateTypes],
     );
 
@@ -298,25 +295,25 @@ export default function DataCiteForm({
 
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
-            // Filter out auto-managed date types ('created' and 'updated')
-            // These are now automatically handled by the backend
-            const autoManagedTypes: readonly string[] = AUTO_MANAGED_DATE_TYPES;
             return initialDates
-                .filter((date) => !autoManagedTypes.includes(date.dateType.toLowerCase()))
+                .filter((date) => isEditableDateType(date.dateType))
                 .map((date) => {
                     // Parse ISO 8601 datetime values to separate date, time, and timezone
                     const parsedStart = parseDateTime(date.startDate);
                     const parsedEnd = parseDateTime(date.endDate);
+                    const dateMode: DateMode =
+                        isDateRangeCapable(date.dateType) && parsedStart.date !== '' && parsedEnd.date !== '' ? 'range' : 'single';
 
                     return {
                         id: crypto.randomUUID(),
                         dateType: date.dateType,
+                        dateMode,
                         startDate: parsedStart.date || null,
-                        endDate: parsedEnd.date || null,
+                        endDate: dateMode === 'range' ? parsedEnd.date || null : null,
                         startTime: parsedStart.time,
-                        endTime: parsedEnd.time,
+                        endTime: dateMode === 'range' ? parsedEnd.time : null,
                         startTimezone: parsedStart.timezone,
-                        endTimezone: parsedEnd.timezone,
+                        endTimezone: dateMode === 'range' ? parsedEnd.timezone : null,
                     };
                 });
         }
@@ -1173,6 +1170,20 @@ export default function DataCiteForm({
         dates.forEach((date, index) => {
             const dateIndex = index + 1;
 
+            if (date.dateMode === 'range') {
+                if (!isDateRangeCapable(date.dateType)) {
+                    issues.push(`Date ${dateIndex}: ${date.dateType} does not support period entry`);
+                }
+
+                if (!date.startDate || date.startDate.trim() === '') {
+                    issues.push(`Date ${dateIndex}: Start date is required for periods`);
+                }
+
+                if (!date.endDate || date.endDate.trim() === '') {
+                    issues.push(`Date ${dateIndex}: End date is required for periods`);
+                }
+            }
+
             // Validate start date if provided
             if (date.startDate && date.startDate.trim() !== '') {
                 const startDateValidation = validateDate(date.startDate, {
@@ -1289,8 +1300,10 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'datacenters', 'At least one datacenter is required.');
         }
 
+        dateValidationIssues.forEach((issue) => appendValidationMessage(errors, 'dates', issue));
+
         return errors;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles, dateValidationIssues]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1622,10 +1635,37 @@ export default function DataCiteForm({
 
     const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
         setDates((prev) => {
+            const current = prev[index];
+            if (!current) return prev;
+
             const next = [...prev];
-            // When timezone select is set to "none", clear it to null
-            const resolvedValue = (field === 'startTimezone' || field === 'endTimezone') && value === 'none' ? null : value;
-            next[index] = { ...next[index], [field]: resolvedValue };
+            let updated: DateEntry = { ...current };
+
+            if (field === 'dateMode') {
+                const dateMode: DateMode = value === 'range' && isDateRangeCapable(current.dateType) ? 'range' : 'single';
+                updated = { ...updated, dateMode };
+
+                if (dateMode === 'single') {
+                    updated.endDate = null;
+                    updated.endTime = null;
+                    updated.endTimezone = null;
+                }
+            } else if (field === 'dateType') {
+                updated = { ...updated, dateType: value };
+
+                if (!isDateRangeCapable(value)) {
+                    updated.dateMode = 'single';
+                    updated.endDate = null;
+                    updated.endTime = null;
+                    updated.endTimezone = null;
+                }
+            } else if (field === 'startTimezone' || field === 'endTimezone') {
+                updated = { ...updated, [field]: value === 'none' ? null : value };
+            } else {
+                updated = { ...updated, [field]: value };
+            }
+
+            next[index] = updated;
             return next;
         });
     };
@@ -1633,8 +1673,9 @@ export default function DataCiteForm({
     const addDate = () => {
         if (dates.length >= MAX_DATES) return;
         // Find the first unused date type or default to 'other'
-        const usedTypes = new Set(dates.map((d) => d.dateType));
-        const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
+        const usedTypes = new Set(dates.map((d) => normalizeDateTypeSlug(d.dateType)));
+        const availableType =
+            dateTypeOptions.find((dt) => !usedTypes.has(normalizeDateTypeSlug(dt.value)))?.value ?? dateTypeOptions[0]?.value ?? 'other';
         setDates((prev) => [
             ...prev,
             {
@@ -1642,6 +1683,7 @@ export default function DataCiteForm({
                 startDate: '',
                 endDate: '',
                 dateType: availableType,
+                dateMode: 'single',
                 startTime: null,
                 endTime: null,
                 startTimezone: null,
@@ -1860,7 +1902,7 @@ export default function DataCiteForm({
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
                 startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
-                endDate: buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null,
+                endDate: date.dateMode === 'range' ? buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null : null,
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
             gcmdKeywords: gcmdKeywords.map((kw) => ({
@@ -2175,6 +2217,13 @@ export default function DataCiteForm({
         setMappedValidationErrors([]);
         clearBackendErrors();
 
+        if (dateValidationIssues.length > 0) {
+            setHasAttemptedSubmit(true);
+            revealValidationErrors({ dates: dateValidationIssues }, 'Please complete the date period before saving your draft.');
+            setIsSavingDraft(false);
+            return;
+        }
+
         const payload = buildPayload();
 
         try {
@@ -2350,7 +2399,10 @@ export default function DataCiteForm({
                 <AccordionItem value="resource-info">
                     <AccordionTrigger
                         className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
+                        actions={renderSectionActions(
+                            'Resource Information',
+                            'Required fields: Year, Resource Type, Main Title, Language, Datacenter',
+                        )}
                     >
                         <AccordionSectionHeader
                             label="Resource Information"
@@ -2557,7 +2609,10 @@ export default function DataCiteForm({
                 <AccordionItem value="contributors">
                     <AccordionTrigger
                         className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions('Contributors', 'Optional. Contributors can have different roles like Editor, Data Curator, etc.')}
+                        actions={renderSectionActions(
+                            'Contributors',
+                            'Optional. Contributors can have different roles like Editor, Data Curator, etc.',
+                        )}
                     >
                         <AccordionSectionHeader
                             label="Contributors"
@@ -2682,7 +2737,10 @@ export default function DataCiteForm({
                 <AccordionItem value="spatial-temporal-coverage">
                     <AccordionTrigger
                         className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions('Spatial and Temporal Coverage', 'Supports points, boxes, and polygons for geographic coverage.')}
+                        actions={renderSectionActions(
+                            'Spatial and Temporal Coverage',
+                            'Supports points, boxes, and polygons for geographic coverage.',
+                        )}
                     >
                         <AccordionSectionHeader
                             label="Spatial and Temporal Coverage"
@@ -2727,7 +2785,9 @@ export default function DataCiteForm({
                                 />
                             ) : (
                                 dates.map((entry, index) => {
-                                    const selectedDateType = dateTypeOptions.find((dt) => dt.value === entry.dateType);
+                                    const selectedDateType = dateTypeOptions.find(
+                                        (dt) => normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType),
+                                    );
                                     return (
                                         <DateField
                                             key={entry.id}
@@ -2735,13 +2795,16 @@ export default function DataCiteForm({
                                             startDate={entry.startDate}
                                             endDate={entry.endDate}
                                             dateType={entry.dateType}
+                                            dateMode={entry.dateMode}
                                             startTime={entry.startTime}
                                             endTime={entry.endTime}
                                             startTimezone={entry.startTimezone}
                                             endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions.filter(
-                                                (dt) => dt.value === entry.dateType || !dates.some((d) => d.dateType === dt.value),
+                                                (dt) =>
+                                                    normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType) ||
+                                                    !dates.some((d) => normalizeDateTypeSlug(d.dateType) === normalizeDateTypeSlug(dt.value)),
                                             )}
                                             onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
                                             onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
@@ -2750,6 +2813,7 @@ export default function DataCiteForm({
                                             onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}
                                             onEndTimezoneChange={(val) => handleDateChange(index, 'endTimezone', val)}
                                             onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
+                                            onDateModeChange={(val) => handleDateChange(index, 'dateMode', val)}
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
@@ -2795,10 +2859,7 @@ export default function DataCiteForm({
                             'Use the Citation Manager to add publications cited by or supplementing this dataset. Each entry carries full metadata (authors, title, year, pages).',
                         )}
                     >
-                        <AccordionSectionHeader
-                            label="Citations"
-                            description="Inline citation metadata (DataCite 4.7 relatedItem)."
-                        />
+                        <AccordionSectionHeader label="Citations" description="Inline citation metadata (DataCite 4.7 relatedItem)." />
                     </AccordionTrigger>
                     <AccordionContent data-testid="citations-accordion-content">
                         <CitationsField resourceId={resolvedResourceId} />
@@ -2829,7 +2890,10 @@ export default function DataCiteForm({
                 <AccordionItem value="funding-references">
                     <AccordionTrigger
                         className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions('Funding References', 'ROR lookup available for funder identification. Include grant numbers when available.')}
+                        actions={renderSectionActions(
+                            'Funding References',
+                            'ROR lookup available for funder identification. Include grant numbers when available.',
+                        )}
                     >
                         <AccordionSectionHeader
                             label="Funding References"

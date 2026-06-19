@@ -19,7 +19,7 @@ export type RightColumnSection =
 /**
  * Left column section identifiers for landing page templates.
  */
-export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'contact' | 'model_description' | 'related_work';
+export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'dates' | 'contact' | 'model_description' | 'related_work';
 
 /**
  * Section order configuration for landing page templates.

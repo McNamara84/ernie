@@ -8,6 +8,7 @@ describe('DateField', () => {
     const mockOnStartDateChange = vi.fn();
     const mockOnEndDateChange = vi.fn();
     const mockOnTypeChange = vi.fn();
+    const mockOnDateModeChange = vi.fn();
     const mockOnAdd = vi.fn();
     const mockOnRemove = vi.fn();
     const mockOnStartTimeChange = vi.fn();
@@ -18,6 +19,8 @@ describe('DateField', () => {
     const defaultOptions = [
         { value: 'created', label: 'Created' },
         { value: 'valid', label: 'Valid' },
+        { value: 'collected', label: 'Collected' },
+        { value: 'other', label: 'Other' },
         { value: 'available', label: 'Available' },
         { value: 'submitted', label: 'Submitted' },
     ];
@@ -27,10 +30,12 @@ describe('DateField', () => {
         startDate: '',
         endDate: '',
         dateType: 'created',
+        dateMode: 'single' as const,
         options: defaultOptions,
         onStartDateChange: mockOnStartDateChange,
         onEndDateChange: mockOnEndDateChange,
         onTypeChange: mockOnTypeChange,
+        onDateModeChange: mockOnDateModeChange,
         onAdd: mockOnAdd,
         onRemove: mockOnRemove,
         isFirst: true,
@@ -51,38 +56,51 @@ describe('DateField', () => {
     it('renders date picker component', () => {
         render(<DateField {...defaultProps} />);
 
-        // DatePicker renders a combobox trigger (Button with role="combobox")
-        // Find by role, excluding the date type select combobox
         const comboboxes = screen.getAllByRole('combobox');
-        // At least one should be the date picker (the other is the date type select)
         expect(comboboxes.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('shows Date label for non-range date types', () => {
-        render(<DateField {...defaultProps} dateType="created" />);
+    it('shows Date label for single-date mode', () => {
+        render(<DateField {...defaultProps} dateType="collected" dateMode="single" />);
 
         expect(screen.getByText('Date')).toBeInTheDocument();
     });
 
-    it('shows Start Date and End Date labels for valid date type', () => {
-        render(<DateField {...defaultProps} dateType="valid" />);
+    it('shows Start Date and End Date labels for period mode', () => {
+        render(<DateField {...defaultProps} dateType="valid" dateMode="range" />);
 
         expect(screen.getByText('Start Date')).toBeInTheDocument();
         expect(screen.getByText('End Date')).toBeInTheDocument();
     });
 
-    it('hides End Date field for non-valid date types', () => {
-        render(<DateField {...defaultProps} dateType="created" />);
+    it.each(['collected', 'valid', 'other'])('shows the date-mode toggle for %s dates', (dateType) => {
+        render(<DateField {...defaultProps} dateType={dateType} />);
 
+        expect(screen.getByRole('group', { name: /date mode/i })).toBeInTheDocument();
+        expect(screen.getByText('Single date')).toBeInTheDocument();
+        expect(screen.getByText('Period')).toBeInTheDocument();
+    });
+
+    it('hides date-mode toggle and End Date field for non-period date types', () => {
+        render(<DateField {...defaultProps} dateType="available" />);
+
+        expect(screen.queryByRole('group', { name: /date mode/i })).not.toBeInTheDocument();
         expect(screen.queryByText('End Date')).not.toBeInTheDocument();
+    });
+
+    it('calls onDateModeChange when period mode is selected', async () => {
+        const user = userEvent.setup();
+        render(<DateField {...defaultProps} dateType="valid" dateMode="single" />);
+
+        await user.click(screen.getByText('Period'));
+
+        expect(mockOnDateModeChange).toHaveBeenCalledWith('range');
     });
 
     it('renders date type select with options', async () => {
         render(<DateField {...defaultProps} />);
 
-        // Find all comboboxes - one is DatePicker, one is SelectField for date type
         const comboboxes = screen.getAllByRole('combobox');
-        // The date type select should show "Created" as the current value
         const dateTypeSelect = comboboxes.find((cb) => cb.textContent?.includes('Created'));
         expect(dateTypeSelect).toBeInTheDocument();
     });
@@ -90,12 +108,11 @@ describe('DateField', () => {
     it('displays prefilled start date in button text', () => {
         render(<DateField {...defaultProps} startDate="2024-06-15" />);
 
-        // DatePicker shows the selected date in the button
         expect(screen.getByText(/2024-06-15/)).toBeInTheDocument();
     });
 
-    it('displays prefilled end date for valid type', () => {
-        render(<DateField {...defaultProps} dateType="valid" endDate="2024-12-31" />);
+    it('displays prefilled end date in period mode', () => {
+        render(<DateField {...defaultProps} dateType="valid" dateMode="range" endDate="2024-12-31" />);
 
         expect(screen.getByText(/2024-12-31/)).toBeInTheDocument();
     });
@@ -103,7 +120,6 @@ describe('DateField', () => {
     it('marks date as required for created type', () => {
         render(<DateField {...defaultProps} dateType="created" />);
 
-        // The asterisk indicates required
         const label = screen.getByText('Date');
         const requiredIndicator = label.parentElement?.querySelector('.text-destructive');
         expect(requiredIndicator).toBeInTheDocument();
@@ -155,43 +171,35 @@ describe('DateField', () => {
         const user = userEvent.setup();
         render(<DateField {...defaultProps} />);
 
-        // Find all comboboxes and identify the date type select
         const comboboxes = screen.getAllByRole('combobox');
         const dateTypeSelect = comboboxes.find((cb) => cb.textContent?.includes('Created'));
         expect(dateTypeSelect).toBeTruthy();
 
         await user.click(dateTypeSelect!);
 
-        // Wait for options to be visible and click "Valid"
         const validOption = await screen.findByRole('option', { name: 'Valid' });
         await user.click(validOption);
 
         expect(mockOnTypeChange).toHaveBeenCalledWith('valid');
     });
 
-    it('shows two date pickers for valid date type', () => {
-        render(<DateField {...defaultProps} dateType="valid" />);
+    it('shows two date pickers for period mode', () => {
+        render(<DateField {...defaultProps} dateType="valid" dateMode="range" />);
 
-        // For "valid" type, there should be multiple comboboxes:
-        // - Start date picker (combobox)
-        // - End date picker (combobox)
-        // - Date type select (combobox)
         const comboboxes = screen.getAllByRole('combobox');
-        // Filter to find date pickers by looking for "Select date" placeholder text
-        const datePickerComboboxes = comboboxes.filter((cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''));
+        const datePickerComboboxes = comboboxes.filter(
+            (cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''),
+        );
         expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('shows one date picker for non-valid date types', () => {
-        render(<DateField {...defaultProps} dateType="created" />);
+    it('shows one date picker for single-date mode', () => {
+        render(<DateField {...defaultProps} dateType="valid" dateMode="single" />);
 
-        // For non-valid types, there should be:
-        // - One date picker (combobox)
-        // - One date type select (combobox)
-        // - Add/remove button (button)
         const comboboxes = screen.getAllByRole('combobox');
-        // Filter to find date pickers by looking for "Select date" placeholder text
-        const datePickerComboboxes = comboboxes.filter((cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''));
+        const datePickerComboboxes = comboboxes.filter(
+            (cb) => cb.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(cb.textContent || ''),
+        );
         expect(datePickerComboboxes.length).toBe(1);
     });
 

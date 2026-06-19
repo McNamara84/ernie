@@ -380,6 +380,9 @@ describe('DataCiteForm', () => {
         { id: 7, name: 'Submitted', slug: 'submitted', description: 'The date the creator submits the resource to the publisher.' },
         { id: 8, name: 'Valid', slug: 'valid', description: 'The date range during which the dataset is accurate.' },
         { id: 9, name: 'Withdrawn', slug: 'withdrawn', description: 'The date the resource is removed.' },
+        { id: 10, name: 'Created', slug: 'created', description: 'The date the resource was created.' },
+        { id: 11, name: 'Updated', slug: 'updated', description: 'The date the resource metadata was updated.' },
+        { id: 12, name: 'Coverage', slug: 'coverage', description: 'Temporal coverage for the resource.' },
     ];
 
     const descriptionTypes: DescriptionType[] = [
@@ -3867,11 +3870,13 @@ describe('DataCiteForm', () => {
             const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
             expect(acceptedOption).not.toBeInTheDocument();
 
-            // 'Created' and 'Updated' should also not be available (auto-managed)
+            // 'Created' and 'Updated' are auto-managed; 'Coverage' belongs to Spatial and Temporal Coverage.
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
+            const coverageOption = screen.queryByRole('option', { name: 'Coverage' });
             expect(createdOption).not.toBeInTheDocument();
             expect(updatedOption).not.toBeInTheDocument();
+            expect(coverageOption).not.toBeInTheDocument();
         });
 
         it('displays description for selected date type', () => {
@@ -3895,7 +3900,7 @@ describe('DataCiteForm', () => {
             expect(description).toBeInTheDocument();
         });
 
-        it('shows both start and end date fields only for "valid" date type', async () => {
+        it('shows period mode only after selecting it for supported date types', async () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3911,11 +3916,22 @@ describe('DataCiteForm', () => {
                     initialDates={[{ dateType: 'valid', startDate: '', endDate: '' }]}
                 />,
             );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // "valid" date type should have both start and end date fields (date range)
-            // DatePicker uses combobox role
-            const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(
+            expect(screen.getByRole('group', { name: /date mode/i })).toBeInTheDocument();
+            expect(screen.getByText('Single date')).toBeInTheDocument();
+            expect(screen.getByText('Period')).toBeInTheDocument();
+
+            let allComboboxes = screen.getAllByRole('combobox');
+            let datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
+            );
+            expect(datePickerComboboxes).toHaveLength(1);
+
+            await user.click(screen.getByText('Period'));
+
+            allComboboxes = screen.getAllByRole('combobox');
+            datePickerComboboxes = allComboboxes.filter(
                 (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(2);
@@ -3967,7 +3983,7 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
 
-        it('filters out created and updated dates from initialDates', () => {
+        it('filters out created, updated, and coverage dates from initialDates', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3983,12 +3999,13 @@ describe('DataCiteForm', () => {
                     initialDates={[
                         { dateType: 'created', startDate: '2024-01-01', endDate: '' },
                         { dateType: 'updated', startDate: '2024-06-15', endDate: '' },
+                        { dateType: 'coverage', startDate: '2024-03-01', endDate: '2024-03-31' },
                         { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
                     ]}
                 />,
             );
 
-            // Only 'accepted' should be shown, 'created' and 'updated' are auto-managed
+            // Only 'accepted' should be shown; created/updated are auto-managed and coverage is edited elsewhere.
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
             const datePickerComboboxes = allComboboxes.filter(
@@ -4500,6 +4517,41 @@ describe('DataCiteForm', () => {
             const [url, data] = mockedAxios.post.mock.calls[0];
             expect(url).toBe('/editor/resources/draft');
             expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
+        });
+
+        it('blocks draft save when a selected date period is incomplete', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn();
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'collected', startDate: '2024-01-01', endDate: '' }]}
+                />,
+            );
+
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'Draft Dataset');
+
+            await ensureDatesOpen(user);
+            await user.click(screen.getByText('Period'));
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText(/End date is required for periods/).length).toBeGreaterThan(0);
         });
 
         it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {

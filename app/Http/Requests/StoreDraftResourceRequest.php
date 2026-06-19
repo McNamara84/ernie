@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
@@ -23,6 +24,8 @@ use Illuminate\Validation\Validator;
  */
 class StoreDraftResourceRequest extends FormRequest
 {
+    use ValidatesEditorDates;
+
     /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
@@ -977,6 +980,9 @@ class StoreDraftResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $this->validateEditorDates($validator);
+            },
             // Validate title type slugs against DB
             function (Validator $validator): void {
                 /** @var mixed $candidateTitles */

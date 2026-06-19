@@ -1,3 +1,4 @@
+// organize-imports-ignore
 /**
  * DataCite Form Types
  *
@@ -5,10 +6,22 @@
  * Extracted from datacite-form.tsx for better maintainability.
  */
 
-import type { DateType, DescriptionType, InstrumentSelection, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type {
+    DateType,
+    DescriptionType,
+    InstrumentSelection,
+    Language,
+    License,
+    MSLLaboratory,
+    RelatedIdentifier,
+    ResourceType,
+    Role,
+    TitleType,
+} from '@/types';
 
 import type { FundingReferenceEntry } from '../fields/funding-reference';
 import type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
+import type { DateMode } from '../utils/date-rules';
 
 // Re-export types that are used by consumers of this module
 export type { AuthorEntry } from '../fields/author';
@@ -57,6 +70,7 @@ export interface DateEntry {
     startDate: string | null;
     endDate: string | null;
     dateType: string;
+    dateMode: DateMode;
     startTime: string | null;
     endTime: string | null;
     startTimezone: string | null;

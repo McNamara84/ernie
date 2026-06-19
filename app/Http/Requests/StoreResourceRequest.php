@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
@@ -20,6 +21,8 @@ use Illuminate\Validation\Validator;
 
 class StoreResourceRequest extends FormRequest
 {
+    use ValidatesEditorDates;
+
     /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
@@ -1100,6 +1103,9 @@ class StoreResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $this->validateEditorDates($validator);
+            },
             function (Validator $validator): void {
                 $licenses = $this->input('licenses', []);
                 $rawRights = $this->input('rawRights', []);
