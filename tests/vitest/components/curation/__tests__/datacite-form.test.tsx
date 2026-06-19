@@ -1157,7 +1157,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Resource Type is required\.$/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /^Primary License is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^At least one License is required\.$/i })).toBeInTheDocument();
     });
 
     it('shows validation error list on every save attempt, not just the first (Issue #538)', { timeout: 60000 }, async () => {
