@@ -110,6 +110,7 @@ trait ValidatesEditorDates
 
         return $trimmed === '' ? null : Str::kebab($trimmed);
     }
+
     private function nonEmptyDateValue(mixed $value): ?string
     {
         if ($value === null) {

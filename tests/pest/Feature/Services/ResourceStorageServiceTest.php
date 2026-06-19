@@ -882,6 +882,48 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($availableDate->end_date)->toBeNull();
     });
 
+    it('normalizes date information when storing dates directly', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Date Information Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-01-01',
+                    'dateInformation' => '  Approximate availability date  ',
+                ],
+                [
+                    'dateType' => 'Other',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-02-01',
+                    'dateInformation' => '   ',
+                ],
+            ],
+        ], $this->user->id);
+
+        $availableDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['available']);
+        })->first();
+        $otherDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['other']);
+        })->first();
+
+        expect($availableDate)->not->toBeNull()
+            ->and($availableDate->date_information)->toBe('Approximate availability date')
+            ->and($otherDate)->not->toBeNull()
+            ->and($otherDate->date_information)->toBeNull();
+    });
+
     it('rejects explicit range dates without an end date before storing', function () {
         $resourceType = ResourceType::first();
 

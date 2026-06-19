@@ -1073,7 +1073,7 @@ class ResourceStorageService
                 'date_value' => $hasRange ? null : $startDate,
                 'start_date' => $hasRange ? $startDate : null,
                 'end_date' => $hasRange ? $endDate : null,
-                'date_information' => $date['dateInformation'] ?? null,
+                'date_information' => $this->normalizeNullableString($date['dateInformation'] ?? null),
             ]);
         }
 
@@ -1112,6 +1112,17 @@ class ResourceStorageService
                 'date_information' => null,
             ]);
         }
+    }
+
+    private function normalizeNullableString(mixed $value): ?string
+    {
+        if ($value === null || (! is_scalar($value) && ! $value instanceof \Stringable)) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     /**

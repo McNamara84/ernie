@@ -2224,7 +2224,7 @@ export default function DataCiteForm({
 
         if (dateValidationIssues.length > 0) {
             setHasAttemptedSubmit(true);
-            revealValidationErrors({ dates: dateValidationIssues }, 'Please complete the date period before saving your draft.');
+            revealValidationErrors({ dates: dateValidationIssues }, 'Please resolve the date validation issues before saving your draft.');
             setIsSavingDraft(false);
             return;
         }

@@ -4554,6 +4554,37 @@ describe('DataCiteForm', () => {
             expect(screen.getAllByText(/End date is required for periods/).length).toBeGreaterThan(0);
         });
 
+        it('uses a generic date validation header when draft save is blocked by invalid single dates', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn();
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialTitles={[{ title: 'Draft Dataset', titleType: 'main-title' }]}
+                    initialDates={[{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
+                />,
+            );
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.getByText('Please resolve the date validation issues before saving your draft.')).toBeInTheDocument();
+            expect(screen.queryByText('Please complete the date period before saving your draft.')).not.toBeInTheDocument();
+        });
+
         it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
