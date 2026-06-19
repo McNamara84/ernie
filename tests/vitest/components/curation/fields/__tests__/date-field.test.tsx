@@ -76,7 +76,7 @@ describe('DateField', () => {
     it.each(['collected', 'valid', 'other'])('shows the date-mode toggle for %s dates', (dateType) => {
         render(<DateField {...defaultProps} dateType={dateType} />);
 
-        expect(screen.getByRole('group', { name: /date mode/i })).toBeInTheDocument();
+        expect(screen.getByRole('radiogroup', { name: /date mode/i })).toBeInTheDocument();
         expect(screen.getByText('Single date')).toBeInTheDocument();
         expect(screen.getByText('Period')).toBeInTheDocument();
     });
@@ -84,7 +84,7 @@ describe('DateField', () => {
     it('hides date-mode toggle and End Date field for non-period date types', () => {
         render(<DateField {...defaultProps} dateType="available" />);
 
-        expect(screen.queryByRole('group', { name: /date mode/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('radiogroup', { name: /date mode/i })).not.toBeInTheDocument();
         expect(screen.queryByText('End Date')).not.toBeInTheDocument();
     });
 
