@@ -1141,6 +1141,39 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
         expect($createdDate->date_value)->toBe('2020-01-01');
     });
 
+    it('imports Collected, Valid, and Other ranges from the DataCite API as stored periods', function (string $dateTypeSlug): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/imported-date-period.'.strtolower($dateTypeSlug),
+                'publicationYear' => 2024,
+                'titles' => [['title' => $dateTypeSlug.' imported period']],
+                'creators' => [
+                    ['familyName' => 'Period', 'givenName' => 'Pat', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2024-01-01/2024-12-31', 'dateType' => $dateTypeSlug],
+                    ['date' => '2024-02-01', 'dateType' => 'Created'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $periodDate = $resource->dates()->whereHas('dateType', function ($q) use ($dateTypeSlug) {
+            $q->whereRaw('LOWER(slug) = ?', [strtolower($dateTypeSlug)]);
+        })->first();
+
+        expect($periodDate)->not->toBeNull()
+            ->and($periodDate->date_value)->toBeNull()
+            ->and($periodDate->start_date)->toBe('2024-01-01')
+            ->and($periodDate->end_date)->toBe('2024-12-31');
+    })->with([
+        'Collected' => 'Collected',
+        'Valid' => 'Valid',
+        'Other' => 'Other',
+    ]);
 });
 
 describe('DataCiteToResourceTransformer - nameType inference and null family_name handling', function (): void {

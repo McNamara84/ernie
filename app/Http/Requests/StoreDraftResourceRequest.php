@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
@@ -23,6 +24,8 @@ use Illuminate\Validation\Validator;
  */
 class StoreDraftResourceRequest extends FormRequest
 {
+    use ValidatesEditorDates;
+
     /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
@@ -117,6 +120,7 @@ class StoreDraftResourceRequest extends FormRequest
                 'string',
                 Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
             ],
+            'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
@@ -584,6 +588,9 @@ class StoreDraftResourceRequest extends FormRequest
             $endDate = isset($date['endDate'])
                 ? trim((string) $date['endDate'])
                 : null;
+            $dateMode = isset($date['dateMode'])
+                ? Str::kebab(trim((string) $date['dateMode']))
+                : null;
             $dateInformation = isset($date['dateInformation'])
                 ? trim((string) $date['dateInformation'])
                 : null;
@@ -596,6 +603,7 @@ class StoreDraftResourceRequest extends FormRequest
 
             $dates[] = [
                 'dateType' => $normalizedType,
+                ...($dateMode !== null && $dateMode !== '' ? ['dateMode' => $dateMode] : []),
                 'startDate' => $startDate !== '' ? $startDate : null,
                 'endDate' => $endDate !== '' ? $endDate : null,
                 'dateInformation' => $dateInformation !== '' ? $dateInformation : null,
@@ -914,6 +922,7 @@ class StoreDraftResourceRequest extends FormRequest
             // Dates
             'dates.*.dateType.required' => '[Dates] Date #:position must have a type.',
             'dates.*.dateType.in' => '[Dates] Date #:position has an invalid type.',
+            'dates.*.dateMode.in' => '[Dates] Date #:position has an invalid date mode.',
             'dates.*.startDate.date' => '[Dates] Date #:position has an invalid start date.',
             'dates.*.endDate.date' => '[Dates] Date #:position has an invalid end date.',
 
@@ -977,6 +986,9 @@ class StoreDraftResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $this->validateEditorDates($validator);
+            },
             // Validate title type slugs against DB
             function (Validator $validator): void {
                 /** @var mixed $candidateTitles */

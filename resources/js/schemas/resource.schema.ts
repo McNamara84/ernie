@@ -64,6 +64,7 @@ export const dateEntrySchema = z.object({
     startDate: z.string().nullable(),
     endDate: z.string().nullable(),
     dateType: z.string().min(1, 'Date type is required'),
+    dateMode: z.enum(['single', 'range']).default('single'),
 });
 
 export type DateEntryFormData = z.infer<typeof dateEntrySchema>;
@@ -200,9 +201,11 @@ export type ResourceFormData = z.infer<typeof resourceSchema>;
 // Resource Schema with Contact Validation
 // =============================================================================
 
-export const resourceWithContactSchema = resourceBaseSchema.safeExtend({
-    authors: authorsWithContactSchema,
-}).superRefine(requireRightsEvidence);
+export const resourceWithContactSchema = resourceBaseSchema
+    .safeExtend({
+        authors: authorsWithContactSchema,
+    })
+    .superRefine(requireRightsEvidence);
 
 export type ResourceWithContactFormData = z.infer<typeof resourceWithContactSchema>;
 

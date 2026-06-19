@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\Right;
 use App\Models\Size;
 use App\Models\TitleType;
@@ -369,6 +371,28 @@ describe('rights', function () {
         expect($rights['value'])->toBe('Creative Commons Attribution 4.0 International');
         expect($rights)->toHaveKey('attrs');
         expect($rights['attrs'])->toHaveKey('rightsIdentifier');
+    });
+});
+
+describe('dates', function () {
+    it('transforms a date period with dateType attributes and an interval value', function () {
+        $resource = createResourceWithTitle();
+        $dateType = DateType::where('slug', 'Collected')->firstOrFail();
+
+        ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2024-01-01',
+            'end_date' => '2024-12-31',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+
+        expect($result)->toHaveKey('dates');
+        $date = $result['dates']['date'];
+        expect($date)->toHaveKey('attrs')
+            ->and($date['attrs']['dateType'])->toBe('Collected')
+            ->and($date['value'])->toBe('2024-01-01/2024-12-31');
     });
 });
 

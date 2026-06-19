@@ -38,7 +38,15 @@ vi.mock('@/layouts/app-layout', () => ({
 
 // Additional mocks for full component rendering
 vi.mock('axios', () => ({
-    default: { get: vi.fn().mockResolvedValue({ data: {} }) },
+    default: {
+        get: vi.fn((url: string) => {
+            if (url === '/resources/filter-options') {
+                return new Promise(() => {});
+            }
+
+            return Promise.resolve({ data: {} });
+        }),
+    },
     isAxiosError: (err: unknown) => !!(err && typeof err === 'object' && 'isAxiosError' in err),
 }));
 vi.mock('sonner', () => {
@@ -135,6 +143,12 @@ function renderPage(propsOverrides: Record<string, unknown> = {}) {
     return render(<ResourcesPage {...(props as any)} />);
 }
 
+async function renderPageReady(propsOverrides: Record<string, unknown> = {}) {
+    const result = renderPage(propsOverrides);
+    await screen.findByTestId('resources-filters');
+    return result;
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -198,8 +212,8 @@ describe('ResourcesPage – extended', () => {
 
     // ── Sort UI ───────────────────────────────────────────────────────
     describe('sort UI', () => {
-        it('renders sort buttons for each column sort option', () => {
-            renderPage();
+        it('renders sort buttons for each column sort option', async () => {
+            await renderPageReady();
             // The resources page has sort options: ID, DOI, Title, Type, Author, Year, Curator, Status, Created, Updated
             expect(screen.getByRole('button', { name: /sort by the resource id/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /sort by the doi/i })).toBeInTheDocument();
@@ -213,15 +227,15 @@ describe('ResourcesPage – extended', () => {
             expect(screen.getByRole('button', { name: /sort by the updated date/i })).toBeInTheDocument();
         });
 
-        it('shows sort badge reflecting current sort state', () => {
-            renderPage();
+        it('shows sort badge reflecting current sort state', async () => {
+            await renderPageReady();
             const badge = screen.getByText(/sorted by/i);
             expect(badge).toHaveTextContent(/updated date/i);
             expect(badge).toHaveTextContent('↓');
         });
 
-        it('shows ascending arrow for ascending sort', () => {
-            renderPage({ sort: { key: 'id', direction: 'asc' } });
+        it('shows ascending arrow for ascending sort', async () => {
+            await renderPageReady({ sort: { key: 'id', direction: 'asc' } });
             const badge = screen.getByText(/sorted by/i);
             expect(badge).toHaveTextContent(/\bid\b/i);
             expect(badge).toHaveTextContent('↑');

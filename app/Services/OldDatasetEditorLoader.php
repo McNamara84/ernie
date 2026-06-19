@@ -774,7 +774,7 @@ class OldDatasetEditorLoader
     /**
      * Load dates from old dataset.
      *
-     * @return list<array{dateType: string, startDate: string, endDate: string}>
+     * @return list<array{dateType: string, dateMode?: string, startDate: string, endDate: string}>
      */
     private function loadDates(int $id): array
     {

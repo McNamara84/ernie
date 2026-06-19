@@ -949,7 +949,7 @@ class OldDataset extends Model
      * Note: This method is NOT named getDates() to avoid conflicts with Laravel's
      * internal getDates() method which is used for date attribute handling.
      *
-     * @return array<int, array{dateType: string, startDate: string, endDate: string}>
+     * @return array<int, array{dateType: string, dateMode: 'single'|'range', startDate: string, endDate: string}>
      */
     public function getResourceDates(): array
     {
@@ -966,11 +966,20 @@ class OldDataset extends Model
             ->get();
 
         return $dates->map(function ($date) {
+            $dateType = strtolower($date->datetype);
+            $startDate = $date->start ?? '';
+            $endDate = $date->end ?? '';
+
+            $dateMode = $startDate !== '' && $endDate !== '' && in_array($dateType, ['collected', 'valid', 'other'], true)
+                ? 'range'
+                : 'single';
+
             return [
                 // Convert dateType to lowercase to match ERNIE's format (e.g., "Available" -> "available")
-                'dateType' => strtolower($date->datetype),
-                'startDate' => $date->start ?? '',
-                'endDate' => $date->end ?? '',
+                'dateType' => $dateType,
+                'dateMode' => $dateMode,
+                'startDate' => $startDate,
+                'endDate' => $dateMode === 'range' ? $endDate : '',
             ];
         })->toArray();
     }

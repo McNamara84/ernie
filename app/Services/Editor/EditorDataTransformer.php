@@ -481,25 +481,30 @@ class EditorDataTransformer
      * Excludes 'coverage', 'created', and 'updated' dates as they are handled separately.
      * Preserves full ISO 8601 datetime+timezone values for dates that include time components.
      *
-     * @return array<int, array{dateType: string, startDate: string, endDate: string}>
+     * @return array<int, array{dateType: string, dateMode: 'single'|'range', startDate: string, endDate: string}>
      */
     public function transformDates(Resource $resource): array
     {
         return $resource->dates
             ->filter(function (ResourceDate $date): bool {
-                // Use null-safe operator to handle missing dateType relationship
-                // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
-                $slug = mb_strtolower($date->dateType?->slug ?? '');
+                $slug = mb_strtolower($date->dateType->slug);
 
                 return ! in_array($slug, ['coverage', 'created', 'updated'], true);
             })
             ->map(function (ResourceDate $date): array {
+                $dateType = $date->dateType->slug;
+                $dateTypeSlug = Str::kebab(mb_strtolower($dateType));
+                $hasClosedRange = ($date->start_date ?? '') !== '' && ($date->end_date ?? '') !== '';
+
+                $dateMode = $hasClosedRange && in_array($dateTypeSlug, ['collected', 'valid', 'other'], true)
+                    ? 'range'
+                    : 'single';
+
                 return [
-                    // Use null-safe operator to handle missing dateType relationship
-                    // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
-                    'dateType' => $date->dateType?->slug ?? '',
+                    'dateType' => $dateType,
+                    'dateMode' => $dateMode,
                     'startDate' => $this->formatStoredDate($date->start_date ?? $date->date_value),
-                    'endDate' => $this->formatStoredDate($date->end_date),
+                    'endDate' => $dateMode === 'range' ? $this->formatStoredDate($date->end_date) : '',
                 ];
             })
             ->values()

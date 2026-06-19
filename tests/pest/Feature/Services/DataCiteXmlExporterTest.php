@@ -906,26 +906,32 @@ describe('DataCiteXmlExporter - Dates', function () {
             ->and($xml)->toContain('>2024-01-15</date>');
     });
 
-    test('exports date range with start and end date', function () {
+    test('exports supported date periods with start and end date', function (string $dateTypeSlug, string $dateTypeName) {
         $resource = Resource::factory()->create();
 
-        $collectedType = DateType::firstOrCreate(
-            ['slug' => 'Collected'],
-            ['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]
+        $dateType = DateType::firstOrCreate(
+            ['slug' => $dateTypeSlug],
+            ['name' => $dateTypeName, 'slug' => $dateTypeSlug, 'is_active' => true]
         );
 
         ResourceDate::create([
             'resource_id' => $resource->id,
             'start_date' => '2023-01-01',
             'end_date' => '2023-12-31',
-            'date_type_id' => $collectedType->id,
+            'date_type_id' => $dateType->id,
         ]);
 
         $xml = $this->exporter->export($resource);
+        $dom = new DOMDocument;
 
-        expect($xml)->toContain('dateType="Collected"')
+        expect($dom->loadXML($xml))->toBeTrue()
+            ->and($xml)->toContain('dateType="'.$dateTypeName.'"')
             ->and($xml)->toContain('2023-01-01/2023-12-31</date>');
-    });
+    })->with([
+        'Collected' => ['Collected', 'Collected'],
+        'Valid' => ['Valid', 'Valid'],
+        'Other' => ['Other', 'Other'],
+    ]);
 
     test('exports date with dateInformation attribute', function () {
         $resource = Resource::factory()->create();

@@ -151,9 +151,7 @@ describe('normaliseInitialAffiliations', () => {
     });
 
     it('handles rorId property', () => {
-        const result = normaliseInitialAffiliations([
-            { value: 'University C', rorId: 'https://ror.org/123' },
-        ]);
+        const result = normaliseInitialAffiliations([{ value: 'University C', rorId: 'https://ror.org/123' }]);
         expect(result).toEqual([{ value: 'University C', rorId: 'https://ror.org/123' }]);
     });
 
@@ -179,11 +177,7 @@ describe('normaliseInitialAffiliations', () => {
     });
 
     it('filters out empty affiliations', () => {
-        const result = normaliseInitialAffiliations([
-            { value: '' },
-            { value: '   ' },
-            { value: 'Valid' },
-        ]);
+        const result = normaliseInitialAffiliations([{ value: '' }, { value: '   ' }, { value: 'Valid' }]);
         expect(result).toHaveLength(1);
         expect(result[0].value).toBe('Valid');
     });
@@ -669,6 +663,16 @@ describe('canAddDate', () => {
 
     it('returns true when last date has endDate', () => {
         const dates = [{ startDate: '', endDate: '2024-12-31' }];
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(true);
+    });
+
+    it('returns false when a range date is incomplete', () => {
+        const dates = [{ dateMode: 'range', startDate: '2024-01-01', endDate: '' }];
+        expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(false);
+    });
+
+    it('returns true when a range date has start and end dates', () => {
+        const dates = [{ dateMode: 'range', startDate: '2024-01-01', endDate: '2024-01-31' }];
         expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(true);
     });
 });

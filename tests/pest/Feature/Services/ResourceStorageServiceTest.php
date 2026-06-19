@@ -18,6 +18,7 @@ use App\Services\KeywordSuggestionService;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -814,6 +815,208 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             $this->artisan('db:seed', ['--class' => 'ResourceTypeSeeder']);
         }
         $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
+    });
+
+    it('stores explicit Collected periods as start and end dates', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Collected Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id);
+
+        $collectedDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['collected']);
+        })->first();
+
+        expect($collectedDate)->not->toBeNull()
+            ->and($collectedDate->date_value)->toBeNull()
+            ->and($collectedDate->start_date)->toBe('2024-01-01')
+            ->and($collectedDate->end_date)->toBe('2024-12-31');
+    });
+
+    it('stores explicit single dates as date_value when only a start date is provided', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Available Single Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-01-01',
+                ],
+            ],
+        ], $this->user->id);
+
+        $availableDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['available']);
+        })->first();
+
+        expect($availableDate)->not->toBeNull()
+            ->and($availableDate->date_value)->toBe('2024-01-01')
+            ->and($availableDate->start_date)->toBeNull()
+            ->and($availableDate->end_date)->toBeNull();
+    });
+
+    it('normalizes date information when storing dates directly', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Date Information Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-01-01',
+                    'dateInformation' => '  Approximate availability date  ',
+                ],
+                [
+                    'dateType' => 'Other',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-02-01',
+                    'dateInformation' => '   ',
+                ],
+            ],
+        ], $this->user->id);
+
+        $availableDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['available']);
+        })->first();
+        $otherDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['other']);
+        })->first();
+
+        expect($availableDate)->not->toBeNull()
+            ->and($availableDate->date_information)->toBe('Approximate availability date')
+            ->and($otherDate)->not->toBeNull()
+            ->and($otherDate->date_information)->toBeNull();
+    });
+
+    it('rejects explicit range dates without an end date before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Incomplete Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => null,
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects unsupported explicit range date types before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Unsupported Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects unknown date modes before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Unknown Date Mode Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'period',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects non-range date types with start and end dates before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Legacy Unsupported Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
     });
 
     it('uses imported created date when provided for new resources', function () {

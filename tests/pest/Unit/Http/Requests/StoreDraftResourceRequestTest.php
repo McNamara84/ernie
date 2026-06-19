@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\RelatedIdentifier;
+use Illuminate\Support\Facades\Validator;
 
 covers(StoreDraftResourceRequest::class);
 
@@ -129,4 +130,101 @@ it('keeps related-work citation label limits aligned between draft and store req
         ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
         ->and($storeRequest->rules()['relatedIdentifiers.*.citationLabel'])
         ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS);
+});
+
+/**
+ * @param  list<array<string, mixed>>  $dates
+ */
+function validateDraftDatePayload(array $dates): \Illuminate\Validation\Validator
+{
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'dates' => $dates,
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    $rules = array_intersect_key($request->rules(), array_flip([
+        'dates',
+        'dates.*.dateType',
+        'dates.*.dateMode',
+        'dates.*.startDate',
+        'dates.*.endDate',
+    ]));
+
+    $validator = Validator::make($request->all(), $rules, $request->messages());
+
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+
+    $validator->passes();
+
+    return $validator;
+}
+
+it('allows closed draft periods for collected, valid, and other dates', function (string $dateType): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => $dateType, 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeFalse()
+        ->and($validator->errors()->has('dates.0.startDate'))->toBeFalse();
+})->with(['collected', 'valid', 'other']);
+
+it('rejects unsupported draft date periods', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'available', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('rejects draft end dates without start dates', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => null, 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.startDate'))->toBeTrue();
+});
+
+it('rejects draft periods whose end date is before the start date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'other', 'dateMode' => 'range', 'startDate' => '2024-02-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+it('rejects draft range date mode without an end date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => null],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('rejects unknown draft date modes', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'period', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.dateMode'))->toBeTrue();
+});
+
+it('rejects draft single date mode with an end date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'valid', 'dateMode' => 'single', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('keeps date mode validation aligned between draft and final resource requests', function (): void {
+    $draftRequest = new StoreDraftResourceRequest;
+    $storeRequest = new StoreResourceRequest;
+
+    expect($draftRequest->rules())->toHaveKey('dates.*.dateMode')
+        ->and($storeRequest->rules())->toHaveKey('dates.*.dateMode');
 });

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ContributorType;
+use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
@@ -9,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -17,6 +19,7 @@ use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\DataCiteJsonExporter;
+use App\Services\JsonSchemaValidator;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -1510,4 +1513,46 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
 
         expect($result['data']['attributes'])->not->toHaveKey('relatedIdentifiers');
     });
+});
+
+describe('DataCiteJsonExporter - Date periods', function () {
+    test('exports Collected, Valid, and Other periods as RKMS-ISO8601 interval strings that validate against DataCite JSON schema', function (string $dateTypeSlug, string $dateTypeName) {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/date-period.'.strtolower($dateTypeName),
+            'publication_year' => 2026,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(['slug' => 'main-title'], ['name' => 'Main Title']);
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => $dateTypeName.' Period Export Test',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+
+        $dateType = DateType::firstOrCreate(
+            ['slug' => $dateTypeSlug],
+            ['name' => $dateTypeName, 'slug' => $dateTypeSlug, 'is_active' => true]
+        );
+
+        ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2024-01-01',
+            'end_date' => '2024-12-31',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $attributes = $result['data']['attributes'];
+
+        expect($attributes['dates'])->toContain([
+            'dateType' => $dateTypeName,
+            'date' => '2024-01-01/2024-12-31',
+        ]);
+
+        expect((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
+    })->with([
+        'Collected' => ['Collected', 'Collected'],
+        'Valid' => ['Valid', 'Valid'],
+        'Other' => ['Other', 'Other'],
+    ]);
 });

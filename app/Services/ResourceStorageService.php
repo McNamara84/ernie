@@ -989,7 +989,7 @@ class ResourceStorageService
 
         $dates = $data['dates'] ?? [];
 
-        foreach ($dates as $date) {
+        foreach ($dates as $index => $date) {
             // Skip 'created' and 'updated' date types - these are auto-managed
             if (in_array(Str::kebab((string) ($date['dateType'] ?? '')), ['created', 'updated'], true)) {
                 continue;
@@ -1002,28 +1002,78 @@ class ResourceStorageService
             if ($dateTypeId === null) {
                 // Throw validation exception for unknown date type to prevent silent data loss
                 // This will rollback the transaction and return a proper validation error response
-                Log::warning('Unknown date type slug: '.$date['dateType']);
+                $submittedDateType = (string) ($date['dateType'] ?? '');
+                Log::warning('Unknown date type slug: '.$submittedDateType);
 
                 throw ValidationException::withMessages([
-                    'dates' => ["Unknown date type: {$date['dateType']}. Please select a valid date type."],
+                    'dates' => ["Unknown date type: {$submittedDateType}. Please select a valid date type."],
                 ]);
             }
 
-            // Date storage strategy:
-            // - When BOTH startDate AND endDate are provided: store as a date range
-            //   (date_value=null, start_date/end_date populated)
-            // - When only ONE date is provided: store as a single date
-            //   (date_value=the provided date, start_date/end_date=null)
-            // This allows the model to distinguish between point-in-time dates
-            // and date ranges while maintaining backward compatibility.
-            $hasRange = ($date['startDate'] ?? null) && ($date['endDate'] ?? null);
+            $startDate = isset($date['startDate']) ? trim((string) $date['startDate']) : null;
+            $startDate = $startDate !== '' ? $startDate : null;
+            $endDate = isset($date['endDate']) ? trim((string) $date['endDate']) : null;
+            $endDate = $endDate !== '' ? $endDate : null;
+            $mode = isset($date['dateMode']) ? Str::kebab(trim((string) $date['dateMode'])) : null;
+            $mode = $mode !== '' ? $mode : null;
+            $supportsPeriod = in_array($dateTypeKey, ['collected', 'valid', 'other'], true);
+
+            if ($mode !== null && ! in_array($mode, ['single', 'range'], true)) {
+                throw ValidationException::withMessages([
+                    "dates.$index.dateMode" => ['Date mode must be single or range.'],
+                ]);
+            }
+
+            if ($mode === 'single' && $endDate !== null) {
+                throw ValidationException::withMessages([
+                    "dates.$index.endDate" => ['Single-date mode must not include an end date.'],
+                ]);
+            }
+
+            if ($mode === 'range') {
+                $messages = [];
+
+                if (! $supportsPeriod) {
+                    $messages["dates.$index.dateMode"] = ['Only Collected, Valid, and Other dates can be stored as periods.'];
+                }
+
+                if ($startDate === null) {
+                    $messages["dates.$index.startDate"] = ['Period mode requires a start date.'];
+                }
+
+                if ($endDate === null) {
+                    $messages["dates.$index.endDate"] = ['Period mode requires an end date.'];
+                }
+
+                if ($messages !== []) {
+                    throw ValidationException::withMessages($messages);
+                }
+            }
+
+            if ($mode === null && $endDate !== null) {
+                if ($startDate === null) {
+                    throw ValidationException::withMessages([
+                        "dates.$index.startDate" => ['Dates with an end date require a start date.'],
+                    ]);
+                }
+
+                if (! $supportsPeriod) {
+                    throw ValidationException::withMessages([
+                        "dates.$index.endDate" => ['Only Collected, Valid, and Other dates can include an end date.'],
+                    ]);
+                }
+            }
+
+            $hasRange = ($mode === 'range' || ($mode === null && $endDate !== null))
+                && $startDate !== null
+                && $endDate !== null;
 
             $resource->dates()->create([
                 'date_type_id' => $dateTypeId,
-                'date_value' => $hasRange ? null : ($date['startDate'] ?? $date['endDate'] ?? null),
-                'start_date' => $hasRange ? $date['startDate'] : null,
-                'end_date' => $hasRange ? $date['endDate'] : null,
-                'date_information' => $date['dateInformation'] ?? null,
+                'date_value' => $hasRange ? null : $startDate,
+                'start_date' => $hasRange ? $startDate : null,
+                'end_date' => $hasRange ? $endDate : null,
+                'date_information' => $this->normalizeNullableString($date['dateInformation'] ?? null),
             ]);
         }
 
@@ -1062,6 +1112,17 @@ class ResourceStorageService
                 'date_information' => null,
             ]);
         }
+    }
+
+    private function normalizeNullableString(mixed $value): ?string
+    {
+        if ($value === null || (! is_scalar($value) && ! $value instanceof \Stringable)) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     /**

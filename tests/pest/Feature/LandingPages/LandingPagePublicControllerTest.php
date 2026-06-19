@@ -924,7 +924,7 @@ describe('Landing Page with Custom Template', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.landing_page_template_id', $template->id)
-                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition'])
+                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates'])
             );
     });
 

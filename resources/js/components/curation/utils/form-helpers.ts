@@ -321,7 +321,13 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
     }
 
     const base = createEmptyPersonContributor();
-    const personContributor = contributor as { orcid?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null; website?: string | null };
+    const personContributor = contributor as {
+        orcid?: string | null;
+        firstName?: string | null;
+        lastName?: string | null;
+        email?: string | null;
+        website?: string | null;
+    };
 
     return {
         ...base,
@@ -362,5 +368,15 @@ export function canAddLicense(licenseEntries: LicenseEntry[], maxLicenses: numbe
  * Check if a new date can be added based on current state.
  */
 export function canAddDate(dates: DateEntry[], maxDates: number): boolean {
-    return dates.length < maxDates && dates.length > 0 && (!!dates[dates.length - 1].startDate || !!dates[dates.length - 1].endDate);
+    if (dates.length >= maxDates || dates.length === 0) {
+        return false;
+    }
+
+    const lastDate = dates[dates.length - 1];
+
+    if (lastDate.dateMode === 'range') {
+        return Boolean(lastDate.startDate && lastDate.endDate);
+    }
+
+    return Boolean(lastDate.startDate || lastDate.endDate);
 }

@@ -43,11 +43,7 @@ const institutionEntity = (name: string): LandingPageCreatorable => ({
     name,
 });
 
-const makeContributor = (
-    contributorable: LandingPageCreatorable,
-    contributor_types: string[],
-    id = 1,
-): LandingPageContributor => ({
+const makeContributor = (contributorable: LandingPageCreatorable, contributor_types: string[], id = 1): LandingPageContributor => ({
     id,
     position: id,
     affiliations: [],
@@ -69,14 +65,7 @@ const makeDate = (overrides: Partial<LandingPageResourceDate> = {}): LandingPage
 describe('AcquisitionSection', () => {
     it('returns null when nothing has content', () => {
         const { container } = render(
-            <AcquisitionSection
-                igsn={null}
-                classifications={[]}
-                descriptions={[]}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
+            <AcquisitionSection igsn={null} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />,
         );
         expect(container.firstChild).toBeNull();
     });
@@ -107,16 +96,7 @@ describe('AcquisitionSection', () => {
     it('renders Collection Method without description as plain text', () => {
         const igsn = baseIgsn({ collection_method: 'Drilling', collection_method_description: null });
 
-        render(
-            <AcquisitionSection
-                igsn={igsn}
-                classifications={[]}
-                descriptions={[]}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
-        );
+        render(<AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />);
 
         expect(screen.getByText('Drilling')).toBeInTheDocument();
     });
@@ -127,16 +107,7 @@ describe('AcquisitionSection', () => {
             collection_method_description: '5m core barrel',
         });
 
-        render(
-            <AcquisitionSection
-                igsn={igsn}
-                classifications={[]}
-                descriptions={[]}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
-        );
+        render(<AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />);
 
         expect(screen.getByText('Drilling')).toBeInTheDocument();
         expect(screen.getByText('5m core barrel')).toBeInTheDocument();
@@ -149,14 +120,7 @@ describe('AcquisitionSection', () => {
         });
 
         const { container } = render(
-            <AcquisitionSection
-                igsn={igsn}
-                classifications={[]}
-                descriptions={[]}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
+            <AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />,
         );
 
         // Card should not render since the only field (collection method) is whitespace
@@ -169,16 +133,7 @@ describe('AcquisitionSection', () => {
             collection_method_description: '   ',
         });
 
-        render(
-            <AcquisitionSection
-                igsn={igsn}
-                classifications={[]}
-                descriptions={[]}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
-        );
+        render(<AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />);
 
         // Drilling renders, but no extra description block
         expect(screen.getByText('Drilling')).toBeInTheDocument();
@@ -186,19 +141,10 @@ describe('AcquisitionSection', () => {
     });
 
     it('hides Comments when description value is whitespace-only', () => {
-        const descriptions = [
-            { id: 1, value: '   ', description_type: 'Other' },
-        ];
+        const descriptions = [{ id: 1, value: '   ', description_type: 'Other' }];
 
         const { container } = render(
-            <AcquisitionSection
-                igsn={null}
-                classifications={[]}
-                descriptions={descriptions}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
+            <AcquisitionSection igsn={null} classifications={[]} descriptions={descriptions} contributors={[]} fundingReferences={[]} dates={[]} />,
         );
 
         expect(container.firstChild).toBeNull();
@@ -215,12 +161,7 @@ describe('AcquisitionSection', () => {
             award_title: null,
             position: id,
         });
-        const fundingReferences: LandingPageFundingReference[] = [
-            fr(1, 'DFG'),
-            fr(2, 'DFG'),
-            fr(3, 'NSF'),
-            fr(4, '   '),
-        ];
+        const fundingReferences: LandingPageFundingReference[] = [fr(1, 'DFG'), fr(2, 'DFG'), fr(3, 'NSF'), fr(4, '   ')];
 
         render(
             <AcquisitionSection
@@ -243,14 +184,7 @@ describe('AcquisitionSection', () => {
         ];
 
         render(
-            <AcquisitionSection
-                igsn={null}
-                classifications={[]}
-                descriptions={descriptions}
-                contributors={[]}
-                fundingReferences={[]}
-                dates={[]}
-            />,
+            <AcquisitionSection igsn={null} classifications={[]} descriptions={descriptions} contributors={[]} fundingReferences={[]} dates={[]} />,
         );
 
         expect(screen.getByText('Field notes')).toBeInTheDocument();
@@ -266,24 +200,15 @@ describe('AcquisitionSection', () => {
         ];
 
         render(
-            <AcquisitionSection
-                igsn={null}
-                classifications={[]}
-                descriptions={[]}
-                contributors={contributors}
-                fundingReferences={[]}
-                dates={[]}
-            />,
+            <AcquisitionSection igsn={null} classifications={[]} descriptions={[]} contributors={contributors} fundingReferences={[]} dates={[]} />,
         );
 
         expect(screen.getByText('Jane Doe, John Smith, AWI')).toBeInTheDocument();
         expect(screen.queryByText(/Other Person/)).not.toBeInTheDocument();
     });
 
-    it('hides End Date when equal to Start Date', () => {
-        const dates: LandingPageResourceDate[] = [
-            makeDate({ start_date: '2023-06-01', end_date: '2023-06-01' }),
-        ];
+    it('collapses equal collection start and end dates', () => {
+        const dates: LandingPageResourceDate[] = [makeDate({ start_date: '2023-06-01', end_date: '2023-06-01' })];
 
         render(
             <AcquisitionSection
@@ -296,14 +221,13 @@ describe('AcquisitionSection', () => {
             />,
         );
 
+        expect(screen.getByText('Collection Date')).toBeInTheDocument();
         expect(screen.getByText('2023-06-01')).toBeInTheDocument();
         expect(screen.queryByText('End Date')).not.toBeInTheDocument();
     });
 
     it('falls back to date_value when start_date is missing', () => {
-        const dates: LandingPageResourceDate[] = [
-            makeDate({ date_value: '2023-06-15' }),
-        ];
+        const dates: LandingPageResourceDate[] = [makeDate({ date_value: '2023-06-15' })];
 
         render(
             <AcquisitionSection
@@ -316,7 +240,7 @@ describe('AcquisitionSection', () => {
             />,
         );
 
-        expect(screen.getByText('Start Date')).toBeInTheDocument();
+        expect(screen.getByText('Collection Date')).toBeInTheDocument();
         expect(screen.getByText('2023-06-15')).toBeInTheDocument();
     });
 
@@ -328,14 +252,7 @@ describe('AcquisitionSection', () => {
         ];
 
         render(
-            <AcquisitionSection
-                igsn={null}
-                classifications={[]}
-                descriptions={[]}
-                contributors={contributors}
-                fundingReferences={[]}
-                dates={[]}
-            />,
+            <AcquisitionSection igsn={null} classifications={[]} descriptions={[]} contributors={contributors} fundingReferences={[]} dates={[]} />,
         );
 
         expect(screen.getByText('Real Person')).toBeInTheDocument();
