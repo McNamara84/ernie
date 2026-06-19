@@ -69,6 +69,9 @@ import {
     canAddDate,
     canAddLicense,
     canAddTitle,
+    hasAnyLicenseEntryContent,
+    hasCompleteLicenseEntry,
+    isHttpUrl,
     mapInitialAuthorToEntry,
     mapInitialContributorToEntry,
     normalizeTitleTypeSlug,
@@ -238,14 +241,49 @@ export default function DataCiteForm({
         });
     });
 
-    const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(
-        initialLicenses.length
-            ? initialLicenses.map((l) => ({
-                  id: crypto.randomUUID(),
-                  license: l,
-              }))
-            : [{ id: crypto.randomUUID(), license: '' }],
-    );
+    const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(() => {
+        const entries: LicenseEntry[] = [];
+        const licensesByIdentifier = new Map(licenses.map((license) => [license.identifier, license]));
+
+        initialLicenses.forEach((identifier) => {
+            const catalogLicense = licensesByIdentifier.get(identifier);
+
+            if (catalogLicense && (catalogLicense.scheme_uri === null || catalogLicense.identifier.startsWith('CUSTOM-'))) {
+                entries.push({
+                    id: crypto.randomUUID(),
+                    mode: 'custom',
+                    name: catalogLicense.name,
+                    uri: catalogLicense.uri ?? '',
+                });
+                return;
+            }
+
+            entries.push({
+                id: crypto.randomUUID(),
+                mode: 'catalog',
+                license: identifier,
+            });
+        });
+
+        initialRawRights.forEach((rawRight) => {
+            const name = (rawRight.rights ?? rawRight.rightsIdentifier ?? '').trim();
+            const uri = (rawRight.rightsUri ?? '').trim();
+
+            if (!name && !uri) {
+                return;
+            }
+
+            entries.push({
+                id: crypto.randomUUID(),
+                mode: 'custom',
+                name,
+                uri,
+                sourceResourceRightId: rawRight.sourceResourceRightId ?? undefined,
+            });
+        });
+
+        return entries.length > 0 ? entries : [{ id: crypto.randomUUID(), mode: 'catalog', license: '' }];
+    });
 
     const [authors, setAuthors] = useState<AuthorEntry[]>(() => {
         if (initialAuthors.length > 0) {
@@ -607,10 +645,18 @@ export default function DataCiteForm({
         },
     ];
 
-    // License validation rules (primary license is required)
+    // License validation rules (at least one complete license row is required)
     const primaryLicenseValidationRules: ValidationRule[] = [
         {
             validate: (value) => {
+                if (typeof value === 'object' && value !== null && 'mode' in value) {
+                    if (!hasCompleteLicenseEntry(value as LicenseEntry)) {
+                        return { severity: 'error', message: 'At least one license is required.' };
+                    }
+
+                    return null;
+                }
+
                 const result = validateRequired(String(value || ''), 'Primary license');
                 if (!result.isValid) {
                     return { severity: 'error', message: result.error! };
@@ -1257,9 +1303,33 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'language', 'Language is required.');
         }
 
-        if (!licenseEntries[0]?.license?.trim()) {
-            appendValidationMessage(errors, 'licenses.0.license', 'Primary License is required.');
+        if (!licenseEntries.some(hasCompleteLicenseEntry)) {
+            appendValidationMessage(errors, 'licenses', 'At least one License is required.');
         }
+
+        let customLicenseIndex = 0;
+        licenseEntries.forEach((entry) => {
+            if (entry.mode !== 'custom') {
+                return;
+            }
+
+            const hasContent = hasAnyLicenseEntryContent(entry);
+            if (!hasContent) {
+                return;
+            }
+
+            if (!entry.name.trim()) {
+                appendValidationMessage(errors, `customLicenses.${customLicenseIndex}.name`, 'Custom license name is required.');
+            }
+
+            if (!entry.uri.trim()) {
+                appendValidationMessage(errors, `customLicenses.${customLicenseIndex}.uri`, 'Custom license URL is required.');
+            } else if (!isHttpUrl(entry.uri.trim())) {
+                appendValidationMessage(errors, `customLicenses.${customLicenseIndex}.uri`, 'Custom license URL must use http or https.');
+            }
+
+            customLicenseIndex += 1;
+        });
 
         if (authors.length === 0) {
             appendValidationMessage(errors, 'authors', 'At least one author is required.');
@@ -1347,8 +1417,12 @@ export default function DataCiteForm({
     }, [titles, form.year, form.resourceType, form.language, selectedDatacenters, getFieldState]);
 
     const licensesStatus = useMemo(() => {
-        const primaryLicense = licenseEntries[0]?.license?.trim();
-        if (!primaryLicense) {
+        const hasCompleteLicense = licenseEntries.some(hasCompleteLicenseEntry);
+        const hasInvalidCustomLicense = licenseEntries.some(
+            (entry) => entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && (!entry.name.trim() || !entry.uri.trim() || !isHttpUrl(entry.uri.trim())),
+        );
+
+        if (!hasCompleteLicense || hasInvalidCustomLicense) {
             return 'invalid';
         }
         return 'valid';
@@ -1609,19 +1683,64 @@ export default function DataCiteForm({
         }
     };
 
-    const handleLicenseChange = (index: number, value: string) => {
-        setLicenseEntries((prev) => {
-            const next = [...prev];
-            next[index] = { ...next[index], license: value };
+    const validatePrimaryLicenseEntry = (entry: LicenseEntry) => {
+        validateField({
+            fieldId: 'license-0',
+            value: entry,
+            rules: primaryLicenseValidationRules,
+            formData: form,
+        });
+    };
 
-            // Validate primary license (index 0)
+    const handleLicenseModeChange = (index: number, mode: LicenseEntry['mode']) => {
+        setLicenseEntries((prev) => {
+            const current = prev[index];
+            if (!current || current.mode === mode) return prev;
+
+            const next = [...prev];
+            const updated: LicenseEntry =
+                mode === 'custom'
+                    ? { id: current.id, mode: 'custom', name: '', uri: '' }
+                    : { id: current.id, mode: 'catalog', license: '' };
+
+            next[index] = updated;
+
             if (index === 0) {
-                validateField({
-                    fieldId: 'license-0',
-                    value,
-                    rules: primaryLicenseValidationRules,
-                    formData: form,
-                });
+                validatePrimaryLicenseEntry(updated);
+            }
+
+            return next;
+        });
+    };
+
+    const handleCatalogLicenseChange = (index: number, value: string) => {
+        setLicenseEntries((prev) => {
+            const current = prev[index];
+            if (!current) return prev;
+
+            const next = [...prev];
+            const updated: LicenseEntry = { id: current.id, mode: 'catalog', license: value };
+            next[index] = updated;
+
+            if (index === 0) {
+                validatePrimaryLicenseEntry(updated);
+            }
+
+            return next;
+        });
+    };
+
+    const handleCustomLicenseChange = (index: number, field: 'name' | 'uri', value: string) => {
+        setLicenseEntries((prev) => {
+            const current = prev[index];
+            if (!current || current.mode !== 'custom') return prev;
+
+            const next = [...prev];
+            const updated: LicenseEntry = { ...current, [field]: value };
+            next[index] = updated;
+
+            if (index === 0) {
+                validatePrimaryLicenseEntry(updated);
             }
 
             return next;
@@ -1630,7 +1749,7 @@ export default function DataCiteForm({
 
     const addLicense = () => {
         if (licenseEntries.length >= MAX_LICENSES) return;
-        setLicenseEntries((prev) => [...prev, { id: crypto.randomUUID(), license: '' }]);
+        setLicenseEntries((prev) => [...prev, { id: crypto.randomUUID(), mode: 'catalog', license: '' }]);
     };
 
     const removeLicense = (index: number) => {
@@ -1818,6 +1937,7 @@ export default function DataCiteForm({
             language: string;
             titles: { title: string; titleType: string; language?: string | null }[];
             licenses: string[];
+            customLicenses: { name: string; uri: string; sourceResourceRightId?: number | null }[];
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
             mslLaboratories: {
@@ -1886,8 +2006,17 @@ export default function DataCiteForm({
                 titleType: entry.titleType,
                 language: entry.language ?? null,
             })),
-            licenses: licenseEntries.map((entry) => entry.license).filter((license): license is string => Boolean(license)),
-            rawRights: initialRawRights ?? [],
+            licenses: licenseEntries
+                .filter((entry) => entry.mode === 'catalog' && entry.license.trim() !== '')
+                .map((entry) => (entry.mode === 'catalog' ? entry.license : '')),
+            customLicenses: licenseEntries
+                .filter((entry) => entry.mode === 'custom' && hasAnyLicenseEntryContent(entry))
+                .map((entry) => ({
+                    name: entry.mode === 'custom' ? entry.name.trim() : '',
+                    uri: entry.mode === 'custom' ? entry.uri.trim() : '',
+                    ...(entry.mode === 'custom' && entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
+                })),
+            rawRights: [],
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -1982,7 +2111,6 @@ export default function DataCiteForm({
         gcmdKeywords,
         importedCreatedDate,
         initialRelatedItems,
-        initialRawRights,
         instruments,
         licenseEntries,
         mslLaboratories,
@@ -2567,12 +2695,14 @@ export default function DataCiteForm({
                                 <LicenseField
                                     key={entry.id}
                                     id={entry.id}
-                                    license={entry.license}
+                                    entry={entry}
                                     options={licenses.map((l) => ({
                                         value: l.identifier,
                                         label: l.name,
                                     }))}
-                                    onLicenseChange={(val) => handleLicenseChange(index, val)}
+                                    onModeChange={(mode) => handleLicenseModeChange(index, mode)}
+                                    onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
+                                    onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
                                     onAdd={addLicense}
                                     onRemove={() => removeLicense(index)}
                                     isFirst={index === 0}
@@ -2582,6 +2712,8 @@ export default function DataCiteForm({
                                     touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                     onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
                                     data-testid={`license-select-${index}`}
+                                    customNameTestId={`custom-license-name-${index}`}
+                                    customUriTestId={`custom-license-uri-${index}`}
                                 />
                             ))}
                         </div>

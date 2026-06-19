@@ -619,6 +619,30 @@ describe('DataCiteXmlExporter - Rights', function () {
             ->and($xml)->not->toContain('rightsIdentifierScheme="LocalScheme"');
     });
 
+    test('exports linked custom rights without internal identifiers', function () {
+        $resource = Resource::factory()->create();
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+
+        ResourceRight::query()->create([
+            'resource_id' => $resource->id,
+            'rights_id' => $customRight->id,
+            'language' => 'de',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('rightsURI="https://example.test/licenses/community-data"')
+            ->and($xml)->toContain('xml:lang="de"')
+            ->and($xml)->toContain('Community Data License</rights>')
+            ->and($xml)->not->toContain('rightsIdentifier="CUSTOM-COMMUNITY-123456789ABC"')
+            ->and($xml)->not->toContain('rightsIdentifierScheme="SPDX"')
+            ->and($xml)->not->toContain('schemeURI="https://spdx.org/licenses/"');
+    });
     test('uses already loaded resource rights instead of querying them again', function () {
         $resource = Resource::factory()->create();
         $right = Right::factory()->ccBy4()->create();

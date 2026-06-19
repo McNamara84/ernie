@@ -23,6 +23,7 @@ use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
@@ -50,6 +51,7 @@ class ResourceStorageService
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
         protected ResourceRightsStorageService $resourceRightsStorage,
+        protected CustomRightCatalogService $customRightCatalog,
         protected SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver,
     ) {}
 
@@ -453,14 +455,25 @@ class ResourceStorageService
      */
     private function syncLicenses(Resource $resource, array $data): void
     {
-        // Sync selected catalog rights and keep raw imported statements. This
-        // lets an import store "CC BY 4.0" as-is while the SPDX assistant later
-        // proposes whether it should link to the shared SPDX catalog entry.
+        $licenseIdentifiers = $this->licenseIdentifierList($data['licenses'] ?? []);
+        $sourceResourceRightLinks = [];
+
+        foreach ($this->customLicenseList($data['customLicenses'] ?? []) as $customLicense) {
+            $right = $this->customRightCatalog->findOrCreate($customLicense['name'], $customLicense['uri']);
+            $licenseIdentifiers[] = $right->identifier;
+
+            if (isset($customLicense['sourceResourceRightId'])) {
+                $sourceResourceRightLinks[$customLicense['sourceResourceRightId']] = (int) $right->id;
+            }
+        }
+
         $this->resourceRightsStorage->syncEditorRights(
             $resource,
-            $this->licenseIdentifierList($data['licenses'] ?? []),
+            array_values(array_unique($licenseIdentifiers)),
             $this->rawRightsList($data['rawRights'] ?? []),
             $resource->language?->code,
+            $sourceResourceRightLinks,
+            array_key_exists('customLicenses', $data),
         );
     }
 
@@ -482,6 +495,48 @@ class ResourceStorageService
         }
 
         return $identifiers;
+    }
+
+    /**
+     * @return list<array{name: string, uri: string, sourceResourceRightId?: int}>
+     */
+    private function customLicenseList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $customLicenses = [];
+
+        foreach ($value as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $name = isset($entry['name']) && (is_string($entry['name']) || is_numeric($entry['name']))
+                ? trim((string) $entry['name'])
+                : '';
+            $uri = isset($entry['uri']) && (is_string($entry['uri']) || is_numeric($entry['uri']))
+                ? trim((string) $entry['uri'])
+                : '';
+
+            if ($name === '' && $uri === '') {
+                continue;
+            }
+
+            $customLicense = [
+                'name' => $name,
+                'uri' => $uri,
+            ];
+
+            if (isset($entry['sourceResourceRightId']) && is_numeric($entry['sourceResourceRightId'])) {
+                $customLicense['sourceResourceRightId'] = (int) $entry['sourceResourceRightId'];
+            }
+
+            $customLicenses[] = $customLicense;
+        }
+
+        return $customLicenses;
     }
 
     /**

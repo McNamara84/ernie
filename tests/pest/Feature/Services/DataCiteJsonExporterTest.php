@@ -490,6 +490,33 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
         ]);
     });
 
+    test('exports linked custom rights without internal identifiers', function () {
+        $resource = Resource::factory()->create();
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+
+        ResourceRight::query()->create([
+            'resource_id' => $resource->id,
+            'rights_id' => $customRight->id,
+            'language' => 'de',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $rights = $result['data']['attributes']['rightsList'][0];
+
+        expect($rights)->toMatchArray([
+            'rights' => 'Community Data License',
+            'rightsURI' => 'https://example.test/licenses/community-data',
+            'lang' => 'de',
+        ])
+            ->and($rights)->not->toHaveKey('rightsIdentifier')
+            ->and($rights)->not->toHaveKey('rightsIdentifierScheme')
+            ->and($rights)->not->toHaveKey('schemeURI');
+    });
     test('uses already loaded resource rights instead of querying them again', function () {
         $resource = Resource::factory()->create();
         $license = Right::factory()->ccBy4()->create();

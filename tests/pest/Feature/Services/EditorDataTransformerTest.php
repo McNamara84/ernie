@@ -206,6 +206,27 @@ describe('transformLicenses', function (): void {
 
         expect($result)->toBeEmpty();
     });
+    it('keeps custom catalog rights out of SPDX license identifiers', function (): void {
+        $spdxRight = Right::factory()->ccBy4()->create();
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+
+        ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $spdxRight->id,
+        ]);
+        ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $customRight->id,
+        ]);
+        $this->resource->load(['rights', 'resourceRights.right']);
+
+        expect($this->transformer->transformLicenses($this->resource))->toBe(['CC-BY-4.0']);
+    });
 });
 
 // =========================================================================
@@ -234,8 +255,8 @@ describe('transformRawRights', function (): void {
 
         $result = $this->transformer->transformRawRights($this->resource);
 
-        expect($result)->toBe([
-            [
+        expect($result)->toHaveCount(1)
+            ->and($result[0])->toMatchArray([
                 'rights' => 'CC BY 4.0',
                 'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
                 'rightsIdentifier' => 'CC-BY-4.0',
@@ -243,6 +264,29 @@ describe('transformRawRights', function (): void {
                 'schemeUri' => 'https://spdx.org/licenses/',
                 'lang' => 'en',
                 'source' => 'xml-upload',
+            ])
+            ->and($result[0]['sourceResourceRightId'])->toBeInt();
+    });
+    it('returns linked custom catalog rights as editable raw rights rows', function (): void {
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+        $resourceRight = ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $customRight->id,
+        ]);
+        $this->resource->load('resourceRights.right');
+
+        $result = $this->transformer->transformRawRights($this->resource);
+
+        expect($result)->toBe([
+            [
+                'sourceResourceRightId' => $resourceRight->id,
+                'rights' => 'Community Data License',
+                'rightsUri' => 'https://example.test/licenses/community-data',
             ],
         ]);
     });

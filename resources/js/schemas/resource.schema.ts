@@ -32,10 +32,38 @@ export const titlesArraySchema = z.array(titleSchema).min(1, 'At least one title
 // License Schema
 // =============================================================================
 
-export const licenseSchema = z.object({
+const customLicenseUrlSchema = z
+    .string()
+    .url('Custom license URL is invalid')
+    .refine((value) => {
+        try {
+            const url = new URL(value);
+            return url.protocol === 'http:' || url.protocol === 'https:';
+        } catch {
+            return false;
+        }
+    }, 'Custom license URL must use http or https');
+
+const legacyLicenseSchema = z.object({
     id: z.string(),
     license: z.string().min(1, 'License is required'),
 });
+
+const catalogLicenseSchema = z.object({
+    id: z.string(),
+    mode: z.literal('catalog'),
+    license: z.string().min(1, 'License is required'),
+});
+
+const customLicenseSchema = z.object({
+    id: z.string(),
+    mode: z.literal('custom'),
+    name: z.string().min(1, 'Custom license name is required'),
+    uri: customLicenseUrlSchema,
+    sourceResourceRightId: z.number().nullable().optional(),
+});
+
+export const licenseSchema = z.union([legacyLicenseSchema, catalogLicenseSchema, customLicenseSchema]);
 
 export type LicenseFormData = z.infer<typeof licenseSchema>;
 
@@ -49,11 +77,20 @@ export const rawRightsSchema = z.object({
     schemeUri: z.string().nullable().optional(),
     lang: z.string().nullable().optional(),
     source: z.string().nullable().optional(),
+    sourceResourceRightId: z.number().nullable().optional(),
 });
 
 export type RawRightsFormData = z.infer<typeof rawRightsSchema>;
 
 export const rawRightsArraySchema = z.array(rawRightsSchema).default([]);
+
+export const customLicensePayloadSchema = z.object({
+    name: z.string().min(1, 'Custom license name is required'),
+    uri: customLicenseUrlSchema,
+    sourceResourceRightId: z.number().nullable().optional(),
+});
+
+export const customLicensesPayloadArraySchema = z.array(customLicensePayloadSchema).default([]);
 
 // =============================================================================
 // Date Schema
@@ -147,6 +184,7 @@ const resourceBaseSchema = z.object({
 
     // Licenses / imported rights (validated together below)
     licenses: licensesArraySchema,
+    customLicenses: customLicensesPayloadArraySchema.optional(),
     rawRights: rawRightsArraySchema,
 
     // Descriptions (optional)
@@ -178,16 +216,24 @@ const resourceBaseSchema = z.object({
 type RightsEvidenceData = {
     licenses: z.infer<typeof licensesArraySchema>;
     rawRights: z.infer<typeof rawRightsArraySchema>;
+    customLicenses?: z.infer<typeof customLicensesPayloadArraySchema>;
 };
 
 const requireRightsEvidence = (data: RightsEvidenceData, ctx: z.RefinementCtx) => {
-    const hasLicense = data.licenses.some((entry) => entry.license.trim() !== '');
+    const hasLicense = data.licenses.some((entry) => {
+        if ('mode' in entry && entry.mode === 'custom') {
+            return entry.name.trim() !== '' && entry.uri.trim() !== '';
+        }
+
+        return 'license' in entry && entry.license.trim() !== '';
+    });
+    const hasCustomLicense = (data.customLicenses ?? []).some((entry) => entry.name.trim() !== '' && entry.uri.trim() !== '');
     const hasRawRights = data.rawRights.some((entry) => Boolean(entry.rights?.trim() || entry.rightsUri?.trim() || entry.rightsIdentifier?.trim()));
 
-    if (!hasLicense && !hasRawRights) {
+    if (!hasLicense && !hasCustomLicense && !hasRawRights) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'At least one license or imported rights statement is required',
+            message: 'At least one license, custom license, or imported rights statement is required',
             path: ['licenses'],
         });
     }

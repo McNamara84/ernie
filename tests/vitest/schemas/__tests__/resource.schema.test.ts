@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    customLicensePayloadSchema,
     dateEntrySchema,
     descriptionSchema,
     gcmdKeywordSchema,
@@ -157,5 +158,56 @@ describe('Resource Schemas', () => {
             });
             expect(result.success).toBe(true);
         });
+    });
+});
+
+describe('custom license schemas', () => {
+    it('accepts custom license form entries with http URLs', () => {
+        expect(
+            licenseSchema.safeParse({
+                id: '1',
+                mode: 'custom',
+                name: 'Community Data License',
+                uri: 'https://example.test/licenses/community-data',
+                sourceResourceRightId: 12,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects custom license URLs with non-http schemes', () => {
+        expect(
+            licenseSchema.safeParse({
+                id: '1',
+                mode: 'custom',
+                name: 'Unsafe License',
+                uri: 'ftp://example.test/license',
+            }).success,
+        ).toBe(false);
+
+        expect(
+            customLicensePayloadSchema.safeParse({
+                name: 'Unsafe License',
+                uri: 'javascript:alert(1)',
+            }).success,
+        ).toBe(false);
+    });
+
+    it('allows resource rights evidence from custom license payloads', () => {
+        const result = resourceSchema.safeParse({
+            resourceType: 'Dataset',
+            language: 'en',
+            titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
+            authors: [{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }],
+            contributors: [],
+            licenses: [],
+            customLicenses: [
+                {
+                    name: 'Community Data License',
+                    uri: 'https://example.test/licenses/community-data',
+                },
+            ],
+        });
+
+        expect(result.success).toBe(true);
     });
 });

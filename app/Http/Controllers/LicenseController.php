@@ -23,7 +23,7 @@ class LicenseController extends Controller
     {
         $rights = Right::query()
             ->orderByName()
-            ->get(['id', 'identifier', 'name']);
+            ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']);
 
         return response()->json($rights);
     }
@@ -37,7 +37,7 @@ class LicenseController extends Controller
             ->active()
             ->elmoActive()
             ->orderByName()
-            ->get(['id', 'identifier', 'name']);
+            ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']);
 
         return response()->json($rights);
     }
@@ -60,7 +60,7 @@ class LicenseController extends Controller
             ->elmoActive()
             ->availableForResourceType($resourceType->id)
             ->orderByName()
-            ->get(['id', 'identifier', 'name']);
+            ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']);
 
         return response()->json($rights);
     }
@@ -73,7 +73,7 @@ class LicenseController extends Controller
         $rights = Right::query()
             ->active()
             ->orderByUsageCount()
-            ->get(['id', 'identifier', 'name']);
+            ->get(['id', 'identifier', 'name', 'uri', 'scheme_uri']);
 
         return response()->json($rights);
     }

@@ -256,7 +256,7 @@ class EditorController extends Controller
                 'language',
                 'titles.titleType',
                 'rights',
-                'resourceRights',
+                'resourceRights.right',
                 'creators.creatorable',
                 'creators.affiliations',
                 'contributors.contributorable',

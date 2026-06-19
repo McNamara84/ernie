@@ -350,6 +350,8 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
 
 import type { DateEntry, LicenseEntry, TitleEntry } from '../types/datacite-form-types';
 
+type LicenseEntryLike = LicenseEntry | { license?: string | null };
+
 /**
  * Check if a new title can be added based on current state.
  */
@@ -357,11 +359,44 @@ export function canAddTitle(titles: TitleEntry[], maxTitles: number): boolean {
     return titles.length < maxTitles && titles.length > 0 && !!titles[titles.length - 1].title;
 }
 
+export function hasCompleteLicenseEntry(entry: LicenseEntryLike | undefined): boolean {
+    if (!entry) {
+        return false;
+    }
+
+    if ('mode' in entry && entry.mode === 'custom') {
+        return entry.name.trim() !== '' && entry.uri.trim() !== '';
+    }
+
+    return typeof entry.license === 'string' && entry.license.trim() !== '';
+}
+
+export function hasAnyLicenseEntryContent(entry: LicenseEntryLike | undefined): boolean {
+    if (!entry) {
+        return false;
+    }
+
+    if ('mode' in entry && entry.mode === 'custom') {
+        return entry.name.trim() !== '' || entry.uri.trim() !== '';
+    }
+
+    return typeof entry.license === 'string' && entry.license.trim() !== '';
+}
+
+export function isHttpUrl(value: string): boolean {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Check if a new license can be added based on current state.
  */
-export function canAddLicense(licenseEntries: LicenseEntry[], maxLicenses: number): boolean {
-    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && !!licenseEntries[licenseEntries.length - 1].license;
+export function canAddLicense(licenseEntries: LicenseEntryLike[], maxLicenses: number): boolean {
+    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && hasCompleteLicenseEntry(licenseEntries[licenseEntries.length - 1]);
 }
 
 /**

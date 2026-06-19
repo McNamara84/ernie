@@ -7,6 +7,7 @@ namespace App\Http\Requests;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
+use App\Rules\SafeUrl;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -66,6 +67,10 @@ class StoreDraftResourceRequest extends FormRequest
             // Licenses are optional for drafts
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
+            'customLicenses' => ['nullable', 'array'],
+            'customLicenses.*.name' => ['required', 'string', 'max:255'],
+            'customLicenses.*.uri' => ['required', 'string', new SafeUrl('[Licenses & Rights]'), 'max:512'],
+            'customLicenses.*.sourceResourceRightId' => ['nullable', 'integer', Rule::exists('resource_rights', 'id')],
             'rawRights' => ['nullable', 'array'],
             'rawRights.*.rights' => ['nullable', 'string'],
             'rawRights.*.rightsUri' => ['nullable', 'string', 'max:512'],
@@ -798,6 +803,12 @@ class StoreDraftResourceRequest extends FormRequest
             'fundingReferences' => $fundingReferences,
         ]);
 
+        if ($this->has('customLicenses')) {
+            $this->merge([
+                'customLicenses' => $this->normalizeCustomLicensesInput($this->input('customLicenses', [])),
+            ]);
+        }
+
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
     }
 
@@ -846,6 +857,44 @@ class StoreDraftResourceRequest extends FormRequest
         return $rawRights;
     }
 
+    /**
+     * @return array<int, array<string, mixed>>|mixed
+     */
+    private function normalizeCustomLicensesInput(mixed $customLicensesInput): mixed
+    {
+        if (! is_array($customLicensesInput)) {
+            return $customLicensesInput;
+        }
+
+        $customLicenses = [];
+
+        foreach ($customLicensesInput as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $normalized = [
+                'name' => $this->rightsStringValue($entry, ['name', 'rights', 'rights_text']),
+                'uri' => $this->rightsStringValue($entry, ['uri', 'rightsUri', 'rightsURI', 'rights_uri']),
+            ];
+
+            if (array_key_exists('sourceResourceRightId', $entry) || array_key_exists('source_resource_right_id', $entry)) {
+                $sourceId = $entry['sourceResourceRightId'] ?? $entry['source_resource_right_id'];
+                $normalized['sourceResourceRightId'] = is_numeric($sourceId) ? (int) $sourceId : $sourceId;
+            }
+
+            if ($normalized['name'] === null && $normalized['uri'] === null && ! array_key_exists('sourceResourceRightId', $normalized)) {
+                continue;
+            }
+
+            $customLicenses[] = array_filter(
+                $normalized,
+                fn (mixed $value): bool => $value !== null,
+            );
+        }
+
+        return $customLicenses;
+    }
     /**
      * @param  array<string, mixed>  $statement
      * @param  list<string>  $keys
@@ -897,6 +946,11 @@ class StoreDraftResourceRequest extends FormRequest
             // Licenses & Rights
             'licenses.*.exists' => '[Licenses & Rights] License #:position is not a recognized license.',
             'licenses.*.distinct' => '[Licenses & Rights] License #:position is a duplicate.',
+            'customLicenses.*.name.required' => '[Licenses & Rights] Custom license #:position requires a name.',
+            'customLicenses.*.name.max' => '[Licenses & Rights] Custom license #:position name exceeds the maximum length of :max characters.',
+            'customLicenses.*.uri.required' => '[Licenses & Rights] Custom license #:position requires a license text URL.',
+            'customLicenses.*.uri.max' => '[Licenses & Rights] Custom license #:position URL exceeds the maximum length of :max characters.',
+            'customLicenses.*.sourceResourceRightId.exists' => '[Licenses & Rights] Custom license #:position cannot be linked to the imported rights statement.',
 
             // Authors
             'authors.*.type.required' => '[Authors] Author #:position must have a type (person or institution).',

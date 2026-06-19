@@ -789,3 +789,61 @@ describe('contributor contact person validation', function () {
         $response->assertJsonValidationErrors(['contributors.0.website']);
     });
 });
+
+// =========================================================================
+// Custom licenses validation
+// =========================================================================
+
+describe('custom licenses validation', function () {
+    it('accepts a custom license when no catalog license is selected', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['customLicenses'] = [
+            [
+                'name' => 'Community Data License',
+                'uri' => 'https://example.test/licenses/community-data',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses', 'customLicenses.0.name', 'customLicenses.0.uri']);
+    });
+
+    it('requires a URL for custom licenses', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['customLicenses'] = [
+            [
+                'name' => 'Community Data License',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['customLicenses.0.uri'])
+            ->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('rejects unsafe custom license URL schemes', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['customLicenses'] = [
+            [
+                'name' => 'Unsafe License',
+                'uri' => 'javascript:alert(1)',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['customLicenses.0.uri']);
+
+        expect($response->json('errors.customLicenses.0.uri.0'))->toStartWith('[Licenses & Rights]');
+    });
+});

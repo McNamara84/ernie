@@ -28,15 +28,19 @@ final class ResourceRightsStorageService
     /**
      * @param  list<string>  $licenseIdentifiers
      * @param  array<int, array<string, mixed>>  $rawRights
+     * @param  array<int, int>  $sourceResourceRightLinks
      */
     public function syncEditorRights(
         Resource $resource,
         array $licenseIdentifiers,
         array $rawRights = [],
         ?string $fallbackLanguage = null,
+        array $sourceResourceRightLinks = [],
+        bool $replaceUnresolvedRawRights = false,
     ): void {
         $selectedRights = $this->rightsByIdentifier($licenseIdentifiers);
         $selectedRightIds = array_values($selectedRights);
+        $sourceResourceRightIds = array_keys($sourceResourceRightLinks);
 
         // The editor owns linked catalog selections, so a normal save should
         // remove linked rows that are no longer selected. Unresolved imported
@@ -49,13 +53,26 @@ final class ResourceRightsStorageService
                 $selectedRightIds !== [],
                 fn ($query) => $query->whereNotIn('rights_id', $selectedRightIds),
             )
+            ->when(
+                $sourceResourceRightIds !== [],
+                fn ($query) => $query->whereKeyNot($sourceResourceRightIds),
+            )
             ->delete();
+
+        $this->linkSourceResourceRightRows($resource, $sourceResourceRightLinks);
 
         foreach ($selectedRightIds as $rightId) {
             ResourceRight::query()->firstOrCreate([
                 'resource_id' => $resource->id,
                 'rights_id' => $rightId,
             ]);
+        }
+
+        if ($replaceUnresolvedRawRights) {
+            ResourceRight::query()
+                ->where('resource_id', $resource->id)
+                ->whereNull('rights_id')
+                ->delete();
         }
 
         $this->persistImportedStatements($resource, $rawRights, 'editor-import', $fallbackLanguage, $selectedRightIds);
@@ -283,6 +300,51 @@ final class ResourceRightsStorageService
 
         if ($dirty) {
             $row->save();
+        }
+    }
+
+    /**
+     * @param  array<int, int>  $sourceResourceRightLinks
+     */
+    private function linkSourceResourceRightRows(Resource $resource, array $sourceResourceRightLinks): void
+    {
+        foreach ($sourceResourceRightLinks as $resourceRightId => $rightId) {
+            /** @var ResourceRight|null $sourceRow */
+            $sourceRow = ResourceRight::query()
+                ->where('resource_id', $resource->id)
+                ->whereKey($resourceRightId)
+                ->first();
+
+            if (! $sourceRow instanceof ResourceRight || $sourceRow->rights_id === $rightId) {
+                continue;
+            }
+
+            /** @var ResourceRight|null $existingLinkedRow */
+            $existingLinkedRow = ResourceRight::query()
+                ->where('resource_id', $resource->id)
+                ->where('rights_id', $rightId)
+                ->whereKeyNot($sourceRow->id)
+                ->first();
+
+            if ($existingLinkedRow instanceof ResourceRight) {
+                $payload = [
+                    'rights_text' => $this->normalizeNullable($sourceRow->rights_text),
+                    'rights_uri' => $this->normalizeNullable($sourceRow->rights_uri),
+                    'rights_identifier' => $this->normalizeNullable($sourceRow->rights_identifier),
+                    'rights_identifier_scheme' => $this->normalizeNullable($sourceRow->rights_identifier_scheme),
+                    'scheme_uri' => $this->normalizeNullable($sourceRow->scheme_uri),
+                    'language' => $this->normalizeNullable($sourceRow->language),
+                    'source' => $this->normalizeNullable($sourceRow->source),
+                ];
+
+                $this->fillEmptyRawColumns($existingLinkedRow, $payload);
+                $sourceRow->delete();
+
+                continue;
+            }
+
+            $sourceRow->rights_id = $rightId;
+            $sourceRow->save();
         }
     }
 

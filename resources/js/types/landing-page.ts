@@ -351,10 +351,12 @@ export interface LandingPageLicense {
     id: number;
     /** Display name of the license */
     name: string;
-    /** SPDX identifier (e.g., 'CC-BY-4.0') */
-    spdx_id: string;
+    /** SPDX identifier (e.g., 'CC-BY-4.0'); null for custom licenses */
+    spdx_id: string | null;
     /** URL to license text */
-    reference: string;
+    reference: string | null;
+    /** Rights scheme URI, e.g. SPDX scheme for SPDX licenses */
+    scheme_uri?: string | null;
     /** Legacy: license name */
     rights?: string;
     /** Legacy: license URI */

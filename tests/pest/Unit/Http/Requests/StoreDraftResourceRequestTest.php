@@ -228,3 +228,32 @@ it('keeps date mode validation aligned between draft and final resource requests
     expect($draftRequest->rules())->toHaveKey('dates.*.dateMode')
         ->and($storeRequest->rules())->toHaveKey('dates.*.dateMode');
 });
+
+it('normalizes custom licenses for draft saves', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'customLicenses' => [
+            [
+                'rights_text' => ' Community Data License ',
+                'rightsURI' => ' https://example.test/licenses/community-data ',
+                'source_resource_right_id' => '42',
+            ],
+            [
+                'name' => '   ',
+                'uri' => null,
+            ],
+        ],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('customLicenses'))->toBe([
+        [
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'sourceResourceRightId' => 42,
+        ],
+    ]);
+});

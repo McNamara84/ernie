@@ -1,79 +1,95 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import LicenseField from '@/components/curation/fields/license-field';
+import type { LicenseEntry } from '@/components/curation/types/datacite-form-types';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 
-describe('LicenseField Validation Integration', () => {
-    const defaultProps = {
+const options = [
+    { value: 'cc-by-4.0', label: 'CC BY 4.0' },
+    { value: 'cc0-1.0', label: 'CC0 1.0' },
+    { value: 'mit', label: 'MIT License' },
+];
+
+const catalogEntry = (license = ''): LicenseEntry => ({
+    id: 'test-license',
+    mode: 'catalog',
+    license,
+});
+
+const customEntry = (name = '', uri = ''): LicenseEntry => ({
+    id: 'test-license',
+    mode: 'custom',
+    name,
+    uri,
+});
+
+const renderLicenseField = (props: Partial<ComponentProps<typeof LicenseField>> = {}) => {
+    const defaultProps: ComponentProps<typeof LicenseField> = {
         id: 'test-license',
-        license: '',
-        options: [
-            { value: 'cc-by-4.0', label: 'CC BY 4.0' },
-            { value: 'cc0-1.0', label: 'CC0 1.0' },
-            { value: 'mit', label: 'MIT License' },
-        ],
-        onLicenseChange: () => {},
-        onAdd: () => {},
-        onRemove: () => {},
+        entry: catalogEntry(),
+        options,
+        onModeChange: vi.fn(),
+        onCatalogLicenseChange: vi.fn(),
+        onCustomLicenseChange: vi.fn(),
+        onAdd: vi.fn(),
+        onRemove: vi.fn(),
         isFirst: true,
         canAdd: true,
         required: true,
     };
 
+    return render(<LicenseField {...defaultProps} {...props} />);
+};
+
+describe('LicenseField Validation Integration', () => {
     describe('Basic Rendering', () => {
-        it('renders without validation props', () => {
-            render(<LicenseField {...defaultProps} />);
-            
-            expect(screen.getByLabelText(/^License/)).toBeInTheDocument();
+        it('renders catalog mode by default', () => {
+            renderLicenseField();
+
+            expect(screen.getByRole('button', { name: 'Catalog' })).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.getByRole('combobox')).toBeInTheDocument();
         });
 
         it('renders with required indicator when required is true', () => {
-            render(<LicenseField {...defaultProps} required={true} />);
-            
-            const select = screen.getByLabelText(/^License/);
-            expect(select).toBeRequired();
+            renderLicenseField({ required: true });
+
+            const select = screen.getByRole('combobox');
+            expect(select).toHaveAttribute('aria-required', 'true');
         });
 
-        it('does not show required indicator for secondary licenses', () => {
-            render(<LicenseField {...defaultProps} isFirst={false} required={false} />);
-            
-            const select = screen.getByLabelText(/^License/);
-            expect(select).not.toBeRequired();
+        it('does not mark secondary licenses as required', () => {
+            renderLicenseField({ isFirst: false, required: false });
+
+            const select = screen.getByRole('combobox');
+            expect(select).not.toHaveAttribute('aria-required', 'true');
+        });
+
+        it('renders custom license inputs in custom mode', () => {
+            renderLicenseField({ entry: customEntry() });
+
+            expect(screen.getByRole('button', { name: 'Custom' })).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.getByRole('textbox', { name: /^License name/ })).toBeInTheDocument();
+            expect(screen.getByRole('textbox', { name: /^License text URL/ })).toBeInTheDocument();
         });
     });
 
     describe('Validation Messages Display', () => {
         it('displays error messages when touched', () => {
-            const validationMessages: ValidationMessage[] = [
-                { severity: 'error', message: 'Primary license is required' },
-            ];
+            const validationMessages: ValidationMessage[] = [{ severity: 'error', message: 'Primary license is required' }];
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    validationMessages={validationMessages}
-                    touched={true}
-                />
-            );
+            renderLicenseField({ validationMessages, touched: true });
 
             expect(screen.getByText('Primary license is required')).toBeInTheDocument();
             expect(screen.getByRole('alert')).toBeInTheDocument();
         });
 
         it('does not display messages when not touched', () => {
-            const validationMessages: ValidationMessage[] = [
-                { severity: 'error', message: 'Primary license is required' },
-            ];
+            const validationMessages: ValidationMessage[] = [{ severity: 'error', message: 'Primary license is required' }];
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    validationMessages={validationMessages}
-                    touched={false}
-                />
-            );
+            renderLicenseField({ validationMessages, touched: false });
 
             expect(screen.queryByText('Primary license is required')).not.toBeInTheDocument();
         });
@@ -84,13 +100,7 @@ describe('LicenseField Validation Integration', () => {
                 { severity: 'info', message: 'Select an appropriate license for your data' },
             ];
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    validationMessages={validationMessages}
-                    touched={true}
-                />
-            );
+            renderLicenseField({ validationMessages, touched: true });
 
             expect(screen.getByText('Primary license is required')).toBeInTheDocument();
             expect(screen.getByText('Select an appropriate license for your data')).toBeInTheDocument();
@@ -98,47 +108,26 @@ describe('LicenseField Validation Integration', () => {
     });
 
     describe('Accessibility', () => {
-        it('sets aria-invalid when there are error messages and field is touched', () => {
-            const validationMessages: ValidationMessage[] = [
-                { severity: 'error', message: 'Primary license is required' },
-            ];
+        it('sets aria-invalid when catalog field has touched error messages', () => {
+            const validationMessages: ValidationMessage[] = [{ severity: 'error', message: 'Primary license is required' }];
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    validationMessages={validationMessages}
-                    touched={true}
-                />
-            );
+            renderLicenseField({ validationMessages, touched: true });
 
             const trigger = screen.getByRole('combobox');
             expect(trigger).toHaveAttribute('aria-invalid', 'true');
         });
 
-        it('does not set aria-invalid when valid', () => {
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    license="cc-by-4.0"
-                />
-            );
+        it('does not set aria-invalid when catalog field is valid', () => {
+            renderLicenseField({ entry: catalogEntry('cc-by-4.0') });
 
             const trigger = screen.getByRole('combobox');
             expect(trigger).toHaveAttribute('aria-invalid', 'false');
         });
 
-        it('links select to validation feedback via aria-describedby', () => {
-            const validationMessages: ValidationMessage[] = [
-                { severity: 'error', message: 'Primary license is required' },
-            ];
+        it('links catalog select to validation feedback via aria-describedby', () => {
+            const validationMessages: ValidationMessage[] = [{ severity: 'error', message: 'Primary license is required' }];
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    validationMessages={validationMessages}
-                    touched={true}
-                />
-            );
+            renderLicenseField({ validationMessages, touched: true });
 
             const trigger = screen.getByRole('combobox');
             const describedBy = trigger.getAttribute('aria-describedby');
@@ -148,104 +137,90 @@ describe('LicenseField Validation Integration', () => {
     });
 
     describe('Event Handlers', () => {
-        it('calls onValidationBlur when provided', async () => {
+        it('calls onValidationBlur when selecting a catalog license', async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            let blurCalled = false;
-            const handleBlur = () => {
-                blurCalled = true;
-            };
+            const handleBlur = vi.fn();
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    onValidationBlur={handleBlur}
-                />
-            );
+            renderLicenseField({ onValidationBlur: handleBlur });
 
-            const trigger = screen.getByRole('combobox');
-            
-            // SelectField triggers onValidationBlur in handleValueChange
-            // So we select a value to trigger the blur handler
-            await user.click(trigger);
-            const option = await screen.findByText('CC BY 4.0');
-            await user.click(option);
+            await user.click(screen.getByRole('combobox'));
+            await user.click(await screen.findByText('CC BY 4.0'));
 
             await waitFor(() => {
-                expect(blurCalled).toBe(true);
+                expect(handleBlur).toHaveBeenCalled();
             });
         });
 
-        it('calls onLicenseChange when selecting a license', async () => {
+        it('calls onCatalogLicenseChange when selecting a license', async () => {
             const user = userEvent.setup();
-            let selectedValue = '';
-            const handleChange = (value: string) => {
-                selectedValue = value;
-            };
+            const handleChange = vi.fn();
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    onLicenseChange={handleChange}
-                />
-            );
+            renderLicenseField({ onCatalogLicenseChange: handleChange });
 
-            const trigger = screen.getByRole('combobox');
-            await user.click(trigger);
-            
-            const option = await screen.findByText('MIT License');
-            await user.click(option);
+            await user.click(screen.getByRole('combobox'));
+            await user.click(await screen.findByText('MIT License'));
 
-            expect(selectedValue).toBe('mit');
+            expect(handleChange).toHaveBeenCalledWith('mit');
+        });
+
+        it('calls onModeChange when switching modes', async () => {
+            const user = userEvent.setup();
+            const handleModeChange = vi.fn();
+
+            renderLicenseField({ onModeChange: handleModeChange });
+
+            await user.click(screen.getByRole('button', { name: 'Custom' }));
+
+            expect(handleModeChange).toHaveBeenCalledWith('custom');
+        });
+
+        it('calls onCustomLicenseChange for custom name and URL inputs', async () => {
+            const user = userEvent.setup();
+            const handleCustomChange = vi.fn();
+
+            renderLicenseField({ entry: customEntry(), onCustomLicenseChange: handleCustomChange });
+
+            await user.type(screen.getByRole('textbox', { name: /^License name/ }), 'Community License');
+            await user.type(screen.getByRole('textbox', { name: /^License text URL/ }), 'https://example.test/license');
+
+            expect(handleCustomChange).toHaveBeenCalledWith('name', expect.any(String));
+            expect(handleCustomChange).toHaveBeenCalledWith('uri', expect.any(String));
         });
     });
 
     describe('Add/Remove Buttons', () => {
         it('shows add button when isFirst is true and canAdd is true', () => {
-            render(<LicenseField {...defaultProps} isFirst={true} canAdd={true} />);
-            
+            renderLicenseField({ isFirst: true, canAdd: true });
+
             expect(screen.getByLabelText('Add license')).toBeInTheDocument();
         });
 
         it('shows remove button when isFirst is false', () => {
-            render(<LicenseField {...defaultProps} isFirst={false} />);
-            
+            renderLicenseField({ isFirst: false });
+
             expect(screen.getByLabelText('Remove license')).toBeInTheDocument();
         });
 
         it('does not show add button when canAdd is false', () => {
-            render(<LicenseField {...defaultProps} isFirst={true} canAdd={false} />);
-            
+            renderLicenseField({ isFirst: true, canAdd: false });
+
             expect(screen.queryByLabelText('Add license')).not.toBeInTheDocument();
         });
     });
 
     describe('Styling with Validation States', () => {
-        it('applies error styling when validation fails', () => {
-            const validationMessages: ValidationMessage[] = [
-                { severity: 'error', message: 'Primary license is required' },
-            ];
+        it('applies error styling when catalog validation fails', () => {
+            const validationMessages: ValidationMessage[] = [{ severity: 'error', message: 'Primary license is required' }];
 
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    validationMessages={validationMessages}
-                    touched={true}
-                />
-            );
+            renderLicenseField({ validationMessages, touched: true });
 
             const trigger = screen.getByRole('combobox');
             expect(trigger).toHaveAttribute('aria-invalid', 'true');
-            // Border styling is applied via aria-invalid attribute and Tailwind CSS
             expect(trigger).toHaveClass('aria-invalid:border-destructive');
         });
 
-        it('applies normal styling when no validation errors', () => {
-            render(
-                <LicenseField
-                    {...defaultProps}
-                    license="cc-by-4.0"
-                />
-            );
+        it('applies normal styling when no validation errors exist', () => {
+            renderLicenseField({ entry: catalogEntry('cc-by-4.0') });
 
             const trigger = screen.getByRole('combobox');
             expect(trigger).not.toHaveClass('border-destructive');
@@ -253,38 +228,36 @@ describe('LicenseField Validation Integration', () => {
     });
 
     describe('Label Visibility', () => {
-        it('shows label when isFirst is true', () => {
-            render(<LicenseField {...defaultProps} isFirst={true} />);
-            
+        it('shows catalog label when isFirst is true', () => {
+            renderLicenseField({ isFirst: true });
+
             expect(screen.getByText('License')).toBeVisible();
         });
 
-        it('hides label visually when isFirst is false', () => {
-            render(<LicenseField {...defaultProps} isFirst={false} />);
-            
+        it('hides catalog label visually when isFirst is false', () => {
+            renderLicenseField({ isFirst: false });
+
             const label = screen.getByText('License').closest('label');
             expect(label).toHaveClass('sr-only');
         });
     });
 
     describe('Options Display', () => {
-        it('displays all license options when opened', async () => {
+        it('displays all catalog license options when opened', async () => {
             const user = userEvent.setup();
-            
-            render(<LicenseField {...defaultProps} />);
 
-            const trigger = screen.getByRole('combobox');
-            await user.click(trigger);
+            renderLicenseField();
+
+            await user.click(screen.getByRole('combobox'));
 
             expect(await screen.findByText('CC BY 4.0')).toBeInTheDocument();
             expect(await screen.findByText('CC0 1.0')).toBeInTheDocument();
             expect(await screen.findByText('MIT License')).toBeInTheDocument();
         });
 
-        it('displays selected license value', () => {
-            render(<LicenseField {...defaultProps} license="cc-by-4.0" />);
+        it('displays selected catalog license value', () => {
+            renderLicenseField({ entry: catalogEntry('cc-by-4.0') });
 
-            // SelectField shows the label of the selected option
             expect(screen.getByText('CC BY 4.0')).toBeInTheDocument();
         });
     });

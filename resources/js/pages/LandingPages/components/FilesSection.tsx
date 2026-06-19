@@ -165,13 +165,13 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                 {licenses.map((license) => (
                                     <a
                                         key={license.id}
-                                        href={license.reference}
+                                        href={license.reference ?? undefined}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
-                                        title={`SPDX: ${license.spdx_id}`}
+                                        title={license.spdx_id ? `SPDX: ${license.spdx_id}` : license.name}
                                     >
-                                        <CreativeCommonsIcon spdxId={license.spdx_id} className="h-4 w-4" />
+                                        {license.spdx_id ? <CreativeCommonsIcon spdxId={license.spdx_id} className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />}
                                         <span>{license.name}</span>
                                     </a>
                                 ))}

@@ -447,3 +447,18 @@ describe('groupErrorsBySection', () => {
         expect(keys[1]).toBe('resource-info');
     });
 });
+
+describe('custom license error mapping', () => {
+    it('resolves custom license name and URL selectors', () => {
+        const mapped = mapBackendErrors({
+            'customLicenses.0.name': ['[Licenses & Rights] Custom license #1 requires a name.'],
+            'customLicenses.0.uri': ['[Licenses & Rights] Custom license #1 requires a license text URL.'],
+        });
+
+        expect(mapped[0].sectionName).toBe('Licenses & Rights');
+        expect(mapped[0].fieldSelector).toBe('[data-testid="custom-license-name-0"]');
+        expect(mapped[0].fieldId).toBe('license-0');
+        expect(mapped[1].fieldSelector).toBe('[data-testid="custom-license-uri-0"]');
+        expect(mapped[1].fieldId).toBe('license-0');
+    });
+});

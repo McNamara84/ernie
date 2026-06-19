@@ -14,6 +14,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
 use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
+use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use DOMDocument;
@@ -1155,9 +1156,10 @@ class DataCiteXmlExporter
             if ($right instanceof Right) {
                 $rightsText = $right->name;
                 $rightsUri = $right->uri ?? $resourceRight->rights_uri;
-                $rightsIdentifier = $right->identifier;
-                $identifierScheme = SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME;
-                $schemeUri = $right->scheme_uri ?? $resourceRight->scheme_uri;
+                $isSpdxRight = CustomRightCatalogService::isSpdxRight($right);
+                $rightsIdentifier = $isSpdxRight ? $right->identifier : null;
+                $identifierScheme = $isSpdxRight ? SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME : null;
+                $schemeUri = $isSpdxRight ? ($right->scheme_uri ?? $resourceRight->scheme_uri) : null;
             } else {
                 $rightsText = $resourceRight->rights_text;
                 $rightsUri = $resourceRight->rights_uri;

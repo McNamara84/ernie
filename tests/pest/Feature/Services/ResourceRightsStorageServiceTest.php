@@ -205,3 +205,107 @@ it('keeps round-tripped raw import context linked when the matching right is sti
         ->and($linkedStatement->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
         ->and(ResourceRight::where('resource_id', $this->resource->id)->whereNull('rights_id')->exists())->toBeFalse();
 });
+
+it('links imported rights rows to selected custom catalog rights', function (): void {
+    $customRight = Right::query()->create([
+        'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+        'name' => 'Community License',
+        'uri' => 'https://example.test/community-license',
+        'scheme_uri' => null,
+        'is_active' => true,
+        'is_elmo_active' => false,
+    ]);
+    $sourceRow = ResourceRight::query()->create([
+        'resource_id' => $this->resource->id,
+        'rights_text' => 'Community License',
+        'rights_uri' => 'https://example.test/community-license',
+        'source' => 'xml-upload',
+    ]);
+
+    $this->service->syncEditorRights(
+        $this->resource,
+        [$customRight->identifier],
+        [],
+        null,
+        [$sourceRow->id => $customRight->id],
+        true,
+    );
+
+    $sourceRow->refresh();
+
+    expect($sourceRow->rights_id)->toBe($customRight->id)
+        ->and($sourceRow->rights_text)->toBe('Community License')
+        ->and($sourceRow->rights_uri)->toBe('https://example.test/community-license')
+        ->and(ResourceRight::query()->where('resource_id', $this->resource->id)->whereNull('rights_id')->exists())->toBeFalse();
+});
+
+it('updates retained custom source rows before removing unselected linked rights', function (): void {
+    $oldCustomRight = Right::query()->create([
+        'identifier' => 'CUSTOM-OLD-123456789ABC',
+        'name' => 'Old Custom License',
+        'uri' => 'https://example.test/old-license',
+        'scheme_uri' => null,
+    ]);
+    $newCustomRight = Right::query()->create([
+        'identifier' => 'CUSTOM-NEW-123456789ABC',
+        'name' => 'New Custom License',
+        'uri' => 'https://example.test/new-license',
+        'scheme_uri' => null,
+    ]);
+    $sourceRow = ResourceRight::query()->create([
+        'resource_id' => $this->resource->id,
+        'rights_id' => $oldCustomRight->id,
+        'rights_text' => 'Old Custom License',
+        'rights_uri' => 'https://example.test/old-license',
+    ]);
+
+    $this->service->syncEditorRights(
+        $this->resource,
+        [$newCustomRight->identifier],
+        [],
+        null,
+        [$sourceRow->id => $newCustomRight->id],
+        true,
+    );
+
+    $sourceRow->refresh();
+
+    expect($sourceRow->rights_id)->toBe($newCustomRight->id)
+        ->and(ResourceRight::query()->where('resource_id', $this->resource->id)->count())->toBe(1);
+});
+
+it('merges imported source rows into existing linked custom rows', function (): void {
+    $customRight = Right::query()->create([
+        'identifier' => 'CUSTOM-MERGE-123456789ABC',
+        'name' => 'Merged Custom License',
+        'uri' => 'https://example.test/merged-license',
+        'scheme_uri' => null,
+    ]);
+    $linkedRow = ResourceRight::query()->create([
+        'resource_id' => $this->resource->id,
+        'rights_id' => $customRight->id,
+    ]);
+    $sourceRow = ResourceRight::query()->create([
+        'resource_id' => $this->resource->id,
+        'rights_text' => 'Merged Custom License',
+        'rights_uri' => 'https://example.test/merged-license',
+        'source' => 'xml-upload',
+    ]);
+
+    $this->service->syncEditorRights(
+        $this->resource,
+        [$customRight->identifier],
+        [],
+        null,
+        [$sourceRow->id => $customRight->id],
+        true,
+    );
+
+    $linkedRow->refresh();
+
+    expect(ResourceRight::query()->where('resource_id', $this->resource->id)->count())->toBe(1)
+        ->and($linkedRow->rights_text)->toBe('Merged Custom License')
+        ->and($linkedRow->rights_uri)->toBe('https://example.test/merged-license')
+        ->and($linkedRow->source)->toBe('xml-upload')
+        ->and(ResourceRight::query()->find($sourceRow->id))->toBeNull();
+});
