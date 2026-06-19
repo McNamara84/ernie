@@ -970,14 +970,16 @@ class OldDataset extends Model
             $startDate = $date->start ?? '';
             $endDate = $date->end ?? '';
 
+            $dateMode = $startDate !== '' && $endDate !== '' && in_array($dateType, ['collected', 'valid', 'other'], true)
+                ? 'range'
+                : 'single';
+
             return [
                 // Convert dateType to lowercase to match ERNIE's format (e.g., "Available" -> "available")
                 'dateType' => $dateType,
-                'dateMode' => $startDate !== '' && $endDate !== '' && in_array($dateType, ['collected', 'valid', 'other'], true)
-                    ? 'range'
-                    : 'single',
+                'dateMode' => $dateMode,
                 'startDate' => $startDate,
-                'endDate' => $endDate,
+                'endDate' => $dateMode === 'range' ? $endDate : '',
             ];
         })->toArray();
     }

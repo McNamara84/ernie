@@ -496,13 +496,15 @@ class EditorDataTransformer
                 $dateTypeSlug = Str::kebab(mb_strtolower($dateType));
                 $hasClosedRange = ($date->start_date ?? '') !== '' && ($date->end_date ?? '') !== '';
 
+                $dateMode = $hasClosedRange && in_array($dateTypeSlug, ['collected', 'valid', 'other'], true)
+                    ? 'range'
+                    : 'single';
+
                 return [
                     'dateType' => $dateType,
-                    'dateMode' => $hasClosedRange && in_array($dateTypeSlug, ['collected', 'valid', 'other'], true)
-                        ? 'range'
-                        : 'single',
+                    'dateMode' => $dateMode,
                     'startDate' => $this->formatStoredDate($date->start_date ?? $date->date_value),
-                    'endDate' => $this->formatStoredDate($date->end_date),
+                    'endDate' => $dateMode === 'range' ? $this->formatStoredDate($date->end_date) : '',
                 ];
             })
             ->values()

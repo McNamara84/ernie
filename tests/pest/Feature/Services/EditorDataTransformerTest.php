@@ -1024,7 +1024,7 @@ describe('transformDates', function (): void {
             ->and($result[0]['endDate'])->toBe('2024-06-30');
     });
 
-    it('keeps unsupported stored date ranges in single mode for editor hydration', function (): void {
+    it('clears unsupported stored date range end dates in single mode for editor hydration', function (): void {
         $dateType = DateType::factory()->create(['slug' => 'Available', 'name' => 'Available']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
@@ -1040,7 +1040,7 @@ describe('transformDates', function (): void {
             ->and($result[0]['dateType'])->toBe('Available')
             ->and($result[0]['dateMode'])->toBe('single')
             ->and($result[0]['startDate'])->toBe('2024-01-01')
-            ->and($result[0]['endDate'])->toBe('2024-12-31');
+            ->and($result[0]['endDate'])->toBe('');
     });
 
     it('falls back to date_value for imported single dates', function (): void {

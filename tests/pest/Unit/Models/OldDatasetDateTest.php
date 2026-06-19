@@ -62,7 +62,7 @@ it('marks legacy collected dates with start and end as periods', function (): vo
         ]);
 });
 
-it('keeps unsupported legacy date types in single-date mode even when an end date exists', function (): void {
+it('clears end dates for unsupported legacy date types in single-date mode', function (): void {
     DB::connection('metaworks')->table('date')->insert([
         'resource_id' => 1,
         'datetype' => 'Available',
@@ -77,6 +77,6 @@ it('keeps unsupported legacy date types in single-date mode even when an end dat
             'dateType' => 'available',
             'dateMode' => 'single',
             'startDate' => '2024-01-01',
-            'endDate' => '2024-12-31',
+            'endDate' => '',
         ]);
 });
