@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -43,6 +44,7 @@ return new class extends Migration
     {
         $this->ensurePrimaryIdColumn();
         $this->ensureColumns();
+        $this->deduplicateExistingRows();
         $this->ensureIndexes();
         $this->ensureForeignKey();
     }
@@ -157,6 +159,41 @@ return new class extends Migration
                     $table->index('statistic_date');
                 }
             );
+        }
+    }
+
+    private function deduplicateExistingRows(): void
+    {
+        $duplicateGroups = DB::table('landing_page_daily_statistics')
+            ->select('landing_page_id', 'statistic_date')
+            ->selectRaw('MIN(id) as keep_id')
+            ->selectRaw('COALESCE(SUM(page_view_count), 0) as page_view_count')
+            ->selectRaw('COALESCE(SUM(file_download_click_count), 0) as file_download_click_count')
+            ->selectRaw('MIN(created_at) as created_at')
+            ->selectRaw('MAX(updated_at) as updated_at')
+            ->groupBy('landing_page_id', 'statistic_date')
+            ->havingRaw('COUNT(*) > 1')
+            ->get();
+
+        foreach ($duplicateGroups as $duplicateGroup) {
+            DB::transaction(function () use ($duplicateGroup): void {
+                $keepId = (int) $duplicateGroup->keep_id;
+
+                DB::table('landing_page_daily_statistics')
+                    ->where('id', $keepId)
+                    ->update([
+                        'page_view_count' => (int) $duplicateGroup->page_view_count,
+                        'file_download_click_count' => (int) $duplicateGroup->file_download_click_count,
+                        'created_at' => $duplicateGroup->created_at,
+                        'updated_at' => $duplicateGroup->updated_at,
+                    ]);
+
+                DB::table('landing_page_daily_statistics')
+                    ->where('landing_page_id', $duplicateGroup->landing_page_id)
+                    ->where('statistic_date', $duplicateGroup->statistic_date)
+                    ->where('id', '<>', $keepId)
+                    ->delete();
+            });
         }
     }
 

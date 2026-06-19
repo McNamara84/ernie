@@ -114,6 +114,64 @@ it('repairs an existing landing_page_daily_statistics table without dropping row
     }
 });
 
+it('merges duplicate landing_page_daily_statistics rows before adding the unique index', function (): void {
+    $landingPage = LandingPage::factory()->create();
+
+    Schema::dropIfExists('landing_page_daily_statistics');
+    Schema::create('landing_page_daily_statistics', function (Blueprint $table): void {
+        $table->id();
+        $table->unsignedBigInteger('landing_page_id');
+        $table->date('statistic_date');
+        $table->unsignedInteger('page_view_count')->default(0);
+        $table->unsignedInteger('file_download_click_count')->default(0);
+        $table->timestamps();
+    });
+
+    DB::table('landing_page_daily_statistics')->insert([
+        [
+            'landing_page_id' => $landingPage->id,
+            'statistic_date' => '2026-06-09',
+            'page_view_count' => 2,
+            'file_download_click_count' => 1,
+            'created_at' => '2026-06-09 08:00:00',
+            'updated_at' => '2026-06-09 08:00:00',
+        ],
+        [
+            'landing_page_id' => $landingPage->id,
+            'statistic_date' => '2026-06-09',
+            'page_view_count' => 3,
+            'file_download_click_count' => 4,
+            'created_at' => '2026-06-09 09:00:00',
+            'updated_at' => '2026-06-09 09:00:00',
+        ],
+        [
+            'landing_page_id' => $landingPage->id,
+            'statistic_date' => '2026-06-10',
+            'page_view_count' => 7,
+            'file_download_click_count' => 0,
+            'created_at' => '2026-06-10 08:00:00',
+            'updated_at' => '2026-06-10 08:00:00',
+        ],
+    ]);
+
+    $migration = loadLandingPageDailyStatisticsMigration();
+
+    /** @phpstan-ignore method.notFound */
+    $migration->up();
+    /** @phpstan-ignore method.notFound */
+    $migration->up();
+
+    $mergedRow = DB::table('landing_page_daily_statistics')
+        ->where('landing_page_id', $landingPage->id)
+        ->where('statistic_date', '2026-06-09')
+        ->first();
+
+    expect(DB::table('landing_page_daily_statistics')->count())->toBe(2)
+        ->and((int) $mergedRow->page_view_count)->toBe(5)
+        ->and((int) $mergedRow->file_download_click_count)->toBe(5)
+        ->and(statisticsMigrationTableHasIndex('landing_page_daily_statistics', ['landing_page_id', 'statistic_date'], unique: true))->toBeTrue();
+});
+
 it('creates and drops the portal_search_daily_statistics table through up and down', function (): void {
     expect(Schema::hasTable('portal_search_daily_statistics'))->toBeTrue();
 
