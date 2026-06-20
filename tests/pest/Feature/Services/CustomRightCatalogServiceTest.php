@@ -6,6 +6,7 @@ use App\Models\Right;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -78,6 +79,34 @@ it('reuses the matching custom right when unrelated reusable rights exist', func
         ->and($right->fresh()->is_active)->toBeTrue()
         ->and($right->fresh()->is_elmo_active)->toBeFalse()
         ->and(Right::query()->where('name', 'Community Data License')->count())->toBe(1);
+});
+
+it('escapes SQL LIKE wildcards when searching reusable custom rights', function (): void {
+    Right::query()->create([
+        'identifier' => 'CUSTOM-WILDCARD-NOISE',
+        'name' => 'Wildcard License',
+        'uri' => 'https://example.test/licenses/aX2fbZunderZscore',
+        'scheme_uri' => null,
+        'is_active' => false,
+        'is_elmo_active' => true,
+    ]);
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $right = $this->service->findOrCreate('Wildcard License', 'https://example.test/licenses/a%2Fb_under_score');
+
+    DB::disableQueryLog();
+
+    $likeQuery = collect(DB::getQueryLog())->first(
+        fn (array $query): bool => str_contains((string) $query['query'], 'LOWER(uri) LIKE')
+    );
+
+    expect($likeQuery)->not->toBeNull()
+        ->and($likeQuery['query'])->toContain("ESCAPE '!'")
+        ->and($likeQuery['bindings'])->toContain('%example.test/licenses/a!%2fb!_under!_score%')
+        ->and($right->uri)->toBe('https://example.test/licenses/a%2Fb_under_score')
+        ->and(Right::query()->count())->toBe(2);
 });
 
 it('distinguishes SPDX catalog rights from custom rights by scheme URI', function (): void {

@@ -97,6 +97,7 @@ final class CustomRightCatalogService
     {
         $normalizedName = SpdxLicenseLookup::normalizeText($name);
         $normalizedUri = SpdxLicenseLookup::normalizeUri($uri);
+        $uriLikePattern = '%'.$this->escapeSqlLikePattern($normalizedUri).'%';
 
         /** @var Collection<int, Right> $candidates */
         $candidates = Right::query()
@@ -107,13 +108,18 @@ final class CustomRightCatalogService
             })
             ->whereNotNull('uri')
             ->whereRaw('LOWER(TRIM(name)) = ?', [Str::lower(trim($name))])
-            ->whereRaw('LOWER(uri) LIKE ?', ['%'.$normalizedUri.'%'])
+            ->whereRaw("LOWER(uri) LIKE ? ESCAPE '!'", [$uriLikePattern])
             ->get();
 
         return $candidates->first(
             fn (Right $right): bool => SpdxLicenseLookup::normalizeText($right->name) === $normalizedName
                 && SpdxLicenseLookup::normalizeUri($right->uri) === $normalizedUri
         );
+    }
+
+    private function escapeSqlLikePattern(string $value): string
+    {
+        return str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
     }
 
     private function normalizeRequired(string $value, string $field, string $message): string
