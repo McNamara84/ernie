@@ -2829,6 +2829,46 @@ describe('DataCiteForm', () => {
         expect(body.rawRights).toEqual([]);
     });
 
+    it('indexes custom license inputs by custom payload order when catalog rows come first', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialLicenses={['MIT']}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 123,
+                        rights: 'Imported Community License',
+                        rightsUri: 'https://example.test/licenses/imported-community',
+                        source: 'xml-upload',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByTestId('custom-license-name-0')).toHaveValue('Imported Community License');
+        expect(screen.getByTestId('custom-license-uri-0')).toHaveValue('https://example.test/licenses/imported-community');
+        expect(screen.queryByTestId('custom-license-name-1')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('custom-license-uri-1')).not.toBeInTheDocument();
+    });
+
     it('round-trips imported raw rights as custom licenses with source row IDs', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 

@@ -97,11 +97,14 @@ final class CustomRightCatalogService
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, Right> $candidates */
         $candidates = Right::query()
+            ->select(['id', 'identifier', 'name', 'uri', 'scheme_uri', 'is_active', 'is_elmo_active'])
             ->where(function ($query): void {
                 $query->whereNull('scheme_uri')
                     ->orWhere('scheme_uri', '!=', SpdxLicenseLookup::SCHEME_URI);
             })
             ->whereNotNull('uri')
+            ->whereRaw('LOWER(TRIM(name)) = ?', [Str::lower(trim($name))])
+            ->whereRaw('LOWER(uri) LIKE ?', ['%'.$normalizedUri.'%'])
             ->get();
 
         return $candidates->first(

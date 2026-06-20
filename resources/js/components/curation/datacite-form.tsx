@@ -285,6 +285,22 @@ export default function DataCiteForm({
         return entries.length > 0 ? entries : [{ id: crypto.randomUUID(), mode: 'catalog', license: '' }];
     });
 
+    const customLicensePayloadIndexesByEntryId = useMemo(() => {
+        const indexes = new Map<string, number>();
+        let customLicenseIndex = 0;
+
+        licenseEntries.forEach((entry) => {
+            if (entry.mode !== 'custom' || !hasAnyLicenseEntryContent(entry)) {
+                return;
+            }
+
+            indexes.set(entry.id, customLicenseIndex);
+            customLicenseIndex += 1;
+        });
+
+        return indexes;
+    }, [licenseEntries]);
+
     const [authors, setAuthors] = useState<AuthorEntry[]>(() => {
         if (initialAuthors.length > 0) {
             const mapped = initialAuthors.map((author) => mapInitialAuthorToEntry(author)).filter((author): author is AuthorEntry => Boolean(author));
@@ -2691,31 +2707,35 @@ export default function DataCiteForm({
                     </AccordionTrigger>
                     <AccordionContent>
                         <div className="space-y-4">
-                            {licenseEntries.map((entry, index) => (
-                                <LicenseField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    entry={entry}
-                                    options={licenses.map((l) => ({
-                                        value: l.identifier,
-                                        label: l.name,
-                                    }))}
-                                    onModeChange={(mode) => handleLicenseModeChange(index, mode)}
-                                    onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
-                                    onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
-                                    onAdd={addLicense}
-                                    onRemove={() => removeLicense(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddLicense(licenseEntries, MAX_LICENSES)}
-                                    required={index === 0}
-                                    validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
-                                    touched={index === 0 ? getFieldState('license-0').touched : undefined}
-                                    onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
-                                    data-testid={`license-select-${index}`}
-                                    customNameTestId={`custom-license-name-${index}`}
-                                    customUriTestId={`custom-license-uri-${index}`}
-                                />
-                            ))}
+                            {licenseEntries.map((entry, index) => {
+                                const customLicensePayloadIndex = entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
+
+                                return (
+                                    <LicenseField
+                                        key={entry.id}
+                                        id={entry.id}
+                                        entry={entry}
+                                        options={licenses.map((l) => ({
+                                            value: l.identifier,
+                                            label: l.name,
+                                        }))}
+                                        onModeChange={(mode) => handleLicenseModeChange(index, mode)}
+                                        onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
+                                        onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
+                                        onAdd={addLicense}
+                                        onRemove={() => removeLicense(index)}
+                                        isFirst={index === 0}
+                                        canAdd={canAddLicense(licenseEntries, MAX_LICENSES)}
+                                        required={index === 0}
+                                        validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
+                                        touched={index === 0 ? getFieldState('license-0').touched : undefined}
+                                        onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
+                                        data-testid={`license-select-${index}`}
+                                        customNameTestId={customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined}
+                                        customUriTestId={customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined}
+                                    />
+                                );
+                            })}
                         </div>
                     </AccordionContent>
                 </AccordionItem>

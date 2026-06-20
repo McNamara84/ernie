@@ -51,6 +51,35 @@ it('reuses inactive custom rights with matching normalized name and URI', functi
         ->and(Right::query()->count())->toBe(1);
 });
 
+it('reuses the matching custom right when unrelated reusable rights exist', function (): void {
+    foreach (range(1, 20) as $index) {
+        Right::query()->create([
+            'identifier' => 'CUSTOM-NOISE-'.$index,
+            'name' => 'Unrelated Custom License '.$index,
+            'uri' => 'https://example.test/unrelated/'.$index,
+            'scheme_uri' => null,
+            'is_active' => true,
+            'is_elmo_active' => false,
+        ]);
+    }
+
+    $existing = Right::query()->create([
+        'identifier' => 'CUSTOM-LEGACY-COMMUNITY',
+        'name' => 'Community Data License',
+        'uri' => 'https://example.test/licenses/community-data',
+        'scheme_uri' => null,
+        'is_active' => false,
+        'is_elmo_active' => true,
+    ]);
+
+    $right = $this->service->findOrCreate(' community data license ', 'https://example.test/licenses/community-data/');
+
+    expect($right->id)->toBe($existing->id)
+        ->and($right->fresh()->is_active)->toBeTrue()
+        ->and($right->fresh()->is_elmo_active)->toBeFalse()
+        ->and(Right::query()->where('name', 'Community Data License')->count())->toBe(1);
+});
+
 it('distinguishes SPDX catalog rights from custom rights by scheme URI', function (): void {
     $spdx = Right::query()->create([
         'identifier' => 'MIT',
