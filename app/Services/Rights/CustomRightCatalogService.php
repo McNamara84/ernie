@@ -6,6 +6,7 @@ namespace App\Services\Rights;
 
 use App\Models\Right;
 use App\Services\Spdx\SpdxLicenseLookup;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -37,17 +38,19 @@ final class CustomRightCatalogService
         }
 
         /** @var Right $right */
-        $right = Right::query()->create([
-            'identifier' => $identifier,
-            'name' => $name,
-            'uri' => $uri,
-            'scheme_uri' => null,
-            'is_active' => true,
-            'is_elmo_active' => false,
-            'usage_count' => 0,
-        ]);
+        $right = Right::query()->firstOrCreate(
+            ['identifier' => $identifier],
+            [
+                'name' => $name,
+                'uri' => $uri,
+                'scheme_uri' => null,
+                'is_active' => true,
+                'is_elmo_active' => false,
+                'usage_count' => 0,
+            ],
+        );
 
-        return $right;
+        return $this->activateCustomRight($right);
     }
 
     public static function isSpdxRight(?Right $right): bool
@@ -95,7 +98,7 @@ final class CustomRightCatalogService
         $normalizedName = SpdxLicenseLookup::normalizeText($name);
         $normalizedUri = SpdxLicenseLookup::normalizeUri($uri);
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, Right> $candidates */
+        /** @var Collection<int, Right> $candidates */
         $candidates = Right::query()
             ->select(['id', 'identifier', 'name', 'uri', 'scheme_uri', 'is_active', 'is_elmo_active'])
             ->where(function ($query): void {

@@ -73,6 +73,7 @@ export type CustomLicenseEntry = {
     name: string;
     uri: string;
     sourceResourceRightId?: number | null;
+    rawRight?: RawRightsInput;
 };
 
 export type LicenseEntry = CatalogLicenseEntry | CustomLicenseEntry;

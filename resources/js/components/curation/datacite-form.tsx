@@ -55,11 +55,13 @@ import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import UsedInstrumentsField from './fields/used-instruments-field';
 import {
+    type CustomLicenseEntry,
     type DataCiteFormData,
     type DataCiteFormProps,
     type DateEntry,
     type LicenseEntry,
     MAIN_TITLE_SLUG,
+    type RawRightsInput,
     type SerializedAuthor,
     type SerializedContributor,
     type TitleEntry,
@@ -67,7 +69,6 @@ import {
 import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
 import {
     canAddDate,
-    canAddLicense,
     canAddTitle,
     hasAnyLicenseEntryContent,
     hasCompleteLicenseEntry,
@@ -117,6 +118,31 @@ function appendValidationMessage(errors: Record<string, string[]>, backendKey: s
     }
 
     errors[backendKey] = [message];
+}
+
+function isRawRightsOnlyLicenseEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return entry.mode === 'custom' && entry.rawRight !== undefined && entry.uri.trim() === '' && entry.name.trim() !== '';
+}
+
+function isCustomLicensePayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsOnlyLicenseEntry(entry);
+}
+
+function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
+    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
+}
+
+function canAddLicenseEntry(licenseEntries: LicenseEntry[], maxLicenses: number): boolean {
+    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
+}
+
+function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRightsInput {
+    return {
+        ...entry.rawRight,
+        rights: entry.name.trim(),
+        rightsUri: null,
+        sourceResourceRightId: entry.sourceResourceRightId ?? entry.rawRight?.sourceResourceRightId ?? null,
+    };
 }
 
 function isDatacenterErrorKey(backendKey: string): boolean {
@@ -279,6 +305,7 @@ export default function DataCiteForm({
                 name,
                 uri,
                 sourceResourceRightId: rawRight.sourceResourceRightId ?? undefined,
+                rawRight,
             });
         });
 
@@ -290,7 +317,7 @@ export default function DataCiteForm({
         let customLicenseIndex = 0;
 
         licenseEntries.forEach((entry) => {
-            if (entry.mode !== 'custom' || !hasAnyLicenseEntryContent(entry)) {
+            if (!isCustomLicensePayloadEntry(entry)) {
                 return;
             }
 
@@ -661,22 +688,14 @@ export default function DataCiteForm({
         },
     ];
 
-    // License validation rules (at least one complete license row is required)
-    const primaryLicenseValidationRules: ValidationRule[] = [
+    // License validation rules (at least one complete license row or imported raw rights statement is required)
+    const primaryLicenseValidationRules: ValidationRule<LicenseEntry[]>[] = [
         {
             validate: (value) => {
-                if (typeof value === 'object' && value !== null && 'mode' in value) {
-                    if (!hasCompleteLicenseEntry(value as LicenseEntry)) {
-                        return { severity: 'error', message: 'At least one license is required.' };
-                    }
-
-                    return null;
+                if (!value.some(hasLicenseEntryEvidence)) {
+                    return { severity: 'error', message: 'At least one license is required.' };
                 }
 
-                const result = validateRequired(String(value || ''), 'Primary license');
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
                 return null;
             },
         },
@@ -1319,18 +1338,13 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'language', 'Language is required.');
         }
 
-        if (!licenseEntries.some(hasCompleteLicenseEntry)) {
+        if (!licenseEntries.some(hasLicenseEntryEvidence)) {
             appendValidationMessage(errors, 'licenses', 'At least one License is required.');
         }
 
         let customLicenseIndex = 0;
         licenseEntries.forEach((entry) => {
-            if (entry.mode !== 'custom') {
-                return;
-            }
-
-            const hasContent = hasAnyLicenseEntryContent(entry);
-            if (!hasContent) {
+            if (!isCustomLicensePayloadEntry(entry)) {
                 return;
             }
 
@@ -1433,9 +1447,9 @@ export default function DataCiteForm({
     }, [titles, form.year, form.resourceType, form.language, selectedDatacenters, getFieldState]);
 
     const licensesStatus = useMemo(() => {
-        const hasCompleteLicense = licenseEntries.some(hasCompleteLicenseEntry);
+        const hasCompleteLicense = licenseEntries.some(hasLicenseEntryEvidence);
         const hasInvalidCustomLicense = licenseEntries.some(
-            (entry) => entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && (!entry.name.trim() || !entry.uri.trim() || !isHttpUrl(entry.uri.trim())),
+            (entry) => isCustomLicensePayloadEntry(entry) && (!entry.name.trim() || !entry.uri.trim() || !isHttpUrl(entry.uri.trim())),
         );
 
         if (!hasCompleteLicense || hasInvalidCustomLicense) {
@@ -1699,10 +1713,10 @@ export default function DataCiteForm({
         }
     };
 
-    const validatePrimaryLicenseEntry = (entry: LicenseEntry) => {
+    const validatePrimaryLicenseEntries = (entries: LicenseEntry[]) => {
         validateField({
             fieldId: 'license-0',
-            value: entry,
+            value: entries,
             rules: primaryLicenseValidationRules,
             formData: form,
         });
@@ -1721,9 +1735,7 @@ export default function DataCiteForm({
 
             next[index] = updated;
 
-            if (index === 0) {
-                validatePrimaryLicenseEntry(updated);
-            }
+            validatePrimaryLicenseEntries(next);
 
             return next;
         });
@@ -1738,9 +1750,7 @@ export default function DataCiteForm({
             const updated: LicenseEntry = { id: current.id, mode: 'catalog', license: value };
             next[index] = updated;
 
-            if (index === 0) {
-                validatePrimaryLicenseEntry(updated);
-            }
+            validatePrimaryLicenseEntries(next);
 
             return next;
         });
@@ -1755,9 +1765,7 @@ export default function DataCiteForm({
             const updated: LicenseEntry = { ...current, [field]: value };
             next[index] = updated;
 
-            if (index === 0) {
-                validatePrimaryLicenseEntry(updated);
-            }
+            validatePrimaryLicenseEntries(next);
 
             return next;
         });
@@ -1765,11 +1773,19 @@ export default function DataCiteForm({
 
     const addLicense = () => {
         if (licenseEntries.length >= MAX_LICENSES) return;
-        setLicenseEntries((prev) => [...prev, { id: crypto.randomUUID(), mode: 'catalog', license: '' }]);
+        setLicenseEntries((prev) => {
+            const next: LicenseEntry[] = [...prev, { id: crypto.randomUUID(), mode: 'catalog', license: '' }];
+            validatePrimaryLicenseEntries(next);
+            return next;
+        });
     };
 
     const removeLicense = (index: number) => {
-        setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
+        setLicenseEntries((prev) => {
+            const next = prev.filter((_, i) => i !== index);
+            validatePrimaryLicenseEntries(next);
+            return next;
+        });
     };
 
     const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
@@ -2026,13 +2042,15 @@ export default function DataCiteForm({
                 .filter((entry) => entry.mode === 'catalog' && entry.license.trim() !== '')
                 .map((entry) => (entry.mode === 'catalog' ? entry.license : '')),
             customLicenses: licenseEntries
-                .filter((entry) => entry.mode === 'custom' && hasAnyLicenseEntryContent(entry))
+                .filter(isCustomLicensePayloadEntry)
                 .map((entry) => ({
-                    name: entry.mode === 'custom' ? entry.name.trim() : '',
-                    uri: entry.mode === 'custom' ? entry.uri.trim() : '',
-                    ...(entry.mode === 'custom' && entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
+                    name: entry.name.trim(),
+                    uri: entry.uri.trim(),
+                    ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
                 })),
-            rawRights: [],
+            rawRights: licenseEntries
+                .filter(isRawRightsOnlyLicenseEntry)
+                .map(serializeRawRightsOnlyLicenseEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -2725,8 +2743,10 @@ export default function DataCiteForm({
                                         onAdd={addLicense}
                                         onRemove={() => removeLicense(index)}
                                         isFirst={index === 0}
-                                        canAdd={canAddLicense(licenseEntries, MAX_LICENSES)}
+                                        canAdd={canAddLicenseEntry(licenseEntries, MAX_LICENSES)}
                                         required={index === 0}
+                                        customNameRequired={index === 0}
+                                        customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
                                         validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
                                         touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                         onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}

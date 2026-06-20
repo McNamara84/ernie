@@ -103,7 +103,6 @@ describe('required fields', function () {
     });
 });
 
-
 // =========================================================================
 // Date period validation
 // =========================================================================
@@ -266,6 +265,22 @@ describe('licenses validation', function () {
             ->postJson('/editor/resources', $data);
 
         $response->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('accepts text-only imported raw rights when no catalog license is selected', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['rawRights'] = [
+            [
+                'rights' => 'HyMap imagery is available under commercial End User Licencing Agreements',
+                'source' => 'legacy-sumario',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses', 'rawRights.0.rightsUri']);
     });
 
     it('accepts null licenses when imported raw rights evidence is present', function () {

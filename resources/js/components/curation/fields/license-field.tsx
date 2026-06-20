@@ -26,6 +26,8 @@ interface LicenseFieldProps {
     canAdd?: boolean;
     className?: string;
     required?: boolean;
+    customNameRequired?: boolean;
+    customUriRequired?: boolean;
     validationMessages?: ValidationMessage[];
     touched?: boolean;
     onValidationBlur?: () => void;
@@ -47,6 +49,8 @@ export function LicenseField({
     canAdd = true,
     className,
     required = false,
+    customNameRequired = required,
+    customUriRequired = required,
     validationMessages,
     touched,
     onValidationBlur,
@@ -116,7 +120,7 @@ export function LicenseField({
                             onValidationBlur={onValidationBlur}
                             validationMessages={validationMessages}
                             touched={touched}
-                            required={required}
+                            required={customNameRequired}
                             data-testid={customNameTestId}
                         />
                         <InputField
@@ -128,7 +132,7 @@ export function LicenseField({
                             onValidationBlur={onValidationBlur}
                             validationMessages={validationMessages}
                             touched={touched}
-                            required={required}
+                            required={customUriRequired}
                             data-testid={customUriTestId}
                         />
                     </div>

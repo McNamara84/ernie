@@ -2869,6 +2869,103 @@ describe('DataCiteForm', () => {
         expect(screen.queryByTestId('custom-license-uri-1')).not.toBeInTheDocument();
     });
 
+    it('accepts a complete later license when the first license row is blank', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Later License Dataset', titleType: 'main-title' }]}
+                initialLicenses={['', 'MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(screen.queryByRole('button', { name: /^At least one License is required\.$/i })).not.toBeInTheDocument();
+        expect(body.licenses).toEqual(['MIT']);
+    });
+
+    it('preserves imported raw rights without a URL as raw rights', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Text Only Rights Dataset', titleType: 'main-title' }]}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 456,
+                        rights: 'HyMap imagery is available under commercial End User Licencing Agreements',
+                        source: 'legacy-sumario',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue(
+            'HyMap imagery is available under commercial End User Licencing Agreements',
+        );
+        const licenseTextUrlInput = screen.getByRole('textbox', { name: /^License text URL/ });
+        expect(licenseTextUrlInput).toHaveValue('');
+        expect(licenseTextUrlInput).not.toBeRequired();
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.customLicenses).toEqual([]);
+        expect(body.rawRights).toEqual([
+            {
+                rights: 'HyMap imagery is available under commercial End User Licencing Agreements',
+                rightsUri: null,
+                source: 'legacy-sumario',
+                sourceResourceRightId: 456,
+            },
+        ]);
+    });
+
     it('round-trips imported raw rights as custom licenses with source row IDs', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -2925,6 +3022,7 @@ describe('DataCiteForm', () => {
         ]);
         expect(body.rawRights).toEqual([]);
     });
+
     it('includes the resource identifier when updating an existing dataset', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
