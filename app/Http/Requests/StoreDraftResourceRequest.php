@@ -883,7 +883,7 @@ class StoreDraftResourceRequest extends FormRequest
                 $normalized['sourceResourceRightId'] = is_numeric($sourceId) ? (int) $sourceId : $sourceId;
             }
 
-            if ($normalized['name'] === null && $normalized['uri'] === null && ! array_key_exists('sourceResourceRightId', $normalized)) {
+            if ($normalized['name'] === null || $normalized['uri'] === null) {
                 continue;
             }
 

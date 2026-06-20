@@ -256,6 +256,7 @@ it('uses position-aware safe URL messages for draft custom license URLs', functi
     expect($message)->toBe('[Licenses & Rights] The Custom license #1 license text URL must use http or https protocol.')
         ->and($message)->not->toContain('customLicenses.0.uri');
 });
+
 it('normalizes custom licenses for draft saves', function (): void {
     $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
         'titles' => [
@@ -268,8 +269,15 @@ it('normalizes custom licenses for draft saves', function (): void {
                 'source_resource_right_id' => '42',
             ],
             [
-                'name' => '   ',
+                'name' => 'Started custom license',
                 'uri' => null,
+            ],
+            [
+                'name' => '   ',
+                'uri' => ' https://example.test/licenses/missing-name ',
+            ],
+            [
+                'sourceResourceRightId' => '43',
             ],
         ],
     ]);

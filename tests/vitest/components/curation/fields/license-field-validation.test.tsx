@@ -134,6 +134,15 @@ describe('LicenseField Validation Integration', () => {
             expect(describedBy).toBeTruthy();
             expect(describedBy).toContain('feedback');
         });
+
+        it('groups the license mode toggle buttons with an accessible name', () => {
+            renderLicenseField();
+
+            const group = screen.getByRole('group', { name: 'License entry type' });
+
+            expect(group).toContainElement(screen.getByRole('button', { name: 'Catalog' }));
+            expect(group).toContainElement(screen.getByRole('button', { name: 'Custom' }));
+        });
     });
 
     describe('Event Handlers', () => {

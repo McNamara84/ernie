@@ -73,7 +73,7 @@ export function LicenseField({
     return (
         <div className={cn('grid gap-4 md:grid-cols-[1fr_40px]', className)}>
             <div className="space-y-3">
-                <div className="inline-flex rounded-md border bg-background p-1" aria-label="License entry type">
+                <div className="inline-flex rounded-md border bg-background p-1" role="group" aria-label="License entry type">
                     <Button
                         type="button"
                         variant={entry.mode === 'catalog' ? 'default' : 'ghost'}
