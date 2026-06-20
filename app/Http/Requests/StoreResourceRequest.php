@@ -1006,6 +1006,7 @@ class StoreResourceRequest extends FormRequest
 
         return false;
     }
+
     /**
      * @param  array<string, mixed>  $statement
      * @param  list<string>  $keys
@@ -1178,6 +1179,18 @@ class StoreResourceRequest extends FormRequest
             'instruments.*.name.required' => '[Used Instruments] Instrument #:position requires a name.',
             'instruments.*.pidType.required' => '[Used Instruments] Instrument #:position requires a PID type.',
             'instruments.*.pidType.in' => '[Used Instruments] Instrument #:position has an invalid PID type.',
+        ];
+    }
+
+    /**
+     * Human-readable labels for rule messages that interpolate :attribute.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'customLicenses.*.uri' => 'Custom license #:position license text URL',
         ];
     }
 

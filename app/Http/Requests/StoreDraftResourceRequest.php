@@ -895,6 +895,7 @@ class StoreDraftResourceRequest extends FormRequest
 
         return $customLicenses;
     }
+
     /**
      * @param  array<string, mixed>  $statement
      * @param  list<string>  $keys
@@ -1018,6 +1019,18 @@ class StoreDraftResourceRequest extends FormRequest
             // Datacenters
             'datacenters.*.exists' => '[Resource Information] Datacenter #:position is not a valid datacenter.',
             'datacenters.*.distinct' => '[Resource Information] Datacenter #:position is a duplicate.',
+        ];
+    }
+
+    /**
+     * Human-readable labels for rule messages that interpolate :attribute.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'customLicenses.*.uri' => 'Custom license #:position license text URL',
         ];
     }
 

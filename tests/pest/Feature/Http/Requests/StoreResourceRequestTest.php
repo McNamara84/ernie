@@ -862,7 +862,7 @@ describe('custom licenses validation', function () {
         $errors = $response->json('errors');
         $message = $errors['customLicenses.0.uri'][0] ?? null;
 
-        expect($message)->toBeString();
-        expect($message)->toStartWith('[Licenses & Rights]');
+        expect($message)->toBe('[Licenses & Rights] The Custom license #1 license text URL must use http or https protocol.');
+        expect($message)->not->toContain('customLicenses.0.uri');
     });
 });

@@ -461,4 +461,14 @@ describe('custom license error mapping', () => {
         expect(mapped[1].fieldSelector).toBe('[data-testid="custom-license-uri-0"]');
         expect(mapped[1].fieldId).toBe('license-0');
     });
+
+    it('uses the section fallback for custom license source row errors', () => {
+        const mapped = mapBackendErrors({
+            'customLicenses.0.sourceResourceRightId': ['[Licenses & Rights] Custom license #1 cannot be linked to the imported rights statement.'],
+        });
+
+        expect(mapped[0].sectionName).toBe('Licenses & Rights');
+        expect(mapped[0].fieldSelector).toBeNull();
+        expect(mapped[0].fieldId).toBeNull();
+    });
 });

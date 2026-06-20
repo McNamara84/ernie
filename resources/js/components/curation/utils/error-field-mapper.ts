@@ -175,7 +175,13 @@ function resolveFieldSelector(backendKey: string): string | null {
             case 'licenses':
                 return `[data-testid="license-select-${index}"]`;
             case 'customLicenses':
-                return subfield === 'uri' ? `[data-testid="custom-license-uri-${index}"]` : `[data-testid="custom-license-name-${index}"]`;
+                if (subfield === 'name') {
+                    return `[data-testid="custom-license-name-${index}"]`;
+                }
+                if (subfield === 'uri') {
+                    return `[data-testid="custom-license-uri-${index}"]`;
+                }
+                return null;
             // The following field components do not have stable data-testid attributes yet.
             // Return null to fall back to opening the correct accordion section.
             case 'fundingReferences':
@@ -226,7 +232,11 @@ function resolveFieldId(backendKey: string): string | null {
         return 'title-0';
     }
 
-    if ((prefix === 'licenses' || prefix === 'customLicenses') && index === '0') {
+    if (prefix === 'licenses' && index === '0') {
+        return 'license-0';
+    }
+
+    if (prefix === 'customLicenses' && index === '0' && (subfield === 'name' || subfield === 'uri')) {
         return 'license-0';
     }
 
