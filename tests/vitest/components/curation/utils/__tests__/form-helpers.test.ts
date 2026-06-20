@@ -10,6 +10,9 @@ import {
     createEmptyInstitutionContributor,
     createEmptyPersonAuthor,
     createEmptyPersonContributor,
+    hasAnyLicenseEntryContent,
+    hasCompleteLicenseEntry,
+    isHttpUrl,
     mapInitialAuthorToEntry,
     mapInitialContributorToEntry,
     normaliseInitialAffiliations,
@@ -674,5 +677,25 @@ describe('canAddDate', () => {
     it('returns true when a range date has start and end dates', () => {
         const dates = [{ dateMode: 'range', startDate: '2024-01-01', endDate: '2024-01-31' }];
         expect(canAddDate(dates as Parameters<typeof canAddDate>[0], 5)).toBe(true);
+    });
+});
+
+describe('license entry helpers', () => {
+    it('recognizes complete catalog and custom license entries', () => {
+        expect(hasCompleteLicenseEntry({ id: '1', mode: 'catalog', license: 'MIT' })).toBe(true);
+        expect(hasCompleteLicenseEntry({ id: '2', mode: 'custom', name: 'Community License', uri: 'https://example.test/license' })).toBe(true);
+        expect(hasCompleteLicenseEntry({ id: '3', mode: 'custom', name: 'Community License', uri: '' })).toBe(false);
+    });
+
+    it('detects partial custom license content', () => {
+        expect(hasAnyLicenseEntryContent({ id: '1', mode: 'custom', name: 'Community License', uri: '' })).toBe(true);
+        expect(hasAnyLicenseEntryContent({ id: '2', mode: 'custom', name: '', uri: '' })).toBe(false);
+    });
+
+    it('validates custom license URLs with http and https only', () => {
+        expect(isHttpUrl('https://example.test/license')).toBe(true);
+        expect(isHttpUrl('http://example.test/license')).toBe(true);
+        expect(isHttpUrl('ftp://example.test/license')).toBe(false);
+        expect(isHttpUrl('not-a-url')).toBe(false);
     });
 });

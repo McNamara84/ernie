@@ -120,4 +120,14 @@ describe('SafeUrl Validation Rule', function () {
 
         expect($validator->fails())->toBeTrue();
     });
+
+    test('can prefix validation messages for section-aware requests', function () {
+        $validator = Validator::make(
+            ['url' => 'javascript:alert(1)'],
+            ['url' => ['nullable', new SafeUrl('[Licenses & Rights]')]]
+        );
+
+        expect($validator->fails())->toBeTrue()
+            ->and($validator->errors()->first('url'))->toStartWith('[Licenses & Rights]');
+    });
 });

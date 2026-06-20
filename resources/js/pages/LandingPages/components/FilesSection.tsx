@@ -162,19 +162,45 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                         <div className="mt-4 space-y-2">
                             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">License</p>
                             <div className="flex flex-col gap-2">
-                                {licenses.map((license) => (
-                                    <a
-                                        key={license.id}
-                                        href={license.reference}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
-                                        title={`SPDX: ${license.spdx_id}`}
-                                    >
+                                {licenses.map((license) => {
+                                    const title = license.spdx_id ? `SPDX: ${license.spdx_id}` : license.name;
+                                    const icon = license.spdx_id ? (
                                         <CreativeCommonsIcon spdxId={license.spdx_id} className="h-4 w-4" />
-                                        <span>{license.name}</span>
-                                    </a>
-                                ))}
+                                    ) : license.reference ? (
+                                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                                    ) : null;
+                                    const badgeContent = (
+                                        <>
+                                            {icon}
+                                            <span>{license.name}</span>
+                                        </>
+                                    );
+
+                                    if (!license.reference) {
+                                        return (
+                                            <span
+                                                key={license.id}
+                                                className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                                title={title}
+                                            >
+                                                {badgeContent}
+                                            </span>
+                                        );
+                                    }
+
+                                    return (
+                                        <a
+                                            key={license.id}
+                                            href={license.reference}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
+                                            title={title}
+                                        >
+                                            {badgeContent}
+                                        </a>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

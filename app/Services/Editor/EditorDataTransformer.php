@@ -17,7 +17,9 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\Right;
 use App\Models\Setting;
+use App\Services\Rights\CustomRightCatalogService;
 use App\Support\GemetVocabularyParser;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
@@ -129,32 +131,54 @@ class EditorDataTransformer
      */
     public function transformLicenses(Resource $resource): array
     {
-        return $resource->rights->pluck('identifier')->toArray();
+        return $resource->rights
+            ->filter(fn (Right $right): bool => CustomRightCatalogService::isSpdxRight($right))
+            ->pluck('identifier')
+            ->values()
+            ->toArray();
     }
 
     /**
-     * Transform stored resource-rights statements back to the hidden import
-     * context expected by the editor.
+     * Transform stored resource-rights statements to editable custom/import rows.
      *
-     * These values are not displayed as editable UI. They only travel with the
-     * form so a regular resource update does not discard unresolved imported
-     * rights before a reviewer has accepted or declined SPDX suggestions.
+     * SPDX catalog rows remain in `initialLicenses`; unresolved imports and
+     * linked custom catalog rights are shown as custom license rows in the editor.
      *
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, mixed>>
      */
     public function transformRawRights(Resource $resource): array
     {
         return $resource->resourceRights
+            ->sortBy('id')
             ->map(function ($resourceRight): array {
+                $right = $resourceRight->right;
+
+                if (CustomRightCatalogService::isSpdxRight($right)) {
+                    return [];
+                }
+
+                $hasRawEvidence = false;
+                foreach ([$resourceRight->rights_text, $resourceRight->rights_uri, $resourceRight->rights_identifier] as $value) {
+                    if (is_string($value) && trim($value) !== '') {
+                        $hasRawEvidence = true;
+                        break;
+                    }
+                }
+
+                if (! $right instanceof Right && ! $hasRawEvidence) {
+                    return [];
+                }
+
                 return array_filter([
-                    'rights' => $resourceRight->rights_text,
-                    'rightsUri' => $resourceRight->rights_uri,
-                    'rightsIdentifier' => $resourceRight->rights_identifier,
-                    'rightsIdentifierScheme' => $resourceRight->rights_identifier_scheme,
-                    'schemeUri' => $resourceRight->scheme_uri,
+                    'sourceResourceRightId' => $resourceRight->id,
+                    'rights' => $right instanceof Right ? $right->name : $resourceRight->rights_text,
+                    'rightsUri' => $right instanceof Right ? ($right->uri ?? $resourceRight->rights_uri) : $resourceRight->rights_uri,
+                    'rightsIdentifier' => $right instanceof Right ? null : $resourceRight->rights_identifier,
+                    'rightsIdentifierScheme' => $right instanceof Right ? null : $resourceRight->rights_identifier_scheme,
+                    'schemeUri' => $right instanceof Right ? null : $resourceRight->scheme_uri,
                     'lang' => $resourceRight->language,
                     'source' => $resourceRight->source,
-                ], fn (?string $value): bool => $value !== null && trim($value) !== '');
+                ], fn (mixed $value): bool => $value !== null && (! is_string($value) || trim($value) !== ''));
             })
             ->filter(fn (array $statement): bool => $statement !== [])
             ->values()

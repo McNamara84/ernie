@@ -103,6 +103,18 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/TitleType')
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/License')
+        ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.200.content.application/json.example.0.uri', 'https://creativecommons.org/licenses/by/4.0/')
+        ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.200.content.application/json.example.0.scheme_uri', 'https://spdx.org/licenses/')
+        ->assertJsonPath('paths./api/v1/licenses/elmo/{resourceTypeSlug}.get.responses.200.content.application/json.example.0.uri', 'https://spdx.org/licenses/MIT.html')
+        ->assertJsonPath('paths./api/v1/licenses/elmo/{resourceTypeSlug}.get.responses.200.content.application/json.example.0.scheme_uri', 'https://spdx.org/licenses/')
+        ->assertJsonPath('components.schemas.License.properties.uri.type.0', 'string')
+        ->assertJsonPath('components.schemas.License.properties.uri.type.1', 'null')
+        ->assertJsonPath('components.schemas.License.properties.uri.format', 'uri')
+        ->assertJsonPath('components.schemas.License.properties.scheme_uri.type.0', 'string')
+        ->assertJsonPath('components.schemas.License.properties.scheme_uri.type.1', 'null')
+        ->assertJsonPath('components.schemas.License.properties.scheme_uri.format', 'uri')
+        ->assertJsonPath('components.schemas.License.required.3', 'uri')
+        ->assertJsonPath('components.schemas.License.required.4', 'scheme_uri')
         ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/languages/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/Language')
         ->assertJsonPath('paths./api/v1/languages/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
@@ -161,15 +173,15 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->toContain('string', 'null');
 });
 
-    it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
-        $spec = getJson('/api/v1/doc')
+it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
+    $spec = getJson('/api/v1/doc')
         ->assertOk()
         ->json();
 
-        expect($spec['openapi'])->toBe('3.2.0')
+    expect($spec['openapi'])->toBe('3.2.0')
         ->and($spec['info']['license'])->not->toHaveKey('url')
         ->and(containsArrayKeyRecursively($spec, 'nullable'))->toBeFalse();
-    });
+});
 
 it('returns 500 when the OpenAPI file is missing (JSON)', function () {
     File::shouldReceive('exists')

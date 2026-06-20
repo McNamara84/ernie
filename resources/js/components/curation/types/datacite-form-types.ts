@@ -58,12 +58,25 @@ export interface RawRightsInput {
     schemeUri?: string | null;
     lang?: string | null;
     source?: string | null;
+    sourceResourceRightId?: number | null;
 }
 
-export interface LicenseEntry {
+export type CatalogLicenseEntry = {
     id: string;
+    mode: 'catalog';
     license: string;
-}
+};
+
+export type CustomLicenseEntry = {
+    id: string;
+    mode: 'custom';
+    name: string;
+    uri: string;
+    sourceResourceRightId?: number | null;
+    rawRight?: RawRightsInput;
+};
+
+export type LicenseEntry = CatalogLicenseEntry | CustomLicenseEntry;
 
 export interface DateEntry {
     id: string;

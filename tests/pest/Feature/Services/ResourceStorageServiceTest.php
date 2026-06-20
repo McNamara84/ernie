@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\LandingPage;
@@ -1452,5 +1453,62 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             expect($funding->funder_identifier_type_id)->toBeNull()
                 ->and($funding->scheme_uri)->toBeNull();
         });
+    });
+
+    it('stores custom licenses as reusable rights catalog entries', function () {
+        $resourceType = ResourceType::first();
+        DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract']
+        );
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Custom license resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'licenses' => [],
+            'customLicenses' => [
+                [
+                    'name' => 'Community Data License',
+                    'uri' => 'https://example.test/licenses/community-data',
+                ],
+            ],
+            'rawRights' => [],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Ada',
+                    'lastName' => 'Lovelace',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Custom licenses should be persisted as catalog rights.',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $right = Right::query()->where('name', 'Community Data License')->sole();
+        $resourceRight = ResourceRight::query()
+            ->where('resource_id', $resource->id)
+            ->where('rights_id', $right->id)
+            ->sole();
+
+        expect($right->identifier)->toStartWith('CUSTOM-COMMUNITY-DATA-LICENSE-')
+            ->and($right->uri)->toBe('https://example.test/licenses/community-data')
+            ->and($right->scheme_uri)->toBeNull()
+            ->and($right->is_active)->toBeTrue()
+            ->and($right->is_elmo_active)->toBeFalse()
+            ->and($resourceRight->rights_id)->toBe($right->id);
     });
 });

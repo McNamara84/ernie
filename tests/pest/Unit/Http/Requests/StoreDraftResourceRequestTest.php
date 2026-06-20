@@ -135,7 +135,7 @@ it('keeps related-work citation label limits aligned between draft and store req
 /**
  * @param  list<array<string, mixed>>  $dates
  */
-function validateDraftDatePayload(array $dates): \Illuminate\Validation\Validator
+function validateDraftDatePayload(array $dates): Illuminate\Validation\Validator
 {
     $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
         'titles' => [
@@ -227,4 +227,68 @@ it('keeps date mode validation aligned between draft and final resource requests
 
     expect($draftRequest->rules())->toHaveKey('dates.*.dateMode')
         ->and($storeRequest->rules())->toHaveKey('dates.*.dateMode');
+});
+
+it('uses position-aware safe URL messages for draft custom license URLs', function (): void {
+    $request = new StoreDraftResourceRequest;
+
+    $validator = Validator::make(
+        [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'customLicenses' => [
+                [
+                    'name' => 'Unsafe License',
+                    'uri' => 'javascript:alert(1)',
+                ],
+            ],
+        ],
+        $request->rules(),
+        $request->messages(),
+        $request->attributes(),
+    );
+
+    expect($validator->fails())->toBeTrue();
+
+    $message = $validator->errors()->first('customLicenses.0.uri');
+
+    expect($message)->toBe('[Licenses & Rights] The Custom license #1 license text URL must use http or https protocol.')
+        ->and($message)->not->toContain('customLicenses.0.uri');
+});
+
+it('normalizes custom licenses for draft saves', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'customLicenses' => [
+            [
+                'rights_text' => ' Community Data License ',
+                'rightsURI' => ' https://example.test/licenses/community-data ',
+                'source_resource_right_id' => '42',
+            ],
+            [
+                'name' => 'Started custom license',
+                'uri' => null,
+            ],
+            [
+                'name' => '   ',
+                'uri' => ' https://example.test/licenses/missing-name ',
+            ],
+            [
+                'sourceResourceRightId' => '43',
+            ],
+        ],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('customLicenses'))->toBe([
+        [
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'sourceResourceRightId' => 42,
+        ],
+    ]);
 });

@@ -103,7 +103,6 @@ describe('required fields', function () {
     });
 });
 
-
 // =========================================================================
 // Date period validation
 // =========================================================================
@@ -266,6 +265,22 @@ describe('licenses validation', function () {
             ->postJson('/editor/resources', $data);
 
         $response->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('accepts text-only imported raw rights when no catalog license is selected', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['rawRights'] = [
+            [
+                'rights' => 'HyMap imagery is available under commercial End User Licencing Agreements',
+                'source' => 'legacy-sumario',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses', 'rawRights.0.rightsUri']);
     });
 
     it('accepts null licenses when imported raw rights evidence is present', function () {
@@ -787,5 +802,67 @@ describe('contributor contact person validation', function () {
             ->postJson('/editor/resources', $data);
 
         $response->assertJsonValidationErrors(['contributors.0.website']);
+    });
+});
+
+// =========================================================================
+// Custom licenses validation
+// =========================================================================
+
+describe('custom licenses validation', function () {
+    it('accepts a custom license when no catalog license is selected', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['customLicenses'] = [
+            [
+                'name' => 'Community Data License',
+                'uri' => 'https://example.test/licenses/community-data',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses', 'customLicenses.0.name', 'customLicenses.0.uri']);
+    });
+
+    it('requires a URL for custom licenses', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['customLicenses'] = [
+            [
+                'name' => 'Community Data License',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['customLicenses.0.uri'])
+            ->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('rejects unsafe custom license URL schemes', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['licenses'] = [];
+        $data['customLicenses'] = [
+            [
+                'name' => 'Unsafe License',
+                'uri' => 'javascript:alert(1)',
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['customLicenses.0.uri']);
+
+        $errors = $response->json('errors');
+        $message = $errors['customLicenses.0.uri'][0] ?? null;
+
+        expect($message)->toBe('[Licenses & Rights] The Custom license #1 license text URL must use http or https protocol.');
+        expect($message)->not->toContain('customLicenses.0.uri');
     });
 });

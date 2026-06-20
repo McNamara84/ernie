@@ -1157,7 +1157,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Resource Type is required\.$/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /^Primary License is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^At least one License is required\.$/i })).toBeInTheDocument();
     });
 
     it('shows validation error list on every save attempt, not just the first (Issue #538)', { timeout: 60000 }, async () => {
@@ -2777,6 +2777,250 @@ describe('DataCiteForm', () => {
 
         const { toast } = await import('sonner');
         expect(toast.success).toHaveBeenCalledWith('Resource stored!');
+    });
+
+    it('submits user-entered custom licenses in the payload', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Custom License Dataset', titleType: 'main-title' }]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        await user.click(screen.getByRole('button', { name: 'Custom' }));
+        await user.type(screen.getByRole('textbox', { name: /^License name/ }), 'Community Data License');
+        await user.type(screen.getByRole('textbox', { name: /^License text URL/ }), 'https://example.test/licenses/community-data');
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.licenses).toEqual([]);
+        expect(body.customLicenses).toEqual([
+            {
+                name: 'Community Data License',
+                uri: 'https://example.test/licenses/community-data',
+            },
+        ]);
+        expect(body.rawRights).toEqual([]);
+    });
+
+    it('indexes custom license inputs by custom payload order when catalog rows come first', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialLicenses={['MIT']}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 123,
+                        rights: 'Imported Community License',
+                        rightsUri: 'https://example.test/licenses/imported-community',
+                        source: 'xml-upload',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByTestId('custom-license-name-0')).toHaveValue('Imported Community License');
+        expect(screen.getByTestId('custom-license-uri-0')).toHaveValue('https://example.test/licenses/imported-community');
+        expect(screen.queryByTestId('custom-license-name-1')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('custom-license-uri-1')).not.toBeInTheDocument();
+    });
+
+    it('accepts a complete later license when the first license row is blank', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Later License Dataset', titleType: 'main-title' }]}
+                initialLicenses={['', 'MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(screen.queryByRole('button', { name: /^At least one License is required\.$/i })).not.toBeInTheDocument();
+        expect(body.licenses).toEqual(['MIT']);
+    });
+
+    it('preserves imported raw rights without a URL as raw rights', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Text Only Rights Dataset', titleType: 'main-title' }]}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 456,
+                        rights: 'HyMap imagery is available under commercial End User Licencing Agreements',
+                        source: 'legacy-sumario',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue(
+            'HyMap imagery is available under commercial End User Licencing Agreements',
+        );
+        const licenseTextUrlInput = screen.getByRole('textbox', { name: /^License text URL/ });
+        expect(licenseTextUrlInput).toHaveValue('');
+        expect(licenseTextUrlInput).not.toBeRequired();
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.customLicenses).toEqual([]);
+        expect(body.rawRights).toEqual([
+            {
+                rights: 'HyMap imagery is available under commercial End User Licencing Agreements',
+                rightsUri: null,
+                source: 'legacy-sumario',
+                sourceResourceRightId: 456,
+            },
+        ]);
+    });
+
+    it('round-trips imported raw rights as custom licenses with source row IDs', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Imported Rights Dataset', titleType: 'main-title' }]}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 123,
+                        rights: 'Imported Community License',
+                        rightsUri: 'https://example.test/licenses/imported-community',
+                        source: 'xml-upload',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue('Imported Community License');
+        expect(screen.getByRole('textbox', { name: /^License text URL/ })).toHaveValue('https://example.test/licenses/imported-community');
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.customLicenses).toEqual([
+            {
+                name: 'Imported Community License',
+                uri: 'https://example.test/licenses/imported-community',
+                sourceResourceRightId: 123,
+            },
+        ]);
+        expect(body.rawRights).toEqual([]);
     });
 
     it('includes the resource identifier when updating an existing dataset', { timeout: 60000 }, async () => {
