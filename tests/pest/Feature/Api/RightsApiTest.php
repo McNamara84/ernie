@@ -14,6 +14,8 @@ function createElmoRights(): Right
     $enabled = Right::create([
         'identifier' => 'MIT',
         'name' => 'MIT License',
+        'uri' => 'https://spdx.org/licenses/MIT.html',
+        'scheme_uri' => 'https://spdx.org/licenses/',
         'is_active' => true,
         'is_elmo_active' => true,
     ]);
@@ -45,7 +47,9 @@ it('lists ELMO-active licenses', function () {
     $this->getJson('/api/v1/licenses/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonCount(1)
-        ->assertJsonPath('0.identifier', $enabled->identifier);
+        ->assertJsonPath('0.identifier', $enabled->identifier)
+        ->assertJsonPath('0.uri', $enabled->uri)
+        ->assertJsonPath('0.scheme_uri', $enabled->scheme_uri);
 });
 
 it('lists ERNIE-active licenses', function () {
@@ -88,7 +92,9 @@ it('allows license requests with a valid API key header', function () {
     $this->getJson('/api/v1/licenses/elmo', ['X-API-Key' => 'test-api-key'])
         ->assertOk()
         ->assertJsonCount(1)
-        ->assertJsonPath('0.identifier', $enabled->identifier);
+        ->assertJsonPath('0.identifier', $enabled->identifier)
+        ->assertJsonPath('0.uri', $enabled->uri)
+        ->assertJsonPath('0.scheme_uri', $enabled->scheme_uri);
 });
 
 it('rejects API keys in query parameters for security', function () {

@@ -125,7 +125,16 @@
                                     "items": {
                                         "$ref": "#/components/schemas/License"
                                     }
-                                }
+                                },
+                                "example": [
+                                    {
+                                        "id": 1,
+                                        "identifier": "CC-BY-4.0",
+                                        "name": "Creative Commons Attribution 4.0 International",
+                                        "uri": "https://creativecommons.org/licenses/by/4.0/",
+                                        "scheme_uri": "https://spdx.org/licenses/"
+                                    }
+                                ]
                             }
                         }
                     },
@@ -178,12 +187,16 @@
                                     {
                                         "id": 1,
                                         "identifier": "MIT",
-                                        "name": "MIT License"
+                                        "name": "MIT License",
+                                        "uri": "https://spdx.org/licenses/MIT.html",
+                                        "scheme_uri": "https://spdx.org/licenses/"
                                     },
                                     {
                                         "id": 2,
                                         "identifier": "GPL-3.0-or-later",
-                                        "name": "GNU General Public License v3.0 or later"
+                                        "name": "GNU General Public License v3.0 or later",
+                                        "uri": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+                                        "scheme_uri": "https://spdx.org/licenses/"
                                     }
                                 ]
                             }
@@ -1692,7 +1705,7 @@
             },
             "License": {
                 "type": "object",
-                "description": "A license that can be applied to research data",
+                "description": "A license or reusable rights statement that can be applied to research data",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -1701,15 +1714,27 @@
                     },
                     "identifier": {
                         "type": "string",
-                        "description": "SPDX license identifier",
+                        "description": "License/right identifier. Catalog licenses usually use SPDX identifiers; reusable custom rights use generated identifiers.",
                         "example": "CC-BY-4.0"
                     },
                     "name": {
                         "type": "string",
                         "example": "Creative Commons Attribution 4.0 International"
+                    },
+                    "uri": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "description": "URL of the license or rights text, when known.",
+                        "example": "https://creativecommons.org/licenses/by/4.0/"
+                    },
+                    "scheme_uri": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "description": "URI of the identifier scheme, such as SPDX. Null when no scheme is available.",
+                        "example": "https://spdx.org/licenses/"
                     }
                 },
-                "required": ["id", "identifier", "name"]
+                "required": ["id", "identifier", "name", "uri", "scheme_uri"]
             },
             "Language": {
                 "type": "object",
