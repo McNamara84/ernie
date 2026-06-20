@@ -128,6 +128,10 @@ function isCustomLicensePayloadEntry(entry: LicenseEntry): entry is CustomLicens
     return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsOnlyLicenseEntry(entry);
 }
 
+function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<LicenseEntry, { mode: 'catalog' }> {
+    return entry.mode === 'catalog' && entry.license.trim() !== '';
+}
+
 function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
     return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
 }
@@ -2039,8 +2043,8 @@ export default function DataCiteForm({
                 language: entry.language ?? null,
             })),
             licenses: licenseEntries
-                .filter((entry) => entry.mode === 'catalog' && entry.license.trim() !== '')
-                .map((entry) => (entry.mode === 'catalog' ? entry.license : '')),
+                .filter(isCatalogLicensePayloadEntry)
+                .map((entry) => entry.license),
             customLicenses: licenseEntries
                 .filter(isCustomLicensePayloadEntry)
                 .map((entry) => ({
