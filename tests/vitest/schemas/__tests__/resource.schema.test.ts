@@ -162,7 +162,7 @@ describe('Resource Schemas', () => {
 });
 
 describe('custom license schemas', () => {
-    it('accepts custom license form entries with http URLs', () => {
+    it('accepts custom license form entries with http/https URLs', () => {
         expect(
             licenseSchema.safeParse({
                 id: '1',

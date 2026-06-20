@@ -10,7 +10,7 @@ import type { AffiliationTag } from '@/types/affiliations';
 
 import type { AuthorEntry, InstitutionAuthorEntry, PersonAuthorEntry } from '../fields/author';
 import type { ContributorEntry, ContributorRoleTag, InstitutionContributorEntry, PersonContributorEntry } from '../fields/contributor';
-import type { InitialAffiliationInput, InitialAuthor, InitialContributor, SerializedAffiliation } from '../types/datacite-form-types';
+import type { DateEntry, InitialAffiliationInput, InitialAuthor, InitialContributor, LicenseEntry, SerializedAffiliation, TitleEntry } from '../types/datacite-form-types';
 
 // ============================================================================
 // String Normalization
@@ -348,7 +348,6 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
 // Form State Validators
 // ============================================================================
 
-import type { DateEntry, LicenseEntry, TitleEntry } from '../types/datacite-form-types';
 
 type LicenseEntryLike = LicenseEntry | { license?: string | null };
 
