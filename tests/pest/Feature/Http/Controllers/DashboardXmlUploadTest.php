@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Session;
@@ -9,7 +10,7 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create(['role' => 'curator']));
 });
 
-it('can upload XML file and returns session key', function () {
+it('can upload XML file and persists a draft resource', function () {
     $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
@@ -31,10 +32,69 @@ XML;
     ]);
 
     $response->assertStatus(200)
-        ->assertJsonStructure(['sessionKey']);
+        ->assertJsonStructure(['resourceId', 'sessionKey']);
 
     $sessionKey = $response->json('sessionKey');
     expect($sessionKey)->toStartWith('xml_upload_');
+
+    $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+    expect($resource->created_by_user_id)->toBe(auth()->id())
+        ->and($resource->titles->pluck('value')->all())->toContain('Test Dataset');
+});
+
+it('uses the uploaded XML filename as fallback when no Main Title exists', function () {
+    $xmlContent = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <creators>
+        <creator>
+            <creatorName nameType="Personal">Doe, Jane</creatorName>
+        </creator>
+    </creators>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('fallback-dataset.xml', $xmlContent);
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => $file,
+    ]);
+
+    $response->assertOk()
+        ->assertJsonStructure(['resourceId', 'sessionKey']);
+
+    $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+    expect($resource->titles->pluck('value')->all())->toContain('fallback dataset');
+});
+
+it('blocks XML upload when the DOI already exists', function () {
+    $existing = Resource::factory()->create(['doi' => '10.5880/test.duplicate']);
+
+    $xmlContent = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <identifier identifierType="DOI">https://doi.org/10.5880/test.duplicate</identifier>
+    <titles>
+        <title>Duplicate DOI Dataset</title>
+    </titles>
+    <creators>
+        <creator>
+            <creatorName nameType="Personal">Doe, Jane</creatorName>
+        </creator>
+    </creators>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('duplicate.xml', $xmlContent);
+
+    $response = $this->postJson('/dashboard/upload-xml', [
+        'file' => $file,
+    ]);
+
+    $response->assertStatus(409)
+        ->assertJsonPath('error.code', 'duplicate_doi')
+        ->assertJsonPath('error.identifier', '10.5880/test.duplicate')
+        ->assertJsonPath('error.resourceId', $existing->id);
 });
 
 it('validates XML file is required', function () {

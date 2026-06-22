@@ -27,9 +27,14 @@ import { uploadJson as uploadJsonRoute, uploadXml as uploadXmlRoute } from '@/ro
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import type { UploadErrorResponse } from '@/types/upload';
 
+type UploadSessionResponse = {
+    resourceId?: number | string | null;
+    sessionKey?: string | null;
+};
+
 /**
- * Shared helper for session-based file uploads (XML, JSON, JSON-LD).
- * Posts the file to the given route and navigates to the editor with the session key.
+ * Shared helper for file uploads (XML, JSON, JSON-LD).
+ * New uploads open the persisted draft by resource ID, with session key as fallback.
  */
 async function uploadSessionFile(file: File, route: { url: () => string }, sessionQueryKey: string): Promise<void> {
     const csrfHeaders = buildCsrfHeaders();
@@ -69,9 +74,19 @@ async function uploadSessionFile(file: File, route: { url: () => string }, sessi
             throw new Error(message);
         }
 
-        const data: { sessionKey: string } = await response.json();
+        const data: UploadSessionResponse = await response.json();
 
-        router.get(editorRoute({ query: { [sessionQueryKey]: data.sessionKey } }).url);
+        if (data.resourceId !== undefined && data.resourceId !== null && String(data.resourceId).trim() !== '') {
+            router.get(editorRoute({ query: { resourceId: String(data.resourceId) } }).url);
+            return;
+        }
+
+        if (data.sessionKey) {
+            router.get(editorRoute({ query: { [sessionQueryKey]: data.sessionKey } }).url);
+            return;
+        }
+
+        throw new Error('Upload completed but no editor target was returned for ' + filename + '.');
     } catch (error) {
         console.error(`${sessionQueryKey} upload failed`, error);
         if (error instanceof Error) {

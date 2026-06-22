@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UploadErrorCode;
+use App\Exceptions\DuplicateUploadedResourceDoiException;
 use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
@@ -13,12 +14,14 @@ use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\UploadLogService;
+use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\GcmdUriHelper;
 use App\Support\UploadError;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UploadJsonController extends Controller
 {
@@ -80,6 +83,7 @@ class UploadJsonController extends Controller
         private readonly DataCiteJsonLdToJsonConverterService $jsonLdConverter,
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
+        private readonly UploadedResourceDraftService $uploadedResourceDraftService,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse
@@ -231,10 +235,7 @@ class UploadJsonController extends Controller
             );
         }
 
-        // Store data in session
-        $sessionKey = 'json_upload_'.Str::random(32);
-
-        session()->put($sessionKey, [
+        $sessionPayload = [
             'doi' => $doi,
             'year' => $year,
             'version' => $version,
@@ -256,11 +257,86 @@ class UploadJsonController extends Controller
             'gemetKeywords' => $gemetKeywords,
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
-        ]);
+        ];
+
+        try {
+            $resource = $this->uploadedResourceDraftService->storeFromPayload(
+                $sessionPayload,
+                $filename,
+                $request->user()?->id,
+            );
+        } catch (DuplicateUploadedResourceDoiException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::DUPLICATE_DOI,
+                'The uploaded DOI already exists on resource #'.$e->resourceId.'.'
+            );
+            $this->uploadLogService->logFailure('json', $filename, $error, [
+                'doi' => $e->doi,
+                'resource_id' => $e->resourceId,
+            ]);
+
+            return $this->duplicateDoiResponse($filename, $e->doi, $e->resourceId);
+        } catch (ValidationException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::STORAGE_ERROR,
+                'The uploaded metadata could not be saved as a draft.'
+            );
+            $this->uploadLogService->logFailure('json', $filename, $error, [
+                'errors' => $e->errors(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::STORAGE_ERROR,
+                $filename,
+                'The uploaded metadata could not be saved as a draft.',
+            );
+        } catch (\Throwable $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::STORAGE_ERROR,
+                'The uploaded metadata could not be saved as a draft.'
+            );
+            $this->uploadLogService->logFailure('json', $filename, $error, [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::STORAGE_ERROR,
+                $filename,
+                'The uploaded metadata could not be saved as a draft.',
+                500,
+            );
+        }
+
+        // Keep a short-lived session fallback for older editor links and tests.
+        $sessionKey = 'json_upload_'.Str::random(32);
+        session()->put($sessionKey, $sessionPayload);
 
         return response()->json([
+            'success' => true,
+            'resourceId' => $resource->id,
             'sessionKey' => $sessionKey,
         ]);
+    }
+
+    private function duplicateDoiResponse(string $filename, string $doi, int $resourceId): JsonResponse
+    {
+        $message = 'The uploaded DOI already exists on resource #'.$resourceId.'.';
+
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'filename' => $filename,
+            'error' => [
+                'category' => UploadErrorCode::DUPLICATE_DOI->category(),
+                'code' => UploadErrorCode::DUPLICATE_DOI->value,
+                'message' => $message,
+                'field' => 'doi',
+                'row' => null,
+                'identifier' => $doi,
+                'resourceId' => $resourceId,
+            ],
+        ], 409);
     }
 
     /**

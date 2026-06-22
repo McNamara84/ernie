@@ -29,6 +29,7 @@ use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -62,6 +63,7 @@ class ResourceStorageService
      * @param  int|null  $userId  ID of the user performing the operation
      * @return array{0: Resource, 1: bool} Returns [$resource, $isUpdate]
      *
+     * @throws QueryException
      * @throws ValidationException
      */
     #[\NoDiscard('Stored resource and update flag must be used')]

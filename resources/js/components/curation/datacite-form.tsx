@@ -90,6 +90,14 @@ const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
 const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
+const DRAFT_AUTOSAVE_INTERVAL_MS = 60_000;
+
+type DraftAutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+type DraftSaveResponse = {
+    message?: string;
+    resource?: { id: number };
+};
 
 function normalizeAccordionItems(
     items: readonly string[],
@@ -1219,6 +1227,10 @@ export default function DataCiteForm({
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
+    const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
+    const draftAutosaveInFlightRef = useRef(false);
+    const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
@@ -1881,6 +1893,22 @@ export default function DataCiteForm({
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
     const resourcesUrl = useMemo(() => resources.url(), []);
+    const draftAutosaveMessage = useMemo(() => {
+        if (draftAutosaveStatus === 'idle') {
+            return null;
+        }
+
+        if (draftAutosaveStatus === 'saving') {
+            return 'Autosaving draft...';
+        }
+
+        if (draftAutosaveStatus === 'error') {
+            return 'Autosave failed';
+        }
+
+        const savedAt = lastDraftAutosaveAt?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return savedAt ? 'Draft autosaved at ' + savedAt : 'Draft autosaved';
+    }, [draftAutosaveStatus, lastDraftAutosaveAt]);
 
     // Shared payload builder for both Save & Validate and Save Draft (Issue #548)
     const buildPayload = useCallback(() => {
@@ -2159,6 +2187,95 @@ export default function DataCiteForm({
         titles,
     ]);
 
+    const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+        const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+
+        try {
+            lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
+        } catch (error) {
+            console.error('Failed to serialize draft autosave signature', error);
+            lastDraftAutosaveSignatureRef.current = null;
+        }
+    }, []);
+
+    const markDraftAutosaveSaved = useCallback(
+        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+            updateDraftAutosaveSignature(payload, resourceId);
+            setLastDraftAutosaveAt(new Date());
+            setDraftAutosaveStatus('saved');
+        },
+        [updateDraftAutosaveSignature],
+    );
+
+    useEffect(() => {
+        if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null) {
+            return;
+        }
+
+        try {
+            lastDraftAutosaveSignatureRef.current = JSON.stringify(buildPayload());
+        } catch (error) {
+            console.error('Failed to initialize draft autosave signature', error);
+            lastDraftAutosaveSignatureRef.current = null;
+        }
+    }, [buildPayload, resolvedResourceId]);
+
+    const saveDraftSilently = useCallback(async () => {
+        if (!isDraftSaveable || dateValidationIssues.length > 0 || isSaving || isSavingDraft || draftAutosaveInFlightRef.current) {
+            return;
+        }
+
+        let payload: ReturnType<typeof buildPayload>;
+        let signature: string;
+
+        try {
+            payload = buildPayload();
+            signature = JSON.stringify(payload);
+        } catch (error) {
+            console.error('Failed to prepare draft autosave payload', error);
+            setDraftAutosaveStatus('error');
+            return;
+        }
+
+        if (signature === lastDraftAutosaveSignatureRef.current) {
+            return;
+        }
+
+        draftAutosaveInFlightRef.current = true;
+        setDraftAutosaveStatus('saving');
+
+        try {
+            const response = await axios.post(draftSaveUrl, payload, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+            });
+
+            const data = response.data as DraftSaveResponse | null;
+            const savedResourceId = data?.resource?.id;
+
+            if (savedResourceId) {
+                setResolvedResourceId(savedResourceId);
+            }
+
+            markDraftAutosaveSaved(payload, savedResourceId);
+        } catch (error) {
+            console.error('Failed to autosave draft', error);
+            setDraftAutosaveStatus('error');
+        } finally {
+            draftAutosaveInFlightRef.current = false;
+        }
+    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isSaving, isSavingDraft, markDraftAutosaveSaved]);
+
+    useEffect(() => {
+        const autosaveTimerId = window.setInterval(() => {
+            void saveDraftSilently();
+        }, DRAFT_AUTOSAVE_INTERVAL_MS);
+
+        return () => window.clearInterval(autosaveTimerId);
+    }, [saveDraftSilently]);
+
     const revealValidationErrors = useCallback(
         (errors: Record<string, string[]>, headerMessage: string) => {
             const mapped = mapBackendErrors(errors);
@@ -2379,7 +2496,7 @@ export default function DataCiteForm({
         }
     };
 
-    // Save draft with relaxed validation — only requires Main Title (Issue #548)
+    // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
         if (!isDraftSaveable) return;
 
@@ -2405,18 +2522,15 @@ export default function DataCiteForm({
                 },
             });
 
-            interface DraftSaveResponse {
-                message?: string;
-                resource?: { id: number };
-            }
-
             const data = response.data as DraftSaveResponse | null;
             const successMsg = data?.message || 'Draft saved successfully.';
 
             // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
-            if (data?.resource?.id) {
-                setResolvedResourceId(data.resource.id);
+            const savedResourceId = data?.resource?.id;
+            if (savedResourceId) {
+                setResolvedResourceId(savedResourceId);
             }
+            updateDraftAutosaveSignature(payload, savedResourceId);
 
             setHasAttemptedSubmit(false);
 
@@ -3099,57 +3213,67 @@ export default function DataCiteForm({
                         : []
                 }
             />
-            <div className="flex justify-end gap-3">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span tabIndex={0}>
-                            {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
-                                Drafts are partial saves — legacy keyword replacement is only
-                                required for full validation (Save & Validate). */}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                data-testid="save-draft-button"
-                                disabled={!isDraftSaveable || isSavingDraft || isSaving}
-                                aria-busy={isSavingDraft}
-                                onClick={handleSaveDraft}
-                            >
-                                <Save className="mr-2 h-4 w-4" />
-                                {isSavingDraft ? 'Saving…' : 'Save Draft'}
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    {!isDraftSaveable && !isSavingDraft && (
-                        <TooltipContent side="top" align="end" className="max-w-sm">
-                            <p className="text-sm">Enter a Main Title to save as draft.</p>
-                        </TooltipContent>
-                    )}
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span tabIndex={0}>
-                            <Button
-                                type="submit"
-                                data-testid="save-resource-button"
-                                disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                                aria-busy={isSaving}
-                                aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                            >
-                                {isSaving ? 'Saving…' : 'Save & Validate'}
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    {hasLegacyKeywords && !isSaving && (
-                        <TooltipContent side="top" align="end" className="max-w-sm">
-                            <div className="space-y-2">
-                                <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
-                                <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                            </div>
-                        </TooltipContent>
-                    )}
-                </Tooltip>
+            <div className="flex flex-col items-end gap-2">
+                <div className="flex justify-end gap-3">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                                    Drafts are partial saves; legacy keyword replacement is only
+                                    required for full validation (Save & Validate). */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    data-testid="save-draft-button"
+                                    disabled={!isDraftSaveable || isSavingDraft || isSaving}
+                                    aria-busy={isSavingDraft}
+                                    onClick={handleSaveDraft}
+                                >
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {isSavingDraft ? 'Saving...' : 'Save Draft'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {!isDraftSaveable && !isSavingDraft && (
+                            <TooltipContent side="top" align="end" className="max-w-sm">
+                                <p className="text-sm">Enter a Main Title to save as draft.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                <Button
+                                    type="submit"
+                                    data-testid="save-resource-button"
+                                    disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                    aria-busy={isSaving}
+                                    aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                >
+                                    {isSaving ? 'Saving...' : 'Save & Validate'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {hasLegacyKeywords && !isSaving && (
+                            <TooltipContent side="top" align="end" className="max-w-sm">
+                                <div className="space-y-2">
+                                    <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
+                                    <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
+                                </div>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </div>
+                {draftAutosaveMessage && (
+                    <p
+                        className={draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}
+                        data-testid="draft-autosave-status"
+                        aria-live="polite"
+                    >
+                        {draftAutosaveMessage}
+                    </p>
+                )}
             </div>
-
             {/* DOI Conflict Modal */}
             {conflictData && (
                 <DoiConflictModal

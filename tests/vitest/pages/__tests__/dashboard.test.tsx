@@ -387,15 +387,17 @@ describe('handleXmlFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts xml file with csrf token and redirects to editor with session key', async () => {
+    it('posts xml file with csrf token and redirects to editor with resource id', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const sessionKey = 'xml_upload_test123';
+        const resourceId = 123;
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
                 {
                     ok: true,
                     json: async () => ({
+                        resourceId,
                         sessionKey,
                     }),
                 } as Response,
@@ -410,12 +412,12 @@ describe('handleXmlFiles', () => {
         expect(routerMock.get).toHaveBeenCalled();
         const [redirectUrl] = routerMock.get.mock.calls[0];
         expect(typeof redirectUrl).toBe('string');
-        expect(redirectUrl).toBe(`/editor?xmlSession=${sessionKey}`);
+        expect(redirectUrl).toBe(`/editor?resourceId=${resourceId}`);
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
-    it('falls back to the XSRF cookie when the meta token is unavailable', async () => {
+    it('falls back to the XSRF cookie and legacy session redirect when the meta token is unavailable', async () => {
         document.head.innerHTML = '';
         document.cookie = 'XSRF-TOKEN=cookie-token';
 
@@ -492,13 +494,15 @@ describe('handleJsonFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts json file with csrf token and redirects to editor with session key', async () => {
+    it('posts json file with csrf token and redirects to editor with resource id', async () => {
         const file = new File(['{"title":"Test"}'], 'metadata.json', { type: 'application/json' });
         const sessionKey = 'json_upload_test123';
+        const resourceId = 456;
         const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
             {
                 ok: true,
                 json: async () => ({
+                    resourceId,
                     sessionKey,
                 }),
             } as Response,
@@ -510,7 +514,7 @@ describe('handleJsonFiles', () => {
         const [url, options] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-json');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalledWith(`/editor?jsonSession=${sessionKey}`);
+        expect(routerMock.get).toHaveBeenCalledWith(`/editor?resourceId=${resourceId}`);
 
         fetchMock.mockRestore();
         routerMock.get.mockReset();

@@ -2,16 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\ResourceStorageService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
 
 describe('JSON Upload - DataCite JSON format', function () {
-    test('returns session key for valid DataCite JSON', function () {
+    test('returns resource id and session key for valid DataCite JSON', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes());
@@ -20,10 +23,86 @@ describe('JSON Upload - DataCite JSON format', function () {
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
 
         $response->assertOk()
-            ->assertJsonStructure(['sessionKey']);
+            ->assertJsonStructure(['resourceId', 'sessionKey']);
 
         $sessionKey = $response->json('sessionKey');
         expect($sessionKey)->toStartWith('json_upload_');
+
+        $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+        expect($resource->titles->pluck('value')->all())->toContain('Test Dataset');
+    });
+
+    test('uses the uploaded JSON filename as fallback when no Main Title exists', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'titles' => [
+                ['title' => 'Only Subtitle', 'titleType' => 'Subtitle'],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('subtitle-only.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $response->assertOk()
+            ->assertJsonStructure(['resourceId', 'sessionKey']);
+
+        $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+        expect($resource->titles->pluck('value')->all())->toContain('subtitle only');
+    });
+
+    test('blocks JSON upload when the DOI already exists', function () {
+        $this->actingAs(User::factory()->create());
+        $existing = Resource::factory()->create(['doi' => '10.5880/test.json.duplicate']);
+
+        $json = dataCiteJson(minimalAttributes([
+            'doi' => 'https://doi.org/10.5880/test.json.duplicate',
+        ]));
+        $file = UploadedFile::fake()->createWithContent('duplicate.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('error.code', 'duplicate_doi')
+            ->assertJsonPath('error.identifier', '10.5880/test.json.duplicate')
+            ->assertJsonPath('error.resourceId', $existing->id);
+    });
+
+    test('returns duplicate DOI response when the storage insert hits the DOI unique constraint', function () {
+        $this->actingAs(User::factory()->create());
+        $doi = '10.5880/test.json.race';
+
+        $mock = Mockery::mock(ResourceStorageService::class);
+        $mock->shouldReceive('store')
+            ->once()
+            ->andReturnUsing(function () use ($doi) {
+                Resource::factory()->create(['doi' => $doi]);
+
+                $previous = new PDOException(
+                    'SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: resources.doi',
+                    23000,
+                );
+                $previous->errorInfo = ['23000', 19, 'UNIQUE constraint failed: resources.doi'];
+
+                throw new QueryException('sqlite', 'insert into "resources" ("doi") values (?)', [$doi], $previous);
+            });
+        $this->app->instance(ResourceStorageService::class, $mock);
+
+        $json = dataCiteJson(minimalAttributes([
+            'doi' => 'https://doi.org/'.$doi,
+        ]));
+        $file = UploadedFile::fake()->createWithContent('race.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $resourceId = (int) Resource::query()
+            ->where('doi', $doi)
+            ->value('id');
+
+        $response->assertStatus(409)
+            ->assertJsonPath('error.code', 'duplicate_doi')
+            ->assertJsonPath('error.identifier', $doi)
+            ->assertJsonPath('error.resourceId', $resourceId);
     });
 
     test('extracts titles from DataCite JSON', function () {
@@ -40,6 +119,11 @@ describe('JSON Upload - DataCite JSON format', function () {
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
 
         $data = getJsonUploadData($response);
+
+        $resource = Resource::with('titles.titleType')->findOrFail($response->json('resourceId'));
+
+        expect($resource->titles->pluck('value')->all())->toBe(['Main Title', 'Sub Title'])
+            ->and($resource->titles->pluck('titleType.slug')->all())->toBe(['MainTitle', 'Subtitle']);
 
         expect($data['titles'])->toHaveCount(2);
         expect($data['titles'][0]['title'])->toBe('Main Title');
@@ -152,6 +236,12 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $data = getJsonUploadData($response);
 
+        $resource = Resource::with('descriptions.descriptionType')->findOrFail($response->json('resourceId'));
+
+        expect($resource->descriptions)->toHaveCount(2)
+            ->and($resource->descriptions->pluck('value')->all())->toBe(['This is the abstract.', 'Method description.'])
+            ->and($resource->descriptions->pluck('descriptionType.slug')->all())->toBe(['Abstract', 'Methods']);
+
         expect($data['descriptions'])->toHaveCount(2);
         expect($data['descriptions'][0]['description'])->toBe('This is the abstract.');
         expect($data['descriptions'][0]['type'])->toBe('Abstract');
@@ -171,6 +261,19 @@ describe('JSON Upload - DataCite JSON format', function () {
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
 
         $data = getJsonUploadData($response);
+
+        $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+
+        $storedDateTypes = $resource->dates->pluck('dateType.slug')->all();
+        $collectedDate = $resource->dates->first(
+            fn ($date) => $date->dateType?->slug === 'Collected',
+        );
+
+        expect($storedDateTypes)->toContain('Created')
+            ->and($storedDateTypes)->toContain('Collected')
+            ->and($collectedDate)->not->toBeNull()
+            ->and((string) $collectedDate?->start_date)->toBe('2025-01-01')
+            ->and((string) $collectedDate?->end_date)->toBe('2025-12-31');
 
         expect($data['dates'])->toHaveCount(2);
         expect($data['dates'][0]['dateType'])->toBe('created');
@@ -325,6 +428,15 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $data = getJsonUploadData($response);
 
+        $resource = Resource::with(['relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType', 'instruments'])->findOrFail($response->json('resourceId'));
+
+        expect($resource->relatedIdentifiers)->toHaveCount(1)
+            ->and($resource->relatedIdentifiers[0]->identifier)->toBe('10.1234/related')
+            ->and($resource->relatedIdentifiers[0]->identifierType?->slug)->toBe('DOI')
+            ->and($resource->relatedIdentifiers[0]->relationType?->slug)->toBe('Cites')
+            ->and($resource->relatedIdentifiers[0]->citation_label)->toBe('Doe, J. (2026): Imported citation. Publisher.')
+            ->and($resource->instruments)->toHaveCount(1);
+
         expect($data['relatedWorks'])->toHaveCount(1);
         expect($data['relatedWorks'][0]['identifier'])->toBe('10.1234/related');
         expect($data['relatedWorks'][0]['identifier_type'])->toBe('DOI');
@@ -446,6 +558,10 @@ describe('JSON Upload - JSON-LD format', function () {
         $file = UploadedFile::fake()->createWithContent('test.jsonld', $jsonLd);
 
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $response->assertJsonStructure(['resourceId', 'sessionKey']);
+        $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+        expect($resource->titles->pluck('value')->all())->toContain('JSON-LD Test');
 
         $data = getJsonUploadData($response);
 

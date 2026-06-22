@@ -41,15 +41,12 @@ test.describe('XML Upload', () => {
     await page.waitForURL(/\/editor/, { timeout: 10000 });
 
     const currentUrl = page.url();
-    // With session-based workflow, only xmlSession parameter is passed
-    expect(currentUrl).toMatch(/xmlSession=xml_upload_/);
+    expect(currentUrl).toMatch(/resourceId=\d+/);
 
-    // Validate session key is present in URL
     const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
-    const sessionKey = urlParams.get('xmlSession');
-    expect(sessionKey).toBeTruthy();
-    expect(sessionKey).toMatch(/^xml_upload_/);
-    
+    const resourceId = urlParams.get('resourceId');
+    expect(resourceId).toBeTruthy();
+    expect(resourceId).toMatch(/^\d+$/);
     // Verify editor page loaded successfully with form fields
     // Check for DOI input field (id="doi"), which is unique and stable
     await expect(page.locator('#doi')).toBeVisible();
