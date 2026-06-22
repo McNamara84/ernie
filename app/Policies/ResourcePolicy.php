@@ -70,6 +70,10 @@ class ResourcePolicy
             'landingPage',
         ]);
 
+        if ($resource->landingPage !== null) {
+            return false;
+        }
+
         return $resource->publicStatus() === 'draft';
     }
 

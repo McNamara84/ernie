@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,8 +15,8 @@ const routerMock = vi.hoisted(() => ({
 }));
 
 const editorRouteMock = vi.hoisted(() =>
-    vi.fn(({ query }: { query?: Record<string, string> } = {}) => ({
-        url: query ? `/editor?${new URLSearchParams(query).toString()}` : '/editor',
+    vi.fn(({ query }: { query?: Record<string, string | number> } = {}) => ({
+        url: query ? `/editor?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)])).toString()}` : '/editor',
         method: 'get',
     })),
 );
@@ -36,6 +36,14 @@ vi.mock('@inertiajs/react', () => ({
         props: {
             auth: {
                 user: {
+                    id: 1,
+                    name: 'Test User',
+                    email: 'test@example.test',
+                    font_size_preference: 'regular',
+                    email_verified_at: null,
+                    created_at: '2024-01-01T00:00:00Z',
+                    updated_at: '2024-01-01T00:00:00Z',
+                    role: 'group_leader',
                     can_manage_landing_pages: true,
                     can_register_production_doi: true,
                 },
@@ -50,34 +58,63 @@ vi.mock('@/lib/curation-query', () => ({
     buildCurationQueryFromResource: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock('@/lib/blob-utils', () => ({
+    extractErrorMessageFromBlob: vi.fn().mockResolvedValue('Failed to export'),
+    parseValidationErrorFromBlob: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('@/utils/filter-parser', () => ({
+    parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
+}));
+
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
 }));
 
+vi.mock('@/components/resources-filters', () => ({
+    ResourcesFilters: () => <div data-testid="resources-filters" />,
+}));
+
+vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    default: ({ isOpen, resource }: { isOpen: boolean; resource: { id: number; title?: string } }) =>
+        isOpen ? <div data-testid="setup-landing-page-modal">Setup landing page for {resource.title ?? resource.id}</div> : null,
+}));
+
+vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({
+    default: ({ isOpen, resource }: { isOpen: boolean; resource: { id: number; title?: string } }) =>
+        isOpen ? <div data-testid="register-doi-modal">Register DOI for {resource.title ?? resource.id}</div> : null,
+}));
+
+vi.mock('@/components/citations/CitationManagerModal', () => ({
+    CitationManagerModal: ({ open, resourceId }: { open: boolean; resourceId: number }) =>
+        open ? <div data-testid="citation-manager-modal">Related items for {resourceId}</div> : null,
+}));
+
 vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
 vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
+vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
 vi.mock('@/hooks/use-citation-vocabularies', () => ({
     useCitationVocabularies: () => ({
-        resourceTypes: [],
-        relationTypes: [],
-        contributorTypes: [],
+        vocabularies: {
+            resourceTypes: [],
+            relationTypes: [],
+            contributorTypes: [],
+        },
         isLoading: false,
     }),
 }));
 
-vi.mock('axios', async () => {
-    const actual = await vi.importActual<typeof import('axios')>('axios');
-    return {
-        ...actual,
-        default: {
-            ...actual.default,
-            post: axiosPostMock,
-            get: axiosGetMock,
-        },
+vi.mock('axios', () => ({
+    default: {
         post: axiosPostMock,
         get: axiosGetMock,
-    };
-});
+    },
+    post: axiosPostMock,
+    get: axiosGetMock,
+    isAxiosError: (err: unknown) => Boolean(err && typeof err === 'object' && 'isAxiosError' in err),
+}));
+
+const landingPage = { id: 10, is_published: false, public_url: 'https://example.test/resources/one' };
 
 const buildResource = (overrides: Partial<Record<string, unknown>>) => ({
     id: 1,
@@ -90,55 +127,84 @@ const buildResource = (overrides: Partial<Record<string, unknown>>) => ({
     title: 'First',
     first_author: { givenName: 'A', familyName: 'B' },
     curator: 'Curator',
-    publicstatus: 'curation',
+    publicstatus: 'published',
+    landingPage,
     ...overrides,
 });
 
-const buildProps = () => ({
-    resources: [
-        buildResource({ id: 1, doi: '10.9999/one', title: 'First' }),
-        buildResource({ id: 2, doi: '10.9999/two', title: 'Second' }),
-        buildResource({ id: 3, doi: null, title: 'Third' }),
-    ],
+const buildProps = (resources = [
+    buildResource({ id: 1, doi: '10.9999/one', title: 'First' }),
+    buildResource({ id: 2, doi: '10.9999/two', title: 'Second', landingPage: { ...landingPage, id: 11 } }),
+    buildResource({ id: 3, doi: null, title: 'Third', publicstatus: 'draft', landingPage: { ...landingPage, id: 12 } }),
+]) => ({
+    resources,
     pagination: {
         current_page: 1,
         last_page: 1,
         per_page: 50,
-        total: 3,
-        from: 1,
-        to: 3,
+        total: resources.length,
+        from: resources.length > 0 ? 1 : 0,
+        to: resources.length,
         has_more: false,
     },
     sort: { key: 'id' as const, direction: 'asc' as const },
 });
 
+const exportResponse = (contents: string, filename: string) => ({
+    data: new Blob([contents], { type: 'application/octet-stream' }),
+    headers: { 'content-disposition': `attachment; filename="${filename}"` },
+});
+
 describe('ResourcesPage - bulk selection', () => {
     let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
     let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
+    let originalOpen: typeof window.open;
     let createObjectUrlMock: ReturnType<typeof vi.fn>;
     let revokeObjectUrlMock: ReturnType<typeof vi.fn>;
+    let openMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        routerMock.post.mockClear();
+        routerMock.delete.mockClear();
         routerMock.reload.mockClear();
+        routerMock.visit.mockClear();
         axiosPostMock.mockReset();
         axiosGetMock.mockReset();
-        axiosGetMock.mockResolvedValue({ data: {} });
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: {} });
+            }
+
+            if (url.includes('export-datacite-json')) {
+                return Promise.resolve(exportResponse('{"ok":true}', 'resource.json'));
+            }
+
+            if (url.includes('export-datacite-xml')) {
+                return Promise.resolve(exportResponse('<resource />', 'resource.xml'));
+            }
+
+            if (url.includes('export-jsonld')) {
+                return Promise.resolve(exportResponse('{"@context":"https://schema.org"}', 'resource.jsonld'));
+            }
+
+            return Promise.resolve({ data: {}, headers: {} });
+        });
+        axiosPostMock.mockResolvedValue({ data: { success: [], failed: [] } });
         toastMock.mockClear();
         toastMock.success.mockClear();
         toastMock.error.mockClear();
         toastMock.warning.mockClear();
+        editorRouteMock.mockClear();
 
-        // jsdom does not implement URL.createObjectURL / revokeObjectURL.
-        // Save the original descriptors (if any) so afterEach can restore them,
-        // preventing test leakage into unrelated specs.
         const createDescriptor = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
         const revokeDescriptor = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
-        originalCreateObjectURL = createDescriptor ? (URL.createObjectURL as typeof URL.createObjectURL) : undefined;
-        originalRevokeObjectURL = revokeDescriptor ? (URL.revokeObjectURL as typeof URL.revokeObjectURL) : undefined;
+        originalCreateObjectURL = createDescriptor ? URL.createObjectURL : undefined;
+        originalRevokeObjectURL = revokeDescriptor ? URL.revokeObjectURL : undefined;
+        originalOpen = window.open;
 
         createObjectUrlMock = vi.fn().mockReturnValue('blob:mock');
         revokeObjectUrlMock = vi.fn();
+        openMock = vi.fn().mockReturnValue({ closed: false });
+
         Object.defineProperty(URL, 'createObjectURL', {
             value: createObjectUrlMock,
             configurable: true,
@@ -149,12 +215,17 @@ describe('ResourcesPage - bulk selection', () => {
             configurable: true,
             writable: true,
         });
+        Object.defineProperty(window, 'open', {
+            value: openMock,
+            configurable: true,
+            writable: true,
+        });
     });
 
     afterEach(() => {
         document.head.innerHTML = '';
+        document.body.innerHTML = '';
 
-        // Restore the original URL methods so later specs see the pristine jsdom state.
         if (originalCreateObjectURL === undefined) {
             delete (URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
         } else {
@@ -164,6 +235,7 @@ describe('ResourcesPage - bulk selection', () => {
                 writable: true,
             });
         }
+
         if (originalRevokeObjectURL === undefined) {
             delete (URL as { revokeObjectURL?: typeof URL.revokeObjectURL }).revokeObjectURL;
         } else {
@@ -173,226 +245,234 @@ describe('ResourcesPage - bulk selection', () => {
                 writable: true,
             });
         }
+
+        Object.defineProperty(window, 'open', {
+            value: originalOpen,
+            configurable: true,
+            writable: true,
+        });
     });
 
-    it('renders a select-all checkbox and per-row checkboxes', () => {
+    it('renders selection checkboxes and the idle toolbar hint', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         expect(screen.getByTestId('resources-select-all')).toBeInTheDocument();
         expect(screen.getByTestId('resources-row-checkbox-1')).toBeInTheDocument();
         expect(screen.getByTestId('resources-row-checkbox-2')).toBeInTheDocument();
         expect(screen.getByTestId('resources-row-checkbox-3')).toBeInTheDocument();
+        expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
     });
 
-    it('shows the toolbar idle hint when no rows are selected', () => {
+    it('updates selected count when rows are toggled', () => {
         render(<ResourcesPage {...buildProps()} />);
 
-        expect(screen.getByText(/select rows to enable bulk actions/i)).toBeInTheDocument();
-    });
-
-    it('updates selected count when toggling a row checkbox', () => {
-        render(<ResourcesPage {...buildProps()} />);
-
-        const rowCheckbox = screen.getByTestId('resources-row-checkbox-2');
-        fireEvent.click(rowCheckbox);
-
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
         expect(screen.getByText(/^1 resource selected$/i)).toBeInTheDocument();
-    });
-
-    it('selects every visible row when the header checkbox is clicked', () => {
-        render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-select-all'));
-
         expect(screen.getByText(/^3 resources selected$/i)).toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
     });
 
-    it('posts selected ids to the batch-register endpoint', async () => {
+    it('opens every selected resource in the editor from the toolbar edit action', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        await userEvent.click(screen.getByTestId('resources-action-edit'));
+
+        expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
+        expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 2 } });
+        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=2', '_blank', 'noopener,noreferrer');
+    });
+
+    it('warns when an editor tab is blocked', async () => {
+        openMock.mockReturnValueOnce(null);
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('resources-action-edit'));
+
+        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('blocked'));
+    });
+
+    it('keeps single-resource actions visible but reports a useful error for multi-selection', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        await userEvent.click(screen.getByTestId('resources-action-setup-landing-page'));
+
+        expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+        expect(toastMock.error).toHaveBeenCalledWith('This action can only be performed on a single record.');
+    });
+
+    it('opens setup landing page and related-items modals for a single selected resource', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('resources-action-setup-landing-page'));
+        expect(screen.getByTestId('setup-landing-page-modal')).toHaveTextContent('First');
+
+        await userEvent.click(screen.getByTestId('resources-action-manage-related-items'));
+        expect(screen.getByTestId('citation-manager-modal')).toHaveTextContent('1');
+    });
+
+    it('opens the single-resource DOI registration modal only for DOI-less resources with a landing page', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
+        await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+
+        expect(screen.getByTestId('register-doi-modal')).toHaveTextContent('Third');
+        expect(axiosPostMock).not.toHaveBeenCalled();
+    });
+
+    it('explains why multi-resource DOI registration is unavailable', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
+        await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('prefix selection'));
+        expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
+    });
+
+    it('exports every selected resource as individual DataCite XML downloads', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        await userEvent.click(screen.getByTestId('resources-action-export-datacite-xml'));
+
+        await waitFor(() => {
+            const exportCalls = axiosGetMock.mock.calls.filter(([url]) => String(url).includes('export-datacite-xml'));
+            expect(exportCalls).toHaveLength(2);
+            expect(exportCalls[0]).toEqual(['/resources/1/export-datacite-xml', { responseType: 'blob' }]);
+            expect(exportCalls[1]).toEqual(['/resources/2/export-datacite-xml', { responseType: 'blob' }]);
+        });
+        expect(axiosPostMock).not.toHaveBeenCalledWith('/resources/batch-export', expect.anything(), expect.anything());
+        expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
+        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('multiple files'));
+    });
+
+    it('uses individual JSON and JSON-LD export endpoints from the toolbar', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('resources-action-export-datacite-json'));
+        await userEvent.click(screen.getByTestId('resources-action-export-jsonld'));
+
+        await waitFor(() => {
+            expect(axiosGetMock).toHaveBeenCalledWith('/resources/1/export-datacite-json', { responseType: 'blob' });
+            expect(axiosGetMock).toHaveBeenCalledWith('/resources/1/export-jsonld', { responseType: 'blob' });
+        });
+    });
+
+    it('posts selected DOI resources to the metadata update endpoint after confirmation', async () => {
         axiosPostMock.mockResolvedValue({
-            data: { success: [{ id: 1, doi: '10.9999/one', updated: true }], failed: [] },
+            data: { success: [{ id: 1, doi: '10.9999/one', updated: true }, { id: 2, doi: '10.9999/two', updated: true }], failed: [] },
         });
 
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        fireEvent.click(screen.getByTestId('bulk-register-button'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
 
-        // Wait for click handler to fire
-        await Promise.resolve();
-        await Promise.resolve();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+        expect(screen.getByText(/this will update metadata at datacite for 2 resources/i)).toBeInTheDocument();
 
-        expect(axiosPostMock).toHaveBeenCalledWith('/resources/batch-register', { ids: [1] });
+        await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
+
+        await waitFor(() => {
+            expect(axiosPostMock).toHaveBeenCalledWith('/resources/batch-register', { ids: [1, 2] });
+            expect(toastMock.success).toHaveBeenCalledWith('2 resources updated at DataCite');
+            expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+        });
     });
 
-    it('posts selected ids and chosen format to the batch-export endpoint', async () => {
-        axiosPostMock.mockResolvedValue({
-            data: new Blob(['zip'], { type: 'application/zip' }),
-            headers: { 'content-disposition': 'attachment; filename="resources-export-datacite-xml.zip"' },
-        });
-
+    it('keeps update metadata unavailable when any selected resource has no DOI', async () => {
         render(<ResourcesPage {...buildProps()} />);
 
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
+        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
 
-        // Open dropdown via userEvent (Radix relies on pointer events)
-        await userEvent.click(screen.getByTestId('bulk-export-button'));
-        await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite XML/i }));
-
-        expect(axiosPostMock).toHaveBeenCalledWith(
-            '/resources/batch-export',
-            { ids: expect.arrayContaining([2, 3]), format: 'datacite-xml' },
-            { responseType: 'blob' },
-        );
-        expect(createObjectUrlMock).toHaveBeenCalled();
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('no DOI'));
+        expect(axiosPostMock).not.toHaveBeenCalled();
     });
 
-    it('renders the import button alongside the bulk toolbar', () => {
+    it('submits selected draft resources to the batch delete endpoint after confirmation', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null }),
+                    buildResource({ id: 11, doi: null, title: 'Draft B', publicstatus: 'draft', landingPage: null }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-11'));
+        await userEvent.click(screen.getByTestId('resources-action-delete'));
+
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+        expect(screen.getByText(/only draft resources without a doi and without a landing page can be deleted/i)).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /delete drafts/i }));
+
+        expect(routerMock.delete).toHaveBeenCalledWith(
+            '/resources/batch',
+            expect.objectContaining({
+                data: { ids: [10, 11] },
+                preserveScroll: true,
+                onSuccess: expect.any(Function),
+                onError: expect.any(Function),
+                onFinish: expect.any(Function),
+            }),
+        );
+
+        const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+            onSuccess: () => void;
+            onFinish: () => void;
+        };
+
+        await act(async () => {
+            deleteOptions.onSuccess();
+            deleteOptions.onFinish();
+        });
+
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('blocks delete when a selected draft already has a landing page', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 20, doi: null, title: 'Draft with Landing Page', publicstatus: 'draft', landingPage }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-20'));
+        await userEvent.click(screen.getByTestId('resources-action-delete'));
+
+        expect(toastMock.error).toHaveBeenCalledWith('Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.');
+        expect(routerMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('renders the import buttons alongside the action toolbar', () => {
         const props = { ...buildProps(), canImportFromDataCite: true };
         render(<ResourcesPage {...props} />);
 
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
     });
-
-    it('places the curator/created columns inside hidden responsive containers', () => {
-        render(<ResourcesPage {...buildProps()} />);
-        const created = screen.getByRole('columnheader', { name: /created/i });
-        // The header's TH carries the responsive hidden classes via cellClassName
-        expect(created.className).toMatch(/hidden/);
-    });
-
-    it('clears selection and reloads after a successful bulk register', async () => {
-        axiosPostMock.mockResolvedValue({
-            data: {
-                success: [{ id: 1, doi: '10.9999/one', updated: true }],
-                failed: [],
-            },
-        });
-
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        fireEvent.click(screen.getByTestId('bulk-register-button'));
-
-        // flush microtasks for awaited axios + state updates
-        await new Promise((r) => setTimeout(r, 0));
-
-        expect(toastMock.success).toHaveBeenCalledWith(expect.stringMatching(/registered\/updated/i));
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
-    });
-
-    it('reports failures from a 200 response with a `failed` array', async () => {
-        axiosPostMock.mockResolvedValue({
-            data: {
-                success: [],
-                failed: [{ id: 1, doi: '10.9999/one', reason: 'No landing page configured' }],
-            },
-        });
-
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        fireEvent.click(screen.getByTestId('bulk-register-button'));
-
-        await new Promise((r) => setTimeout(r, 0));
-
-        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('No landing page configured'));
-    });
-
-    it('handles a 207 partial-success error response from axios', async () => {
-        const error = Object.assign(new Error('Multi-Status'), {
-            isAxiosError: true,
-            response: {
-                status: 207,
-                data: {
-                    success: [{ id: 1, doi: '10.9999/one', updated: true }],
-                    failed: [{ id: 2, doi: '10.9999/two', reason: 'IGSN resources must use IGSN endpoint' }],
-                },
-            },
-        });
-        axiosPostMock.mockRejectedValue(error);
-
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-        fireEvent.click(screen.getByTestId('bulk-register-button'));
-
-        await new Promise((r) => setTimeout(r, 0));
-
-        expect(toastMock.success).toHaveBeenCalledWith(expect.stringMatching(/registered\/updated/i));
-        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('IGSN'));
-        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
-    });
-
-    it('shows a generic error toast when bulk register fails for an unexpected reason', async () => {
-        axiosPostMock.mockRejectedValue(new Error('boom'));
-
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        fireEvent.click(screen.getByTestId('bulk-register-button'));
-
-        await new Promise((r) => setTimeout(r, 0));
-
-        expect(toastMock.error).toHaveBeenCalledWith('Bulk registration failed');
-    });
-
-    it('falls back to a synthesized filename when content-disposition is missing', async () => {
-        axiosPostMock.mockResolvedValue({
-            data: new Blob(['zip'], { type: 'application/zip' }),
-            headers: {},
-        });
-
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('bulk-export-button'));
-        await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON$/i }));
-
-        expect(createObjectUrlMock).toHaveBeenCalled();
-        expect(toastMock.success).toHaveBeenCalledWith(expect.stringContaining('DATACITE-JSON'));
-    });
-
-    it('shows an error toast when bulk export fails', async () => {
-        axiosPostMock.mockRejectedValue(new Error('network down'));
-
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('bulk-export-button'));
-        await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON-LD/i }));
-
-        expect(toastMock.error).toHaveBeenCalledWith('Bulk export failed');
-    });
-
-    it('does not call the API when bulk register is invoked with no selection', () => {
-        render(<ResourcesPage {...buildProps()} />);
-
-        // Button is disabled while no selection — clicking has no effect
-        fireEvent.click(screen.getByTestId('bulk-register-button'));
-
-        expect(axiosPostMock).not.toHaveBeenCalled();
-    });
-
-    it('toggles a row off when its checkbox is clicked twice', () => {
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        expect(screen.getByText(/^1 resource selected$/i)).toBeInTheDocument();
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        expect(screen.getByText(/select rows to enable bulk actions/i)).toBeInTheDocument();
-    });
-
-    it('clears the selection when the header checkbox is unchecked after a select-all', () => {
-        render(<ResourcesPage {...buildProps()} />);
-
-        fireEvent.click(screen.getByTestId('resources-select-all'));
-        expect(screen.getByText(/^3 resources selected$/i)).toBeInTheDocument();
-
-        fireEvent.click(screen.getByTestId('resources-select-all'));
-        expect(screen.getByText(/select rows to enable bulk actions/i)).toBeInTheDocument();
-    });
 });
+
+

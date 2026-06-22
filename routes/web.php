@@ -61,7 +61,7 @@ Route::get('/health', function () {
 })->name('health');
 
 // Sanctum-compatible CSRF cookie endpoint (/sanctum/csrf-cookie).
-// Sanctum itself is not installed – this lightweight route provides the
+// Sanctum itself is not installed â€“ this lightweight route provides the
 // same contract: the PreventRequestForgery middleware automatically sets the
 // XSRF-TOKEN cookie on every response, so this endpoint only needs to
 // return 204 No Content.
@@ -352,7 +352,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
-    // Related Items (DataCite 4.7) — Citation Manager
+    // Related Items (DataCite 4.7) â€” Citation Manager
     Route::get('related-items/vocabularies', [RelatedItemController::class, 'vocabularies'])
         ->name('related-items.vocabularies');
     Route::get('resources/{resource}/related-items', [RelatedItemController::class, 'index'])
@@ -366,7 +366,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/related-items/reorder', [RelatedItemController::class, 'reorder'])
         ->name('resources.related-items.reorder');
 
-    // Citation Manager DOI auto-fill lookup (Crossref → DataCite fallback)
+    // Citation Manager DOI auto-fill lookup (Crossref â†’ DataCite fallback)
     Route::get('api/v1/citation-lookup', [CitationLookupController::class, 'lookup'])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');
@@ -397,6 +397,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('resources/all', [ResourceController::class, 'destroyAll'])
         ->middleware('can:delete-all-resources')
         ->name('resources.destroy-all');
+
+    Route::delete('resources/batch', [ResourceController::class, 'destroyBatch'])
+        ->name('resources.batch-destroy');
 
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');

@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Resource\DestroyAllResourcesRequest;
 use App\Http\Requests\Resource\DestroyResourceRequest;
+use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Http\Requests\Resource\IndexResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
@@ -17,6 +18,7 @@ use App\Services\Resources\ResourceQueryBuilder;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -166,7 +168,7 @@ class ResourceController extends Controller
      * Delete a draft resource.
      *
      * Authorization is enforced by DestroyResourceRequest::authorize() (delegates
-     * to ResourcePolicy::delete – curator / group leader / admin on draft resources only).
+     * to ResourcePolicy::delete Ã¢â‚¬â€œ curator / group leader / admin on draft resources only).
      */
     public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
@@ -175,6 +177,71 @@ class ResourceController extends Controller
         return redirect()
             ->route('resources')
             ->with('success', 'Draft deleted successfully.');
+    }
+
+    /**
+     * Delete selected draft resources.
+     *
+     * Every resource is checked through ResourcePolicy::delete so batch deletion
+     * cannot bypass DOI, landing page, or draft-status safeguards.
+     *
+     * @throws ValidationException
+     */
+    public function destroyBatch(DestroyResourcesRequest $request): RedirectResponse
+    {
+        /** @var array{ids: array<int, int>} $validated */
+        $validated = $request->validated();
+
+        /** @var array<int> $ids */
+        $ids = array_values(array_unique($validated['ids']));
+
+        DB::transaction(function () use ($ids, $request): void {
+            $resources = Resource::query()
+                ->with([
+                    'titles.titleType',
+                    'creators',
+                    'rights',
+                    'descriptions.descriptionType',
+                    'landingPage',
+                ])
+                ->whereIn('id', $ids)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($resources->count() !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'ids' => ['Some selected resources could not be found.'],
+                ]);
+            }
+
+            foreach ($ids as $id) {
+                $resource = $resources->get($id);
+
+                if (! $resource instanceof Resource || ! ($request->user()?->can('delete', $resource) ?? false)) {
+                    throw ValidationException::withMessages([
+                        'ids' => ['Only draft resources without a DOI and without a landing page can be deleted.'],
+                    ]);
+                }
+            }
+
+            foreach ($ids as $id) {
+                $resource = $resources->get($id);
+
+                if ($resource instanceof Resource) {
+                    $resource->delete();
+                }
+            }
+        });
+
+        $count = count($ids);
+        $message = $count === 1
+            ? 'Draft deleted successfully.'
+            : "{$count} drafts deleted successfully.";
+
+        return redirect()
+            ->route('resources')
+            ->with('success', $message);
     }
 
     /**

@@ -1,16 +1,19 @@
 // organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Braces, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
-import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
-import { ResourcesBulkActionsToolbar, type ResourcesBulkExportFormat } from '@/components/resources/bulk-actions-toolbar';
+import {
+    type ResourcesActionKey,
+    type ResourcesActionState,
+    ResourcesBulkActionsToolbar,
+} from '@/components/resources/bulk-actions-toolbar';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import ImportSingleOldResourceModal from '@/components/resources/modals/ImportSingleOldResourceModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
@@ -44,7 +47,6 @@ import {
     type ResourceSortDirection,
     type ResourceSortKey,
     type ResourceSortState,
-    shouldUseUpdateMetadataLabel,
 } from '@/types/resources';
 import { parseResourceFiltersFromUrl } from '@/utils/filter-parser';
 
@@ -102,8 +104,6 @@ const DOI_TITLE_COLUMN_HEADER_LABEL = (
         <span>Title</span>
     </span>
 );
-const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-48 min-w-[12rem]';
-
 const DEFAULT_SORT: ResourceSortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'resources.sort-preference';
 const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> = {
@@ -510,16 +510,6 @@ function ResourcesPage({
         void loadMore();
     }, [loadMore]);
 
-    const handleOpenInEditor = useCallback(async (resource: Resource) => {
-        try {
-            // Navigate to editor with resource data
-            router.get(editorRoute({ query: { resourceId: resource.id } }).url);
-        } catch (error) {
-            console.error('Unable to open resource in editor:', error);
-            toast.error('Failed to open resource in editor');
-        }
-    }, []);
-
     const handleSetupLandingPage = useCallback((resource: Resource) => {
         setSelectedResourceForLandingPage(resource);
         setIsLandingPageModalOpen(true);
@@ -585,22 +575,6 @@ function ResourcesPage({
     const allVisibleSelected = resources.length > 0 && visibleSelectableIds().every((id) => selectedIds.has(id));
     const someVisibleSelected = !allVisibleSelected && visibleSelectableIds().some((id) => selectedIds.has(id));
 
-    /**
-     * Bulk register currently only updates existing DOIs — minting new ones requires
-     * a DataCite prefix which the bulk flow does not yet prompt for. Block the action
-     * (with an explanatory tooltip) whenever the selection contains DOI-less resources.
-     */
-    const registerDisabledReason = (() => {
-        if (selectedIds.size === 0) {
-            return undefined;
-        }
-        const selectedWithoutDoi = resources.filter((r) => typeof r.id === 'number' && selectedIds.has(r.id) && (r.doi === null || r.doi === ''));
-        if (selectedWithoutDoi.length === 0) {
-            return undefined;
-        }
-        return `Bulk register only updates existing DOIs. ${selectedWithoutDoi.length} ${selectedWithoutDoi.length === 1 ? 'resource has' : 'resources have'} no DOI yet — register them individually from the editor to mint a new DOI.`;
-    })();
-
     const handleSelectAll = useCallback(
         (checked: boolean) => {
             setSelectedIds(checked ? new Set(visibleSelectableIds()) : new Set());
@@ -620,20 +594,27 @@ function ResourcesPage({
         });
     }, []);
 
-    const handleBulkRegister = useCallback(async () => {
-        if (selectedIds.size === 0) {
+    const selectedResources = resources.filter((resource) => typeof resource.id === 'number' && selectedIds.has(resource.id));
+    const selectedResourceIds = selectedResources.map((resource) => resource.id);
+    const selectedCount = selectedResources.length;
+    const singleSelectedResource = selectedCount === 1 ? selectedResources[0] : null;
+
+    const executeUpdateMetadata = useCallback(async () => {
+        if (selectedResourceIds.length === 0) {
+            toast.error('Select one or more resources first.');
             return;
         }
+
         setIsBulkRegistering(true);
         try {
             const response = await axios.post<{
                 success: Array<{ id: number; doi: string | null; updated: boolean }>;
                 failed: Array<{ id: number; doi: string | null; reason: string }>;
-            }>('/resources/batch-register', { ids: Array.from(selectedIds) });
+            }>('/resources/batch-register', { ids: selectedResourceIds });
 
             const { success = [], failed = [] } = response.data ?? {};
             if (success.length > 0) {
-                toast.success(`${success.length} ${success.length === 1 ? 'resource' : 'resources'} registered/updated`);
+                toast.success(`${success.length} ${success.length === 1 ? 'resource' : 'resources'} updated at DataCite`);
             }
             if (failed.length > 0) {
                 toast.error(`${failed.length} failed: ${failed[0].reason}`);
@@ -641,14 +622,13 @@ function ResourcesPage({
             router.reload({ only: ['resources', 'pagination'] });
             setSelectedIds(new Set());
         } catch (error) {
-            // Axios returns 207 as an error in some configurations; handle gracefully.
             if (isAxiosError(error) && error.response?.status === 207 && error.response.data) {
                 const { success = [], failed = [] } = error.response.data as {
                     success?: Array<{ id: number; doi: string | null; updated: boolean }>;
                     failed?: Array<{ id: number; doi: string | null; reason: string }>;
                 };
                 if (success.length > 0) {
-                    toast.success(`${success.length} ${success.length === 1 ? 'resource' : 'resources'} registered/updated`);
+                    toast.success(`${success.length} ${success.length === 1 ? 'resource' : 'resources'} updated at DataCite`);
                 }
                 if (failed.length > 0) {
                     toast.error(`${failed.length} failed: ${failed[0].reason}`);
@@ -657,61 +637,13 @@ function ResourcesPage({
                 setSelectedIds(new Set());
                 return;
             }
-            console.error('Bulk register failed:', error);
-            toast.error('Bulk registration failed');
+            console.error('Metadata update failed:', error);
+            toast.error('Metadata update failed');
         } finally {
             setIsBulkRegistering(false);
+            setIsUpdateMetadataDialogOpen(false);
         }
-    }, [selectedIds]);
-
-    const handleBulkExport = useCallback(
-        async (format: ResourcesBulkExportFormat) => {
-            if (selectedIds.size === 0) {
-                return;
-            }
-            setIsBulkExporting(true);
-            try {
-                const response = await axios.post(
-                    '/resources/batch-export',
-                    {
-                        ids: Array.from(selectedIds),
-                        format,
-                    },
-                    {
-                        responseType: 'blob',
-                    },
-                );
-
-                const blob = new Blob([response.data as BlobPart], { type: 'application/zip' });
-                const contentDisposition = response.headers['content-disposition'] as string | undefined;
-                let filename = `resources-export-${format}.zip`;
-                if (contentDisposition) {
-                    const match = contentDisposition.match(/filename="?([^"]+)"?/);
-                    if (match) {
-                        filename = match[1];
-                    }
-                }
-
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-
-                toast.success(`Exported ${selectedIds.size} ${selectedIds.size === 1 ? 'resource' : 'resources'} as ${format.toUpperCase()}`);
-            } catch (error) {
-                console.error('Bulk export failed:', error);
-                toast.error('Bulk export failed');
-            } finally {
-                setIsBulkExporting(false);
-            }
-        },
-        [selectedIds],
-    );
-
+    }, [selectedResourceIds]);
     /**
      * Copy text to clipboard with toast notification
      */
@@ -752,9 +684,6 @@ function ResourcesPage({
         [copyToClipboard],
     );
 
-    const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
-    const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
-    const [exportingJsonLdResources, setExportingJsonLdResources] = useState<Set<number>>(new Set());
     const [selectedResourceForLandingPage, setSelectedResourceForLandingPage] = useState<Resource | null>(null);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedResourceForDoi, setSelectedResourceForDoi] = useState<Resource | null>(null);
@@ -763,7 +692,8 @@ function ResourcesPage({
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
-    const [resourcePendingDelete, setResourcePendingDelete] = useState<Resource | null>(null);
+    const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeletingResource, setIsDeletingResource] = useState(false);
     const isDeletingResourceRef = useRef(false);
     const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
@@ -772,82 +702,92 @@ function ResourcesPage({
         return typeof resource.doi === 'string' && resource.doi.trim().length > 0;
     }, []);
 
-    const canDeleteResource = useCallback(
-        (resource: Resource): boolean => {
-            return (
-                canDeleteDraftResources && resource.publicstatus === 'draft' && typeof resource.id === 'number' && !hasPersistentIdentifier(resource)
-            );
-        },
-        [canDeleteDraftResources, hasPersistentIdentifier],
-    );
-
-    const getDeleteButtonTitle = useCallback(
-        (resource: Resource): string => {
+    const getDeleteUnavailableReason = useCallback(
+        (resource: Resource): string | null => {
             if (!canDeleteDraftResources) {
-                return 'You do not have permission to delete draft resources';
+                return 'You do not have permission to delete draft resources.';
             }
 
             if (resource.publicstatus !== 'draft') {
-                return 'Only draft resources can be deleted';
+                return 'Only draft resources can be deleted.';
             }
 
             if (hasPersistentIdentifier(resource)) {
-                return 'Resources with persistent identifiers cannot be deleted';
+                return 'Resources with persistent identifiers cannot be deleted.';
             }
 
-            return 'Delete draft resource';
+            if (resource.landingPage) {
+                return 'Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.';
+            }
+
+            return null;
         },
         [canDeleteDraftResources, hasPersistentIdentifier],
     );
 
-    const handleRequestDelete = useCallback(
-        (resource: Resource) => {
-            if (!canDeleteResource(resource)) {
-                return;
-            }
+    const canDeleteResource = useCallback(
+        (resource: Resource): boolean => getDeleteUnavailableReason(resource) === null,
+        [getDeleteUnavailableReason],
+    );
 
-            isDeletingResourceRef.current = false;
-            setResourcePendingDelete(resource);
+    const handleUpdateMetadataDialogOpenChange = useCallback(
+        (open: boolean) => {
+            if (!open && !isBulkRegistering) {
+                setIsUpdateMetadataDialogOpen(false);
+            }
         },
-        [canDeleteResource],
+        [isBulkRegistering],
     );
 
     const handleDeleteDialogOpenChange = useCallback(
         (open: boolean) => {
             if (!open && !isDeletingResourceRef.current && !isDeletingResource) {
                 isDeletingResourceRef.current = false;
-                setResourcePendingDelete(null);
+                setIsDeleteDialogOpen(false);
             }
         },
         [isDeletingResource],
+    );
+
+    const handleConfirmUpdateMetadata = useCallback(
+        (event: ReactMouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+            void executeUpdateMetadata();
+        },
+        [executeUpdateMetadata],
     );
 
     const handleConfirmDelete = useCallback(
         (event: ReactMouseEvent<HTMLButtonElement>) => {
             event.preventDefault();
 
-            if (isDeletingResourceRef.current || !resourcePendingDelete?.id) {
+            if (isDeletingResourceRef.current || selectedResourceIds.length === 0) {
                 return;
             }
 
-            const resourceToDelete = resourcePendingDelete;
+            const blockedResource = selectedResources.find((resource) => !canDeleteResource(resource));
+            if (blockedResource) {
+                toast.error(getDeleteUnavailableReason(blockedResource) ?? 'The selected resources cannot be deleted.');
+                return;
+            }
 
             isDeletingResourceRef.current = true;
             setIsDeletingResource(true);
 
-            router.delete(`/resources/${resourceToDelete.id}`, {
+            router.delete('/resources/batch', {
+                data: { ids: selectedResourceIds },
                 preserveScroll: true,
                 onSuccess: () => {
-                    setSelectedIds((prev) => {
-                        const next = new Set(prev);
-                        next.delete(resourceToDelete.id);
-                        return next;
-                    });
-                    setResourcePendingDelete(null);
-                    toast.success('Draft deleted successfully.');
+                    setSelectedIds(new Set());
+                    setIsDeleteDialogOpen(false);
+                    toast.success(
+                        selectedResourceIds.length === 1
+                            ? 'Draft deleted successfully.'
+                            : `${selectedResourceIds.length} drafts deleted successfully.`,
+                    );
                 },
                 onError: () => {
-                    toast.error('Failed to delete draft resource.');
+                    toast.error('Failed to delete draft resources.');
                 },
                 onFinish: () => {
                     isDeletingResourceRef.current = false;
@@ -855,27 +795,20 @@ function ResourcesPage({
                 },
             });
         },
-        [resourcePendingDelete],
+        [canDeleteResource, getDeleteUnavailableReason, selectedResourceIds, selectedResources],
     );
-
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
             toast.error('Cannot export resource without ID');
             return;
         }
 
-        // Mark resource as exporting
-        setExportingResources((prev) => new Set(prev).add(resource.id!));
-
         try {
             const response = await axios.get(`/resources/${resource.id}/export-datacite-json`, {
-                responseType: 'blob', // Important for file download
+                responseType: 'blob',
             });
 
-            // Create blob from response
             const blob = new Blob([response.data], { type: 'application/json' });
-
-            // Get filename from Content-Disposition header or generate it
             const contentDisposition = response.headers['content-disposition'] as string | undefined;
             let filename = `resource-${resource.id}-datacite.json`;
 
@@ -886,15 +819,12 @@ function ResourcesPage({
                 }
             }
 
-            // Create download link and trigger download
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = filename;
             document.body.appendChild(link);
             link.click();
-
-            // Cleanup
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
 
@@ -903,7 +833,6 @@ function ResourcesPage({
             console.error('Failed to export DataCite JSON:', error);
 
             if (isAxiosError(error) && error.response?.status === 422 && error.response?.data) {
-                // Validation error - show modal with details
                 const validationError = await parseValidationErrorFromBlob(error.response.data);
                 if (validationError) {
                     setValidationErrors(validationError.errors);
@@ -919,13 +848,6 @@ function ResourcesPage({
                     : 'Failed to export DataCite JSON';
 
             toast.error(errorMessage);
-        } finally {
-            // Remove resource from exporting set
-            setExportingResources((prev) => {
-                const next = new Set(prev);
-                next.delete(resource.id!);
-                return next;
-            });
         }
     }, []);
 
@@ -935,15 +857,12 @@ function ResourcesPage({
             return;
         }
 
-        setExportingJsonLdResources((prev) => new Set(prev).add(resource.id!));
-
         try {
             const response = await axios.get(`/resources/${resource.id}/export-jsonld`, {
                 responseType: 'blob',
             });
 
             const blob = new Blob([response.data], { type: 'application/ld+json' });
-
             const contentDisposition = response.headers['content-disposition'] as string | undefined;
             let filename = `resource-${resource.id}-datacite-ld.jsonld`;
 
@@ -960,7 +879,6 @@ function ResourcesPage({
             link.download = filename;
             document.body.appendChild(link);
             link.click();
-
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
 
@@ -974,12 +892,6 @@ function ResourcesPage({
                     : 'Failed to export JSON-LD';
 
             toast.error(errorMessage);
-        } finally {
-            setExportingJsonLdResources((prev) => {
-                const next = new Set(prev);
-                next.delete(resource.id!);
-                return next;
-            });
         }
     }, []);
 
@@ -989,15 +901,11 @@ function ResourcesPage({
             return;
         }
 
-        // Mark resource as exporting
-        setExportingXmlResources((prev) => new Set(prev).add(resource.id!));
-
         try {
             const response = await axios.get(`/resources/${resource.id}/export-datacite-xml`, {
-                responseType: 'blob', // Important for file download
+                responseType: 'blob',
             });
 
-            // Check for validation warning in headers
             const validationWarning = response.headers['x-validation-warning'];
             if (validationWarning) {
                 try {
@@ -1015,10 +923,7 @@ function ResourcesPage({
                 }
             }
 
-            // Create blob from response
             const blob = new Blob([response.data], { type: 'application/xml' });
-
-            // Get filename from Content-Disposition header or generate it
             const contentDisposition = response.headers['content-disposition'] as string | undefined;
             let filename = `resource-${resource.id}-datacite.xml`;
 
@@ -1029,23 +934,16 @@ function ResourcesPage({
                 }
             }
 
-            // Create download link and trigger download
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = filename;
             document.body.appendChild(link);
             link.click();
-
-            // Cleanup
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
 
-            if (!validationWarning) {
-                toast.success('DataCite XML exported successfully');
-            } else {
-                toast.success('DataCite XML exported with validation warnings');
-            }
+            toast.success(validationWarning ? 'DataCite XML exported with validation warnings' : 'DataCite XML exported successfully');
         } catch (error) {
             console.error('Failed to export DataCite XML:', error);
 
@@ -1055,15 +953,193 @@ function ResourcesPage({
                     : 'Failed to export DataCite XML';
 
             toast.error(errorMessage);
-        } finally {
-            // Remove resource from exporting set
-            setExportingXmlResources((prev) => {
-                const next = new Set(prev);
-                next.delete(resource.id!);
-                return next;
-            });
         }
     }, []);
+    const handleEditSelectedResources = useCallback(() => {
+        if (selectedResources.length === 0) {
+            toast.error('Select one or more resources first.');
+            return;
+        }
+
+        let blockedPopups = 0;
+        selectedResources.forEach((resource) => {
+            const url = editorRoute({ query: { resourceId: resource.id } }).url;
+            const opened = window.open(url, '_blank', 'noopener,noreferrer');
+            if (opened === null) {
+                blockedPopups += 1;
+            }
+        });
+
+        if (blockedPopups > 0) {
+            toast.warning('Your browser blocked one or more editor tabs. Please allow pop-ups for ERNIE and try again.');
+        }
+    }, [selectedResources]);
+
+    const handleExportSelectedResources = useCallback(
+        async (action: Extract<ResourcesActionKey, 'export-datacite-json' | 'export-datacite-xml' | 'export-jsonld'>) => {
+            if (selectedResources.length === 0) {
+                toast.error('Select one or more resources first.');
+                return;
+            }
+
+            if (selectedResources.length > 1) {
+                toast.warning('Your browser may ask for permission to download multiple files.');
+            }
+
+            setIsBulkExporting(true);
+            try {
+                for (const resource of selectedResources) {
+                    if (action === 'export-datacite-json') {
+                        await handleExportDataCiteJson(resource);
+                    } else if (action === 'export-datacite-xml') {
+                        await handleExportDataCiteXml(resource);
+                    } else {
+                        await handleExportJsonLd(resource);
+                    }
+                }
+            } finally {
+                setIsBulkExporting(false);
+            }
+        },
+        [handleExportDataCiteJson, handleExportDataCiteXml, handleExportJsonLd, selectedResources],
+    );
+
+    const formatSelectionCount = useCallback((count: number, singular: string, plural: string): string => {
+        return `${count} ${count === 1 ? singular : plural}`;
+    }, []);
+
+    const selectedWithoutLandingPageCount = selectedResources.filter((resource) => !resource.landingPage).length;
+    const selectedWithoutDoiCount = selectedResources.filter((resource) => !hasPersistentIdentifier(resource)).length;
+    const firstDeleteBlockedResource = selectedResources.find((resource) => !canDeleteResource(resource));
+
+    const noSelectionReason = 'Select one or more resources first.';
+    const singleRecordReason = 'This action can only be performed on a single record.';
+
+    const resourceActions: Record<ResourcesActionKey, ResourcesActionState> = {
+        edit: {
+            available: selectedCount > 0,
+            reason: noSelectionReason,
+        },
+        'setup-landing-page': {
+            visible: canManageLandingPages,
+            available: selectedCount === 1,
+            reason: selectedCount === 0 ? noSelectionReason : singleRecordReason,
+        },
+        'manage-related-items': {
+            available: selectedCount === 1 && !citationVocabulariesLoading,
+            reason:
+                selectedCount === 0
+                    ? noSelectionReason
+                    : selectedCount > 1
+                      ? singleRecordReason
+                      : 'Citation vocabularies are still loading.',
+        },
+        'export-datacite-json': {
+            available: selectedCount > 0,
+            reason: noSelectionReason,
+            loading: isBulkExporting,
+        },
+        'export-datacite-xml': {
+            available: selectedCount > 0,
+            reason: noSelectionReason,
+            loading: isBulkExporting,
+        },
+        'export-jsonld': {
+            available: selectedCount > 0,
+            reason: noSelectionReason,
+            loading: isBulkExporting,
+        },
+        'register-doi': {
+            visible: canRegisterDoi,
+            available:
+                selectedCount === 1 &&
+                singleSelectedResource !== null &&
+                !hasPersistentIdentifier(singleSelectedResource) &&
+                Boolean(singleSelectedResource.landingPage),
+            reason:
+                selectedCount === 0
+                    ? noSelectionReason
+                    : selectedCount > 1
+                      ? 'Bulk DOI registration is not available because DOI minting requires a prefix selection. Register DOI-less resources one at a time.'
+                      : singleSelectedResource && hasPersistentIdentifier(singleSelectedResource)
+                        ? 'Register DOI is only available for resources without a DOI. Use Update metadata for registered resources.'
+                        : singleSelectedResource && !singleSelectedResource.landingPage
+                          ? 'A landing page must be set up before registering a DOI.'
+                          : undefined,
+            loading: isBulkRegistering,
+        },
+        'update-metadata': {
+            visible: canRegisterDoi,
+            available: selectedCount > 0 && selectedWithoutDoiCount === 0 && selectedWithoutLandingPageCount === 0,
+            reason:
+                selectedCount === 0
+                    ? noSelectionReason
+                    : selectedWithoutDoiCount > 0
+                      ? `Update metadata is only available for resources that already have a DOI. ${formatSelectionCount(selectedWithoutDoiCount, 'selected resource has', 'selected resources have')} no DOI.`
+                      : selectedWithoutLandingPageCount > 0
+                        ? `${formatSelectionCount(selectedWithoutLandingPageCount, 'selected resource is', 'selected resources are')} missing a landing page.`
+                        : undefined,
+            loading: isBulkRegistering,
+        },
+        delete: {
+            visible: canDeleteDraftResources,
+            available: selectedCount > 0 && firstDeleteBlockedResource === undefined,
+            reason:
+                selectedCount === 0
+                    ? noSelectionReason
+                    : firstDeleteBlockedResource
+                      ? (getDeleteUnavailableReason(firstDeleteBlockedResource) ?? 'The selected resources cannot be deleted.')
+                      : undefined,
+            loading: isDeletingResource,
+        },
+    };
+
+    const handleUnavailableAction = useCallback((reason: string) => {
+        toast.error(reason);
+    }, []);
+
+    const handleResourceAction = useCallback(
+        (action: ResourcesActionKey) => {
+            switch (action) {
+                case 'edit':
+                    handleEditSelectedResources();
+                    break;
+                case 'setup-landing-page':
+                    if (singleSelectedResource) {
+                        handleSetupLandingPage(singleSelectedResource);
+                    }
+                    break;
+                case 'manage-related-items':
+                    if (singleSelectedResource) {
+                        setCitationManagerResourceId(singleSelectedResource.id);
+                    }
+                    break;
+                case 'export-datacite-json':
+                case 'export-datacite-xml':
+                case 'export-jsonld':
+                    void handleExportSelectedResources(action);
+                    break;
+                case 'register-doi':
+                    if (singleSelectedResource) {
+                        handleRegisterDoi(singleSelectedResource);
+                    }
+                    break;
+                case 'update-metadata':
+                    setIsUpdateMetadataDialogOpen(true);
+                    break;
+                case 'delete':
+                    setIsDeleteDialogOpen(true);
+                    break;
+            }
+        },
+        [
+            handleEditSelectedResources,
+            handleExportSelectedResources,
+            handleRegisterDoi,
+            handleSetupLandingPage,
+            singleSelectedResource,
+        ],
+    );
 
     const sortedResources = resources;
 
@@ -1313,18 +1389,6 @@ function ResourcesPage({
                     <td className="w-12 min-w-12 px-6 py-1.5 align-middle">
                         <div className="size-4 rounded bg-gray-200 dark:bg-gray-700" />
                     </td>
-                    <td className={`px-6 py-1.5 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1">
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            </div>
-                        </div>
-                    </td>
                     {resourceColumns.map((column) => (
                         <td key={column.key} className={`px-6 py-1.5 ${column.widthClass} ${column.cellClassName ?? ''}`}>
                             {column.key === 'id_resourcetype' ? (
@@ -1394,13 +1458,10 @@ function ResourcesPage({
                         {/* Bulk action toolbar + Import button (mirrors IGSN pattern) */}
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                             <ResourcesBulkActionsToolbar
-                                selectedCount={selectedIds.size}
-                                onRegister={handleBulkRegister}
-                                onExport={handleBulkExport}
-                                canRegister={canRegisterDoi}
-                                isRegistering={isBulkRegistering}
-                                isExporting={isBulkExporting}
-                                registerDisabledReason={registerDisabledReason}
+                                selectedCount={selectedCount}
+                                actions={resourceActions}
+                                onAction={handleResourceAction}
+                                onUnavailableAction={handleUnavailableAction}
                             />
                             {canImportFromDataCite && (
                                 <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -1436,7 +1497,7 @@ function ResourcesPage({
                             <>
                                 <div className="mb-4 flex flex-wrap items-center gap-2">
                                     <Badge variant="outline" className="text-xs">
-                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
+                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? 'ascending' : 'descending'}
                                     </Badge>
                                 </div>
                                 <div className="overflow-x-auto">
@@ -1454,11 +1515,7 @@ function ResourcesPage({
                                                         data-testid="resources-select-all"
                                                     />
                                                 </TableHead>
-                                                <TableHead
-                                                    className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
-                                                >
-                                                    Actions
-                                                </TableHead>
+
                                                 {resourceColumns.map((column) => {
                                                     const isColumnSorted =
                                                         column.sortOptions?.some((option) => option.key === sortState.key) ?? false;
@@ -1542,128 +1599,6 @@ function ResourcesPage({
                                                                 />
                                                             )}
                                                         </TableCell>
-                                                        <TableCell
-                                                            className={`align-middle text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
-                                                        >
-                                                            <div className="flex flex-col gap-0.5">
-                                                                <div className="flex items-center gap-1">
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleOpenInEditor(resource)}
-                                                                        aria-label={`Open resource ${resourceLabel} in editor form`}
-                                                                        title={`Open resource ${resourceLabel} in editor form`}
-                                                                    >
-                                                                        <PencilLine aria-hidden="true" className="size-4" />
-                                                                    </Button>
-                                                                    {canManageLandingPages && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            onClick={() => handleSetupLandingPage(resource)}
-                                                                            aria-label={`Setup landing page for resource ${resourceLabel}`}
-                                                                            title={`Setup landing page for resource ${resourceLabel}`}
-                                                                        >
-                                                                            <Eye aria-hidden="true" className="size-4" />
-                                                                        </Button>
-                                                                    )}
-                                                                    {resource.landingPage && (
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            onClick={() => handleRegisterDoi(resource)}
-                                                                            aria-label={`${shouldUseUpdateMetadataLabel(resource) ? 'Update metadata' : 'Register DOI'} for resource ${resourceLabel}`}
-                                                                            title={
-                                                                                shouldUseUpdateMetadataLabel(resource)
-                                                                                    ? 'Update metadata'
-                                                                                    : 'Register DOI'
-                                                                            }
-                                                                            data-testid="datacite-button"
-                                                                        >
-                                                                            <DataCiteIcon
-                                                                                aria-hidden="true"
-                                                                                className="size-4"
-                                                                                data-testid="datacite-icon"
-                                                                            />
-                                                                        </Button>
-                                                                    )}
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() =>
-                                                                            resource.id != null && setCitationManagerResourceId(resource.id)
-                                                                        }
-                                                                        disabled={citationVocabulariesLoading}
-                                                                        aria-label={`Manage citations for resource ${resourceLabel}`}
-                                                                        title={
-                                                                            citationVocabulariesLoading
-                                                                                ? 'Loading citation vocabularies…'
-                                                                                : 'Manage related items / citations'
-                                                                        }
-                                                                        data-testid="citation-manager-button"
-                                                                    >
-                                                                        <Quote aria-hidden="true" className="size-4" />
-                                                                    </Button>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleExportDataCiteJson(resource)}
-                                                                        disabled={exportingResources.has(resource.id ?? 0)}
-                                                                        aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
-                                                                        title={`Export as DataCite JSON`}
-                                                                    >
-                                                                        <FileJsonIcon aria-hidden="true" className="size-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleExportDataCiteXml(resource)}
-                                                                        disabled={exportingXmlResources.has(resource.id ?? 0)}
-                                                                        aria-label={`Export resource ${resourceLabel} as DataCite XML`}
-                                                                        title={`Export as DataCite XML`}
-                                                                    >
-                                                                        <FileXmlIcon aria-hidden="true" className="size-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleExportJsonLd(resource)}
-                                                                        disabled={exportingJsonLdResources.has(resource.id ?? 0)}
-                                                                        aria-label={`Export resource ${resourceLabel} as JSON-LD`}
-                                                                        title={`Export as JSON-LD (Linked Data)`}
-                                                                    >
-                                                                        <Braces aria-hidden="true" className="size-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={
-                                                                            canDeleteResource(resource)
-                                                                                ? () => handleRequestDelete(resource)
-                                                                                : undefined
-                                                                        }
-                                                                        disabled={!canDeleteResource(resource) || isDeletingResource}
-                                                                        aria-label={`Delete resource ${resourceLabel}`}
-                                                                        title={getDeleteButtonTitle(resource)}
-                                                                        className={
-                                                                            !canDeleteResource(resource) ? 'cursor-not-allowed opacity-40' : undefined
-                                                                        }
-                                                                    >
-                                                                        <Trash2 aria-hidden="true" className="size-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
                                                         {resourceColumns.map((column) => (
                                                             <TableCell
                                                                 key={column.key}
@@ -1723,25 +1658,40 @@ function ResourcesPage({
                 onSuccess={handleImportSuccess}
             />
 
-            <AlertDialog open={resourcePendingDelete !== null} onOpenChange={handleDeleteDialogOpenChange}>
+            <AlertDialog open={isUpdateMetadataDialogOpen} onOpenChange={handleUpdateMetadataDialogOpenChange}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete draft resource?</AlertDialogTitle>
+                        <AlertDialogTitle>Update metadata?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            {resourcePendingDelete?.title
-                                ? `This will permanently remove the draft resource "${resourcePendingDelete.title}" from ERNIE.`
-                                : 'This will permanently remove the selected draft resource from ERNIE.'}
+                            This will update metadata at DataCite for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeletingResource}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction variant="destructive" onClick={handleConfirmDelete} disabled={isDeletingResource}>
-                            {isDeletingResource ? 'Deleting...' : 'Delete Draft'}
+                        <AlertDialogCancel disabled={isBulkRegistering}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmUpdateMetadata} disabled={isBulkRegistering}>
+                            {isBulkRegistering ? 'Updating...' : 'Update metadata'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {selectedCount === 1 ? 'draft resource' : 'draft resources'}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove {selectedCount} {selectedCount === 1 ? 'draft resource' : 'draft resources'} from ERNIE.
+                            Only draft resources without a DOI and without a landing page can be deleted.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeletingResource}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={handleConfirmDelete} disabled={isDeletingResource}>
+                            {isDeletingResource ? 'Deleting...' : 'Delete Drafts'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             {/* JSON Validation Error Modal */}
             <ValidationErrorModal
                 open={isValidationModalOpen}
@@ -1771,3 +1721,4 @@ function ResourcesPage({
 export default ResourcesPage;
 
 export { deriveResourceRowKey };
+
