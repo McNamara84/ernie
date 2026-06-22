@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UploadErrorCode;
+use App\Exceptions\DuplicateUploadedResourceDoiException;
 use App\Http\Requests\UploadXmlRequest;
 use App\Services\UploadLogService;
+use App\Services\Uploads\UploadedResourceDraftService;
 use App\Services\Xml\DataCiteXmlImportParser;
 use App\Support\UploadError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Saloon\XmlWrangler\Exceptions\XmlReaderException;
 use Saloon\XmlWrangler\XmlReader;
 use VeeWee\Xml\Exception\RuntimeException as XmlRuntimeException;
@@ -20,6 +23,7 @@ class UploadXmlController extends Controller
     public function __construct(
         private readonly UploadLogService $uploadLogService,
         private readonly DataCiteXmlImportParser $importParser,
+        private readonly UploadedResourceDraftService $uploadedResourceDraftService,
     ) {}
 
     public function __invoke(UploadXmlRequest $request): JsonResponse
@@ -73,13 +77,86 @@ class UploadXmlController extends Controller
             );
         }
 
-        // Store data in session to avoid 414 URI Too Long errors
+        $sessionPayload = $result->toSessionPayload();
+
+        try {
+            $resource = $this->uploadedResourceDraftService->storeFromPayload(
+                $sessionPayload,
+                $filename,
+                $request->user()?->id,
+            );
+        } catch (DuplicateUploadedResourceDoiException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::DUPLICATE_DOI,
+                'The uploaded DOI already exists on resource #'.$e->resourceId.'.'
+            );
+            $this->uploadLogService->logFailure('xml', $filename, $error, [
+                'doi' => $e->doi,
+                'resource_id' => $e->resourceId,
+            ]);
+
+            return $this->duplicateDoiResponse($filename, $e->doi, $e->resourceId);
+        } catch (ValidationException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::STORAGE_ERROR,
+                'The uploaded metadata could not be saved as a draft.'
+            );
+            $this->uploadLogService->logFailure('xml', $filename, $error, [
+                'errors' => $e->errors(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::STORAGE_ERROR,
+                $filename,
+                'The uploaded metadata could not be saved as a draft.',
+            );
+        } catch (\Throwable $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::STORAGE_ERROR,
+                'The uploaded metadata could not be saved as a draft.'
+            );
+            $this->uploadLogService->logFailure('xml', $filename, $error, [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::STORAGE_ERROR,
+                $filename,
+                'The uploaded metadata could not be saved as a draft.',
+                500,
+            );
+        }
+
+        // Keep a short-lived session fallback for older editor links and tests.
         $sessionKey = 'xml_upload_'.Str::random(32);
-        session()->put($sessionKey, $result->toSessionPayload());
+        session()->put($sessionKey, $sessionPayload);
 
         return response()->json([
+            'success' => true,
+            'resourceId' => $resource->id,
             'sessionKey' => $sessionKey,
         ]);
+    }
+
+    private function duplicateDoiResponse(string $filename, string $doi, int $resourceId): JsonResponse
+    {
+        $message = 'The uploaded DOI already exists on resource #'.$resourceId.'.';
+
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'filename' => $filename,
+            'error' => [
+                'category' => UploadErrorCode::DUPLICATE_DOI->category(),
+                'code' => UploadErrorCode::DUPLICATE_DOI->value,
+                'message' => $message,
+                'field' => 'doi',
+                'row' => null,
+                'identifier' => $doi,
+                'resourceId' => $resourceId,
+            ],
+        ], 409);
     }
 
     /**

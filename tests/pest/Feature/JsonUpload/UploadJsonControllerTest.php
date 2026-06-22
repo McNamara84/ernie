@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
@@ -11,7 +12,7 @@ use Illuminate\Http\UploadedFile;
 uses(RefreshDatabase::class);
 
 describe('JSON Upload - DataCite JSON format', function () {
-    test('returns session key for valid DataCite JSON', function () {
+    test('returns resource id and session key for valid DataCite JSON', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes());
@@ -20,10 +21,49 @@ describe('JSON Upload - DataCite JSON format', function () {
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
 
         $response->assertOk()
-            ->assertJsonStructure(['sessionKey']);
+            ->assertJsonStructure(['resourceId', 'sessionKey']);
 
         $sessionKey = $response->json('sessionKey');
         expect($sessionKey)->toStartWith('json_upload_');
+
+        $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+        expect($resource->titles->pluck('value')->all())->toContain('Test Dataset');
+    });
+
+    test('uses the uploaded JSON filename as fallback when no Main Title exists', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'titles' => [
+                ['title' => 'Only Subtitle', 'titleType' => 'Subtitle'],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('subtitle-only.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $response->assertOk()
+            ->assertJsonStructure(['resourceId', 'sessionKey']);
+
+        $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+        expect($resource->titles->pluck('value')->all())->toContain('subtitle only');
+    });
+
+    test('blocks JSON upload when the DOI already exists', function () {
+        $this->actingAs(User::factory()->create());
+        $existing = Resource::factory()->create(['doi' => '10.5880/test.json.duplicate']);
+
+        $json = dataCiteJson(minimalAttributes([
+            'doi' => 'https://doi.org/10.5880/test.json.duplicate',
+        ]));
+        $file = UploadedFile::fake()->createWithContent('duplicate.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $response->assertStatus(409)
+            ->assertJsonPath('error.code', 'duplicate_doi')
+            ->assertJsonPath('error.identifier', '10.5880/test.json.duplicate')
+            ->assertJsonPath('error.resourceId', $existing->id);
     });
 
     test('extracts titles from DataCite JSON', function () {
@@ -446,6 +486,10 @@ describe('JSON Upload - JSON-LD format', function () {
         $file = UploadedFile::fake()->createWithContent('test.jsonld', $jsonLd);
 
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $response->assertJsonStructure(['resourceId', 'sessionKey']);
+        $resource = Resource::with('titles')->findOrFail($response->json('resourceId'));
+        expect($resource->titles->pluck('value')->all())->toContain('JSON-LD Test');
 
         $data = getJsonUploadData($response);
 

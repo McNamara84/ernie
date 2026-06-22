@@ -4881,6 +4881,88 @@ describe('DataCiteForm', () => {
             const { toast } = await import('sonner');
             expect(toast.success).toHaveBeenCalledWith('Draft saved.');
         });
+
+        it('autosaves changed draft data without redirecting', { timeout: 30000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft autosaved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            const view = renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+            });
+
+            try {
+                const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+                fireEvent.change(mainTitleInput, { target: { value: 'Changed Draft' } });
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({
+                        resourceId: 42,
+                        titles: [{ title: 'Changed Draft', titleType: 'main-title', language: null }],
+                    }),
+                    expect.objectContaining({
+                        headers: expect.objectContaining({
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                        }),
+                    }),
+                );
+                expect(mockRouterVisit).not.toHaveBeenCalled();
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent(/Draft autosaved/);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not autosave an unchanged loaded draft', { timeout: 30000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft autosaved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            const view = renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+            });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).not.toHaveBeenCalled();
+                expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
     });
 
     describe('Redirect after saving (Issue #624)', () => {
