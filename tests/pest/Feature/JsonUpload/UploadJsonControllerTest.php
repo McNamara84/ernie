@@ -6,6 +6,8 @@ use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\ResourceStorageService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 
@@ -64,6 +66,43 @@ describe('JSON Upload - DataCite JSON format', function () {
             ->assertJsonPath('error.code', 'duplicate_doi')
             ->assertJsonPath('error.identifier', '10.5880/test.json.duplicate')
             ->assertJsonPath('error.resourceId', $existing->id);
+    });
+
+    test('returns duplicate DOI response when the storage insert hits the DOI unique constraint', function () {
+        $this->actingAs(User::factory()->create());
+        $doi = '10.5880/test.json.race';
+
+        $mock = Mockery::mock(ResourceStorageService::class);
+        $mock->shouldReceive('store')
+            ->once()
+            ->andReturnUsing(function () use ($doi) {
+                Resource::factory()->create(['doi' => $doi]);
+
+                $previous = new PDOException(
+                    'SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: resources.doi',
+                    23000,
+                );
+                $previous->errorInfo = ['23000', 19, 'UNIQUE constraint failed: resources.doi'];
+
+                throw new QueryException('sqlite', 'insert into "resources" ("doi") values (?)', [$doi], $previous);
+            });
+        $this->app->instance(ResourceStorageService::class, $mock);
+
+        $json = dataCiteJson(minimalAttributes([
+            'doi' => 'https://doi.org/'.$doi,
+        ]));
+        $file = UploadedFile::fake()->createWithContent('race.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $resourceId = (int) Resource::query()
+            ->where('doi', $doi)
+            ->value('id');
+
+        $response->assertStatus(409)
+            ->assertJsonPath('error.code', 'duplicate_doi')
+            ->assertJsonPath('error.identifier', $doi)
+            ->assertJsonPath('error.resourceId', $resourceId);
     });
 
     test('extracts titles from DataCite JSON', function () {

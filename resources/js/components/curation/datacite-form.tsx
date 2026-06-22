@@ -2187,7 +2187,7 @@ export default function DataCiteForm({
         titles,
     ]);
 
-    const markDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+    const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
         const savedPayload = resourceId ? { ...payload, resourceId } : payload;
 
         try {
@@ -2196,10 +2196,16 @@ export default function DataCiteForm({
             console.error('Failed to serialize draft autosave signature', error);
             lastDraftAutosaveSignatureRef.current = null;
         }
-
-        setLastDraftAutosaveAt(new Date());
-        setDraftAutosaveStatus('saved');
     }, []);
+
+    const markDraftAutosaveSaved = useCallback(
+        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+            updateDraftAutosaveSignature(payload, resourceId);
+            setLastDraftAutosaveAt(new Date());
+            setDraftAutosaveStatus('saved');
+        },
+        [updateDraftAutosaveSignature],
+    );
 
     useEffect(() => {
         if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null) {
@@ -2253,14 +2259,14 @@ export default function DataCiteForm({
                 setResolvedResourceId(savedResourceId);
             }
 
-            markDraftAutosaveSignature(payload, savedResourceId);
+            markDraftAutosaveSaved(payload, savedResourceId);
         } catch (error) {
             console.error('Failed to autosave draft', error);
             setDraftAutosaveStatus('error');
         } finally {
             draftAutosaveInFlightRef.current = false;
         }
-    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isSaving, isSavingDraft, markDraftAutosaveSignature]);
+    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isSaving, isSavingDraft, markDraftAutosaveSaved]);
 
     useEffect(() => {
         const autosaveTimerId = window.setInterval(() => {
@@ -2524,7 +2530,7 @@ export default function DataCiteForm({
             if (savedResourceId) {
                 setResolvedResourceId(savedResourceId);
             }
-            markDraftAutosaveSignature(payload, savedResourceId);
+            updateDraftAutosaveSignature(payload, savedResourceId);
 
             setHasAttemptedSubmit(false);
 

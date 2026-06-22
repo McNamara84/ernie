@@ -4882,6 +4882,54 @@ describe('DataCiteForm', () => {
             expect(toast.success).toHaveBeenCalledWith('Draft saved.');
         });
 
+        it('updates the autosave signature without showing autosave status after manual draft save', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            const view = renderDataCiteForm();
+
+            try {
+                const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+                await act(async () => {
+                    fireEvent.change(mainTitleInput, { target: { value: 'Draft Dataset' } });
+                });
+
+                const draftButton = screen.getByTestId('save-draft-button');
+                await act(async () => {
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/resources',
+                    expect.objectContaining({
+                        onError: expect.any(Function),
+                    }),
+                );
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
         it('autosaves changed draft data without redirecting', { timeout: 30000 }, async () => {
             vi.useFakeTimers();
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };

@@ -14,6 +14,7 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Services\ResourceStorageService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 final class UploadedResourceDraftService
@@ -28,9 +29,8 @@ final class UploadedResourceDraftService
      */
     public function storeFromPayload(array $payload, string $filename, ?int $userId): Resource
     {
-        $this->ensureControlledVocabularyRows();
-
         $storagePayload = $this->buildStoragePayload($payload, $filename);
+        $this->ensureControlledVocabularyRows($storagePayload);
 
         $doi = $storagePayload['doi'] ?? null;
         if (is_string($doi) && $doi !== '') {
@@ -43,7 +43,13 @@ final class UploadedResourceDraftService
             }
         }
 
-        [$resource] = $this->resourceStorageService->store($storagePayload, $userId);
+        try {
+            [$resource] = $this->resourceStorageService->store($storagePayload, $userId);
+        } catch (QueryException $e) {
+            $this->throwDuplicateDoiExceptionIfUniqueDoiViolation($e, $doi);
+
+            throw $e;
+        }
 
         return $resource;
     }
@@ -476,45 +482,98 @@ final class UploadedResourceDraftService
         return Str::limit($value, 255, '');
     }
 
-    private function ensureControlledVocabularyRows(): void
+    private function throwDuplicateDoiExceptionIfUniqueDoiViolation(QueryException $exception, mixed $doi): void
     {
-        $this->ensureTitleTypes();
-        $this->ensureDescriptionTypes();
-        $this->ensureDateTypes();
-        $this->ensureIdentifierTypes();
-        $this->ensureRelationTypes();
+        if (! is_string($doi) || $doi === '' || ! $this->isResourceDoiUniqueViolation($exception)) {
+            return;
+        }
+
+        $existingResourceId = Resource::query()
+            ->where('doi', $doi)
+            ->value('id');
+
+        if ($existingResourceId !== null) {
+            throw new DuplicateUploadedResourceDoiException($doi, (int) $existingResourceId);
+        }
     }
 
-    private function ensureTitleTypes(): void
+    private function isResourceDoiUniqueViolation(QueryException $exception): bool
     {
-        foreach ([
+        $errorInfo = $exception->errorInfo ?? [];
+        $sqlState = isset($errorInfo[0]) ? (string) $errorInfo[0] : '';
+        $driverCode = isset($errorInfo[1]) ? (string) $errorInfo[1] : '';
+
+        if (! in_array($sqlState, ['23000', '23505'], true) && ! in_array($driverCode, ['19', '1062'], true)) {
+            return false;
+        }
+
+        $message = Str::lower($exception->getMessage());
+
+        return str_contains($message, 'resources.doi')
+            || str_contains($message, 'resources_doi_unique')
+            || (str_contains($message, 'duplicate entry') && str_contains($message, 'doi'));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function ensureControlledVocabularyRows(array $payload): void
+    {
+        $this->ensureTitleTypes(array_merge(
+            ['main-title'],
+            $this->typeValues($payload['titles'] ?? [], 'titleType'),
+        ));
+        $this->ensureDescriptionTypes($this->typeValues($payload['descriptions'] ?? [], 'descriptionType'));
+        $this->ensureDateTypes(array_merge(
+            ['Created'],
+            $this->typeValues($payload['dates'] ?? [], 'dateType'),
+        ));
+        $this->ensureIdentifierTypes($this->typeValues($payload['relatedIdentifiers'] ?? [], 'identifierType'));
+        $this->ensureRelationTypes(array_merge(
+            $this->typeValues($payload['relatedIdentifiers'] ?? [], 'relationType'),
+            $this->typeValues($payload['relatedItems'] ?? [], 'relation_type_slug'),
+        ));
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function ensureTitleTypes(array $values): void
+    {
+        foreach ($this->matchingControlledRows($values, [
             ['name' => 'Main Title', 'slug' => 'MainTitle'],
             ['name' => 'Alternative Title', 'slug' => 'AlternativeTitle'],
             ['name' => 'Subtitle', 'slug' => 'Subtitle'],
             ['name' => 'Translated Title', 'slug' => 'TranslatedTitle'],
             ['name' => 'Other', 'slug' => 'Other'],
-        ] as $type) {
+        ]) as $type) {
             TitleType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
         }
     }
 
-    private function ensureDescriptionTypes(): void
+    /**
+     * @param  list<string>  $values
+     */
+    private function ensureDescriptionTypes(array $values): void
     {
-        foreach ([
+        foreach ($this->matchingControlledRows($values, [
             ['name' => 'Abstract', 'slug' => 'Abstract'],
             ['name' => 'Methods', 'slug' => 'Methods'],
             ['name' => 'Series Information', 'slug' => 'SeriesInformation'],
             ['name' => 'Table of Contents', 'slug' => 'TableOfContents'],
             ['name' => 'Technical Info', 'slug' => 'TechnicalInfo'],
             ['name' => 'Other', 'slug' => 'Other'],
-        ] as $type) {
+        ]) as $type) {
             DescriptionType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
         }
     }
 
-    private function ensureDateTypes(): void
+    /**
+     * @param  list<string>  $values
+     */
+    private function ensureDateTypes(array $values): void
     {
-        foreach ([
+        foreach ($this->matchingControlledRows($values, [
             ['name' => 'Accepted', 'slug' => 'Accepted'],
             ['name' => 'Available', 'slug' => 'Available'],
             ['name' => 'Copyrighted', 'slug' => 'Copyrighted'],
@@ -527,7 +586,7 @@ final class UploadedResourceDraftService
             ['name' => 'Valid', 'slug' => 'Valid'],
             ['name' => 'Withdrawn', 'slug' => 'Withdrawn'],
             ['name' => 'Other', 'slug' => 'Other'],
-        ] as $type) {
+        ]) as $type) {
             DateType::query()->firstOrCreate(
                 ['slug' => $type['slug']],
                 [
@@ -538,9 +597,12 @@ final class UploadedResourceDraftService
         }
     }
 
-    private function ensureIdentifierTypes(): void
+    /**
+     * @param  list<string>  $values
+     */
+    private function ensureIdentifierTypes(array $values): void
     {
-        foreach ([
+        foreach ($this->matchingControlledRows($values, [
             ['name' => 'ARK', 'slug' => 'ARK'],
             ['name' => 'arXiv', 'slug' => 'arXiv'],
             ['name' => 'bibcode', 'slug' => 'bibcode'],
@@ -564,14 +626,17 @@ final class UploadedResourceDraftService
             ['name' => 'URL', 'slug' => 'URL'],
             ['name' => 'URN', 'slug' => 'URN'],
             ['name' => 'w3id', 'slug' => 'w3id'],
-        ] as $type) {
+        ]) as $type) {
             IdentifierType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
         }
     }
 
-    private function ensureRelationTypes(): void
+    /**
+     * @param  list<string>  $values
+     */
+    private function ensureRelationTypes(array $values): void
     {
-        foreach ([
+        foreach ($this->matchingControlledRows($values, [
             ['name' => 'Is Cited By', 'slug' => 'IsCitedBy'],
             ['name' => 'Cites', 'slug' => 'Cites'],
             ['name' => 'Is Supplement To', 'slug' => 'IsSupplementTo'],
@@ -611,8 +676,75 @@ final class UploadedResourceDraftService
             ['name' => 'Is Collected By', 'slug' => 'IsCollectedBy'],
             ['name' => 'Collects', 'slug' => 'Collects'],
             ['name' => 'Other', 'slug' => 'Other'],
-        ] as $type) {
+        ]) as $type) {
             RelationType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function typeValues(mixed $items, string ...$keys): array
+    {
+        $values = [];
+
+        foreach ($this->arrayList($items) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            foreach ($keys as $key) {
+                $value = $this->stringOrNull($item[$key] ?? null);
+                if ($value !== null) {
+                    $values[] = $value;
+                }
+            }
+        }
+
+        return array_values(array_unique($values));
+    }
+
+    /**
+     * @param  list<string>  $values
+     * @param  list<array{name: string, slug: string, is_active?: bool}>  $rows
+     * @return list<array{name: string, slug: string, is_active?: bool}>
+     */
+    private function matchingControlledRows(array $values, array $rows): array
+    {
+        $requestedKeys = [];
+
+        foreach ($values as $value) {
+            $key = $this->controlledRowKey($value);
+            if ($key !== null) {
+                $requestedKeys[$key] = true;
+            }
+        }
+
+        if ($requestedKeys === []) {
+            return [];
+        }
+
+        $matches = [];
+        foreach ($rows as $row) {
+            $slugKey = $this->controlledRowKey($row['slug']);
+            $nameKey = $this->controlledRowKey($row['name']);
+
+            if (($slugKey !== null && isset($requestedKeys[$slugKey])) || ($nameKey !== null && isset($requestedKeys[$nameKey]))) {
+                $matches[$row['slug']] = $row;
+            }
+        }
+
+        return array_values($matches);
+    }
+
+    private function controlledRowKey(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $normalized = preg_replace('/[^[:alnum:]]+/u', '', trim((string) $value)) ?? '';
+
+        return $normalized === '' ? null : Str::lower($normalized);
     }
 }
