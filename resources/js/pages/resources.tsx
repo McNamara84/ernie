@@ -1,3 +1,4 @@
+// organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, Braces, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
@@ -9,10 +10,7 @@ import { CitationManagerModal } from '@/components/citations/CitationManagerModa
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
-import {
-    ResourcesBulkActionsToolbar,
-    type ResourcesBulkExportFormat,
-} from '@/components/resources/bulk-actions-toolbar';
+import { ResourcesBulkActionsToolbar, type ResourcesBulkExportFormat } from '@/components/resources/bulk-actions-toolbar';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import ImportSingleOldResourceModal from '@/components/resources/modals/ImportSingleOldResourceModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
@@ -84,7 +82,7 @@ interface ResourceColumn {
     sortGroupLabel?: string;
 }
 
-const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[24rem] lg:min-w-[36rem] xl:min-w-[44rem]';
+const DOI_TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[18rem] md:min-w-[24rem]';
 const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
@@ -92,10 +90,16 @@ const DATE_COLUMN_HEADER_LABEL = (
         <span>Updated</span>
     </span>
 );
-const IDENTIFIER_COLUMN_HEADER_LABEL = (
+const ID_RESOURCE_TYPE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
         <span>ID</span>
+        <span>Resource Type</span>
+    </span>
+);
+const DOI_TITLE_COLUMN_HEADER_LABEL = (
+    <span className="flex flex-col leading-tight normal-case">
         <span>DOI</span>
+        <span>Title</span>
     </span>
 );
 const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-48 min-w-[12rem]';
@@ -292,9 +296,7 @@ function ResourcesPage({
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
     const canRegisterDoi = auth.user?.can_register_production_doi ?? false;
-    const canDeleteDraftResources = auth.user?.role === 'admin'
-        || auth.user?.role === 'group_leader'
-        || auth.user?.role === 'curator';
+    const canDeleteDraftResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -592,9 +594,7 @@ function ResourcesPage({
         if (selectedIds.size === 0) {
             return undefined;
         }
-        const selectedWithoutDoi = resources.filter(
-            (r) => typeof r.id === 'number' && selectedIds.has(r.id) && (r.doi === null || r.doi === ''),
-        );
+        const selectedWithoutDoi = resources.filter((r) => typeof r.id === 'number' && selectedIds.has(r.id) && (r.doi === null || r.doi === ''));
         if (selectedWithoutDoi.length === 0) {
             return undefined;
         }
@@ -671,12 +671,16 @@ function ResourcesPage({
             }
             setIsBulkExporting(true);
             try {
-                const response = await axios.post('/resources/batch-export', {
-                    ids: Array.from(selectedIds),
-                    format,
-                }, {
-                    responseType: 'blob',
-                });
+                const response = await axios.post(
+                    '/resources/batch-export',
+                    {
+                        ids: Array.from(selectedIds),
+                        format,
+                    },
+                    {
+                        responseType: 'blob',
+                    },
+                );
 
                 const blob = new Blob([response.data as BlobPart], { type: 'application/zip' });
                 const contentDisposition = response.headers['content-disposition'] as string | undefined;
@@ -770,10 +774,9 @@ function ResourcesPage({
 
     const canDeleteResource = useCallback(
         (resource: Resource): boolean => {
-            return canDeleteDraftResources
-                && resource.publicstatus === 'draft'
-                && typeof resource.id === 'number'
-                && !hasPersistentIdentifier(resource);
+            return (
+                canDeleteDraftResources && resource.publicstatus === 'draft' && typeof resource.id === 'number' && !hasPersistentIdentifier(resource)
+            );
         },
         [canDeleteDraftResources, hasPersistentIdentifier],
     );
@@ -809,45 +812,51 @@ function ResourcesPage({
         [canDeleteResource],
     );
 
-    const handleDeleteDialogOpenChange = useCallback((open: boolean) => {
-        if (!open && !isDeletingResourceRef.current && !isDeletingResource) {
-            isDeletingResourceRef.current = false;
-            setResourcePendingDelete(null);
-        }
-    }, [isDeletingResource]);
-
-    const handleConfirmDelete = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-
-        if (isDeletingResourceRef.current || !resourcePendingDelete?.id) {
-            return;
-        }
-
-        const resourceToDelete = resourcePendingDelete;
-
-        isDeletingResourceRef.current = true;
-        setIsDeletingResource(true);
-
-        router.delete(`/resources/${resourceToDelete.id}`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                setSelectedIds((prev) => {
-                    const next = new Set(prev);
-                    next.delete(resourceToDelete.id);
-                    return next;
-                });
-                setResourcePendingDelete(null);
-                toast.success('Draft deleted successfully.');
-            },
-            onError: () => {
-                toast.error('Failed to delete draft resource.');
-            },
-            onFinish: () => {
+    const handleDeleteDialogOpenChange = useCallback(
+        (open: boolean) => {
+            if (!open && !isDeletingResourceRef.current && !isDeletingResource) {
                 isDeletingResourceRef.current = false;
-                setIsDeletingResource(false);
-            },
-        });
-    }, [resourcePendingDelete]);
+                setResourcePendingDelete(null);
+            }
+        },
+        [isDeletingResource],
+    );
+
+    const handleConfirmDelete = useCallback(
+        (event: ReactMouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+
+            if (isDeletingResourceRef.current || !resourcePendingDelete?.id) {
+                return;
+            }
+
+            const resourceToDelete = resourcePendingDelete;
+
+            isDeletingResourceRef.current = true;
+            setIsDeletingResource(true);
+
+            router.delete(`/resources/${resourceToDelete.id}`, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        next.delete(resourceToDelete.id);
+                        return next;
+                    });
+                    setResourcePendingDelete(null);
+                    toast.success('Draft deleted successfully.');
+                },
+                onError: () => {
+                    toast.error('Failed to delete draft resource.');
+                },
+                onFinish: () => {
+                    isDeletingResourceRef.current = false;
+                    setIsDeletingResource(false);
+                },
+            });
+        },
+        [resourcePendingDelete],
+    );
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -1060,9 +1069,9 @@ function ResourcesPage({
 
     const resourceColumns: ResourceColumn[] = [
         {
-            key: 'id_doi',
-            label: IDENTIFIER_COLUMN_HEADER_LABEL,
-            widthClass: 'min-w-[12rem]',
+            key: 'id_resourcetype',
+            label: ID_RESOURCE_TYPE_COLUMN_HEADER_LABEL,
+            widthClass: 'min-w-[9rem]',
             cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
@@ -1071,65 +1080,60 @@ function ResourcesPage({
                     description: 'Sort by the resource ID',
                 },
                 {
-                    key: 'doi',
-                    label: 'DOI',
-                    description: 'Sort by the DOI',
-                },
-            ],
-            sortGroupLabel: 'Sort options for ID and DOI',
-            render: (resource: Resource) => {
-                const hasId = resource.id !== undefined && resource.id !== null;
-                const idValue = hasId ? `#${resource.id}` : '-';
-                const identifierValue = resource.doi || 'Not registered';
-                // Lighter gray for "Not registered" text to de-emphasize missing DOI
-                // Dark mode uses lighter shade (400) for better readability on dark backgrounds
-                const identifierClasses = resource.doi
-                    ? 'text-sm text-gray-600 dark:text-gray-300'
-                    : 'text-sm text-gray-500 dark:text-gray-400 italic';
-
-                return (
-                    <div className="flex flex-col gap-1 text-left" aria-label={`Resource ID: ${idValue}. DOI: ${identifierValue}`}>
-                        <span
-                            className={hasId ? 'text-sm font-semibold text-gray-900 dark:text-gray-100' : 'text-sm text-gray-500 dark:text-gray-300'}
-                        >
-                            {idValue}
-                        </span>
-                        <span className={identifierClasses}>{identifierValue}</span>
-                    </div>
-                );
-            },
-        },
-        {
-            key: 'title_resourcetype',
-            label: (
-                <span className="flex flex-col leading-tight normal-case">
-                    <span>Title</span>
-                    <span className="hidden md:inline">Resource Type</span>
-                </span>
-            ),
-            widthClass: TITLE_COLUMN_WIDTH_CLASSES,
-            cellClassName: 'whitespace-normal align-middle',
-            sortOptions: [
-                {
-                    key: 'title',
-                    label: 'Title',
-                    description: 'Sort by the resource title',
-                },
-                {
                     key: 'resourcetypegeneral',
                     label: 'Type',
                     description: 'Sort by the resource type',
                 },
             ],
-            sortGroupLabel: 'Sort options for title and resource type',
+            sortGroupLabel: 'Sort options for ID and resource type',
             render: (resource: Resource) => {
-                const title = resource.title ?? '-';
+                const hasId = resource.id !== undefined && resource.id !== null;
+                const idValue = hasId ? `#${resource.id}` : '-';
                 const resourceType = resource.resourcetypegeneral ?? '-';
 
                 return (
-                    <div className="flex flex-col gap-1 text-left">
+                    <div className="flex flex-col gap-1 text-left" aria-label={`Resource ID: ${idValue}. Resource Type: ${resourceType}`}>
+                        <span
+                            className={hasId ? 'text-sm font-semibold text-gray-900 dark:text-gray-100' : 'text-sm text-gray-500 dark:text-gray-300'}
+                        >
+                            {idValue}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-300">{resourceType}</span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'doi_title',
+            label: DOI_TITLE_COLUMN_HEADER_LABEL,
+            widthClass: DOI_TITLE_COLUMN_WIDTH_CLASSES,
+            cellClassName: 'whitespace-normal align-middle',
+            sortOptions: [
+                {
+                    key: 'doi',
+                    label: 'DOI',
+                    description: 'Sort by the DOI',
+                },
+                {
+                    key: 'title',
+                    label: 'Title',
+                    description: 'Sort by the resource title',
+                },
+            ],
+            sortGroupLabel: 'Sort options for DOI and title',
+            render: (resource: Resource) => {
+                const title = resource.title ?? '-';
+                const identifierValue = resource.doi || 'Not registered';
+                // Lighter gray for "Not registered" text to de-emphasize missing DOI
+                // Dark mode uses lighter shade (400) for better readability on dark backgrounds
+                const identifierClasses = resource.doi
+                    ? 'text-sm wrap-break-word text-gray-600 dark:text-gray-300'
+                    : 'text-sm text-gray-500 dark:text-gray-400 italic';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left" aria-label={`DOI: ${identifierValue}. Title: ${title}`}>
+                        <span className={identifierClasses}>{identifierValue}</span>
                         <span className="text-sm leading-relaxed font-normal wrap-break-word text-gray-900 dark:text-gray-100">{title}</span>
-                        <span className="hidden text-sm whitespace-nowrap text-gray-600 md:inline dark:text-gray-300">{resourceType}</span>
                     </div>
                 );
             },
@@ -1323,10 +1327,15 @@ function ResourcesPage({
                     </td>
                     {resourceColumns.map((column) => (
                         <td key={column.key} className={`px-6 py-1.5 ${column.widthClass} ${column.cellClassName ?? ''}`}>
-                            {column.key === 'id_doi' ? (
+                            {column.key === 'id_resourcetype' ? (
                                 <div className="flex flex-col gap-2">
                                     <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-700"></div>
-                                    <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                    <div className="h-4 w-24 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                </div>
+                            ) : column.key === 'doi_title' ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="h-4 w-40 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                    <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700"></div>
                                 </div>
                             ) : column.key === 'created_updated' ? (
                                 <div className="flex flex-col gap-2">
@@ -1460,7 +1469,7 @@ function ResourcesPage({
                                                         : 'none';
 
                                                     return (
-                                                <TableHead
+                                                        <TableHead
                                                             key={column.key}
                                                             className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
@@ -1519,7 +1528,9 @@ function ResourcesPage({
                                                         key={deriveResourceRowKey(resource)}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastResourceElementRef : null}
-                                                        data-state={resource.id !== undefined && selectedIds.has(resource.id) ? 'selected' : undefined}
+                                                        data-state={
+                                                            resource.id !== undefined && selectedIds.has(resource.id) ? 'selected' : undefined
+                                                        }
                                                     >
                                                         <TableCell className="w-12 min-w-12 align-middle">
                                                             {resource.id !== undefined && (
@@ -1565,7 +1576,11 @@ function ResourcesPage({
                                                                             size="icon"
                                                                             onClick={() => handleRegisterDoi(resource)}
                                                                             aria-label={`${shouldUseUpdateMetadataLabel(resource) ? 'Update metadata' : 'Register DOI'} for resource ${resourceLabel}`}
-                                                                            title={shouldUseUpdateMetadataLabel(resource) ? 'Update metadata' : 'Register DOI'}
+                                                                            title={
+                                                                                shouldUseUpdateMetadataLabel(resource)
+                                                                                    ? 'Update metadata'
+                                                                                    : 'Register DOI'
+                                                                            }
                                                                             data-testid="datacite-button"
                                                                         >
                                                                             <DataCiteIcon
@@ -1580,8 +1595,7 @@ function ResourcesPage({
                                                                         variant="ghost"
                                                                         size="icon"
                                                                         onClick={() =>
-                                                                            resource.id != null &&
-                                                                            setCitationManagerResourceId(resource.id)
+                                                                            resource.id != null && setCitationManagerResourceId(resource.id)
                                                                         }
                                                                         disabled={citationVocabulariesLoading}
                                                                         aria-label={`Manage citations for resource ${resourceLabel}`}
@@ -1633,11 +1647,17 @@ function ResourcesPage({
                                                                         type="button"
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        onClick={canDeleteResource(resource) ? () => handleRequestDelete(resource) : undefined}
+                                                                        onClick={
+                                                                            canDeleteResource(resource)
+                                                                                ? () => handleRequestDelete(resource)
+                                                                                : undefined
+                                                                        }
                                                                         disabled={!canDeleteResource(resource) || isDeletingResource}
                                                                         aria-label={`Delete resource ${resourceLabel}`}
                                                                         title={getDeleteButtonTitle(resource)}
-                                                                        className={!canDeleteResource(resource) ? 'cursor-not-allowed opacity-40' : undefined}
+                                                                        className={
+                                                                            !canDeleteResource(resource) ? 'cursor-not-allowed opacity-40' : undefined
+                                                                        }
                                                                     >
                                                                         <Trash2 aria-hidden="true" className="size-4" />
                                                                     </Button>
@@ -1715,11 +1735,7 @@ function ResourcesPage({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeletingResource}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            variant="destructive"
-                            onClick={handleConfirmDelete}
-                            disabled={isDeletingResource}
-                        >
+                        <AlertDialogAction variant="destructive" onClick={handleConfirmDelete} disabled={isDeletingResource}>
                             {isDeletingResource ? 'Deleting...' : 'Delete Draft'}
                         </AlertDialogAction>
                     </AlertDialogFooter>

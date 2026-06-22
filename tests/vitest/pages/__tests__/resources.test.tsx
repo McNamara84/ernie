@@ -7,16 +7,11 @@ import ResourcesPage from '@/pages/resources';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn() }));
 const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());
-const editorRouteMock = vi.hoisted(
-    () =>
-        vi.fn(
-            ({ query }: { query?: Record<string, string> } = {}) => ({
-                url: query
-                    ? `/editor?${new URLSearchParams(query).toString()}`
-                    : '/editor',
-                method: 'get',
-            }),
-        ),
+const editorRouteMock = vi.hoisted(() =>
+    vi.fn(({ query }: { query?: Record<string, string> } = {}) => ({
+        url: query ? `/editor?${new URLSearchParams(query).toString()}` : '/editor',
+        method: 'get',
+    })),
 );
 
 vi.mock('@inertiajs/react', () => ({
@@ -105,18 +100,19 @@ describe('ResourcesPage', () => {
 
         const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
-        expect(within(table).getByText('Primary title')).toBeInTheDocument();
-        expect(within(table).getByRole('columnheader', { name: /id.*doi/i })).toBeInTheDocument();
-        
+        expect(within(table).getByRole('group', { name: /sort options for id and resource type/i })).toBeInTheDocument();
+        expect(within(table).getByRole('group', { name: /sort options for doi and title/i })).toBeInTheDocument();
+
         const dataRows = within(table).getAllByRole('row').slice(1);
-        expect(within(dataRows[0]).getByText('#1')).toBeInTheDocument();
-        // DOI is now shown as text, not as a link
-        expect(within(dataRows[0]).getByText('10.9999/example')).toBeInTheDocument();
-        
+        const cells = within(dataRows[0]).getAllByRole('cell');
+        const idResourceTypeCell = cells[2];
+        const doiTitleCell = cells[3];
+
+        expect(Array.from(idResourceTypeCell.querySelectorAll('span')).map((span) => span.textContent)).toEqual(['#1', 'Dataset']);
+        expect(Array.from(doiTitleCell.querySelectorAll('span')).map((span) => span.textContent)).toEqual(['10.9999/example', 'Primary title']);
+
         expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: /open resource.*10\.9999\/example.*in.*editor/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /open resource.*10\.9999\/example.*in.*editor/i })).toBeInTheDocument();
         const deleteButton = screen.getByRole('button', { name: /delete resource.*10\.9999\/example/i });
         expect(deleteButton).toBeDisabled();
         expect(deleteButton).toHaveAttribute('title', 'Only draft resources can be deleted');
@@ -126,14 +122,14 @@ describe('ResourcesPage', () => {
         render(
             <ResourcesPage
                 resources={[]}
-                pagination={{ 
-                    current_page: 1, 
-                    last_page: 1, 
-                    per_page: 50, 
-                    total: 0, 
-                    from: 0, 
-                    to: 0, 
-                    has_more: false 
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 0,
+                    from: 0,
+                    to: 0,
+                    has_more: false,
                 }}
                 sort={{ key: 'id', direction: 'asc' }}
             />,

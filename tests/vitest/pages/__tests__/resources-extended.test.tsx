@@ -191,9 +191,7 @@ describe('ResourcesPage – extended', () => {
         });
 
         it('uses doi when id is missing', () => {
-            expect(
-                deriveResourceRowKey({ id: undefined as never, doi: '10.5880/test', year: 2024 } as never),
-            ).toBe('resource-doi-10.5880/test');
+            expect(deriveResourceRowKey({ id: undefined as never, doi: '10.5880/test', year: 2024 } as never)).toBe('resource-doi-10.5880/test');
         });
 
         it('falls back to metadata segments when both id and doi are missing', () => {
@@ -259,10 +257,59 @@ describe('ResourcesPage – extended', () => {
             await act(async () => {
                 fireEvent.click(idButton);
             });
-            expect(routerMock.visit).toHaveBeenCalledWith(
-                expect.stringContaining('sort_key=id'),
-                expect.any(Object),
-            );
+            expect(routerMock.visit).toHaveBeenCalledWith(expect.stringContaining('sort_key=id'), expect.any(Object));
+        });
+    });
+
+    // ── Issue 908 layout ──────────────────────────────────────────────
+    describe('Issue 908 resource overview layout', () => {
+        it('renders resource type below ID and DOI above title in the row cells', () => {
+            renderPage({
+                resources: [
+                    makeResource({
+                        id: 7,
+                        doi: '10.5880/compact-layout',
+                        title: 'Compact Layout Resource',
+                        resourcetypegeneral: 'Dataset',
+                    }),
+                ],
+            });
+
+            const table = screen.getByRole('table');
+            const dataRow = within(table).getAllByRole('row')[1];
+            const cells = within(dataRow).getAllByRole('cell');
+
+            expect(Array.from(cells[2].querySelectorAll('span')).map((span) => span.textContent)).toEqual(['#7', 'Dataset']);
+            expect(Array.from(cells[3].querySelectorAll('span')).map((span) => span.textContent)).toEqual([
+                '10.5880/compact-layout',
+                'Compact Layout Resource',
+            ]);
+        });
+
+        it('keeps the regrouped columns compact instead of restoring the old oversized title width', () => {
+            renderPage();
+
+            const headers = screen.getAllByRole('columnheader');
+            const idResourceTypeHeader = headers.find((header) => {
+                const text = header.textContent ?? '';
+                return text.includes('ID') && text.includes('Type');
+            });
+            const doiTitleHeader = headers.find((header) => {
+                const text = header.textContent ?? '';
+                return text.includes('DOI') && text.includes('Title');
+            });
+
+            expect(idResourceTypeHeader).toBeDefined();
+            expect(doiTitleHeader).toBeDefined();
+            if (!idResourceTypeHeader || !doiTitleHeader) {
+                throw new Error('Expected ID/Resource Type and DOI/Title headers to render');
+            }
+
+            expect(idResourceTypeHeader).toHaveClass('min-w-[9rem]');
+            expect(doiTitleHeader).toHaveClass('min-w-[18rem]');
+            expect(doiTitleHeader).toHaveClass('md:min-w-[24rem]');
+            expect(doiTitleHeader.className).not.toContain('lg:min-w-[36rem]');
+            expect(doiTitleHeader.className).not.toContain('xl:min-w-[44rem]');
         });
     });
 
@@ -429,9 +476,7 @@ describe('ResourcesPage – extended', () => {
     describe('DOI registration button', () => {
         it('shows DataCite button when resource has a landing page', () => {
             renderPage({
-                resources: [
-                    makeResource({ landingPage: { id: 1, is_published: false, public_url: 'https://example.com' } }),
-                ],
+                resources: [makeResource({ landingPage: { id: 1, is_published: false, public_url: 'https://example.com' } })],
             });
             expect(screen.getByTestId('datacite-button')).toBeInTheDocument();
         });
