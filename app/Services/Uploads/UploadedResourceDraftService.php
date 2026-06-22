@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace App\Services\Uploads;
 
 use App\Exceptions\DuplicateUploadedResourceDoiException;
+use App\Models\DateType;
+use App\Models\DescriptionType;
+use App\Models\IdentifierType;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\Right;
+use App\Models\TitleType;
 use App\Services\DoiSuggestionService;
 use App\Services\ResourceStorageService;
 use Illuminate\Support\Str;
@@ -23,6 +28,8 @@ final class UploadedResourceDraftService
      */
     public function storeFromPayload(array $payload, string $filename, ?int $userId): Resource
     {
+        $this->ensureControlledVocabularyRows();
+
         $storagePayload = $this->buildStoragePayload($payload, $filename);
 
         $doi = $storagePayload['doi'] ?? null;
@@ -60,7 +67,8 @@ final class UploadedResourceDraftService
             'authors' => $this->positionedList($payload['authors'] ?? []),
             'contributors' => $this->positionedList($payload['contributors'] ?? []),
             'descriptions' => $this->descriptionList($payload['descriptions'] ?? []),
-            'dates' => $this->positionedList($payload['dates'] ?? []),
+            'dates' => $this->dateList($payload['dates'] ?? []),
+            'importedCreatedDate' => $this->importedCreatedDate($payload['dates'] ?? []),
             'freeKeywords' => $this->freeKeywords($payload['freeKeywords'] ?? []),
             'gcmdKeywords' => $this->controlledKeywords($payload),
             'spatialTemporalCoverages' => $this->coverageList($payload),
@@ -85,7 +93,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $titles
      * @return array<int, array<string, mixed>>
      */
     private function titleList(mixed $titles, string $filename): array
@@ -144,7 +151,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $licenses
      * @return array<int, string>
      */
     private function knownLicenseIdentifiers(mixed $licenses): array
@@ -175,7 +181,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $items
      * @return array<int, array<string, mixed>>
      */
     private function descriptionList(mixed $items): array
@@ -241,7 +246,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $items
      * @return array<int, string>
      */
     private function freeKeywords(mixed $items): array
@@ -256,6 +260,69 @@ final class UploadedResourceDraftService
         }
 
         return array_values(array_unique($keywords));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function dateList(mixed $items): array
+    {
+        $dates = [];
+
+        foreach ($this->arrayList($items) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $dateType = $this->stringOrNull($item['dateType'] ?? null);
+            $dateTypeKey = $dateType !== null ? Str::kebab($dateType) : null;
+            $startDate = $this->stringOrNull($item['startDate'] ?? null);
+            $endDate = $this->stringOrNull($item['endDate'] ?? null);
+
+            if ($dateTypeKey === null || in_array($dateTypeKey, ['coverage', 'created', 'updated'], true)) {
+                continue;
+            }
+
+            if ($startDate === null && $endDate === null) {
+                continue;
+            }
+
+            $supportsPeriod = in_array($dateTypeKey, ['collected', 'valid', 'other'], true);
+            if ($endDate !== null && ($startDate === null || ! $supportsPeriod)) {
+                continue;
+            }
+
+            $date = $item;
+            $date['dateType'] = $dateType;
+            $date['startDate'] = $startDate;
+            $date['endDate'] = $endDate;
+            $date['position'] = $item['position'] ?? $index;
+
+            $dates[] = $date;
+        }
+
+        return $dates;
+    }
+
+    private function importedCreatedDate(mixed $items): ?string
+    {
+        foreach ($this->arrayList($items) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $dateType = $this->stringOrNull($item['dateType'] ?? null);
+            if ($dateType === null || Str::kebab($dateType) !== 'created') {
+                continue;
+            }
+
+            $startDate = $this->stringOrNull($item['startDate'] ?? null);
+            if ($startDate !== null) {
+                return $startDate;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -332,7 +399,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $items
      * @return array<int, array<string, mixed>>
      */
     private function mslLaboratoryList(mixed $items): array
@@ -354,7 +420,7 @@ final class UploadedResourceDraftService
             $laboratories[] = [
                 'identifier' => $identifier ?? $name,
                 'name' => $name ?? $identifier,
-                'affiliation_name' => $this->stringOrNull($item['affiliation_name'] ?? $item['affiliationName'] ?? null),
+                'affiliation_name' => $this->stringOrNull($item['affiliation_name'] ?? $item['affiliationName'] ?? null) ?? '',
                 'affiliation_ror' => $this->stringOrNull($item['affiliation_ror'] ?? $item['affiliationRor'] ?? null),
                 'position' => $item['position'] ?? $index,
             ];
@@ -364,7 +430,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $items
      * @return array<int, array<string, mixed>>
      */
     private function positionedList(mixed $items): array
@@ -384,7 +449,6 @@ final class UploadedResourceDraftService
     }
 
     /**
-     * @param  mixed  $value
      * @return array<int, mixed>
      */
     private function arrayList(mixed $value): array
@@ -410,5 +474,145 @@ final class UploadedResourceDraftService
     private function limit(string $value): string
     {
         return Str::limit($value, 255, '');
+    }
+
+    private function ensureControlledVocabularyRows(): void
+    {
+        $this->ensureTitleTypes();
+        $this->ensureDescriptionTypes();
+        $this->ensureDateTypes();
+        $this->ensureIdentifierTypes();
+        $this->ensureRelationTypes();
+    }
+
+    private function ensureTitleTypes(): void
+    {
+        foreach ([
+            ['name' => 'Main Title', 'slug' => 'MainTitle'],
+            ['name' => 'Alternative Title', 'slug' => 'AlternativeTitle'],
+            ['name' => 'Subtitle', 'slug' => 'Subtitle'],
+            ['name' => 'Translated Title', 'slug' => 'TranslatedTitle'],
+            ['name' => 'Other', 'slug' => 'Other'],
+        ] as $type) {
+            TitleType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
+        }
+    }
+
+    private function ensureDescriptionTypes(): void
+    {
+        foreach ([
+            ['name' => 'Abstract', 'slug' => 'Abstract'],
+            ['name' => 'Methods', 'slug' => 'Methods'],
+            ['name' => 'Series Information', 'slug' => 'SeriesInformation'],
+            ['name' => 'Table of Contents', 'slug' => 'TableOfContents'],
+            ['name' => 'Technical Info', 'slug' => 'TechnicalInfo'],
+            ['name' => 'Other', 'slug' => 'Other'],
+        ] as $type) {
+            DescriptionType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
+        }
+    }
+
+    private function ensureDateTypes(): void
+    {
+        foreach ([
+            ['name' => 'Accepted', 'slug' => 'Accepted'],
+            ['name' => 'Available', 'slug' => 'Available'],
+            ['name' => 'Copyrighted', 'slug' => 'Copyrighted'],
+            ['name' => 'Collected', 'slug' => 'Collected'],
+            ['name' => 'Coverage', 'slug' => 'Coverage', 'is_active' => false],
+            ['name' => 'Created', 'slug' => 'Created'],
+            ['name' => 'Issued', 'slug' => 'Issued'],
+            ['name' => 'Submitted', 'slug' => 'Submitted'],
+            ['name' => 'Updated', 'slug' => 'Updated'],
+            ['name' => 'Valid', 'slug' => 'Valid'],
+            ['name' => 'Withdrawn', 'slug' => 'Withdrawn'],
+            ['name' => 'Other', 'slug' => 'Other'],
+        ] as $type) {
+            DateType::query()->firstOrCreate(
+                ['slug' => $type['slug']],
+                [
+                    'name' => $type['name'],
+                    'is_active' => $type['is_active'] ?? true,
+                ],
+            );
+        }
+    }
+
+    private function ensureIdentifierTypes(): void
+    {
+        foreach ([
+            ['name' => 'ARK', 'slug' => 'ARK'],
+            ['name' => 'arXiv', 'slug' => 'arXiv'],
+            ['name' => 'bibcode', 'slug' => 'bibcode'],
+            ['name' => 'CSTR', 'slug' => 'CSTR'],
+            ['name' => 'DOI', 'slug' => 'DOI'],
+            ['name' => 'EAN13', 'slug' => 'EAN13'],
+            ['name' => 'EISSN', 'slug' => 'EISSN'],
+            ['name' => 'Handle', 'slug' => 'Handle'],
+            ['name' => 'IGSN', 'slug' => 'IGSN'],
+            ['name' => 'ISBN', 'slug' => 'ISBN'],
+            ['name' => 'ISSN', 'slug' => 'ISSN'],
+            ['name' => 'ISTC', 'slug' => 'ISTC'],
+            ['name' => 'LISSN', 'slug' => 'LISSN'],
+            ['name' => 'LSID', 'slug' => 'LSID'],
+            ['name' => 'PMID', 'slug' => 'PMID'],
+            ['name' => 'PURL', 'slug' => 'PURL'],
+            ['name' => 'RAiD', 'slug' => 'RAiD'],
+            ['name' => 'RRID', 'slug' => 'RRID'],
+            ['name' => 'SWHID', 'slug' => 'SWHID'],
+            ['name' => 'UPC', 'slug' => 'UPC'],
+            ['name' => 'URL', 'slug' => 'URL'],
+            ['name' => 'URN', 'slug' => 'URN'],
+            ['name' => 'w3id', 'slug' => 'w3id'],
+        ] as $type) {
+            IdentifierType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
+        }
+    }
+
+    private function ensureRelationTypes(): void
+    {
+        foreach ([
+            ['name' => 'Is Cited By', 'slug' => 'IsCitedBy'],
+            ['name' => 'Cites', 'slug' => 'Cites'],
+            ['name' => 'Is Supplement To', 'slug' => 'IsSupplementTo'],
+            ['name' => 'Is Supplemented By', 'slug' => 'IsSupplementedBy'],
+            ['name' => 'Is Translation Of', 'slug' => 'IsTranslationOf'],
+            ['name' => 'Has Translation', 'slug' => 'HasTranslation'],
+            ['name' => 'Is Continued By', 'slug' => 'IsContinuedBy'],
+            ['name' => 'Continues', 'slug' => 'Continues'],
+            ['name' => 'Is Described By', 'slug' => 'IsDescribedBy'],
+            ['name' => 'Describes', 'slug' => 'Describes'],
+            ['name' => 'Has Metadata', 'slug' => 'HasMetadata'],
+            ['name' => 'Is Metadata For', 'slug' => 'IsMetadataFor'],
+            ['name' => 'Has Version', 'slug' => 'HasVersion'],
+            ['name' => 'Is Version Of', 'slug' => 'IsVersionOf'],
+            ['name' => 'Is New Version Of', 'slug' => 'IsNewVersionOf'],
+            ['name' => 'Is Previous Version Of', 'slug' => 'IsPreviousVersionOf'],
+            ['name' => 'Is Part Of', 'slug' => 'IsPartOf'],
+            ['name' => 'Has Part', 'slug' => 'HasPart'],
+            ['name' => 'Is Published In', 'slug' => 'IsPublishedIn'],
+            ['name' => 'Is Referenced By', 'slug' => 'IsReferencedBy'],
+            ['name' => 'References', 'slug' => 'References'],
+            ['name' => 'Is Documented By', 'slug' => 'IsDocumentedBy'],
+            ['name' => 'Documents', 'slug' => 'Documents'],
+            ['name' => 'Is Compiled By', 'slug' => 'IsCompiledBy'],
+            ['name' => 'Compiles', 'slug' => 'Compiles'],
+            ['name' => 'Is Variant Form Of', 'slug' => 'IsVariantFormOf'],
+            ['name' => 'Is Original Form Of', 'slug' => 'IsOriginalFormOf'],
+            ['name' => 'Is Identical To', 'slug' => 'IsIdenticalTo'],
+            ['name' => 'Is Reviewed By', 'slug' => 'IsReviewedBy'],
+            ['name' => 'Reviews', 'slug' => 'Reviews'],
+            ['name' => 'Is Derived From', 'slug' => 'IsDerivedFrom'],
+            ['name' => 'Is Source Of', 'slug' => 'IsSourceOf'],
+            ['name' => 'Is Required By', 'slug' => 'IsRequiredBy'],
+            ['name' => 'Requires', 'slug' => 'Requires'],
+            ['name' => 'Is Obsoleted By', 'slug' => 'IsObsoletedBy'],
+            ['name' => 'Obsoletes', 'slug' => 'Obsoletes'],
+            ['name' => 'Is Collected By', 'slug' => 'IsCollectedBy'],
+            ['name' => 'Collects', 'slug' => 'Collects'],
+            ['name' => 'Other', 'slug' => 'Other'],
+        ] as $type) {
+            RelationType::query()->firstOrCreate(['slug' => $type['slug']], ['name' => $type['name']]);
+        }
     }
 }

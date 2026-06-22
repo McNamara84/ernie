@@ -338,6 +338,7 @@ class UploadJsonController extends Controller
             ],
         ], 409);
     }
+
     /**
      * Auto-detect format and extract DataCite JSON attributes.
      *

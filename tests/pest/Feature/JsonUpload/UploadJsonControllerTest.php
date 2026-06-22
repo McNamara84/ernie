@@ -81,6 +81,11 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $data = getJsonUploadData($response);
 
+        $resource = Resource::with('titles.titleType')->findOrFail($response->json('resourceId'));
+
+        expect($resource->titles->pluck('value')->all())->toBe(['Main Title', 'Sub Title'])
+            ->and($resource->titles->pluck('titleType.slug')->all())->toBe(['MainTitle', 'Subtitle']);
+
         expect($data['titles'])->toHaveCount(2);
         expect($data['titles'][0]['title'])->toBe('Main Title');
         expect($data['titles'][0]['titleType'])->toBe('main-title');
@@ -192,6 +197,12 @@ describe('JSON Upload - DataCite JSON format', function () {
 
         $data = getJsonUploadData($response);
 
+        $resource = Resource::with('descriptions.descriptionType')->findOrFail($response->json('resourceId'));
+
+        expect($resource->descriptions)->toHaveCount(2)
+            ->and($resource->descriptions->pluck('value')->all())->toBe(['This is the abstract.', 'Method description.'])
+            ->and($resource->descriptions->pluck('descriptionType.slug')->all())->toBe(['Abstract', 'Methods']);
+
         expect($data['descriptions'])->toHaveCount(2);
         expect($data['descriptions'][0]['description'])->toBe('This is the abstract.');
         expect($data['descriptions'][0]['type'])->toBe('Abstract');
@@ -211,6 +222,19 @@ describe('JSON Upload - DataCite JSON format', function () {
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
 
         $data = getJsonUploadData($response);
+
+        $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+
+        $storedDateTypes = $resource->dates->pluck('dateType.slug')->all();
+        $collectedDate = $resource->dates->first(
+            fn ($date) => $date->dateType?->slug === 'Collected',
+        );
+
+        expect($storedDateTypes)->toContain('Created')
+            ->and($storedDateTypes)->toContain('Collected')
+            ->and($collectedDate)->not->toBeNull()
+            ->and((string) $collectedDate?->start_date)->toBe('2025-01-01')
+            ->and((string) $collectedDate?->end_date)->toBe('2025-12-31');
 
         expect($data['dates'])->toHaveCount(2);
         expect($data['dates'][0]['dateType'])->toBe('created');
@@ -364,6 +388,15 @@ describe('JSON Upload - DataCite JSON format', function () {
         $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
 
         $data = getJsonUploadData($response);
+
+        $resource = Resource::with(['relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType', 'instruments'])->findOrFail($response->json('resourceId'));
+
+        expect($resource->relatedIdentifiers)->toHaveCount(1)
+            ->and($resource->relatedIdentifiers[0]->identifier)->toBe('10.1234/related')
+            ->and($resource->relatedIdentifiers[0]->identifierType?->slug)->toBe('DOI')
+            ->and($resource->relatedIdentifiers[0]->relationType?->slug)->toBe('Cites')
+            ->and($resource->relatedIdentifiers[0]->citation_label)->toBe('Doe, J. (2026): Imported citation. Publisher.')
+            ->and($resource->instruments)->toHaveCount(1);
 
         expect($data['relatedWorks'])->toHaveCount(1);
         expect($data['relatedWorks'][0]['identifier'])->toBe('10.1234/related');
