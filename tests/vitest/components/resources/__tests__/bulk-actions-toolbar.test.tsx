@@ -151,7 +151,7 @@ describe('ResourcesBulkActionsToolbar', () => {
         expect(onUnavailableAction).toHaveBeenCalledWith('This action can only be performed on a single record.');
     });
 
-    it('uses a fallback message for unavailable actions without an explicit reason', async () => {
+    it('uses a fallback message and title for unavailable actions without an explicit reason', async () => {
         const onUnavailableAction = vi.fn();
 
         render(
@@ -163,7 +163,12 @@ describe('ResourcesBulkActionsToolbar', () => {
             />,
         );
 
-        await clickAction('resources-action-export-jsonld');
+        await openActionsMenu();
+
+        const item = screen.getByTestId('resources-action-export-jsonld');
+        expect(item).toHaveAttribute('title', 'This action is not available for the current selection.');
+
+        await userEvent.click(item);
 
         expect(onUnavailableAction).toHaveBeenCalledWith('This action is not available for the current selection.');
     });

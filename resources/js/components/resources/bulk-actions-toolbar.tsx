@@ -94,6 +94,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     },
 ];
 
+const DEFAULT_UNAVAILABLE_ACTION_REASON = 'This action is not available for the current selection.';
+
 export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, onUnavailableAction }: ResourcesBulkActionsToolbarProps) {
     const hasSelection = selectedCount > 0;
     const actionMenuTitle = hasSelection ? 'Actions' : 'Select rows to enable resource actions';
@@ -130,13 +132,14 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                             const state = actions[definition.key];
                             const isUnavailable = !state.available;
                             const isLoading = state.loading === true;
+                            const unavailableReason = state.reason ?? DEFAULT_UNAVAILABLE_ACTION_REASON;
 
                             return (
                                 <DropdownMenuItem
                                     key={definition.key}
                                     disabled={isLoading}
                                     aria-disabled={isUnavailable || isLoading || undefined}
-                                    title={isUnavailable ? state.reason : definition.label}
+                                    title={isUnavailable ? unavailableReason : definition.label}
                                     data-testid={`resources-action-${definition.key}`}
                                     variant={definition.variant === 'destructive' ? 'destructive' : 'default'}
                                     className={cn(
@@ -145,7 +148,7 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                                     )}
                                     onSelect={() => {
                                         if (isUnavailable) {
-                                            onUnavailableAction(state.reason ?? 'This action is not available for the current selection.');
+                                            onUnavailableAction(unavailableReason);
                                             return;
                                         }
 

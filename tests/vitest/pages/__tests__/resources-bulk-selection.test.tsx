@@ -469,6 +469,94 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
+    it('uses a singular delete confirmation label for one selected draft', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        await clickResourceAction('resources-action-delete');
+
+        expect(screen.getByRole('button', { name: /^delete draft$/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^delete drafts$/i })).not.toBeInTheDocument();
+    });
+
+    it('shows the batch delete ids validation message returned by Inertia', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+
+        const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+            onError: (errors?: Record<string, unknown>) => void;
+            onFinish: () => void;
+        };
+
+        await act(async () => {
+            deleteOptions.onError({ ids: 'Only draft resources without landing pages can be deleted.' });
+            deleteOptions.onFinish();
+        });
+
+        expect(toastMock.error).toHaveBeenCalledWith('Only draft resources without landing pages can be deleted.');
+    });
+
+    it('shows item-level batch delete validation messages returned by Inertia', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+
+        const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+            onError: (errors?: Record<string, unknown>) => void;
+            onFinish: () => void;
+        };
+
+        await act(async () => {
+            deleteOptions.onError({ 'ids.0': ['The selected draft can no longer be deleted.'] });
+            deleteOptions.onFinish();
+        });
+
+        expect(toastMock.error).toHaveBeenCalledWith('The selected draft can no longer be deleted.');
+    });
+
+    it('shows the first available batch delete validation message for non-id errors', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+
+        const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+            onError: (errors?: Record<string, unknown>) => void;
+            onFinish: () => void;
+        };
+
+        await act(async () => {
+            deleteOptions.onError({ general: 'The selected drafts cannot be deleted right now.' });
+            deleteOptions.onFinish();
+        });
+
+        expect(toastMock.error).toHaveBeenCalledWith('The selected drafts cannot be deleted right now.');
+    });
+    it('falls back to a generic batch delete error when no validation message is available', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+
+        const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+            onError: (errors?: Record<string, unknown>) => void;
+            onFinish: () => void;
+        };
+
+        await act(async () => {
+            deleteOptions.onError(undefined);
+            deleteOptions.onFinish();
+        });
+
+        expect(toastMock.error).toHaveBeenCalledWith('Failed to delete draft resources.');
+    });
     it('blocks delete when a selected draft already has a landing page', async () => {
         render(
             <ResourcesPage

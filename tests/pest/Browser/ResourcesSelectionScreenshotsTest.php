@@ -22,15 +22,16 @@ function resourceForBrowserScreenshot(string $title): Resource
 
 describe('Resources selection screenshots', function (): void {
     beforeEach(function (): void {
+        if (! filter_var(env('CAPTURE_RESOURCES_SELECTION_SCREENSHOTS', false), FILTER_VALIDATE_BOOL)) {
+            $this->markTestSkipped('Set CAPTURE_RESOURCES_SELECTION_SCREENSHOTS=1 to regenerate the resources selection screenshots.');
+        }
+
         app(Vite::class)
             ->useHotFile(storage_path('framework/resources-selection-screenshots.hot'))
             ->useBuildDirectory('build');
     });
 
     it('captures resources page selection states', function (): void {
-        if (! filter_var(env('CAPTURE_RESOURCES_SELECTION_SCREENSHOTS', false), FILTER_VALIDATE_BOOL)) {
-            $this->markTestSkipped('Set CAPTURE_RESOURCES_SELECTION_SCREENSHOTS=1 to regenerate the resources selection screenshots.');
-        }
 
         /** @var TestCase $this */
         $this->seed(PlaywrightTestSeeder::class);

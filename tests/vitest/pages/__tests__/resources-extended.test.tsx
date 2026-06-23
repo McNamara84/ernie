@@ -454,7 +454,7 @@ describe('ResourcesPage - extended', () => {
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await clickResourceAction('resources-action-delete');
-            await userEvent.click(screen.getByRole('button', { name: /delete drafts/i }));
+            await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
 
             expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [5] }, preserveScroll: true }));
         });

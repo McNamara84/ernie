@@ -9,11 +9,7 @@ import { toast } from 'sonner';
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
-import {
-    type ResourcesActionKey,
-    type ResourcesActionState,
-    ResourcesBulkActionsToolbar,
-} from '@/components/resources/bulk-actions-toolbar';
+import { type ResourcesActionKey, type ResourcesActionState, ResourcesBulkActionsToolbar } from '@/components/resources/bulk-actions-toolbar';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import ImportSingleOldResourceModal from '@/components/resources/modals/ImportSingleOldResourceModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
@@ -119,6 +115,38 @@ const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> =
     updated_at: 'desc',
 };
 
+const DEFAULT_BATCH_DELETE_ERROR_MESSAGE = 'Failed to delete draft resources.';
+
+const normalizeValidationMessage = (value: unknown): string | null => {
+    if (typeof value === 'string' && value.trim() !== '') {
+        return value;
+    }
+
+    if (Array.isArray(value)) {
+        return value.find((message): message is string => typeof message === 'string' && message.trim() !== '') ?? null;
+    }
+
+    return null;
+};
+
+const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefined): string => {
+    if (!errors) {
+        return DEFAULT_BATCH_DELETE_ERROR_MESSAGE;
+    }
+
+    const idsError = normalizeValidationMessage(errors.ids);
+    if (idsError) {
+        return idsError;
+    }
+
+    const idsItemErrorKey = Object.keys(errors).find((key) => key.startsWith('ids.'));
+    const idsItemError = idsItemErrorKey ? normalizeValidationMessage(errors[idsItemErrorKey]) : null;
+    if (idsItemError) {
+        return idsItemError;
+    }
+
+    return normalizeValidationMessage(Object.values(errors)[0]) ?? DEFAULT_BATCH_DELETE_ERROR_MESSAGE;
+};
 const describeDirection = (direction: ResourceSortDirection): string => (direction === 'asc' ? 'ascending' : 'descending');
 
 const isSortState = (value: unknown): value is ResourceSortState => {
@@ -786,8 +814,8 @@ function ResourcesPage({
                             : `${selectedResourceIds.length} drafts deleted successfully.`,
                     );
                 },
-                onError: () => {
-                    toast.error('Failed to delete draft resources.');
+                onError: (errors) => {
+                    toast.error(resolveBatchDeleteErrorMessage(errors));
                 },
                 onFinish: () => {
                     isDeletingResourceRef.current = false;
@@ -1027,12 +1055,7 @@ function ResourcesPage({
         },
         'manage-related-items': {
             available: selectedCount === 1 && !citationVocabulariesLoading,
-            reason:
-                selectedCount === 0
-                    ? noSelectionReason
-                    : selectedCount > 1
-                      ? singleRecordReason
-                      : 'Citation vocabularies are still loading.',
+            reason: selectedCount === 0 ? noSelectionReason : selectedCount > 1 ? singleRecordReason : 'Citation vocabularies are still loading.',
         },
         'export-datacite-json': {
             available: selectedCount > 0,
@@ -1132,13 +1155,7 @@ function ResourcesPage({
                     break;
             }
         },
-        [
-            handleEditSelectedResources,
-            handleExportSelectedResources,
-            handleRegisterDoi,
-            handleSetupLandingPage,
-            singleSelectedResource,
-        ],
+        [handleEditSelectedResources, handleExportSelectedResources, handleRegisterDoi, handleSetupLandingPage, singleSelectedResource],
     );
 
     const sortedResources = resources;
@@ -1680,14 +1697,14 @@ function ResourcesPage({
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete {selectedCount === 1 ? 'draft resource' : 'draft resources'}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove {selectedCount} {selectedCount === 1 ? 'draft resource' : 'draft resources'} from ERNIE.
-                            Only draft resources without a DOI and without a landing page can be deleted.
+                            This will permanently remove {selectedCount} {selectedCount === 1 ? 'draft resource' : 'draft resources'} from ERNIE. Only
+                            draft resources without a DOI and without a landing page can be deleted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeletingResource}>Cancel</AlertDialogCancel>
                         <AlertDialogAction variant="destructive" onClick={handleConfirmDelete} disabled={isDeletingResource}>
-                            {isDeletingResource ? 'Deleting...' : 'Delete Drafts'}
+                            {isDeletingResource ? 'Deleting...' : `Delete ${selectedCount === 1 ? 'Draft' : 'Drafts'}`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -1721,4 +1738,3 @@ function ResourcesPage({
 export default ResourcesPage;
 
 export { deriveResourceRowKey };
-
