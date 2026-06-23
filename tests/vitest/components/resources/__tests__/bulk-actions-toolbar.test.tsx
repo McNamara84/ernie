@@ -79,6 +79,9 @@ describe('ResourcesBulkActionsToolbar', () => {
         expect(screen.getByTestId('resources-action-register-doi')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-update-metadata')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-setup-landing-page')).toHaveAttribute('data-variant', 'default');
+        expect(screen.getByTestId('resources-action-update-metadata')).toHaveAttribute('data-variant', 'default');
+        expect(screen.getByTestId('resources-action-delete')).toHaveAttribute('data-variant', 'destructive');
     });
 
     it('hides actions marked as not visible', async () => {

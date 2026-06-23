@@ -36,7 +36,7 @@ interface ActionDefinition {
     key: ResourcesActionKey;
     label: string;
     icon: ReactNode;
-    variant?: 'default' | 'outline' | 'destructive';
+    variant?: 'destructive';
 }
 
 const ACTION_DEFINITIONS: ActionDefinition[] = [
@@ -49,31 +49,26 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
         key: 'setup-landing-page',
         label: 'Set up landing page',
         icon: <Eye aria-hidden="true" className="size-4" />,
-        variant: 'outline',
     },
     {
         key: 'manage-related-items',
         label: 'Manage related items',
         icon: <Quote aria-hidden="true" className="size-4" />,
-        variant: 'outline',
     },
     {
         key: 'export-datacite-json',
         label: 'Export DataCite JSON',
         icon: <FileJsonIcon aria-hidden="true" className="size-4" />,
-        variant: 'outline',
     },
     {
         key: 'export-datacite-xml',
         label: 'Export DataCite XML',
         icon: <FileXmlIcon aria-hidden="true" className="size-4" />,
-        variant: 'outline',
     },
     {
         key: 'export-jsonld',
         label: 'Export JSON-LD',
         icon: <Braces aria-hidden="true" className="size-4" />,
-        variant: 'outline',
     },
     {
         key: 'register-doi',
@@ -84,7 +79,6 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
         key: 'update-metadata',
         label: 'Update metadata',
         icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
-        variant: 'outline',
     },
     {
         key: 'delete',
@@ -142,7 +136,7 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                                     data-unavailable={isUnavailable && !isLoading ? 'true' : undefined}
                                     title={isUnavailable ? unavailableReason : definition.label}
                                     data-testid={`resources-action-${definition.key}`}
-                                    variant={definition.variant === 'destructive' ? 'destructive' : 'default'}
+                                    variant={definition.variant ?? 'default'}
                                     className={cn(
                                         'items-start gap-2',
                                         isUnavailable && !isLoading && 'cursor-help opacity-60 focus:bg-background focus:text-foreground',
