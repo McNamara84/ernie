@@ -37,7 +37,7 @@
             },
             {
                 "title": "Bulk Actions on Resources Page",
-                "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). The bulk register button is hidden for users without DOI registration permission. Per-row actions remain available."
+                "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). DOI registration actions are hidden for users without DOI registration permission. Resource actions are now accessed from the selection toolbar menu after selecting one or more rows."
             },
             {
                 "title": "Batch Draft Deletion on Resources Page",
