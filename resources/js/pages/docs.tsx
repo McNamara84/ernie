@@ -1444,8 +1444,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>On the Landing Page</h4>
                         <p>
-                            Related items appear in the <em>Related Work</em> section alongside standard related identifiers, labelled with
-                            an <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
+                            Related items appear in the <em>Related Work</em> section under the <em>Citations</em> heading, labelled with an{' '}
+                            <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
                             resource.
                         </p>
                     </>
