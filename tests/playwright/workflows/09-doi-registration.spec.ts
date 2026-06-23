@@ -1,9 +1,32 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 
 // DOI Registration Workflow Tests
 // Tests the complete workflow of registering a DOI with DataCite
+
+async function waitForResourcesTable(page: Page): Promise<Locator> {
+    const resourceTable = page.getByTestId('resources-table');
+    await expect(resourceTable).toBeVisible({ timeout: 10000 });
+    await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
+
+    return resourceTable;
+}
+
+async function selectResourceByText(page: Page, matcher: RegExp): Promise<Locator> {
+    const resourceTable = await waitForResourcesTable(page);
+    const resourceRow = resourceTable.locator('tbody tr').filter({ hasText: matcher }).first();
+    await expect(resourceRow).toBeVisible();
+
+    await resourceRow.getByRole('checkbox').click();
+    await expect(page.getByText(/^1 resource selected$/)).toBeVisible();
+
+    return resourceRow;
+}
+
+async function openResourceActionsMenu(page: Page): Promise<void> {
+    await page.getByTestId('resources-actions-menu-trigger').click();
+}
 
 test.describe('DOI Registration Workflow', () => {
     test.beforeEach(async ({ page }) => {
@@ -20,171 +43,95 @@ test.describe('DOI Registration Workflow', () => {
     // The DOI registration functionality is tested in other test cases
 
     test('update metadata for existing doi', async ({ page }) => {
-        // Navigate to resources
         await page.goto('/resources');
-        
-        // Wait for table to be fully loaded instead of arbitrary timeout
-        const resourceTable = page.locator('table').first();
-        await expect(resourceTable).toBeVisible({ timeout: 10000 });
-        
-        // Wait for table body to have at least one row
-        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
-        
-        // Target the deterministic Playwright fixture instead of matching the
-        // word "Published" anywhere in the row text.
-        const resourceRow = page.locator('tbody tr').filter({ hasText: /10\.1234\/playwright-published/ }).first();
-        await expect(resourceRow).toBeVisible();
+        await selectResourceByText(page, /10\.1234\/playwright-published/);
+        await openResourceActionsMenu(page);
 
-        // Click DataCite button - use data-testid for reliable selection
-        const dataciteButton = resourceRow.locator('[data-testid="datacite-button"]');
-        await expect(dataciteButton).toBeVisible();
-        await expect(dataciteButton).toBeEnabled();
-        await dataciteButton.click();
+        const updateMetadataButton = page.getByTestId('resources-action-update-metadata');
+        await expect(updateMetadataButton).toBeVisible();
+        await expect(updateMetadataButton).toBeEnabled();
+        await updateMetadataButton.click();
 
-        // Wait for dialog to appear and be fully rendered
-        const dialog = page.getByRole('dialog');
+        const dialog = page.getByRole('alertdialog');
         await expect(dialog).toBeVisible({ timeout: 15000 });
-        
-        // Wait for modal content to be loaded
-        await expect(page.getByRole('heading', { name: /update metadata/i })).toBeVisible({ timeout: 5000 });
+        await expect(dialog.getByRole('heading', { name: /update metadata/i })).toBeVisible();
+        await expect(dialog.getByText(/update metadata at datacite for 1 resource/i)).toBeVisible();
 
-        // Should show existing DOI (use first() to avoid strict mode violation with 2 matches)
-        await expect(page.getByText(/existing doi/i).first()).toBeVisible();
-        await expect(page.getByText(/10\.\d+/).first()).toBeVisible();
+        await dialog.getByRole('button', { name: /^update metadata$/i }).click();
 
-        // Should NOT show prefix selection
-        const prefixSelect = page.getByRole('combobox');
-        await expect(prefixSelect).not.toBeVisible();
-
-        // Click update button
-        const updateButton = page.getByRole('button', { name: /update metadata/i });
-        await expect(updateButton).toBeEnabled();
-        await updateButton.click();
-
-        // Wait for success
-        await expect(page.getByText(/metadata updated|doi.*updated/i)).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText(/updated at datacite|metadata updated|doi.*updated/i)).toBeVisible({ timeout: 10000 });
     });
 
     test('cannot register doi without landing page', async ({ page }) => {
-        // Navigate to resources
         await page.goto('/resources');
+        await selectResourceByText(page, /Playwright: Curation Resource \(no landing page\)/);
+        await openResourceActionsMenu(page);
 
-        // Wait for table to be fully loaded instead of arbitrary timeout
-        const resourceTable = page.locator('table').first();
-        await expect(resourceTable).toBeVisible({ timeout: 10000 });
-        
-        // Wait for table rows to be present
-        const rows = resourceTable.locator('tbody tr');
-        await expect(rows.first()).toBeVisible({ timeout: 10000 });
-        const rowCount = await rows.count();
-        
-        let minButtonCount = Infinity;
-        let foundRow = null;
-        
-        for (let i = 0; i < rowCount; i++) {
-            const row = rows.nth(i);
-            const buttonCount = await row.locator('button').count();
-            
-            if (buttonCount < minButtonCount) {
-                minButtonCount = buttonCount;
-                foundRow = row;
-            }
-        }
-        
-        // Ensure we found a row (should always have at least one resource)
-        expect(foundRow).not.toBeNull();
-        const resourceRow = foundRow!;
-
-        // The actual requirement: resources without a landing page should not have the DataCite icon
-        // visible, since DOI registration requires a landing page first.
-        const dataciteIcon = resourceRow.locator('[data-testid="datacite-icon"]');
-        await expect(dataciteIcon).not.toBeVisible();
+        const registerDoiButton = page.getByTestId('resources-action-register-doi');
+        await expect(registerDoiButton).toBeVisible();
+        await expect(registerDoiButton).toHaveAttribute('data-unavailable', 'true');
+        await expect(registerDoiButton).not.toHaveAttribute('aria-disabled', /.*/);
+        await expect(registerDoiButton).toHaveAttribute('title', 'A landing page must be set up before registering a DOI.');
+        await registerDoiButton.click();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
     });
 
     test('displays test mode warning', async ({ page }) => {
-        // Navigate to resources and open DOI modal
         await page.goto('/resources');
-        
-        const resourceTable = page.locator('table').first();
-        await expect(resourceTable).toBeVisible({ timeout: 10000 });
-        
-        // Wait for rows to be loaded
-        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
-        
-        // Find a row with a published resource (has landing page and DOI)
-        const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
-        await expect(resourceRow).toBeVisible();
-        
-        // Click DataCite button - use data-testid for reliable selection
-        const dataciteButton = resourceRow.locator('[data-testid="datacite-button"]');
-        await expect(dataciteButton).toBeVisible();
-        await expect(dataciteButton).toBeEnabled();
-        await dataciteButton.click();
+        await selectResourceByText(page, /Playwright: Curation Resource \(no DOI\)/);
+        await openResourceActionsMenu(page);
 
-        // Wait for dialog and check for test mode warning
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 });
-        const testModeWarning = page.getByText(/test mode active/i);
-        
-        if (await testModeWarning.isVisible()) {
-            await expect(testModeWarning).toBeVisible();
-            await expect(
-                page.getByText(/datacite test environment.*not permanent/i)
-            ).toBeVisible();
-        }
+        const registerDoiButton = page.getByTestId('resources-action-register-doi');
+        await expect(registerDoiButton).toBeVisible();
+        await expect(registerDoiButton).toBeEnabled();
+        await registerDoiButton.click();
+
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible({ timeout: 15000 });
+        await expect(dialog.getByRole('heading', { name: /register doi/i })).toBeVisible();
+        await expect(dialog.getByText(/test mode active/i)).toBeVisible();
+        await expect(dialog.getByText(/datacite test environment.*not permanent/i)).toBeVisible();
     });
 
     test('modal can be cancelled', async ({ page }) => {
-        // Navigate to resources and open DOI modal
         await page.goto('/resources');
-        
-        const resourceTable = page.locator('table').first();
-        await expect(resourceTable).toBeVisible({ timeout: 10000 });
-        
-        // Wait for rows to be loaded
-        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
-        
-        // Find a row with a published resource (has landing page and DOI)
-        const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
-        await expect(resourceRow).toBeVisible();
-        
-        // Click DataCite button - use data-testid for reliable selection
-        const dataciteButton = resourceRow.locator('[data-testid="datacite-button"]');
-        await expect(dataciteButton).toBeVisible();
-        await expect(dataciteButton).toBeEnabled();
-        await dataciteButton.click();
+        await selectResourceByText(page, /Playwright: Curation Resource \(no DOI\)/);
+        await openResourceActionsMenu(page);
 
-        // Modal should be visible
-        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 });
+        const registerDoiButton = page.getByTestId('resources-action-register-doi');
+        await expect(registerDoiButton).toBeVisible();
+        await expect(registerDoiButton).toBeEnabled();
+        await registerDoiButton.click();
 
-        // Click cancel
-        const cancelButton = page.getByRole('button', { name: /cancel/i });
-        await cancelButton.click();
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible({ timeout: 15000 });
 
-        // Modal should close
-        await expect(page.getByRole('dialog')).not.toBeVisible();
+        await dialog.getByRole('button', { name: /cancel/i }).click();
+
+        await expect(dialog).not.toBeVisible();
     });
 
     test('status badge is clickable for published resources', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        
+
         // Wait for page to be fully loaded
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
         await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
-        
+
         // Find published badge by role (it's a button span)
         const publishedBadge = page.getByRole('button').filter({ hasText: 'Published' }).first();
-        
-        if (await publishedBadge.count() > 0) {
+
+        if ((await publishedBadge.count()) > 0) {
             await expect(publishedBadge).toBeVisible();
 
             // Badge should have button role
             await expect(publishedBadge).toHaveAttribute('role', 'button');
-            
+
             // Should have tabindex for keyboard accessibility
             await expect(publishedBadge).toHaveAttribute('tabIndex', '0');
-            
+
             // Should have hover effect
             await expect(publishedBadge).toHaveCSS('cursor', 'pointer');
         }
@@ -193,17 +140,17 @@ test.describe('DOI Registration Workflow', () => {
     test('status badge is clickable for review resources', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        
+
         // Find review resource
         const reviewBadge = page.getByText('Review').first();
-        
-        if (await reviewBadge.count() > 0) {
+
+        if ((await reviewBadge.count()) > 0) {
             await expect(reviewBadge).toBeVisible();
 
             // Badge should have button role or be clickable
             const badgeElement = reviewBadge.locator('..');
             await expect(badgeElement).toHaveAttribute('role', 'button');
-            
+
             // Should have hover effect
             await expect(badgeElement).toHaveCSS('cursor', 'pointer');
         }
@@ -212,11 +159,11 @@ test.describe('DOI Registration Workflow', () => {
     test('status badge is not clickable for curation resources', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        
+
         // Find curation resource
         const curationBadge = page.getByText('Curation').first();
-        
-        if (await curationBadge.count() > 0) {
+
+        if ((await curationBadge.count()) > 0) {
             await expect(curationBadge).toBeVisible();
 
             // Badge should NOT have button role
@@ -229,12 +176,12 @@ test.describe('DOI Registration Workflow', () => {
     test('resources list refreshes after doi registration', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        
+
         // Get initial resource count
         const initialRows = await page.locator('tr').count();
         expect(initialRows).toBeGreaterThan(0);
 
         // The list should maintain state after DOI operations
-        // (This is tested indirectly through the complete flow test above)
+        // (This is tested indirectly through the DOI modal and metadata update tests above)
     });
 });

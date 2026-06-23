@@ -13,6 +13,7 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Policies\ResourcePolicy;
+use Mockery\MockInterface;
 
 function createNonDraftResourceForPolicy(): Resource
 {
@@ -171,8 +172,8 @@ describe('ResourcePolicy', function () {
         it('short-circuits before loading relations for users who cannot delete drafts', function () {
             $user = User::factory()->create(['role' => UserRole::BEGINNER]);
 
-            /** @var Resource&\Mockery\MockInterface $resource */
-            $resource = \Mockery::mock(Resource::class);
+            /** @var Resource&MockInterface $resource */
+            $resource = Mockery::mock(Resource::class);
             $resource->shouldNotReceive('loadMissing');
             $resource->shouldNotReceive('publicStatus');
 
@@ -182,19 +183,33 @@ describe('ResourcePolicy', function () {
         it('loads relations only after the role check passes', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
 
-            /** @var Resource&\Mockery\MockInterface $resource */
-            $resource = \Mockery::mock(Resource::class);
+            /** @var Resource&MockInterface $resource */
+            $resource = Mockery::mock(Resource::class);
             $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
+            $resource->shouldReceive('loadMissing')->once()->with('landingPage')->ordered()->andReturnSelf();
+            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->ordered()->andReturn(null);
             $resource->shouldReceive('loadMissing')->once()->with([
                 'titles.titleType',
                 'creators',
                 'rights',
                 'descriptions.descriptionType',
-                'landingPage',
-            ])->andReturnSelf();
+            ])->ordered()->andReturnSelf();
             $resource->shouldReceive('publicStatus')->once()->andReturn('draft');
 
             expect($this->policy->delete($user, $resource))->toBeTrue();
+        });
+
+        it('short-circuits before loading completeness relations when the resource has a landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+
+            /** @var Resource&MockInterface $resource */
+            $resource = Mockery::mock(Resource::class);
+            $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
+            $resource->shouldReceive('loadMissing')->once()->with('landingPage')->andReturnSelf();
+            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->andReturn(new LandingPage);
+            $resource->shouldNotReceive('publicStatus');
+
+            expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
         it('allows admin to delete a draft resource', function () {
@@ -210,6 +225,18 @@ describe('ResourcePolicy', function () {
 
             expect($resource->publicStatus())->toBe('draft');
             expect($this->policy->delete($user, $resource))->toBeFalse();
+        });
+
+        it('denies admin from deleting a draft resource with a landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+            LandingPage::factory()->withoutDoi()->draft()->create([
+                'resource_id' => $this->resource->id,
+            ]);
+
+            $this->resource->refresh();
+
+            expect($this->resource->publicStatus())->toBe('draft');
+            expect($this->policy->delete($user, $this->resource))->toBeFalse();
         });
 
         it('allows group leader to delete a draft resource', function () {

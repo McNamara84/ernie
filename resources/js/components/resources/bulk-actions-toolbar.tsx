@@ -1,140 +1,176 @@
-import { CloudUpload, Download, Info } from 'lucide-react';
+import { Braces, ChevronDown, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
 
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { LoadingButton } from '@/components/ui/loading-button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DataCiteIcon } from '@/components/icons/datacite-icon';
+import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
-export type ResourcesBulkExportFormat = 'datacite-json' | 'datacite-xml' | 'jsonld';
+export type ResourcesActionKey =
+    | 'edit'
+    | 'setup-landing-page'
+    | 'manage-related-items'
+    | 'export-datacite-json'
+    | 'export-datacite-xml'
+    | 'export-jsonld'
+    | 'register-doi'
+    | 'update-metadata'
+    | 'delete';
+
+export interface ResourcesActionState {
+    visible?: boolean;
+    available: boolean;
+    reason?: string;
+    loading?: boolean;
+}
 
 export interface ResourcesBulkActionsToolbarProps {
     selectedCount: number;
-    onRegister: () => void;
-    onExport: (format: ResourcesBulkExportFormat) => void;
-    canRegister: boolean;
-    isRegistering?: boolean;
-    isExporting?: boolean;
-    /**
-     * Human-readable reason why the register button must stay disabled despite
-     * having a valid selection (e.g. selection contains DOI-less resources).
-     * Empty/undefined means the button is enabled when a selection exists.
-     */
-    registerDisabledReason?: string;
+    actions: Record<ResourcesActionKey, ResourcesActionState>;
+    onAction: (action: ResourcesActionKey) => void;
+    onUnavailableAction: (reason: string) => void;
 }
 
-/**
- * Bulk actions toolbar for the Resources page.
- *
- * Always rendered (so the page layout stays stable). Buttons are disabled
- * when no rows are selected. Heights match `size="default"` form inputs so
- * the toolbar visually aligns with the filter row above it.
- */
-export function ResourcesBulkActionsToolbar({
-    selectedCount,
-    onRegister,
-    onExport,
-    canRegister,
-    isRegistering = false,
-    isExporting = false,
-    registerDisabledReason,
-}: ResourcesBulkActionsToolbarProps) {
+interface ActionDefinition {
+    key: ResourcesActionKey;
+    label: string;
+    icon: ReactNode;
+    variant?: 'destructive';
+}
+
+const ACTION_DEFINITIONS: ActionDefinition[] = [
+    {
+        key: 'edit',
+        label: 'Edit',
+        icon: <PencilLine aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'setup-landing-page',
+        label: 'Set up landing page',
+        icon: <Eye aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'manage-related-items',
+        label: 'Manage related items',
+        icon: <Quote aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'export-datacite-json',
+        label: 'Export DataCite JSON',
+        icon: <FileJsonIcon aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'export-datacite-xml',
+        label: 'Export DataCite XML',
+        icon: <FileXmlIcon aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'export-jsonld',
+        label: 'Export JSON-LD',
+        icon: <Braces aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'register-doi',
+        label: 'Register DOI',
+        icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'update-metadata',
+        label: 'Update metadata',
+        icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'delete',
+        label: 'Delete',
+        icon: <Trash2 aria-hidden="true" className="size-4" />,
+        variant: 'destructive',
+    },
+];
+
+const DEFAULT_UNAVAILABLE_ACTION_REASON = 'This action is not available for the current selection.';
+
+export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, onUnavailableAction }: ResourcesBulkActionsToolbarProps) {
     const hasSelection = selectedCount > 0;
-    const registerBlocked = Boolean(registerDisabledReason);
+    const actionMenuTitle = hasSelection ? 'Actions' : 'Select rows to enable resource actions';
+    const visibleActions = ACTION_DEFINITIONS.filter((definition) => actions[definition.key]?.visible !== false);
 
     return (
-        <TooltipProvider>
-            <div
-                data-testid="resources-bulk-actions-toolbar"
-                className="flex flex-wrap items-center gap-x-2 gap-y-1"
-            >
-                <span className="text-sm text-muted-foreground" aria-live="polite">
-                    {hasSelection
-                        ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
-                        : 'Select rows to enable bulk actions'}
-                </span>
+        <div
+            data-testid="resources-bulk-actions-toolbar"
+            className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-between"
+        >
+            <span className="text-sm text-muted-foreground" aria-live="polite">
+                {hasSelection
+                    ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
+                    : 'Select rows to enable resource actions'}
+            </span>
 
-                <div className="ml-auto flex items-center gap-2">
-                    {canRegister && (
-                        <Tooltip>
-                            {/*
-                             * Wrap the button in a span so Radix can still receive
-                             * pointer/focus events for the tooltip even when the button
-                             * itself is disabled. `tabIndex={0}` makes the trigger
-                             * keyboard-focusable so screen-reader users can discover
-                             * the reason as well.
-                             */}
-                            <TooltipTrigger asChild>
-                                <span
-                                    className="inline-flex"
-                                    tabIndex={registerBlocked ? 0 : -1}
-                                    aria-describedby={registerBlocked ? 'bulk-register-blocked-hint' : undefined}
+            {hasSelection ? (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="w-full justify-between sm:w-auto"
+                            title={actionMenuTitle}
+                            data-testid="resources-actions-menu-trigger"
+                        >
+                            <span>Actions</span>
+                            <ChevronDown aria-hidden="true" className="size-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                        {visibleActions.map((definition) => {
+                            const state = actions[definition.key];
+                            const isUnavailable = !state.available;
+                            const isLoading = state.loading === true;
+                            const unavailableReason = state.reason ?? DEFAULT_UNAVAILABLE_ACTION_REASON;
+
+                            return (
+                                <DropdownMenuItem
+                                    key={definition.key}
+                                    disabled={isLoading}
+                                    aria-disabled={isLoading || undefined}
+                                    data-unavailable={isUnavailable && !isLoading ? 'true' : undefined}
+                                    title={isUnavailable ? unavailableReason : definition.label}
+                                    data-testid={`resources-action-${definition.key}`}
+                                    variant={definition.variant ?? 'default'}
+                                    className={cn(
+                                        'items-start gap-2',
+                                        isUnavailable && !isLoading && 'cursor-help opacity-60 focus:bg-background focus:text-foreground',
+                                    )}
+                                    onSelect={() => {
+                                        if (isUnavailable) {
+                                            onUnavailableAction(unavailableReason);
+                                            return;
+                                        }
+
+                                        onAction(definition.key);
+                                    }}
                                 >
-                                    <LoadingButton
-                                        type="button"
-                                        size="default"
-                                        onClick={onRegister}
-                                        disabled={!hasSelection || registerBlocked || isExporting}
-                                        loading={isRegistering}
-                                        data-testid="bulk-register-button"
-                                    >
-                                        {!isRegistering && <CloudUpload className="size-4" aria-hidden="true" />}
-                                        {isRegistering ? 'Registering...' : 'Register Selected'}
-                                    </LoadingButton>
-                                </span>
-                            </TooltipTrigger>
-                            {registerBlocked && (
-                                <TooltipContent side="bottom" className="max-w-sm text-center">
-                                    {registerDisabledReason}
-                                </TooltipContent>
-                            )}
-                        </Tooltip>
-                    )}
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <LoadingButton
-                                type="button"
-                                size="default"
-                                variant="outline"
-                                disabled={!hasSelection || isRegistering}
-                                loading={isExporting}
-                                data-testid="bulk-export-button"
-                            >
-                                {!isExporting && <Download className="size-4" aria-hidden="true" />}
-                                {isExporting ? 'Exporting...' : 'Export Selected'}
-                            </LoadingButton>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => onExport('datacite-json')}>
-                                DataCite JSON
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => onExport('datacite-xml')}>
-                                DataCite XML
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => onExport('jsonld')}>
-                                DataCite JSON-LD
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-
-                {registerBlocked && (
-                    <p
-                        id="bulk-register-blocked-hint"
-                        data-testid="bulk-register-blocked-hint"
-                        className="flex w-full items-start gap-1.5 text-xs text-muted-foreground"
-                        role="note"
-                    >
-                        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                        <span>{registerDisabledReason}</span>
-                    </p>
-                )}
-            </div>
-        </TooltipProvider>
+                                    {definition.icon}
+                                    <span className="min-w-0 flex-1 truncate">{isLoading ? 'Working...' : definition.label}</span>
+                                </DropdownMenuItem>
+                            );
+                        })}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ) : (
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full justify-between sm:w-auto"
+                    disabled
+                    title={actionMenuTitle}
+                    data-testid="resources-actions-menu-trigger"
+                >
+                    <span>Actions</span>
+                    <ChevronDown aria-hidden="true" className="size-4" />
+                </Button>
+            )}
+        </div>
     );
 }
-

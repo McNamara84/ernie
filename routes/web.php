@@ -398,6 +398,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:delete-all-resources')
         ->name('resources.destroy-all');
 
+    Route::delete('resources/batch', [ResourceController::class, 'destroyBatch'])
+        ->name('resources.batch-destroy');
+
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
 

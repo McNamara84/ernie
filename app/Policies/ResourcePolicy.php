@@ -62,12 +62,16 @@ class ResourcePolicy
             return false;
         }
 
+        $resource->loadMissing('landingPage');
+        if ($resource->landingPage !== null) {
+            return false;
+        }
+
         $resource->loadMissing([
             'titles.titleType',
             'creators',
             'rights',
             'descriptions.descriptionType',
-            'landingPage',
         ]);
 
         return $resource->publicStatus() === 'draft';
