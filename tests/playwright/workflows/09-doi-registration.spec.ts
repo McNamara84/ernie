@@ -64,10 +64,8 @@ test.describe('DOI Registration Workflow', () => {
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
         await expect(registerDoiButton).toBeVisible();
         await expect(registerDoiButton).toHaveAttribute('aria-disabled', 'true');
-
-        await registerDoiButton.click();
-
-        await expect(page.getByText(/landing page must be set up before registering a DOI/i)).toBeVisible();
+        await expect(registerDoiButton).toHaveAttribute('title', 'A landing page must be set up before registering a DOI.');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
     });
 
     test('displays test mode warning', async ({ page }) => {
