@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CitationsField } from '@/components/curation/fields/citations-field';
@@ -6,6 +7,11 @@ import { CitationsField } from '@/components/curation/fields/citations-field';
 import { http, HttpResponse, server } from '../../../helpers/msw-server';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+
+vi.mock('@/components/citations/CitationManagerModal', () => ({
+    CitationManagerModal: ({ open, resourceId }: { open: boolean; resourceId: number }) =>
+        open ? <div data-testid="related-item-manager-modal">Related Item Manager for {resourceId}</div> : null,
+}));
 
 describe('CitationsField', () => {
     it('renders a hint when no resource id is given', () => {
@@ -61,5 +67,60 @@ describe('CitationsField', () => {
         );
         expect(screen.getByRole('button', { name: /Manage Related Items/i })).toBeEnabled();
         expect(screen.getByTestId('open-citation-manager')).toBeEnabled();
+    });
+
+    it('opens the Related Item Manager modal from the action button', async () => {
+        const user = userEvent.setup();
+        server.use(
+            http.get('/related-items/vocabularies', () =>
+                HttpResponse.json({
+                    resourceTypes: [{ value: 'JournalArticle', label: 'Journal Article' }],
+                    relationTypes: [{ id: 1, label: 'Cites' }],
+                    contributorTypes: [],
+                }),
+            ),
+            http.get('/resources/44/related-items', () => HttpResponse.json({ data: [] })),
+        );
+
+        render(<CitationsField resourceId={44} />);
+
+        await user.click(await screen.findByRole('button', { name: /Manage Related Items/i }));
+
+        expect(screen.getByTestId('related-item-manager-modal')).toHaveTextContent('Related Item Manager for 44');
+    });
+
+    it('uses singular count copy when exactly one related item is linked', async () => {
+        server.use(
+            http.get('/related-items/vocabularies', () =>
+                HttpResponse.json({
+                    resourceTypes: [{ value: 'JournalArticle', label: 'Journal Article' }],
+                    relationTypes: [{ id: 1, label: 'Cites' }],
+                    contributorTypes: [],
+                }),
+            ),
+            http.get('/resources/43/related-items', () =>
+                HttpResponse.json({
+                    data: [
+                        {
+                            id: 1,
+                            resource_id: 43,
+                            related_item_type: 'JournalArticle',
+                            relation_type_id: 1,
+                            relation_type_slug: 'Cites',
+                            position: 0,
+                            titles: [{ title: 'X', title_type: 'MainTitle', position: 0 }],
+                            creators: [],
+                            contributors: [],
+                        },
+                    ],
+                }),
+            ),
+        );
+
+        render(<CitationsField resourceId={43} />);
+
+        await waitFor(() =>
+            expect(screen.getByText(/1 related item linked to this dataset/i)).toBeInTheDocument(),
+        );
     });
 });
