@@ -147,6 +147,30 @@ const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefi
 
     return normalizeValidationMessage(Object.values(errors)[0]) ?? DEFAULT_BATCH_DELETE_ERROR_MESSAGE;
 };
+type ResourceExportAction = Extract<ResourcesActionKey, 'export-datacite-json' | 'export-datacite-xml' | 'export-jsonld'>;
+
+const BATCH_EXPORT_FORMAT_BY_ACTION: Record<ResourceExportAction, 'datacite-json' | 'datacite-xml' | 'jsonld'> = {
+    'export-datacite-json': 'datacite-json',
+    'export-datacite-xml': 'datacite-xml',
+    'export-jsonld': 'jsonld',
+};
+
+const getFilenameFromContentDisposition = (contentDisposition: string | undefined, fallback: string): string => {
+    const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
+
+    return filenameMatch?.[1] ?? fallback;
+};
+
+const downloadBlob = (blob: Blob, filename: string): void => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+};
 const describeDirection = (direction: ResourceSortDirection): string => (direction === 'asc' ? 'ascending' : 'descending');
 
 const isSortState = (value: unknown): value is ResourceSortState => {
@@ -1003,33 +1027,57 @@ function ResourcesPage({
         }
     }, [selectedResources]);
 
+    const handleBatchExportSelectedResources = useCallback(
+        async (action: ResourceExportAction) => {
+            const format = BATCH_EXPORT_FORMAT_BY_ACTION[action];
+
+            try {
+                const response = await axios.post('/resources/batch-export', { ids: selectedResourceIds, format }, { responseType: 'blob' });
+                const contentDisposition = response.headers['content-disposition'] as string | undefined;
+                const filename = getFilenameFromContentDisposition(contentDisposition, `resources-export-${format}.zip`);
+
+                downloadBlob(new Blob([response.data], { type: 'application/zip' }), filename);
+                toast.success(`${selectedResourceIds.length} resources exported as ZIP.`);
+            } catch (error) {
+                console.error('Failed to export resource ZIP:', error);
+
+                const errorMessage =
+                    isAxiosError(error) && error.response?.data
+                        ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export resources')
+                        : 'Failed to export resources';
+
+                toast.error(errorMessage);
+            }
+        },
+        [selectedResourceIds],
+    );
     const handleExportSelectedResources = useCallback(
-        async (action: Extract<ResourcesActionKey, 'export-datacite-json' | 'export-datacite-xml' | 'export-jsonld'>) => {
+        async (action: ResourceExportAction) => {
             if (selectedResources.length === 0) {
                 toast.error('Select one or more resources first.');
                 return;
             }
 
-            if (selectedResources.length > 1) {
-                toast.warning('Your browser may ask for permission to download multiple files.');
-            }
-
             setIsBulkExporting(true);
             try {
-                for (const resource of selectedResources) {
-                    if (action === 'export-datacite-json') {
-                        await handleExportDataCiteJson(resource);
-                    } else if (action === 'export-datacite-xml') {
-                        await handleExportDataCiteXml(resource);
-                    } else {
-                        await handleExportJsonLd(resource);
-                    }
+                if (selectedResources.length > 1) {
+                    await handleBatchExportSelectedResources(action);
+                    return;
+                }
+
+                const resource = selectedResources[0];
+                if (action === 'export-datacite-json') {
+                    await handleExportDataCiteJson(resource);
+                } else if (action === 'export-datacite-xml') {
+                    await handleExportDataCiteXml(resource);
+                } else {
+                    await handleExportJsonLd(resource);
                 }
             } finally {
                 setIsBulkExporting(false);
             }
         },
-        [handleExportDataCiteJson, handleExportDataCiteXml, handleExportJsonLd, selectedResources],
+        [handleBatchExportSelectedResources, handleExportDataCiteJson, handleExportDataCiteXml, handleExportJsonLd, selectedResources],
     );
 
     const formatSelectionCount = useCallback((count: number, singular: string, plural: string): string => {

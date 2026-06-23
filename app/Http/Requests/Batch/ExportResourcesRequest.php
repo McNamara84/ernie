@@ -29,6 +29,26 @@ class ExportResourcesRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $ids = $this->input('ids');
+
+        if (! is_array($ids)) {
+            return;
+        }
+
+        $normalizedIds = [];
+        foreach ($ids as $id) {
+            if (! in_array($id, $normalizedIds, false)) {
+                $normalizedIds[] = $id;
+            }
+        }
+
+        $this->merge([
+            'ids' => $normalizedIds,
+        ]);
+    }
+
     /**
      * @return array<string, ValidationRule|array<mixed>|string>
      */

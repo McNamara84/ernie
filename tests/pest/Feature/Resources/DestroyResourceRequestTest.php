@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
@@ -216,6 +217,20 @@ it('allows admins to batch delete a single draft resource from duplicate selecti
     $this->actingAs($admin)
         ->delete(route('resources.batch-destroy'), [
             'ids' => [$resource->id, $resource->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', 'Draft deleted successfully.');
+
+    expect(Resource::find($resource->id))->toBeNull();
+});
+
+it('normalizes duplicate batch delete ids before applying the maximum batch size', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => array_fill(0, DestroyResourcesRequest::MAX_BATCH_SIZE + 1, $resource->id),
         ])
         ->assertRedirect(route('resources'))
         ->assertSessionHas('success', 'Draft deleted successfully.');

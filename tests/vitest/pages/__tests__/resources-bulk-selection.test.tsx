@@ -202,7 +202,13 @@ describe('ResourcesPage - bulk selection', () => {
 
             return Promise.resolve({ data: {}, headers: {} });
         });
-        axiosPostMock.mockResolvedValue({ data: { success: [], failed: [] } });
+        axiosPostMock.mockImplementation((url: string) => {
+            if (url === '/resources/batch-export') {
+                return Promise.resolve(exportResponse('zip', 'resources-export.zip'));
+            }
+
+            return Promise.resolve({ data: { success: [], failed: [] } });
+        });
         toastMock.mockClear();
         toastMock.success.mockClear();
         toastMock.error.mockClear();
@@ -355,7 +361,7 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
     });
 
-    it('exports every selected resource as individual DataCite XML downloads', async () => {
+    it('exports multiple selected resources as a single ZIP through the batch endpoint', async () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
@@ -363,14 +369,39 @@ describe('ResourcesPage - bulk selection', () => {
         await clickResourceAction('resources-action-export-datacite-xml');
 
         await waitFor(() => {
-            const exportCalls = axiosGetMock.mock.calls.filter(([url]) => String(url).includes('export-datacite-xml'));
-            expect(exportCalls).toHaveLength(2);
-            expect(exportCalls[0]).toEqual(['/resources/1/export-datacite-xml', { responseType: 'blob' }]);
-            expect(exportCalls[1]).toEqual(['/resources/2/export-datacite-xml', { responseType: 'blob' }]);
+            expect(axiosPostMock).toHaveBeenCalledWith('/resources/batch-export', { ids: [1, 2], format: 'datacite-xml' }, { responseType: 'blob' });
         });
-        expect(axiosPostMock).not.toHaveBeenCalledWith('/resources/batch-export', expect.anything(), expect.anything());
-        expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
-        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('multiple files'));
+        expect(axiosGetMock).not.toHaveBeenCalledWith('/resources/1/export-datacite-xml', { responseType: 'blob' });
+        expect(axiosGetMock).not.toHaveBeenCalledWith('/resources/2/export-datacite-xml', { responseType: 'blob' });
+        expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+        expect(toastMock.success).toHaveBeenCalledWith('2 resources exported as ZIP.');
+        expect(toastMock.warning).not.toHaveBeenCalledWith(expect.stringContaining('multiple files'));
+    });
+
+    it('shows the backend message when multi-resource ZIP export fails', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        axiosPostMock.mockRejectedValueOnce(
+            Object.assign(new Error('export failed'), {
+                isAxiosError: true,
+                response: { data: new Blob(['Unable to export selected resources.'], { type: 'text/plain' }) },
+            }),
+        );
+        extractErrorMessageFromBlobMock.mockResolvedValueOnce('Unable to export selected resources.');
+
+        try {
+            render(<ResourcesPage {...buildProps()} />);
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+            await clickResourceAction('resources-action-export-jsonld');
+
+            await waitFor(() => {
+                expect(axiosPostMock).toHaveBeenCalledWith('/resources/batch-export', { ids: [1, 2], format: 'jsonld' }, { responseType: 'blob' });
+                expect(toastMock.error).toHaveBeenCalledWith('Unable to export selected resources.');
+            });
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 
     it('uses individual JSON and JSON-LD export endpoints from the toolbar', async () => {

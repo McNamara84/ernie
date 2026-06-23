@@ -194,6 +194,7 @@ class ResourceController extends Controller
 
         /** @var array<int> $ids */
         $ids = array_values(array_unique($validated['ids']));
+        sort($ids, SORT_NUMERIC);
 
         DB::transaction(function () use ($ids, $request): void {
             $resources = Resource::query()
@@ -205,6 +206,7 @@ class ResourceController extends Controller
                     'landingPage',
                 ])
                 ->whereIn('id', $ids)
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
