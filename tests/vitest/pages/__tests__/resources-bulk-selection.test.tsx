@@ -586,8 +586,37 @@ describe('ResourcesPage - bulk selection', () => {
             deleteOptions.onFinish();
         });
 
+        expect(toastMock.error).toHaveBeenCalledWith('Failed to delete draft resource.');
+    });
+
+    it('uses a plural generic batch delete error for multiple selected drafts', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null }),
+                    buildResource({ id: 11, doi: null, title: 'Draft B', publicstatus: 'draft', landingPage: null }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-11'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByRole('button', { name: /^delete drafts$/i }));
+
+        const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
+            onError: (errors?: Record<string, unknown>) => void;
+            onFinish: () => void;
+        };
+
+        await act(async () => {
+            deleteOptions.onError(undefined);
+            deleteOptions.onFinish();
+        });
+
         expect(toastMock.error).toHaveBeenCalledWith('Failed to delete draft resources.');
     });
+
     it('blocks delete when a selected draft already has a landing page', async () => {
         render(
             <ResourcesPage
@@ -598,9 +627,7 @@ describe('ResourcesPage - bulk selection', () => {
         fireEvent.click(screen.getByTestId('resources-row-checkbox-20'));
         await clickResourceAction('resources-action-delete');
 
-        expect(toastMock.error).toHaveBeenCalledWith(
-            'Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.',
-        );
+        expect(toastMock.error).toHaveBeenCalledWith('Resources with landing pages cannot be deleted from this list. Remove the landing page first.');
         expect(routerMock.delete).not.toHaveBeenCalled();
     });
 

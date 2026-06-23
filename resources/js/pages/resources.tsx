@@ -115,7 +115,8 @@ const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> =
     updated_at: 'desc',
 };
 
-const DEFAULT_BATCH_DELETE_ERROR_MESSAGE = 'Failed to delete draft resources.';
+const getDefaultBatchDeleteErrorMessage = (selectedCount: number): string =>
+    selectedCount === 1 ? 'Failed to delete draft resource.' : 'Failed to delete draft resources.';
 
 const normalizeValidationMessage = (value: unknown): string | null => {
     if (typeof value === 'string' && value.trim() !== '') {
@@ -129,9 +130,9 @@ const normalizeValidationMessage = (value: unknown): string | null => {
     return null;
 };
 
-const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefined): string => {
+const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefined, fallbackMessage: string): string => {
     if (!errors) {
-        return DEFAULT_BATCH_DELETE_ERROR_MESSAGE;
+        return fallbackMessage;
     }
 
     const idsError = normalizeValidationMessage(errors.ids);
@@ -145,7 +146,7 @@ const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefi
         return idsItemError;
     }
 
-    return normalizeValidationMessage(Object.values(errors)[0]) ?? DEFAULT_BATCH_DELETE_ERROR_MESSAGE;
+    return normalizeValidationMessage(Object.values(errors)[0]) ?? fallbackMessage;
 };
 type ResourceExportAction = Extract<ResourcesActionKey, 'export-datacite-json' | 'export-datacite-xml' | 'export-jsonld'>;
 
@@ -769,7 +770,7 @@ function ResourcesPage({
             }
 
             if (resource.landingPage) {
-                return 'Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.';
+                return 'Resources with landing pages cannot be deleted from this list. Remove the landing page first.';
             }
 
             return null;
@@ -839,7 +840,7 @@ function ResourcesPage({
                     );
                 },
                 onError: (errors) => {
-                    toast.error(resolveBatchDeleteErrorMessage(errors));
+                    toast.error(resolveBatchDeleteErrorMessage(errors, getDefaultBatchDeleteErrorMessage(selectedResourceIds.length)));
                 },
                 onFinish: () => {
                     isDeletingResourceRef.current = false;
