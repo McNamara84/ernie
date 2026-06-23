@@ -209,6 +209,20 @@ it('allows admins to batch delete draft resources without identifiers or landing
         ->and(Resource::find($second->id))->toBeNull();
 });
 
+it('allows admins to batch delete a single draft resource from duplicate selections', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$resource->id, $resource->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', 'Draft deleted successfully.');
+
+    expect(Resource::find($resource->id))->toBeNull();
+});
+
 it('rejects batch deletion when any selected draft has a landing page', function (): void {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
     $safeDraft = Resource::factory()->create(['doi' => null]);

@@ -23,9 +23,9 @@ const editorRouteMock = vi.hoisted(() =>
 
 const axiosPostMock = vi.hoisted(() => vi.fn());
 const axiosGetMock = vi.hoisted(() => vi.fn());
-const toastMock = vi.hoisted(() =>
-    Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }),
-);
+const extractErrorMessageFromBlobMock = vi.hoisted(() => vi.fn());
+const parseValidationErrorFromBlobMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
 
 vi.mock('sonner', () => ({ toast: toastMock }));
 
@@ -59,8 +59,8 @@ vi.mock('@/lib/curation-query', () => ({
 }));
 
 vi.mock('@/lib/blob-utils', () => ({
-    extractErrorMessageFromBlob: vi.fn().mockResolvedValue('Failed to export'),
-    parseValidationErrorFromBlob: vi.fn().mockResolvedValue(null),
+    extractErrorMessageFromBlob: extractErrorMessageFromBlobMock,
+    parseValidationErrorFromBlob: parseValidationErrorFromBlobMock,
 }));
 
 vi.mock('@/utils/filter-parser', () => ({
@@ -132,11 +132,13 @@ const buildResource = (overrides: Partial<Record<string, unknown>>) => ({
     ...overrides,
 });
 
-const buildProps = (resources = [
-    buildResource({ id: 1, doi: '10.9999/one', title: 'First' }),
-    buildResource({ id: 2, doi: '10.9999/two', title: 'Second', landingPage: { ...landingPage, id: 11 } }),
-    buildResource({ id: 3, doi: null, title: 'Third', publicstatus: 'draft', landingPage: { ...landingPage, id: 12 } }),
-]) => ({
+const buildProps = (
+    resources = [
+        buildResource({ id: 1, doi: '10.9999/one', title: 'First' }),
+        buildResource({ id: 2, doi: '10.9999/two', title: 'Second', landingPage: { ...landingPage, id: 11 } }),
+        buildResource({ id: 3, doi: null, title: 'Third', publicstatus: 'draft', landingPage: { ...landingPage, id: 12 } }),
+    ],
+) => ({
     resources,
     pagination: {
         current_page: 1,
@@ -169,6 +171,10 @@ describe('ResourcesPage - bulk selection', () => {
         routerMock.visit.mockClear();
         axiosPostMock.mockReset();
         axiosGetMock.mockReset();
+        extractErrorMessageFromBlobMock.mockReset();
+        extractErrorMessageFromBlobMock.mockResolvedValue('Failed to export');
+        parseValidationErrorFromBlobMock.mockReset();
+        parseValidationErrorFromBlobMock.mockResolvedValue(null);
         axiosGetMock.mockImplementation((url: string) => {
             if (url === '/resources/filter-options') {
                 return Promise.resolve({ data: {} });
@@ -224,7 +230,6 @@ describe('ResourcesPage - bulk selection', () => {
 
     afterEach(() => {
         document.head.innerHTML = '';
-        document.body.innerHTML = '';
 
         if (originalCreateObjectURL === undefined) {
             delete (URL as { createObjectURL?: typeof URL.createObjectURL }).createObjectURL;
@@ -375,7 +380,13 @@ describe('ResourcesPage - bulk selection', () => {
 
     it('posts selected DOI resources to the metadata update endpoint after confirmation', async () => {
         axiosPostMock.mockResolvedValue({
-            data: { success: [{ id: 1, doi: '10.9999/one', updated: true }, { id: 2, doi: '10.9999/two', updated: true }], failed: [] },
+            data: {
+                success: [
+                    { id: 1, doi: '10.9999/one', updated: true },
+                    { id: 2, doi: '10.9999/two', updated: true },
+                ],
+                failed: [],
+            },
         });
 
         render(<ResourcesPage {...buildProps()} />);
@@ -453,17 +464,211 @@ describe('ResourcesPage - bulk selection', () => {
     it('blocks delete when a selected draft already has a landing page', async () => {
         render(
             <ResourcesPage
-                {...buildProps([
-                    buildResource({ id: 20, doi: null, title: 'Draft with Landing Page', publicstatus: 'draft', landingPage }),
-                ])}
+                {...buildProps([buildResource({ id: 20, doi: null, title: 'Draft with Landing Page', publicstatus: 'draft', landingPage })])}
             />,
         );
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-20'));
         await userEvent.click(screen.getByTestId('resources-action-delete'));
 
-        expect(toastMock.error).toHaveBeenCalledWith('Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.');
+        expect(toastMock.error).toHaveBeenCalledWith(
+            'Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.',
+        );
         expect(routerMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('reports partial metadata update responses returned as multi-status errors', async () => {
+        axiosPostMock.mockRejectedValueOnce(
+            Object.assign(new Error('partial success'), {
+                isAxiosError: true,
+                response: {
+                    status: 207,
+                    data: {
+                        success: [{ id: 1, doi: '10.9999/one', updated: true }],
+                        failed: [{ id: 2, doi: '10.9999/two', reason: 'DataCite rejected the metadata' }],
+                    },
+                },
+            }),
+        );
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
+
+        await waitFor(() => {
+            expect(toastMock.success).toHaveBeenCalledWith('1 resource updated at DataCite');
+            expect(toastMock.error).toHaveBeenCalledWith('1 failed: DataCite rejected the metadata');
+            expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+        });
+    });
+
+    it('reports failed metadata updates returned in a successful response', async () => {
+        axiosPostMock.mockResolvedValueOnce({
+            data: {
+                success: [],
+                failed: [{ id: 1, doi: '10.9999/one', reason: 'DataCite is unavailable' }],
+            },
+        });
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
+
+        await waitFor(() => {
+            expect(toastMock.error).toHaveBeenCalledWith('1 failed: DataCite is unavailable');
+            expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+        });
+    });
+
+    it('shows an error toast when metadata update fails unexpectedly', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        axiosPostMock.mockRejectedValueOnce(new Error('network down'));
+
+        try {
+            render(<ResourcesPage {...buildProps()} />);
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+            await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
+
+            await waitFor(() => {
+                expect(toastMock.error).toHaveBeenCalledWith('Metadata update failed');
+            });
+            expect(routerMock.reload).not.toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('keeps DOI registration unavailable for DOI-less resources without landing pages', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([buildResource({ id: 30, doi: null, title: 'No Landing Page', publicstatus: 'draft', landingPage: null })])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-30'));
+        await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+
+        expect(toastMock.error).toHaveBeenCalledWith('A landing page must be set up before registering a DOI.');
+        expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
+    });
+
+    it('keeps metadata updates unavailable for DOI resources without landing pages', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([buildResource({ id: 31, doi: '10.9999/missing-page', title: 'Missing Landing Page', landingPage: null })])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-31'));
+        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+
+        expect(toastMock.error).toHaveBeenCalledWith('1 selected resource is missing a landing page.');
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        expect(axiosPostMock).not.toHaveBeenCalled();
+    });
+
+    it('shows XML validation warnings while exporting selected resources', async () => {
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: {} });
+            }
+
+            if (url.includes('export-datacite-xml')) {
+                return Promise.resolve({
+                    data: new Blob(['<resource />'], { type: 'application/xml' }),
+                    headers: {
+                        'content-disposition': 'attachment; filename="resource.xml"',
+                        'x-validation-warning': 'VmFsaWRhdGlvbiB3YXJuaW5n',
+                    },
+                });
+            }
+
+            return Promise.resolve({ data: {}, headers: {} });
+        });
+
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await userEvent.click(screen.getByTestId('resources-action-export-datacite-xml'));
+
+        await waitFor(() => {
+            expect(toastMock.warning).toHaveBeenCalledWith('XML Validation Warning', expect.objectContaining({ description: 'Validation warning' }));
+            expect(toastMock.success).toHaveBeenCalledWith('DataCite XML exported with validation warnings');
+        });
+    });
+
+    it('shows export errors for JSON-LD failures', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: {} });
+            }
+
+            if (url.includes('export-jsonld')) {
+                return Promise.reject(new Error('network down'));
+            }
+
+            return Promise.resolve(exportResponse('{}', 'resource.json'));
+        });
+
+        try {
+            render(<ResourcesPage {...buildProps()} />);
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await userEvent.click(screen.getByTestId('resources-action-export-jsonld'));
+
+            await waitFor(() => {
+                expect(toastMock.error).toHaveBeenCalledWith('Failed to export JSON-LD');
+            });
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('opens validation details for invalid DataCite JSON exports', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const validationBlob = new Blob(['{"errors":[]}'], { type: 'application/json' });
+        parseValidationErrorFromBlobMock.mockResolvedValueOnce({
+            errors: [{ path: '$.titles', message: 'Title is required' }],
+            schema_version: '4.7',
+        });
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/filter-options') {
+                return Promise.resolve({ data: {} });
+            }
+
+            if (url.includes('export-datacite-json')) {
+                return Promise.reject(
+                    Object.assign(new Error('invalid'), {
+                        isAxiosError: true,
+                        response: { status: 422, data: validationBlob },
+                    }),
+                );
+            }
+
+            return Promise.resolve(exportResponse('{}', 'resource.json'));
+        });
+
+        try {
+            render(<ResourcesPage {...buildProps()} />);
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await userEvent.click(screen.getByTestId('resources-action-export-datacite-json'));
+
+            await waitFor(() => {
+                expect(parseValidationErrorFromBlobMock).toHaveBeenCalledWith(validationBlob);
+            });
+            expect(toastMock.error).not.toHaveBeenCalledWith('Failed to export DataCite JSON');
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 
     it('renders the import buttons alongside the action toolbar', () => {
@@ -474,5 +679,3 @@ describe('ResourcesPage - bulk selection', () => {
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
     });
 });
-
-

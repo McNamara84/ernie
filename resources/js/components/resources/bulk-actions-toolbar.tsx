@@ -93,12 +93,7 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     },
 ];
 
-export function ResourcesBulkActionsToolbar({
-    selectedCount,
-    actions,
-    onAction,
-    onUnavailableAction,
-}: ResourcesBulkActionsToolbarProps) {
+export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, onUnavailableAction }: ResourcesBulkActionsToolbarProps) {
     const hasSelection = selectedCount > 0;
 
     return (
@@ -130,15 +125,8 @@ export function ResourcesBulkActionsToolbar({
                             disabled={isLoading}
                             title={isUnavailable ? state.reason : definition.label}
                             data-testid={`resources-action-${definition.key}`}
-                            className={cn(
-                                'min-w-0',
-                                isUnavailable && 'cursor-not-allowed opacity-50 hover:bg-background hover:text-foreground',
-                            )}
+                            className={cn('min-w-0', isUnavailable && 'cursor-not-allowed opacity-50 hover:bg-background hover:text-foreground')}
                             onClick={() => {
-                                if (isLoading) {
-                                    return;
-                                }
-
                                 if (isUnavailable) {
                                     onUnavailableAction(state.reason ?? 'This action is not available for the current selection.');
                                     return;

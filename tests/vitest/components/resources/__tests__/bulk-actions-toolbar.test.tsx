@@ -4,11 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-    type ResourcesActionKey,
-    type ResourcesActionState,
-    ResourcesBulkActionsToolbar,
-} from '@/components/resources/bulk-actions-toolbar';
+import { type ResourcesActionKey, type ResourcesActionState, ResourcesBulkActionsToolbar } from '@/components/resources/bulk-actions-toolbar';
 
 const makeActions = (
     overrides: Partial<Record<ResourcesActionKey, ResourcesActionState>> = {},
@@ -88,18 +84,21 @@ describe('ResourcesBulkActionsToolbar', () => {
         const onAction = vi.fn();
 
         render(
-            <ResourcesBulkActionsToolbar
-                {...baseProps}
-                selectedCount={1}
-                actions={makeActions({ edit: { available: true } })}
-                onAction={onAction}
-            />,
+            <ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} onAction={onAction} />,
         );
 
         await userEvent.click(screen.getByTestId('resources-action-edit'));
 
         expect(onAction).toHaveBeenCalledTimes(1);
         expect(onAction).toHaveBeenCalledWith('edit');
+    });
+
+    it('uses the action label as the title for available actions', () => {
+        render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} />);
+
+        const button = screen.getByTestId('resources-action-edit');
+        expect(button).toHaveAttribute('title', 'Edit');
+        expect(button).not.toHaveAttribute('aria-disabled');
     });
 
     it('keeps unavailable actions clickable and reports their reason', async () => {
