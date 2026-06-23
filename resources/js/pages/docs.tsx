@@ -1378,18 +1378,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'citation-manager',
-                title: 'Citation Manager',
+                title: 'Related Item Manager',
                 icon: Quote,
                 minRole: 'beginner',
                 content: (
                     <>
                         <h3>
-                            Inline Citations (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
+                            Related Items (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
                         </h3>
                         <p>
-                            The Citation Manager complements plain <em>Related Identifiers</em> by allowing you to attach full bibliographic
-                            metadata for related works — including title, authors, publication year, volume, issue, pages, and publisher —
-                            directly to the resource. This is especially useful when citing a work that has no persistent identifier, or when
+                            The Related Item Manager complements plain <em>Related Identifiers</em> by allowing you to attach full metadata
+                            for resources related to the one being registered, including title, authors, publication year, volume, issue,
+                            pages, and publisher. This is especially useful when a related resource has no persistent identifier, or when
                             the linked record should remain visible even if the external DOI later becomes unavailable.
                         </p>
                         <p>You can open this workflow anywhere ERNIE lets you edit a resource.</p>
@@ -1398,15 +1398,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Resources list:</strong> click the quote icon <code>&quot;</code> in the Actions column of any row to open the
-                                Citation Manager modal for that resource.
+                                Related Item Manager modal for that resource.
                             </li>
                             <li>
-                                <strong>Curation form:</strong> expand the <em>Citations</em> accordion to add, edit, or delete citations while
+                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items while
                                 editing a resource.
                             </li>
                         </ul>
 
-                        <h4>Adding a Citation</h4>
+                        <h4>Adding a Related Item</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Auto-fill by DOI (recommended)">
                                 <p>
@@ -1422,13 +1422,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
                                 <p>
-                                    Every citation requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
+                                    Every related item requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
                                     contributors additionally carry a <em>contributorType</em> (Editor, Translator, …).
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Save & Reorder">
                                 <p>
-                                    Citations are persisted immediately. Drag rows in the list to change their display order on the landing
+                                    Related items are persisted immediately. Drag rows in the list to change their display order on the landing
                                     page. Switch between APA and IEEE preview styles and copy the formatted citation with one click.
                                 </p>
                             </WorkflowSteps.Step>
@@ -1436,16 +1436,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Export &amp; Import</h4>
                         <p>
-                            Citations are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
+                            Related items are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
                             <code>&lt;relatedItems&gt;</code>/<code>relatedItems</code> and in the Schema.org landing page markup
                             (<code>citation</code> block). XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on import and
-                            pre-filled in the editor. The DataCite JSON import path imports citations automatically.
+                            pre-filled in the editor. The DataCite JSON import path imports related items automatically.
                         </p>
 
                         <h4>On the Landing Page</h4>
                         <p>
-                            Inline citations appear in the <em>Related Work</em> section alongside standard related identifiers, labelled with
-                            an <em>Inline metadata</em> badge. If the citation has a DOI or URL identifier, the card links out to the external
+                            Related items appear in the <em>Related Work</em> section alongside standard related identifiers, labelled with
+                            an <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
                             resource.
                         </p>
                     </>

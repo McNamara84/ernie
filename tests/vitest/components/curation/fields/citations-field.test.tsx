@@ -11,11 +11,11 @@ describe('CitationsField', () => {
     it('renders a hint when no resource id is given', () => {
         render(<CitationsField resourceId={null} />);
         expect(
-            screen.getByText(/Save the dataset first to manage its citations/i),
+            screen.getByText(/Save the dataset first to manage its related items/i),
         ).toBeInTheDocument();
     });
 
-    it('shows citation count and a Manage Citations button once the resource is saved', async () => {
+    it('shows related item count and a Manage Related Items button once the resource is saved', async () => {
         server.use(
             http.get('/related-items/vocabularies', () =>
                 HttpResponse.json({
@@ -57,8 +57,9 @@ describe('CitationsField', () => {
         render(<CitationsField resourceId={42} />);
 
         await waitFor(() =>
-            expect(screen.getByText(/2 citations linked to this dataset/i)).toBeInTheDocument(),
+            expect(screen.getByText(/2 related items linked to this dataset/i)).toBeInTheDocument(),
         );
+        expect(screen.getByRole('button', { name: /Manage Related Items/i })).toBeEnabled();
         expect(screen.getByTestId('open-citation-manager')).toBeEnabled();
     });
 });

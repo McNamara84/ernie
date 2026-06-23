@@ -72,7 +72,7 @@ describe('ResourcesBulkActionsToolbar', () => {
 
         expect(screen.getByTestId('resources-action-edit')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
-        expect(screen.getByTestId('resources-action-manage-related-items')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-manage-related-items')).toHaveTextContent('Manage Related Items');
         expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-export-datacite-xml')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();

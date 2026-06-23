@@ -12,7 +12,7 @@ const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then(m 
 
 interface RelatedWorkSectionProps {
     relatedIdentifiers: LandingPageRelatedIdentifier[];
-    /** Inline relatedItem metadata (DataCite 4.7 Citation Manager). Optional for backward-compatibility. */
+    /** Inline relatedItem metadata (DataCite 4.7 Related Item Manager). Optional for backward-compatibility. */
     relatedItems?: LandingPageRelatedItem[];
     resource: LandingPageResource;
 }

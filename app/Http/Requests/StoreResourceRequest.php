@@ -176,7 +176,7 @@ class StoreResourceRequest extends FormRequest
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
 
-            // Citation Manager: inline <relatedItem> metadata (DataCite 4.7).
+            // Related Item Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
             // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
             // spaces — e.g. `JournalArticle`); kept in sync with

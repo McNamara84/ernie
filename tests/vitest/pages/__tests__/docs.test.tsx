@@ -354,12 +354,12 @@ describe('Docs page', () => {
         expect(screen.queryByText('Custom Landing Page Templates')).not.toBeInTheDocument();
     });
 
-    it('shows citation manager documentation for beginners', async () => {
+    it('shows related item manager documentation for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText(/Inline Citations \(DataCite 4\.7/i)).toBeInTheDocument();
+        expect(screen.getByText(/Related Items \(DataCite 4\.7/i)).toBeInTheDocument();
         expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
     });
 

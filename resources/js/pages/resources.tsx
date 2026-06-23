@@ -1104,7 +1104,7 @@ function ResourcesPage({
         },
         'manage-related-items': {
             available: selectedCount === 1 && !citationVocabulariesLoading,
-            reason: selectedCount === 0 ? noSelectionReason : selectedCount > 1 ? singleRecordReason : 'Citation vocabularies are still loading.',
+            reason: selectedCount === 0 ? noSelectionReason : selectedCount > 1 ? singleRecordReason : 'Related item vocabularies are still loading.',
         },
         'export-datacite-json': {
             available: selectedCount > 0,
@@ -1767,7 +1767,7 @@ function ResourcesPage({
                 schemaVersion={validationSchemaVersion}
             />
 
-            {/* Citation Manager Modal (DataCite 4.7 relatedItem) */}
+            {/* Related Item Manager Modal (DataCite 4.7 relatedItem) */}
             {citationManagerResourceId !== null && (
                 <CitationManagerModal
                     open={citationManagerResourceId !== null}

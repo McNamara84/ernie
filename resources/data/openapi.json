@@ -1078,8 +1078,8 @@
         "/api/v1/citation-lookup": {
             "get": {
                 "tags": ["DataCite"],
-                "summary": "Look up bibliographic metadata by DOI (Citation Manager)",
-                "description": "Returns structured bibliographic metadata (title, authors, publication year, volume, issue, pages, publisher, identifier) for a given DOI. Used by the Citation Manager curation form to auto-fill related item fields. Primary source is the Crossref REST API (polite pool); DataCite is used as a fallback. Responses are cached for 24h. Requires authentication and is rate-limited to 30 requests per minute per user.",
+                "summary": "Look up bibliographic metadata by DOI (Related Item Manager)",
+                "description": "Returns structured bibliographic metadata (title, authors, publication year, volume, issue, pages, publisher, identifier) for a given DOI. Used by the Related Item Manager curation form to auto-fill related item fields. Primary source is the Crossref REST API (polite pool); DataCite is used as a fallback. Responses are cached for 24h. Requires authentication and is rate-limited to 30 requests per minute per user.",
                 "parameters": [
                     {
                         "name": "doi",

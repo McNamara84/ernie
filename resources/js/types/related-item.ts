@@ -1,5 +1,5 @@
 /**
- * Shared type definitions for DataCite Related Items (Citation Manager).
+ * Shared type definitions for DataCite Related Items (Related Item Manager).
  *
  * Mirrors the backend models under `App\Models\RelatedItem*`
  * and the DataCite 4.7 `relatedItem` schema.
