@@ -182,6 +182,7 @@ describe('ResourcesPage', () => {
         expect(Array.from(doiTitleCell.querySelectorAll('span')).map((span) => span.textContent)).toEqual(['10.9999/example', 'Primary title']);
 
         expect(screen.queryByRole('columnheader', { name: /actions/i })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         await openResourceActionsMenu();
         expect(screen.getByTestId('resources-action-edit')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();

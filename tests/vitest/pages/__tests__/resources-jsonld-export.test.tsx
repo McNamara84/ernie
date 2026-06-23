@@ -151,14 +151,18 @@ describe('Resources JSON-LD Export Action', () => {
 
     it('renders a JSON-LD export action in the toolbar', async () => {
         render(<ResourcesPage {...defaultProps} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         await openResourceActionsMenu();
 
         expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();
-        expect(screen.getByTestId('resources-action-export-jsonld')).toHaveAttribute('aria-disabled', 'true');
+        expect(screen.getByTestId('resources-action-export-jsonld')).not.toHaveAttribute('aria-disabled');
     });
 
     it('renders JSON-LD alongside JSON and XML export actions', async () => {
         render(<ResourcesPage {...defaultProps} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         await openResourceActionsMenu();
 
         expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();

@@ -44,11 +44,17 @@ describe('ResourcesBulkActionsToolbar', () => {
         baseProps.actions = makeActions();
     });
 
-    it('renders an instructional message when no rows are selected', () => {
+    it('renders an instructional message and disables the action menu when no rows are selected', async () => {
         render(<ResourcesBulkActionsToolbar {...baseProps} />);
 
+        const trigger = screen.getByTestId('resources-actions-menu-trigger');
         expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
-        expect(screen.getByTestId('resources-actions-menu-trigger')).toBeInTheDocument();
+        expect(trigger).toBeDisabled();
+        expect(trigger).toHaveAttribute('title', 'Select rows to enable resource actions');
+
+        await userEvent.click(trigger);
+
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
     it('renders singular and plural selection copy', () => {
@@ -60,7 +66,7 @@ describe('ResourcesBulkActionsToolbar', () => {
     });
 
     it('renders the complete action surface in the action menu when actions are visible', async () => {
-        render(<ResourcesBulkActionsToolbar {...baseProps} actions={makeActions()} />);
+        render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions()} />);
 
         await openActionsMenu();
 
@@ -79,6 +85,7 @@ describe('ResourcesBulkActionsToolbar', () => {
         render(
             <ResourcesBulkActionsToolbar
                 {...baseProps}
+                selectedCount={1}
                 actions={makeActions({
                     'register-doi': { visible: false, available: false },
                     'update-metadata': { visible: false, available: false },
@@ -150,6 +157,7 @@ describe('ResourcesBulkActionsToolbar', () => {
         render(
             <ResourcesBulkActionsToolbar
                 {...baseProps}
+                selectedCount={1}
                 actions={makeActions({ 'export-jsonld': { available: false } })}
                 onUnavailableAction={onUnavailableAction}
             />,

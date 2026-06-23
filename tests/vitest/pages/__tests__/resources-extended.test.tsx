@@ -366,6 +366,7 @@ describe('ResourcesPage - extended', () => {
         it('shows or hides landing page action based on permission', async () => {
             mockUser.can_manage_landing_pages = true;
             const { rerender } = renderPage();
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
             expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
 
@@ -378,6 +379,7 @@ describe('ResourcesPage - extended', () => {
         it('hides DataCite actions when registration permission is missing', async () => {
             mockUser.can_register_production_doi = false;
             renderPage();
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
 
             expect(screen.queryByTestId('resources-action-register-doi')).not.toBeInTheDocument();
@@ -417,6 +419,7 @@ describe('ResourcesPage - extended', () => {
 
         it('renders export actions in the action menu', async () => {
             renderPage();
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();
 
             expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();
@@ -459,6 +462,7 @@ describe('ResourcesPage - extended', () => {
         it('hides delete action when the user lacks draft-delete permission', async () => {
             mockUser.role = 'beginner';
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await openResourceActionsMenu();
 
             expect(screen.queryByTestId('resources-action-delete')).not.toBeInTheDocument();
