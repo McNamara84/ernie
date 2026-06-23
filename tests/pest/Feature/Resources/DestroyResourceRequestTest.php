@@ -230,12 +230,27 @@ it('normalizes duplicate batch delete ids before applying the maximum batch size
 
     $this->actingAs($admin)
         ->delete(route('resources.batch-destroy'), [
-            'ids' => array_fill(0, DestroyResourcesRequest::MAX_BATCH_SIZE + 1, $resource->id),
+            'ids' => array_fill(0, DestroyResourcesRequest::MAX_BATCH_SIZE + 1, (string) $resource->id),
         ])
         ->assertRedirect(route('resources'))
         ->assertSessionHas('success', 'Draft deleted successfully.');
 
     expect(Resource::find($resource->id))->toBeNull();
+});
+
+it('preserves malformed batch delete ids while deduplicating valid integer ids', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$resource->id, (string) $resource->id, "{$resource->id}.0"],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors('ids.1');
+
+    expect(Resource::find($resource->id))->not->toBeNull();
 });
 
 it('rejects batch deletion when any selected draft has a landing page', function (): void {

@@ -24,11 +24,23 @@ final class DestroyResourcesRequest extends FormRequest
             return;
         }
 
+        $seenIntegerIds = [];
         $normalizedIds = [];
         foreach ($ids as $id) {
-            if (! in_array($id, $normalizedIds, false)) {
+            $integerId = $this->normalizeIntegerId($id);
+
+            if ($integerId === null) {
                 $normalizedIds[] = $id;
+
+                continue;
             }
+
+            if (isset($seenIntegerIds[$integerId])) {
+                continue;
+            }
+
+            $seenIntegerIds[$integerId] = true;
+            $normalizedIds[] = $integerId;
         }
 
         $this->merge([
@@ -45,5 +57,16 @@ final class DestroyResourcesRequest extends FormRequest
             'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
             'ids.*' => ['required', 'integer'],
         ];
+    }
+
+    private function normalizeIntegerId(mixed $id): ?int
+    {
+        if (! is_int($id) && ! is_string($id)) {
+            return null;
+        }
+
+        $integerId = filter_var($id, FILTER_VALIDATE_INT);
+
+        return $integerId === false ? null : $integerId;
     }
 }
