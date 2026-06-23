@@ -84,7 +84,10 @@ describe('CitationsField', () => {
 
         render(<CitationsField resourceId={44} />);
 
-        await user.click(await screen.findByRole('button', { name: /Manage Related Items/i }));
+        const manageButton = await screen.findByRole('button', { name: /Manage Related Items/i });
+
+        await waitFor(() => expect(manageButton).toBeEnabled());
+        await user.click(manageButton);
 
         expect(screen.getByTestId('related-item-manager-modal')).toHaveTextContent('Related Item Manager for 44');
     });
