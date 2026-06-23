@@ -302,6 +302,21 @@ it('rejects invalid batch delete payloads', function (): void {
         ->assertSessionHasErrors('ids');
 });
 
+it('reports missing batch delete resources from the controller without exposing individual ids', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $missingId = ((int) Resource::query()->max('id')) + 1;
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$missingId],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors([
+            'ids' => 'Some selected resources could not be found.',
+        ]);
+});
+
 it('rejects guests from batch deleting resources', function (): void {
     $resource = Resource::factory()->create(['doi' => null]);
 

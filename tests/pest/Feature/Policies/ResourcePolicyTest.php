@@ -186,17 +186,30 @@ describe('ResourcePolicy', function () {
             /** @var Resource&MockInterface $resource */
             $resource = Mockery::mock(Resource::class);
             $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
-            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->andReturn(null);
+            $resource->shouldReceive('loadMissing')->once()->with('landingPage')->ordered()->andReturnSelf();
+            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->ordered()->andReturn(null);
             $resource->shouldReceive('loadMissing')->once()->with([
                 'titles.titleType',
                 'creators',
                 'rights',
                 'descriptions.descriptionType',
-                'landingPage',
-            ])->andReturnSelf();
+            ])->ordered()->andReturnSelf();
             $resource->shouldReceive('publicStatus')->once()->andReturn('draft');
 
             expect($this->policy->delete($user, $resource))->toBeTrue();
+        });
+
+        it('short-circuits before loading completeness relations when the resource has a landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+
+            /** @var Resource&MockInterface $resource */
+            $resource = Mockery::mock(Resource::class);
+            $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
+            $resource->shouldReceive('loadMissing')->once()->with('landingPage')->andReturnSelf();
+            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->andReturn(new LandingPage);
+            $resource->shouldNotReceive('publicStatus');
+
+            expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
         it('allows admin to delete a draft resource', function () {

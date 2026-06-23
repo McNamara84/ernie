@@ -43,7 +43,7 @@ final class DestroyResourcesRequest extends FormRequest
     {
         return [
             'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
-            'ids.*' => ['required', 'integer', 'exists:resources,id'],
+            'ids.*' => ['required', 'integer'],
         ];
     }
 }
