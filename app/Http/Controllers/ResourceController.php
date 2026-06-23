@@ -168,7 +168,7 @@ class ResourceController extends Controller
      * Delete a draft resource.
      *
      * Authorization is enforced by DestroyResourceRequest::authorize() (delegates
-     * to ResourcePolicy::delete Ã¢â‚¬â€œ curator / group leader / admin on draft resources only).
+     * to ResourcePolicy::delete – curator / group leader / admin on draft resources only).
      */
     public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
