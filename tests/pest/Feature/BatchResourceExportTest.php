@@ -83,7 +83,7 @@ describe('BatchResourceExportController@export', function () {
 
         $response = $this->actingAs($this->user)
             ->post('/resources/batch-export', [
-                'ids' => array_fill(0, ExportResourcesRequest::MAX_BATCH_SIZE + 1, $resource->id),
+                'ids' => array_fill(0, ExportResourcesRequest::MAX_BATCH_SIZE + 1, (string) $resource->id),
                 'format' => 'datacite-json',
             ]);
 
@@ -97,6 +97,18 @@ describe('BatchResourceExportController@export', function () {
         expect($zip->numFiles)->toBe(1);
         $zip->close();
         @unlink($zipPath);
+    });
+
+    test('preserves malformed ids while deduplicating valid integer ids', function () {
+        $resource = Resource::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-export', [
+                'ids' => [$resource->id, (string) $resource->id, "{$resource->id}.0"],
+                'format' => 'datacite-json',
+            ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['ids.1']);
     });
 
     test('returns a zip archive for the datacite-json format', function () {

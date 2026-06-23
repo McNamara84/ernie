@@ -37,11 +37,23 @@ class ExportResourcesRequest extends FormRequest
             return;
         }
 
+        $seenIntegerIds = [];
         $normalizedIds = [];
         foreach ($ids as $id) {
-            if (! in_array($id, $normalizedIds, false)) {
+            $integerId = $this->normalizeIntegerId($id);
+
+            if ($integerId === null) {
                 $normalizedIds[] = $id;
+
+                continue;
             }
+
+            if (isset($seenIntegerIds[$integerId])) {
+                continue;
+            }
+
+            $seenIntegerIds[$integerId] = true;
+            $normalizedIds[] = $integerId;
         }
 
         $this->merge([
@@ -59,5 +71,16 @@ class ExportResourcesRequest extends FormRequest
             'ids.*' => ['required', 'integer', 'exists:resources,id'],
             'format' => ['required', 'string', 'in:'.self::FORMAT_JSON.','.self::FORMAT_XML.','.self::FORMAT_JSONLD],
         ];
+    }
+
+    private function normalizeIntegerId(mixed $id): ?int
+    {
+        if (! is_int($id) && ! is_string($id)) {
+            return null;
+        }
+
+        $integerId = filter_var($id, FILTER_VALIDATE_INT);
+
+        return $integerId === false ? null : $integerId;
     }
 }
