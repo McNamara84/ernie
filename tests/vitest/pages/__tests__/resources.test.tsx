@@ -77,6 +77,15 @@ vi.mock('@/hooks/use-citation-vocabularies', () => ({
     }),
 }));
 
+const openResourceActionsMenu = async () => {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+};
+
+const clickResourceAction = async (testId: string) => {
+    await openResourceActionsMenu();
+    await userEvent.click(screen.getByTestId(testId));
+};
+
 describe('ResourcesPage', () => {
     let originalOpen: typeof window.open;
     let openMock: ReturnType<typeof vi.fn>;
@@ -98,6 +107,18 @@ describe('ResourcesPage', () => {
             configurable: true,
             writable: true,
         });
+
+        global.IntersectionObserver = vi.fn().mockImplementation(function () {
+            return {
+                observe: vi.fn(),
+                unobserve: vi.fn(),
+                disconnect: vi.fn(),
+                root: null,
+                rootMargin: '',
+                thresholds: [],
+                takeRecords: vi.fn(() => []),
+            };
+        }) as unknown as typeof IntersectionObserver;
     });
 
     afterEach(() => {
@@ -109,7 +130,7 @@ describe('ResourcesPage', () => {
         });
     });
 
-    it('renders a table with the streamlined dataset overview', () => {
+    it('renders a table with the streamlined dataset overview', async () => {
         const props = {
             resources: [
                 {
@@ -161,6 +182,7 @@ describe('ResourcesPage', () => {
         expect(Array.from(doiTitleCell.querySelectorAll('span')).map((span) => span.textContent)).toEqual(['10.9999/example', 'Primary title']);
 
         expect(screen.queryByRole('columnheader', { name: /actions/i })).not.toBeInTheDocument();
+        await openResourceActionsMenu();
         expect(screen.getByTestId('resources-action-edit')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();
     });
@@ -246,7 +268,7 @@ describe('ResourcesPage', () => {
         );
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-edit'));
+        await clickResourceAction('resources-action-edit');
 
         expect(editorRouteMock).toHaveBeenCalledWith({
             query: { resourceId: resource.id },

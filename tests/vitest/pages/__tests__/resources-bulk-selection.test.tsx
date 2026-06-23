@@ -157,6 +157,14 @@ const exportResponse = (contents: string, filename: string) => ({
     headers: { 'content-disposition': `attachment; filename="${filename}"` },
 });
 
+const openResourceActionsMenu = async () => {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+};
+
+const clickResourceAction = async (testId: string) => {
+    await openResourceActionsMenu();
+    await userEvent.click(screen.getByTestId(testId));
+};
 describe('ResourcesPage - bulk selection', () => {
     let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
     let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
@@ -286,7 +294,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-        await userEvent.click(screen.getByTestId('resources-action-edit'));
+        await clickResourceAction('resources-action-edit');
 
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 2 } });
@@ -299,7 +307,7 @@ describe('ResourcesPage - bulk selection', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-edit'));
+        await clickResourceAction('resources-action-edit');
 
         expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('blocked'));
     });
@@ -309,7 +317,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-        await userEvent.click(screen.getByTestId('resources-action-setup-landing-page'));
+        await clickResourceAction('resources-action-setup-landing-page');
 
         expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
         expect(toastMock.error).toHaveBeenCalledWith('This action can only be performed on a single record.');
@@ -319,10 +327,10 @@ describe('ResourcesPage - bulk selection', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-setup-landing-page'));
+        await clickResourceAction('resources-action-setup-landing-page');
         expect(screen.getByTestId('setup-landing-page-modal')).toHaveTextContent('First');
 
-        await userEvent.click(screen.getByTestId('resources-action-manage-related-items'));
+        await clickResourceAction('resources-action-manage-related-items');
         expect(screen.getByTestId('citation-manager-modal')).toHaveTextContent('1');
     });
 
@@ -330,7 +338,7 @@ describe('ResourcesPage - bulk selection', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
-        await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+        await clickResourceAction('resources-action-register-doi');
 
         expect(screen.getByTestId('register-doi-modal')).toHaveTextContent('Third');
         expect(axiosPostMock).not.toHaveBeenCalled();
@@ -341,7 +349,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
-        await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+        await clickResourceAction('resources-action-register-doi');
 
         expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('prefix selection'));
         expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
@@ -352,7 +360,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-        await userEvent.click(screen.getByTestId('resources-action-export-datacite-xml'));
+        await clickResourceAction('resources-action-export-datacite-xml');
 
         await waitFor(() => {
             const exportCalls = axiosGetMock.mock.calls.filter(([url]) => String(url).includes('export-datacite-xml'));
@@ -369,8 +377,8 @@ describe('ResourcesPage - bulk selection', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-export-datacite-json'));
-        await userEvent.click(screen.getByTestId('resources-action-export-jsonld'));
+        await clickResourceAction('resources-action-export-datacite-json');
+        await clickResourceAction('resources-action-export-jsonld');
 
         await waitFor(() => {
             expect(axiosGetMock).toHaveBeenCalledWith('/resources/1/export-datacite-json', { responseType: 'blob' });
@@ -393,7 +401,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await clickResourceAction('resources-action-update-metadata');
 
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
         expect(screen.getByText(/this will update metadata at datacite for 2 resources/i)).toBeInTheDocument();
@@ -412,7 +420,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-3'));
-        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await clickResourceAction('resources-action-update-metadata');
 
         expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('no DOI'));
         expect(axiosPostMock).not.toHaveBeenCalled();
@@ -430,7 +438,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-11'));
-        await userEvent.click(screen.getByTestId('resources-action-delete'));
+        await clickResourceAction('resources-action-delete');
 
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
         expect(screen.getByText(/only draft resources without a doi and without a landing page can be deleted/i)).toBeInTheDocument();
@@ -469,7 +477,7 @@ describe('ResourcesPage - bulk selection', () => {
         );
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-20'));
-        await userEvent.click(screen.getByTestId('resources-action-delete'));
+        await clickResourceAction('resources-action-delete');
 
         expect(toastMock.error).toHaveBeenCalledWith(
             'Resources with landing pages cannot be deleted from this list. Remove the draft landing page first.',
@@ -495,7 +503,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await clickResourceAction('resources-action-update-metadata');
         await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
 
         await waitFor(() => {
@@ -516,7 +524,7 @@ describe('ResourcesPage - bulk selection', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await clickResourceAction('resources-action-update-metadata');
         await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
 
         await waitFor(() => {
@@ -533,7 +541,7 @@ describe('ResourcesPage - bulk selection', () => {
             render(<ResourcesPage {...buildProps()} />);
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-            await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+            await clickResourceAction('resources-action-update-metadata');
             await userEvent.click(screen.getByRole('button', { name: /^update metadata$/i }));
 
             await waitFor(() => {
@@ -553,7 +561,7 @@ describe('ResourcesPage - bulk selection', () => {
         );
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-30'));
-        await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+        await clickResourceAction('resources-action-register-doi');
 
         expect(toastMock.error).toHaveBeenCalledWith('A landing page must be set up before registering a DOI.');
         expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
@@ -567,7 +575,7 @@ describe('ResourcesPage - bulk selection', () => {
         );
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-31'));
-        await userEvent.click(screen.getByTestId('resources-action-update-metadata'));
+        await clickResourceAction('resources-action-update-metadata');
 
         expect(toastMock.error).toHaveBeenCalledWith('1 selected resource is missing a landing page.');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
@@ -596,7 +604,7 @@ describe('ResourcesPage - bulk selection', () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-export-datacite-xml'));
+        await clickResourceAction('resources-action-export-datacite-xml');
 
         await waitFor(() => {
             expect(toastMock.warning).toHaveBeenCalledWith('XML Validation Warning', expect.objectContaining({ description: 'Validation warning' }));
@@ -622,7 +630,7 @@ describe('ResourcesPage - bulk selection', () => {
             render(<ResourcesPage {...buildProps()} />);
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-            await userEvent.click(screen.getByTestId('resources-action-export-jsonld'));
+            await clickResourceAction('resources-action-export-jsonld');
 
             await waitFor(() => {
                 expect(toastMock.error).toHaveBeenCalledWith('Failed to export JSON-LD');
@@ -660,7 +668,7 @@ describe('ResourcesPage - bulk selection', () => {
             render(<ResourcesPage {...buildProps()} />);
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-            await userEvent.click(screen.getByTestId('resources-action-export-datacite-json'));
+            await clickResourceAction('resources-action-export-datacite-json');
 
             await waitFor(() => {
                 expect(parseValidationErrorFromBlobMock).toHaveBeenCalledWith(validationBlob);

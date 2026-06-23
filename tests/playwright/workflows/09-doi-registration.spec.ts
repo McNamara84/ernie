@@ -24,6 +24,10 @@ async function selectResourceByText(page: Page, matcher: RegExp): Promise<Locato
     return resourceRow;
 }
 
+async function openResourceActionsMenu(page: Page): Promise<void> {
+    await page.getByTestId('resources-actions-menu-trigger').click();
+}
+
 test.describe('DOI Registration Workflow', () => {
     test.beforeEach(async ({ page }) => {
         // Login before each test
@@ -41,6 +45,7 @@ test.describe('DOI Registration Workflow', () => {
     test('update metadata for existing doi', async ({ page }) => {
         await page.goto('/resources');
         await selectResourceByText(page, /10\.1234\/playwright-published/);
+        await openResourceActionsMenu(page);
 
         const updateMetadataButton = page.getByTestId('resources-action-update-metadata');
         await expect(updateMetadataButton).toBeVisible();
@@ -60,6 +65,7 @@ test.describe('DOI Registration Workflow', () => {
     test('cannot register doi without landing page', async ({ page }) => {
         await page.goto('/resources');
         await selectResourceByText(page, /Playwright: Curation Resource \(no landing page\)/);
+        await openResourceActionsMenu(page);
 
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
         await expect(registerDoiButton).toBeVisible();
@@ -71,6 +77,7 @@ test.describe('DOI Registration Workflow', () => {
     test('displays test mode warning', async ({ page }) => {
         await page.goto('/resources');
         await selectResourceByText(page, /Playwright: Curation Resource \(no DOI\)/);
+        await openResourceActionsMenu(page);
 
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
         await expect(registerDoiButton).toBeVisible();
@@ -87,6 +94,7 @@ test.describe('DOI Registration Workflow', () => {
     test('modal can be cancelled', async ({ page }) => {
         await page.goto('/resources');
         await selectResourceByText(page, /Playwright: Curation Resource \(no DOI\)/);
+        await openResourceActionsMenu(page);
 
         const registerDoiButton = page.getByTestId('resources-action-register-doi');
         await expect(registerDoiButton).toBeVisible();

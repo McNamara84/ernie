@@ -9,14 +9,11 @@ import ResourcesPage from '@/pages/resources';
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
 const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());
-const editorRouteMock = vi.hoisted(
-    () =>
-        vi.fn(
-            ({ query }: { query?: Record<string, string | number> } = {}) => ({
-                url: query ? `/editor?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)])).toString()}` : '/editor',
-                method: 'get',
-            }),
-        ),
+const editorRouteMock = vi.hoisted(() =>
+    vi.fn(({ query }: { query?: Record<string, string | number> } = {}) => ({
+        url: query ? `/editor?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)])).toString()}` : '/editor',
+        method: 'get',
+    })),
 );
 
 vi.mock('@inertiajs/react', () => ({
@@ -104,6 +101,15 @@ const defaultProps = {
     },
 };
 
+const openResourceActionsMenu = async () => {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+};
+
+const clickResourceAction = async (testId: string) => {
+    await openResourceActionsMenu();
+    await userEvent.click(screen.getByTestId(testId));
+};
+
 describe('Resources JSON-LD Export Action', () => {
     let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
     let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
@@ -143,15 +149,17 @@ describe('Resources JSON-LD Export Action', () => {
         }
     });
 
-    it('renders a JSON-LD export action in the toolbar', () => {
+    it('renders a JSON-LD export action in the toolbar', async () => {
         render(<ResourcesPage {...defaultProps} />);
+        await openResourceActionsMenu();
 
         expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-export-jsonld')).toHaveAttribute('aria-disabled', 'true');
     });
 
-    it('renders JSON-LD alongside JSON and XML export actions', () => {
+    it('renders JSON-LD alongside JSON and XML export actions', async () => {
         render(<ResourcesPage {...defaultProps} />);
+        await openResourceActionsMenu();
 
         expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-export-datacite-xml')).toBeInTheDocument();
@@ -162,7 +170,7 @@ describe('Resources JSON-LD Export Action', () => {
         render(<ResourcesPage {...defaultProps} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await userEvent.click(screen.getByTestId('resources-action-export-jsonld'));
+        await clickResourceAction('resources-action-export-jsonld');
 
         await waitFor(() => {
             expect(axiosGetMock).toHaveBeenCalledWith('/resources/1/export-jsonld', { responseType: 'blob' });

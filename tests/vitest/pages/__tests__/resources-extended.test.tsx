@@ -6,9 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), visit: vi.fn(), reload: vi.fn() }));
 const axiosGetMock = vi.hoisted(() => vi.fn());
-const toastMock = vi.hoisted(() =>
-    Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }),
-);
+const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
 const editorRouteMock = vi.hoisted(() =>
     vi.fn(({ query }: { query?: Record<string, string | number> } = {}) => ({
         url: query ? `/editor?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)])).toString()}` : '/editor',
@@ -156,6 +154,23 @@ async function renderPageReady(propsOverrides: Record<string, unknown> = {}) {
     return result;
 }
 
+const openResourceActionsMenu = async () => {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+};
+
+const clickResourceAction = async (testId: string) => {
+    await openResourceActionsMenu();
+    await userEvent.click(screen.getByTestId(testId));
+};
+
+const ensureResourceActionsMenuOpen = async () => {
+    if (screen.queryByRole('menu')) {
+        return;
+    }
+
+    await openResourceActionsMenu();
+};
+
 describe('ResourcesPage - extended', () => {
     let originalOpen: typeof window.open;
     let openMock: ReturnType<typeof vi.fn>;
@@ -183,15 +198,17 @@ describe('ResourcesPage - extended', () => {
             writable: true,
         });
 
-        global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-            observe: vi.fn(),
-            unobserve: vi.fn(),
-            disconnect: vi.fn(),
-            root: null,
-            rootMargin: '',
-            thresholds: [],
-            takeRecords: vi.fn(() => []),
-        })) as unknown as typeof IntersectionObserver;
+        global.IntersectionObserver = vi.fn().mockImplementation(function () {
+            return {
+                observe: vi.fn(),
+                unobserve: vi.fn(),
+                disconnect: vi.fn(),
+                root: null,
+                rootMargin: '',
+                thresholds: [],
+                takeRecords: vi.fn(() => []),
+            };
+        }) as unknown as typeof IntersectionObserver;
     });
 
     afterEach(() => {
@@ -310,7 +327,13 @@ describe('ResourcesPage - extended', () => {
             const { rerender } = renderPage({ resources: [makeResource({ first_author: { familyName: 'Smith', givenName: 'Alice' } })] });
             expect(screen.getByText('Smith, Alice')).toBeInTheDocument();
 
-            rerender(<ResourcesPage resources={[makeResource({ first_author: { name: 'GFZ Potsdam' } })] as never} pagination={makePagination()} sort={defaultSort} />);
+            rerender(
+                <ResourcesPage
+                    resources={[makeResource({ first_author: { name: 'GFZ Potsdam' } })] as never}
+                    pagination={makePagination()}
+                    sort={defaultSort}
+                />,
+            );
             expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
         });
 
@@ -340,19 +363,22 @@ describe('ResourcesPage - extended', () => {
             expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
         });
 
-        it('shows or hides landing page action based on permission', () => {
+        it('shows or hides landing page action based on permission', async () => {
             mockUser.can_manage_landing_pages = true;
             const { rerender } = renderPage();
+            await openResourceActionsMenu();
             expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
 
             mockUser.can_manage_landing_pages = false;
             rerender(<ResourcesPage resources={[makeResource()] as never} pagination={makePagination()} sort={defaultSort} />);
+            await ensureResourceActionsMenuOpen();
             expect(screen.queryByTestId('resources-action-setup-landing-page')).not.toBeInTheDocument();
         });
 
-        it('hides DataCite actions when registration permission is missing', () => {
+        it('hides DataCite actions when registration permission is missing', async () => {
             mockUser.can_register_production_doi = false;
             renderPage();
+            await openResourceActionsMenu();
 
             expect(screen.queryByTestId('resources-action-register-doi')).not.toBeInTheDocument();
             expect(screen.queryByTestId('resources-action-update-metadata')).not.toBeInTheDocument();
@@ -364,7 +390,7 @@ describe('ResourcesPage - extended', () => {
             renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-            await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+            await clickResourceAction('resources-action-register-doi');
 
             expect(screen.getByTestId('register-doi-modal')).toHaveTextContent('New Resource');
         });
@@ -373,23 +399,25 @@ describe('ResourcesPage - extended', () => {
             renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
-            await userEvent.click(screen.getByTestId('resources-action-register-doi'));
+            await clickResourceAction('resources-action-register-doi');
 
             expect(toastMock.error).toHaveBeenCalledWith('A landing page must be set up before registering a DOI.');
             expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
         });
 
-        it('enables update metadata for registered resources with landing pages', () => {
+        it('enables update metadata for registered resources with landing pages', async () => {
             renderPage({ resources: [makeResource()] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await openResourceActionsMenu();
 
             expect(screen.getByTestId('resources-action-update-metadata')).not.toHaveAttribute('aria-disabled');
             expect(screen.getByTestId('resources-action-register-doi')).toHaveAttribute('aria-disabled', 'true');
         });
 
-        it('renders export actions in the toolbar', () => {
+        it('renders export actions in the action menu', async () => {
             renderPage();
+            await openResourceActionsMenu();
 
             expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();
             expect(screen.getByTestId('resources-action-export-datacite-xml')).toBeInTheDocument();
@@ -400,6 +428,7 @@ describe('ResourcesPage - extended', () => {
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
+            await openResourceActionsMenu();
             const deleteButton = screen.getByTestId('resources-action-delete');
 
             expect(deleteButton).not.toHaveAttribute('aria-disabled');
@@ -411,7 +440,7 @@ describe('ResourcesPage - extended', () => {
             renderPage({ resources: [makeResource({ id: 5, publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
-            await userEvent.click(screen.getByTestId('resources-action-delete'));
+            await clickResourceAction('resources-action-delete');
 
             expect(toastMock.error).toHaveBeenCalledWith('Resources with persistent identifiers cannot be deleted.');
             expect(routerMock.delete).not.toHaveBeenCalled();
@@ -421,18 +450,16 @@ describe('ResourcesPage - extended', () => {
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
-            await userEvent.click(screen.getByTestId('resources-action-delete'));
+            await clickResourceAction('resources-action-delete');
             await userEvent.click(screen.getByRole('button', { name: /delete drafts/i }));
 
-            expect(routerMock.delete).toHaveBeenCalledWith(
-                '/resources/batch',
-                expect.objectContaining({ data: { ids: [5] }, preserveScroll: true }),
-            );
+            expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [5] }, preserveScroll: true }));
         });
 
-        it('hides delete action when the user lacks draft-delete permission', () => {
+        it('hides delete action when the user lacks draft-delete permission', async () => {
             mockUser.role = 'beginner';
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+            await openResourceActionsMenu();
 
             expect(screen.queryByTestId('resources-action-delete')).not.toBeInTheDocument();
         });
@@ -441,7 +468,7 @@ describe('ResourcesPage - extended', () => {
             renderPage();
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-            await userEvent.click(screen.getByTestId('resources-action-edit'));
+            await clickResourceAction('resources-action-edit');
 
             expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
             expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');

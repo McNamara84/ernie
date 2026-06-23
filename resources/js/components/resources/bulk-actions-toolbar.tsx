@@ -1,9 +1,10 @@
-import { Braces, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
+import { Braces, ChevronDown, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 export type ResourcesActionKey =
@@ -95,52 +96,66 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
 
 export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, onUnavailableAction }: ResourcesBulkActionsToolbarProps) {
     const hasSelection = selectedCount > 0;
+    const visibleActions = ACTION_DEFINITIONS.filter((definition) => actions[definition.key]?.visible !== false);
 
     return (
-        <div data-testid="resources-bulk-actions-toolbar" className="flex flex-col gap-2">
+        <div
+            data-testid="resources-bulk-actions-toolbar"
+            className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-between"
+        >
             <span className="text-sm text-muted-foreground" aria-live="polite">
                 {hasSelection
                     ? `${selectedCount} ${selectedCount === 1 ? 'resource' : 'resources'} selected`
                     : 'Select rows to enable resource actions'}
             </span>
 
-            <div className="flex flex-wrap items-center gap-2">
-                {ACTION_DEFINITIONS.map((definition) => {
-                    const state = actions[definition.key];
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-between sm:w-auto"
+                        data-testid="resources-actions-menu-trigger"
+                    >
+                        <span>Actions</span>
+                        <ChevronDown aria-hidden="true" className="size-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                    {visibleActions.map((definition) => {
+                        const state = actions[definition.key];
+                        const isUnavailable = !state.available;
+                        const isLoading = state.loading === true;
 
-                    if (state.visible === false) {
-                        return null;
-                    }
+                        return (
+                            <DropdownMenuItem
+                                key={definition.key}
+                                disabled={isLoading}
+                                aria-disabled={isUnavailable || isLoading || undefined}
+                                title={isUnavailable ? state.reason : definition.label}
+                                data-testid={`resources-action-${definition.key}`}
+                                variant={definition.variant === 'destructive' ? 'destructive' : 'default'}
+                                className={cn(
+                                    'items-start gap-2',
+                                    isUnavailable && !isLoading && 'cursor-not-allowed opacity-50 focus:bg-background focus:text-foreground',
+                                )}
+                                onSelect={() => {
+                                    if (isUnavailable) {
+                                        onUnavailableAction(state.reason ?? 'This action is not available for the current selection.');
+                                        return;
+                                    }
 
-                    const isUnavailable = !state.available;
-                    const isLoading = state.loading === true;
-
-                    return (
-                        <Button
-                            key={definition.key}
-                            type="button"
-                            size="sm"
-                            variant={definition.variant ?? 'default'}
-                            aria-disabled={isUnavailable || undefined}
-                            disabled={isLoading}
-                            title={isUnavailable ? state.reason : definition.label}
-                            data-testid={`resources-action-${definition.key}`}
-                            className={cn('min-w-0', isUnavailable && 'cursor-not-allowed opacity-50 hover:bg-background hover:text-foreground')}
-                            onClick={() => {
-                                if (isUnavailable) {
-                                    onUnavailableAction(state.reason ?? 'This action is not available for the current selection.');
-                                    return;
-                                }
-
-                                onAction(definition.key);
-                            }}
-                        >
-                            {definition.icon}
-                            <span>{isLoading ? 'Working...' : definition.label}</span>
-                        </Button>
-                    );
-                })}
-            </div>
+                                    onAction(definition.key);
+                                }}
+                            >
+                                {definition.icon}
+                                <span className="min-w-0 flex-1 truncate">{isLoading ? 'Working...' : definition.label}</span>
+                            </DropdownMenuItem>
+                        );
+                    })}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 }

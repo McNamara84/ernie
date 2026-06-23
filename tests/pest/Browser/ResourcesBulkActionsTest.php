@@ -48,6 +48,7 @@ describe('Resources page bulk actions (smoke)', function (): void {
 
         visit('/resources')
             ->assertNoSmoke()
+            ->click('[data-testid="resources-actions-menu-trigger"]')
             ->assertDontSee('Register DOI');
     });
 
@@ -63,6 +64,7 @@ describe('Resources page bulk actions (smoke)', function (): void {
 
         visit('/resources')
             ->assertNoSmoke()
+            ->click('[data-testid="resources-actions-menu-trigger"]')
             ->assertVisible('[data-testid="resources-action-export-datacite-json"]');
     });
 });
