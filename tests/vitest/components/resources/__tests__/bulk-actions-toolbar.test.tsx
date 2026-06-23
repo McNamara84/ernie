@@ -144,7 +144,8 @@ describe('ResourcesBulkActionsToolbar', () => {
         await openActionsMenu();
 
         const item = screen.getByTestId('resources-action-setup-landing-page');
-        expect(item).toHaveAttribute('aria-disabled', 'true');
+        expect(item).toHaveAttribute('data-unavailable', 'true');
+        expect(item).not.toHaveAttribute('aria-disabled');
 
         await userEvent.click(item);
 
@@ -166,6 +167,8 @@ describe('ResourcesBulkActionsToolbar', () => {
         await openActionsMenu();
 
         const item = screen.getByTestId('resources-action-export-jsonld');
+        expect(item).toHaveAttribute('data-unavailable', 'true');
+        expect(item).not.toHaveAttribute('aria-disabled');
         expect(item).toHaveAttribute('title', 'This action is not available for the current selection.');
 
         await userEvent.click(item);
@@ -191,6 +194,7 @@ describe('ResourcesBulkActionsToolbar', () => {
 
         const item = screen.getByTestId('resources-action-export-datacite-xml');
         expect(item).toHaveAttribute('aria-disabled', 'true');
+        expect(item).not.toHaveAttribute('data-unavailable');
         expect(item).toHaveTextContent('Working...');
 
         await userEvent.click(item);

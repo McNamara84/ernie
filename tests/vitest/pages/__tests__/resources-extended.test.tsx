@@ -414,7 +414,8 @@ describe('ResourcesPage - extended', () => {
             await openResourceActionsMenu();
 
             expect(screen.getByTestId('resources-action-update-metadata')).not.toHaveAttribute('aria-disabled');
-            expect(screen.getByTestId('resources-action-register-doi')).toHaveAttribute('aria-disabled', 'true');
+            expect(screen.getByTestId('resources-action-register-doi')).toHaveAttribute('data-unavailable', 'true');
+            expect(screen.getByTestId('resources-action-register-doi')).not.toHaveAttribute('aria-disabled');
         });
 
         it('renders export actions in the action menu', async () => {

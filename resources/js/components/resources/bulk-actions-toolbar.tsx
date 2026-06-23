@@ -138,13 +138,14 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                                 <DropdownMenuItem
                                     key={definition.key}
                                     disabled={isLoading}
-                                    aria-disabled={isUnavailable || isLoading || undefined}
+                                    aria-disabled={isLoading || undefined}
+                                    data-unavailable={isUnavailable && !isLoading ? 'true' : undefined}
                                     title={isUnavailable ? unavailableReason : definition.label}
                                     data-testid={`resources-action-${definition.key}`}
                                     variant={definition.variant === 'destructive' ? 'destructive' : 'default'}
                                     className={cn(
                                         'items-start gap-2',
-                                        isUnavailable && !isLoading && 'cursor-not-allowed opacity-50 focus:bg-background focus:text-foreground',
+                                        isUnavailable && !isLoading && 'cursor-help opacity-60 focus:bg-background focus:text-foreground',
                                     )}
                                     onSelect={() => {
                                         if (isUnavailable) {
