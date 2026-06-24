@@ -284,6 +284,10 @@
         ],
         "fixes": [
             {
+                "title": "Legacy Resource Download Links Import",
+                "description": "Legacy resource imports from /resources now persist SUMARIO download URLs and additional legacy download links from the queue worker. Re-running the single or bulk import for an already imported DOI can backfill missing landing page download links without overwriting curator-provided values, and the import summary now reports when existing resources had legacy links added."
+            },
+            {
                 "title": "Funding Reference Card Affordance",
                 "description": "Updated Funding Reference cards in the Data Editor so editable entries no longer look disabled. The card, expanded award details, and reorder handle now use active editor styling while preserving validation, ROR autocomplete, and drag-and-drop behavior."
             },
