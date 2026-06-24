@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const routerMock = vi.hoisted(() => ({ delete: vi.fn(), get: vi.fn(), reload: vi.fn(), visit: vi.fn() }));
@@ -242,12 +243,29 @@ describe('ResourcesPage column resizing', () => {
         expect(storedWidths.doi_title).toBe(DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title + 16);
     });
 
-    it('hydrates persisted column widths from localStorage', () => {
+    it('renders SSR-safe default widths before client-side hydration', () => {
+        vi.stubGlobal('window', undefined);
+
+        try {
+            const html = renderToString(<ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} />);
+
+            expect(html).toContain(`data-testid="resources-column-doi_title" style="width:${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px"`);
+            expect(html).toContain(
+                `data-testid="resources-column-created_updated" style="width:${DEFAULT_RESOURCE_COLUMN_WIDTHS.created_updated}px"`,
+            );
+            expect(html).toContain('data-testid="resources-column-resize-doi_title"');
+            expect(html).not.toContain('data-testid="resources-column-resize-doi_title" disabled=""');
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('hydrates persisted column widths from localStorage after mount', async () => {
         window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ doi_title: 512, author_year: 999 }));
 
         renderResourcesPage();
 
-        expect(getDoiTitleColumn()).toHaveStyle({ width: '512px' });
+        await waitFor(() => expect(getDoiTitleColumn()).toHaveStyle({ width: '512px' }));
         expect(screen.getByTestId('resources-column-author_year')).toHaveStyle({ width: '360px' });
     });
 
@@ -386,13 +404,14 @@ describe('ResourcesPage column resizing', () => {
         }
     });
 
-    it('disables resizing and removes the date column from layout on narrow viewports', () => {
+    it('hydrates narrow viewport resizing state after mount', async () => {
         setViewportWidth(700);
 
         renderResourcesPage();
 
         const handle = screen.getByTestId('resources-column-resize-doi_title');
-        expect(handle).toBeDisabled();
+
+        await waitFor(() => expect(handle).toBeDisabled());
         expect(handle).toHaveAttribute('tabindex', '-1');
         expect(screen.getByTestId('resources-column-created_updated')).toHaveStyle({ width: '0px' });
         expect(screen.getByTestId('resources-table')).toHaveStyle({ width: '976px' });

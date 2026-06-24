@@ -683,8 +683,8 @@ function ResourcesPage({
         return parseResourceFiltersFromUrl(window.location.search);
     });
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
-    const [columnWidths, setColumnWidths] = useState<ResourceColumnWidths>(() => readStoredResourceColumnWidths());
-    const [tableCanResize, setTableCanResize] = useState<boolean>(() => isResizableViewport());
+    const [columnWidths, setColumnWidths] = useState<ResourceColumnWidths>(DEFAULT_RESOURCE_COLUMN_WIDTHS);
+    const [tableCanResize, setTableCanResize] = useState<boolean>(true);
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
@@ -696,6 +696,10 @@ function ResourcesPage({
     useEffect(() => {
         setPagination(initialPagination);
     }, [initialPagination]);
+
+    useEffect(() => {
+        setColumnWidths(readStoredResourceColumnWidths());
+    }, []);
 
     useEffect(() => {
         const handleViewportResize = () => {
