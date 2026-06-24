@@ -715,6 +715,7 @@ describe('Landing Page Template Assignment', function () {
             'external_domain_id' => $domain->id,
             'external_path' => 'dataset/123',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
+            'downloads_unavailable' => true,
             'links' => [
                 [
                     'url' => 'https://example.org/details',
@@ -729,11 +730,12 @@ describe('Landing Page Template Assignment', function () {
             ->assertJson([
                 'message' => 'The request includes fields that are not supported for this landing page template.',
             ])
-            ->assertJsonValidationErrors(['ftp_url', 'links']);
+            ->assertJsonValidationErrors(['ftp_url', 'downloads_unavailable', 'links']);
 
         expect($this->resource->fresh()->landingPage)
             ->template->toBe('default_gfz')
             ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/original.zip')
+            ->downloads_unavailable->toBeFalse()
             ->external_domain_id->toBeNull()
             ->external_path->toBeNull();
     });

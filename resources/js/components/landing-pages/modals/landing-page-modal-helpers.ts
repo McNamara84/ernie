@@ -170,9 +170,7 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
     return payload;
 }
 
-export function buildLandingPageSetupPayload(
-    options: Omit<BuildLandingPagePayloadOptions, 'includeStatus' | 'includeEmptyLinks'>,
-): Record<string, unknown> {
+export function buildLandingPageSetupPayload(options: Omit<BuildLandingPagePayloadOptions, 'includeStatus' | 'includeEmptyLinks'>): Record<string, unknown> {
     return buildLandingPagePayload({
         ...options,
         includeStatus: true,
@@ -180,9 +178,7 @@ export function buildLandingPageSetupPayload(
     });
 }
 
-export function buildLandingPagePreviewPayload(
-    options: Omit<BuildLandingPagePayloadOptions, 'includeStatus' | 'includeEmptyLinks' | 'isPublished'>,
-): Record<string, unknown> {
+export function buildLandingPagePreviewPayload(options: Omit<BuildLandingPagePayloadOptions, 'includeStatus' | 'includeEmptyLinks' | 'isPublished'>): Record<string, unknown> {
     return buildLandingPagePayload({
         ...options,
         includeStatus: false,
@@ -206,9 +202,7 @@ export function getLandingPageRequestErrorMessage(error: unknown, fallback: stri
     }
 
     if (typeof data === 'object' && data !== null && 'errors' in data && typeof data.errors === 'object' && data.errors !== null) {
-        return Object.values(data.errors as Record<string, string | string[]>)
-            .flat()
-            .join(', ');
+        return Object.values(data.errors as Record<string, string | string[]>).flat().join(', ');
     }
 
     return fallback;

@@ -264,6 +264,7 @@ describe('LandingPageFactory', function () {
         expect($lp->resource_id)->not->toBeNull()
             ->and($lp->slug)->toBeString()
             ->and($lp->template)->toBe('default_gfz')
+            ->and($lp->downloads_unavailable)->toBeFalse()
             ->and($lp->preview_token)->toHaveLength(64);
     });
 
@@ -298,7 +299,23 @@ describe('LandingPageFactory', function () {
 
         expect($lp->template)->toBe('external')
             ->and($lp->external_domain_id)->not->toBeNull()
+            ->and($lp->downloads_unavailable)->toBeFalse()
             ->and($lp->external_path)->toBeString();
+    });
+
+    it('creates a generated landing page with hidden downloads', function () {
+        $lp = LandingPage::factory()->downloadsUnavailable()->create();
+
+        expect($lp->downloads_unavailable)->toBeTrue();
+    });
+
+    it('casts downloads unavailable to a boolean', function () {
+        $lp = LandingPage::factory()->create([
+            'downloads_unavailable' => 1,
+        ]);
+
+        expect($lp->downloads_unavailable)->toBeTrue()
+            ->and(is_bool($lp->downloads_unavailable))->toBeTrue();
     });
 });
 
