@@ -84,7 +84,7 @@ vi.mock('@/hooks/use-citation-vocabularies', () => ({
     }),
 }));
 
-import ResourcesPage, { deriveResourceRowKey } from '@/pages/resources';
+import ResourcesPage, { DEFAULT_RESOURCE_COLUMN_WIDTHS, deriveResourceRowKey } from '@/pages/resources';
 
 interface TestResource {
     id: number;
@@ -299,19 +299,17 @@ describe('ResourcesPage - extended', () => {
             ]);
         });
 
-        it('keeps the regrouped columns compact', () => {
+        it('keeps the regrouped columns compact and resizable', () => {
             renderPage();
 
-            const headers = screen.getAllByRole('columnheader');
-            const idResourceTypeHeader = headers.find((header) => (header.textContent ?? '').includes('ID'));
-            const doiTitleHeader = headers.find((header) => (header.textContent ?? '').includes('DOI'));
-
-            expect(idResourceTypeHeader).toBeDefined();
-            expect(doiTitleHeader).toBeDefined();
-            expect(idResourceTypeHeader).toHaveClass('min-w-[9rem]');
-            expect(doiTitleHeader).toHaveClass('min-w-[18rem]');
-            expect(doiTitleHeader).toHaveClass('md:min-w-[24rem]');
-            expect(doiTitleHeader?.className).not.toContain('lg:min-w-[36rem]');
+            expect(screen.getByTestId('resources-column-id_resourcetype')).toHaveStyle({
+                width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.id_resourcetype}px`,
+            });
+            expect(screen.getByTestId('resources-column-doi_title')).toHaveStyle({
+                width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px`,
+            });
+            expect(screen.getByRole('separator', { name: /resize id and resource type column/i })).toBeInTheDocument();
+            expect(screen.getByRole('separator', { name: /resize doi and title column/i })).toBeInTheDocument();
         });
     });
 

@@ -1,9 +1,9 @@
 // organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical, RotateCcw } from 'lucide-react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CitationManagerModal } from '@/components/citations/CitationManagerModal';
@@ -30,10 +30,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { cn } from '@/lib/utils';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem, type User as AuthUser } from '@/types';
 import {
@@ -70,18 +72,48 @@ interface SortOption {
     description: string;
 }
 
+type ResourceColumnKey = 'id_resourcetype' | 'doi_title' | 'author_year' | 'curator_status' | 'created_updated';
+
 interface ResourceColumn {
-    key: string;
+    key: ResourceColumnKey;
     label: ReactNode;
-    widthClass: string;
+    visibilityClassName?: string;
+    colClassName?: string;
     cellClassName?: string;
     render?: (resource: Resource) => React.ReactNode;
     sortOptions?: SortOption[];
     sortGroupLabel?: string;
 }
 
-const DOI_TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[18rem] md:min-w-[24rem]';
-const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
+interface ResourceColumnWidthDefinition {
+    defaultWidth: number;
+    minWidth: number;
+    maxWidth: number;
+}
+
+type ResourceColumnWidths = Record<ResourceColumnKey, number>;
+
+const SELECT_COLUMN_WIDTH = 48;
+const RESIZABLE_TABLE_MIN_VIEWPORT_WIDTH = 768;
+const COLUMN_RESIZE_STEP = 16;
+const COLUMN_RESIZE_LARGE_STEP = 48;
+const COLUMN_WIDTH_STORAGE_KEY = 'resources.column-widths';
+const RESOURCE_COLUMN_WIDTH_DEFINITIONS: Record<ResourceColumnKey, ResourceColumnWidthDefinition> = {
+    id_resourcetype: { defaultWidth: 160, minWidth: 120, maxWidth: 280 },
+    doi_title: { defaultWidth: 384, minWidth: 220, maxWidth: 720 },
+    author_year: { defaultWidth: 208, minWidth: 140, maxWidth: 360 },
+    curator_status: { defaultWidth: 176, minWidth: 140, maxWidth: 320 },
+    created_updated: { defaultWidth: 160, minWidth: 128, maxWidth: 260 },
+};
+const RESOURCE_COLUMN_RESIZE_LABELS: Record<ResourceColumnKey, string> = {
+    id_resourcetype: 'ID and Resource Type',
+    doi_title: 'DOI and Title',
+    author_year: 'Author and Year',
+    curator_status: 'Curator and Status',
+    created_updated: 'Created and Updated dates',
+};
+const RESOURCE_COLUMN_KEYS = Object.keys(RESOURCE_COLUMN_WIDTH_DEFINITIONS) as ResourceColumnKey[];
+const DATE_COLUMN_CONTAINER_CLASSES = 'flex min-w-0 flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
         <span>Created</span>
@@ -113,6 +145,104 @@ const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> =
     publicstatus: 'asc',
     created_at: 'desc',
     updated_at: 'desc',
+};
+
+const buildDefaultColumnWidths = (): ResourceColumnWidths =>
+    RESOURCE_COLUMN_KEYS.reduce((widths, columnKey) => {
+        widths[columnKey] = RESOURCE_COLUMN_WIDTH_DEFINITIONS[columnKey].defaultWidth;
+        return widths;
+    }, {} as ResourceColumnWidths);
+
+const DEFAULT_RESOURCE_COLUMN_WIDTHS = buildDefaultColumnWidths();
+
+const clampColumnWidth = (columnKey: ResourceColumnKey, width: number): number => {
+    const definition = RESOURCE_COLUMN_WIDTH_DEFINITIONS[columnKey];
+
+    if (!Number.isFinite(width)) {
+        return definition.defaultWidth;
+    }
+
+    return Math.min(definition.maxWidth, Math.max(definition.minWidth, Math.round(width)));
+};
+
+const normalizeResourceColumnWidths = (value: unknown): ResourceColumnWidths => {
+    const widths = buildDefaultColumnWidths();
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return widths;
+    }
+
+    const storedWidths = value as Partial<Record<ResourceColumnKey, unknown>>;
+
+    RESOURCE_COLUMN_KEYS.forEach((columnKey) => {
+        const storedWidth = storedWidths[columnKey];
+        if (typeof storedWidth === 'number') {
+            widths[columnKey] = clampColumnWidth(columnKey, storedWidth);
+        }
+    });
+
+    return widths;
+};
+
+const parseStoredResourceColumnWidths = (storedValue: string | null): ResourceColumnWidths | null => {
+    if (!storedValue) {
+        return null;
+    }
+
+    try {
+        return normalizeResourceColumnWidths(JSON.parse(storedValue));
+    } catch {
+        return null;
+    }
+};
+
+const readStoredResourceColumnWidths = (): ResourceColumnWidths => {
+    if (typeof window === 'undefined') {
+        return buildDefaultColumnWidths();
+    }
+
+    try {
+        return parseStoredResourceColumnWidths(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)) ?? buildDefaultColumnWidths();
+    } catch {
+        return buildDefaultColumnWidths();
+    }
+};
+
+const persistResourceColumnWidths = (widths: ResourceColumnWidths): void => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(normalizeResourceColumnWidths(widths)));
+    } catch {
+        // Ignore storage failures; resizing should remain usable for the session.
+    }
+};
+
+const clearStoredResourceColumnWidths = (): void => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.removeItem(COLUMN_WIDTH_STORAGE_KEY);
+    } catch {
+        // Ignore storage failures; the in-memory reset still applies.
+    }
+};
+
+const areResourceColumnWidthsDefault = (widths: ResourceColumnWidths): boolean =>
+    RESOURCE_COLUMN_KEYS.every((columnKey) => widths[columnKey] === DEFAULT_RESOURCE_COLUMN_WIDTHS[columnKey]);
+
+const isResizableViewport = (): boolean => (typeof window === 'undefined' ? true : window.innerWidth >= RESIZABLE_TABLE_MIN_VIEWPORT_WIDTH);
+
+const shouldIncludeColumnInLayout = (column: ResourceColumn, tableCanResize: boolean): boolean => {
+    if (column.key === 'created_updated' && !tableCanResize) {
+        return false;
+    }
+
+    return true;
 };
 
 const getDefaultBatchDeleteErrorMessage = (selectedCount: number): string =>
@@ -247,6 +377,160 @@ const SortDirectionIndicator = ({ isActive, direction }: { isActive: boolean; di
     return <ArrowDown aria-hidden="true" className="size-3.5" />;
 };
 
+interface OverflowTooltipTextProps {
+    value: string;
+    className?: string;
+    tooltipClassName?: string;
+    testId?: string;
+}
+
+function OverflowTooltipText({ value, className, tooltipClassName, testId }: OverflowTooltipTextProps) {
+    const textRef = useRef<HTMLSpanElement | null>(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    const measureOverflow = useCallback(() => {
+        const element = textRef.current;
+        setIsOverflowing(Boolean(element && element.scrollWidth > element.clientWidth));
+    }, []);
+
+    useEffect(() => {
+        measureOverflow();
+
+        const element = textRef.current;
+        if (!element || typeof ResizeObserver === 'undefined') {
+            return undefined;
+        }
+
+        const resizeObserver = new ResizeObserver(measureOverflow);
+        resizeObserver.observe(element);
+
+        return () => resizeObserver.disconnect();
+    }, [measureOverflow, value]);
+
+    const text = (
+        <span
+            ref={textRef}
+            className={cn('block min-w-0 truncate', className)}
+            data-overflowing={isOverflowing ? 'true' : 'false'}
+            data-testid={testId}
+        >
+            {value}
+        </span>
+    );
+
+    if (!isOverflowing) {
+        return text;
+    }
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>{text}</TooltipTrigger>
+                <TooltipContent className={cn('max-w-sm text-left break-words normal-case', tooltipClassName)}>{value}</TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
+interface ColumnResizeHandleProps {
+    columnKey: ResourceColumnKey;
+    width: number;
+    disabled: boolean;
+    onResize: (columnKey: ResourceColumnKey, width: number) => void;
+}
+
+function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResizeHandleProps) {
+    const definition = RESOURCE_COLUMN_WIDTH_DEFINITIONS[columnKey];
+    const label = RESOURCE_COLUMN_RESIZE_LABELS[columnKey];
+
+    const resizeTo = useCallback(
+        (nextWidth: number) => {
+            onResize(columnKey, clampColumnWidth(columnKey, nextWidth));
+        },
+        [columnKey, onResize],
+    );
+
+    const handlePointerDown = useCallback(
+        (event: ReactPointerEvent<HTMLButtonElement>) => {
+            if (disabled || event.button !== 0) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const startX = event.clientX;
+            const startWidth = width;
+
+            const handlePointerMove = (moveEvent: PointerEvent) => {
+                moveEvent.preventDefault();
+                resizeTo(startWidth + moveEvent.clientX - startX);
+            };
+
+            const stopResize = () => {
+                window.removeEventListener('pointermove', handlePointerMove);
+                window.removeEventListener('pointerup', stopResize);
+                window.removeEventListener('pointercancel', stopResize);
+            };
+
+            window.addEventListener('pointermove', handlePointerMove);
+            window.addEventListener('pointerup', stopResize, { once: true });
+            window.addEventListener('pointercancel', stopResize, { once: true });
+        },
+        [disabled, resizeTo, width],
+    );
+
+    const handleKeyDown = useCallback(
+        (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+            let nextWidth: number | null = null;
+            const step = event.shiftKey ? COLUMN_RESIZE_LARGE_STEP : COLUMN_RESIZE_STEP;
+
+            if (event.key === 'ArrowLeft') {
+                nextWidth = width - step;
+            } else if (event.key === 'ArrowRight') {
+                nextWidth = width + step;
+            } else if (event.key === 'Home') {
+                nextWidth = definition.minWidth;
+            } else if (event.key === 'End') {
+                nextWidth = definition.maxWidth;
+            }
+
+            if (nextWidth === null) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+            resizeTo(nextWidth);
+        },
+        [definition.maxWidth, definition.minWidth, resizeTo, width],
+    );
+
+    return (
+        <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={`Resize ${label} column`}
+            aria-valuemin={definition.minWidth}
+            aria-valuemax={definition.maxWidth}
+            aria-valuenow={width}
+            className="absolute inset-y-0 right-0 z-10 hidden h-full w-5 translate-x-1/2 cursor-col-resize rounded-none border-l border-border/80 bg-background/80 p-0 text-muted-foreground opacity-80 transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-0 md:flex"
+            disabled={disabled}
+            tabIndex={disabled ? -1 : 0}
+            title={`Resize ${label} column`}
+            data-testid={`resources-column-resize-${columnKey}`}
+            onPointerDown={handlePointerDown}
+            onKeyDown={handleKeyDown}
+        >
+            <GripVertical aria-hidden="true" className="size-3" />
+            <span className="sr-only">Resize {label} column</span>
+        </Button>
+    );
+}
+
 type DateDetails = { label: string; iso: string | null };
 
 const deriveResourceRowKey = (resource: Resource): string => {
@@ -369,6 +653,8 @@ function ResourcesPage({
         return parseResourceFiltersFromUrl(window.location.search);
     });
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
+    const [columnWidths, setColumnWidths] = useState<ResourceColumnWidths>(() => readStoredResourceColumnWidths());
+    const [tableCanResize, setTableCanResize] = useState<boolean>(() => isResizableViewport());
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
@@ -380,6 +666,17 @@ function ResourcesPage({
     useEffect(() => {
         setPagination(initialPagination);
     }, [initialPagination]);
+
+    useEffect(() => {
+        const handleViewportResize = () => {
+            setTableCanResize(isResizableViewport());
+        };
+
+        handleViewportResize();
+        window.addEventListener('resize', handleViewportResize);
+
+        return () => window.removeEventListener('resize', handleViewportResize);
+    }, []);
 
     // Load more resources for infinite scrolling
     const loadMore = useCallback(async () => {
@@ -1207,14 +1504,32 @@ function ResourcesPage({
         [handleEditSelectedResources, handleExportSelectedResources, handleRegisterDoi, handleSetupLandingPage, singleSelectedResource],
     );
 
+    const handleColumnResize = useCallback((columnKey: ResourceColumnKey, width: number) => {
+        setColumnWidths((currentWidths) => {
+            const nextWidth = clampColumnWidth(columnKey, width);
+            if (currentWidths[columnKey] === nextWidth) {
+                return currentWidths;
+            }
+
+            const nextWidths = { ...currentWidths, [columnKey]: nextWidth };
+            persistResourceColumnWidths(nextWidths);
+            return nextWidths;
+        });
+    }, []);
+
+    const handleResetColumnWidths = useCallback(() => {
+        const defaultWidths = buildDefaultColumnWidths();
+        clearStoredResourceColumnWidths();
+        setColumnWidths(defaultWidths);
+    }, []);
+
     const sortedResources = resources;
 
     const resourceColumns: ResourceColumn[] = [
         {
             key: 'id_resourcetype',
             label: ID_RESOURCE_TYPE_COLUMN_HEADER_LABEL,
-            widthClass: 'min-w-[9rem]',
-            cellClassName: 'whitespace-normal align-middle',
+            cellClassName: 'align-middle',
             sortOptions: [
                 {
                     key: 'id',
@@ -1234,13 +1549,13 @@ function ResourcesPage({
                 const resourceType = resource.resourcetypegeneral ?? '-';
 
                 return (
-                    <div className="flex flex-col gap-1 text-left" aria-label={`Resource ID: ${idValue}. Resource Type: ${resourceType}`}>
+                    <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={`Resource ID: ${idValue}. Resource Type: ${resourceType}`}>
                         <span
                             className={hasId ? 'text-sm font-semibold text-gray-900 dark:text-gray-100' : 'text-sm text-gray-500 dark:text-gray-300'}
                         >
                             {idValue}
                         </span>
-                        <span className="text-sm text-gray-600 dark:text-gray-300">{resourceType}</span>
+                        <OverflowTooltipText value={resourceType} className="text-sm text-gray-600 dark:text-gray-300" />
                     </div>
                 );
             },
@@ -1248,8 +1563,7 @@ function ResourcesPage({
         {
             key: 'doi_title',
             label: DOI_TITLE_COLUMN_HEADER_LABEL,
-            widthClass: DOI_TITLE_COLUMN_WIDTH_CLASSES,
-            cellClassName: 'whitespace-normal align-middle',
+            cellClassName: 'align-middle',
             sortOptions: [
                 {
                     key: 'doi',
@@ -1269,13 +1583,13 @@ function ResourcesPage({
                 // Lighter gray for "Not registered" text to de-emphasize missing DOI
                 // Dark mode uses lighter shade (400) for better readability on dark backgrounds
                 const identifierClasses = resource.doi
-                    ? 'text-sm wrap-break-word text-gray-600 dark:text-gray-300'
+                    ? 'text-sm text-gray-600 dark:text-gray-300'
                     : 'text-sm text-gray-500 dark:text-gray-400 italic';
 
                 return (
-                    <div className="flex flex-col gap-1 text-left" aria-label={`DOI: ${identifierValue}. Title: ${title}`}>
-                        <span className={identifierClasses}>{identifierValue}</span>
-                        <span className="text-sm leading-relaxed font-normal wrap-break-word text-gray-900 dark:text-gray-100">{title}</span>
+                    <div className="flex min-w-0 flex-col gap-1 text-left" aria-label={`DOI: ${identifierValue}. Title: ${title}`}>
+                        <OverflowTooltipText value={identifierValue} className={identifierClasses} />
+                        <OverflowTooltipText value={title} className="text-sm leading-relaxed font-normal text-gray-900 dark:text-gray-100" />
                     </div>
                 );
             },
@@ -1288,8 +1602,7 @@ function ResourcesPage({
                     <span>Year</span>
                 </span>
             ),
-            widthClass: 'min-w-[12rem]',
-            cellClassName: 'whitespace-normal align-middle',
+            cellClassName: 'align-middle',
             sortOptions: [
                 {
                     key: 'first_author',
@@ -1320,8 +1633,8 @@ function ResourcesPage({
                 const year = resource.year?.toString() ?? '-';
 
                 return (
-                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
-                        <span className="text-sm">{authorName}</span>
+                    <div className="flex min-w-0 flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <OverflowTooltipText value={authorName} className="text-sm" />
                         <span className="text-sm">{year}</span>
                     </div>
                 );
@@ -1335,8 +1648,7 @@ function ResourcesPage({
                     <span>Status</span>
                 </span>
             ),
-            widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-normal align-middle',
+            cellClassName: 'align-middle',
             sortOptions: [
                 {
                     key: 'curator',
@@ -1383,10 +1695,10 @@ function ResourcesPage({
                     : statusLabel;
 
                 return (
-                    <div className="flex flex-col gap-1 text-center text-gray-600 dark:text-gray-300">
-                        <span className="hidden text-sm lg:inline">{curator}</span>
+                    <div className="flex min-w-0 flex-col gap-1 text-center text-gray-600 dark:text-gray-300">
+                        <OverflowTooltipText value={curator} className="hidden text-sm lg:block" />
                         <span
-                            className={statusClasses}
+                            className={cn(statusClasses, 'max-w-full')}
                             onClick={isClickable ? () => handleStatusBadgeClick(resource, status) : undefined}
                             role={isClickable ? 'button' : undefined}
                             tabIndex={isClickable ? 0 : undefined}
@@ -1403,7 +1715,7 @@ function ResourcesPage({
                             aria-label={ariaLabel}
                             title={ariaLabel}
                         >
-                            <span>{statusLabel}</span>
+                            <span className="truncate">{statusLabel}</span>
                         </span>
                     </div>
                 );
@@ -1412,8 +1724,9 @@ function ResourcesPage({
         {
             key: 'created_updated',
             label: DATE_COLUMN_HEADER_LABEL,
-            widthClass: 'hidden min-w-[9rem] md:table-cell',
-            cellClassName: 'hidden whitespace-normal align-middle md:table-cell',
+            visibilityClassName: 'hidden md:table-cell',
+            colClassName: 'hidden md:table-column',
+            cellClassName: 'hidden align-middle md:table-cell',
             sortOptions: [
                 {
                     key: 'created_at',
@@ -1448,6 +1761,14 @@ function ResourcesPage({
         },
     ];
 
+    const columnWidthsAreDefault = useMemo(() => areResourceColumnWidthsDefault(columnWidths), [columnWidths]);
+    const resourcesTableWidth =
+        SELECT_COLUMN_WIDTH +
+        resourceColumns.reduce(
+            (totalWidth, column) => totalWidth + (shouldIncludeColumnInLayout(column, tableCanResize) ? columnWidths[column.key] : 0),
+            0,
+        );
+
     const LoadingSkeleton = () => (
         <>
             {[...Array(5)].map((_, index) => (
@@ -1456,7 +1777,7 @@ function ResourcesPage({
                         <div className="size-4 rounded bg-gray-200 dark:bg-gray-700" />
                     </td>
                     {resourceColumns.map((column) => (
-                        <td key={column.key} className={`px-6 py-1.5 ${column.widthClass} ${column.cellClassName ?? ''}`}>
+                        <td key={column.key} className={cn('overflow-hidden px-6 py-1.5', column.visibilityClassName, column.cellClassName)}>
                             {column.key === 'id_resourcetype' ? (
                                 <div className="flex flex-col gap-2">
                                     <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1565,12 +1886,38 @@ function ResourcesPage({
                                     <Badge variant="outline" className="text-xs">
                                         Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? 'ascending' : 'descending'}
                                     </Badge>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 gap-1.5 text-xs"
+                                        onClick={handleResetColumnWidths}
+                                        disabled={columnWidthsAreDefault}
+                                        title="Reset resource table column widths"
+                                        data-testid="resources-reset-column-widths"
+                                    >
+                                        <RotateCcw aria-hidden="true" className="size-3.5" />
+                                        Reset column widths
+                                    </Button>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <Table data-testid="resources-table">
+                                    <Table className="table-fixed" data-testid="resources-table" style={{ width: `${resourcesTableWidth}px` }}>
                                         <caption className="sr-only">
                                             List of resources with metadata including title, type, DOI, contributors, language, and version
                                         </caption>
+                                        <colgroup>
+                                            <col data-testid="resources-column-select" style={{ width: SELECT_COLUMN_WIDTH }} />
+                                            {resourceColumns.map((column) => (
+                                                <col
+                                                    key={column.key}
+                                                    className={column.colClassName}
+                                                    data-testid={`resources-column-${column.key}`}
+                                                    style={{
+                                                        width: shouldIncludeColumnInLayout(column, tableCanResize) ? columnWidths[column.key] : 0,
+                                                    }}
+                                                />
+                                            ))}
+                                        </colgroup>
                                         <TableHeader className="bg-gray-50 dark:bg-gray-800">
                                             <TableRow>
                                                 <TableHead className="w-12 min-w-12">
@@ -1594,13 +1941,16 @@ function ResourcesPage({
                                                     return (
                                                         <TableHead
                                                             key={column.key}
-                                                            className={`text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
+                                                            className={cn(
+                                                                'relative overflow-hidden pr-6 text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300',
+                                                                column.visibilityClassName,
+                                                            )}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
                                                             {column.sortOptions ? (
                                                                 <div
-                                                                    className="flex flex-col gap-1"
+                                                                    className="flex min-w-0 flex-col gap-1 pr-1"
                                                                     role="group"
                                                                     aria-label={column.sortGroupLabel ?? 'Sorting options'}
                                                                 >
@@ -1615,13 +1965,13 @@ function ResourcesPage({
                                                                                 type="button"
                                                                                 variant={isActive ? 'secondary' : 'ghost'}
                                                                                 size="sm"
-                                                                                className="h-7 justify-start px-2 text-xs font-medium"
+                                                                                className="h-7 min-w-0 justify-start px-2 text-xs font-medium"
                                                                                 onClick={() => handleSortChange(option.key)}
                                                                                 aria-pressed={isActive}
                                                                                 aria-label={buttonLabel}
                                                                                 title={buttonLabel}
                                                                             >
-                                                                                <span>{option.label}</span>
+                                                                                <span className="truncate">{option.label}</span>
                                                                                 <SortDirectionIndicator
                                                                                     isActive={isActive}
                                                                                     direction={displayDirection}
@@ -1631,10 +1981,16 @@ function ResourcesPage({
                                                                     })}
                                                                 </div>
                                                             ) : (
-                                                                <div className="text-left text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-300">
+                                                                <div className="min-w-0 text-left text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-300">
                                                                     {column.label}
                                                                 </div>
                                                             )}
+                                                            <ColumnResizeHandle
+                                                                columnKey={column.key}
+                                                                width={columnWidths[column.key]}
+                                                                disabled={!tableCanResize}
+                                                                onResize={handleColumnResize}
+                                                            />
                                                         </TableHead>
                                                     );
                                                 })}
@@ -1668,7 +2024,11 @@ function ResourcesPage({
                                                         {resourceColumns.map((column) => (
                                                             <TableCell
                                                                 key={column.key}
-                                                                className={`text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                                className={cn(
+                                                                    'overflow-hidden text-sm text-gray-500 dark:text-gray-300',
+                                                                    column.visibilityClassName,
+                                                                    column.cellClassName,
+                                                                )}
                                                             >
                                                                 {column.render
                                                                     ? column.render(resource)
@@ -1786,4 +2146,12 @@ function ResourcesPage({
 
 export default ResourcesPage;
 
-export { deriveResourceRowKey };
+export {
+    clampColumnWidth,
+    COLUMN_WIDTH_STORAGE_KEY,
+    DEFAULT_RESOURCE_COLUMN_WIDTHS,
+    deriveResourceRowKey,
+    normalizeResourceColumnWidths,
+    OverflowTooltipText,
+    parseStoredResourceColumnWidths,
+};

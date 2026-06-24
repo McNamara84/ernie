@@ -1845,6 +1845,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
 
+                        <h4>Resizable Columns</h4>
+                        <p>
+                            On tablet and desktop screens, drag the resize handle at the right edge of a column header to adjust the Resources
+                            table to your available screen width. Focus a handle with the keyboard and use Arrow Left or Arrow Right for fine
+                            adjustments, Shift plus Arrow Left or Arrow Right for larger steps, Home for the minimum width, and End for the
+                            maximum width. ERNIE saves your column widths in this browser, and the reset button above the table restores the
+                            defaults.
+                        </p>
+                        <p>
+                            Long values are shortened with an ellipsis when a column becomes narrow. Hover over a shortened value to see the
+                            complete text in a tooltip.
+                        </p>
+
                         <h4>Responsive Layout</h4>
                         <p>
                             On smaller screens, less critical sub-rows (Resource Type, Curator) and the

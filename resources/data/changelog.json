@@ -118,6 +118,10 @@
         ],
         "improvements": [
             {
+                "title": "Resizable Resources Table Columns",
+                "description": "The Resources table now lets curators manually adjust every visible metadata column except the selection checkbox. Column widths are saved in the browser, can be reset to defaults, and long values stay on one line with ellipsis plus hover tooltips for the full text. Resize handles support mouse dragging and keyboard controls on tablet and desktop screens."
+            },
+            {
                 "title": "Related Items Naming in the Editor",
                 "description": "The Data Editor now labels the former Citations form group as 'Related Items' to match the DataCite relatedItem element. The manager action, help tooltip, modal title, and user documentation now use Related Item Manager wording, while citation labels and formatted citation previews keep their standards-specific terminology."
             },
