@@ -192,6 +192,8 @@ describe('ImportFromDataCiteModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText('Imported 2 resources.')).toBeInTheDocument();
+        expect(screen.queryByText(/updated 0 existing resources/i)).not.toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
         expect(mockOnClose).not.toHaveBeenCalled();
     });
@@ -221,6 +223,8 @@ describe('ImportFromDataCiteModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText('Imported 2 resources.')).toBeInTheDocument();
+        expect(screen.queryByText(/updated 0 existing resources/i)).not.toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
 
         rerender(<ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
@@ -257,9 +261,41 @@ describe('ImportFromDataCiteModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import Complete')).toBeInTheDocument();
-        expect(screen.getByText(/updated 2 existing resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/Added legacy links to 2 existing resources/i)).toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
     });
+
+    it('renders a combined completion summary when resources are imported and legacy links are added', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-import-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 4,
+                processed: 4,
+                imported: 1,
+                skipped: 3,
+                failed: 0,
+                enriched: 2,
+                skipped_dois: ['10.5880/test.1'],
+                enriched_dois: ['10.5880/test.1', '10.5880/test.2'],
+                failed_dois: [],
+            },
+        });
+
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText(/Imported 1 resource and added legacy links to 2 existing resources/i)).toBeInTheDocument();
+        expect(mockOnSuccess).toHaveBeenCalledOnce();
+    });
+
     it('does not call onSuccess when the import completed without new resources', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

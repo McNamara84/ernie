@@ -101,7 +101,7 @@ class LegacyLandingPageImportService
 
                 $landingPage->links()->create([
                     'url' => $fileEntry['url'],
-                    'label' => $fileEntry['label'] ?? 'Download '.($nextPosition + 1),
+                    'label' => $fileEntry['label'] ?? 'Download '.($nextPosition + 2),
                     'position' => $nextPosition,
                 ]);
 

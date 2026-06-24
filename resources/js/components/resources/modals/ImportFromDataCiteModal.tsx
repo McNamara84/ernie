@@ -218,6 +218,44 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         return `~${minutes}m ${secs}s remaining`;
     };
 
+    const pluralizeResource = (count: number): string => (count === 1 ? 'resource' : 'resources');
+
+    const addDuration = (message: string, startedAt?: string, completedAt?: string): string => {
+        const duration = formatDuration(startedAt, completedAt);
+
+        return `${message}${duration ? ` in ${duration}` : ''}.`;
+    };
+
+    const formatCompletionSummary = (completedProgress: ImportProgress): string => {
+        const linksAddedCount = completedProgress.enriched ?? 0;
+
+        if (completedProgress.imported > 0 && linksAddedCount > 0) {
+            return addDuration(
+                `Imported ${completedProgress.imported} ${pluralizeResource(completedProgress.imported)} and added legacy links to ${linksAddedCount} existing ${pluralizeResource(linksAddedCount)}`,
+                completedProgress.started_at,
+                completedProgress.completed_at,
+            );
+        }
+
+        if (completedProgress.imported > 0) {
+            return addDuration(
+                `Imported ${completedProgress.imported} ${pluralizeResource(completedProgress.imported)}`,
+                completedProgress.started_at,
+                completedProgress.completed_at,
+            );
+        }
+
+        if (linksAddedCount > 0) {
+            return addDuration(
+                `Added legacy links to ${linksAddedCount} existing ${pluralizeResource(linksAddedCount)}`,
+                completedProgress.started_at,
+                completedProgress.completed_at,
+            );
+        }
+
+        return addDuration('No resources were imported or changed', completedProgress.started_at, completedProgress.completed_at);
+    };
+
     const summaryCards = progress ? (
         <div className="grid grid-cols-4 gap-4 text-center">
             <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
@@ -230,7 +268,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             </div>
             <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{enrichedCount}</div>
-                <div className="text-xs text-muted-foreground">Updated</div>
+                <div className="text-xs text-muted-foreground">Links Added</div>
             </div>
             <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950">
                 <div className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.failed}</div>
@@ -267,7 +305,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                         <li>DOIs already in ERNIE will not be overwritten</li>
                                         <li>Missing legacy download links can be added to existing Resources</li>
                                         <li>New legacy DOIs will be imported as Resources</li>
-                                        <li>You will see a summary of imported, updated, skipped, and failed DOIs after completion</li>
+                                        <li>You will see a summary of imported, links added, skipped, and failed DOIs after completion</li>
                                     </ul>
                                 </AlertDescription>
                             </Alert>
@@ -318,8 +356,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
                                 <AlertTitle className="text-green-800 dark:text-green-200">Import Complete</AlertTitle>
                                 <AlertDescription className="text-green-700 dark:text-green-300">
-                                    Imported {progress.imported} resources and updated {enrichedCount} existing resources in{' '}
-                                    {formatDuration(progress.started_at, progress.completed_at)}.
+                                    {formatCompletionSummary(progress)}
                                 </AlertDescription>
                             </Alert>
 

@@ -147,7 +147,7 @@ describe('ImportSingleOldResourceModal', () => {
         expect(mockOnSuccess).not.toHaveBeenCalled();
     });
 
-    it('calls onSuccess and shows an updated state when an existing DOI was enriched', async () => {
+    it('calls onSuccess and shows an added-links state when an existing DOI was enriched', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
         (axios.post as Mock).mockResolvedValue({
@@ -173,10 +173,11 @@ describe('ImportSingleOldResourceModal', () => {
         await user.type(screen.getByLabelText('DOI'), '10.5880/gfz.ojsj.2026.001');
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
-        expect(await screen.findByText('Legacy links updated')).toBeInTheDocument();
-        expect(screen.getByText(/Missing legacy download links were added/i)).toBeInTheDocument();
+        expect(await screen.findByText('Legacy links added')).toBeInTheDocument();
+        expect(screen.getByText(/already existed in ERNIE\. Missing legacy download links were added/i)).toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
     });
+
     it('calls onSuccess as soon as a new resource was imported', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 

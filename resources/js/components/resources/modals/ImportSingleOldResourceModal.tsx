@@ -232,7 +232,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                         {modalState === 'running' && `Importing ${submittedDoi ?? 'resource'}...`}
                         {modalState === 'completed' &&
                             (wasEnriched
-                                ? 'Missing legacy download links were updated.'
+                                ? 'Missing legacy download links were added.'
                                 : isAlreadyImported
                                   ? 'This resource already exists in ERNIE.'
                                   : 'Import completed successfully.')}
@@ -307,9 +307,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                             ) : (
                                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
                             )}
-                            <AlertTitle>
-                                {wasEnriched ? 'Legacy links updated' : isAlreadyImported ? 'Already imported' : 'Import complete'}
-                            </AlertTitle>
+                            <AlertTitle>{wasEnriched ? 'Legacy links added' : isAlreadyImported ? 'Already imported' : 'Import complete'}</AlertTitle>
                             <AlertDescription>
                                 {wasEnriched
                                     ? `${submittedDoi ?? 'This DOI'} already existed in ERNIE. Missing legacy download links were added.`

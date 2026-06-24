@@ -145,8 +145,8 @@ describe('LegacyLandingPageImportService', function () {
         $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
             resource: $resource,
             fileEntries: [
-                ['url' => 'https://datapub.gfz.de/legacy-primary.zip', 'label' => 'Legacy primary', 'visible' => 'public'],
-                ['url' => 'https://datapub.gfz.de/legacy-extra.zip', 'label' => 'Legacy extra', 'visible' => 'public'],
+                ['url' => 'https://datapub.gfz.de/legacy-primary.zip', 'visible' => 'public'],
+                ['url' => 'https://datapub.gfz.de/legacy-extra.zip', 'visible' => 'public'],
             ],
             isPublished: false,
         );
@@ -162,6 +162,10 @@ describe('LegacyLandingPageImportService', function () {
             ->and($landingPage->links->pluck('url')->all())->toBe([
                 'https://datapub.gfz.de/legacy-primary.zip',
                 'https://datapub.gfz.de/legacy-extra.zip',
+            ])
+            ->and($landingPage->links->pluck('label')->all())->toBe([
+                'Download 2',
+                'Download 3',
             ]);
     });
 });
