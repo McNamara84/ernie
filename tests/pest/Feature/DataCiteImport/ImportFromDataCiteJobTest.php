@@ -1191,6 +1191,58 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect(LandingPage::count())->toBe(0);
     });
 
+    it('backfills legacy download links for skipped existing resources', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/skip.backfill']);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/skip.backfill',
+                    'attributes' => ['doi' => '10.5880/skip.backfill'],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/skip.backfill')
+            ->andReturn([
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/10.5880.skip.backfill',
+                        'label' => 'Download data',
+                        'visible' => 'public',
+                    ],
+                ],
+                'allPublic' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['enriched'])->toBe(1)
+            ->and($status['skipped_dois'])->toBe(['10.5880/skip.backfill'])
+            ->and($status['enriched_dois'])->toBe(['10.5880/skip.backfill']);
+
+        $landingPage = $resource->fresh(['landingPage'])->landingPage;
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880.skip.backfill')
+            ->and($landingPage->is_published)->toBeTrue();
+    });
     it('continues import gracefully when metaworks lookup fails', function () {
         $this->importService
             ->shouldReceive('getTotalDoiCount')

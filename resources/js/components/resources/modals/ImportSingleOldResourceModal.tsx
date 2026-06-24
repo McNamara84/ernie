@@ -23,7 +23,9 @@ interface ImportProgress {
     imported: number;
     skipped: number;
     failed: number;
+    enriched?: number;
     skipped_dois: string[];
+    enriched_dois?: string[];
     failed_dois: Array<{ doi: string; error: string }>;
     started_at?: string;
     completed_at?: string;
@@ -71,13 +73,15 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
     }, [isOpen]);
 
     useEffect(() => {
-        if (!isOpen || modalState !== 'completed' || progress?.imported !== 1 || hasNotifiedSuccessRef.current) {
+        const changedCount = (progress?.imported ?? 0) + (progress?.enriched ?? 0);
+
+        if (!isOpen || modalState !== 'completed' || changedCount < 1 || hasNotifiedSuccessRef.current) {
             return;
         }
 
         hasNotifiedSuccessRef.current = true;
         onSuccess?.();
-    }, [isOpen, modalState, onSuccess, progress?.imported]);
+    }, [isOpen, modalState, onSuccess, progress?.enriched, progress?.imported]);
 
     useEffect(() => {
         if (!importId || modalState !== 'running') {
@@ -166,7 +170,9 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                 imported: 0,
                 skipped: 0,
                 failed: 0,
+                enriched: 0,
                 skipped_dois: [],
+                enriched_dois: [],
                 failed_dois: [],
             });
 
@@ -210,7 +216,8 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
     }, [onClose]);
 
     const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
-    const isAlreadyImported = progress?.skipped === 1;
+    const wasEnriched = (progress?.enriched ?? 0) > 0;
+    const isAlreadyImported = progress?.skipped === 1 && !wasEnriched;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -223,7 +230,12 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                     <DialogDescription>
                         {modalState === 'confirm' && 'Enter a single GFZ legacy DOI to import it from DataCite into ERNIE.'}
                         {modalState === 'running' && `Importing ${submittedDoi ?? 'resource'}...`}
-                        {modalState === 'completed' && (isAlreadyImported ? 'This resource already exists in ERNIE.' : 'Import completed successfully.')}
+                        {modalState === 'completed' &&
+                            (wasEnriched
+                                ? 'Missing legacy download links were updated.'
+                                : isAlreadyImported
+                                  ? 'This resource already exists in ERNIE.'
+                                  : 'Import completed successfully.')}
                         {modalState === 'failed' && 'Single resource import failed.'}
                     </DialogDescription>
                 </DialogHeader>
@@ -290,12 +302,20 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
 
                     {modalState === 'completed' && progress && (
                         <Alert className={isAlreadyImported ? undefined : 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950'}>
-                            {isAlreadyImported ? <AlertCircle className="size-4" /> : <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />}
-                            <AlertTitle>{isAlreadyImported ? 'Already imported' : 'Import complete'}</AlertTitle>
+                            {isAlreadyImported ? (
+                                <AlertCircle className="size-4" />
+                            ) : (
+                                <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+                            )}
+                            <AlertTitle>
+                                {wasEnriched ? 'Legacy links updated' : isAlreadyImported ? 'Already imported' : 'Import complete'}
+                            </AlertTitle>
                             <AlertDescription>
-                                {isAlreadyImported
-                                    ? `${submittedDoi ?? 'This DOI'} already exists in ERNIE and was not imported again.`
-                                    : `${submittedDoi ?? 'The DOI'} was imported successfully.`}
+                                {wasEnriched
+                                    ? `${submittedDoi ?? 'This DOI'} already existed in ERNIE. Missing legacy download links were added.`
+                                    : isAlreadyImported
+                                      ? `${submittedDoi ?? 'This DOI'} already exists in ERNIE and was not imported again.`
+                                      : `${submittedDoi ?? 'The DOI'} was imported successfully.`}
                             </AlertDescription>
                         </Alert>
                     )}

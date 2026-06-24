@@ -147,6 +147,36 @@ describe('ImportSingleOldResourceModal', () => {
         expect(mockOnSuccess).not.toHaveBeenCalled();
     });
 
+    it('calls onSuccess and shows an updated state when an existing DOI was enriched', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'single-import-123', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 1,
+                processed: 1,
+                imported: 0,
+                skipped: 1,
+                failed: 0,
+                enriched: 1,
+                skipped_dois: ['10.5880/gfz.ojsj.2026.001'],
+                enriched_dois: ['10.5880/gfz.ojsj.2026.001'],
+                failed_dois: [],
+            },
+        });
+
+        render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+        await user.type(screen.getByLabelText('DOI'), '10.5880/gfz.ojsj.2026.001');
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Legacy links updated')).toBeInTheDocument();
+        expect(screen.getByText(/Missing legacy download links were added/i)).toBeInTheDocument();
+        expect(mockOnSuccess).toHaveBeenCalledOnce();
+    });
     it('calls onSuccess as soon as a new resource was imported', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
@@ -195,9 +225,7 @@ describe('ImportSingleOldResourceModal', () => {
             },
         });
 
-        const { rerender } = render(
-            <ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
-        );
+        const { rerender } = render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await user.type(screen.getByLabelText('DOI'), '10.5880/gfz.ojsj.2026.001');
         await user.click(screen.getByRole('button', { name: /start import/i }));
@@ -205,9 +233,7 @@ describe('ImportSingleOldResourceModal', () => {
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
 
-        rerender(
-            <ImportSingleOldResourceModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
-        );
+        rerender(<ImportSingleOldResourceModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await waitFor(() => {
             expect(mockOnSuccess).toHaveBeenCalledTimes(1);

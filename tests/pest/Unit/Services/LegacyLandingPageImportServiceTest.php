@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\CacheKey;
+use App\Models\LandingPage;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
@@ -65,5 +66,102 @@ describe('LegacyLandingPageImportService', function () {
             ->and($landingPage->ftp_url)->toBeNull()
             ->and($landingPage->is_published)->toBeFalse()
             ->and($resource->fresh(['landingPage'])->publicStatus())->toBe('review');
+    });
+    it('creates a landing page while syncing missing legacy files for an existing resource', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.sync.create']);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [
+                ['url' => 'https://datapub.gfz.de/sync-primary.zip', 'label' => 'Primary file', 'visible' => 'public'],
+                ['url' => 'https://datapub.gfz.de/sync-extra.zip', 'label' => 'Extra file', 'visible' => 'public'],
+            ],
+            isPublished: true,
+        );
+
+        $landingPage = $resource->fresh(['landingPage.links'])->landingPage;
+
+        expect($result['changed'])->toBeTrue()
+            ->and($result['created'])->toBeTrue()
+            ->and($result['ftp_url_added'])->toBeTrue()
+            ->and($result['links_added'])->toBe(1)
+            ->and($landingPage)->not->toBeNull()
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/sync-primary.zip')
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->links)->toHaveCount(1)
+            ->and($landingPage->links[0]->url)->toBe('https://datapub.gfz.de/sync-extra.zip');
+    });
+
+    it('fills an empty primary download URL and appends only missing legacy links', function () {
+        Cache::put(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key(), ['urls' => ['stale']]);
+
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.sync.fill']);
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $resource->id,
+            'ftp_url' => null,
+            'is_published' => false,
+            'published_at' => null,
+        ]);
+        $landingPage->links()->create([
+            'url' => 'https://datapub.gfz.de/already-linked.zip',
+            'label' => 'Already linked',
+            'position' => 0,
+        ]);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [
+                ['url' => 'https://datapub.gfz.de/new-primary.zip', 'label' => 'Primary file', 'visible' => 'public'],
+                ['url' => 'https://datapub.gfz.de/already-linked.zip', 'label' => 'Duplicate file', 'visible' => 'public'],
+                ['url' => 'https://datapub.gfz.de/new-extra.zip', 'label' => 'New extra', 'visible' => 'public'],
+            ],
+            isPublished: true,
+        );
+
+        $landingPage = $landingPage->fresh(['links']);
+
+        expect($result['changed'])->toBeTrue()
+            ->and($result['created'])->toBeFalse()
+            ->and($result['ftp_url_added'])->toBeTrue()
+            ->and($result['links_added'])->toBe(1)
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/new-primary.zip')
+            ->and($landingPage->is_published)->toBeFalse()
+            ->and($landingPage->published_at)->toBeNull()
+            ->and($landingPage->links)->toHaveCount(2)
+            ->and($landingPage->links->pluck('url')->all())->toBe([
+                'https://datapub.gfz.de/already-linked.zip',
+                'https://datapub.gfz.de/new-extra.zip',
+            ])
+            ->and(Cache::get(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key()))->toBeNull();
+    });
+
+    it('preserves an existing primary download URL and syncs legacy files as additional links', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.sync.preserve']);
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'ftp_url' => 'https://curated.example.org/download.zip',
+        ]);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [
+                ['url' => 'https://datapub.gfz.de/legacy-primary.zip', 'label' => 'Legacy primary', 'visible' => 'public'],
+                ['url' => 'https://datapub.gfz.de/legacy-extra.zip', 'label' => 'Legacy extra', 'visible' => 'public'],
+            ],
+            isPublished: false,
+        );
+
+        $landingPage = $landingPage->fresh(['links']);
+
+        expect($result['changed'])->toBeTrue()
+            ->and($result['created'])->toBeFalse()
+            ->and($result['ftp_url_added'])->toBeFalse()
+            ->and($result['links_added'])->toBe(2)
+            ->and($landingPage->ftp_url)->toBe('https://curated.example.org/download.zip')
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->links->pluck('url')->all())->toBe([
+                'https://datapub.gfz.de/legacy-primary.zip',
+                'https://datapub.gfz.de/legacy-extra.zip',
+            ]);
     });
 });
