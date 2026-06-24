@@ -2149,10 +2149,14 @@ export default ResourcesPage;
 
 export {
     clampColumnWidth,
+    clearStoredResourceColumnWidths,
     COLUMN_WIDTH_STORAGE_KEY,
     DEFAULT_RESOURCE_COLUMN_WIDTHS,
     deriveResourceRowKey,
+    isResizableViewport,
     normalizeResourceColumnWidths,
     OverflowTooltipText,
     parseStoredResourceColumnWidths,
+    persistResourceColumnWidths,
+    readStoredResourceColumnWidths,
 };

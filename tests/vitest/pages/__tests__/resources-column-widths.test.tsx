@@ -48,10 +48,44 @@ vi.mock('@/components/resources-filters', () => ({
 }));
 
 vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
+vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({
+    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) =>
+        isOpen ? (
+            <div data-testid="datacite-import-modal">
+                <button type="button" onClick={onSuccess}>
+                    Import all success
+                </button>
+                <button type="button" onClick={onClose}>
+                    Close all resources import
+                </button>
+            </div>
+        ) : null,
+}));
+vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({
+    default: ({ isOpen, onClose, onSuccess }: { isOpen: boolean; onClose: () => void; onSuccess: () => void }) =>
+        isOpen ? (
+            <div data-testid="single-resource-import-modal">
+                <button type="button" onClick={onSuccess}>
+                    Import single success
+                </button>
+                <button type="button" onClick={onClose}>
+                    Close single resource import
+                </button>
+            </div>
+        ) : null,
+}));
 vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
-vi.mock('@/components/citations/CitationManagerModal', () => ({ CitationManagerModal: () => null }));
+vi.mock('@/components/citations/CitationManagerModal', () => ({
+    CitationManagerModal: ({ open, onOpenChange, resourceId }: { open: boolean; onOpenChange: (open: boolean) => void; resourceId: number }) =>
+        open ? (
+            <div data-testid="citation-manager-modal">
+                Related items for {resourceId}
+                <button type="button" onClick={() => onOpenChange(false)}>
+                    Close citation manager
+                </button>
+            </div>
+        ) : null,
+}));
 vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
 vi.mock('@/hooks/use-citation-vocabularies', () => ({
     useCitationVocabularies: () => ({
@@ -68,11 +102,15 @@ vi.mock('@/utils/filter-parser', () => ({
 
 import ResourcesPage, {
     clampColumnWidth,
+    clearStoredResourceColumnWidths,
     COLUMN_WIDTH_STORAGE_KEY,
     DEFAULT_RESOURCE_COLUMN_WIDTHS,
+    isResizableViewport,
     normalizeResourceColumnWidths,
     OverflowTooltipText,
     parseStoredResourceColumnWidths,
+    persistResourceColumnWidths,
+    readStoredResourceColumnWidths,
 } from '@/pages/resources';
 
 const resource = {
@@ -107,6 +145,15 @@ function getDoiTitleColumn() {
     return screen.getByTestId('resources-column-doi_title');
 }
 
+async function clickResourceAction(actionTestId: string) {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+    await userEvent.click(await screen.findByTestId(actionTestId));
+}
+
+function setViewportWidth(width: number) {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width });
+}
+
 describe('resource column width helpers', () => {
     it('clamps widths to each column boundary', () => {
         expect(clampColumnWidth('doi_title', 100)).toBe(220);
@@ -129,10 +176,31 @@ describe('resource column width helpers', () => {
         expect(widths.created_updated).toBe(DEFAULT_RESOURCE_COLUMN_WIDTHS.created_updated);
     });
 
+    it('falls back to default widths for invalid stored shapes', () => {
+        expect(normalizeResourceColumnWidths(null)).toEqual(DEFAULT_RESOURCE_COLUMN_WIDTHS);
+        expect(normalizeResourceColumnWidths(['doi_title', 400])).toEqual(DEFAULT_RESOURCE_COLUMN_WIDTHS);
+        expect(normalizeResourceColumnWidths('wide')).toEqual(DEFAULT_RESOURCE_COLUMN_WIDTHS);
+    });
+
     it('parses valid storage and rejects malformed storage', () => {
         expect(parseStoredResourceColumnWidths('{bad json')).toBeNull();
         expect(parseStoredResourceColumnWidths(null)).toBeNull();
         expect(parseStoredResourceColumnWidths(JSON.stringify({ doi_title: 300 }))?.doi_title).toBe(300);
+        expect(parseStoredResourceColumnWidths(JSON.stringify([]))).toEqual(DEFAULT_RESOURCE_COLUMN_WIDTHS);
+    });
+
+    it('treats storage helpers as SSR-safe no-ops without window', () => {
+        const originalWindow = globalThis.window;
+        Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: undefined });
+
+        try {
+            expect(readStoredResourceColumnWidths()).toEqual(DEFAULT_RESOURCE_COLUMN_WIDTHS);
+            expect(isResizableViewport()).toBe(true);
+            expect(() => persistResourceColumnWidths(DEFAULT_RESOURCE_COLUMN_WIDTHS)).not.toThrow();
+            expect(() => clearStoredResourceColumnWidths()).not.toThrow();
+        } finally {
+            Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: originalWindow });
+        }
     });
 });
 
@@ -141,7 +209,7 @@ describe('ResourcesPage column resizing', () => {
         vi.clearAllMocks();
         axiosGetMock.mockResolvedValue({ data: {} });
         window.localStorage.clear();
-        Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1280 });
+        setViewportWidth(1280);
     });
 
     it('renders visible resize handles and default colgroup widths', () => {
@@ -165,6 +233,47 @@ describe('ResourcesPage column resizing', () => {
         expect(storedWidths.doi_title).toBe(DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title + 16);
     });
 
+    it('hydrates persisted column widths from localStorage', () => {
+        window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ doi_title: 512, author_year: 999 }));
+
+        renderResourcesPage();
+
+        expect(getDoiTitleColumn()).toHaveStyle({ width: '512px' });
+        expect(screen.getByTestId('resources-column-author_year')).toHaveStyle({ width: '360px' });
+    });
+
+    it('falls back to defaults when stored column widths cannot be read', () => {
+        const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+            throw new Error('storage unavailable');
+        });
+
+        try {
+            renderResourcesPage();
+
+            expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
+        } finally {
+            getItemSpy.mockRestore();
+        }
+    });
+
+    it('keeps resized widths in memory when localStorage persistence fails', () => {
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new Error('storage unavailable');
+        });
+
+        try {
+            renderResourcesPage();
+
+            const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
+            fireEvent.keyDown(handle, { key: 'ArrowRight' });
+
+            expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title + 16}px` });
+            expect(setItemSpy).toHaveBeenCalled();
+        } finally {
+            setItemSpy.mockRestore();
+        }
+    });
+
     it('resizes a column with pointer drag and clamps at the maximum width', () => {
         renderResourcesPage();
 
@@ -175,6 +284,35 @@ describe('ResourcesPage column resizing', () => {
 
         expect(handle).toHaveAttribute('aria-valuenow', '720');
         expect(getDoiTitleColumn()).toHaveStyle({ width: '720px' });
+    });
+
+    it('ignores unsupported resize interactions and clamps keyboard home to the minimum width', () => {
+        renderResourcesPage();
+
+        const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
+
+        fireEvent.pointerDown(handle, { button: 1, clientX: 100, pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 900, pointerId: 1 });
+        fireEvent.keyDown(handle, { key: 'Escape' });
+
+        expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
+
+        fireEvent.keyDown(handle, { key: 'Home' });
+        fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true });
+
+        expect(handle).toHaveAttribute('aria-valuenow', '220');
+        expect(getDoiTitleColumn()).toHaveStyle({ width: '220px' });
+    });
+
+    it('removes pointer listeners after pointer cancellation', () => {
+        renderResourcesPage();
+
+        const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
+        fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
+        fireEvent.pointerCancel(window, { pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 900, pointerId: 1 });
+
+        expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
     });
 
     it('resets persisted column widths back to defaults', () => {
@@ -189,6 +327,187 @@ describe('ResourcesPage column resizing', () => {
 
         expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
         expect(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)).toBeNull();
+    });
+
+    it('resets in-memory widths when localStorage removal fails', () => {
+        window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify({ doi_title: 720 }));
+        const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+            throw new Error('storage unavailable');
+        });
+
+        try {
+            renderResourcesPage();
+
+            expect(getDoiTitleColumn()).toHaveStyle({ width: '720px' });
+
+            fireEvent.click(screen.getByTestId('resources-reset-column-widths'));
+
+            expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
+        } finally {
+            removeItemSpy.mockRestore();
+        }
+    });
+
+    it('disables resizing and removes the date column from layout on narrow viewports', () => {
+        setViewportWidth(700);
+
+        renderResourcesPage();
+
+        const handle = screen.getByTestId('resources-column-resize-doi_title');
+        expect(handle).toBeDisabled();
+        expect(handle).toHaveAttribute('tabindex', '-1');
+        expect(screen.getByTestId('resources-column-created_updated')).toHaveStyle({ width: '0px' });
+        expect(screen.getByTestId('resources-table')).toHaveStyle({ width: '976px' });
+
+        setViewportWidth(1280);
+        fireEvent.resize(window);
+
+        expect(handle).not.toBeDisabled();
+        expect(screen.getByTestId('resources-column-created_updated')).toHaveStyle({
+            width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.created_updated}px`,
+        });
+    });
+
+    it('opens and closes DataCite import modals from the import buttons', async () => {
+        render(
+            <ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} canImportFromDataCite />,
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: /import all old resources/i }));
+        expect(screen.getByTestId('datacite-import-modal')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /import all success/i }));
+        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+
+        await userEvent.click(screen.getByRole('button', { name: /close all resources import/i }));
+        expect(screen.queryByTestId('datacite-import-modal')).not.toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /import old single resource/i }));
+        expect(screen.getByTestId('single-resource-import-modal')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: /import single success/i }));
+        expect(routerMock.reload).toHaveBeenCalledWith({ only: ['resources', 'pagination'] });
+
+        await userEvent.click(screen.getByRole('button', { name: /close single resource import/i }));
+        expect(screen.queryByTestId('single-resource-import-modal')).not.toBeInTheDocument();
+    });
+
+    it('opens and closes the citation manager from the selected resource action', async () => {
+        renderResourcesPage();
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        await clickResourceAction('resources-action-manage-related-items');
+
+        expect(screen.getByTestId('citation-manager-modal')).toHaveTextContent('Related items for 1');
+
+        await userEvent.click(screen.getByRole('button', { name: /close citation manager/i }));
+
+        expect(screen.queryByTestId('citation-manager-modal')).not.toBeInTheDocument();
+    });
+
+    it('supports family-only authors and keyboard activation on clickable status badges', async () => {
+        const originalClipboard = navigator.clipboard;
+        const originalOpen = window.open;
+        const writeTextMock = vi.fn().mockResolvedValue(undefined);
+        const openMock = vi.fn();
+
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            writable: true,
+            value: { writeText: writeTextMock },
+        });
+        Object.defineProperty(window, 'open', { configurable: true, writable: true, value: openMock });
+
+        try {
+            render(
+                <ResourcesPage
+                    resources={[{ ...resource, first_author: { familyName: 'Familyonly' } }]}
+                    pagination={pagination}
+                    sort={{ key: 'id', direction: 'asc' }}
+                />,
+            );
+
+            expect(screen.getByText('Familyonly')).toBeInTheDocument();
+
+            const statusBadge = screen.getByRole('button', { name: /published - click to open doi/i });
+            fireEvent.keyDown(statusBadge, { key: 'Enter' });
+            fireEvent.keyDown(statusBadge, { key: ' ' });
+            await userEvent.click(statusBadge);
+
+            await waitFor(() => expect(writeTextMock).toHaveBeenCalledTimes(3));
+            expect(openMock).toHaveBeenCalledWith('https://doi.org/10.5880/test.2026.001', '_blank', 'noopener,noreferrer');
+        } finally {
+            if (originalClipboard) {
+                Object.defineProperty(navigator, 'clipboard', { configurable: true, writable: true, value: originalClipboard });
+            } else {
+                Reflect.deleteProperty(navigator, 'clipboard');
+            }
+            Object.defineProperty(window, 'open', { configurable: true, writable: true, value: originalOpen });
+        }
+    });
+
+    it('renders loading skeleton rows while the next resource page is loading', async () => {
+        const originalIntersectionObserver = globalThis.IntersectionObserver;
+        const observerInstances: Array<{ disconnect: ReturnType<typeof vi.fn> }> = [];
+
+        class IntersectingObserver implements IntersectionObserver {
+            readonly root = null;
+            readonly rootMargin = '100px';
+            readonly scrollMargin = '0px';
+            readonly thresholds = [0.1];
+
+            private readonly callback: IntersectionObserverCallback;
+            readonly disconnect = vi.fn();
+            readonly takeRecords = vi.fn((): IntersectionObserverEntry[] => []);
+            readonly unobserve = vi.fn();
+
+            constructor(callback: IntersectionObserverCallback) {
+                this.callback = callback;
+                observerInstances.push(this);
+            }
+
+            observe(target: Element) {
+                this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this);
+            }
+        }
+
+        Object.defineProperty(globalThis, 'IntersectionObserver', {
+            configurable: true,
+            writable: true,
+            value: IntersectingObserver,
+        });
+
+        axiosGetMock.mockImplementation((url: string) => {
+            if (url === '/resources/load-more') {
+                return new Promise(() => undefined);
+            }
+
+            return Promise.resolve({ data: {} });
+        });
+
+        try {
+            render(
+                <ResourcesPage
+                    resources={[resource]}
+                    pagination={{ ...pagination, has_more: true, last_page: 2, total: 2 }}
+                    sort={{ key: 'id', direction: 'asc' }}
+                />,
+            );
+
+            await waitFor(() => expect(document.querySelectorAll('tr.animate-pulse')).toHaveLength(5));
+
+            expect(observerInstances).toHaveLength(1);
+        } finally {
+            if (originalIntersectionObserver) {
+                Object.defineProperty(globalThis, 'IntersectionObserver', {
+                    configurable: true,
+                    writable: true,
+                    value: originalIntersectionObserver,
+                });
+            } else {
+                Reflect.deleteProperty(globalThis, 'IntersectionObserver');
+            }
+        }
     });
 });
 
@@ -235,5 +554,29 @@ describe('OverflowTooltipText', () => {
         await userEvent.hover(text);
 
         expect(await screen.findByRole('tooltip')).toHaveTextContent('A long title that overflows');
+    });
+
+    it('measures overflow when ResizeObserver is unavailable', async () => {
+        const originalResizeObserver = globalThis.ResizeObserver;
+        Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, writable: true, value: undefined });
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 80 });
+        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
+
+        try {
+            render(<OverflowTooltipText value="A long title without a resize observer" testId="overflow-text" />);
+
+            const text = screen.getByTestId('overflow-text');
+            await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));
+        } finally {
+            if (originalResizeObserver) {
+                Object.defineProperty(globalThis, 'ResizeObserver', {
+                    configurable: true,
+                    writable: true,
+                    value: originalResizeObserver,
+                });
+            } else {
+                Reflect.deleteProperty(globalThis, 'ResizeObserver');
+            }
+        }
     });
 });
