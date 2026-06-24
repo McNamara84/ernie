@@ -73,7 +73,7 @@ class LegacyLandingPageImportService
                 return $this->syncResult(
                     changed: true,
                     created: true,
-                    ftpUrlAdded: isset($fileEntries[0]),
+                    ftpUrlAdded: true,
                     linksAdded: max(count($fileEntries) - 1, 0),
                     landingPage: $this->createDefaultLandingPage($resource, $fileEntries, $isPublished),
                 );
@@ -82,9 +82,9 @@ class LegacyLandingPageImportService
             $landingPage->loadMissing('links');
 
             $ftpUrlAdded = false;
-            $primaryFile = $fileEntries[0] ?? null;
+            $primaryFile = $fileEntries[0];
 
-            if ($primaryFile !== null && $this->isBlank($landingPage->ftp_url)) {
+            if ($this->isBlank($landingPage->ftp_url)) {
                 $landingPage->forceFill(['ftp_url' => $primaryFile['url']])->save();
                 $ftpUrlAdded = $landingPage->wasChanged('ftp_url');
                 $landingPage->refresh()->load('links');

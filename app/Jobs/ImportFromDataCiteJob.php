@@ -246,14 +246,8 @@ class ImportFromDataCiteJob implements ShouldQueue
                     $imported += $pendingSummary['imported'];
                     $skipped += $pendingSummary['skipped'];
                     $failed += $pendingSummary['failed'];
-                    $enriched += $pendingSummary['enriched'] ?? 0;
                     $skippedDois = array_slice(
                         array_merge($skippedDois, $pendingSummary['skipped_dois']),
-                        0,
-                        $maxStoredDois,
-                    );
-                    $enrichedDois = array_slice(
-                        array_merge($enrichedDois, $pendingSummary['enriched_dois'] ?? []),
                         0,
                         $maxStoredDois,
                     );
