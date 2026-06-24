@@ -47,10 +47,10 @@ Recommended generic table values:
     "award_title": "MOTivational strength of ecosystem services and alternative ways to express the value of BIOdiversity"
   },
   "proposed": {
-    "funder_identifier": "https://ror.org/exampleid",
+    "funder_identifier": "https://ror.org/04z8jg394",
     "funder_identifier_type": "ROR",
     "scheme_uri": "https://ror.org/",
-    "ror_id": "https://ror.org/exampleid",
+    "ror_id": "https://ror.org/04z8jg394",
     "ror_display_name": "Example Funder",
     "ror_status": "active",
     "ror_types": ["funder"],
@@ -58,7 +58,7 @@ Recommended generic table values:
     "matched_external_id": {
       "type": "fundref",
       "value": "501100000780",
-      "matched_in": "external_ids.all",
+      "matched_in": "external_ids[type=fundref].all",
       "preferred": "501100000780"
     }
   },
@@ -89,7 +89,7 @@ Recommended generic table values:
   },
   "acceptance": {
     "updates": {
-      "funder_identifier": "https://ror.org/exampleid",
+      "funder_identifier": "https://ror.org/04z8jg394",
       "funder_identifier_type": "ROR",
       "scheme_uri": "https://ror.org/"
     },
@@ -108,7 +108,7 @@ Recommended generic table values:
 }
 ```
 
-Replace `https://ror.org/exampleid` with a real canonical ROR URL. The example uses a placeholder only to show shape.
+The example uses a syntactically valid ROR URL so fixtures copied from this contract pass canonical ROR URL validation. Replace it with the matched candidate ROR URL in production data.
 
 ## Required Metadata Fields
 
@@ -209,6 +209,7 @@ Actionable suggestions may have `none` or `warning`. Suppressed mappings must no
 Use these warning codes when a suggestion is still actionable but needs curator attention:
 
 - `local_name_not_found_in_ror_names`
+- `local_name_matches_crossref_name_only`
 - `ror_display_name_differs_from_local_name`
 - `crossref_preferred_id_differs_from_matched_id`
 - `source_snapshot_older_than_latest_known_release`
@@ -227,12 +228,12 @@ Suppressed mappings should not be written to `assistant_suggestions`. If the imp
   "reason": "multiple_active_ror_matches",
   "candidates": [
     {
-      "ror_id": "https://ror.org/example01",
+      "ror_id": "https://ror.org/04z8jg394",
       "ror_display_name": "Example One",
       "ror_status": "active"
     },
     {
-      "ror_id": "https://ror.org/example02",
+      "ror_id": "https://ror.org/03yrm5c26",
       "ror_display_name": "Example Two",
       "ror_status": "active"
     }
@@ -256,6 +257,7 @@ Before applying a suggestion, validate:
 - The local `FunderIdentifierType` for `ROR` exists.
 
 If validation fails, do not update the funding reference.
+
 ## Existing ROR Refresh Provenance
 
 When the mapping evidence comes from ERNIE's existing `/settings` ROR refresh flow, provenance should identify both the local derived index and the upstream ROR dump:
