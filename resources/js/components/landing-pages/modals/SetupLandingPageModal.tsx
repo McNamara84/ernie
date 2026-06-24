@@ -104,10 +104,7 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
     };
 }
 
-function arePersistedLandingPageDraftStatesEqual(
-    left: PersistedLandingPageDraftState,
-    right: PersistedLandingPageDraftState,
-): boolean {
+function arePersistedLandingPageDraftStatesEqual(left: PersistedLandingPageDraftState, right: PersistedLandingPageDraftState): boolean {
     return JSON.stringify(normalizePersistedLandingPageDraftState(left)) === JSON.stringify(normalizePersistedLandingPageDraftState(right));
 }
 
@@ -125,24 +122,24 @@ function parsePersistedLandingPageDraftState(rawValue: string | null): Persisted
 
         const links = Array.isArray(parsed.links)
             ? parsed.links.map((link, index) => {
-                if (!link || typeof link !== 'object') {
-                    return {
-                        url: '',
-                        label: '',
-                        position: index,
-                    } satisfies LandingPageLink;
-                }
+                  if (!link || typeof link !== 'object') {
+                      return {
+                          url: '',
+                          label: '',
+                          position: index,
+                      } satisfies LandingPageLink;
+                  }
 
-                const candidate = link as Partial<LandingPageLink>;
+                  const candidate = link as Partial<LandingPageLink>;
 
-                return {
-                    id: typeof candidate.id === 'number' ? candidate.id : undefined,
-                    _clientId: typeof candidate._clientId === 'string' ? candidate._clientId : undefined,
-                    url: typeof candidate.url === 'string' ? candidate.url : '',
-                    label: typeof candidate.label === 'string' ? candidate.label : '',
-                    position: typeof candidate.position === 'number' ? candidate.position : index,
-                } satisfies LandingPageLink;
-            })
+                  return {
+                      id: typeof candidate.id === 'number' ? candidate.id : undefined,
+                      _clientId: typeof candidate._clientId === 'string' ? candidate._clientId : undefined,
+                      url: typeof candidate.url === 'string' ? candidate.url : '',
+                      label: typeof candidate.label === 'string' ? candidate.label : '',
+                      position: typeof candidate.position === 'number' ? candidate.position : index,
+                  } satisfies LandingPageLink;
+              })
             : [];
 
         return {
@@ -242,7 +239,14 @@ function SortableLinkItem({
                     className="h-8 text-sm"
                 />
             </div>
-            <Button type="button" variant="ghost" size="icon" aria-label="Remove link" className="mt-1 size-7 shrink-0" onClick={() => onRemove(index)}>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Remove link"
+                className="mt-1 size-7 shrink-0"
+                onClick={() => onRemove(index)}
+            >
                 <X className="size-3.5" />
             </Button>
         </div>
@@ -279,16 +283,22 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         };
     }, [resource.resourcetypegeneral, storageKey]);
 
-    const persistDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
-        if (typeof window === 'undefined' || storageKey === null) {
-            return;
-        }
+    const persistDraftState = useCallback(
+        (draftState: PersistedLandingPageDraftState) => {
+            if (typeof window === 'undefined' || storageKey === null) {
+                return;
+            }
 
-        writeSessionStorageItem(storageKey, JSON.stringify({
-            ...draftState,
-            links: cloneLandingPageLinks(draftState.links),
-        }));
-    }, [storageKey]);
+            writeSessionStorageItem(
+                storageKey,
+                JSON.stringify({
+                    ...draftState,
+                    links: cloneLandingPageLinks(draftState.links),
+                }),
+            );
+        },
+        [storageKey],
+    );
 
     const clearPersistedDraftState = useCallback(() => {
         if (typeof window === 'undefined' || storageKey === null) {
@@ -298,20 +308,23 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         removeSessionStorageItem(storageKey);
     }, [storageKey]);
 
-    const buildDraftStateFromConfig = useCallback((config: LandingPageConfig | null): PersistedLandingPageDraftState => {
-        const preferredTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, config?.template);
+    const buildDraftStateFromConfig = useCallback(
+        (config: LandingPageConfig | null): PersistedLandingPageDraftState => {
+            const preferredTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, config?.template);
 
-        return {
-            template: preferredTemplate,
-            ftpUrl: config?.ftp_url ?? '',
-            downloadsUnavailable: config?.downloads_unavailable === true,
-            isPublished: (config?.status ?? 'draft') === 'published',
-            externalDomainId: String(config?.external_domain_id ?? ''),
-            externalPath: config?.external_path ?? '',
-            landingPageTemplateId: getHydratedLandingPageTemplateId(preferredTemplate, config),
-            links: cloneLandingPageLinks(config?.links ?? []),
-        };
-    }, [resource.resourcetypegeneral]);
+            return {
+                template: preferredTemplate,
+                ftpUrl: config?.ftp_url ?? '',
+                downloadsUnavailable: config?.downloads_unavailable === true,
+                isPublished: (config?.status ?? 'draft') === 'published',
+                externalDomainId: String(config?.external_domain_id ?? ''),
+                externalPath: config?.external_path ?? '',
+                landingPageTemplateId: getHydratedLandingPageTemplateId(preferredTemplate, config),
+                links: cloneLandingPageLinks(config?.links ?? []),
+            };
+        },
+        [resource.resourcetypegeneral],
+    );
 
     const applyDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
         setTemplate(draftState.template);
@@ -378,42 +391,40 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const isPhysicalObject = isIgsnLandingPageResourceType(resource.resourcetypegeneral);
     const eligibleTemplateType: 'resource' | 'igsn' = isPhysicalObject ? 'igsn' : 'resource';
     const eligibleCustomTemplates = useMemo(
-        () => customTemplates.filter(
-            (ct) => !ct.is_default && (ct.template_type ?? 'resource') === eligibleTemplateType,
-        ),
+        () => customTemplates.filter((ct) => !ct.is_default && (ct.template_type ?? 'resource') === eligibleTemplateType),
         [customTemplates, eligibleTemplateType],
     );
-    const builtInTemplateOptions = useMemo(
-        () => getTemplateOptions(resource.resourcetypegeneral),
-        [resource.resourcetypegeneral],
-    );
+    const builtInTemplateOptions = useMemo(() => getTemplateOptions(resource.resourcetypegeneral), [resource.resourcetypegeneral]);
     const importedDownloadFiles = currentConfig?.files ?? existingConfig?.files ?? [];
     const hasImportedFiles = importedDownloadFiles.length > 0;
-    const currentDraftState = useMemo<PersistedLandingPageDraftState>(() => ({
-        template,
-        ftpUrl,
-        downloadsUnavailable,
-        isPublished,
-        externalDomainId,
-        externalPath,
-        landingPageTemplateId,
-        links: cloneLandingPageLinks(links),
-    }), [downloadsUnavailable, externalDomainId, externalPath, ftpUrl, isPublished, landingPageTemplateId, links, template]);
-    const baselineDraftState = useMemo(
-        () => buildDraftStateFromConfig(currentConfig),
-        [buildDraftStateFromConfig, currentConfig],
+    const currentDraftState = useMemo<PersistedLandingPageDraftState>(
+        () => ({
+            template,
+            ftpUrl,
+            downloadsUnavailable,
+            isPublished,
+            externalDomainId,
+            externalPath,
+            landingPageTemplateId,
+            links: cloneLandingPageLinks(links),
+        }),
+        [downloadsUnavailable, externalDomainId, externalPath, ftpUrl, isPublished, landingPageTemplateId, links, template],
     );
+    const baselineDraftState = useMemo(() => buildDraftStateFromConfig(currentConfig), [buildDraftStateFromConfig, currentConfig]);
 
-    const applyConfigState = useCallback((config: LandingPageConfig | null) => {
-        const baseDraftState = buildDraftStateFromConfig(config);
-        const persistedDraftState = readPersistedDraftState();
+    const applyConfigState = useCallback(
+        (config: LandingPageConfig | null) => {
+            const baseDraftState = buildDraftStateFromConfig(config);
+            const persistedDraftState = readPersistedDraftState();
 
-        hydratedDraftStateKeyRef.current = storageKey;
-        setCurrentConfig(config);
-        setPreviewUrl(config?.preview_url ?? '');
-        applyDraftState(persistedDraftState ?? baseDraftState);
-        setHasHydratedDraftState(true);
-    }, [applyDraftState, buildDraftStateFromConfig, readPersistedDraftState, storageKey]);
+            hydratedDraftStateKeyRef.current = storageKey;
+            setCurrentConfig(config);
+            setPreviewUrl(config?.preview_url ?? '');
+            applyDraftState(persistedDraftState ?? baseDraftState);
+            setHasHydratedDraftState(true);
+        },
+        [applyDraftState, buildDraftStateFromConfig, readPersistedDraftState, storageKey],
+    );
 
     useEffect(() => {
         if (!isOpen || !hasHydratedDraftState || hydratedDraftStateKeyRef.current !== storageKey) {
@@ -426,15 +437,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
 
         persistDraftState(currentDraftState);
-    }, [
-        baselineDraftState,
-        clearPersistedDraftState,
-        currentDraftState,
-        hasHydratedDraftState,
-        isOpen,
-        persistDraftState,
-        storageKey,
-    ]);
+    }, [baselineDraftState, clearPersistedDraftState, currentDraftState, hasHydratedDraftState, isOpen, persistDraftState, storageKey]);
 
     const loadAvailableDomains = async () => {
         try {
@@ -658,7 +661,20 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             );
         }
         return baseChanges || linksChanged;
-    }, [currentConfig, template, ftpUrl, downloadsUnavailable, isPublished, externalDomainId, externalPath, links, landingPageTemplateId, resource.resourcetypegeneral, supportsFtpUrl, supportsDownloadsUnavailable]);
+    }, [
+        currentConfig,
+        template,
+        ftpUrl,
+        downloadsUnavailable,
+        isPublished,
+        externalDomainId,
+        externalPath,
+        links,
+        landingPageTemplateId,
+        resource.resourcetypegeneral,
+        supportsFtpUrl,
+        supportsDownloadsUnavailable,
+    ]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -712,25 +728,28 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const visibleDownloadUrlSuggestionEntries = useMemo(
         () => [
-            ...filteredDownloadUrlSuggestions.domains.map((suggestion, index): DownloadUrlSuggestionEntry => ({
-                id: `ftp-url-domain-suggestion-${index}`,
-                value: suggestion.value,
-                usageCount: suggestion.usage_count,
-            })),
-            ...filteredDownloadUrlSuggestions.urls.map((suggestion, index): DownloadUrlSuggestionEntry => ({
-                id: `ftp-url-full-suggestion-${index}`,
-                value: suggestion.value,
-                usageCount: suggestion.usage_count,
-            })),
+            ...filteredDownloadUrlSuggestions.domains.map(
+                (suggestion, index): DownloadUrlSuggestionEntry => ({
+                    id: `ftp-url-domain-suggestion-${index}`,
+                    value: suggestion.value,
+                    usageCount: suggestion.usage_count,
+                }),
+            ),
+            ...filteredDownloadUrlSuggestions.urls.map(
+                (suggestion, index): DownloadUrlSuggestionEntry => ({
+                    id: `ftp-url-full-suggestion-${index}`,
+                    value: suggestion.value,
+                    usageCount: suggestion.usage_count,
+                }),
+            ),
         ],
         [filteredDownloadUrlSuggestions.domains, filteredDownloadUrlSuggestions.urls],
     );
 
     const shouldShowDownloadUrlSuggestions = supportsFtpUrl && !hasImportedFiles && downloadUrlSuggestionsOpen;
     const hasVisibleDownloadUrlSuggestions = filteredDownloadUrlSuggestions.domains.length > 0 || filteredDownloadUrlSuggestions.urls.length > 0;
-    const activeDownloadUrlSuggestion = activeDownloadUrlSuggestionIndex === null
-        ? null
-        : (visibleDownloadUrlSuggestionEntries[activeDownloadUrlSuggestionIndex] ?? null);
+    const activeDownloadUrlSuggestion =
+        activeDownloadUrlSuggestionIndex === null ? null : (visibleDownloadUrlSuggestionEntries[activeDownloadUrlSuggestionIndex] ?? null);
 
     useEffect(() => {
         if (!shouldShowDownloadUrlSuggestions) {
@@ -739,10 +758,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
-        if (
-            activeDownloadUrlSuggestionIndex !== null
-            && activeDownloadUrlSuggestionIndex >= visibleDownloadUrlSuggestionEntries.length
-        ) {
+        if (activeDownloadUrlSuggestionIndex !== null && activeDownloadUrlSuggestionIndex >= visibleDownloadUrlSuggestionEntries.length) {
             setActiveDownloadUrlSuggestionIndex(null);
         }
     }, [activeDownloadUrlSuggestionIndex, shouldShowDownloadUrlSuggestions, visibleDownloadUrlSuggestionEntries.length]);
@@ -851,27 +867,21 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     };
 
     // --- Additional Links management ---
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-    );
+    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-    const handleDragEnd = useCallback(
-        (event: DragEndEvent) => {
-            const { active, over } = event;
-            if (!over || active.id === over.id) return;
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
 
-            setLinks((prev) => {
-                const getSortableId = (l: LandingPageLink) => l.id ?? l._clientId ?? `new-${l.position}`;
-                const oldIndex = prev.findIndex((l) => getSortableId(l) === active.id);
-                const newIndex = prev.findIndex((l) => getSortableId(l) === over.id);
-                if (oldIndex === -1 || newIndex === -1) return prev;
-                const reordered = arrayMove(prev, oldIndex, newIndex);
-                return reordered.map((link, i) => ({ ...link, position: i }));
-            });
-        },
-        [],
-    );
+        setLinks((prev) => {
+            const getSortableId = (l: LandingPageLink) => l.id ?? l._clientId ?? `new-${l.position}`;
+            const oldIndex = prev.findIndex((l) => getSortableId(l) === active.id);
+            const newIndex = prev.findIndex((l) => getSortableId(l) === over.id);
+            if (oldIndex === -1 || newIndex === -1) return prev;
+            const reordered = arrayMove(prev, oldIndex, newIndex);
+            return reordered.map((link, i) => ({ ...link, position: i }));
+        });
+    }, []);
 
     const addLink = useCallback(() => {
         if (links.length >= MAX_LINKS) return;
@@ -890,10 +900,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent
-                data-testid="setup-lp-modal-content"
-                className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
-            >
+            <DialogContent data-testid="setup-lp-modal-content" className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
                 <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
                     <DialogTitle className="flex items-center gap-2">
                         <Globe className="size-5" />
@@ -911,7 +918,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     <span
                                         data-testid="setup-lp-modal-resource-title"
                                         tabIndex={0}
-                                        className="mt-1 block line-clamp-2 wrap-break-word rounded-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                        className="mt-1 line-clamp-2 block rounded-sm font-medium wrap-break-word text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                                     >
                                         {displayTitle}
                                     </span>
@@ -919,7 +926,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                 <TooltipContent
                                     data-testid="setup-lp-modal-resource-title-tooltip"
                                     side="bottom"
-                                    className="max-w-[min(32rem,calc(100vw-2rem))] wrap-break-word whitespace-normal text-left"
+                                    className="max-w-[min(32rem,calc(100vw-2rem))] text-left wrap-break-word whitespace-normal"
                                 >
                                     {displayTitle}
                                 </TooltipContent>
@@ -931,427 +938,436 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 {isLoading ? (
                     <div
                         data-testid="setup-lp-modal-scroll-area"
-                        className="flex-1 min-h-0 overflow-y-auto px-6 py-8 text-center text-muted-foreground"
+                        className="min-h-0 flex-1 overflow-y-auto px-6 py-8 text-center text-muted-foreground"
                     >
                         Loading configuration...
                     </div>
                 ) : (
-                    <div data-testid="setup-lp-modal-scroll-area" className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+                    <div data-testid="setup-lp-modal-scroll-area" className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
                         <div className="space-y-6">
-                        {/* Template Selection */}
-                        <div className="space-y-2">
-                            <Label htmlFor="template">Landing Page Template</Label>
-                            <Select
-                                value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
-                                onValueChange={(val) => {
-                                    if (val.startsWith('custom:')) {
-                                        const id = Number(val.replace('custom:', ''));
-                                        setLandingPageTemplateId(id);
-                                        // Resolve the renderer key from the selected custom
-                                        // template's template_type (resource → default_gfz,
-                                        // igsn → default_gfz_igsn) so the correct landing
-                                        // page renderer is used regardless of which custom
-                                        // template the curator picks.
-                                        const selected = customTemplates.find((ct) => ct.id === id);
-                                        const rendererKey = (selected?.template_type ?? 'resource') === 'igsn'
-                                            ? 'default_gfz_igsn'
-                                            : 'default_gfz';
-                                        setTemplate(rendererKey);
-                                    } else {
-                                        setLandingPageTemplateId(null);
-                                        setTemplate(val);
-                                    }
-                                }}
-                            >
-                                <SelectTrigger id="template">
-                                    <SelectValue placeholder="Select a template" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {builtInTemplateOptions.map((tmpl) => (
-                                        <SelectItem key={tmpl.value} value={tmpl.value}>
-                                            <div className="flex flex-col">
-                                                <span>{tmpl.label}</span>
-                                                <span className="text-xs text-muted-foreground">{tmpl.description}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                    {eligibleCustomTemplates.length > 0 && (
-                                        <>
-                                            <SelectSeparator />
-                                            <SelectGroup>
-                                                <SelectLabel>Custom Templates</SelectLabel>
-                                                {eligibleCustomTemplates.map((ct) => (
-                                                    <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
-                                                        <div className="flex flex-col">
-                                                            <span>{ct.name}</span>
-                                                            <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectGroup>
-                                        </>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-sm text-muted-foreground">Choose the design template for your landing page</p>
-                        </div>
-
-                        {/* External Landing Page Fields */}
-                        {isExternal && (
-                            <ExternalLandingPageFields
-                                availableDomains={availableDomains}
-                                externalDomainId={externalDomainId}
-                                onExternalDomainIdChange={setExternalDomainId}
-                                externalPath={externalPath}
-                                onExternalPathChange={setExternalPath}
-                                computedExternalUrl={computedExternalUrl}
-                                pathExample="/dataset/12345"
-                            />
-                        )}
-
-                        {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
-                        {supportsFtpUrl && (
+                            {/* Template Selection */}
                             <div className="space-y-2">
-                                <Label htmlFor="ftp-url">Download URL</Label>
-                                <div
-                                    className="relative"
-                                    onFocusCapture={openDownloadUrlSuggestions}
-                                    onBlurCapture={(event) => {
-                                        if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
-                                            return;
+                                <Label htmlFor="template">Landing Page Template</Label>
+                                <Select
+                                    value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
+                                    onValueChange={(val) => {
+                                        if (val.startsWith('custom:')) {
+                                            const id = Number(val.replace('custom:', ''));
+                                            setLandingPageTemplateId(id);
+                                            // Resolve the renderer key from the selected custom
+                                            // template's template_type (resource → default_gfz,
+                                            // igsn → default_gfz_igsn) so the correct landing
+                                            // page renderer is used regardless of which custom
+                                            // template the curator picks.
+                                            const selected = customTemplates.find((ct) => ct.id === id);
+                                            const rendererKey =
+                                                (selected?.template_type ?? 'resource') === 'igsn' ? 'default_gfz_igsn' : 'default_gfz';
+                                            setTemplate(rendererKey);
+                                        } else {
+                                            setLandingPageTemplateId(null);
+                                            setTemplate(val);
                                         }
-
-                                        setDownloadUrlSuggestionsOpen(false);
-                                        setDownloadUrlSuggestionQuery('');
-                                        setActiveDownloadUrlSuggestionIndex(null);
                                     }}
                                 >
-                                    <Input
-                                        id="ftp-url"
-                                        type="url"
-                                        role="combobox"
-                                        placeholder="https://datapub.gfz-potsdam.de/download/..."
-                                        value={ftpUrl}
-                                        onChange={(e) => {
-                                            setFtpUrl(e.target.value);
-                                            setDownloadUrlSuggestionQuery(e.target.value);
+                                    <SelectTrigger id="template">
+                                        <SelectValue placeholder="Select a template" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {builtInTemplateOptions.map((tmpl) => (
+                                            <SelectItem key={tmpl.value} value={tmpl.value}>
+                                                <div className="flex flex-col">
+                                                    <span>{tmpl.label}</span>
+                                                    <span className="text-xs text-muted-foreground">{tmpl.description}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                        {eligibleCustomTemplates.length > 0 && (
+                                            <>
+                                                <SelectSeparator />
+                                                <SelectGroup>
+                                                    <SelectLabel>Custom Templates</SelectLabel>
+                                                    {eligibleCustomTemplates.map((ct) => (
+                                                        <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
+                                                            <div className="flex flex-col">
+                                                                <span>{ct.name}</span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    Custom section order{ct.logo_url ? ' & logo' : ''}
+                                                                </span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            </>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-sm text-muted-foreground">Choose the design template for your landing page</p>
+                            </div>
+
+                            {/* External Landing Page Fields */}
+                            {isExternal && (
+                                <ExternalLandingPageFields
+                                    availableDomains={availableDomains}
+                                    externalDomainId={externalDomainId}
+                                    onExternalDomainIdChange={setExternalDomainId}
+                                    externalPath={externalPath}
+                                    onExternalPathChange={setExternalPath}
+                                    computedExternalUrl={computedExternalUrl}
+                                    pathExample="/dataset/12345"
+                                />
+                            )}
+
+                            {/* FTP URL (hidden for external landing pages, disabled when imported files exist) */}
+                            {supportsFtpUrl && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="ftp-url">Download URL</Label>
+                                    <div
+                                        className="relative"
+                                        onFocusCapture={openDownloadUrlSuggestions}
+                                        onBlurCapture={(event) => {
+                                            if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+                                                return;
+                                            }
+
+                                            setDownloadUrlSuggestionsOpen(false);
+                                            setDownloadUrlSuggestionQuery('');
                                             setActiveDownloadUrlSuggestionIndex(null);
-
-                                            if (!downloadUrlSuggestionsOpen) {
-                                                setDownloadUrlSuggestionsOpen(true);
-                                            }
-
-                                            void loadDownloadUrlSuggestions();
                                         }}
-                                        onKeyDown={(event) => {
-                                            if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !downloadUrlSuggestionsOpen) {
-                                                setDownloadUrlSuggestionsOpen(true);
+                                    >
+                                        <Input
+                                            id="ftp-url"
+                                            type="url"
+                                            role="combobox"
+                                            placeholder="https://datapub.gfz-potsdam.de/download/..."
+                                            value={ftpUrl}
+                                            onChange={(e) => {
+                                                setFtpUrl(e.target.value);
+                                                setDownloadUrlSuggestionQuery(e.target.value);
                                                 setActiveDownloadUrlSuggestionIndex(null);
+
+                                                if (!downloadUrlSuggestionsOpen) {
+                                                    setDownloadUrlSuggestionsOpen(true);
+                                                }
+
                                                 void loadDownloadUrlSuggestions();
-                                            }
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !downloadUrlSuggestionsOpen) {
+                                                    setDownloadUrlSuggestionsOpen(true);
+                                                    setActiveDownloadUrlSuggestionIndex(null);
+                                                    void loadDownloadUrlSuggestions();
+                                                }
 
-                                            if (event.key === 'ArrowDown') {
-                                                event.preventDefault();
-                                                moveActiveDownloadUrlSuggestion('next');
+                                                if (event.key === 'ArrowDown') {
+                                                    event.preventDefault();
+                                                    moveActiveDownloadUrlSuggestion('next');
 
-                                                return;
-                                            }
+                                                    return;
+                                                }
 
-                                            if (event.key === 'ArrowUp') {
-                                                event.preventDefault();
-                                                moveActiveDownloadUrlSuggestion('previous');
+                                                if (event.key === 'ArrowUp') {
+                                                    event.preventDefault();
+                                                    moveActiveDownloadUrlSuggestion('previous');
 
-                                                return;
-                                            }
+                                                    return;
+                                                }
 
-                                            if (event.key === 'Enter' && activeDownloadUrlSuggestion !== null) {
-                                                event.preventDefault();
-                                                applyDownloadUrlSuggestion(activeDownloadUrlSuggestion.value);
+                                                if (event.key === 'Enter' && activeDownloadUrlSuggestion !== null) {
+                                                    event.preventDefault();
+                                                    applyDownloadUrlSuggestion(activeDownloadUrlSuggestion.value);
 
-                                                return;
-                                            }
+                                                    return;
+                                                }
 
-                                            if (event.key === 'Escape') {
-                                                setDownloadUrlSuggestionsOpen(false);
-                                                setDownloadUrlSuggestionQuery('');
-                                                setActiveDownloadUrlSuggestionIndex(null);
-                                            }
-                                        }}
-                                        disabled={hasImportedFiles}
-                                        autoComplete="off"
-                                        aria-activedescendant={activeDownloadUrlSuggestion?.id}
-                                        aria-autocomplete="list"
-                                        aria-expanded={shouldShowDownloadUrlSuggestions}
-                                        aria-controls={shouldShowDownloadUrlSuggestions ? 'ftp-url-suggestions' : undefined}
-                                        aria-haspopup="listbox"
-                                    />
+                                                if (event.key === 'Escape') {
+                                                    setDownloadUrlSuggestionsOpen(false);
+                                                    setDownloadUrlSuggestionQuery('');
+                                                    setActiveDownloadUrlSuggestionIndex(null);
+                                                }
+                                            }}
+                                            disabled={hasImportedFiles}
+                                            autoComplete="off"
+                                            aria-activedescendant={activeDownloadUrlSuggestion?.id}
+                                            aria-autocomplete="list"
+                                            aria-expanded={shouldShowDownloadUrlSuggestions}
+                                            aria-controls={shouldShowDownloadUrlSuggestions ? 'ftp-url-suggestions' : undefined}
+                                            aria-haspopup="listbox"
+                                        />
 
-                                    {shouldShowDownloadUrlSuggestions && (
-                                        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
-                                            <div id="ftp-url-suggestions" role="listbox" className="max-h-64 overflow-y-auto py-1">
-                                                {downloadUrlSuggestionsLoading ? (
-                                                    <div className="px-3 py-2 text-sm text-muted-foreground" role="status">
-                                                        Loading suggestions...
-                                                    </div>
-                                                ) : !hasVisibleDownloadUrlSuggestions ? (
-                                                    <div className="px-3 py-2 text-sm text-muted-foreground">No matching suggestions.</div>
-                                                ) : (
-                                                    <>
-                                                        {filteredDownloadUrlSuggestions.domains.length > 0 && (
-                                                            <div className="p-1 text-foreground">
-                                                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Suggested domains</div>
-                                                                {filteredDownloadUrlSuggestions.domains.map((suggestion, index) => {
-                                                                    const suggestionId = `ftp-url-domain-suggestion-${index}`;
-                                                                    const suggestionIndex = index;
-                                                                    const isActive = activeDownloadUrlSuggestion?.id === suggestionId;
+                                        {shouldShowDownloadUrlSuggestions && (
+                                            <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+                                                <div id="ftp-url-suggestions" role="listbox" className="max-h-64 overflow-y-auto py-1">
+                                                    {downloadUrlSuggestionsLoading ? (
+                                                        <div className="px-3 py-2 text-sm text-muted-foreground" role="status">
+                                                            Loading suggestions...
+                                                        </div>
+                                                    ) : !hasVisibleDownloadUrlSuggestions ? (
+                                                        <div className="px-3 py-2 text-sm text-muted-foreground">No matching suggestions.</div>
+                                                    ) : (
+                                                        <>
+                                                            {filteredDownloadUrlSuggestions.domains.length > 0 && (
+                                                                <div className="p-1 text-foreground">
+                                                                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                                                                        Suggested domains
+                                                                    </div>
+                                                                    {filteredDownloadUrlSuggestions.domains.map((suggestion, index) => {
+                                                                        const suggestionId = `ftp-url-domain-suggestion-${index}`;
+                                                                        const suggestionIndex = index;
+                                                                        const isActive = activeDownloadUrlSuggestion?.id === suggestionId;
 
-                                                                    return (
-                                                                        <div
-                                                                            key={`domain-${suggestion.value}`}
-                                                                            id={suggestionId}
-                                                                            role="option"
-                                                                            aria-selected={isActive}
-                                                                            className={cn(
-                                                                                'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
-                                                                                isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
-                                                                            )}
-                                                                            onMouseDown={(event) => event.preventDefault()}
-                                                                            onMouseEnter={() => setActiveDownloadUrlSuggestionIndex(suggestionIndex)}
-                                                                            onClick={() => applyDownloadUrlSuggestion(suggestion.value)}
-                                                                        >
-                                                                            <span className="truncate">{suggestion.value}</span>
-                                                                            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                                                                                {suggestion.usage_count}x
-                                                                            </span>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
+                                                                        return (
+                                                                            <div
+                                                                                key={`domain-${suggestion.value}`}
+                                                                                id={suggestionId}
+                                                                                role="option"
+                                                                                aria-selected={isActive}
+                                                                                className={cn(
+                                                                                    'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+                                                                                    isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
+                                                                                )}
+                                                                                onMouseDown={(event) => event.preventDefault()}
+                                                                                onMouseEnter={() =>
+                                                                                    setActiveDownloadUrlSuggestionIndex(suggestionIndex)
+                                                                                }
+                                                                                onClick={() => applyDownloadUrlSuggestion(suggestion.value)}
+                                                                            >
+                                                                                <span className="truncate">{suggestion.value}</span>
+                                                                                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                                                                                    {suggestion.usage_count}x
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
 
-                                                        {filteredDownloadUrlSuggestions.urls.length > 0 && (
-                                                            <div className="p-1 text-foreground">
-                                                                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Previously used full URLs</div>
-                                                                {filteredDownloadUrlSuggestions.urls.map((suggestion, index) => {
-                                                                    const suggestionId = `ftp-url-full-suggestion-${index}`;
-                                                                    const suggestionIndex = filteredDownloadUrlSuggestions.domains.length + index;
-                                                                    const isActive = activeDownloadUrlSuggestion?.id === suggestionId;
+                                                            {filteredDownloadUrlSuggestions.urls.length > 0 && (
+                                                                <div className="p-1 text-foreground">
+                                                                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                                                                        Previously used full URLs
+                                                                    </div>
+                                                                    {filteredDownloadUrlSuggestions.urls.map((suggestion, index) => {
+                                                                        const suggestionId = `ftp-url-full-suggestion-${index}`;
+                                                                        const suggestionIndex = filteredDownloadUrlSuggestions.domains.length + index;
+                                                                        const isActive = activeDownloadUrlSuggestion?.id === suggestionId;
 
-                                                                    return (
-                                                                        <div
-                                                                            key={`url-${suggestion.value}`}
-                                                                            id={suggestionId}
-                                                                            role="option"
-                                                                            aria-selected={isActive}
-                                                                            className={cn(
-                                                                                'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
-                                                                                isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
-                                                                            )}
-                                                                            onMouseDown={(event) => event.preventDefault()}
-                                                                            onMouseEnter={() => setActiveDownloadUrlSuggestionIndex(suggestionIndex)}
-                                                                            onClick={() => applyDownloadUrlSuggestion(suggestion.value)}
-                                                                        >
-                                                                            <span className="truncate">{suggestion.value}</span>
-                                                                            <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                                                                                {suggestion.usage_count}x
-                                                                            </span>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                {hasImportedFiles ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        This field is not used because imported download files are available below.
-                                    </p>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        Direct link to download the primary data files. Start typing or pick a suggested domain or full URL from
-                                        existing landing pages.
-                                    </p>
-                                )}
-
-                                {supportsDownloadsUnavailable && (
-                                    <div className="space-y-2 rounded-md border p-3">
-                                        <div className="flex items-start gap-3">
-                                            <Checkbox
-                                                id="downloads-unavailable"
-                                                checked={downloadsUnavailable}
-                                                onCheckedChange={(checked) => setDownloadsUnavailable(checked === true)}
-                                                className="mt-0.5"
-                                            />
-                                            <div className="space-y-1">
-                                                <Label htmlFor="downloads-unavailable" className="text-sm font-medium">
-                                                    No data available for download
-                                                </Label>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Hide the Files section on the landing page while keeping saved download values for later use.
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {downloadsUnavailable && hasImportedFiles && (
-                                            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                                                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                                                <p>Imported download files will be hidden on the public landing page while this option is enabled.</p>
+                                                                        return (
+                                                                            <div
+                                                                                key={`url-${suggestion.value}`}
+                                                                                id={suggestionId}
+                                                                                role="option"
+                                                                                aria-selected={isActive}
+                                                                                className={cn(
+                                                                                    'relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none',
+                                                                                    isActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
+                                                                                )}
+                                                                                onMouseDown={(event) => event.preventDefault()}
+                                                                                onMouseEnter={() =>
+                                                                                    setActiveDownloadUrlSuggestionIndex(suggestionIndex)
+                                                                                }
+                                                                                onClick={() => applyDownloadUrlSuggestion(suggestion.value)}
+                                                                            >
+                                                                                <span className="truncate">{suggestion.value}</span>
+                                                                                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                                                                                    {suggestion.usage_count}x
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                    {hasImportedFiles ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            This field is not used because imported download files are available below.
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            Direct link to download the primary data files. Start typing or pick a suggested domain or full URL from
+                                            existing landing pages.
+                                        </p>
+                                    )}
 
-                        {/* Imported download files (read-only, from legacy database) */}
-                        {!isExternal && hasImportedFiles && (
-                            <div className="space-y-2">
-                                <Label>Imported Download Files</Label>
-                                <div className="space-y-1 rounded-md border bg-muted/50 p-3">
-                                    {importedDownloadFiles.map((file) => (
-                                        <a
-                                            key={file.id ?? file.url}
-                                            href={file.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
-                                        >
-                                            {file.url}
-                                        </a>
-                                    ))}
+                                    {supportsDownloadsUnavailable && (
+                                        <div className="space-y-2 rounded-md border p-3">
+                                            <div className="flex items-start gap-3">
+                                                <Checkbox
+                                                    id="downloads-unavailable"
+                                                    checked={downloadsUnavailable}
+                                                    onCheckedChange={(checked) => setDownloadsUnavailable(checked === true)}
+                                                    className="mt-0.5"
+                                                />
+                                                <div className="space-y-1">
+                                                    <Label htmlFor="downloads-unavailable" className="text-sm font-medium">
+                                                        No data available for download
+                                                    </Label>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Hide the Files section on the landing page while keeping saved download values for later use.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {downloadsUnavailable && hasImportedFiles && (
+                                                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                                                    <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                                                    <p>
+                                                        Imported download files will be hidden on the public landing page while this option is
+                                                        enabled.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                    These files were imported from the legacy database and cannot be edited here.
-                                </p>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Additional Links (only for GFZ templates, not external or IGSN) */}
-                        {supportsLinks && (
-                            <div className="space-y-3">
-                                <div className="space-y-1">
-                                    <Label>Additional Links</Label>
+                            {/* Imported download files (read-only, from legacy database) */}
+                            {!isExternal && hasImportedFiles && (
+                                <div className="space-y-2">
+                                    <Label>Imported Download Files</Label>
+                                    <div className="space-y-1 rounded-md border bg-muted/50 p-3">
+                                        {importedDownloadFiles.map((file) => (
+                                            <a
+                                                key={file.id ?? file.url}
+                                                href={file.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
+                                            >
+                                                {file.url}
+                                            </a>
+                                        ))}
+                                    </div>
                                     <p className="text-sm text-muted-foreground">
-                                        Additional download links displayed below the main download link on the landing page (e.g., GitLab
-                                        repository, project website)
+                                        These files were imported from the legacy database and cannot be edited here.
                                     </p>
                                 </div>
+                            )}
 
-                                {links.length > 0 && (
-                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                        <SortableContext
-                                            items={links.map((l) => l.id ?? l._clientId ?? `new-${l.position}`)}
-                                            strategy={verticalListSortingStrategy}
+                            {/* Additional Links (only for GFZ templates, not external or IGSN) */}
+                            {supportsLinks && (
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <Label>Additional Links</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Additional download links displayed below the main download link on the landing page (e.g., GitLab
+                                            repository, project website)
+                                        </p>
+                                    </div>
+
+                                    {links.length > 0 && (
+                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                            <SortableContext
+                                                items={links.map((l) => l.id ?? l._clientId ?? `new-${l.position}`)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                <div className="space-y-2">
+                                                    {links.map((link, index) => (
+                                                        <SortableLinkItem
+                                                            key={link.id ?? link._clientId ?? `new-${link.position}`}
+                                                            link={link}
+                                                            index={index}
+                                                            onRemove={removeLink}
+                                                            onUpdate={updateLink}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    )}
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addLink}
+                                        disabled={links.length >= MAX_LINKS}
+                                        className="w-full"
+                                    >
+                                        <Plus className="mr-2 size-4" />
+                                        Add Link ({links.length}/{MAX_LINKS})
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Unsaved Changes Warning */}
+                            {hasUnsavedChanges && (
+                                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
+                                    You have unsaved changes. Preview will show the new configuration.
+                                </div>
+                            )}
+
+                            {/* Status Toggle */}
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="published" className="text-base">
+                                        Publish Landing Page
+                                    </Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        {currentConfig?.status === 'published'
+                                            ? 'This landing page is published. DOIs are persistent and must always resolve to a valid landing page.'
+                                            : 'Make this landing page publicly accessible'}
+                                    </p>
+                                </div>
+                                <Switch
+                                    id="published"
+                                    checked={isPublished}
+                                    onCheckedChange={setIsPublished}
+                                    disabled={currentConfig?.status === 'published'}
+                                />
+                            </div>
+
+                            {/* Preview URL (if draft exists) */}
+                            {currentConfig && currentConfig.status === 'draft' && previewUrl && (
+                                <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+                                    <Label className="text-blue-900 dark:text-blue-100">Preview URL (Draft Mode)</Label>
+                                    <div className="flex gap-2">
+                                        <Input readOnly value={previewUrl} className="bg-white font-mono text-xs dark:bg-gray-950" />
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={() => copyToClipboard(previewUrl, 'Preview URL')}
+                                            title="Copy preview URL"
                                         >
-                                            <div className="space-y-2">
-                                                {links.map((link, index) => (
-                                                    <SortableLinkItem
-                                                        key={link.id ?? link._clientId ?? `new-${link.position}`}
-                                                        link={link}
-                                                        index={index}
-                                                        onRemove={removeLink}
-                                                        onUpdate={updateLink}
-                                                    />
-                                                ))}
-                                            </div>
-                                        </SortableContext>
-                                    </DndContext>
-                                )}
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={addLink}
-                                    disabled={links.length >= MAX_LINKS}
-                                    className="w-full"
-                                >
-                                    <Plus className="mr-2 size-4" />
-                                    Add Link ({links.length}/{MAX_LINKS})
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* Unsaved Changes Warning */}
-                        {hasUnsavedChanges && (
-                            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
-                                You have unsaved changes. Preview will show the new configuration.
-                            </div>
-                        )}
-
-                        {/* Status Toggle */}
-                        <div className="flex items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="published" className="text-base">
-                                    Publish Landing Page
-                                </Label>
-                                <p className="text-sm text-muted-foreground">
-                                    {currentConfig?.status === 'published'
-                                        ? 'This landing page is published. DOIs are persistent and must always resolve to a valid landing page.'
-                                        : 'Make this landing page publicly accessible'}
-                                </p>
-                            </div>
-                            <Switch
-                                id="published"
-                                checked={isPublished}
-                                onCheckedChange={setIsPublished}
-                                disabled={currentConfig?.status === 'published'}
-                            />
-                        </div>
-
-                        {/* Preview URL (if draft exists) */}
-                        {currentConfig && currentConfig.status === 'draft' && previewUrl && (
-                            <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
-                                <Label className="text-blue-900 dark:text-blue-100">Preview URL (Draft Mode)</Label>
-                                <div className="flex gap-2">
-                                    <Input readOnly value={previewUrl} className="bg-white font-mono text-xs dark:bg-gray-950" />
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => copyToClipboard(previewUrl, 'Preview URL')}
-                                        title="Copy preview URL"
-                                    >
-                                        <Copy className="size-4" />
-                                    </Button>
+                                            <Copy className="size-4" />
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                                        Share this URL with authors for review (requires preview token)
+                                    </p>
                                 </div>
-                                <p className="text-xs text-blue-700 dark:text-blue-300">
-                                    Share this URL with authors for review (requires preview token)
-                                </p>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Public URL (only if actually published in database) */}
-                        {currentConfig && currentConfig.status === 'published' && currentConfig.public_url && (
-                            <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
-                                <Label className="text-green-900 dark:text-green-100">Public URL</Label>
-                                <div className="flex gap-2">
-                                    <Input readOnly value={currentConfig.public_url} className="bg-white font-mono text-xs dark:bg-gray-950" />
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => copyToClipboard(currentConfig.public_url, 'Public URL')}
-                                        title="Copy public URL"
-                                    >
-                                        <Copy className="size-4" />
-                                    </Button>
+                            {/* Public URL (only if actually published in database) */}
+                            {currentConfig && currentConfig.status === 'published' && currentConfig.public_url && (
+                                <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
+                                    <Label className="text-green-900 dark:text-green-100">Public URL</Label>
+                                    <div className="flex gap-2">
+                                        <Input readOnly value={currentConfig.public_url} className="bg-white font-mono text-xs dark:bg-gray-950" />
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={() => copyToClipboard(currentConfig.public_url, 'Public URL')}
+                                            title="Copy public URL"
+                                        >
+                                            <Copy className="size-4" />
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
                                 </div>
-                                <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
-                            </div>
-                        )}
+                            )}
                         </div>
                     </div>
                 )}
 
-                <DialogFooter
-                    data-testid="setup-lp-modal-footer"
-                    className="shrink-0 flex-wrap gap-2 border-t px-6 py-4"
-                >
+                <DialogFooter data-testid="setup-lp-modal-footer" className="shrink-0 flex-wrap gap-2 border-t px-6 py-4">
                     {/* Only show Remove Preview for draft landing pages.
                         Published landing pages cannot be removed because DOIs are persistent. */}
                     {currentConfig && currentConfig.status === 'draft' && (
