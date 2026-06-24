@@ -390,7 +390,8 @@ function OverflowTooltipText({ value, className, tooltipClassName, testId }: Ove
 
     const measureOverflow = useCallback(() => {
         const element = textRef.current;
-        setIsOverflowing(Boolean(element && element.scrollWidth > element.clientWidth));
+        const nextIsOverflowing = Boolean(element && element.scrollWidth > element.clientWidth);
+        setIsOverflowing((currentIsOverflowing) => (currentIsOverflowing === nextIsOverflowing ? currentIsOverflowing : nextIsOverflowing));
     }, []);
 
     useEffect(() => {
