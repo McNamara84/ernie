@@ -41,7 +41,7 @@ class CitationLookupController extends Controller
 
     /**
      * Convert the internal {@see CitationLookupResult} (camelCase, envelope)
-     * to the flat snake_case shape consumed by the Citation Manager UI and
+     * to the flat snake_case shape consumed by the Related Item Manager UI and
      * documented in the OpenAPI specification.
      *
      * @return array<string, mixed>

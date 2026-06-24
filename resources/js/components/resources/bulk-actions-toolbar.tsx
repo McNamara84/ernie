@@ -52,7 +52,7 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     },
     {
         key: 'manage-related-items',
-        label: 'Manage related items',
+        label: 'Manage Related Items',
         icon: <Quote aria-hidden="true" className="size-4" />,
     },
     {

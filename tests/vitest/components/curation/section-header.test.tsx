@@ -3,6 +3,7 @@ import { render, screen } from '@tests/vitest/utils/render';
 import { Upload } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 
+import { RELATED_ITEMS_SECTION_HELP, RELATED_ITEMS_SECTION_LABEL } from '@/components/curation/related-items-section-copy';
 import { AccordionSectionHeader, SectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { Button } from '@/components/ui/button';
 
@@ -223,9 +224,9 @@ describe('AccordionSectionHeader', () => {
     });
 
     it('omits optional metadata when not provided', () => {
-        render(<AccordionSectionHeader label="Citations" />);
+        render(<AccordionSectionHeader label="Related Items" />);
 
-        expect(screen.getByText('Citations')).toBeInTheDocument();
+        expect(screen.getByText('Related Items')).toBeInTheDocument();
         expect(screen.queryByLabelText('Required')).not.toBeInTheDocument();
         expect(screen.queryByText(/\(/)).not.toBeInTheDocument();
     });
@@ -236,6 +237,16 @@ describe('SectionHelpAction', () => {
         render(<SectionHelpAction label="Resource Information" tooltip="Required fields: Year and Resource Type" />);
 
         expect(screen.getByRole('button', { name: /help for resource information/i })).toBeInTheDocument();
+    });
+
+    it('shows the Related Item Manager tooltip copy used by the DataCite form', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        render(<SectionHelpAction label={RELATED_ITEMS_SECTION_LABEL} tooltip={RELATED_ITEMS_SECTION_HELP} />);
+
+        await user.hover(screen.getByRole('button', { name: /help for related items/i }));
+
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent(RELATED_ITEMS_SECTION_HELP);
     });
 
     it('renders nothing when tooltip content is missing', () => {

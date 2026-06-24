@@ -432,7 +432,7 @@ export interface LandingPageRelatedItemTitle {
 }
 
 /**
- * Inline relatedItem entry (DataCite 4.7 Citation Manager). Rendered on the
+ * Inline relatedItem entry (DataCite 4.7 Related Item Manager). Rendered on the
  * landing page alongside plain relatedIdentifiers with a visual distinction.
  */
 export interface LandingPageRelatedItem {

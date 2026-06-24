@@ -7,7 +7,7 @@ namespace App\Services\Citations;
 /**
  * Immutable DTO representing the result of a DOI lookup against either
  * Crossref or the DataCite API. The `data` array matches the schema the
- * React Citation Manager form expects (camelCased sub-fields).
+ * React Related Item Manager form expects (camelCased sub-fields).
  */
 final readonly class CitationLookupResult
 {

@@ -83,7 +83,7 @@ class RelatedItemController extends Controller
     }
 
     /**
-     * Return the vocabularies required by the Citation Manager UI.
+     * Return the vocabularies required by the Related Item Manager UI.
      *
      * Bundled in a single endpoint so the modal only makes one extra request
      * when opened.
@@ -97,7 +97,7 @@ class RelatedItemController extends Controller
             ->map(fn (ResourceType $t): array => [
                 // Use the DataCite `resourceTypeGeneral` PascalCase form
                 // (e.g. `JournalArticle`) so the value submitted by the
-                // Citation Manager Select matches what is persisted to
+                // Related Item Manager Select matches what is persisted to
                 // `related_items.related_item_type` and accepted by
                 // `StoreRelatedItemRequest`. The unrelated kebab-case
                 // `resource_types.slug` is intentionally not exposed here.

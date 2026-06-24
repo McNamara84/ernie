@@ -242,7 +242,7 @@ export interface DataCiteFormProps {
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
     /**
-     * Inline relatedItem metadata (DataCite 4.7 Citation Manager) pre-populated
+     * Inline relatedItem metadata (DataCite 4.7 Related Item Manager) pre-populated
      * from XML import. Items are persisted with the first save of the resource;
      * subsequent edits happen via the REST-based {@link CitationManagerModal}.
      */

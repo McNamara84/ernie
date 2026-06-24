@@ -9,7 +9,7 @@ use App\Services\DataCiteApiService;
 use App\Support\Traits\ChecksCacheTagging;
 
 /**
- * Orchestrates DOI metadata lookup for the Citation Manager. Per project
+ * Orchestrates DOI metadata lookup for the Related Item Manager. Per project
  * decision the primary source is Crossref (better coverage of journal
  * articles and books), falling back to DataCite.
  */

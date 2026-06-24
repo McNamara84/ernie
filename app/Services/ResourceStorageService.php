@@ -1504,7 +1504,7 @@ class ResourceStorageService
     }
 
     /**
-     * Save inline <relatedItem> metadata (DataCite 4.7 Citation Manager).
+     * Save inline <relatedItem> metadata (DataCite 4.7 Related Item Manager).
      *
      * Resolves `relation_type_slug` → id and delegates persistence of the
      * full aggregate (item + titles + creators + contributors + affiliations)
@@ -1516,7 +1516,7 @@ class ResourceStorageService
     private function storeRelatedItems(Resource $resource, array $data, bool $isUpdate): void
     {
         // Citations are persisted via the dedicated /resources/{id}/related-items
-        // REST endpoints (Citation Manager). Only touch them here when the caller
+        // REST endpoints (Related Item Manager). Only touch them here when the caller
         // explicitly includes a `relatedItems` payload (e.g., XML import or full
         // resource replace). Otherwise leave existing related items untouched so
         // a regular editor save does not wipe them.

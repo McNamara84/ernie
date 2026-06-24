@@ -6,6 +6,11 @@ import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
+import {
+    RELATED_ITEMS_SECTION_DESCRIPTION,
+    RELATED_ITEMS_SECTION_HELP,
+    RELATED_ITEMS_SECTION_LABEL,
+} from '@/components/curation/related-items-section-copy';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
@@ -3150,11 +3155,14 @@ export default function DataCiteForm({
                         data-testid="citations-accordion-trigger"
                         className={SECTION_TRIGGER_CLASS_NAME}
                         actions={renderSectionActions(
-                            'Citations',
-                            'Use the Citation Manager to add publications cited by or supplementing this dataset. Each entry carries full metadata (authors, title, year, pages).',
+                            RELATED_ITEMS_SECTION_LABEL,
+                            RELATED_ITEMS_SECTION_HELP,
                         )}
                     >
-                        <AccordionSectionHeader label="Citations" description="Inline citation metadata (DataCite 4.7 relatedItem)." />
+                        <AccordionSectionHeader
+                            label={RELATED_ITEMS_SECTION_LABEL}
+                            description={RELATED_ITEMS_SECTION_DESCRIPTION}
+                        />
                     </AccordionTrigger>
                     <AccordionContent data-testid="citations-accordion-content">
                         <CitationsField resourceId={resolvedResourceId} />

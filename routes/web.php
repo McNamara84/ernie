@@ -352,7 +352,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
-    // Related Items (DataCite 4.7) — Citation Manager
+    // Related Items (DataCite 4.7) — Related Item Manager
     Route::get('related-items/vocabularies', [RelatedItemController::class, 'vocabularies'])
         ->name('related-items.vocabularies');
     Route::get('resources/{resource}/related-items', [RelatedItemController::class, 'index'])
@@ -366,7 +366,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/related-items/reorder', [RelatedItemController::class, 'reorder'])
         ->name('resources.related-items.reorder');
 
-    // Citation Manager DOI auto-fill lookup (Crossref → DataCite fallback)
+    // Related Item Manager DOI auto-fill lookup (Crossref → DataCite fallback)
     Route::get('api/v1/citation-lookup', [CitationLookupController::class, 'lookup'])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');

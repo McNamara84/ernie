@@ -164,7 +164,7 @@ describe('No Debugging Code', function () {
         ->not->toUse(['dd', 'dump', 'ray']);
 });
 
-describe('Citation Manager', function () {
+describe('Related Item Manager', function () {
     // Keep HTTP access isolated to CrossrefClient. All other services in
     // App\Services\Citations must stay pure (no Guzzle, no Http facade,
     // no Http\Client\Factory) to remain trivially unit-testable.
