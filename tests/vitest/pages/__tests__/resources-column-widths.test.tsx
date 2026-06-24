@@ -343,6 +343,19 @@ describe('ResourcesPage column resizing', () => {
         expect(storedWidths.doi_title).toBe(720);
     });
 
+    it('cleans up pointer listeners when unmounted during a drag', () => {
+        const { unmount } = renderResourcesPage();
+
+        const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
+        fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
+
+        unmount();
+        fireEvent.pointerMove(window, { clientX: 900, pointerId: 1 });
+        fireEvent.pointerUp(window, { pointerId: 1 });
+
+        expect(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)).toBeNull();
+    });
+
     it('ignores unsupported resize interactions and clamps keyboard home to the minimum width', () => {
         renderResourcesPage();
 

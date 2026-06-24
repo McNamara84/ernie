@@ -334,6 +334,14 @@ interface ColumnResizeHandleProps {
 function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResizeHandleProps) {
     const definition = RESOURCE_COLUMN_WIDTH_DEFINITIONS[columnKey];
     const label = RESOURCE_COLUMN_RESIZE_LABELS[columnKey];
+    const resizeAbortControllerRef = useRef<AbortController | null>(null);
+
+    useEffect(() => {
+        return () => {
+            resizeAbortControllerRef.current?.abort();
+            resizeAbortControllerRef.current = null;
+        };
+    }, []);
 
     const resizeTo = useCallback(
         (nextWidth: number, options?: ColumnResizeOptions) => {
@@ -353,6 +361,10 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
             event.preventDefault();
             event.stopPropagation();
 
+            resizeAbortControllerRef.current?.abort();
+
+            const abortController = new AbortController();
+            resizeAbortControllerRef.current = abortController;
             const startX = event.clientX;
             const startWidth = width;
             const activePointerId = event.pointerId;
@@ -368,9 +380,11 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
             };
 
             function stopResize() {
-                window.removeEventListener('pointermove', handlePointerMove);
-                window.removeEventListener('pointerup', commitResize);
-                window.removeEventListener('pointercancel', cancelResize);
+                abortController.abort();
+
+                if (resizeAbortControllerRef.current === abortController) {
+                    resizeAbortControllerRef.current = null;
+                }
             }
 
             function commitResize(upEvent: PointerEvent) {
@@ -390,9 +404,9 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
                 stopResize();
             }
 
-            window.addEventListener('pointermove', handlePointerMove);
-            window.addEventListener('pointerup', commitResize);
-            window.addEventListener('pointercancel', cancelResize);
+            window.addEventListener('pointermove', handlePointerMove, { signal: abortController.signal });
+            window.addEventListener('pointerup', commitResize, { signal: abortController.signal });
+            window.addEventListener('pointercancel', cancelResize, { signal: abortController.signal });
         },
         [disabled, resizeTo, width],
     );
