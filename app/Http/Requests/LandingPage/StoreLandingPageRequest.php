@@ -32,6 +32,7 @@ class StoreLandingPageRequest extends FormRequest
             'template' => ['required', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
             'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'downloads_unavailable' => ['sometimes', 'boolean'],
             'external_domain_id' => ['required_if:template,external', 'integer', 'exists:landing_page_domains,id'],
             'external_path' => ['required_if:template,external', 'string', 'max:2048'],
             'is_published' => 'boolean',

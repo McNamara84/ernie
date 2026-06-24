@@ -2,12 +2,14 @@
 
 namespace Database\Factories;
 
+use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\LandingPage>
+ * @extends Factory<LandingPage>
  */
 class LandingPageFactory extends Factory
 {
@@ -45,6 +47,7 @@ class LandingPageFactory extends Factory
             'slug' => fn () => 'test-dataset-'.Str::uuid()->toString(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
+            'downloads_unavailable' => false,
             'is_published' => $isPublished,
             'preview_token' => Str::random(64),
             'published_at' => $isPublished ? fake()->dateTimeBetween('-1 year', 'now') : null,
@@ -106,9 +109,20 @@ class LandingPageFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'template' => 'external',
             'external_domain_id' => $attributes['external_domain_id']
-                ?? \App\Models\LandingPageDomain::factory(),
-            'external_path' => $attributes['external_path'] ?? 'datasets/' . fake()->slug(),
+                ?? LandingPageDomain::factory(),
+            'external_path' => $attributes['external_path'] ?? 'datasets/'.fake()->slug(),
             'ftp_url' => null,
+            'downloads_unavailable' => false,
+        ]);
+    }
+
+    /**
+     * Indicate that the generated landing page should hide the Files section.
+     */
+    public function downloadsUnavailable(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'downloads_unavailable' => true,
         ]);
     }
 }

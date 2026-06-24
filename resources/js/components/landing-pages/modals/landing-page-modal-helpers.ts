@@ -115,6 +115,8 @@ interface BuildLandingPagePayloadOptions {
     isPublished?: boolean;
     supportsFtpUrl: boolean;
     ftpUrl?: string;
+    supportsDownloadsUnavailable?: boolean;
+    downloadsUnavailable?: boolean;
     supportsLinks: boolean;
     links?: LandingPageLink[];
     isExternal: boolean;
@@ -146,6 +148,10 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
 
     if (options.supportsFtpUrl) {
         payload.ftp_url = options.ftpUrl || null;
+    }
+
+    if (options.supportsDownloadsUnavailable) {
+        payload.downloads_unavailable = options.downloadsUnavailable === true;
     }
 
     if (options.isExternal) {

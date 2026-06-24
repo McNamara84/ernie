@@ -327,6 +327,40 @@ describe('DefaultGfzTemplate', () => {
         expect(downloadLink.closest('a')).toHaveAttribute('href', 'https://ftp.example.com/dataset');
     });
 
+    it('omits the Files section when downloads are unavailable', () => {
+        mockUsePage.mockReturnValue({
+            props: {
+                resource: mockResource,
+                landingPage: {
+                    ...mockLandingPage,
+                    downloads_unavailable: true,
+                    files: [
+                        {
+                            id: 1,
+                            url: 'https://ftp.example.com/dataset/supplement.csv',
+                            position: 0,
+                        },
+                    ],
+                    links: [
+                        {
+                            id: 1,
+                            url: 'https://example.org/repository',
+                            label: 'Repository',
+                            position: 0,
+                        },
+                    ],
+                },
+                isPreview: false,
+            },
+        } as unknown as ReturnType<typeof usePage>);
+
+        render(<DefaultGfzTemplate />);
+
+        expect(screen.queryByText('Files')).not.toBeInTheDocument();
+        expect(screen.queryByText('Download data and description')).not.toBeInTheDocument();
+        expect(screen.queryByText('Repository')).not.toBeInTheDocument();
+    });
+
     describe('accessibility', () => {
         beforeEach(() => {
             mockUsePage.mockReturnValue({

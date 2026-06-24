@@ -223,6 +223,9 @@ export interface LandingPageConfig {
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
 
+    /** Whether the generated landing page should hide the Files section */
+    downloads_unavailable?: boolean;
+
     /** Public tracked redirect URL used only on published landing pages */
     tracked_ftp_url?: string | null;
 

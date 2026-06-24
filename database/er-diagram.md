@@ -557,6 +557,7 @@ erDiagram
         varchar template
         bigint landing_page_template_id FK "nullable"
         varchar ftp_url
+        boolean downloads_unavailable
         bigint external_domain_id FK "nullable"
         varchar external_path "2048, nullable"
         boolean is_published
