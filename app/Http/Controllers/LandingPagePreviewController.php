@@ -78,6 +78,9 @@ class LandingPagePreviewController extends Controller
             'ftp_url' => LandingPageController::templateSupportsFtpUrl($validated['template'])
                 ? ($validated['ftp_url'] ?? null)
                 : null,
+            'downloads_unavailable' => LandingPageController::templateSupportsDownloadsUnavailable($validated['template'])
+                ? ($validated['downloads_unavailable'] ?? false)
+                : false,
             'links' => $isLinksTemplate ? ($validated['links'] ?? []) : [],
             'resource_id' => $resource->id,
         ]);
@@ -143,10 +146,13 @@ class LandingPagePreviewController extends Controller
             $landingPageTemplateId = null;
         }
 
-        $ftpUrl = LandingPageController::templateSupportsFtpUrl($template)
+        $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
+            && ($previewData['downloads_unavailable'] ?? false) === true;
+        $ftpUrl = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable
             ? ($previewData['ftp_url'] ?? null)
             : null;
         $links = $template !== LandingPageTemplate::IGSN_DEFAULT_TEMPLATE_SLUG
+            && ! $downloadsUnavailable
             && is_array($previewData['links'] ?? null)
             ? $previewData['links']
             : [];
@@ -161,6 +167,7 @@ class LandingPagePreviewController extends Controller
             'template' => $template,
             'landing_page_template_id' => $landingPageTemplateId,
             'ftp_url' => $ftpUrl,
+            'downloads_unavailable' => $downloadsUnavailable,
             'files' => [],
             'links' => $links,
             'status' => 'preview',

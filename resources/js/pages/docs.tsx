@@ -1504,6 +1504,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such
                             as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
                         </p>
+                        <p>
+                            If a generated GFZ landing page should not offer downloads yet, enable{' '}
+                            <strong>No data available for download</strong> in the same Download URL section. ERNIE keeps the saved primary URL,
+                            imported legacy files, and additional download links in the setup modal, but hides the complete Files section on the
+                            preview and public landing page until the option is disabled again.
+                        </p>
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Navigate to Resources">

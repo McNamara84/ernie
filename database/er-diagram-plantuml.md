@@ -623,6 +623,7 @@ entity "landing_pages" as landing_pages {
     * template : VARCHAR(50) = 'default_gfz'
     landing_page_template_id : BIGINT <<FK>>
     ftp_url : VARCHAR(2048)
+    * downloads_unavailable : BOOLEAN = false
     external_domain_id : BIGINT <<FK>>
     external_path : VARCHAR(2048)
     * is_published : BOOLEAN = false

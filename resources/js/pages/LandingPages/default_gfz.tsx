@@ -54,6 +54,7 @@ export default function DefaultGfzTemplate() {
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ?? RESOURCE_LEFT_COLUMN_SECTIONS;
+    const downloadsUnavailable = landingPage?.downloads_unavailable === true;
     const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
     const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
     const locationIndex = rightOrder.indexOf('location');
@@ -82,7 +83,7 @@ export default function DefaultGfzTemplate() {
 
     const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
         return {
-            files: (
+            files: downloadsUnavailable ? null : (
                 <FilesSection
                     key="files"
                     downloadUrl={landingPage?.tracked_ftp_url ?? landingPage?.ftp_url}
@@ -108,7 +109,7 @@ export default function DefaultGfzTemplate() {
             general: null,
             acquisition: null,
         };
-    }, [resource, landingPage, mainTitle]);
+    }, [resource, landingPage, mainTitle, downloadsUnavailable]);
 
     return (
         <LandingPageShell

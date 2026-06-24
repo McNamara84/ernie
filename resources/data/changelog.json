@@ -4,6 +4,10 @@
         "date": "2026-06-23",
         "features": [
             {
+                "title": "Landing Pages Without Download Sections",
+                "description": "Generated GFZ landing pages can now be marked as having no data available for download. Curators can keep existing primary download URLs, legacy imported files, and additional download links in the setup modal for later reuse, while the public landing page and preview hide the complete Files section until downloads are enabled again."
+            },
+            {
                 "title": "Landing Page and Portal Statistics Dashboard",
                 "description": "Admins and Group Leaders now get a new Statistics page at /statistics in the Administration workspace of the main navigation. The dashboard tracks only published landing pages and excludes preview/review traffic. It shows daily trends and rankings for landing page views, clicks on real download targets in the Files section, and explicit search submissions from the public /portal search box. Physical Objects and regular resources are split out separately, while the legacy /old-statistics page remains available as a distinct legacy destination."
             },

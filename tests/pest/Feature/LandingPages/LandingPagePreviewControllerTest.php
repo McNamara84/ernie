@@ -42,6 +42,31 @@ describe('Session Preview Creation', function () {
             ->toHaveKey('resource_id', $this->resource->id);
     });
 
+    test('stores downloads unavailable preview data while retaining submitted download values in session', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'downloads_unavailable' => true,
+            'links' => [
+                [
+                    'url' => 'https://example.org/supporting-repository',
+                    'label' => 'Supporting repository',
+                    'position' => 0,
+                ],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $sessionKey = "landing_page_preview.{$this->resource->id}";
+        $sessionData = Session::get($sessionKey);
+
+        expect($sessionData)
+            ->toHaveKey('downloads_unavailable', true)
+            ->toHaveKey('ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
+            ->and($sessionData['links'][0]['url'])->toBe('https://example.org/supporting-repository');
+    });
+
     test('validates required template field', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", []);
 
@@ -159,6 +184,33 @@ describe('Session Preview Display', function () {
                 ->has('resource')
                 ->has('landingPage')
                 ->where('isPreview', true)
+            );
+    });
+
+    test('session preview hides download payloads when downloads are unavailable', function () {
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'downloads_unavailable' => true,
+            'links' => [
+                [
+                    'url' => 'https://example.org/supporting-repository',
+                    'label' => 'Supporting repository',
+                    'position' => 0,
+                ],
+            ],
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.downloads_unavailable', true)
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.files', [])
+                ->where('landingPage.links', [])
             );
     });
 
