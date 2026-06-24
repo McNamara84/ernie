@@ -84,7 +84,8 @@ vi.mock('@/hooks/use-citation-vocabularies', () => ({
     }),
 }));
 
-import ResourcesPage, { DEFAULT_RESOURCE_COLUMN_WIDTHS, deriveResourceRowKey } from '@/pages/resources';
+import ResourcesPage, { deriveResourceRowKey } from '@/pages/resources';
+import { DEFAULT_RESOURCE_COLUMN_WIDTHS } from '@/pages/resources-column-widths';
 
 interface TestResource {
     id: number;
