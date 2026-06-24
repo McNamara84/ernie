@@ -219,6 +219,16 @@ describe('ResourcesPage column resizing', () => {
         expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
     });
 
+    it('keeps resize handles unclipped by their header cells', () => {
+        renderResourcesPage();
+
+        const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
+        const headerCell = handle.closest('th');
+
+        expect(handle).toHaveClass('translate-x-1/2');
+        expect(headerCell).not.toHaveClass('overflow-hidden');
+    });
+
     it('resizes a column with the keyboard and persists the new width', () => {
         renderResourcesPage();
 

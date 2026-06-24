@@ -1955,7 +1955,7 @@ function ResourcesPage({
                                                         <TableHead
                                                             key={column.key}
                                                             className={cn(
-                                                                'relative overflow-hidden pr-6 text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300',
+                                                                'relative pr-6 text-xs tracking-wider text-gray-500 uppercase dark:text-gray-300',
                                                                 column.visibilityClassName,
                                                             )}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
