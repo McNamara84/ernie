@@ -78,7 +78,7 @@ class LandingPageController extends Controller
             ];
         }
 
-        if (($validated['downloads_unavailable'] ?? false) === true && ! self::templateSupportsDownloadsUnavailable($template)) {
+        if (array_key_exists('downloads_unavailable', $validated) && ! self::templateSupportsDownloadsUnavailable($template)) {
             $unsupportedFields['downloads_unavailable'] = [
                 'The downloads_unavailable field is not supported for this landing page template.',
             ];

@@ -740,6 +740,36 @@ describe('Landing Page Template Assignment', function () {
             ->external_path->toBeNull();
     });
 
+    test('rejects downloads unavailable as an unsupported external template field even when false', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'downloads_unavailable' => true,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'downloads_unavailable' => false,
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJson([
+                'message' => 'The request includes fields that are not supported for this landing page template.',
+            ])
+            ->assertJsonValidationErrors(['downloads_unavailable']);
+
+        expect($this->resource->fresh()->landingPage)
+            ->template->toBe('default_gfz')
+            ->downloads_unavailable->toBeTrue()
+            ->external_domain_id->toBeNull()
+            ->external_path->toBeNull();
+    });
+
     test('can clear template assignment by setting null', function () {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->user->id,
