@@ -424,7 +424,7 @@ function OverflowTooltipText({ value, className, tooltipClassName, testId }: Ove
     }
 
     return (
-        <TooltipProvider>
+        <TooltipProvider delayDuration={0}>
             <Tooltip>
                 <TooltipTrigger asChild>{text}</TooltipTrigger>
                 <TooltipContent className={cn('max-w-sm text-left break-words normal-case', tooltipClassName)}>{value}</TooltipContent>
@@ -468,9 +468,14 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
 
             const startX = event.clientX;
             const startWidth = width;
+            const activePointerId = event.pointerId;
             let latestWidth = startWidth;
 
             const handlePointerMove = (moveEvent: PointerEvent) => {
+                if (moveEvent.pointerId !== activePointerId) {
+                    return;
+                }
+
                 moveEvent.preventDefault();
                 latestWidth = resizeTo(startWidth + moveEvent.clientX - startX);
             };
@@ -478,17 +483,29 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
             function stopResize() {
                 window.removeEventListener('pointermove', handlePointerMove);
                 window.removeEventListener('pointerup', commitResize);
-                window.removeEventListener('pointercancel', stopResize);
+                window.removeEventListener('pointercancel', cancelResize);
             }
 
-            function commitResize() {
+            function commitResize(upEvent: PointerEvent) {
+                if (upEvent.pointerId !== activePointerId) {
+                    return;
+                }
+
                 resizeTo(latestWidth, { persist: true });
                 stopResize();
             }
 
+            function cancelResize(cancelEvent: PointerEvent) {
+                if (cancelEvent.pointerId !== activePointerId) {
+                    return;
+                }
+
+                stopResize();
+            }
+
             window.addEventListener('pointermove', handlePointerMove);
-            window.addEventListener('pointerup', commitResize, { once: true });
-            window.addEventListener('pointercancel', stopResize, { once: true });
+            window.addEventListener('pointerup', commitResize);
+            window.addEventListener('pointercancel', cancelResize);
         },
         [disabled, resizeTo, width],
     );

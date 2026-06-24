@@ -300,6 +300,30 @@ describe('ResourcesPage column resizing', () => {
         expect(storedWidths.doi_title).toBe(720);
     });
 
+    it('ignores resize events from inactive pointers', () => {
+        renderResourcesPage();
+
+        const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
+        fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
+        fireEvent.pointerMove(window, { clientX: 900, pointerId: 2 });
+        fireEvent.pointerCancel(window, { pointerId: 2 });
+
+        expect(handle).toHaveAttribute('aria-valuenow', `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}`);
+        expect(getDoiTitleColumn()).toHaveStyle({ width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px` });
+
+        fireEvent.pointerMove(window, { clientX: 900, pointerId: 1 });
+        fireEvent.pointerUp(window, { pointerId: 2 });
+
+        expect(handle).toHaveAttribute('aria-valuenow', '720');
+        expect(getDoiTitleColumn()).toHaveStyle({ width: '720px' });
+        expect(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)).toBeNull();
+
+        fireEvent.pointerUp(window, { pointerId: 1 });
+
+        const storedWidths = JSON.parse(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY) ?? '{}') as Record<string, number>;
+        expect(storedWidths.doi_title).toBe(720);
+    });
+
     it('ignores unsupported resize interactions and clamps keyboard home to the minimum width', () => {
         renderResourcesPage();
 
@@ -383,9 +407,7 @@ describe('ResourcesPage column resizing', () => {
     });
 
     it('opens and closes DataCite import modals from the import buttons', async () => {
-        render(
-            <ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} canImportFromDataCite />,
-        );
+        render(<ResourcesPage resources={[resource]} pagination={pagination} sort={{ key: 'id', direction: 'asc' }} canImportFromDataCite />);
 
         await userEvent.click(screen.getByRole('button', { name: /import all old resources/i }));
         expect(screen.getByTestId('datacite-import-modal')).toBeInTheDocument();
@@ -554,7 +576,7 @@ describe('OverflowTooltipText', () => {
         await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));
         await userEvent.hover(text);
 
-        expect(await screen.findByRole('tooltip')).toHaveTextContent('A long title that overflows');
+        expect(screen.getByRole('tooltip')).toHaveTextContent('A long title that overflows');
     });
 
     it('measures overflow when ResizeObserver is unavailable', async () => {
