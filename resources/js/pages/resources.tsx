@@ -433,11 +433,15 @@ function OverflowTooltipText({ value, className, tooltipClassName, testId }: Ove
     );
 }
 
+interface ColumnResizeOptions {
+    persist?: boolean;
+}
+
 interface ColumnResizeHandleProps {
     columnKey: ResourceColumnKey;
     width: number;
     disabled: boolean;
-    onResize: (columnKey: ResourceColumnKey, width: number) => void;
+    onResize: (columnKey: ResourceColumnKey, width: number, options?: ColumnResizeOptions) => void;
 }
 
 function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResizeHandleProps) {
@@ -445,8 +449,10 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
     const label = RESOURCE_COLUMN_RESIZE_LABELS[columnKey];
 
     const resizeTo = useCallback(
-        (nextWidth: number) => {
-            onResize(columnKey, clampColumnWidth(columnKey, nextWidth));
+        (nextWidth: number, options?: ColumnResizeOptions) => {
+            const clampedWidth = clampColumnWidth(columnKey, nextWidth);
+            onResize(columnKey, clampedWidth, options);
+            return clampedWidth;
         },
         [columnKey, onResize],
     );
@@ -462,20 +468,26 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
 
             const startX = event.clientX;
             const startWidth = width;
+            let latestWidth = startWidth;
 
             const handlePointerMove = (moveEvent: PointerEvent) => {
                 moveEvent.preventDefault();
-                resizeTo(startWidth + moveEvent.clientX - startX);
+                latestWidth = resizeTo(startWidth + moveEvent.clientX - startX);
             };
 
-            const stopResize = () => {
+            function stopResize() {
                 window.removeEventListener('pointermove', handlePointerMove);
-                window.removeEventListener('pointerup', stopResize);
+                window.removeEventListener('pointerup', commitResize);
                 window.removeEventListener('pointercancel', stopResize);
-            };
+            }
+
+            function commitResize() {
+                resizeTo(latestWidth, { persist: true });
+                stopResize();
+            }
 
             window.addEventListener('pointermove', handlePointerMove);
-            window.addEventListener('pointerup', stopResize, { once: true });
+            window.addEventListener('pointerup', commitResize, { once: true });
             window.addEventListener('pointercancel', stopResize, { once: true });
         },
         [disabled, resizeTo, width],
@@ -502,7 +514,7 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
 
             event.preventDefault();
             event.stopPropagation();
-            resizeTo(nextWidth);
+            resizeTo(nextWidth, { persist: true });
         },
         [definition.maxWidth, definition.minWidth, resizeTo, width],
     );
@@ -1505,15 +1517,15 @@ function ResourcesPage({
         [handleEditSelectedResources, handleExportSelectedResources, handleRegisterDoi, handleSetupLandingPage, singleSelectedResource],
     );
 
-    const handleColumnResize = useCallback((columnKey: ResourceColumnKey, width: number) => {
+    const handleColumnResize = useCallback((columnKey: ResourceColumnKey, width: number, options: ColumnResizeOptions = {}) => {
         setColumnWidths((currentWidths) => {
             const nextWidth = clampColumnWidth(columnKey, width);
-            if (currentWidths[columnKey] === nextWidth) {
-                return currentWidths;
+            const nextWidths = currentWidths[columnKey] === nextWidth ? currentWidths : { ...currentWidths, [columnKey]: nextWidth };
+
+            if (options.persist) {
+                persistResourceColumnWidths(nextWidths);
             }
 
-            const nextWidths = { ...currentWidths, [columnKey]: nextWidth };
-            persistResourceColumnWidths(nextWidths);
             return nextWidths;
         });
     }, []);

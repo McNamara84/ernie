@@ -190,8 +190,7 @@ describe('resource column width helpers', () => {
     });
 
     it('treats storage helpers as SSR-safe no-ops without window', () => {
-        const originalWindow = globalThis.window;
-        Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: undefined });
+        vi.stubGlobal('window', undefined);
 
         try {
             expect(readStoredResourceColumnWidths()).toEqual(DEFAULT_RESOURCE_COLUMN_WIDTHS);
@@ -199,7 +198,7 @@ describe('resource column width helpers', () => {
             expect(() => persistResourceColumnWidths(DEFAULT_RESOURCE_COLUMN_WIDTHS)).not.toThrow();
             expect(() => clearStoredResourceColumnWidths()).not.toThrow();
         } finally {
-            Object.defineProperty(globalThis, 'window', { configurable: true, writable: true, value: originalWindow });
+            vi.unstubAllGlobals();
         }
     });
 });
@@ -274,16 +273,21 @@ describe('ResourcesPage column resizing', () => {
         }
     });
 
-    it('resizes a column with pointer drag and clamps at the maximum width', () => {
+    it('resizes a column with pointer drag and persists only after pointerup', () => {
         renderResourcesPage();
 
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerId: 1 });
         fireEvent.pointerMove(window, { clientX: 900, pointerId: 1 });
-        fireEvent.pointerUp(window, { pointerId: 1 });
 
         expect(handle).toHaveAttribute('aria-valuenow', '720');
         expect(getDoiTitleColumn()).toHaveStyle({ width: '720px' });
+        expect(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)).toBeNull();
+
+        fireEvent.pointerUp(window, { pointerId: 1 });
+
+        const storedWidths = JSON.parse(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY) ?? '{}') as Record<string, number>;
+        expect(storedWidths.doi_title).toBe(720);
     });
 
     it('ignores unsupported resize interactions and clamps keyboard home to the minimum width', () => {
@@ -447,7 +451,6 @@ describe('ResourcesPage column resizing', () => {
     });
 
     it('renders loading skeleton rows while the next resource page is loading', async () => {
-        const originalIntersectionObserver = globalThis.IntersectionObserver;
         const observerInstances: Array<{ disconnect: ReturnType<typeof vi.fn> }> = [];
 
         class IntersectingObserver implements IntersectionObserver {
@@ -471,11 +474,7 @@ describe('ResourcesPage column resizing', () => {
             }
         }
 
-        Object.defineProperty(globalThis, 'IntersectionObserver', {
-            configurable: true,
-            writable: true,
-            value: IntersectingObserver,
-        });
+        vi.stubGlobal('IntersectionObserver', IntersectingObserver);
 
         axiosGetMock.mockImplementation((url: string) => {
             if (url === '/resources/load-more') {
@@ -498,15 +497,7 @@ describe('ResourcesPage column resizing', () => {
 
             expect(observerInstances).toHaveLength(1);
         } finally {
-            if (originalIntersectionObserver) {
-                Object.defineProperty(globalThis, 'IntersectionObserver', {
-                    configurable: true,
-                    writable: true,
-                    value: originalIntersectionObserver,
-                });
-            } else {
-                Reflect.deleteProperty(globalThis, 'IntersectionObserver');
-            }
+            vi.unstubAllGlobals();
         }
     });
 });
@@ -557,8 +548,7 @@ describe('OverflowTooltipText', () => {
     });
 
     it('measures overflow when ResizeObserver is unavailable', async () => {
-        const originalResizeObserver = globalThis.ResizeObserver;
-        Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, writable: true, value: undefined });
+        vi.stubGlobal('ResizeObserver', undefined);
         Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 80 });
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
 
@@ -568,15 +558,7 @@ describe('OverflowTooltipText', () => {
             const text = screen.getByTestId('overflow-text');
             await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));
         } finally {
-            if (originalResizeObserver) {
-                Object.defineProperty(globalThis, 'ResizeObserver', {
-                    configurable: true,
-                    writable: true,
-                    value: originalResizeObserver,
-                });
-            } else {
-                Reflect.deleteProperty(globalThis, 'ResizeObserver');
-            }
+            vi.unstubAllGlobals();
         }
     });
 });
