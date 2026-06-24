@@ -101,18 +101,19 @@ vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
 }));
 
-import ResourcesPage, {
+import { TooltipProvider } from '@/components/ui/tooltip';
+import ResourcesPage, { OverflowTooltipText } from '@/pages/resources';
+import {
     clampColumnWidth,
     clearStoredResourceColumnWidths,
     COLUMN_WIDTH_STORAGE_KEY,
     DEFAULT_RESOURCE_COLUMN_WIDTHS,
     isResizableViewport,
     normalizeResourceColumnWidths,
-    OverflowTooltipText,
     parseStoredResourceColumnWidths,
     persistResourceColumnWidths,
     readStoredResourceColumnWidths,
-} from '@/pages/resources';
+} from '@/pages/resources-column-widths';
 
 const resource = {
     id: 1,
@@ -226,7 +227,7 @@ describe('ResourcesPage column resizing', () => {
         const handle = screen.getByRole('separator', { name: /resize doi and title column/i });
         const headerCell = handle.closest('th');
 
-        expect(handle).toHaveClass('translate-x-1/2');
+        expect(handle).toHaveClass('translate-x-1/2', 'touch-none');
         expect(headerCell).not.toHaveClass('overflow-hidden');
     });
 
@@ -554,6 +555,13 @@ describe('ResourcesPage column resizing', () => {
 });
 
 describe('OverflowTooltipText', () => {
+    const renderOverflowTooltipText = (value: string) =>
+        render(
+            <TooltipProvider delayDuration={0}>
+                <OverflowTooltipText value={value} testId="overflow-text" />
+            </TooltipProvider>,
+        );
+
     let clientWidthDescriptor: PropertyDescriptor | undefined;
     let scrollWidthDescriptor: PropertyDescriptor | undefined;
 
@@ -576,7 +584,7 @@ describe('OverflowTooltipText', () => {
         Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 200 });
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 120 });
 
-        render(<OverflowTooltipText value="Short title" testId="overflow-text" />);
+        renderOverflowTooltipText('Short title');
 
         const text = screen.getByTestId('overflow-text');
         await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'false'));
@@ -589,7 +597,7 @@ describe('OverflowTooltipText', () => {
         Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 80 });
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
 
-        render(<OverflowTooltipText value="A long title that overflows" testId="overflow-text" />);
+        renderOverflowTooltipText('A long title that overflows');
 
         const text = screen.getByTestId('overflow-text');
         await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));
@@ -604,7 +612,7 @@ describe('OverflowTooltipText', () => {
         Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get: () => 240 });
 
         try {
-            render(<OverflowTooltipText value="A long title without a resize observer" testId="overflow-text" />);
+            renderOverflowTooltipText('A long title without a resize observer');
 
             const text = screen.getByTestId('overflow-text');
             await waitFor(() => expect(text).toHaveAttribute('data-overflowing', 'true'));

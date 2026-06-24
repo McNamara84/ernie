@@ -30,12 +30,28 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { cn } from '@/lib/utils';
+import {
+    areResourceColumnWidthsDefault,
+    clampColumnWidth,
+    clearStoredResourceColumnWidths,
+    COLUMN_RESIZE_LARGE_STEP,
+    COLUMN_RESIZE_STEP,
+    DEFAULT_RESOURCE_COLUMN_WIDTHS,
+    isResizableViewport,
+    persistResourceColumnWidths,
+    readStoredResourceColumnWidths,
+    RESOURCE_COLUMN_RESIZE_LABELS,
+    RESOURCE_COLUMN_WIDTH_DEFINITIONS,
+    type ResourceColumnKey,
+    type ResourceColumnWidths,
+    shouldIncludeColumnInLayout,
+} from '@/pages/resources-column-widths';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem, type User as AuthUser } from '@/types';
 import {
@@ -72,8 +88,6 @@ interface SortOption {
     description: string;
 }
 
-type ResourceColumnKey = 'id_resourcetype' | 'doi_title' | 'author_year' | 'curator_status' | 'created_updated';
-
 interface ResourceColumn {
     key: ResourceColumnKey;
     label: ReactNode;
@@ -85,34 +99,7 @@ interface ResourceColumn {
     sortGroupLabel?: string;
 }
 
-interface ResourceColumnWidthDefinition {
-    defaultWidth: number;
-    minWidth: number;
-    maxWidth: number;
-}
-
-type ResourceColumnWidths = Record<ResourceColumnKey, number>;
-
 const SELECT_COLUMN_WIDTH = 48;
-const RESIZABLE_TABLE_MIN_VIEWPORT_WIDTH = 768;
-const COLUMN_RESIZE_STEP = 16;
-const COLUMN_RESIZE_LARGE_STEP = 48;
-const COLUMN_WIDTH_STORAGE_KEY = 'resources.column-widths';
-const RESOURCE_COLUMN_WIDTH_DEFINITIONS: Record<ResourceColumnKey, ResourceColumnWidthDefinition> = {
-    id_resourcetype: { defaultWidth: 160, minWidth: 120, maxWidth: 280 },
-    doi_title: { defaultWidth: 384, minWidth: 220, maxWidth: 720 },
-    author_year: { defaultWidth: 208, minWidth: 140, maxWidth: 360 },
-    curator_status: { defaultWidth: 176, minWidth: 140, maxWidth: 320 },
-    created_updated: { defaultWidth: 160, minWidth: 128, maxWidth: 260 },
-};
-const RESOURCE_COLUMN_RESIZE_LABELS: Record<ResourceColumnKey, string> = {
-    id_resourcetype: 'ID and Resource Type',
-    doi_title: 'DOI and Title',
-    author_year: 'Author and Year',
-    curator_status: 'Curator and Status',
-    created_updated: 'Created and Updated dates',
-};
-const RESOURCE_COLUMN_KEYS = Object.keys(RESOURCE_COLUMN_WIDTH_DEFINITIONS) as ResourceColumnKey[];
 const DATE_COLUMN_CONTAINER_CLASSES = 'flex min-w-0 flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
@@ -145,104 +132,6 @@ const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> =
     publicstatus: 'asc',
     created_at: 'desc',
     updated_at: 'desc',
-};
-
-const buildDefaultColumnWidths = (): ResourceColumnWidths =>
-    RESOURCE_COLUMN_KEYS.reduce((widths, columnKey) => {
-        widths[columnKey] = RESOURCE_COLUMN_WIDTH_DEFINITIONS[columnKey].defaultWidth;
-        return widths;
-    }, {} as ResourceColumnWidths);
-
-const DEFAULT_RESOURCE_COLUMN_WIDTHS = buildDefaultColumnWidths();
-
-const clampColumnWidth = (columnKey: ResourceColumnKey, width: number): number => {
-    const definition = RESOURCE_COLUMN_WIDTH_DEFINITIONS[columnKey];
-
-    if (!Number.isFinite(width)) {
-        return definition.defaultWidth;
-    }
-
-    return Math.min(definition.maxWidth, Math.max(definition.minWidth, Math.round(width)));
-};
-
-const normalizeResourceColumnWidths = (value: unknown): ResourceColumnWidths => {
-    const widths = buildDefaultColumnWidths();
-
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-        return widths;
-    }
-
-    const storedWidths = value as Partial<Record<ResourceColumnKey, unknown>>;
-
-    RESOURCE_COLUMN_KEYS.forEach((columnKey) => {
-        const storedWidth = storedWidths[columnKey];
-        if (typeof storedWidth === 'number') {
-            widths[columnKey] = clampColumnWidth(columnKey, storedWidth);
-        }
-    });
-
-    return widths;
-};
-
-const parseStoredResourceColumnWidths = (storedValue: string | null): ResourceColumnWidths | null => {
-    if (!storedValue) {
-        return null;
-    }
-
-    try {
-        return normalizeResourceColumnWidths(JSON.parse(storedValue));
-    } catch {
-        return null;
-    }
-};
-
-const readStoredResourceColumnWidths = (): ResourceColumnWidths => {
-    if (typeof window === 'undefined') {
-        return buildDefaultColumnWidths();
-    }
-
-    try {
-        return parseStoredResourceColumnWidths(window.localStorage.getItem(COLUMN_WIDTH_STORAGE_KEY)) ?? buildDefaultColumnWidths();
-    } catch {
-        return buildDefaultColumnWidths();
-    }
-};
-
-const persistResourceColumnWidths = (widths: ResourceColumnWidths): void => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    try {
-        window.localStorage.setItem(COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(normalizeResourceColumnWidths(widths)));
-    } catch {
-        // Ignore storage failures; resizing should remain usable for the session.
-    }
-};
-
-const clearStoredResourceColumnWidths = (): void => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    try {
-        window.localStorage.removeItem(COLUMN_WIDTH_STORAGE_KEY);
-    } catch {
-        // Ignore storage failures; the in-memory reset still applies.
-    }
-};
-
-const areResourceColumnWidthsDefault = (widths: ResourceColumnWidths): boolean =>
-    RESOURCE_COLUMN_KEYS.every((columnKey) => widths[columnKey] === DEFAULT_RESOURCE_COLUMN_WIDTHS[columnKey]);
-
-const isResizableViewport = (): boolean => (typeof window === 'undefined' ? true : window.innerWidth >= RESIZABLE_TABLE_MIN_VIEWPORT_WIDTH);
-
-const shouldIncludeColumnInLayout = (column: ResourceColumn, tableCanResize: boolean): boolean => {
-    if (column.key === 'created_updated' && !tableCanResize) {
-        return false;
-    }
-
-    return true;
 };
 
 const getDefaultBatchDeleteErrorMessage = (selectedCount: number): string =>
@@ -424,12 +313,10 @@ function OverflowTooltipText({ value, className, tooltipClassName, testId }: Ove
     }
 
     return (
-        <TooltipProvider delayDuration={0}>
-            <Tooltip>
-                <TooltipTrigger asChild>{text}</TooltipTrigger>
-                <TooltipContent className={cn('max-w-sm text-left break-words normal-case', tooltipClassName)}>{value}</TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+            <TooltipTrigger asChild>{text}</TooltipTrigger>
+            <TooltipContent className={cn('max-w-sm text-left break-words normal-case', tooltipClassName)}>{value}</TooltipContent>
+        </Tooltip>
     );
 }
 
@@ -547,7 +434,7 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
             aria-valuemin={definition.minWidth}
             aria-valuemax={definition.maxWidth}
             aria-valuenow={width}
-            className="absolute inset-y-0 right-0 z-10 hidden h-full w-5 translate-x-1/2 cursor-col-resize rounded-none border-l border-border/80 bg-background/80 p-0 text-muted-foreground opacity-80 transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-0 md:flex"
+            className="absolute inset-y-0 right-0 z-10 hidden h-full w-5 translate-x-1/2 cursor-col-resize touch-none rounded-none border-l border-border/80 bg-background/80 p-0 text-muted-foreground opacity-80 transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-0 md:flex"
             disabled={disabled}
             tabIndex={disabled ? -1 : 0}
             title={`Resize ${label} column`}
@@ -1552,7 +1439,7 @@ function ResourcesPage({
     }, []);
 
     const handleResetColumnWidths = useCallback(() => {
-        const defaultWidths = buildDefaultColumnWidths();
+        const defaultWidths = { ...DEFAULT_RESOURCE_COLUMN_WIDTHS };
         clearStoredResourceColumnWidths();
         setColumnWidths(defaultWidths);
     }, []);
@@ -2180,16 +2067,4 @@ function ResourcesPage({
 
 export default ResourcesPage;
 
-export {
-    clampColumnWidth,
-    clearStoredResourceColumnWidths,
-    COLUMN_WIDTH_STORAGE_KEY,
-    DEFAULT_RESOURCE_COLUMN_WIDTHS,
-    deriveResourceRowKey,
-    isResizableViewport,
-    normalizeResourceColumnWidths,
-    OverflowTooltipText,
-    parseStoredResourceColumnWidths,
-    persistResourceColumnWidths,
-    readStoredResourceColumnWidths,
-};
+export { deriveResourceRowKey, OverflowTooltipText };
