@@ -187,3 +187,8 @@ Use stable reason codes for logs, metrics, or future reports:
 - `source_conflict`
 - `ror_candidate_not_funder_type`
 
+## Existing ROR Cache Constraint
+
+The `/settings` ROR refresh and `ror/ror-affiliations.json` cache are part of the intended implementation context. They can provide freshness, local availability, and display labels.
+
+For Crossref-to-ROR replacement decisions, the assistant still needs a FundRef-aware index derived from the same ROR dump. The current reduced cache does not include `external_ids[type=fundref]`, so it can support display and fallback name resolution but cannot satisfy the minimum evidence threshold on its own.

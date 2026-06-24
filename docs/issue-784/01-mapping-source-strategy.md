@@ -158,3 +158,18 @@ The assistant may propose a ROR replacement only when all constraints are met:
 
 If any constraint fails, do not create an actionable replacement suggestion.
 
+## Existing `/settings` ROR Refresh Integration
+
+ERNIE already refreshes ROR data from `/settings`:
+
+- `PidSetting::TYPE_ROR` points to `ror/ror-affiliations.json`.
+- `/pid-settings/ror/update` dispatches `UpdatePidJob`.
+- `UpdatePidJob` calls the `get-ror-ids` Artisan command.
+- `get-ror-ids` downloads the latest ROR data dump from the Zenodo `ror-data` community.
+- The command currently writes a reduced lookup/autocomplete file containing `prefLabel`, `rorId`, and `otherLabel` under `storage/app/private/ror/ror-affiliations.json`.
+
+The future Crossref-to-ROR assistant should reuse that administrator-controlled refresh path instead of adding a competing ROR download mechanism.
+
+The existing `ror/ror-affiliations.json` file must not be used as the mapping authority by itself. It is intentionally reduced for lookup/autocomplete and no longer contains the registry evidence required by Issue 784, especially ROR `external_ids[type=fundref]`, candidate `status`, `types`, and source-record metadata.
+
+Recommended integration: extend `get-ror-ids` or add a companion processor in the same update job to write a second derived file such as `ror/ror-fundref-index.json`. That index should be built from the same downloaded ROR dump before the raw evidence is discarded.
