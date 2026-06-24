@@ -2,7 +2,7 @@
 
 These rules define how ERNIE should normalize Crossref Funder ID inputs, choose whether a ROR replacement is safe enough to propose, and update identifier type and scheme URI when a curator accepts a suggestion.
 
-The rules apply only to `funding_references` rows with `funderIdentifierType` `Crossref Funder ID`.
+The rules apply only to `funding_references` rows whose related `funder_identifier_types` record has `name` or `slug` `Crossref Funder ID`.
 
 ## Eligibility
 
