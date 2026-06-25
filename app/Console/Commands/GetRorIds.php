@@ -19,12 +19,13 @@ use Throwable;
 #[Signature('get-ror-ids {--output= : Override the output file path}')]
 class GetRorIds extends Command
 {
-
     private const METADATA_URL = 'https://zenodo.org/api/records/';
 
     private const COMMUNITY = 'ror-data';
 
     private const OUTPUT_RELATIVE_PATH = 'ror/ror-affiliations.json';
+
+    private const FUNDREF_INDEX_RELATIVE_PATH = 'ror/ror-fundref-index.json';
 
     /**
      * Execute the console command.
@@ -113,11 +114,18 @@ class GetRorIds extends Command
         $targetPath = is_string($outputPath) && $outputPath !== ''
             ? $outputPath
             : storage_path('app/private/'.self::OUTPUT_RELATIVE_PATH);
+        $fundrefIndexPath = $this->fundrefIndexTargetPath($targetPath);
 
         $directory = dirname($targetPath);
 
         if (! File::exists($directory)) {
             File::makeDirectory($directory, 0o755, true);
+        }
+
+        $fundrefDirectory = dirname($fundrefIndexPath);
+
+        if (! File::exists($fundrefDirectory)) {
+            File::makeDirectory($fundrefDirectory, 0o755, true);
         }
 
         try {
@@ -129,6 +137,8 @@ class GetRorIds extends Command
             } else {
                 $saved = $this->convertDumpToSuggestions($temporaryPath, $targetPath);
             }
+
+            $fundrefSaved = $this->buildFundrefIndex($temporaryPath, $isZip, $fundrefIndexPath);
         } catch (Throwable $exception) {
             File::delete($temporaryPath);
             $this->error(sprintf('Failed to process ROR data dump: %s', $exception->getMessage()));
@@ -148,6 +158,7 @@ class GetRorIds extends Command
         $this->call('cache:clear-app', ['category' => 'ror']);
 
         $this->info(sprintf('Saved %d ROR affiliation entries to %s', $saved, $targetPath));
+        $this->info(sprintf('Saved %d ROR FundRef candidate entries to %s', $fundrefSaved, $fundrefIndexPath));
 
         return self::SUCCESS;
     }
@@ -238,7 +249,7 @@ class GetRorIds extends Command
         }
 
         $timestamp = Carbon::now()->toIso8601String();
-        fwrite($outputHandle, '{"lastUpdated":' . json_encode($timestamp, JSON_THROW_ON_ERROR) . ',"data":[');
+        fwrite($outputHandle, '{"lastUpdated":'.json_encode($timestamp, JSON_THROW_ON_ERROR).',"data":[');
 
         $first = true;
         $count = 0;
@@ -268,7 +279,7 @@ class GetRorIds extends Command
             }
         }
 
-        fwrite($outputHandle, '],"total":' . $count . '}');
+        fwrite($outputHandle, '],"total":'.$count.'}');
         fclose($outputHandle);
 
         return $count;
@@ -415,7 +426,7 @@ class GetRorIds extends Command
         }
 
         $timestamp = Carbon::now()->toIso8601String();
-        fwrite($outputHandle, '{"lastUpdated":' . json_encode($timestamp, JSON_THROW_ON_ERROR) . ',"data":[');
+        fwrite($outputHandle, '{"lastUpdated":'.json_encode($timestamp, JSON_THROW_ON_ERROR).',"data":[');
 
         $first = true;
         $count = 0;
@@ -514,10 +525,370 @@ class GetRorIds extends Command
             $count++;
         }
 
-        fwrite($outputHandle, '],"total":' . $count . '}');
+        fwrite($outputHandle, '],"total":'.$count.'}');
         fclose($outputHandle);
         gzclose($resource);
 
         return $count;
+    }
+
+    private function fundrefIndexTargetPath(string $affiliationTargetPath): string
+    {
+        $outputPath = $this->option('output');
+
+        if (is_string($outputPath) && $outputPath !== '') {
+            return dirname($affiliationTargetPath).DIRECTORY_SEPARATOR.'ror-fundref-index.json';
+        }
+
+        return storage_path('app/private/'.self::FUNDREF_INDEX_RELATIVE_PATH);
+    }
+
+    private function buildFundrefIndex(string $dumpPath, bool $isZip, string $targetPath): int
+    {
+        return $isZip
+            ? $this->buildFundrefIndexFromZip($dumpPath, $targetPath)
+            : $this->buildFundrefIndexFromGzip($dumpPath, $targetPath);
+    }
+
+    private function buildFundrefIndexFromZip(string $zipPath, string $targetPath): int
+    {
+        $zip = new \ZipArchive;
+
+        if ($zip->open($zipPath) !== true) {
+            throw new \RuntimeException('Unable to open the downloaded ROR data archive for FundRef indexing.');
+        }
+
+        $jsonFile = null;
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $filename = $zip->getNameIndex($i);
+
+            if (is_string($filename) && Str::endsWith($filename, '.json')) {
+                if (! Str::contains($filename, 'schema_v2')) {
+                    $jsonFile = $filename;
+
+                    break;
+                }
+
+                if ($jsonFile === null) {
+                    $jsonFile = $filename;
+                }
+            }
+        }
+
+        if ($jsonFile === null) {
+            $zip->close();
+
+            throw new \RuntimeException('No JSON file found in the ROR data archive for FundRef indexing.');
+        }
+
+        $jsonContent = $zip->getFromName($jsonFile);
+        $zip->close();
+
+        if ($jsonContent === false) {
+            throw new \RuntimeException(sprintf('Failed to extract %s from archive for FundRef indexing.', $jsonFile));
+        }
+
+        $tempJsonPath = (string) tempnam(sys_get_temp_dir(), 'ror-fundref-json-');
+        File::put($tempJsonPath, $jsonContent);
+
+        try {
+            return $this->buildFundrefIndexFromJsonFile($tempJsonPath, $targetPath);
+        } finally {
+            File::delete($tempJsonPath);
+        }
+    }
+
+    private function buildFundrefIndexFromJsonFile(string $sourcePath, string $targetPath): int
+    {
+        $jsonContent = file_get_contents($sourcePath);
+
+        if ($jsonContent === false) {
+            throw new \RuntimeException("Failed to read file: {$sourcePath}");
+        }
+
+        $organizations = json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
+        unset($jsonContent);
+
+        if (! is_array($organizations)) {
+            throw new \RuntimeException('Invalid JSON structure in ROR data file.');
+        }
+
+        $timestamp = Carbon::now()->toIso8601String();
+        $source = $this->fundrefIndexSource($timestamp);
+        $outputHandle = $this->openFundrefIndex($targetPath, $timestamp, $source);
+        $first = true;
+        $count = 0;
+
+        foreach ($organizations as $decoded) {
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            $candidate = $this->processFundrefCandidate($decoded, $source);
+
+            if ($candidate === null) {
+                continue;
+            }
+
+            $this->writeFundrefCandidate($outputHandle, $candidate, $first);
+            $count++;
+        }
+
+        $this->closeFundrefIndex($outputHandle, $count);
+
+        return $count;
+    }
+
+    private function buildFundrefIndexFromGzip(string $sourcePath, string $targetPath): int
+    {
+        $resource = gzopen($sourcePath, 'rb');
+
+        if ($resource === false) {
+            throw new \RuntimeException('Unable to open the downloaded ROR data archive for FundRef indexing.');
+        }
+
+        $timestamp = Carbon::now()->toIso8601String();
+        $source = $this->fundrefIndexSource($timestamp);
+        $outputHandle = $this->openFundrefIndex($targetPath, $timestamp, $source);
+        $first = true;
+        $count = 0;
+
+        while (! gzeof($resource)) {
+            $line = gzgets($resource);
+
+            if ($line === false) {
+                break;
+            }
+
+            $trimmed = trim($line);
+
+            if ($trimmed === '') {
+                continue;
+            }
+
+            try {
+                /** @var array<string, mixed> $decoded */
+                $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException $exception) {
+                $this->warn(sprintf('Skipping malformed JSON line during FundRef indexing: %s', $exception->getMessage()));
+
+                continue;
+            }
+
+            $candidate = $this->processFundrefCandidate($decoded, $source);
+
+            if ($candidate === null) {
+                continue;
+            }
+
+            $this->writeFundrefCandidate($outputHandle, $candidate, $first);
+            $count++;
+        }
+
+        $this->closeFundrefIndex($outputHandle, $count);
+        gzclose($resource);
+
+        return $count;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fundrefIndexSource(string $timestamp): array
+    {
+        return [
+            'source' => 'ror_fundref_index',
+            'source_file' => self::FUNDREF_INDEX_RELATIVE_PATH,
+            'source_generated_by' => 'get-ror-ids',
+            'source_generated_from' => 'ROR Zenodo data dump',
+            'source_retrieved_at' => $timestamp,
+            'matching_strategy' => 'exact_fundref_external_id',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $source
+     * @return resource
+     */
+    private function openFundrefIndex(string $targetPath, string $timestamp, array $source): mixed
+    {
+        $outputHandle = fopen($targetPath, 'wb');
+
+        if ($outputHandle === false) {
+            throw new \RuntimeException(sprintf('Unable to open FundRef index path [%s] for writing.', $targetPath));
+        }
+
+        fwrite($outputHandle, '{"lastUpdated":'.json_encode($timestamp, JSON_THROW_ON_ERROR).',"source":'.json_encode($source, JSON_THROW_ON_ERROR).',"data":[');
+
+        return $outputHandle;
+    }
+
+    /**
+     * @param  resource  $outputHandle
+     * @param  array<string, mixed>  $candidate
+     */
+    private function writeFundrefCandidate(mixed $outputHandle, array $candidate, bool &$first): void
+    {
+        $encoded = json_encode($candidate, JSON_THROW_ON_ERROR);
+
+        if (! $first) {
+            fwrite($outputHandle, ',');
+        } else {
+            $first = false;
+        }
+
+        fwrite($outputHandle, $encoded);
+    }
+
+    /**
+     * @param  resource  $outputHandle
+     */
+    private function closeFundrefIndex(mixed $outputHandle, int $count): void
+    {
+        fwrite($outputHandle, '],"total":'.$count.'}');
+        fclose($outputHandle);
+    }
+
+    /**
+     * @param  array<string, mixed>  $decoded
+     * @param  array<string, mixed>  $source
+     * @return array<string, mixed>|null
+     */
+    private function processFundrefCandidate(array $decoded, array $source): ?array
+    {
+        $organization = $this->processOrganization($decoded);
+
+        if ($organization === null) {
+            return null;
+        }
+
+        $rorId = $this->canonicalRorIdentifier($organization['rorId']);
+        $fundref = $this->extractFundrefExternalId($decoded);
+
+        if ($rorId === null || $fundref === null) {
+            return null;
+        }
+
+        $types = Arr::get($decoded, 'types', []);
+
+        if (! is_array($types)) {
+            $types = [];
+        }
+
+        return [
+            'ror_id' => $rorId,
+            'ror_display_name' => $organization['prefLabel'],
+            'ror_status' => $this->stringValue(Arr::get($decoded, 'status')) ?? 'active',
+            'ror_types' => array_values(array_filter(array_map('strval', $types))),
+            'ror_record_last_modified' => $this->stringValue(Arr::get($decoded, 'updated'))
+                ?? $this->stringValue(Arr::get($decoded, 'last_modified')),
+            'external_ids' => [
+                'fundref' => $fundref,
+            ],
+            'names' => $organization['otherLabel'],
+            'source' => $source,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $decoded
+     * @return array{all: list<string>, preferred: string|null}|null
+     */
+    private function extractFundrefExternalId(array $decoded): ?array
+    {
+        $externalIds = Arr::get($decoded, 'external_ids', []);
+
+        if (! is_array($externalIds)) {
+            return null;
+        }
+
+        if (array_is_list($externalIds)) {
+            foreach ($externalIds as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                if (mb_strtolower((string) Arr::get($entry, 'type')) === 'fundref') {
+                    return $this->normalizeFundrefExternalId($entry);
+                }
+            }
+        }
+
+        foreach ($externalIds as $key => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            if (in_array(mb_strtolower((string) $key), ['fundref', 'fundref id'], true)) {
+                return $this->normalizeFundrefExternalId($entry);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array{all: list<string>, preferred: string|null}|null
+     */
+    private function normalizeFundrefExternalId(array $entry): ?array
+    {
+        $all = Arr::get($entry, 'all', []);
+
+        if (is_string($all) || is_numeric($all)) {
+            $all = [$all];
+        }
+
+        if (! is_array($all)) {
+            return null;
+        }
+
+        $values = array_values(array_unique(array_filter(
+            array_map(fn (mixed $value): ?string => $this->fundrefValue($value), $all),
+            fn (?string $value): bool => $value !== null,
+        )));
+
+        if ($values === []) {
+            return null;
+        }
+
+        $preferred = $this->fundrefValue(Arr::get($entry, 'preferred'));
+
+        return [
+            'all' => $values,
+            'preferred' => $preferred,
+        ];
+    }
+
+    private function fundrefValue(mixed $value): ?string
+    {
+        $value = $this->stringValue($value);
+
+        if ($value === null || ! preg_match('/^[0-9]+$/', $value)) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private function canonicalRorIdentifier(string $identifier): ?string
+    {
+        if (preg_match('#^(?:https?://)?(?:www\.)?ror\.org/([a-z0-9]{9})/?$#i', trim($identifier), $matches)) {
+            return 'https://ror.org/'.strtolower($matches[1]);
+        }
+
+        return null;
+    }
+
+    private function stringValue(mixed $value): ?string
+    {
+        if ($value === null || is_array($value) || is_object($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 }
