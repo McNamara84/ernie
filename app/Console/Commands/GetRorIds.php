@@ -128,31 +128,35 @@ class GetRorIds extends Command
             File::makeDirectory($fundrefDirectory, 0o755, true);
         }
 
+        $temporaryTargetPath = $this->temporaryOutputPath($targetPath);
+        $temporaryFundrefIndexPath = $this->temporaryOutputPath($fundrefIndexPath);
+
         try {
             $fileKey = Arr::get($dataFile, 'key', '');
             $isZip = is_string($fileKey) && Str::endsWith($fileKey, '.zip');
 
             if ($isZip) {
-                $saved = $this->processZipDump($temporaryPath, $targetPath);
+                $saved = $this->processZipDump($temporaryPath, $temporaryTargetPath);
             } else {
-                $saved = $this->convertDumpToSuggestions($temporaryPath, $targetPath);
+                $saved = $this->convertDumpToSuggestions($temporaryPath, $temporaryTargetPath);
             }
 
-            $fundrefSaved = $this->buildFundrefIndex($temporaryPath, $isZip, $fundrefIndexPath);
+            if ($saved === 0) {
+                throw new \RuntimeException('No ROR affiliations were written.');
+            }
+
+            $fundrefSaved = $this->buildFundrefIndex($temporaryPath, $isZip, $temporaryFundrefIndexPath);
+
+            $this->replaceOutputFile($temporaryFundrefIndexPath, $fundrefIndexPath);
+            $this->replaceOutputFile($temporaryTargetPath, $targetPath);
         } catch (Throwable $exception) {
-            File::delete($temporaryPath);
+            File::delete([$temporaryPath, $temporaryTargetPath, $temporaryFundrefIndexPath]);
             $this->error(sprintf('Failed to process ROR data dump: %s', $exception->getMessage()));
 
             return self::FAILURE;
         }
 
         File::delete($temporaryPath);
-
-        if ($saved === 0) {
-            $this->warn('No ROR affiliations were written.');
-
-            return self::FAILURE;
-        }
 
         // Invalidate ROR caches after successful update
         $this->call('cache:clear-app', ['category' => 'ror']);
@@ -163,7 +167,36 @@ class GetRorIds extends Command
         return self::SUCCESS;
     }
 
+    private function temporaryOutputPath(string $targetPath): string
+    {
+        return dirname($targetPath)
+            .DIRECTORY_SEPARATOR
+            .'.'.basename($targetPath).'.'.(string) Str::uuid().'.tmp';
+    }
+
+    private function replaceOutputFile(string $temporaryPath, string $targetPath): void
+    {
+        if (! File::exists($temporaryPath)) {
+            throw new \RuntimeException("Temporary output file does not exist: {$temporaryPath}");
+        }
+
+        if (! @rename($temporaryPath, $targetPath)) {
+            throw new \RuntimeException("Failed to move temporary output file into place: {$targetPath}");
+        }
+    }
+
     private function processZipDump(string $zipPath, string $targetPath): int
+    {
+        $tempJsonPath = $this->extractZipJsonToTemporaryFile($zipPath, 'ror-json-');
+
+        try {
+            return $this->convertJsonToSuggestions($tempJsonPath, $targetPath);
+        } finally {
+            File::delete($tempJsonPath);
+        }
+    }
+
+    private function extractZipJsonToTemporaryFile(string $zipPath, string $temporaryPrefix): string
     {
         $zip = new \ZipArchive;
 
@@ -171,54 +204,60 @@ class GetRorIds extends Command
             throw new \RuntimeException('Unable to open the downloaded ROR data archive.');
         }
 
-        // Find the JSON file in the ZIP (prefer schema v1 for smaller size)
+        try {
+            $jsonFile = $this->findJsonFileInZip($zip);
+
+            if ($jsonFile === null) {
+                throw new \RuntimeException('No JSON file found in the ROR data archive.');
+            }
+
+            $this->info(sprintf('Processing %s from archive...', $jsonFile));
+
+            $source = $zip->getStream($jsonFile);
+
+            if ($source === false) {
+                throw new \RuntimeException(sprintf('Failed to stream %s from archive.', $jsonFile));
+            }
+
+            $tempJsonPath = (string) tempnam(sys_get_temp_dir(), $temporaryPrefix);
+            $target = fopen($tempJsonPath, 'wb');
+
+            if ($target === false) {
+                fclose($source);
+
+                throw new \RuntimeException(sprintf('Failed to open temporary JSON path for %s.', $jsonFile));
+            }
+
+            try {
+                stream_copy_to_stream($source, $target);
+            } finally {
+                fclose($source);
+                fclose($target);
+            }
+
+            return $tempJsonPath;
+        } finally {
+            $zip->close();
+        }
+    }
+
+    private function findJsonFileInZip(\ZipArchive $zip): ?string
+    {
         $jsonFile = null;
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $filename = $zip->getNameIndex($i);
 
             if (is_string($filename) && Str::endsWith($filename, '.json')) {
-                // Prefer schema v1 files (without _schema_v2 suffix) for smaller footprint
                 if (! Str::contains($filename, 'schema_v2')) {
-                    $jsonFile = $filename;
-
-                    break;
+                    return $filename;
                 }
 
-                // Fallback to v2 files
-                if ($jsonFile === null) {
-                    $jsonFile = $filename;
-                }
+                $jsonFile ??= $filename;
             }
         }
 
-        if ($jsonFile === null) {
-            $zip->close();
-
-            throw new \RuntimeException('No JSON file found in the ROR data archive.');
-        }
-
-        $this->info(sprintf('Processing %s from archive…', $jsonFile));
-
-        // Extract JSON content
-        $jsonContent = $zip->getFromName($jsonFile);
-        $zip->close();
-
-        if ($jsonContent === false) {
-            throw new \RuntimeException(sprintf('Failed to extract %s from archive.', $jsonFile));
-        }
-
-        // Create temporary file for JSON content
-        $tempJsonPath = (string) tempnam(sys_get_temp_dir(), 'ror-json-');
-        File::put($tempJsonPath, $jsonContent);
-
-        try {
-            $count = $this->convertJsonToSuggestions($tempJsonPath, $targetPath);
-        } finally {
-            File::delete($tempJsonPath);
-        }
-
-        return $count;
+        return $jsonFile;
     }
 
     private function convertJsonToSuggestions(string $sourcePath, string $targetPath): int
@@ -552,45 +591,7 @@ class GetRorIds extends Command
 
     private function buildFundrefIndexFromZip(string $zipPath, string $targetPath): int
     {
-        $zip = new \ZipArchive;
-
-        if ($zip->open($zipPath) !== true) {
-            throw new \RuntimeException('Unable to open the downloaded ROR data archive for FundRef indexing.');
-        }
-
-        $jsonFile = null;
-
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $filename = $zip->getNameIndex($i);
-
-            if (is_string($filename) && Str::endsWith($filename, '.json')) {
-                if (! Str::contains($filename, 'schema_v2')) {
-                    $jsonFile = $filename;
-
-                    break;
-                }
-
-                if ($jsonFile === null) {
-                    $jsonFile = $filename;
-                }
-            }
-        }
-
-        if ($jsonFile === null) {
-            $zip->close();
-
-            throw new \RuntimeException('No JSON file found in the ROR data archive for FundRef indexing.');
-        }
-
-        $jsonContent = $zip->getFromName($jsonFile);
-        $zip->close();
-
-        if ($jsonContent === false) {
-            throw new \RuntimeException(sprintf('Failed to extract %s from archive for FundRef indexing.', $jsonFile));
-        }
-
-        $tempJsonPath = (string) tempnam(sys_get_temp_dir(), 'ror-fundref-json-');
-        File::put($tempJsonPath, $jsonContent);
+        $tempJsonPath = $this->extractZipJsonToTemporaryFile($zipPath, 'ror-fundref-json-');
 
         try {
             return $this->buildFundrefIndexFromJsonFile($tempJsonPath, $targetPath);

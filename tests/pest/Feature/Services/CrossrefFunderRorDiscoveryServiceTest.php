@@ -6,13 +6,14 @@ use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
 use App\Models\Resource;
 use App\Services\CrossrefFunderRor\CrossrefFunderRorDiscoveryService;
+use App\Services\CrossrefFunderRor\CrossrefFunderRorMappingSource;
 use App\Services\CrossrefFunderRor\CrossrefFunderRorMatchInputProvider;
 use Database\Seeders\FunderIdentifierTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-final class CrossrefFunderRorInMemoryMappingSource
+final class CrossrefFunderRorInMemoryMappingSource implements CrossrefFunderRorMappingSource
 {
     /** @var list<string> */
     public array $requestedFundrefIds = [];
@@ -33,15 +34,7 @@ final class CrossrefFunderRorInMemoryMappingSource
     /**
      * @return list<array<string, mixed>>
      */
-    public function candidatesForFundref(string $normalizedFundrefId): array
-    {
-        return $this->lookup($normalizedFundrefId);
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    public function lookup(string $normalizedFundrefId): array
+    private function lookup(string $normalizedFundrefId): array
     {
         $this->requestedFundrefIds[] = $normalizedFundrefId;
 

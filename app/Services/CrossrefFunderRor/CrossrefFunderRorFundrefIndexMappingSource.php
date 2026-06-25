@@ -11,7 +11,7 @@ use JsonException;
 /**
  * Reads exact FundRef-to-ROR candidates from the locally generated ROR index.
  */
-final class CrossrefFunderRorFundrefIndexMappingSource
+final class CrossrefFunderRorFundrefIndexMappingSource implements CrossrefFunderRorMappingSource
 {
     public const string INDEX_PATH = 'ror/ror-fundref-index.json';
 

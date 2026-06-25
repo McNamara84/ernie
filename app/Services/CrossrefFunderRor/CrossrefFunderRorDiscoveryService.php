@@ -18,7 +18,7 @@ final readonly class CrossrefFunderRorDiscoveryService
 
     public function __construct(
         private CrossrefFunderRorMatchInputProvider $inputProvider,
-        private ?object $mappingSource = null,
+        private ?CrossrefFunderRorMappingSource $mappingSource = null,
         private CrossrefFunderRorIdentifierNormalizer $normalizer = new CrossrefFunderRorIdentifierNormalizer,
     ) {}
 
@@ -141,19 +141,7 @@ final readonly class CrossrefFunderRorDiscoveryService
     {
         $source = $this->mappingSource ?? app(CrossrefFunderRorFundrefIndexMappingSource::class);
 
-        foreach (['candidatesForCrossrefFunderId', 'candidatesForFundref', 'lookup'] as $method) {
-            if (method_exists($source, $method)) {
-                $candidates = $source->{$method}($normalizedFundrefId);
-
-                if (! is_array($candidates)) {
-                    return [];
-                }
-
-                return array_values(array_filter($candidates, fn (mixed $candidate): bool => is_array($candidate)));
-            }
-        }
-
-        return [];
+        return $source->candidatesForCrossrefFunderId($normalizedFundrefId);
     }
 
     /**
