@@ -16,11 +16,15 @@ final readonly class CrossrefFunderRorDiscoveryService
 
     public const string TARGET_TYPE = 'funding_reference';
 
+    private CrossrefFunderRorMappingSource $mappingSource;
+
     public function __construct(
         private CrossrefFunderRorMatchInputProvider $inputProvider,
-        private ?CrossrefFunderRorMappingSource $mappingSource = null,
+        ?CrossrefFunderRorMappingSource $mappingSource = null,
         private CrossrefFunderRorIdentifierNormalizer $normalizer = new CrossrefFunderRorIdentifierNormalizer,
-    ) {}
+    ) {
+        $this->mappingSource = $mappingSource ?? app(CrossrefFunderRorFundrefIndexMappingSource::class);
+    }
 
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
@@ -139,9 +143,7 @@ final readonly class CrossrefFunderRorDiscoveryService
      */
     private function candidatesFor(string $normalizedFundrefId): array
     {
-        $source = $this->mappingSource ?? app(CrossrefFunderRorFundrefIndexMappingSource::class);
-
-        return $source->candidatesForCrossrefFunderId($normalizedFundrefId);
+        return $this->mappingSource->candidatesForCrossrefFunderId($normalizedFundrefId);
     }
 
     /**
