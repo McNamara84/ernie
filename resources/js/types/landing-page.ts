@@ -76,6 +76,9 @@ export interface LandingPageTemplateConfig {
     /** Number of contributors shown initially on public landing pages */
     contributor_display_limit: number;
 
+    /** Number of citation authors shown before et al. */
+    citation_author_display_limit: number;
+
     /** ID of user who created this template */
     created_by: number | null;
 
@@ -107,6 +110,7 @@ export interface LandingPageTemplateSummary {
     left_column_order: LeftColumnSection[];
     creator_display_limit?: number;
     contributor_display_limit?: number;
+    citation_author_display_limit?: number;
 }
 
 /**
@@ -115,6 +119,7 @@ export interface LandingPageTemplateSummary {
 export interface LandingPageDisplayLimits {
     creators: number;
     contributors: number;
+    citationAuthors: number;
 }
 
 /**

@@ -504,11 +504,10 @@ export class LandingPage {
 
   /**
    * Verify Creative Commons icons are displayed for a CC license.
-   * Checks for the CC logo SVG elements within the files section.
+   * Checks for the official CC badge image within the files section.
    */
   async verifyCreativeCommonsIconsVisible() {
-    // CC icons are rendered as SVG elements with aria-label containing "Creative Commons"
-    const ccIcons = this.filesSection.locator('[aria-label*="Creative Commons"]');
+    const ccIcons = this.filesSection.locator('img[alt*="Creative Commons"]');
     await expect(ccIcons.first()).toBeVisible();
   }
 
@@ -516,25 +515,23 @@ export class LandingPage {
    * Verify Creative Commons icons are NOT displayed (for non-CC licenses)
    */
   async verifyCreativeCommonsIconsNotVisible() {
-    const ccIcons = this.filesSection.locator('[aria-label*="Creative Commons"]');
+    const ccIcons = this.filesSection.locator('img[alt*="Creative Commons"]');
     await expect(ccIcons).toHaveCount(0);
   }
 
   /**
-   * Verify license has SPDX identifier in tooltip
+   * Verify license has SPDX identifier in tooltip without the old prefix
    */
   async verifyLicenseTooltip(licenseName: string, spdxId: string) {
     const licenseLink = this.filesSection.locator(`a:has-text("${licenseName}")`);
-    await expect(licenseLink).toHaveAttribute('title', `SPDX: ${spdxId}`);
+    await expect(licenseLink).toHaveAttribute('title', spdxId);
   }
 
   /**
    * Get the count of license badges displayed
    */
   async getLicenseCount(): Promise<number> {
-    // License links have title attributes starting with 'SPDX:' and href to actual license URLs
-    // (e.g., creativecommons.org, opensource.org), not spdx.org
-    const licenseLinks = this.filesSection.locator('a[title^="SPDX:"]');
-    return await licenseLinks.count();
+    const licenseBadges = this.filesSection.locator('[data-testid="license-badge"]');
+    return await licenseBadges.count();
   }
 }
