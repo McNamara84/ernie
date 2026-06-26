@@ -59,7 +59,7 @@ class DateTypeSchemaorgExtraction
             return [$this->skip($url, 'unsupported_source_url')];
         }
 
-        return $this->extractSchemaorgDateSuggestions($data);
+        return $this->extractSchemaorgDateSuggestions($data, $sourceUrl);
 
 
     }
@@ -98,14 +98,8 @@ class DateTypeSchemaorgExtraction
      * @param array<string, mixed> $data
      * @return array<int, array<string, mixed>>
      */
-    private function extractSchemaorgDateSuggestions (array $data): array 
+    private function extractSchemaorgDateSuggestions (array $data, string $sourceUrl): array 
     {
-        $normalizedValue = DateTypeNormalizerService::normalize($value);
-
-        if ($normalizedValue === '') {
-            continue;
-        }
-
         $suggestions = [];
 
         foreach (self::SCHEMA_ORG_DATE_FIELDS as $field => $dateType) {
@@ -114,11 +108,18 @@ class DateTypeSchemaorgExtraction
             if (! is_string($value) || trim($value) === '') {
             continue;
             }
+            $normalizedValue = DateTypeNormalizerService::normalize($value);
+
+            if ($normalizedValue === '') 
+            {
+                continue;
+            }
 
             $suggestions[] = [
             'suggestion_kind' => 'addition',
             'target_date_type' => $dateType,
             'normalized_value' => $normalizedValue,
+            'source_url' => $sourceUrl,
             'evidence_source' => 'schema.org',
             'schema_org_field' => $field,
             'confidence' => 'high',
@@ -140,7 +141,7 @@ class DateTypeSchemaorgExtraction
         $unique = [];
 
         foreach ($suggestions as $suggestion) {
-            $key = ($suggestion['field'] ?? '').'|'.($suggestion['date_type'] ?? '').'|'.($suggestion['value'] ?? '');
+            $key = ($suggestion['target_date_type'] ?? '').'|'.($suggestion['normalized_value'] ?? '').'|'.($suggestion['source_url'] ?? '');
 
             if (isset($seen[$key])) {
                 continue;
