@@ -4,6 +4,7 @@ use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
@@ -1242,6 +1243,97 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880.skip.backfill')
             ->and($landingPage->is_published)->toBeTrue();
+    });
+
+    it('creates an external landing page from DataCite url before metaworks lookup', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.14470/rv968923',
+                    'attributes' => [
+                        'doi' => '10.14470/rv968923',
+                        'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=_EIFELLNX',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'GEOFON Network']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.14470/rv968923']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldNotReceive('lookupFileEntries');
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $resource = Resource::where('doi', '10.14470/rv968923')->firstOrFail();
+        $landingPage = $resource->fresh(['landingPage.externalDomain'])->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->template)->toBe('external')
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->externalDomain->domain)->toBe('https://geofon.gfz.de/')
+            ->and($landingPage->external_path)->toBe('waveform/archive/network.php?ncode=_EIFELLNX')
+            ->and(LandingPageDomain::where('domain', 'https://geofon.gfz.de/')->exists())->toBeTrue();
+    });
+
+    it('backfills an external DataCite landing page for skipped existing resources', function () {
+        $resource = Resource::factory()->create(['doi' => '10.14470/skip.external']);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.14470/skip.external',
+                    'attributes' => [
+                        'doi' => '10.14470/skip.external',
+                        'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=SKIP',
+                        'state' => 'findable',
+                    ],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldNotReceive('lookupFileEntries');
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['enriched'])->toBe(1)
+            ->and($status['enriched_dois'])->toBe(['10.14470/skip.external']);
+
+        $landingPage = $resource->fresh(['landingPage.externalDomain'])->landingPage;
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->template)->toBe('external')
+            ->and($landingPage->external_url)->toBe('https://geofon.gfz.de/waveform/archive/network.php?ncode=SKIP');
     });
     it('continues import gracefully when metaworks lookup fails', function () {
         $this->importService

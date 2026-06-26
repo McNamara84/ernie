@@ -228,7 +228,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                         Import old single Resource
                     </DialogTitle>
                     <DialogDescription>
-                        {modalState === 'confirm' && 'Enter a single GFZ legacy DOI to import it from DataCite into ERNIE.'}
+                        {modalState === 'confirm' && 'Enter a GFZ DataCite or SUMARIO legacy DOI to import it into ERNIE.'}
                         {modalState === 'running' && `Importing ${submittedDoi ?? 'resource'}...`}
                         {modalState === 'completed' &&
                             (wasEnriched
@@ -247,7 +247,7 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                                 <Search className="size-4" />
                                 <AlertTitle>Accepted DOI formats</AlertTitle>
                                 <AlertDescription>
-                                    Enter either a bare DOI such as <span className="font-mono">10.5880/GFZ.OJSJ.2026.001</span> or a DOI URL such as{' '}
+                                    Enter either a bare DOI such as <span className="font-mono">10.14470/RV968923</span> or a DOI URL such as{' '}
                                     <span className="font-mono">https://doi.org/10.5880/GFZ.OJSJ.2026.001</span>.
                                 </AlertDescription>
                             </Alert>
@@ -263,12 +263,12 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
                                             setFieldError(null);
                                         }
                                     }}
-                                    placeholder="10.5880/GFZ.OJSJ.2026.001"
+                                    placeholder="10.14470/RV968923"
                                     autoComplete="off"
                                     aria-invalid={fieldError ? true : undefined}
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    The DOI must exist in the GFZ legacy database before the import can start.
+                                    The DOI must use a configured GFZ DataCite prefix or exist in the legacy SUMARIO database.
                                 </p>
                                 {fieldError && <p className="text-sm text-destructive">{fieldError}</p>}
                             </div>
@@ -357,3 +357,4 @@ export default function ImportSingleOldResourceModal({ isOpen, onClose, onSucces
         </Dialog>
     );
 }
+

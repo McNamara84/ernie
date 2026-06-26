@@ -79,6 +79,10 @@ class LegacyLandingPageImportService
                 );
             }
 
+            if ($landingPage->isExternal()) {
+                return $this->syncResult(landingPage: $landingPage);
+            }
+
             $landingPage->loadMissing('links');
 
             $ftpUrlAdded = false;
