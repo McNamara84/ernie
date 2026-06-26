@@ -24,38 +24,30 @@ class RaidStatusService
         $filePath = $setting->getFilePath();
 
         if (! Storage::exists($filePath)) {
-            return [
-                'exists' => false,
-                'itemCount' => 0,
-                'lastUpdated' => null,
-            ];
+            return $this->missingStatus();
         }
 
         $content = Storage::get($filePath);
 
         if ($content === null || $content === '') {
-            return [
-                'exists' => false,
-                'itemCount' => 0,
-                'lastUpdated' => null,
-            ];
+            return $this->missingStatus();
         }
 
-        /** @var array{lastUpdated?: string, total?: int, data?: list<mixed>}|null $data */
+        /** @var mixed $data */
         $data = json_decode($content, true);
 
-        if ($data === null) {
-            return [
-                'exists' => false,
-                'itemCount' => 0,
-                'lastUpdated' => null,
-            ];
+        if (! is_array($data) || ! isset($data['data']) || ! is_array($data['data'])) {
+            return $this->missingStatus();
         }
 
         return [
             'exists' => true,
-            'itemCount' => $data['total'] ?? count($data['data'] ?? []),
-            'lastUpdated' => $data['lastUpdated'] ?? null,
+            'itemCount' => isset($data['total']) && is_numeric($data['total'])
+                ? (int) $data['total']
+                : count($data['data']),
+            'lastUpdated' => isset($data['lastUpdated']) && is_string($data['lastUpdated'])
+                ? $data['lastUpdated']
+                : null,
         ];
     }
 
@@ -113,5 +105,17 @@ class RaidStatusService
     private function searchQuery(): string
     {
         return (string) config('raid.search_query');
+    }
+
+    /**
+     * @return array{exists: false, itemCount: 0, lastUpdated: null}
+     */
+    private function missingStatus(): array
+    {
+        return [
+            'exists' => false,
+            'itemCount' => 0,
+            'lastUpdated' => null,
+        ];
     }
 }

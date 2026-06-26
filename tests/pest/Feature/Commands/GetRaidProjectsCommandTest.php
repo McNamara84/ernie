@@ -218,11 +218,11 @@ it('normalizes sparse and malformed DataCite records defensively', function (): 
     expect($project)->toMatchArray([
         'id' => 'sparse-record',
         'doi' => '',
-        'raidId' => '',
+        'raidId' => null,
         'title' => 'Sparse RAiD Project',
         'description' => '',
         'descriptions' => [],
-        'url' => '',
+        'url' => null,
         'downloadUrl' => null,
         'contributors' => [],
         'relatedIdentifiers' => [],

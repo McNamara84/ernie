@@ -115,7 +115,8 @@ class GetRaidProjects extends Command
         /** @var array<string, mixed> $attributes */
         $attributes = Arr::get($record, 'attributes', []);
         $doi = (string) Arr::get($attributes, 'doi', '');
-        $raidId = $doi !== '' ? "https://raid.org/{$doi}" : '';
+        $raidId = $doi !== '' ? "https://raid.org/{$doi}" : null;
+        $url = $this->uriOrNull(Arr::get($attributes, 'url')) ?? $raidId;
         $title = $this->firstTextValue(Arr::get($attributes, 'titles', []), 'title');
         $description = $this->firstTextValue(Arr::get($attributes, 'descriptions', []), 'description');
         $contributors = $this->mapParties(Arr::get($attributes, 'creators', []), 'Creator');
@@ -129,7 +130,7 @@ class GetRaidProjects extends Command
             'titles' => $this->mapSimpleList(Arr::get($attributes, 'titles', []), ['title', 'lang']),
             'description' => $description,
             'descriptions' => $this->mapSimpleList(Arr::get($attributes, 'descriptions', []), ['description', 'descriptionType', 'lang']),
-            'url' => (string) Arr::get($attributes, 'url', $raidId),
+            'url' => $url,
             'downloadUrl' => $doi !== '' ? "https://static.prod.raid.org.au/raids/{$doi}.download/" : null,
             'publicationYear' => Arr::get($attributes, 'publicationYear'),
             'publisher' => Arr::get($attributes, 'publisher'),
@@ -163,6 +164,19 @@ class GetRaidProjects extends Command
         }
 
         return '';
+    }
+
+    private function uriOrNull(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $uri = trim($value);
+
+        return $uri !== '' && filter_var($uri, FILTER_VALIDATE_URL) !== false
+            ? $uri
+            : null;
     }
 
     /**

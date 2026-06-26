@@ -105,7 +105,12 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
         // PID schemas
         ->assertJsonPath('components.schemas.RaidProjects.description', 'Public RAiD project records with metadata wrapper')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.0', 'string')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.1', 'null')
         ->assertJsonPath('components.schemas.RaidProject.properties.raidId.format', 'uri')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.type.0', 'string')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.type.1', 'null')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.format', 'uri')
         ->assertJsonPath('components.schemas.PidAvailability.example.raid.displayName', 'RAiD (Research Activity Identifier)')
         ->assertJsonPath('components.schemas.RorAffiliations.description', 'ROR affiliations data with metadata wrapper')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')

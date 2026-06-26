@@ -167,6 +167,22 @@ describe('getLocalStatus edge cases', function () {
             'lastUpdated' => null,
         ]);
     });
+
+    test('returns not exists when RAiD file contains valid JSON with the wrong shape', function (mixed $payload) {
+        Storage::put('raid/raid-projects.json', json_encode($payload, JSON_THROW_ON_ERROR));
+
+        $status = (new RaidStatusService)->getLocalStatus(createRaidPidSettingForStatus());
+
+        expect($status)->toBe([
+            'exists' => false,
+            'itemCount' => 0,
+            'lastUpdated' => null,
+        ]);
+    })->with([
+        'scalar' => ['oops'],
+        'null data' => [['total' => 3, 'data' => null]],
+        'string data' => [['total' => 3, 'data' => 'oops']],
+    ]);
 });
 
 describe('getRemoteCount edge cases', function () {

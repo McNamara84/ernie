@@ -2289,7 +2289,7 @@
                         "example": "10.71613/65b180be"
                     },
                     "raidId": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "format": "uri",
                         "example": "https://raid.org/10.71613/65b180be"
                     },
@@ -2302,7 +2302,7 @@
                         "example": "A public research activity."
                     },
                     "url": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "format": "uri",
                         "example": "https://static.prod.raid.org.au/raids/10.71613/65b180be"
                     },
