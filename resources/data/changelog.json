@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-23",
+        "date": "2026-06-26",
         "features": [
+            {
+                "title": "RAiD Persistent Identifier Support",
+                "description": "Editor Settings now include RAiD (Research Activity Identifier) alongside PID4INST and ROR. Admins and Group Leaders can enable RAiD separately for ERNIE and ELMO, check DataCite-backed RAiD project counts for updates, trigger background refreshes, and expose normalized RAiD project metadata to ELMO through the API-key protected vocabulary endpoint."
+            },
             {
                 "title": "Landing Pages Without Download Sections",
                 "description": "Generated GFZ landing pages can now be marked as having no data available for download. Curators can keep existing primary download URLs, legacy imported files, and additional download links in the setup modal for later reuse, while the public landing page and preview hide the complete Files section until downloads are enabled again."
