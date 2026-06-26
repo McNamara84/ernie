@@ -9,6 +9,7 @@ use App\Services\LegacyResourceLookupService;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 
 covers(DataCiteImportController::class);
 
@@ -45,7 +46,7 @@ describe('POST /datacite/import/start-single', function (): void {
 
         $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 throw new RuntimeException('Legacy lookup should not be used for configured DataCite prefixes.');
@@ -76,7 +77,7 @@ describe('POST /datacite/import/start-single', function (): void {
 
         $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 throw new RuntimeException('Legacy lookup should not be used for configured DataCite prefixes.');
@@ -102,7 +103,7 @@ describe('POST /datacite/import/start-single', function (): void {
         {
             public array $receivedDois = [];
 
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 $this->receivedDois[] = $doi;
@@ -142,7 +143,7 @@ describe('POST /datacite/import/start-single', function (): void {
 
         $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 return false;
@@ -166,7 +167,7 @@ describe('POST /datacite/import/start-single', function (): void {
 
         $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 throw new RuntimeException('Legacy DB unavailable');
@@ -187,7 +188,7 @@ describe('POST /datacite/import/start-single', function (): void {
 describe('GET /datacite/import/{importId}/status', function (): void {
     test('returns status for existing import', function (): void {
         $admin = User::factory()->admin()->create();
-        $importId = \Illuminate\Support\Str::uuid()->toString();
+        $importId = Str::uuid()->toString();
 
         Cache::put("datacite_import:{$importId}", [
             'status' => 'running',
@@ -211,7 +212,7 @@ describe('GET /datacite/import/{importId}/status', function (): void {
 
     test('returns 404 for unknown import', function (): void {
         $admin = User::factory()->admin()->create();
-        $importId = \Illuminate\Support\Str::uuid()->toString();
+        $importId = Str::uuid()->toString();
 
         $this->actingAs($admin)
             ->getJson("/datacite/import/{$importId}/status")

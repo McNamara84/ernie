@@ -179,7 +179,7 @@ class StoreResourceRequest extends FormRequest
             // Related Item Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
             // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
-            // spaces â€” e.g. `JournalArticle`); kept in sync with
+            // spaces -- e.g. `JournalArticle`); kept in sync with
             // `StoreRelatedItemRequest` and the vocabularies endpoint via
             // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
             // matching instance helper `dataciteResourceTypeGeneral()`).
@@ -1033,7 +1033,7 @@ class StoreResourceRequest extends FormRequest
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase â€” or return null.
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase, or return null.
      *
      * Reuses the normalization logic from DoiSuggestionService to ensure consistent
      * DOI handling across the entire system (validation, storage, duplicate checks).
@@ -1373,7 +1373,7 @@ class StoreResourceRequest extends FormRequest
 
                     $roles = $contributor['roles'] ?? [];
 
-                    // Skip roles-empty check â€” already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
+                    // Skip roles-empty check -- already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
 
                     // Require email when Contact Person role is assigned to a person contributor
                     if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {
@@ -1462,4 +1462,3 @@ class StoreResourceRequest extends FormRequest
         return null;
     }
 }
-

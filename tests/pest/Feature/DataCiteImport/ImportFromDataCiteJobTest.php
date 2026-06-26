@@ -4,6 +4,7 @@ use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
@@ -1551,4 +1552,3 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($status['error'])->toBe('Queue crashed');
     });
 });
-

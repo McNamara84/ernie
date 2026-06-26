@@ -539,8 +539,8 @@ describe('Polygon Validation', function () {
 
         expect($geoLocation->geo_type)->toBe('line')
             ->and($geoLocation->polygon_points)->toHaveCount(2)
-            ->and($geoLocation->polygon_points[0]['longitude'])->toBe(10.0)
-            ->and($geoLocation->polygon_points[1]['latitude'])->toBe(51.0);
+            ->and($geoLocation->polygon_points[0]['longitude'])->toEqual(10.0)
+            ->and($geoLocation->polygon_points[1]['latitude'])->toEqual(51.0);
     });
 });
 

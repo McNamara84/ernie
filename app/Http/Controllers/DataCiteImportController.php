@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StartSingleOldResourceImportRequest;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\DoiImportEligibilityService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Controller for DataCite import operations.
@@ -37,7 +39,7 @@ class DataCiteImportController extends Controller
 
         $importId = Str::uuid()->toString();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $this->initializeProgress(importId: $importId, total: 0);
@@ -79,14 +81,14 @@ class DataCiteImportController extends Controller
         }
 
         if (! $exists) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'doi' => 'Only DOIs with a configured GFZ DataCite prefix or GFZ legacy resources can be imported with this action.',
             ]);
         }
 
         $importId = Str::uuid()->toString();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $this->initializeProgress(importId: $importId, total: 1);
@@ -185,5 +187,3 @@ class DataCiteImportController extends Controller
         ], now()->addHours(24));
     }
 }
-
-

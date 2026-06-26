@@ -68,7 +68,6 @@ class DataCiteLandingPageImportService
                 'published_at' => $isFindable ? now() : null,
             ]);
 
-            $landingPage->setRelation('resource', $resource);
             $landingPage->save();
 
             return $this->result(changed: true, created: true, landingPage: $landingPage->fresh(['externalDomain']) ?? $landingPage);

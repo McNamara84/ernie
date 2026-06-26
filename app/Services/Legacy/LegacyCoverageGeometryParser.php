@@ -33,7 +33,7 @@ class LegacyCoverageGeometryParser
             return null;
         }
 
-        $normalised = str_replace([",", "\r", "\n", "\t"], ' ', $payload);
+        $normalised = str_replace([',', "\r", "\n", "\t"], ' ', $payload);
         $tokens = preg_split('/\s+/', trim($normalised));
 
         if (! is_array($tokens) || count($tokens) < 4 || count($tokens) % 2 !== 0) {

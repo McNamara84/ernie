@@ -646,6 +646,7 @@ class ImportFromDataCiteJob implements ShouldQueue
     {
         return ['changed' => false];
     }
+
     /**
      * @return array{changed: bool, metaworks_unavailable: bool}
      */
@@ -886,4 +887,3 @@ class ImportFromDataCiteJob implements ShouldQueue
         return $this->singleDoi;
     }
 }
-

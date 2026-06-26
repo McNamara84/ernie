@@ -456,7 +456,7 @@ class OldDataset extends Model
 
     /**
      * Normalize a name for fuzzy matching by removing punctuation and extra whitespace.
-     * Converts names like "LÃ¤uchli, Charlotte" to "lauchli charlotte" for comparison.
+     * Converts names like "Lauchli, Charlotte" to "lauchli charlotte" for comparison.
      * Removes diacritics, punctuation (commas, periods, hyphens), and normalizes whitespace.
      *
      * @param  string|null  $name  The name to normalize
@@ -471,7 +471,7 @@ class OldDataset extends Model
         // Convert to lowercase
         $normalized = mb_strtolower($name, 'UTF-8');
 
-        // Transliterate to ASCII (e.g., Ã¤ -> a, Ã¼ -> u)
+        // Transliterate to ASCII (e.g., umlaut variants -> plain ASCII)
         $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized) ?: $normalized;
 
         // Remove common punctuation (commas, periods, hyphens)
@@ -632,7 +632,7 @@ class OldDataset extends Model
                 }
 
                 // Strategy 3: Check if normalized names contain each other (partial match)
-                // This handles cases like "LÃ¤uchli, Charlotte" vs "LÃ¤uchli Charlotte"
+                // This handles cases like "Lauchli, Charlotte" vs "Lauchli Charlotte"
                 if (! $matched && $agentNormalizedWords && $contactInfo['normalizedWords']) {
                     if ($agentNormalizedWords === $contactInfo['normalizedWords']) {
                         $matched = true;
@@ -769,10 +769,10 @@ class OldDataset extends Model
             $hasCommaSeparatedName = ! empty($agent->name) && str_contains($agent->name, ',');
 
             // Decision logic (in priority order):
-            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor â†’ ALWAYS Institution
-            // 2. If name contains comma â†’ Person (format: "Lastname, Firstname")
-            // 3. If has firstname OR lastname â†’ Person
-            // 4. Default â†’ Institution
+            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor -> ALWAYS Institution
+            // 2. If name contains comma -> Person (format: "Lastname, Firstname")
+            // 3. If has firstname OR lastname -> Person
+            // 4. Default -> Institution
 
             if ($hasInstitutionOnlyRole) {
                 $isPerson = false;
@@ -1274,5 +1274,3 @@ class OldDataset extends Model
         })->toArray();
     }
 }
-
-
