@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+﻿import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -49,6 +49,13 @@ describe('ImportSingleOldResourceModal', () => {
         expect(screen.getByText('Import old single Resource')).toBeInTheDocument();
     });
 
+
+    it('shows 10.14470 as an accepted example prefix', () => {
+        render(<ImportSingleOldResourceModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+        expect(screen.getByText('10.14470/RV968923')).toBeInTheDocument();
+        expect(screen.getByText(/configured GFZ DataCite prefix/i)).toBeInTheDocument();
+    });
     it('shows a client-side validation error for an invalid DOI', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
@@ -103,7 +110,7 @@ describe('ImportSingleOldResourceModal', () => {
                 status: 422,
                 data: {
                     errors: {
-                        doi: ['Only GFZ legacy resources can be imported with this action.'],
+                        doi: ['Only DOIs with a configured GFZ DataCite prefix or GFZ legacy resources can be imported with this action.'],
                     },
                 },
             },
@@ -115,7 +122,7 @@ describe('ImportSingleOldResourceModal', () => {
         await user.type(screen.getByLabelText('DOI'), '10.5880/gfz.ojsj.2026.001');
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
-        expect(await screen.findByText('Only GFZ legacy resources can be imported with this action.')).toBeInTheDocument();
+        expect(await screen.findByText('Only DOIs with a configured GFZ DataCite prefix or GFZ legacy resources can be imported with this action.')).toBeInTheDocument();
     });
 
     it('shows an already-imported state when the single DOI is skipped', async () => {
@@ -241,3 +248,4 @@ describe('ImportSingleOldResourceModal', () => {
         });
     });
 });
+

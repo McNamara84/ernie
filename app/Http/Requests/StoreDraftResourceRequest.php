@@ -205,7 +205,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * Input normalization – reuses the same logic as StoreResourceRequest.
+     * Input normalization â€“ reuses the same logic as StoreResourceRequest.
      */
     protected function prepareForValidation(): void
     {
@@ -1035,7 +1035,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * After-validation hooks — structural checks with minimal mandatory field enforcement.
+     * After-validation hooks â€” structural checks with minimal mandatory field enforcement.
      *
      * Unlike StoreResourceRequest, this does NOT require:
      * - At least one Abstract description
@@ -1129,13 +1129,14 @@ class StoreDraftResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon') {
+                    if ($type === 'polygon' || $type === 'line') {
                         $polygonPoints = $coverage['polygonPoints'] ?? [];
+                        $minimumPoints = $type === 'polygon' ? 3 : 2;
 
-                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                        if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
                     }
@@ -1145,7 +1146,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase â€” or return null.
      */
     private function normalizeDoiInput(mixed $input): mixed
     {
@@ -1219,3 +1220,4 @@ class StoreDraftResourceRequest extends FormRequest
         return true;
     }
 }
+

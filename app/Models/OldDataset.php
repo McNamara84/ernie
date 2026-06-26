@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Legacy\LegacyCoverageGeometryParser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Attributes\Connection;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @property int $id
@@ -454,7 +456,7 @@ class OldDataset extends Model
 
     /**
      * Normalize a name for fuzzy matching by removing punctuation and extra whitespace.
-     * Converts names like "Läuchli, Charlotte" to "lauchli charlotte" for comparison.
+     * Converts names like "LÃ¤uchli, Charlotte" to "lauchli charlotte" for comparison.
      * Removes diacritics, punctuation (commas, periods, hyphens), and normalizes whitespace.
      *
      * @param  string|null  $name  The name to normalize
@@ -469,7 +471,7 @@ class OldDataset extends Model
         // Convert to lowercase
         $normalized = mb_strtolower($name, 'UTF-8');
 
-        // Transliterate to ASCII (e.g., ä -> a, ü -> u)
+        // Transliterate to ASCII (e.g., Ã¤ -> a, Ã¼ -> u)
         $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized) ?: $normalized;
 
         // Remove common punctuation (commas, periods, hyphens)
@@ -630,7 +632,7 @@ class OldDataset extends Model
                 }
 
                 // Strategy 3: Check if normalized names contain each other (partial match)
-                // This handles cases like "Läuchli, Charlotte" vs "Läuchli Charlotte"
+                // This handles cases like "LÃ¤uchli, Charlotte" vs "LÃ¤uchli Charlotte"
                 if (! $matched && $agentNormalizedWords && $contactInfo['normalizedWords']) {
                     if ($agentNormalizedWords === $contactInfo['normalizedWords']) {
                         $matched = true;
@@ -767,10 +769,10 @@ class OldDataset extends Model
             $hasCommaSeparatedName = ! empty($agent->name) && str_contains($agent->name, ',');
 
             // Decision logic (in priority order):
-            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor → ALWAYS Institution
-            // 2. If name contains comma → Person (format: "Lastname, Firstname")
-            // 3. If has firstname OR lastname → Person
-            // 4. Default → Institution
+            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor â†’ ALWAYS Institution
+            // 2. If name contains comma â†’ Person (format: "Lastname, Firstname")
+            // 3. If has firstname OR lastname â†’ Person
+            // 4. Default â†’ Institution
 
             if ($hasInstitutionOnlyRole) {
                 $isPerson = false;
@@ -990,12 +992,13 @@ class OldDataset extends Model
      *
      * The old database stores:
      * - Spatial data: minlat, maxlat, minlon, maxlon (as floats)
+     * - Optional line geometry: wkt (often a bare `lon lat lon lat ...` coordinate chain)
      * - Temporal data: start, end (as strings), dateformat (format pattern), startutc, endutc (as datetime)
      * - Description: text field
      *
      * This method converts to the new ERNIE format with separate date/time fields and timezone.
      *
-     * @return array<int, array{id: string, latMin: string, latMax: string, lonMin: string, lonMax: string, startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, description: string}>
+     * @return array<int, array<string, mixed>>
      */
     public function getCoverages(): array
     {
@@ -1004,20 +1007,65 @@ class OldDataset extends Model
         }
 
         $db = DB::connection($this->connection);
+        $geometryParser = app(LegacyCoverageGeometryParser::class);
 
         // Get all coverage entries for this resource
         $coverages = $db->table('coverage')
             ->where('resource_id', $this->id)
             ->get();
 
-        return $coverages->map(function ($coverage, $index) {
+        return $coverages->map(function ($coverage, $index) use ($geometryParser) {
+            // Parse temporal data from the old format
+            $temporal = $this->parseTemporalCoverage(
+                $coverage->start,
+                $coverage->end,
+                $coverage->dateformat
+            );
+
+            $baseCoverage = [
+                // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
+                'id' => 'coverage-'.($index + 1),
+
+                // Temporal coverage (dates and times)
+                'startDate' => $temporal['startDate'],
+                'endDate' => $temporal['endDate'],
+                'startTime' => $temporal['startTime'],
+                'endTime' => $temporal['endTime'],
+                'timezone' => $temporal['timezone'],
+
+                // Description
+                'description' => $coverage->description ?? '',
+            ];
+
+            $rawWkt = isset($coverage->wkt) ? trim((string) $coverage->wkt) : '';
+
+            if ($rawWkt !== '') {
+                $linePoints = $geometryParser->parseLine($rawWkt);
+
+                if ($linePoints !== null) {
+                    return array_merge($baseCoverage, [
+                        'type' => 'line',
+                        'latMin' => '',
+                        'latMax' => '',
+                        'lonMin' => '',
+                        'lonMax' => '',
+                        'polygonPoints' => $linePoints,
+                    ]);
+                }
+
+                Log::warning('Legacy coverage WKT could not be parsed as a line', [
+                    'resource_id' => $this->id,
+                    'coverage_id' => $coverage->id ?? null,
+                ]);
+            }
+
             // Convert coordinates to strings with max 6 decimal places
             $latMin = $coverage->minlat !== null ? number_format((float) $coverage->minlat, 6, '.', '') : '';
             $lonMin = $coverage->minlon !== null ? number_format((float) $coverage->minlon, 6, '.', '') : '';
 
-            // Check if this is a point (min = max for both coordinates) or a rectangle
-            // In the old database, points were stored with identical min and max values
-            // In ERNIE, we represent points by leaving max coordinates empty for better UX and DataCite compliance
+            // Check if this is a point (min = max for both coordinates) or a rectangle.
+            // In the old database, points were stored with identical min and max values.
+            // In ERNIE, we represent points by leaving max coordinates empty for better UX and DataCite compliance.
             $isPoint = ($coverage->minlat === $coverage->maxlat && $coverage->minlon === $coverage->maxlon);
 
             if ($isPoint) {
@@ -1032,18 +1080,8 @@ class OldDataset extends Model
                 $type = 'box';
             }
 
-            // Parse temporal data from the old format
-            $temporal = $this->parseTemporalCoverage(
-                $coverage->start,
-                $coverage->end,
-                $coverage->dateformat
-            );
-
-            return [
-                // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
-                'id' => 'coverage-'.($index + 1),
-
-                // Coverage type (point, box, or polygon - old DB only has point and box)
+            return array_merge($baseCoverage, [
+                // Coverage type (point, box, or line)
                 'type' => $type,
 
                 // Spatial coverage (coordinates)
@@ -1051,17 +1089,7 @@ class OldDataset extends Model
                 'latMax' => $latMax,
                 'lonMin' => $lonMin,
                 'lonMax' => $lonMax,
-
-                // Temporal coverage (dates and times)
-                'startDate' => $temporal['startDate'],
-                'endDate' => $temporal['endDate'],
-                'startTime' => $temporal['startTime'],
-                'endTime' => $temporal['endTime'],
-                'timezone' => $temporal['timezone'],
-
-                // Description
-                'description' => $coverage->description ?? '',
-            ];
+            ]);
         })->toArray();
     }
 
@@ -1246,3 +1274,5 @@ class OldDataset extends Model
         })->toArray();
     }
 }
+
+

@@ -168,4 +168,33 @@ describe('LegacyLandingPageImportService', function () {
                 'Download 3',
             ]);
     });
+    it('does not add legacy download URLs to external landing pages', function () {
+        $resource = Resource::factory()->create(['doi' => '10.14470/external.sync']);
+        $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
+        $landingPage = LandingPage::factory()->external()->published()->create([
+            'resource_id' => $resource->id,
+            'external_domain_id' => $domain->id,
+            'external_path' => 'waveform/archive/network.php?ncode=SYNC',
+            'ftp_url' => null,
+        ]);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [
+                ['url' => 'https://datapub.gfz.de/legacy-file.zip', 'label' => 'Legacy file', 'visible' => 'public'],
+            ],
+            isPublished: true,
+        );
+
+        $landingPage = $landingPage->fresh(['links']);
+
+        expect($result['changed'])->toBeFalse()
+            ->and($result['created'])->toBeFalse()
+            ->and($result['ftp_url_added'])->toBeFalse()
+            ->and($result['links_added'])->toBe(0)
+            ->and($landingPage->template)->toBe('external')
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->links)->toHaveCount(0);
+    });
 });
+

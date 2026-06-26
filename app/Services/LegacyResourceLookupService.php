@@ -11,7 +11,8 @@ class LegacyResourceLookupService
     public function existsByDoi(string $doi): bool
     {
         return OldDataset::query()
-            ->where('identifier', $doi)
+            ->whereRaw('LOWER(identifier) = ?', [strtolower(trim($doi))])
             ->exists();
     }
 }
+

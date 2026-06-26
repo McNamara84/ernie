@@ -489,4 +489,58 @@ describe('Polygon Validation', function () {
 
         expect($geoLocation->place)->toBe('Berlin, Germany');
     });
+    test('rejects line coverage with fewer than two points', function () {
+        $user = User::factory()->create();
+        $resourceTypeId = seedLookupTables();
+
+        $payload = createBasePayload($resourceTypeId, [
+            'spatialTemporalCoverages' => [
+                [
+                    'type' => 'line',
+                    'polygonPoints' => [
+                        ['lon' => 10.0, 'lat' => 50.0],
+                    ],
+                    'description' => 'Incomplete line',
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors(['spatialTemporalCoverages.0.polygonPoints']);
+    });
+
+    test('stores line coverage with two points', function () {
+        $user = User::factory()->create();
+        $resourceTypeId = seedLookupTables();
+
+        $payload = createBasePayload($resourceTypeId, [
+            'spatialTemporalCoverages' => [
+                [
+                    'type' => 'line',
+                    'polygonPoints' => [
+                        ['lon' => 10.0, 'lat' => 50.0],
+                        ['lon' => 11.0, 'lat' => 51.0],
+                    ],
+                    'description' => 'Two-point line',
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        $resource = Resource::query()->latest('id')->firstOrFail();
+        $geoLocation = $resource->geoLocations->first();
+
+        expect($geoLocation->geo_type)->toBe('line')
+            ->and($geoLocation->polygon_points)->toHaveCount(2)
+            ->and($geoLocation->polygon_points[0]['longitude'])->toBe(10.0)
+            ->and($geoLocation->polygon_points[1]['latitude'])->toBe(51.0);
+    });
 });
+
