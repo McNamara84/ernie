@@ -98,60 +98,88 @@ class Assistant extends GenericTableAssistant
         return $count;
     }
 
-/**
- * Apply an accepted title-language suggestion.
- *
- * @return array{success: bool, message: string}
- */
-protected function applyAccepted(AssistantSuggestion $suggestion): array
-{
-    // 1. Finde die Title anhand der target_id
-    $title = Title::find($suggestion->target_id);
+    /**
+     * Apply an accepted title-language suggestion.
+     *
+     * @return array{success: bool, message: string}
+     */
+    protected function applyAccepted(AssistantSuggestion $suggestion): array
+    {
+        $title = Title::find($suggestion->target_id);
 
-    // 2. Prüfe, ob die Title existiert
-    if ($title === null) {
+        if ($title === null) {
+            return [
+                'success' => false,
+                'message' => 'Title record not found.',
+            ];
+        }
+
+        $metadata = $this->metadata($suggestion);
+
+        if ($this->isStale($title, $metadata)) {
+            return [
+                'success' => false,
+                'message' => 'Suggestion is stale because the title data changed after discovery. Please run discovery again.',
+            ];
+        }
+
+        $currentLanguage = $this->currentLanguage($title);
+        $proposedLanguage = strtolower((string) $suggestion->suggested_value);
+
+        if (! in_array($proposedLanguage, self::SUPPORTED_LANGUAGES, true)) {
+            return [
+                'success' => false,
+                'message' => "Unsupported language '{$proposedLanguage}'. Only de, en and fr are supported.",
+            ];
+        }
+
+        if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
+            return [
+                'success' => false,
+                'message' => "Title already has language '{$currentLanguage}'. It was not overwritten automatically.",
+            ];
+        }
+
+        if ($currentLanguage === $proposedLanguage) {
+            return [
+                'success' => true,
+                'message' => "Title language is already set to {$proposedLanguage}.",
+            ];
+        }
+
+        $title->language = $proposedLanguage;
+        $title->save();
+
+        $languageLabel = $metadata['proposed_language_label']
+            ?? $suggestion->suggested_label
+            ?? strtoupper($proposedLanguage);
+
         return [
-            'success' => false,
-            'message' => 'Title record not found.',
+            'success' => true,
+            'message' => "Title language set to {$languageLabel}.",
         ];
     }
 
-    // 3. Setze die Sprache
-    $title->language = $suggestion->suggested_value; // z.B. 'en'
-    $title->save();
+    /**
+     * Detect the language of a title text.
+     *
+     * Only German, English and French suggestions are supported.
+     *
+     * @return array{code: string, label: string, confidence: float, reason: string}|null
+     */
+    private function detectLanguage(string $text): ?array
+    {
+        $text = trim($text);
 
-    // 4. Gib Feedback zurück
-    return [
-        'success' => true,
-        'message' => "Title language set to {$suggestion->suggested_label}",
-        'updated_title_id' => $title->id,
-    ];
-}
+        if ($text === '') {
+            return null;
+        }
 
-/**
- * Detect the language of a title text.
- *
- * Only German, English and French suggestions are supported.
- *
- * @return array{code: string, label: string, confidence: float, reason: string}|null
- */
-private function detectLanguage(string $text): ?array
-{
-    // Entferne führende und nachfolgende Leerzeichen
-    $text = trim($text);
+        $result = $this->detector->detect($text);
 
-    // Leere Titel können nicht erkannt werden
-    if ($text === '') {
-        return null;
-    }
-
-    // Führe die Spracherkennung durch
-    $result = $this->detector->detect($text);
-
-    // Keine Sprache erkannt
-    if ($result === null || empty($result->language)) {
-        return null;
-    }
+        if ($result === null || empty($result->language)) {
+            return null;
+        }
 
         $languageCode = strtolower((string) $result->language);
 
