@@ -1,4 +1,4 @@
-﻿import { router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { AlertCircle, CheckCircle2, Download, Search, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';

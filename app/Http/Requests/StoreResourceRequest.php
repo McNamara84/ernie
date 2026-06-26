@@ -1421,7 +1421,7 @@ class StoreResourceRequest extends FormRequest
                 }
             },
             function (Validator $validator): void {
-                // Validate polygon coverages have at least 3 points
+                // Validate polygon and line coverages have the required minimum number of points
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
                 if (! is_array($coverages)) {

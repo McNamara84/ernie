@@ -1046,7 +1046,7 @@ class StoreDraftResourceRequest extends FormRequest
      * - Main Title must exist (at least one)
      * - Person authors must have lastName if provided
      * - Contributors must have proper structure if provided
-     * - Polygon coverages must have at least 3 points
+     * - Polygon and line coverages must have the required minimum number of points
      *
      * @return array<int, callable(Validator): void>
      */
@@ -1114,7 +1114,7 @@ class StoreDraftResourceRequest extends FormRequest
                     );
                 }
             },
-            // Validate polygon coverages have at least 3 points
+            // Validate polygon and line coverages have the required minimum number of points
             function (Validator $validator): void {
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
