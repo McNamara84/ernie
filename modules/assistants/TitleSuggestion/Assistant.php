@@ -98,48 +98,60 @@ class Assistant extends GenericTableAssistant
         return $count;
     }
 
-    /**
-     * Apply an accepted title-language suggestion.
-     *
-     * @return array{success: bool, message: string}
-     */
-    protected function applyAccepted(AssistantSuggestion $suggestion): array
-    {
-        // 1. Finde die Title anhand target_id
-        $title = Title::findOrFail($suggestion->target_id);
-        
-        // 2. Setze die Sprache
-        $title->language = $suggestion->suggested_value; // z.B. 'en'
-        $title->save();
-        
-        // 3. Gib Feedback zurück
+/**
+ * Apply an accepted title-language suggestion.
+ *
+ * @return array{success: bool, message: string}
+ */
+protected function applyAccepted(AssistantSuggestion $suggestion): array
+{
+    // 1. Finde die Title anhand der target_id
+    $title = Title::find($suggestion->target_id);
+
+    // 2. Prüfe, ob die Title existiert
+    if ($title === null) {
         return [
-            'success' => true,
-            'message' => "Title language set to {$suggestion->suggested_label}",
-            'updated_title_id' => $title->id,
+            'success' => false,
+            'message' => 'Title record not found.',
         ];
     }
 
-    /**
-     * Detect the language of a title text.
-     *
-     * Only German, English and French suggestions are supported.
-     *
-     * @return array{code: string, label: string, confidence: float, reason: string}|null
-     */
-    private function detectLanguage(string $text): ?array
-    {
-        $text = trim($text);
+    // 3. Setze die Sprache
+    $title->language = $suggestion->suggested_value; // z.B. 'en'
+    $title->save();
 
-        if ($text === '') {
-            return null;
-        }
+    // 4. Gib Feedback zurück
+    return [
+        'success' => true,
+        'message' => "Title language set to {$suggestion->suggested_label}",
+        'updated_title_id' => $title->id,
+    ];
+}
 
-        $result = $this->detector->detect($text);
+/**
+ * Detect the language of a title text.
+ *
+ * Only German, English and French suggestions are supported.
+ *
+ * @return array{code: string, label: string, confidence: float, reason: string}|null
+ */
+private function detectLanguage(string $text): ?array
+{
+    // Entferne führende und nachfolgende Leerzeichen
+    $text = trim($text);
 
-        if ($result === null || empty($result->language)) {
-            return null;
-        }
+    // Leere Titel können nicht erkannt werden
+    if ($text === '') {
+        return null;
+    }
+
+    // Führe die Spracherkennung durch
+    $result = $this->detector->detect($text);
+
+    // Keine Sprache erkannt
+    if ($result === null || empty($result->language)) {
+        return null;
+    }
 
         $languageCode = strtolower((string) $result->language);
 

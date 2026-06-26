@@ -572,6 +572,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and
                                 funders via the ROR API v2
                             </li>
+                            <li>
+                                
+                                <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
+                                using title-text detection and supporting language hints
+                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -585,17 +590,33 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={2} title="Review suggestions">
                                 <p>
                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
-                                    score.
+                                    score. Title language suggestions also show the title text, current language, proposed language, confidence,
+                                    and evidence summary so you can verify how the recommendation was created.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to
-                                    permanently dismiss that suggestion.
+                                    permanently dismiss that suggestion. For title language suggestions, accepting updates the selected title's
+                                    language field and removes the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Resource
+                                language and typed-title context are used only as supporting evidence. Short, formula-like, acronym-heavy, or
+                                mixed-language titles may be skipped when detection is unreliable. Existing title language values are never
+                                overwritten without curator review.
+                            </p>
+                        </div>
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>DataCite XML export:</strong> Accepted title language suggestions are saved on the selected title and exported
+                                to DataCite XML as an <code>xml:lang</code> attribute when supported.
+                            </p>
+                        </div>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending
