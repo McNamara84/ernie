@@ -1,9 +1,10 @@
 /**
  * Creative Commons License Badges Component
  *
- * Renders official Creative Commons 88x31 SVG badges based on SPDX identifiers.
- * The assets are vendored from the Creative Commons press kit so public landing
- * pages do not depend on a third-party request at render time.
+ * Renders official Creative Commons SVG badge artwork based on SPDX identifiers.
+ * The assets are vendored from the Creative Commons press kit and displayed at
+ * the classic 88x31 badge size so public landing pages do not depend on a
+ * third-party request at render time.
  *
  * @see https://creativecommons.org/mission/downloads/
  */
