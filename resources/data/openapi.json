@@ -36,7 +36,7 @@
         {
             "name": "Vocabularies",
             "summary": "Controlled vocabularies and availability endpoints",
-            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst), and ROR (Research Organization Registry)"
+            "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory), PID registries (b2inst and RAiD), and ROR (Research Organization Registry)"
         },
         {
             "name": "DataCite",
@@ -940,6 +940,49 @@
                 }
             }
         },
+        "/api/v1/vocabularies/raid-projects": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get RAiD projects for ELMO",
+                "description": "Returns public RAiD (Research Activity Identifier) project records discovered through DataCite with a metadata wrapper including total count and last update timestamp. Each entry includes the RAiD identifier, title, description, dates, contributors, organisations, related identifiers, and search terms. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "RAiD projects with metadata wrapper",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RaidProjects"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "RAiD is disabled or data file not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "RAiD is disabled"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/thesauri-availability": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -963,7 +1006,7 @@
             "get": {
                 "tags": ["Vocabularies"],
                 "summary": "Check PID registry availability",
-                "description": "Returns the availability status of all configured PID registries (e.g., PID4INST, ROR). This endpoint does not require authentication and is intended for frontend configuration checks.",
+                "description": "Returns the availability status of all configured PID registries (e.g., PID4INST, ROR, RAiD). This endpoint does not require authentication and is intended for frontend configuration checks.",
                 "responses": {
                     "200": {
                         "description": "PID registry availability status",
@@ -2201,8 +2244,127 @@
                     "ror": {
                         "available": true,
                         "displayName": "ROR (Research Organization Registry)"
+                    },
+                    "raid": {
+                        "available": true,
+                        "displayName": "RAiD (Research Activity Identifier)"
                     }
                 }
+            },
+            "RaidProjects": {
+                "type": "object",
+                "description": "Public RAiD project records with metadata wrapper",
+                "properties": {
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "ISO 8601 timestamp of when the data was last fetched",
+                        "example": "2026-06-26T12:00:00+00:00"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "description": "Total number of RAiD projects in the local dataset",
+                        "example": 570
+                    },
+                    "data": {
+                        "type": "array",
+                        "description": "Array of normalized RAiD project entries",
+                        "items": {
+                            "$ref": "#/components/schemas/RaidProject"
+                        }
+                    }
+                },
+                "required": ["lastUpdated", "total", "data"]
+            },
+            "RaidProject": {
+                "type": "object",
+                "description": "Normalized public RAiD project record",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "10.71613/65b180be"
+                    },
+                    "doi": {
+                        "type": "string",
+                        "example": "10.71613/65b180be"
+                    },
+                    "raidId": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "example": "https://raid.org/10.71613/65b180be"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Example RAiD project"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "A public research activity."
+                    },
+                    "url": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "example": "https://static.prod.raid.org.au/raids/10.71613/65b180be"
+                    },
+                    "downloadUrl": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "example": "https://static.prod.raid.org.au/raids/10.71613/65b180be.download/"
+                    },
+                    "publicationYear": {
+                        "type": ["integer", "null"],
+                        "example": 2026
+                    },
+                    "publisher": {
+                        "type": ["string", "null"],
+                        "example": "Australian Research Data Commons"
+                    },
+                    "dates": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "contributors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "organisations": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "relatedIdentifiers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "subjects": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "registered": {
+                        "type": ["string", "null"],
+                        "format": "date-time"
+                    },
+                    "updated": {
+                        "type": ["string", "null"],
+                        "format": "date-time"
+                    },
+                    "searchTerms": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": ["id", "doi", "raidId", "title", "description", "url", "dates", "contributors", "organisations", "relatedIdentifiers", "subjects", "searchTerms"]
             },
             "RorAffiliations": {
                 "type": "object",

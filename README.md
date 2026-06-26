@@ -13,7 +13,7 @@ ERNIE is a metadata curation system for research datasets at GFZ Helmholtz Centr
 - IGSN workflows with CSV import and hierarchical sample relationships
 - Public landing pages and DOI-oriented publication views
 - Search and discovery workflows for published resources
-- ORCID, ROR, GCMD, SPDX, and MSL integration for enriched metadata
+- ORCID, ROR, RAiD, GCMD, SPDX, and MSL integration for enriched metadata
 - Role-based access control for editorial and administrative workflows
 - Container-first development and validation workflow for consistent local setup
 

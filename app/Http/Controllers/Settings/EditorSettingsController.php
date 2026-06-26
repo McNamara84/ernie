@@ -8,6 +8,7 @@ use App\Enums\ContributorCategory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\ContributorType;
+use App\Models\Datacenter;
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\IdentifierType;
@@ -22,6 +23,7 @@ use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Services\KeywordSuggestionService;
 use App\Services\Pid4instStatusService;
+use App\Services\RaidStatusService;
 use App\Services\RorStatusService;
 use App\Services\ThesaurusStatusService;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +37,7 @@ class EditorSettingsController extends Controller
         private readonly ThesaurusStatusService $thesaurusStatusService,
         private readonly Pid4instStatusService $pid4instStatusService,
         private readonly RorStatusService $rorStatusService,
+        private readonly RaidStatusService $raidStatusService,
         private readonly KeywordSuggestionService $keywordSuggestionService,
     ) {}
 
@@ -183,10 +186,10 @@ class EditorSettingsController extends Controller
             'contributorBothRoles' => $contributorBothRoles,
             'relationTypes' => $relationTypes,
             'identifierTypes' => $identifierTypes,
-            'datacenters' => \App\Models\Datacenter::orderBy('name')
+            'datacenters' => Datacenter::orderBy('name')
                 ->withCount('resources')
                 ->get()
-                ->map(fn (\App\Models\Datacenter $dc) => [
+                ->map(fn (Datacenter $dc) => [
                     'id' => $dc->id,
                     'name' => $dc->name,
                     'resources_count' => $dc->resources_count,
@@ -248,12 +251,12 @@ class EditorSettingsController extends Controller
                 // Sync excluded resource types using a direct query to ensure it works within transaction
                 /** @var int[] $excludedIds */
                 $excludedIds = $license['excluded_resource_type_ids'];
-                
+
                 // Delete existing exclusions
                 DB::table('right_resource_type_exclusions')
                     ->where('right_id', $license['id'])
                     ->delete();
-                
+
                 // Insert new exclusions
                 if (count($excludedIds) > 0) {
                     $insertData = array_map(fn (int $resourceTypeId) => [
@@ -262,7 +265,7 @@ class EditorSettingsController extends Controller
                         'created_at' => $now,
                         'updated_at' => $now,
                     ], $excludedIds);
-                    
+
                     DB::table('right_resource_type_exclusions')->insert($insertData);
                 }
             }
@@ -483,6 +486,15 @@ class EditorSettingsController extends Controller
                 'is_elmo_active' => true,
             ]
         );
+
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_RAID],
+            [
+                'display_name' => 'RAiD (Research Activity Identifier)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
     }
 
     /**
@@ -495,6 +507,7 @@ class EditorSettingsController extends Controller
         return match ($pidSetting->type) {
             PidSetting::TYPE_PID4INST => $this->pid4instStatusService->getLocalStatus($pidSetting),
             PidSetting::TYPE_ROR => $this->rorStatusService->getLocalStatus($pidSetting),
+            PidSetting::TYPE_RAID => $this->raidStatusService->getLocalStatus($pidSetting),
             default => ['exists' => false, 'itemCount' => 0, 'lastUpdated' => null],
         };
     }

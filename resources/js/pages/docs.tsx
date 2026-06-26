@@ -338,7 +338,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
-                                linking research instruments and ROR for research organizations
+                                linking research instruments, ROR for research organizations, and RAiD for research
+                                activities
                             </li>
                             <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
@@ -387,6 +388,11 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>
                                 <strong>ROR (Research Organization Registry):</strong> Organization data used for
                                 affiliation lookups. The ROR dataset is fetched from the Zenodo data dump and can be
+                                provided to ELMO via the API.
+                            </li>
+                            <li>
+                                <strong>RAiD (Research Activity Identifier):</strong> Public research activity records
+                                discovered through DataCite. RAiD projects can be updated from Editor Settings and
                                 provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
@@ -461,6 +467,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <p className="text-sm text-muted-foreground">
                             Downloads the full ROR data dump from Zenodo. Can also be triggered from Editor
                             Settings.
+                        </p>
+
+                        <h4>Update RAiD Projects (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-raid-projects" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads public RAiD project records discovered through DataCite. Can also be triggered
+                            from Editor Settings.
                         </p>
 
                         <h4>Update MSL Keywords</h4>
@@ -722,6 +735,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
