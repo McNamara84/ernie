@@ -24,6 +24,8 @@ describe('CreativeCommonsIcon', () => {
 
         const badge = screen.getByRole('img', { name: 'Creative Commons CC-BY-4.0' });
         expect(badge).toHaveAttribute('src', '/images/creative-commons/88x31/by.svg');
+        expect(badge).toHaveAttribute('width', '88');
+        expect(badge).toHaveAttribute('height', '31');
         expect(badge).toHaveClass('h-[31px]', 'w-[88px]', 'shrink-0');
     });
 

@@ -74,6 +74,8 @@ export function CreativeCommonsIcon({ spdxId, className = 'h-[31px] w-[88px]' }:
         <img
             src={badgePath}
             alt={`Creative Commons ${spdxId}`}
+            width={88}
+            height={31}
             className={`${className} shrink-0`}
             loading="lazy"
         />
