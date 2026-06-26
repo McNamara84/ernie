@@ -78,6 +78,7 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [Voca
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/raid-projects', [VocabularyController::class, 'raidProjects']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/analytical-methods', [VocabularyController::class, 'analyticalMethods']);

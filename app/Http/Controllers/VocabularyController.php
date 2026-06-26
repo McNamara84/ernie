@@ -28,7 +28,7 @@ class VocabularyController extends Controller
      */
     public function gcmdScienceKeywords(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -44,7 +44,7 @@ class VocabularyController extends Controller
      */
     public function gcmdPlatforms(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_PLATFORMS)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_PLATFORMS)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -60,7 +60,7 @@ class VocabularyController extends Controller
      */
     public function gcmdInstruments(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_INSTRUMENTS)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_INSTRUMENTS)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -157,7 +157,7 @@ class VocabularyController extends Controller
      */
     public function pid4instInstruments(): JsonResponse
     {
-        if (!$this->isPidActive(PidSetting::TYPE_PID4INST)) {
+        if (! $this->isPidActive(PidSetting::TYPE_PID4INST)) {
             return response()->json(['error' => 'PID4INST is disabled'], 404);
         }
 
@@ -169,11 +169,27 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return public RAiD projects for ELMO and ERNIE integrations.
+     */
+    public function raidProjects(): JsonResponse
+    {
+        if (! $this->isPidActive(PidSetting::TYPE_RAID)) {
+            return response()->json(['error' => 'RAiD is disabled'], 404);
+        }
+
+        return $this->getCachedVocabulary(
+            CacheKey::RAID_PROJECTS,
+            'raid/raid-projects.json',
+            'php artisan get-raid-projects'
+        );
+    }
+
+    /**
      * Return ICS Chronostratigraphy vocabulary.
      */
     public function chronostratTimescale(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_CHRONOSTRAT)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_CHRONOSTRAT)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -189,7 +205,7 @@ class VocabularyController extends Controller
      */
     public function gemetThesaurus(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_GEMET)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_GEMET)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -205,7 +221,7 @@ class VocabularyController extends Controller
      */
     public function analyticalMethods(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_ANALYTICAL_METHODS)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_ANALYTICAL_METHODS)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -221,7 +237,7 @@ class VocabularyController extends Controller
      */
     public function euroSciVoc(): JsonResponse
     {
-        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_EUROSCIVOC)) {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_EUROSCIVOC)) {
             return response()->json(['error' => 'Thesaurus is disabled'], 404);
         }
 
@@ -240,7 +256,7 @@ class VocabularyController extends Controller
      */
     public function rorAffiliations(): JsonResponse
     {
-        if (!$this->isPidActive(PidSetting::TYPE_ROR)) {
+        if (! $this->isPidActive(PidSetting::TYPE_ROR)) {
             return response()->json(['error' => 'ROR is disabled'], 404);
         }
 
@@ -291,7 +307,7 @@ class VocabularyController extends Controller
     {
         $setting = ThesaurusSetting::where('type', $type)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return true; // Default to active if no setting exists
         }
 
@@ -307,7 +323,7 @@ class VocabularyController extends Controller
     {
         $setting = PidSetting::where('type', $type)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return true; // Default to active if no setting exists
         }
 

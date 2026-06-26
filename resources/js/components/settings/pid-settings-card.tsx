@@ -54,9 +54,15 @@ interface PidSettingRowProps {
 }
 
 function getTypeLabels(type: string): { countLabel: string; sourceName: string } {
-    return type === 'ror'
-        ? { countLabel: 'organizations', sourceName: 'ROR' }
-        : { countLabel: 'instruments', sourceName: 'b2inst' };
+    if (type === 'ror') {
+        return { countLabel: 'organizations', sourceName: 'ROR' };
+    }
+
+    if (type === 'raid') {
+        return { countLabel: 'projects', sourceName: 'DataCite RAiD search' };
+    }
+
+    return { countLabel: 'instruments', sourceName: 'b2inst' };
 }
 
 function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdateComplete }: PidSettingRowProps) {

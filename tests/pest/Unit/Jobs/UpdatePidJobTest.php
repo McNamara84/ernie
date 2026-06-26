@@ -108,3 +108,29 @@ test('handle marks cache as failed on exception', function (): void {
     expect($cached['status'])->toBe('failed')
         ->and($cached['error'])->toBe('Connection failed');
 });
+
+test('handle executes RAiD update command', function (): void {
+    $jobId = Str::uuid()->toString();
+
+    PidSetting::firstOrCreate(
+        ['type' => PidSetting::TYPE_RAID],
+        [
+            'display_name' => 'RAiD (Research Activity Identifier)',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]
+    );
+
+    Artisan::shouldReceive('call')
+        ->once()
+        ->with('get-raid-projects')
+        ->andReturn(0);
+
+    $job = new UpdatePidJob(PidSetting::TYPE_RAID, $jobId);
+    $job->handle();
+
+    $cached = Cache::get(UpdatePidJob::getCacheKey($jobId));
+    expect($cached)->toBeArray()
+        ->and($cached['status'])->toBe('completed')
+        ->and($cached['pidType'])->toBe(PidSetting::TYPE_RAID);
+});
