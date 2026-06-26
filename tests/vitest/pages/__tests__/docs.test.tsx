@@ -342,6 +342,46 @@ describe('Docs page', () => {
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
     });
 
+    it('documents resource quick actions and grouped delete behavior for curators', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Edit and Set up landing page appear as quick actions directly in the selection toolbar.');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Delete Selected Resources (Curator and above)')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Published resources are listed as protected and are never sent to the delete endpoint.');
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('hides resource delete documentation for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
+    });
+
     it('shows landing page templates for group leaders', async () => {
         const groupLeaderPage = renderDocsPage('group_leader');
         await openDatasetsTab(groupLeaderPage.user);
