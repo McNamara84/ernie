@@ -135,20 +135,18 @@ class GetRorIds extends Command
             $fileKey = Arr::get($dataFile, 'key', '');
             $isZip = is_string($fileKey) && Str::endsWith($fileKey, '.zip');
 
-            if ($isZip) {
-                $saved = $this->processZipDump($temporaryPath, $temporaryTargetPath);
-            } else {
-                $saved = $this->convertDumpToSuggestions($temporaryPath, $temporaryTargetPath);
-            }
+            $counts = $isZip
+                ? $this->processZipDump($temporaryPath, $temporaryTargetPath, $temporaryFundrefIndexPath)
+                : $this->processGzipDump($temporaryPath, $temporaryTargetPath, $temporaryFundrefIndexPath);
 
+            $saved = $counts['affiliations'];
             if ($saved === 0) {
                 throw new \RuntimeException('No ROR affiliations were written.');
             }
 
-            $fundrefSaved = $this->buildFundrefIndex($temporaryPath, $isZip, $temporaryFundrefIndexPath);
+            $fundrefSaved = $counts['fundref'];
 
-            $this->replaceOutputFile($temporaryFundrefIndexPath, $fundrefIndexPath);
-            $this->replaceOutputFile($temporaryTargetPath, $targetPath);
+            $this->commitOutputFiles($temporaryTargetPath, $targetPath, $temporaryFundrefIndexPath, $fundrefIndexPath);
         } catch (Throwable $exception) {
             File::delete([$temporaryPath, $temporaryTargetPath, $temporaryFundrefIndexPath]);
             $this->error(sprintf('Failed to process ROR data dump: %s', $exception->getMessage()));
@@ -174,23 +172,105 @@ class GetRorIds extends Command
             .'.'.basename($targetPath).'.'.(string) Str::uuid().'.tmp';
     }
 
-    private function replaceOutputFile(string $temporaryPath, string $targetPath): void
-    {
-        if (! File::exists($temporaryPath)) {
-            throw new \RuntimeException("Temporary output file does not exist: {$temporaryPath}");
+    private function commitOutputFiles(
+        string $temporaryAffiliationsPath,
+        string $affiliationsPath,
+        string $temporaryFundrefIndexPath,
+        string $fundrefIndexPath,
+    ): void {
+        $this->assertMovableOutput($temporaryAffiliationsPath, 'Temporary affiliations file');
+        $this->assertMovableOutput($temporaryFundrefIndexPath, 'Temporary FundRef index file');
+        $this->assertCommitTarget($affiliationsPath, 'Affiliations target');
+        $this->assertCommitTarget($fundrefIndexPath, 'FundRef index target');
+
+        if ($affiliationsPath === $fundrefIndexPath) {
+            throw new \RuntimeException('Affiliations and FundRef index targets must be distinct file paths.');
         }
 
-        if (! @rename($temporaryPath, $targetPath)) {
-            throw new \RuntimeException("Failed to move temporary output file into place: {$targetPath}");
+        $affiliationsBackupPath = $this->temporaryOutputPath($affiliationsPath).'.bak';
+        $fundrefBackupPath = $this->temporaryOutputPath($fundrefIndexPath).'.bak';
+        $affiliationsBackedUp = false;
+        $fundrefBackedUp = false;
+        $affiliationsCommitted = false;
+        $fundrefCommitted = false;
+
+        try {
+            if (File::exists($affiliationsPath)) {
+                $this->moveOutputFile($affiliationsPath, $affiliationsBackupPath);
+                $affiliationsBackedUp = true;
+            }
+
+            if (File::exists($fundrefIndexPath)) {
+                $this->moveOutputFile($fundrefIndexPath, $fundrefBackupPath);
+                $fundrefBackedUp = true;
+            }
+
+            $this->moveOutputFile($temporaryAffiliationsPath, $affiliationsPath);
+            $affiliationsCommitted = true;
+
+            $this->moveOutputFile($temporaryFundrefIndexPath, $fundrefIndexPath);
+            $fundrefCommitted = true;
+
+            File::delete([$affiliationsBackupPath, $fundrefBackupPath]);
+        } catch (Throwable $exception) {
+            if ($affiliationsCommitted) {
+                File::delete($affiliationsPath);
+            }
+
+            if ($fundrefCommitted) {
+                File::delete($fundrefIndexPath);
+            }
+
+            if ($affiliationsBackedUp && File::exists($affiliationsBackupPath)) {
+                $this->moveOutputFile($affiliationsBackupPath, $affiliationsPath);
+            }
+
+            if ($fundrefBackedUp && File::exists($fundrefBackupPath)) {
+                $this->moveOutputFile($fundrefBackupPath, $fundrefIndexPath);
+            }
+
+            throw $exception;
+        } finally {
+            File::delete([$affiliationsBackupPath, $fundrefBackupPath]);
         }
     }
 
-    private function processZipDump(string $zipPath, string $targetPath): int
+    private function assertMovableOutput(string $path, string $label): void
+    {
+        if (! File::exists($path) || File::isDirectory($path)) {
+            throw new \RuntimeException("{$label} does not exist or is not a file: {$path}");
+        }
+    }
+
+    private function assertCommitTarget(string $path, string $label): void
+    {
+        if (File::isDirectory($path)) {
+            throw new \RuntimeException("{$label} is a directory, expected a file path: {$path}");
+        }
+    }
+
+    private function moveOutputFile(string $sourcePath, string $targetPath): void
+    {
+        $this->assertMovableOutput($sourcePath, 'Output source');
+
+        if (File::isDirectory($targetPath)) {
+            throw new \RuntimeException("Output target is a directory, expected a file path: {$targetPath}");
+        }
+
+        if (! @rename($sourcePath, $targetPath)) {
+            throw new \RuntimeException("Failed to move output file into place: {$targetPath}");
+        }
+    }
+
+    /**
+     * @return array{affiliations: int, fundref: int}
+     */
+    private function processZipDump(string $zipPath, string $affiliationsTargetPath, string $fundrefIndexTargetPath): array
     {
         $tempJsonPath = $this->extractZipJsonToTemporaryFile($zipPath, 'ror-json-');
 
         try {
-            return $this->convertJsonToSuggestions($tempJsonPath, $targetPath);
+            return $this->processJsonDumpToOutputs($tempJsonPath, $affiliationsTargetPath, $fundrefIndexTargetPath);
         } finally {
             File::delete($tempJsonPath);
         }
@@ -260,7 +340,10 @@ class GetRorIds extends Command
         return $jsonFile;
     }
 
-    private function convertJsonToSuggestions(string $sourcePath, string $targetPath): int
+    /**
+     * @return array{affiliations: int, fundref: int}
+     */
+    private function processJsonDumpToOutputs(string $sourcePath, string $affiliationsTargetPath, string $fundrefIndexTargetPath): array
     {
         $this->info('Loading JSON data into memory...');
         $jsonContent = file_get_contents($sourcePath);
@@ -272,7 +355,6 @@ class GetRorIds extends Command
         $this->info('Parsing JSON...');
         $organizations = json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
 
-        // Free memory
         unset($jsonContent);
 
         if (! is_array($organizations)) {
@@ -281,47 +363,62 @@ class GetRorIds extends Command
 
         $this->info(sprintf('Found %d organizations, processing...', count($organizations)));
 
-        $outputHandle = fopen($targetPath, 'wb');
-
-        if ($outputHandle === false) {
-            throw new \RuntimeException(sprintf('Unable to open output path [%s] for writing.', $targetPath));
-        }
-
         $timestamp = Carbon::now()->toIso8601String();
-        fwrite($outputHandle, '{"lastUpdated":'.json_encode($timestamp, JSON_THROW_ON_ERROR).',"data":[');
+        $source = $this->fundrefIndexSource($timestamp);
+        $affiliationsHandle = $this->openAffiliationSuggestions($affiliationsTargetPath, $timestamp);
+        $fundrefHandle = null;
+        $firstAffiliation = true;
+        $firstFundref = true;
+        $affiliationCount = 0;
+        $fundrefCount = 0;
 
-        $first = true;
-        $count = 0;
+        try {
+            $fundrefHandle = $this->openFundrefIndex($fundrefIndexTargetPath, $timestamp, $source);
 
-        foreach ($organizations as $decoded) {
-            if (! is_array($decoded)) {
-                continue;
+            foreach ($organizations as $decoded) {
+                if (! is_array($decoded)) {
+                    continue;
+                }
+
+                $entry = $this->processOrganization($decoded);
+
+                if ($entry === null) {
+                    continue;
+                }
+
+                $this->writeAffiliationSuggestion($affiliationsHandle, $entry, $firstAffiliation);
+                $affiliationCount++;
+
+                if ($affiliationCount % 10000 === 0) {
+                    $this->info(sprintf('Processed %d organizations...', $affiliationCount));
+                }
+
+                $candidate = $this->processFundrefCandidate($decoded, $source, $entry);
+
+                if ($candidate !== null) {
+                    $this->writeFundrefCandidate($fundrefHandle, $candidate, $firstFundref);
+                    $fundrefCount++;
+                }
             }
 
-            $entry = $this->processOrganization($decoded);
+            $this->closeAffiliationSuggestions($affiliationsHandle, $affiliationCount);
+            $affiliationsHandle = null;
+            $this->closeFundrefIndex($fundrefHandle, $fundrefCount);
+            $fundrefHandle = null;
+        } finally {
+            if (is_resource($affiliationsHandle)) {
+                fclose($affiliationsHandle);
+            }
 
-            if ($entry !== null) {
-                $encoded = json_encode($entry, JSON_THROW_ON_ERROR);
-
-                if (! $first) {
-                    fwrite($outputHandle, ',');
-                } else {
-                    $first = false;
-                }
-
-                fwrite($outputHandle, $encoded);
-                $count++;
-
-                if ($count % 10000 === 0) {
-                    $this->info(sprintf('Processed %d organizations...', $count));
-                }
+            if (is_resource($fundrefHandle)) {
+                fclose($fundrefHandle);
             }
         }
 
-        fwrite($outputHandle, '],"total":'.$count.'}');
-        fclose($outputHandle);
-
-        return $count;
+        return [
+            'affiliations' => $affiliationCount,
+            'fundref' => $fundrefCount,
+        ];
     }
 
     /**
@@ -448,7 +545,10 @@ class GetRorIds extends Command
         ];
     }
 
-    private function convertDumpToSuggestions(string $sourcePath, string $targetPath): int
+    /**
+     * @return array{affiliations: int, fundref: int}
+     */
+    private function processGzipDump(string $sourcePath, string $affiliationsTargetPath, string $fundrefIndexTargetPath): array
     {
         $resource = gzopen($sourcePath, 'rb');
 
@@ -456,119 +556,122 @@ class GetRorIds extends Command
             throw new \RuntimeException('Unable to open the downloaded ROR data archive.');
         }
 
-        $outputHandle = fopen($targetPath, 'wb');
-
-        if ($outputHandle === false) {
-            gzclose($resource);
-
-            throw new \RuntimeException(sprintf('Unable to open output path [%s] for writing.', $targetPath));
-        }
-
         $timestamp = Carbon::now()->toIso8601String();
-        fwrite($outputHandle, '{"lastUpdated":'.json_encode($timestamp, JSON_THROW_ON_ERROR).',"data":[');
+        $source = $this->fundrefIndexSource($timestamp);
+        $affiliationsHandle = $this->openAffiliationSuggestions($affiliationsTargetPath, $timestamp);
+        $fundrefHandle = null;
+        $firstAffiliation = true;
+        $firstFundref = true;
+        $affiliationCount = 0;
+        $fundrefCount = 0;
 
-        $first = true;
-        $count = 0;
+        try {
+            $fundrefHandle = $this->openFundrefIndex($fundrefIndexTargetPath, $timestamp, $source);
 
-        while (! gzeof($resource)) {
-            $line = gzgets($resource);
+            while (! gzeof($resource)) {
+                $line = gzgets($resource);
 
-            if ($line === false) {
-                break;
-            }
+                if ($line === false) {
+                    break;
+                }
 
-            $trimmed = trim($line);
+                $trimmed = trim($line);
 
-            if ($trimmed === '') {
-                continue;
-            }
-
-            try {
-                /** @var array<string, mixed> $decoded */
-                $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException $exception) {
-                $this->warn(sprintf('Skipping malformed JSON line: %s', $exception->getMessage()));
-
-                continue;
-            }
-
-            $preferredName = Arr::get($decoded, 'name');
-            $identifier = Arr::get($decoded, 'id');
-
-            if (! is_string($preferredName) || ! is_string($identifier) || $preferredName === '' || $identifier === '') {
-                continue;
-            }
-
-            $aliases = Arr::get($decoded, 'aliases', []);
-
-            if (! is_array($aliases)) {
-                $aliases = [];
-            }
-
-            $aliases = array_values(array_filter(
-                array_map('strval', $aliases),
-                fn (string $alias) => $alias !== ''
-            ));
-
-            $acronyms = Arr::get($decoded, 'acronyms', []);
-
-            if (! is_array($acronyms)) {
-                $acronyms = [];
-            }
-
-            $acronyms = array_values(array_filter(
-                array_map('strval', $acronyms),
-                fn (string $acronym) => $acronym !== ''
-            ));
-
-            $rawLabels = Arr::get($decoded, 'labels', []);
-
-            if (! is_array($rawLabels)) {
-                $rawLabels = [];
-            }
-
-            $labelNames = [];
-
-            foreach ($rawLabels as $label) {
-                if (! is_array($label)) {
+                if ($trimmed === '') {
                     continue;
                 }
 
-                $labelValue = Arr::get($label, 'label');
+                try {
+                    $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
+                } catch (JsonException $exception) {
+                    $this->warn(sprintf('Skipping malformed JSON line: %s', $exception->getMessage()));
 
-                if (is_string($labelValue) && $labelValue !== '') {
-                    $labelNames[] = $labelValue;
+                    continue;
+                }
+
+                if (! is_array($decoded)) {
+                    continue;
+                }
+
+                $entry = $this->processOrganization($decoded);
+
+                if ($entry === null) {
+                    continue;
+                }
+
+                $this->writeAffiliationSuggestion($affiliationsHandle, $entry, $firstAffiliation);
+                $affiliationCount++;
+
+                $candidate = $this->processFundrefCandidate($decoded, $source, $entry);
+
+                if ($candidate !== null) {
+                    $this->writeFundrefCandidate($fundrefHandle, $candidate, $firstFundref);
+                    $fundrefCount++;
                 }
             }
 
-            $combinedTerms = array_merge([$preferredName], $aliases, $acronyms, $labelNames);
-            $searchTerms = array_values(array_unique($combinedTerms));
-
-            $entry = [
-                'value' => $preferredName,
-                'rorId' => $identifier,
-                'country' => Arr::get($decoded, 'country.country_name'),
-                'countryCode' => Arr::get($decoded, 'country.country_code'),
-                'searchTerms' => $searchTerms,
-            ];
-
-            $encoded = json_encode($entry, JSON_THROW_ON_ERROR);
-
-            if (! $first) {
-                fwrite($outputHandle, ',');
-            } else {
-                $first = false;
+            $this->closeAffiliationSuggestions($affiliationsHandle, $affiliationCount);
+            $affiliationsHandle = null;
+            $this->closeFundrefIndex($fundrefHandle, $fundrefCount);
+            $fundrefHandle = null;
+        } finally {
+            if (is_resource($affiliationsHandle)) {
+                fclose($affiliationsHandle);
             }
 
-            fwrite($outputHandle, $encoded);
-            $count++;
+            if (is_resource($fundrefHandle)) {
+                fclose($fundrefHandle);
+            }
+
+            gzclose($resource);
         }
 
+        return [
+            'affiliations' => $affiliationCount,
+            'fundref' => $fundrefCount,
+        ];
+    }
+
+    /**
+     * @return resource
+     */
+    private function openAffiliationSuggestions(string $targetPath, string $timestamp): mixed
+    {
+        $outputHandle = fopen($targetPath, 'wb');
+
+        if ($outputHandle === false) {
+            throw new \RuntimeException(sprintf('Unable to open output path [%s] for writing.', $targetPath));
+        }
+
+        fwrite($outputHandle, '{"lastUpdated":'.json_encode($timestamp, JSON_THROW_ON_ERROR).',"data":[');
+
+        return $outputHandle;
+    }
+
+    /**
+     * @param  resource  $outputHandle
+     * @param  array<string, mixed>  $entry
+     */
+    private function writeAffiliationSuggestion(mixed $outputHandle, array $entry, bool &$first): void
+    {
+        $encoded = json_encode($entry, JSON_THROW_ON_ERROR);
+
+        if (! $first) {
+            fwrite($outputHandle, ',');
+        } else {
+            $first = false;
+        }
+
+        fwrite($outputHandle, $encoded);
+    }
+
+    /**
+     * @param  resource  $outputHandle
+     */
+    private function closeAffiliationSuggestions(mixed $outputHandle, int $count): void
+    {
         fwrite($outputHandle, '],"total":'.$count.'}');
         fclose($outputHandle);
-        gzclose($resource);
-
-        return $count;
     }
 
     private function fundrefIndexTargetPath(string $affiliationTargetPath): string
@@ -580,117 +683,6 @@ class GetRorIds extends Command
         }
 
         return storage_path('app/private/'.self::FUNDREF_INDEX_RELATIVE_PATH);
-    }
-
-    private function buildFundrefIndex(string $dumpPath, bool $isZip, string $targetPath): int
-    {
-        return $isZip
-            ? $this->buildFundrefIndexFromZip($dumpPath, $targetPath)
-            : $this->buildFundrefIndexFromGzip($dumpPath, $targetPath);
-    }
-
-    private function buildFundrefIndexFromZip(string $zipPath, string $targetPath): int
-    {
-        $tempJsonPath = $this->extractZipJsonToTemporaryFile($zipPath, 'ror-fundref-json-');
-
-        try {
-            return $this->buildFundrefIndexFromJsonFile($tempJsonPath, $targetPath);
-        } finally {
-            File::delete($tempJsonPath);
-        }
-    }
-
-    private function buildFundrefIndexFromJsonFile(string $sourcePath, string $targetPath): int
-    {
-        $jsonContent = file_get_contents($sourcePath);
-
-        if ($jsonContent === false) {
-            throw new \RuntimeException("Failed to read file: {$sourcePath}");
-        }
-
-        $organizations = json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
-        unset($jsonContent);
-
-        if (! is_array($organizations)) {
-            throw new \RuntimeException('Invalid JSON structure in ROR data file.');
-        }
-
-        $timestamp = Carbon::now()->toIso8601String();
-        $source = $this->fundrefIndexSource($timestamp);
-        $outputHandle = $this->openFundrefIndex($targetPath, $timestamp, $source);
-        $first = true;
-        $count = 0;
-
-        foreach ($organizations as $decoded) {
-            if (! is_array($decoded)) {
-                continue;
-            }
-
-            $candidate = $this->processFundrefCandidate($decoded, $source);
-
-            if ($candidate === null) {
-                continue;
-            }
-
-            $this->writeFundrefCandidate($outputHandle, $candidate, $first);
-            $count++;
-        }
-
-        $this->closeFundrefIndex($outputHandle, $count);
-
-        return $count;
-    }
-
-    private function buildFundrefIndexFromGzip(string $sourcePath, string $targetPath): int
-    {
-        $resource = gzopen($sourcePath, 'rb');
-
-        if ($resource === false) {
-            throw new \RuntimeException('Unable to open the downloaded ROR data archive for FundRef indexing.');
-        }
-
-        $timestamp = Carbon::now()->toIso8601String();
-        $source = $this->fundrefIndexSource($timestamp);
-        $outputHandle = $this->openFundrefIndex($targetPath, $timestamp, $source);
-        $first = true;
-        $count = 0;
-
-        while (! gzeof($resource)) {
-            $line = gzgets($resource);
-
-            if ($line === false) {
-                break;
-            }
-
-            $trimmed = trim($line);
-
-            if ($trimmed === '') {
-                continue;
-            }
-
-            try {
-                /** @var array<string, mixed> $decoded */
-                $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException $exception) {
-                $this->warn(sprintf('Skipping malformed JSON line during FundRef indexing: %s', $exception->getMessage()));
-
-                continue;
-            }
-
-            $candidate = $this->processFundrefCandidate($decoded, $source);
-
-            if ($candidate === null) {
-                continue;
-            }
-
-            $this->writeFundrefCandidate($outputHandle, $candidate, $first);
-            $count++;
-        }
-
-        $this->closeFundrefIndex($outputHandle, $count);
-        gzclose($resource);
-
-        return $count;
     }
 
     /**
@@ -754,16 +746,16 @@ class GetRorIds extends Command
     /**
      * @param  array<string, mixed>  $decoded
      * @param  array<string, mixed>  $source
+     * @param  array{prefLabel: string, rorId: string, otherLabel: array<int, string>}|null  $organization
      * @return array<string, mixed>|null
      */
-    private function processFundrefCandidate(array $decoded, array $source): ?array
+    private function processFundrefCandidate(array $decoded, array $source, ?array $organization = null): ?array
     {
-        $organization = $this->processOrganization($decoded);
+        $organization ??= $this->processOrganization($decoded);
 
         if ($organization === null) {
             return null;
         }
-
         $rorId = $this->canonicalRorIdentifier($organization['rorId']);
         $fundref = $this->extractFundrefExternalId($decoded);
 

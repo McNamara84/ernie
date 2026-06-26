@@ -23,6 +23,51 @@ function getRorIdsCommandZipData(array $organizations): string
     return $zipData;
 }
 
+function getRorIdsCommandGzipData(array $organizations): string
+{
+    $jsonLines = implode("\n", array_map(
+        fn (array $organization): string => json_encode($organization, JSON_THROW_ON_ERROR),
+        $organizations,
+    ));
+    $tempGzipPath = tempnam(sys_get_temp_dir(), 'ror-test-gzip-');
+    $gzip = gzopen($tempGzipPath, 'wb');
+
+    if ($gzip === false) {
+        throw new RuntimeException('Failed to open test GZIP data.');
+    }
+
+    gzwrite($gzip, $jsonLines);
+    gzclose($gzip);
+
+    $gzipData = file_get_contents($tempGzipPath);
+    unlink($tempGzipPath);
+
+    if ($gzipData === false) {
+        throw new RuntimeException('Failed to read test GZIP data.');
+    }
+
+    return $gzipData;
+}
+
+function getRorIdsCommandGzipMetadata(): array
+{
+    return [
+        'hits' => [
+            'hits' => [
+                [
+                    'files' => [
+                        [
+                            'key' => 'v1.0-2024-01-01-ror-data.jsonl.gz',
+                            'links' => [
+                                'self' => 'https://example.org/ror-data-latest.jsonl.gz',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
+}
 function getRorIdsCommandMetadata(): array
 {
     return [
@@ -134,6 +179,59 @@ it('fetches and stores ROR affiliation suggestions and FundRef index entries', f
     File::delete([$outputPath, $fundrefIndexPath]);
 });
 
+it('fetches gzipped JSONL ROR data and stores both derived outputs', function () {
+    $organizations = [
+        [
+            'id' => 'https://ror.org/018mejw64',
+            'name' => 'Deutsche Forschungsgemeinschaft',
+            'aliases' => ['German Research Foundation'],
+            'acronyms' => ['DFG'],
+            'labels' => [
+                ['label' => 'Deutsche Forschungsgemeinschaft'],
+            ],
+            'status' => 'active',
+            'types' => ['funder', 'nonprofit'],
+            'external_ids' => [
+                'FundRef' => [
+                    'preferred' => '501100001659',
+                    'all' => ['501100001659'],
+                ],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://zenodo.org/api/records*' => Http::response(getRorIdsCommandGzipMetadata(), 200),
+        'https://example.org/ror-data-latest.jsonl.gz' => Http::response(getRorIdsCommandGzipData($organizations), 200),
+    ]);
+
+    $outputPath = storage_path('app/testing/'.Str::random(8).'-ror-affiliations.json');
+    $fundrefIndexPath = dirname($outputPath).DIRECTORY_SEPARATOR.'ror-fundref-index.json';
+    File::ensureDirectoryExists(dirname($outputPath));
+
+    $this->artisan('get-ror-ids', ['--output' => $outputPath])
+        ->assertExitCode(0);
+
+    $decoded = json_decode(File::get($outputPath), true, 512, JSON_THROW_ON_ERROR);
+    $fundrefIndex = json_decode(File::get($fundrefIndexPath), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($decoded['data'])->toBe([
+        [
+            'prefLabel' => 'Deutsche Forschungsgemeinschaft',
+            'rorId' => 'https://ror.org/018mejw64',
+            'otherLabel' => [
+                'Deutsche Forschungsgemeinschaft',
+                'German Research Foundation',
+                'DFG',
+            ],
+        ],
+    ])
+        ->and($fundrefIndex['total'])->toBe(1)
+        ->and($fundrefIndex['data'][0]['ror_id'])->toBe('https://ror.org/018mejw64')
+        ->and($fundrefIndex['data'][0]['external_ids']['fundref']['all'])->toBe(['501100001659']);
+
+    File::delete([$outputPath, $fundrefIndexPath]);
+});
 it('does not replace affiliations when the FundRef index cannot be moved into place', function () {
     $organizations = [
         [
@@ -171,6 +269,42 @@ it('does not replace affiliations when the FundRef index cannot be moved into pl
     File::deleteDirectory($fundrefIndexPath);
 });
 
+it('does not replace the FundRef index when affiliations cannot be moved into place', function () {
+    $organizations = [
+        [
+            'id' => 'https://ror.org/018mejw64',
+            'name' => 'Deutsche Forschungsgemeinschaft',
+            'status' => 'active',
+            'types' => ['funder'],
+            'external_ids' => [
+                'FundRef' => [
+                    'preferred' => '501100001659',
+                    'all' => ['501100001659'],
+                ],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://zenodo.org/api/records*' => Http::response(getRorIdsCommandMetadata(), 200),
+        'https://example.org/ror-data-latest.zip' => Http::response(getRorIdsCommandZipData($organizations), 200),
+    ]);
+
+    $outputPath = storage_path('app/testing/'.Str::random(8).'-ror-affiliations.json');
+    $fundrefIndexPath = dirname($outputPath).DIRECTORY_SEPARATOR.'ror-fundref-index.json';
+    File::ensureDirectoryExists(dirname($outputPath));
+    File::makeDirectory($outputPath);
+    File::put($fundrefIndexPath, 'old fundref index');
+
+    $this->artisan('get-ror-ids', ['--output' => $outputPath])
+        ->expectsOutputToContain('Failed to process ROR data dump')
+        ->assertExitCode(1);
+
+    expect(File::get($fundrefIndexPath))->toBe('old fundref index');
+
+    File::deleteDirectory($outputPath);
+    File::delete($fundrefIndexPath);
+});
 it('fails when the metadata request is unsuccessful', function () {
     Http::fake([
         'https://zenodo.org/api/records*' => Http::response([], 503),
