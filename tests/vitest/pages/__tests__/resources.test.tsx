@@ -81,8 +81,13 @@ const openResourceActionsMenu = async () => {
     await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
 };
 
+const QUICK_RESOURCE_ACTION_TEST_IDS = new Set(['resources-action-edit', 'resources-action-setup-landing-page']);
+
 const clickResourceAction = async (testId: string) => {
-    await openResourceActionsMenu();
+    if (!QUICK_RESOURCE_ACTION_TEST_IDS.has(testId)) {
+        await openResourceActionsMenu();
+    }
+
     await userEvent.click(screen.getByTestId(testId));
 };
 

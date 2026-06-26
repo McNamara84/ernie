@@ -90,6 +90,7 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
 
 const DEFAULT_UNAVAILABLE_ACTION_REASON = 'This action is not available for the current selection.';
 const QUICK_ACTION_KEYS = ['edit', 'setup-landing-page'] satisfies ResourcesActionKey[];
+const QUICK_ACTION_KEY_SET = new Set<ResourcesActionKey>(QUICK_ACTION_KEYS);
 
 const getActionDefinition = (key: ResourcesActionKey): ActionDefinition => {
     const definition = ACTION_DEFINITIONS.find((actionDefinition) => actionDefinition.key === key);
@@ -106,7 +107,7 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
     const actionMenuTitle = hasSelection ? 'Actions' : 'Select rows to enable resource actions';
     const visibleQuickActions = QUICK_ACTION_KEYS.map(getActionDefinition).filter((definition) => actions[definition.key]?.visible !== false);
     const visibleMenuActions = ACTION_DEFINITIONS.filter(
-        (definition) => !QUICK_ACTION_KEYS.includes(definition.key) && actions[definition.key]?.visible !== false,
+        (definition) => !QUICK_ACTION_KEY_SET.has(definition.key) && actions[definition.key]?.visible !== false,
     );
 
     const executeAction = (definition: ActionDefinition): void => {

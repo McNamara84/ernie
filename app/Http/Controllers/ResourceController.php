@@ -165,10 +165,10 @@ class ResourceController extends Controller
     }
 
     /**
-     * Delete a draft resource.
+     * Delete a resource that has not been published yet.
      *
-     * Authorization is enforced by DestroyResourceRequest::authorize() (delegates
-     * to ResourcePolicy::delete – curator / group leader / admin on draft resources only).
+     * Authorization is enforced by DestroyResourceRequest::authorize() and
+     * ResourcePolicy::delete() for admin, group leader, and curator users.
      */
     public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
@@ -176,14 +176,14 @@ class ResourceController extends Controller
 
         return redirect()
             ->route('resources')
-            ->with('success', 'Draft deleted successfully.');
+            ->with('success', 'Resource deleted successfully.');
     }
 
     /**
-     * Delete selected draft resources.
+     * Delete selected resources that have not been published yet.
      *
-     * Every resource is checked through ResourcePolicy::delete so batch deletion
-     * cannot bypass DOI, landing page, or draft-status safeguards.
+     * Every submitted resource is checked through ResourcePolicy::delete so
+     * batch deletion cannot bypass published-resource safeguards.
      *
      * @throws ValidationException
      */
@@ -222,7 +222,7 @@ class ResourceController extends Controller
 
                 if (! $resource instanceof Resource || ! ($request->user()?->can('delete', $resource) ?? false)) {
                     throw ValidationException::withMessages([
-                        'ids' => ['Only draft resources without a DOI and without a landing page can be deleted.'],
+                        'ids' => ['Published resources cannot be deleted.'],
                     ]);
                 }
             }
@@ -238,8 +238,8 @@ class ResourceController extends Controller
 
         $count = count($ids);
         $message = $count === 1
-            ? 'Draft deleted successfully.'
-            : "{$count} drafts deleted successfully.";
+            ? 'Resource deleted successfully.'
+            : "{$count} resources deleted successfully.";
 
         return redirect()
             ->route('resources')
