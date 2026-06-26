@@ -771,6 +771,7 @@ describe('Landing Page with Custom Template', function () {
             'logo_path' => 'landing-page-logos/test/custom-logo.png',
             'creator_display_limit' => 12,
             'contributor_display_limit' => 34,
+            'citation_author_display_limit' => 8,
         ]);
 
         $landingPage = LandingPage::factory()
@@ -794,6 +795,7 @@ describe('Landing Page with Custom Template', function () {
                 )
                 ->where('displayLimits.creators', 12)
                 ->where('displayLimits.contributors', 34)
+                ->where('displayLimits.citationAuthors', 8)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-logo.png'))
             );
     });
@@ -802,6 +804,7 @@ describe('Landing Page with Custom Template', function () {
         LandingPageTemplate::ensureDefaultTemplateExists()->update([
             'creator_display_limit' => 22,
             'contributor_display_limit' => 44,
+            'citation_author_display_limit' => 66,
         ]);
 
         $landingPage = LandingPage::factory()
@@ -823,6 +826,7 @@ describe('Landing Page with Custom Template', function () {
                 ->where('customLogoUrl', null)
                 ->where('displayLimits.creators', 22)
                 ->where('displayLimits.contributors', 44)
+                ->where('displayLimits.citationAuthors', 66)
             );
     });
 
@@ -838,6 +842,7 @@ describe('Landing Page with Custom Template', function () {
                 'is_default' => false,
                 'creator_display_limit' => 23,
                 'contributor_display_limit' => 43,
+                'citation_author_display_limit' => 63,
                 'updated_at' => $originalTimestamp,
             ]);
 
@@ -858,6 +863,7 @@ describe('Landing Page with Custom Template', function () {
                 ->component('LandingPages/default_gfz')
                 ->where('displayLimits.creators', 23)
                 ->where('displayLimits.contributors', 43)
+                ->where('displayLimits.citationAuthors', 63)
             );
 
         $freshDefaultTemplate = $defaultTemplate->fresh();
@@ -884,6 +890,7 @@ describe('Landing Page with Custom Template', function () {
             'logo_path' => 'landing-page-logos/test/igsn-logo.png',
             'creator_display_limit' => 21,
             'contributor_display_limit' => 31,
+            'citation_author_display_limit' => 41,
         ]);
         $domain = LandingPageDomain::factory()->withDomain('https://legacy.example.org/')->create();
 
@@ -924,6 +931,7 @@ describe('Landing Page with Custom Template', function () {
                 )
                 ->where('displayLimits.creators', 21)
                 ->where('displayLimits.contributors', 31)
+                ->where('displayLimits.citationAuthors', 41)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
             );
     });

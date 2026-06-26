@@ -41,6 +41,7 @@ interface DefaultGfzTemplatePageProps {
 const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
     creators: 50,
     contributors: 50,
+    citationAuthors: 50,
 };
 
 export default function DefaultGfzTemplate() {
@@ -50,7 +51,7 @@ export default function DefaultGfzTemplate() {
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
     const resourceType = resource.resource_type?.name || 'Other';
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview);
+    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ?? RESOURCE_LEFT_COLUMN_SECTIONS;
