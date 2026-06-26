@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Services\Legacy\LegacyCoverageGeometryParser;
+use App\Services\Legacy\LegacyCoverageGeometryParserService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Attributes\Connection;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -1007,7 +1007,7 @@ class OldDataset extends Model
         }
 
         $db = DB::connection($this->connection);
-        $geometryParser = app(LegacyCoverageGeometryParser::class);
+        $geometryParser = app(LegacyCoverageGeometryParserService::class);
 
         // Get all coverage entries for this resource
         $coverages = $db->table('coverage')

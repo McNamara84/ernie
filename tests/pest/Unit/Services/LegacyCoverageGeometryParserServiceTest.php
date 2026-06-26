@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\Legacy\LegacyCoverageGeometryParser;
+use App\Services\Legacy\LegacyCoverageGeometryParserService;
 
 it('parses whitespace separated legacy line coordinate chains', function (): void {
-    $points = (new LegacyCoverageGeometryParser)->parseLine('8.1 49.2 8.3 49.4');
+    $points = (new LegacyCoverageGeometryParserService)->parseLine('8.1 49.2 8.3 49.4');
 
     expect($points)->toBe([
         ['lat' => 49.2, 'lon' => 8.1],
@@ -14,7 +14,7 @@ it('parses whitespace separated legacy line coordinate chains', function (): voi
 });
 
 it('parses comma separated legacy line coordinate chains', function (): void {
-    $points = (new LegacyCoverageGeometryParser)->parseLine('8.1, 49.2, 8.3, 49.4');
+    $points = (new LegacyCoverageGeometryParserService)->parseLine('8.1, 49.2, 8.3, 49.4');
 
     expect($points)->toBe([
         ['lat' => 49.2, 'lon' => 8.1],
@@ -23,7 +23,7 @@ it('parses comma separated legacy line coordinate chains', function (): void {
 });
 
 it('parses LINESTRING WKT values', function (): void {
-    $points = (new LegacyCoverageGeometryParser)->parseLine('LINESTRING (8.1 49.2, 8.3 49.4)');
+    $points = (new LegacyCoverageGeometryParserService)->parseLine('LINESTRING (8.1 49.2, 8.3 49.4)');
 
     expect($points)->toBe([
         ['lat' => 49.2, 'lon' => 8.1],
@@ -32,7 +32,7 @@ it('parses LINESTRING WKT values', function (): void {
 });
 
 it('returns null for unsupported or malformed geometry', function (string $geometry): void {
-    expect((new LegacyCoverageGeometryParser)->parseLine($geometry))->toBeNull();
+    expect((new LegacyCoverageGeometryParserService)->parseLine($geometry))->toBeNull();
 })->with([
     'odd coordinate count' => ['8.1 49.2 8.3'],
     'ocr typo in numeric token' => ['13.O57855 49.2 8.3 49.4'],
