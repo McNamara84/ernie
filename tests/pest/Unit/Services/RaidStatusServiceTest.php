@@ -142,3 +142,74 @@ describe('compareWithRemote', function () {
         ]);
     });
 });
+
+describe('getLocalStatus edge cases', function () {
+    test('returns not exists when RAiD file is empty', function () {
+        Storage::put('raid/raid-projects.json', '');
+
+        $status = (new RaidStatusService)->getLocalStatus(createRaidPidSettingForStatus());
+
+        expect($status)->toBe([
+            'exists' => false,
+            'itemCount' => 0,
+            'lastUpdated' => null,
+        ]);
+    });
+
+    test('returns not exists when RAiD file contains invalid JSON', function () {
+        Storage::put('raid/raid-projects.json', '{invalid json');
+
+        $status = (new RaidStatusService)->getLocalStatus(createRaidPidSettingForStatus());
+
+        expect($status)->toBe([
+            'exists' => false,
+            'itemCount' => 0,
+            'lastUpdated' => null,
+        ]);
+    });
+});
+
+describe('getRemoteCount edge cases', function () {
+    test('defaults remote count to zero when DataCite omits total metadata', function () {
+        config(['raid.datacite_endpoint' => 'https://api.datacite.example.test/']);
+
+        Http::fake([
+            'api.datacite.example.test/dois*' => Http::response([
+                'meta' => [],
+                'data' => [],
+            ], 200),
+        ]);
+
+        $count = (new RaidStatusService)->getRemoteCount();
+
+        expect($count)->toBe(0);
+
+        Http::assertSent(fn (Request $request): bool => str_starts_with($request->url(), 'https://api.datacite.example.test/dois?'));
+    });
+});
+
+describe('compareWithRemote edge cases', function () {
+    test('reports no update when local and remote counts match', function () {
+        Storage::put('raid/raid-projects.json', json_encode([
+            'lastUpdated' => '2026-06-26T00:00:00Z',
+            'total' => 7,
+            'data' => [],
+        ], JSON_THROW_ON_ERROR));
+
+        Http::fake([
+            'api.datacite.example.test/dois*' => Http::response([
+                'meta' => ['total' => 7],
+                'data' => [],
+            ], 200),
+        ]);
+
+        $result = (new RaidStatusService)->compareWithRemote(createRaidPidSettingForStatus());
+
+        expect($result)->toBe([
+            'localCount' => 7,
+            'remoteCount' => 7,
+            'updateAvailable' => false,
+            'lastUpdated' => '2026-06-26T00:00:00Z',
+        ]);
+    });
+});

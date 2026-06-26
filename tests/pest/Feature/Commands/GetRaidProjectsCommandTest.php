@@ -142,3 +142,97 @@ it('fails when the DataCite request is unsuccessful', function (): void {
         ->expectsOutputToContain('Failed to fetch RAiD projects page 1: HTTP 503')
         ->assertExitCode(1);
 });
+
+it('fails when DataCite reports records but returns no data', function (): void {
+    Http::fake([
+        'https://api.datacite.example.test/dois*' => Http::response([
+            'meta' => [
+                'total' => 3,
+                'totalPages' => 1,
+            ],
+            'data' => [],
+        ], 200),
+    ]);
+
+    $this->artisan('get-raid-projects')
+        ->expectsOutputToContain('DataCite reported RAiD records, but no records could be transformed.')
+        ->assertExitCode(1);
+});
+
+it('normalizes sparse and malformed DataCite records defensively', function (): void {
+    Http::fake([
+        'https://api.datacite.example.test/dois*' => Http::response([
+            'meta' => [
+                'total' => 1,
+                'totalPages' => 1,
+            ],
+            'data' => [
+                [
+                    'id' => 'sparse-record',
+                    'attributes' => [
+                        'doi' => '',
+                        'titles' => [
+                            'ignored title entry',
+                            ['title' => null],
+                            ['title' => 'Sparse RAiD Project'],
+                        ],
+                        'descriptions' => 'not a list',
+                        'dates' => [
+                            'ignored date entry',
+                            ['date' => '2026-06-26', 'dateType' => 'Created'],
+                        ],
+                        'creators' => 'not a list',
+                        'contributors' => [
+                            'ignored contributor entry',
+                            [
+                                'name' => 'ROR Matched Institute',
+                                'nameType' => 'Personal',
+                                'nameIdentifiers' => [
+                                    'ignored identifier entry',
+                                    ['nameIdentifier' => 'https://ror.org/04z8jg394', 'nameIdentifierScheme' => 'ROR'],
+                                ],
+                            ],
+                            [
+                                'name' => 'Non Organization',
+                                'nameType' => 'Personal',
+                                'nameIdentifiers' => 'not a list',
+                            ],
+                        ],
+                        'relatedIdentifiers' => 'not a list',
+                        'subjects' => 'not a list',
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $outputPath = storage_path('app/testing/'.Str::random(8).'-sparse-raid-projects.json');
+
+    $this->artisan('get-raid-projects', ['--output' => $outputPath])
+        ->assertExitCode(0);
+
+    $decoded = json_decode(File::get($outputPath), true, 512, JSON_THROW_ON_ERROR);
+    $project = $decoded['data'][0];
+
+    expect($project)->toMatchArray([
+        'id' => 'sparse-record',
+        'doi' => '',
+        'raidId' => '',
+        'title' => 'Sparse RAiD Project',
+        'description' => '',
+        'descriptions' => [],
+        'url' => '',
+        'downloadUrl' => null,
+        'contributors' => [],
+        'relatedIdentifiers' => [],
+        'subjects' => [],
+    ])
+        ->and($project['dates'])->toBe([
+            ['date' => '2026-06-26', 'dateType' => 'Created'],
+        ])
+        ->and($project['organisations'])->toHaveCount(1)
+        ->and($project['organisations'][0]['name'])->toBe('ROR Matched Institute')
+        ->and($project['searchTerms'])->toBe(['Sparse RAiD Project', 'ROR Matched Institute']);
+
+    File::delete($outputPath);
+});

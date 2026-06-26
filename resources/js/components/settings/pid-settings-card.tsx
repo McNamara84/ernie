@@ -53,7 +53,7 @@ interface PidSettingRowProps {
     onUpdateComplete?: () => void;
 }
 
-function getTypeLabels(type: string): { countLabel: string; sourceName: string } {
+export function getTypeLabels(type: string): { countLabel: string; sourceName: string } {
     if (type === 'ror') {
         return { countLabel: 'organizations', sourceName: 'ROR' };
     }
