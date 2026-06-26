@@ -89,11 +89,37 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
 ];
 
 const DEFAULT_UNAVAILABLE_ACTION_REASON = 'This action is not available for the current selection.';
+const QUICK_ACTION_KEYS = ['edit', 'setup-landing-page'] satisfies ResourcesActionKey[];
+
+const getActionDefinition = (key: ResourcesActionKey): ActionDefinition => {
+    const definition = ACTION_DEFINITIONS.find((actionDefinition) => actionDefinition.key === key);
+
+    if (!definition) {
+        throw new Error(`Unknown resource action: ${key}`);
+    }
+
+    return definition;
+};
 
 export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, onUnavailableAction }: ResourcesBulkActionsToolbarProps) {
     const hasSelection = selectedCount > 0;
     const actionMenuTitle = hasSelection ? 'Actions' : 'Select rows to enable resource actions';
-    const visibleActions = ACTION_DEFINITIONS.filter((definition) => actions[definition.key]?.visible !== false);
+    const visibleQuickActions = QUICK_ACTION_KEYS.map(getActionDefinition).filter((definition) => actions[definition.key]?.visible !== false);
+    const visibleMenuActions = ACTION_DEFINITIONS.filter(
+        (definition) => !QUICK_ACTION_KEYS.includes(definition.key) && actions[definition.key]?.visible !== false,
+    );
+
+    const executeAction = (definition: ActionDefinition): void => {
+        const state = actions[definition.key];
+        const unavailableReason = state.reason ?? DEFAULT_UNAVAILABLE_ACTION_REASON;
+
+        if (!state.available) {
+            onUnavailableAction(unavailableReason);
+            return;
+        }
+
+        onAction(definition.key);
+    };
 
     return (
         <div
@@ -106,71 +132,91 @@ export function ResourcesBulkActionsToolbar({ selectedCount, actions, onAction, 
                     : 'Select rows to enable resource actions'}
             </span>
 
-            {hasSelection ? (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                {visibleQuickActions.map((definition) => {
+                    const state = actions[definition.key];
+                    const isUnavailable = !state.available;
+                    const isLoading = state.loading === true;
+                    const unavailableReason = state.reason ?? DEFAULT_UNAVAILABLE_ACTION_REASON;
+
+                    return (
                         <Button
+                            key={definition.key}
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="w-full justify-between sm:w-auto"
-                            title={actionMenuTitle}
-                            data-testid="resources-actions-menu-trigger"
+                            className={cn('w-full justify-center gap-2 sm:w-auto', isUnavailable && hasSelection && !isLoading && 'opacity-70')}
+                            disabled={!hasSelection || isLoading}
+                            title={!hasSelection ? actionMenuTitle : isUnavailable ? unavailableReason : definition.label}
+                            data-testid={`resources-action-${definition.key}`}
+                            data-unavailable={isUnavailable && hasSelection && !isLoading ? 'true' : undefined}
+                            onClick={() => executeAction(definition)}
                         >
-                            <span>Actions</span>
-                            <ChevronDown aria-hidden="true" className="size-4" />
+                            {definition.icon}
+                            <span className="truncate">{isLoading ? 'Working...' : definition.label}</span>
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
-                        {visibleActions.map((definition) => {
-                            const state = actions[definition.key];
-                            const isUnavailable = !state.available;
-                            const isLoading = state.loading === true;
-                            const unavailableReason = state.reason ?? DEFAULT_UNAVAILABLE_ACTION_REASON;
+                    );
+                })}
 
-                            return (
-                                <DropdownMenuItem
-                                    key={definition.key}
-                                    disabled={isLoading}
-                                    aria-disabled={isLoading || undefined}
-                                    data-unavailable={isUnavailable && !isLoading ? 'true' : undefined}
-                                    title={isUnavailable ? unavailableReason : definition.label}
-                                    data-testid={`resources-action-${definition.key}`}
-                                    variant={definition.variant ?? 'default'}
-                                    className={cn(
-                                        'items-start gap-2',
-                                        isUnavailable && !isLoading && 'cursor-help opacity-60 focus:bg-background focus:text-foreground',
-                                    )}
-                                    onSelect={() => {
-                                        if (isUnavailable) {
-                                            onUnavailableAction(unavailableReason);
-                                            return;
-                                        }
+                {hasSelection ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="w-full justify-between sm:w-auto"
+                                title={actionMenuTitle}
+                                data-testid="resources-actions-menu-trigger"
+                            >
+                                <span>Actions</span>
+                                <ChevronDown aria-hidden="true" className="size-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                            {visibleMenuActions.map((definition) => {
+                                const state = actions[definition.key];
+                                const isUnavailable = !state.available;
+                                const isLoading = state.loading === true;
+                                const unavailableReason = state.reason ?? DEFAULT_UNAVAILABLE_ACTION_REASON;
 
-                                        onAction(definition.key);
-                                    }}
-                                >
-                                    {definition.icon}
-                                    <span className="min-w-0 flex-1 truncate">{isLoading ? 'Working...' : definition.label}</span>
-                                </DropdownMenuItem>
-                            );
-                        })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            ) : (
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="w-full justify-between sm:w-auto"
-                    disabled
-                    title={actionMenuTitle}
-                    data-testid="resources-actions-menu-trigger"
-                >
-                    <span>Actions</span>
-                    <ChevronDown aria-hidden="true" className="size-4" />
-                </Button>
-            )}
+                                return (
+                                    <DropdownMenuItem
+                                        key={definition.key}
+                                        disabled={isLoading}
+                                        aria-disabled={isLoading || undefined}
+                                        data-unavailable={isUnavailable && !isLoading ? 'true' : undefined}
+                                        title={isUnavailable ? unavailableReason : definition.label}
+                                        data-testid={`resources-action-${definition.key}`}
+                                        variant={definition.variant ?? 'default'}
+                                        className={cn(
+                                            'items-start gap-2',
+                                            isUnavailable && !isLoading && 'cursor-help opacity-60 focus:bg-background focus:text-foreground',
+                                        )}
+                                        onSelect={() => executeAction(definition)}
+                                    >
+                                        {definition.icon}
+                                        <span className="min-w-0 flex-1 truncate">{isLoading ? 'Working...' : definition.label}</span>
+                                    </DropdownMenuItem>
+                                );
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full justify-between sm:w-auto"
+                        disabled
+                        title={actionMenuTitle}
+                        data-testid="resources-actions-menu-trigger"
+                    >
+                        <span>Actions</span>
+                        <ChevronDown aria-hidden="true" className="size-4" />
+                    </Button>
+                )}
+            </div>
         </div>
     );
 }
