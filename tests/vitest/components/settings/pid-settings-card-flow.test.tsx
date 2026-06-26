@@ -36,7 +36,10 @@ const raidSetting: PidSettingData = {
 };
 
 describe('PidSettingsCard update flow', () => {
+    let originalFetch: typeof globalThis.fetch;
+
     beforeEach(() => {
+        originalFetch = globalThis.fetch;
         vi.clearAllMocks();
         Object.defineProperty(document, 'cookie', {
             configurable: true,
@@ -46,6 +49,7 @@ describe('PidSettingsCard update flow', () => {
     });
 
     afterEach(() => {
+        globalThis.fetch = originalFetch;
         vi.restoreAllMocks();
     });
 
@@ -79,7 +83,7 @@ describe('PidSettingsCard update flow', () => {
                     completedAt: '2026-06-26T03:00:00Z',
                 }),
             });
-        global.fetch = fetchMock;
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         render(
             <PidSettingsCard

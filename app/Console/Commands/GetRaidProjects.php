@@ -53,8 +53,12 @@ class GetRaidProjects extends Command
 
             /** @var array<string, mixed> $payload */
             $payload = $response->json();
+            /** @var mixed $rawItems */
+            $rawItems = Arr::get($payload, 'data', []);
             /** @var list<array<string, mixed>> $items */
-            $items = Arr::get($payload, 'data', []);
+            $items = is_array($rawItems)
+                ? array_values(array_filter($rawItems, static fn (mixed $item): bool => is_array($item)))
+                : [];
             $total = (int) Arr::get($payload, 'meta.total', count($items));
             $totalPages = max(1, (int) Arr::get($payload, 'meta.totalPages', $total > 0 ? (int) ceil($total / $pageSize) : 1));
 

@@ -143,14 +143,14 @@ it('fails when the DataCite request is unsuccessful', function (): void {
         ->assertExitCode(1);
 });
 
-it('fails when DataCite reports records but returns no data', function (): void {
+it('fails gracefully when DataCite reports records but returns null data', function (): void {
     Http::fake([
         'https://api.datacite.example.test/dois*' => Http::response([
             'meta' => [
                 'total' => 3,
                 'totalPages' => 1,
             ],
-            'data' => [],
+            'data' => null,
         ], 200),
     ]);
 
@@ -167,6 +167,7 @@ it('normalizes sparse and malformed DataCite records defensively', function (): 
                 'totalPages' => 1,
             ],
             'data' => [
+                'ignored record entry',
                 [
                     'id' => 'sparse-record',
                     'attributes' => [
