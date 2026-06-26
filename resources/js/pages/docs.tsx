@@ -737,7 +737,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
                             </li>
                             <li>
-                                <code>/api/v1/vocabularies/raid-projects</code> � RAiD research activity identifiers
+                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
