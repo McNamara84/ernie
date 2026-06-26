@@ -52,4 +52,3 @@ describe('LegacyResourceLookupService', function () {
         expect($this->service->existsByDoi('10.14470/rv968923'))->toBeTrue();
     });
 });
-

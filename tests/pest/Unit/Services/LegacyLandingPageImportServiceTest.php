@@ -198,4 +198,3 @@ describe('LegacyLandingPageImportService', function () {
             ->and($landingPage->links)->toHaveCount(0);
     });
 });
-

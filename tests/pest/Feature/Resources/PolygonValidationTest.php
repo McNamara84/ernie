@@ -543,4 +543,3 @@ describe('Polygon Validation', function () {
             ->and($geoLocation->polygon_points[1]['latitude'])->toEqual(51.0);
     });
 });
-
