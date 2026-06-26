@@ -26,7 +26,7 @@ class DateTypeSchemaorgExtraction
      * @return array<int, array<string, mixed>>
      */
 
-    public function loadAllowedSchemaorg(string $doi) :array 
+    public function loadAllowedSchemaorg(string $doi): array 
     {
         
         $doi = trim($doi);
@@ -98,8 +98,13 @@ class DateTypeSchemaorgExtraction
      * @param array<string, mixed> $data
      * @return array<int, array<string, mixed>>
      */
-    private function extractSchemaorgDateSuggestions (array $data) :array 
+    private function extractSchemaorgDateSuggestions (array $data): array 
     {
+        $normalizedValue = DateTypeNormalizerService::normalize($value);
+
+        if ($normalizedValue === '') {
+            continue;
+        }
 
         $suggestions = [];
 
@@ -111,9 +116,12 @@ class DateTypeSchemaorgExtraction
             }
 
             $suggestions[] = [
-            'field' => $field, 
-            'date_type' => $dateType,
-            'value' => trim($value),
+            'suggestion_kind' => 'addition',
+            'target_date_type' => $dateType,
+            'normalized_value' => $normalizedValue,
+            'evidence_source' => 'schema.org',
+            'schema_org_field' => $field,
+            'confidence' => 'high',
             ];
         }
 
@@ -149,7 +157,7 @@ class DateTypeSchemaorgExtraction
      * @return array<string, mixed>
      */
 
-    private function skip(string $url, string $reason, ?string $error = null) :array 
+    private function skip(string $url, string $reason, ?string $error = null): array 
     {
         return [
             'source_url' => trim($url),

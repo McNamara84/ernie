@@ -8,7 +8,7 @@ use DateTime;
 
 final class DateTypeNormalizerService
 {
-    public static function normalize(string $value) :string
+    public static function normalize(string $value): string
     {
         $trimmed = trim($value);
 
