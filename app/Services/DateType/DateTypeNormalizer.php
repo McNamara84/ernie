@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace App\Services\DateType;
 
+use DateTime;
+
 final class DateTypeNormalizerService
 {
     public static function normalize(string $value) :string
@@ -35,25 +37,47 @@ final class DateTypeNormalizerService
             return $trimmed;
         }
 
-        if (str_contains($trimmed, '/')) 
+        if (substr_count($trimmed, '/') === 1)   
         {
-            $parts = explode('/', $trimmed);
-
-            if (count($parts) !== 2) {
-            return '';
-            }
-
-            $start = trim($parts[0]);
-            $end = trim($parts[1]);
+            [$start, $end] = array_map('trim', explode('/', $trimmed));
 
             $normalizedStart = self::normalize($start);
             $normalizedEnd = self::normalize($end);
 
-            if ($normalizedStart === '' || $normalizedEnd === '') 
-                {
-                    return ''; 
+            if ($normalizedStart === '' || $normalizedEnd === '') {
+                return '';
             }
-             return $normalizedStart.'/'.$normalizedEnd;
+
+            return $normalizedStart.'/'.$normalizedEnd;
+        }
+
+        // d = Tag mit führender Null
+        // j = Tag ohne führende Null
+        // m = Monat mit führender Null
+        // n = Monat ohne führende Null
+        // Y = Jahr mit vier Stellen
+        // y = Jahr mit zwei Stellen
+        $formats = [
+            'd.m.Y', 
+            'Y.m.d',
+            'j.n.Y',
+            'Y.n.j',
+            'j/n/Y',
+            'Y/n/j',
+            'd/m/Y',
+            'Y/m/d',
+            'Y-n-j',
+            'Y-m-d',
+        ];
+
+        foreach ($formats as $format)
+        {
+            $date = DateTime::createFromFormat($format, $trimmed);
+
+            if ($date !== false)
+            {
+                return $date->format('Y-m-d');
+            }
         }
         return '';
     }
