@@ -161,8 +161,13 @@ const openResourceActionsMenu = async () => {
     await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
 };
 
+const QUICK_RESOURCE_ACTION_TEST_IDS = new Set(['resources-action-edit', 'resources-action-setup-landing-page']);
+
 const clickResourceAction = async (testId: string) => {
-    await openResourceActionsMenu();
+    if (!QUICK_RESOURCE_ACTION_TEST_IDS.has(testId)) {
+        await openResourceActionsMenu();
+    }
+
     await userEvent.click(screen.getByTestId(testId));
 };
 describe('ResourcesPage - bulk selection', () => {
@@ -308,14 +313,33 @@ describe('ResourcesPage - bulk selection', () => {
         expect(openMock).toHaveBeenCalledWith('/editor?resourceId=2', '_blank', 'noopener,noreferrer');
     });
 
-    it('warns when an editor tab is blocked', async () => {
+    it('keeps quick edit and setup actions outside the action menu', async () => {
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+
+        expect(screen.getByTestId('resources-action-edit')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
+
+        await openResourceActionsMenu();
+        const menu = screen.getByRole('menu');
+
+        expect(within(menu).queryByTestId('resources-action-edit')).not.toBeInTheDocument();
+        expect(within(menu).queryByTestId('resources-action-setup-landing-page')).not.toBeInTheDocument();
+        expect(within(menu).getByTestId('resources-action-manage-related-items')).toBeInTheDocument();
+    });
+
+    it('shows fallback editor links when an editor tab is blocked', async () => {
         openMock.mockReturnValueOnce(null);
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
-        await clickResourceAction('resources-action-edit');
+        await userEvent.click(screen.getByTestId('resources-action-edit'));
 
-        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('blocked'));
+        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('fallback links'));
+        expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('keeps single-resource actions visible but reports a useful error for multi-selection', async () => {
@@ -472,9 +496,9 @@ describe('ResourcesPage - bulk selection', () => {
         await clickResourceAction('resources-action-delete');
 
         expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-        expect(screen.getByText(/only draft resources without a doi and without a landing page can be deleted/i)).toBeInTheDocument();
+        expect(screen.getByText(/delete 2 draft resources/i)).toBeInTheDocument();
 
-        await userEvent.click(screen.getByRole('button', { name: /delete drafts/i }));
+        await userEvent.click(screen.getByRole('button', { name: /delete 2 resources/i }));
 
         expect(routerMock.delete).toHaveBeenCalledWith(
             '/resources/batch',
@@ -497,17 +521,92 @@ describe('ResourcesPage - bulk selection', () => {
             deleteOptions.onFinish();
         });
 
+        expect(toastMock.success).toHaveBeenCalledWith('2 resources deleted successfully.');
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
-    it('uses a singular delete confirmation label for one selected draft', async () => {
+    it('uses a singular delete confirmation label for one selected resource', async () => {
         render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         await clickResourceAction('resources-action-delete');
 
-        expect(screen.getByRole('button', { name: /^delete draft$/i })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /^delete drafts$/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^delete resource$/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^delete resources$/i })).not.toBeInTheDocument();
+    });
+
+    it('shows grouped delete choices and submits only checked deletable groups', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null }),
+                    buildResource({ id: 11, doi: null, title: 'Curation A', publicstatus: 'curation', landingPage: null }),
+                    buildResource({ id: 12, doi: '10.9999/review', title: 'Preview A', publicstatus: 'review', landingPage }),
+                    buildResource({ id: 13, doi: '10.9999/published', title: 'Published A', publicstatus: 'published', landingPage }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        await clickResourceAction('resources-action-delete');
+
+        expect(screen.getByText(/delete 1 draft resource/i)).toBeInTheDocument();
+        expect(screen.getByText(/delete 1 curation resource/i)).toBeInTheDocument();
+        expect(screen.getByText(/delete 1 preview resource/i)).toBeInTheDocument();
+        expect(screen.getByTestId('resources-delete-group-published')).toHaveTextContent('1 published resource cannot be deleted');
+        expect(screen.getByText(/preview pages will be deleted/i)).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('resources-delete-group-review-checkbox'));
+        await userEvent.click(screen.getByRole('button', { name: /delete 2 resources/i }));
+
+        expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [10, 11] } }));
+    });
+
+    it('hides delete warnings and disables confirmation when all deletable groups are unchecked', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([buildResource({ id: 12, doi: '10.9999/review', title: 'Preview A', publicstatus: 'review', landingPage })])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-12'));
+        await clickResourceAction('resources-action-delete');
+
+        expect(screen.getByText(/preview pages will be deleted/i)).toBeInTheDocument();
+        expect(screen.getByText(/this action cannot be undone/i)).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('resources-delete-group-review-checkbox'));
+
+        expect(screen.queryByText(/preview pages will be deleted/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/this action cannot be undone/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
+        expect(routerMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('explains published-only selections without submitting deletion', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 13, publicstatus: 'published', title: 'Published A', landingPage })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-13'));
+        await clickResourceAction('resources-action-delete');
+
+        expect(screen.getByText(/no selected resources can be deleted/i)).toBeInTheDocument();
+        expect(screen.getByTestId('resources-delete-group-published')).toHaveTextContent('1 published resource cannot be deleted');
+        expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
+        expect(routerMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('allows deleting draft resources that already have a landing page', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([buildResource({ id: 20, doi: null, title: 'Draft with Landing Page', publicstatus: 'draft', landingPage })])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-20'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
+
+        expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [20] }, preserveScroll: true }));
     });
 
     it('shows the batch delete ids validation message returned by Inertia', async () => {
@@ -515,7 +614,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         await clickResourceAction('resources-action-delete');
-        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+        await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
 
         const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
             onError: (errors?: Record<string, unknown>) => void;
@@ -523,11 +622,11 @@ describe('ResourcesPage - bulk selection', () => {
         };
 
         await act(async () => {
-            deleteOptions.onError({ ids: 'Only draft resources without landing pages can be deleted.' });
+            deleteOptions.onError({ ids: 'Published resources cannot be deleted.' });
             deleteOptions.onFinish();
         });
 
-        expect(toastMock.error).toHaveBeenCalledWith('Only draft resources without landing pages can be deleted.');
+        expect(toastMock.error).toHaveBeenCalledWith('Published resources cannot be deleted.');
     });
 
     it('shows item-level batch delete validation messages returned by Inertia', async () => {
@@ -535,7 +634,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         await clickResourceAction('resources-action-delete');
-        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+        await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
 
         const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
             onError: (errors?: Record<string, unknown>) => void;
@@ -543,11 +642,11 @@ describe('ResourcesPage - bulk selection', () => {
         };
 
         await act(async () => {
-            deleteOptions.onError({ 'ids.0': ['The selected draft can no longer be deleted.'] });
+            deleteOptions.onError({ 'ids.0': ['The selected resource can no longer be deleted.'] });
             deleteOptions.onFinish();
         });
 
-        expect(toastMock.error).toHaveBeenCalledWith('The selected draft can no longer be deleted.');
+        expect(toastMock.error).toHaveBeenCalledWith('The selected resource can no longer be deleted.');
     });
 
     it('shows the first available batch delete validation message for non-id errors', async () => {
@@ -555,7 +654,7 @@ describe('ResourcesPage - bulk selection', () => {
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         await clickResourceAction('resources-action-delete');
-        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+        await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
 
         const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
             onError: (errors?: Record<string, unknown>) => void;
@@ -563,18 +662,19 @@ describe('ResourcesPage - bulk selection', () => {
         };
 
         await act(async () => {
-            deleteOptions.onError({ general: 'The selected drafts cannot be deleted right now.' });
+            deleteOptions.onError({ general: 'The selected resources cannot be deleted right now.' });
             deleteOptions.onFinish();
         });
 
-        expect(toastMock.error).toHaveBeenCalledWith('The selected drafts cannot be deleted right now.');
+        expect(toastMock.error).toHaveBeenCalledWith('The selected resources cannot be deleted right now.');
     });
+
     it('falls back to a generic batch delete error when no validation message is available', async () => {
         render(<ResourcesPage {...buildProps([buildResource({ id: 10, doi: null, title: 'Draft A', publicstatus: 'draft', landingPage: null })])} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         await clickResourceAction('resources-action-delete');
-        await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+        await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
 
         const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
             onError: (errors?: Record<string, unknown>) => void;
@@ -586,10 +686,10 @@ describe('ResourcesPage - bulk selection', () => {
             deleteOptions.onFinish();
         });
 
-        expect(toastMock.error).toHaveBeenCalledWith('Failed to delete draft resource.');
+        expect(toastMock.error).toHaveBeenCalledWith('Failed to delete resource.');
     });
 
-    it('uses a plural generic batch delete error for multiple selected drafts', async () => {
+    it('uses a plural generic batch delete error for multiple selected resources', async () => {
         render(
             <ResourcesPage
                 {...buildProps([
@@ -602,7 +702,7 @@ describe('ResourcesPage - bulk selection', () => {
         fireEvent.click(screen.getByTestId('resources-row-checkbox-10'));
         fireEvent.click(screen.getByTestId('resources-row-checkbox-11'));
         await clickResourceAction('resources-action-delete');
-        await userEvent.click(screen.getByRole('button', { name: /^delete drafts$/i }));
+        await userEvent.click(screen.getByRole('button', { name: /^delete 2 resources$/i }));
 
         const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
             onError: (errors?: Record<string, unknown>) => void;
@@ -614,23 +714,8 @@ describe('ResourcesPage - bulk selection', () => {
             deleteOptions.onFinish();
         });
 
-        expect(toastMock.error).toHaveBeenCalledWith('Failed to delete draft resources.');
+        expect(toastMock.error).toHaveBeenCalledWith('Failed to delete resources.');
     });
-
-    it('blocks delete when a selected draft already has a landing page', async () => {
-        render(
-            <ResourcesPage
-                {...buildProps([buildResource({ id: 20, doi: null, title: 'Draft with Landing Page', publicstatus: 'draft', landingPage })])}
-            />,
-        );
-
-        fireEvent.click(screen.getByTestId('resources-row-checkbox-20'));
-        await clickResourceAction('resources-action-delete');
-
-        expect(toastMock.error).toHaveBeenCalledWith('Resources with landing pages cannot be deleted from this list. Remove the landing page first.');
-        expect(routerMock.delete).not.toHaveBeenCalled();
-    });
-
     it('reports partial metadata update responses returned as multi-status errors', async () => {
         axiosPostMock.mockRejectedValueOnce(
             Object.assign(new Error('partial success'), {

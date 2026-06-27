@@ -72,6 +72,41 @@ function createNonDraftResourceForPolicy(): Resource
     ]);
 }
 
+function createReviewResourceForPolicy(string $doi = '10.5880/test.review.policy'): Resource
+{
+    $resource = createNonDraftResourceForPolicy();
+    $resource->update(['doi' => $doi]);
+
+    LandingPage::factory()->withDoi($doi)->draft()->create([
+        'resource_id' => $resource->id,
+    ]);
+
+    return $resource->fresh([
+        'titles.titleType',
+        'creators',
+        'rights',
+        'descriptions.descriptionType',
+        'landingPage',
+    ]);
+}
+
+function createPublishedResourceForPolicy(string $doi = '10.5880/test.published.policy'): Resource
+{
+    $resource = createNonDraftResourceForPolicy();
+    $resource->update(['doi' => $doi]);
+
+    LandingPage::factory()->withDoi($doi)->published()->create([
+        'resource_id' => $resource->id,
+    ]);
+
+    return $resource->fresh([
+        'titles.titleType',
+        'creators',
+        'rights',
+        'descriptions.descriptionType',
+        'landingPage',
+    ]);
+}
 describe('ResourcePolicy', function () {
     beforeEach(function () {
         $this->policy = new ResourcePolicy;
@@ -169,7 +204,7 @@ describe('ResourcePolicy', function () {
     });
 
     describe('delete', function () {
-        it('short-circuits before loading relations for users who cannot delete drafts', function () {
+        it('short-circuits before loading relations for users who cannot delete resources', function () {
             $user = User::factory()->create(['role' => UserRole::BEGINNER]);
 
             /** @var Resource&MockInterface $resource */
@@ -180,36 +215,21 @@ describe('ResourcePolicy', function () {
             expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
-        it('loads relations only after the role check passes', function () {
+        it('loads status relations only after the role check passes', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
 
             /** @var Resource&MockInterface $resource */
             $resource = Mockery::mock(Resource::class);
-            $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
-            $resource->shouldReceive('loadMissing')->once()->with('landingPage')->ordered()->andReturnSelf();
-            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->ordered()->andReturn(null);
             $resource->shouldReceive('loadMissing')->once()->with([
+                'landingPage',
                 'titles.titleType',
                 'creators',
                 'rights',
                 'descriptions.descriptionType',
-            ])->ordered()->andReturnSelf();
+            ])->andReturnSelf();
             $resource->shouldReceive('publicStatus')->once()->andReturn('draft');
 
             expect($this->policy->delete($user, $resource))->toBeTrue();
-        });
-
-        it('short-circuits before loading completeness relations when the resource has a landing page', function () {
-            $user = User::factory()->create(['role' => UserRole::ADMIN]);
-
-            /** @var Resource&MockInterface $resource */
-            $resource = Mockery::mock(Resource::class);
-            $resource->shouldReceive('getAttribute')->with('doi')->once()->andReturn(null);
-            $resource->shouldReceive('loadMissing')->once()->with('landingPage')->andReturnSelf();
-            $resource->shouldReceive('getAttribute')->with('landingPage')->once()->andReturn(new LandingPage);
-            $resource->shouldNotReceive('publicStatus');
-
-            expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
         it('allows admin to delete a draft resource', function () {
@@ -217,17 +237,17 @@ describe('ResourcePolicy', function () {
             expect($this->policy->delete($user, $this->resource))->toBeTrue();
         });
 
-        it('denies admin from deleting a draft resource with a persistent identifier', function () {
+        it('allows admin to delete a draft resource with a persistent identifier', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
             $resource = Resource::factory()->create([
                 'doi' => '10.5880/test.2026.001',
             ]);
 
             expect($resource->publicStatus())->toBe('draft');
-            expect($this->policy->delete($user, $resource))->toBeFalse();
+            expect($this->policy->delete($user, $resource))->toBeTrue();
         });
 
-        it('denies admin from deleting a draft resource with a landing page', function () {
+        it('allows admin to delete a draft resource with a landing page', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
             LandingPage::factory()->withoutDoi()->draft()->create([
                 'resource_id' => $this->resource->id,
@@ -236,40 +256,44 @@ describe('ResourcePolicy', function () {
             $this->resource->refresh();
 
             expect($this->resource->publicStatus())->toBe('draft');
-            expect($this->policy->delete($user, $this->resource))->toBeFalse();
+            expect($this->policy->delete($user, $this->resource))->toBeTrue();
         });
 
-        it('allows group leader to delete a draft resource', function () {
+        it('allows group leader to delete a curation resource', function () {
             $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
-            expect($this->policy->delete($user, $this->resource))->toBeTrue();
+            $resource = createNonDraftResourceForPolicy();
+
+            expect($resource->publicStatus())->toBe('curation');
+            expect($this->policy->delete($user, $resource))->toBeTrue();
         });
 
-        it('allows curator to delete a draft resource', function () {
+        it('allows curator to delete a review resource', function () {
             $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            expect($this->policy->delete($user, $this->resource))->toBeTrue();
+            $resource = createReviewResourceForPolicy();
+
+            expect($resource->publicStatus())->toBe('review');
+            expect($this->policy->delete($user, $resource))->toBeTrue();
         });
 
-        it('denies admin from deleting a non-draft resource', function () {
+        it('denies admin from deleting a published resource', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
-            $resource = createNonDraftResourceForPolicy();
+            $resource = createPublishedResourceForPolicy();
 
-            expect($resource->publicStatus())->not->toBe('draft');
+            expect($resource->publicStatus())->toBe('published');
             expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
-        it('denies group leader from deleting a non-draft resource', function () {
+        it('denies group leader from deleting a published resource', function () {
             $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
-            $resource = createNonDraftResourceForPolicy();
+            $resource = createPublishedResourceForPolicy();
 
-            expect($resource->publicStatus())->not->toBe('draft');
             expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
-        it('denies curator from deleting a non-draft resource', function () {
+        it('denies curator from deleting a published resource', function () {
             $user = User::factory()->create(['role' => UserRole::CURATOR]);
-            $resource = createNonDraftResourceForPolicy();
+            $resource = createPublishedResourceForPolicy();
 
-            expect($resource->publicStatus())->not->toBe('draft');
             expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
@@ -278,7 +302,6 @@ describe('ResourcePolicy', function () {
             expect($this->policy->delete($user, $this->resource))->toBeFalse();
         });
     });
-
     describe('importFromDataCite', function () {
         it('allows admin to import from DataCite', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
