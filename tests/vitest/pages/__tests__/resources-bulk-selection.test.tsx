@@ -339,6 +339,7 @@ describe('ResourcesPage - bulk selection', () => {
         expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('fallback links'));
         expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('keeps single-resource actions visible but reports a useful error for multi-selection', async () => {
@@ -559,6 +560,27 @@ describe('ResourcesPage - bulk selection', () => {
         await userEvent.click(screen.getByRole('button', { name: /delete 2 resources/i }));
 
         expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [10, 11] } }));
+    });
+
+    it('hides delete warnings and disables confirmation when all deletable groups are unchecked', async () => {
+        render(
+            <ResourcesPage
+                {...buildProps([buildResource({ id: 12, doi: '10.9999/review', title: 'Preview A', publicstatus: 'review', landingPage })])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-12'));
+        await clickResourceAction('resources-action-delete');
+
+        expect(screen.getByText(/preview pages will be deleted/i)).toBeInTheDocument();
+        expect(screen.getByText(/this action cannot be undone/i)).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('resources-delete-group-review-checkbox'));
+
+        expect(screen.queryByText(/preview pages will be deleted/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/this action cannot be undone/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
+        expect(routerMock.delete).not.toHaveBeenCalled();
     });
 
     it('explains published-only selections without submitting deletion', async () => {

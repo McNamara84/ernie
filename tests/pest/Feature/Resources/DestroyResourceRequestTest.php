@@ -300,7 +300,7 @@ it('rejects beginners from batch deleting resources', function (): void {
         ])
         ->assertRedirect(route('resources'))
         ->assertSessionHasErrors([
-            'ids' => 'Published resources cannot be deleted.',
+            'ids' => 'You do not have permission to delete the selected resources.',
         ]);
 
     expect(Resource::find($resource->id))->not->toBeNull();

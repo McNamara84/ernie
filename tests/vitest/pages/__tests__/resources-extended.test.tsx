@@ -138,30 +138,6 @@ function makePagination(overrides = {}) {
 
 const defaultSort = { key: 'updated_at' as const, direction: 'desc' as const };
 
-const createLocalStorageMock = (): Storage => {
-    let store: Record<string, string> = {};
-
-    return {
-        clear: vi.fn(() => {
-            store = {};
-        }),
-        getItem: vi.fn((key: string) => store[key] ?? null),
-        key: vi.fn((index: number) => Object.keys(store)[index] ?? null),
-        removeItem: vi.fn((key: string) => {
-            delete store[key];
-        }),
-        setItem: vi.fn((key: string, value: string) => {
-            store[key] = String(value);
-        }),
-        get length() {
-            return Object.keys(store).length;
-        },
-    } as Storage;
-};
-
-const localStorageMock = createLocalStorageMock();
-Object.defineProperty(window, 'localStorage', { value: localStorageMock, configurable: true });
-Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, configurable: true });
 function renderPage(propsOverrides: Record<string, unknown> = {}) {
     const props = {
         resources: [makeResource()],
@@ -207,7 +183,7 @@ describe('ResourcesPage - extended', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        localStorage.clear();
+        window.localStorage.clear();
         axiosGetMock.mockResolvedValue({ data: {} });
         Object.assign(mockUser, {
             role: 'group_leader',

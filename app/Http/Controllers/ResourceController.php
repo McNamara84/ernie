@@ -220,9 +220,19 @@ class ResourceController extends Controller
             foreach ($ids as $id) {
                 $resource = $resources->get($id);
 
-                if (! $resource instanceof Resource || ! ($request->user()?->can('delete', $resource) ?? false)) {
+                if (! $resource instanceof Resource) {
                     throw ValidationException::withMessages([
-                        'ids' => ['Published resources cannot be deleted.'],
+                        'ids' => ['Some selected resources could not be found.'],
+                    ]);
+                }
+
+                if (! ($request->user()?->can('delete', $resource) ?? false)) {
+                    $message = $resource->publicStatus() === 'published'
+                        ? 'Published resources cannot be deleted.'
+                        : 'You do not have permission to delete the selected resources.';
+
+                    throw ValidationException::withMessages([
+                        'ids' => [$message],
                     ]);
                 }
             }

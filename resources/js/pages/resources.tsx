@@ -1063,8 +1063,8 @@ function ResourcesPage({
     );
     const selectedDeletableDeleteCount = selectedDeletableDeleteResourceIds.length;
     const publishedDeleteCount = selectedDeleteGroups.published.length;
-    const hasPreviewDeleteSelection = selectedDeleteGroups.review.length > 0;
-    const hasAnyDeletableDeleteSelection = DELETABLE_DELETE_STATUSES.some((status) => selectedDeleteGroups[status].length > 0);
+    const hasPreviewDeleteSelection = selectedDeleteStatuses.review && selectedDeleteGroups.review.length > 0;
+    const hasAnyDeletableDeleteSelection = selectedDeletableDeleteCount > 0;
 
     const handleOpenDeleteDialog = useCallback(() => {
         setSelectedDeleteStatuses({
@@ -2094,7 +2094,7 @@ function ResourcesPage({
                     <div className="space-y-2">
                         {blockedEditorTabs.map((tab) => (
                             <Button key={tab.id} asChild variant="outline" className="w-full justify-between gap-2">
-                                <a href={tab.url} target="_blank" rel="noreferrer">
+                                <a href={tab.url} target="_blank" rel="noopener noreferrer">
                                     <span className="truncate">{tab.label}</span>
                                     <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
                                 </a>
