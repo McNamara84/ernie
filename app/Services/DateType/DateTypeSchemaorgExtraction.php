@@ -123,6 +123,7 @@ class DateTypeSchemaorgExtraction
             'evidence_source' => 'schema.org',
             'schema_org_field' => $field,
             'confidence' => 'high',
+            'is_ambiguous' => false,
             ];
         }
 

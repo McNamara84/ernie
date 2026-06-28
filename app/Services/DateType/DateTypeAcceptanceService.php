@@ -9,7 +9,7 @@ use App\Models\DateType;
 use App\Models\ResourceDate;
 
 
-final class DateTypeSuggestionAcceptanceService
+final class DateTypeAcceptanceService
 {
     /**
      *  @return array{success: bool, message: string} 

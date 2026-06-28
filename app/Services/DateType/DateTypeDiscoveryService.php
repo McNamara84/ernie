@@ -6,10 +6,11 @@ namespace App\Services\DateType;
 
 use App\Models\Resource;
 use App\Services\DateType\DateTypeSchemaorgExtraction;
+use App\Services\DateType\DateTypeCoverageCorrectionDiscoveryService;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
-final class DateTypeSuggestionDiscoveryService
+final class DateTypeDiscoveryService
 {
     // private const = ein Wert der sich nie ändern darf
     // der Unterschied zur Variable = Variable darf verändert werden und Konstante nicht 
@@ -18,6 +19,7 @@ final class DateTypeSuggestionDiscoveryService
 
     public function __construct(
         private readonly DateTypeSchemaorgExtraction $extractService,
+        private readonly DateTypeCoverageCorrectionDiscoveryService $coverageCorrectionDiscovery,
     ) {}
 
     /**
@@ -68,7 +70,13 @@ final class DateTypeSuggestionDiscoveryService
     private function discoverForResource(string $assistantId, Resource $resource, Closure $storeSuggestion): int
     {
         $storedCount = 0;
-        $suggestions = $this->lookupSchemaorgDates($resource);
+
+        $suggestions = [
+            ...$this->lookupSchemaorgDates($resource),
+            ...$this->coverageCorrectionDiscovery->discover($resource),
+
+        ];
+
         $existingDateTypes = $resource->dates()
             ->with('dateType')
             ->get()
@@ -95,7 +103,7 @@ final class DateTypeSuggestionDiscoveryService
                 continue;
             }
 
-            if (! in_array($type, ['Created', 'Issued'], true)) {
+            if (! in_array($type, ['Created', 'Issued', 'Coverage'], true)) {
                 continue;
             }
 
@@ -145,6 +153,13 @@ final class DateTypeSuggestionDiscoveryService
                     $query->whereHas('dateType', function (Builder $query): void  
                     {
                         $query->where('slug', 'Issued'); 
+                    });
+                })
+                ->orWhereHas('dates', function (Builder $query): void 
+                {
+                    $query->whereHas('dateType', function (Builder $query): void 
+                    {
+                        $query->where('slug', 'Collected');
                     });
                 });
             });
