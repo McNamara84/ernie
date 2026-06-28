@@ -1,0 +1,24 @@
+{
+    "id": "date-type-suggestion",
+    "name": "DateType Suggestions",
+    "description": "Discovers missing or potentially misclassified resource dates from approved metadata sources.",
+    "icon": "FileSearch",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\DateTypeSuggestion\\Assistant",
+    "route_prefix": "date-type",
+    "lock_key": "date_type_discovery_running",
+    "cache_key_prefix": "date_type_discovery",
+    "sort_order": 60,
+    "status_labels": {
+        "checking": "Starting dateType discovery...",
+        "completed_with_results": "DateType discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "DateType discovery completed: No new suggestions found.",
+        "failed": "DateType discovery failed: {error}",
+        "already_running": "A dateType discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending dateType suggestions",
+        "description": "No new dateType suggestions found. Click \"Check\" to search again."
+    },
+    "card_component": null
+}
