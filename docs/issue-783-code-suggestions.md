@@ -164,7 +164,7 @@ if (dismissedAlready()) {
 
 ### Aktueller Stand
 
-Stale wird erkannt.
+Stale Suggestions werden bereits über einen `source_hash` erkannt und können beim Accept-Prozess nicht mehr übernommen werden.
 
 ### Verbesserung
 
@@ -194,22 +194,30 @@ delete suggestion
 
 ## 8. Source Hash verbessern
 
-Aktuell vermutlich:
+Aktueller Stand
 
-```php
-sha1($titleText)
+Der Source Hash wird bereits aus mehreren Eigenschaften erzeugt.
+
+Unter anderem:
+
+- title_id
+- title_text
+- current_language
+- resource_id
 ```
 
-### Problem
+### Mögliche Verbesserung
 
-Kleinste Änderung erzeugt neuen Hash.
+Vor dem Hashing könnten die Eingabedaten zusätzlich normalisiert werden.
 
-### Verbesserung
+### Beispiel
 
-Vorher normalisieren:
+Vor dem Hashing könnten beispielsweise
 
 ```php
+
 trim()
+
 mb_strtolower()
 ```
 
@@ -256,11 +264,35 @@ Einfachere Wartung.
 
 Aktuell:
 
+Die Preview enthält inzwischen unter anderem:
+
 ```php
-title
-language
+
+title_text
+
+current_language
+
+current_language_label
+
+proposed_language
+
+proposed_language_label
+
 confidence
+
+confidence_percent
+
 warning
+
+has_overwrite_warning
+
+reason
+
+source_hash
+
+source_snapshot
+
+is_stale
 ```
 
 Zusätzlich sinnvoll:
@@ -285,19 +317,24 @@ Missing language attribute.
 
 ## 11. Erklärungen für Reviewer erzeugen
 
-Im Payload:
+Aktueller Stand
+
+Die Suggestions enthalten bereits strukturierte Erklärungen im Payload.
 
 ```php
+'reason' => ...
+
 'explanation' => [
     'detected_language' => 'en',
     'confidence' => 0.97,
     'resource_language' => 'en',
+    'current_title_language' => 'de',
 ]
 ```
 
 ### Vorteil
 
-Reviewer versteht die Entscheidung.
+Der aktuelle Stand liefert Reviewer:innen bereits deutlich mehr Kontext als die ursprüngliche Implementierung.
 
 ---
 
@@ -399,24 +436,31 @@ Discovery
 → Title.language aktualisiert
 → Suggestion entfernt
 ```
+✔ Bereits umgesetzt.
 
 ### Weitere Fälle
 
 ```text
 Dismiss
 ```
+❌ Noch offen.
 
 ```text
 Stale Suggestion
 ```
+🟡 Logik vorhanden, Test fehlt noch.
 
 ```text
 Overwrite vorhandener Sprache
 ```
+🟡 Logik vorhanden, Test fehlt noch.
 
 ```text
 Mehrere Vorschläge gleichzeitig
 ```
+❌ Noch offen.
+
+
 # Code with my Suggestions
 
 ```php
