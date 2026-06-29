@@ -61,12 +61,12 @@ Topics include:
 - reviewer preview
 - acceptance workflow
 - metadata update
-- XML export behavior
+- preparation for XML export
 - regression testing
 
 Result:
 
-- accepted language suggestions become part of the title metadata and are exported correctly
+- accepted language suggestions become part of the title metadata and are available for future XML export
 
 ---
 
@@ -127,25 +127,19 @@ Expected Behaviour:
 
 ## XML Export
 
-Accepted language values should appear as xml:lang attributes in exported XML.
+Accepted title language values should be stored in the database and become available for future XML export as xml:lang attributes.
 
 Example:
 
-Before:
-
-```xml
-<title>
-Groundwater Recharge
-</title>
-```
-
-After:
+Future XML Export:
 
 ```xml
 <title xml:lang="en">
 Groundwater Recharge
 </title>
 ```
+
+The XML export itself is implemented in a separate follow-up issue after the title language has been persisted successfully.
 
 ---
 
@@ -358,8 +352,10 @@ Verify:
 
 Verify:
 
-- xml:lang is exported correctly
-- existing export functionality remains unchanged
+- accepted title languages are stored correctly
+- existing export behaviour is not affected by persisting title languages
+
+A dedicated XML export test will be implemented together with the DataCite export changes.
 
 ---
 
@@ -384,7 +380,9 @@ Verify:
 
 ## Export Assumptions
 
-Existing export logic may contain assumptions about NULL language values.
+The current XML export still assumes Resource.language for title xml:lang attributes.
+
+A follow-up issue will update the export to use Title.language instead.
 
 Potential Impact:
 
@@ -424,7 +422,7 @@ The issue focuses on:
 - reviewing language suggestions
 - accepting language suggestions safely
 - protecting existing metadata
-- exporting xml:lang attributes correctly
+- persisting title language information for future xml:lang export
 - preventing duplicate or stale suggestions
 - ensuring stable behaviour through automated tests
 
@@ -746,13 +744,13 @@ use Nitotm\Eld\Eld;
 
 class Assistant extends GenericTableAssistant
 {
-    private Eld $detector;
+    private LanguageDetector $detector;
 
     public function __construct()
     {
         parent::__construct();
 
-        $this->detector = new Eld();
+        $this->detector = new LanguageDetector();
     }
 
     protected function getManifestPath(): string
@@ -784,7 +782,21 @@ class Assistant extends GenericTableAssistant
                 suggestedValue: $detection['code'],
                 suggestedLabel: $detection['label'],
                 similarityScore: $detection['confidence'],
-                metadata: ['title' => $title->value],
+                metadata: [
+                    'title_text' => $title->value,
+                    'current_language' => ...,
+                    'current_language_label' => ...,
+                    'proposed_language' => ...,
+                    'proposed_language_label' => ...,
+                    'confidence' => ...,
+                    'confidence_percent' => ...,
+                    'warning' => ...,
+                    'has_overwrite_warning' => ...,
+                    'reason' => ...,
+                    'source_hash' => ...,
+                    'source_snapshot' => ...,
+                    'is_stale' => false,
+],
             )) {
                 $count++;
             }
@@ -821,7 +833,15 @@ class Assistant extends GenericTableAssistant
             return null;
         }
 
-        $languageCode = (string) $result->language;
+        $languageCode = strtolower((string) $result->language);
+
+if (! in_array($languageCode, self::SUPPORTED_LANGUAGES, true)) {
+    return null;
+}
+
+if (method_exists($result, 'isReliable') && ! $result->isReliable()) {
+    return null;
+}
         $confidence = isset($result->score) ? (float) $result->score : null;
 
         if ($languageCode === '' || $confidence === null) {
@@ -841,13 +861,6 @@ class Assistant extends GenericTableAssistant
             'de' => 'German',
             'en' => 'English',
             'fr' => 'French',
-            'es' => 'Spanish',
-            'it' => 'Italian',
-            'pt' => 'Portuguese',
-            'nl' => 'Dutch',
-            'ru' => 'Russian',
-            'zh' => 'Chinese',
-            'ja' => 'Japanese',
             default => strtoupper($code),
         };
     }
