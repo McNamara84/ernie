@@ -11,8 +11,11 @@ interface PersonMetadataLineProps {
     roleLabel?: string | null;
 }
 
+const PID_ICON_LINK_CLASS =
+    '-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 align-text-bottom transition-opacity hover:opacity-80';
+
 function resolveOrcidUrl(identifier: string): string {
-    const normalized = identifier.trim().replace(/^https?:\/\/orcid\.org\//i, '');
+    const normalized = identifier.trim().replace(/^(?:https?:\/\/)?(?:www\.)?orcid\.org\//i, '');
 
     return `https://orcid.org/${normalized}`;
 }
@@ -41,7 +44,7 @@ export function PersonMetadataLine({ name, orcid, affiliations = [], roleLabel }
                         href={resolveOrcidUrl(normalizedOrcid)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex align-text-bottom"
+                        className={PID_ICON_LINK_CLASS}
                         aria-label={`ORCID profile of ${name}`}
                     >
                         <OrcidIcon />
@@ -63,7 +66,7 @@ export function PersonMetadataLine({ name, orcid, affiliations = [], roleLabel }
                                     href={affiliation.affiliation_identifier ?? undefined}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex align-text-bottom"
+                                    className={PID_ICON_LINK_CLASS}
                                     aria-label={`ROR profile of ${affiliation.name}`}
                                 >
                                     <RorIcon />

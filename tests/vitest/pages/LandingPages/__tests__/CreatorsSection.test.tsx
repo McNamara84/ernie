@@ -43,13 +43,14 @@ describe('CreatorsSection', () => {
                 name: 'Doe, John',
                 given_name: 'John',
                 family_name: 'Doe',
-                name_identifier: '0000-0001-2345-6789',
+                name_identifier: 'orcid.org/0000-0001-2345-6789',
                 name_identifier_scheme: 'ORCID',
             },
         });
         render(<CreatorsSection creators={[creator]} />);
         const orcidLink = screen.getByLabelText('ORCID profile of Doe, John');
         expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0001-2345-6789');
+        expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
     });
 
     it('renders affiliation with ROR link', () => {
@@ -103,15 +104,15 @@ describe('CreatorsSection', () => {
         expect(listItem).toHaveTextContent('Falchi, Fabio');
         expect(screen.getByText("ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toBeInTheDocument();
         expect(screen.getByText('Light Pollution Science and Technology Institute, Thiene, Italy')).toBeInTheDocument();
-        expect(screen.getByLabelText('ORCID profile of Falchi, Fabio')).toHaveAttribute('href', 'https://orcid.org/0000-0002-1111-2222');
-        expect(screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toHaveAttribute(
-            'href',
-            'https://ror.org/01abcde23',
-        );
-        expect(screen.getByLabelText('ROR profile of Light Pollution Science and Technology Institute, Thiene, Italy')).toHaveAttribute(
-            'href',
-            'https://ror.org/04z8jg394',
-        );
+        const orcidLink = screen.getByLabelText('ORCID profile of Falchi, Fabio');
+        expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1111-2222');
+        expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
+        const firstRorLink = screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso");
+        expect(firstRorLink).toHaveAttribute('href', 'https://ror.org/01abcde23');
+        expect(firstRorLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
+        const secondRorLink = screen.getByLabelText('ROR profile of Light Pollution Science and Technology Institute, Thiene, Italy');
+        expect(secondRorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
+        expect(secondRorLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
     });
 
     it('renders institution name for non-person creators', () => {

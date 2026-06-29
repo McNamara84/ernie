@@ -52,12 +52,14 @@ describe('ContributorsSection', () => {
                 name: 'Doe, John',
                 given_name: 'John',
                 family_name: 'Doe',
-                name_identifier: '0000-0001-2345-6789',
+                name_identifier: 'www.orcid.org/0000-0001-2345-6789',
                 name_identifier_scheme: 'ORCID',
             },
         });
         render(<ContributorsSection contributors={[contributor]} />);
-        expect(screen.getByLabelText('ORCID profile of Doe, John')).toBeInTheDocument();
+        const orcidLink = screen.getByLabelText('ORCID profile of Doe, John');
+        expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0001-2345-6789');
+        expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
     });
 
     it('renders all contributor affiliations and keeps roles at the end', () => {
@@ -97,11 +99,12 @@ describe('ContributorsSection', () => {
         expect(listItem).toHaveTextContent('(DataCollector, ProjectLeader)');
         expect(screen.getByText("ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toBeInTheDocument();
         expect(screen.getByText('Light Pollution Science and Technology Institute, Thiene, Italy')).toBeInTheDocument();
-        expect(screen.getByLabelText('ORCID profile of Cinzano, Pierantonio')).toHaveAttribute('href', 'https://orcid.org/0000-0003-1111-2222');
-        expect(screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toHaveAttribute(
-            'href',
-            'https://ror.org/01abcde23',
-        );
+        const orcidLink = screen.getByLabelText('ORCID profile of Cinzano, Pierantonio');
+        expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0003-1111-2222');
+        expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
+        const rorLink = screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso");
+        expect(rorLink).toHaveAttribute('href', 'https://ror.org/01abcde23');
+        expect(rorLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
     });
 
     it('does not show expand button when under threshold', () => {
