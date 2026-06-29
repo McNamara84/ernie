@@ -7,7 +7,18 @@ use App\Models\Resource;
 use App\Models\Title;
 use App\Services\Language\LanguageSuggestionDiscoveryService;
 
-it('suggests a resource language from explicit title language attributes', function () {
+beforeEach(function () {
+    \App\Models\DescriptionType::firstOrCreate(
+        ['id' => 1],
+        ['name' => 'abstract', 'slug' => 'abstract']
+    );
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// ─ EXPLICIT LANGUAGE DETECTION (from title/description language attributes) ─
+// ══════════════════════════════════════════════════════════════════════════════════
+
+it('detects explicit German language from title language attribute', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
     Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
@@ -20,7 +31,7 @@ it('suggests a resource language from explicit title language attributes', funct
     ]);
 
     $suggestions = [];
-    $service = new LanguageSuggestionDiscoveryService();
+    $service = new LanguageSuggestionDiscoveryService;
 
     $count = $service->discover(
         storeSuggestion: function (
@@ -52,31 +63,79 @@ it('suggests a resource language from explicit title language attributes', funct
     expect($suggestions[0]['suggestedValue'])->toBe('de');
     expect($suggestions[0]['suggestedLabel'])->toBe('German (de)');
     expect($suggestions[0]['similarityScore'])->toBe(0.95);
+    expect($suggestions[0]['metadata']['source'])->toBe('explicit_language');
 });
 
-it('suggests a resource language for English from title and description text', function () {
+it('prioritizes explicit language over text heuristics', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
-    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
     Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
-    Language::firstOrCreate(['code' => 'fr'], ['name' => 'French', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
 
+    // Explicit German title
     Title::factory()->create([
         'resource_id' => $resource->id,
-        'value' => 'A study of groundwater quality',
-        'language' => null,
+        'value' => 'Eine Studie',
+        'language' => 'de',
     ]);
 
+    // Description with English-like text, but no explicit language
     $resource->descriptions()->create([
-        'value' => 'This dataset contains research data and analysis for the study.',
+        'value' => 'This dataset contains data',
         'description_type_id' => 1,
         'language' => null,
     ]);
 
     $suggestions = [];
-    $service = new LanguageSuggestionDiscoveryService();
+    $service = new LanguageSuggestionDiscoveryService;
 
-    $count = $service->discover(
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = ['value' => $suggestedValue, 'source' => $metadata['source'] ?? null];
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions[0]['value'])->toBe('de');
+    expect($suggestions[0]['source'])->toBe('explicit_language');
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// ─ ENGLISH TEXT DETECTION (various English content patterns) ─
+// ══════════════════════════════════════════════════════════════════════════════════
+
+it('detects English from clear English title and description', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'A comprehensive study of groundwater quality in coastal regions',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'This dataset contains research data and analysis for the study of aquifer systems.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
         storeSuggestion: function (
             int $resourceId,
             string $targetType,
@@ -87,9 +146,6 @@ it('suggests a resource language for English from title and description text', f
             ?array $metadata,
         ) use (&$suggestions): bool {
             $suggestions[] = compact(
-                'resourceId',
-                'targetType',
-                'targetId',
                 'suggestedValue',
                 'suggestedLabel',
                 'similarityScore',
@@ -101,27 +157,325 @@ it('suggests a resource language for English from title and description text', f
         onProgress: fn (string $message) => null,
     );
 
-    expect($count)->toBe(1);
+    expect($suggestions)->toHaveCount(1);
     expect($suggestions[0]['suggestedValue'])->toBe('en');
     expect($suggestions[0]['suggestedLabel'])->toBe('English (en)');
-    expect($suggestions[0]['similarityScore'])->toBeGreaterThan(0.3);
+    expect($suggestions[0]['similarityScore'])->toBeGreaterThan(0.5);
+    expect($suggestions[0]['metadata']['source'])->toBe('text_heuristic');
 });
 
-it('skips low-confidence text that is unlikely to be useful', function () {
+it('detects English from scientific English content with domain terms', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Geological formation analysis using seismic data',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Research data for mapping subsurface geological units with advanced modeling techniques.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'similarityScore', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('en');
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// ─ NON-ENGLISH LANGUAGE DETECTION (German, French, Spanish, Italian, Dutch) ─
+// ══════════════════════════════════════════════════════════════════════════════════
+
+it('detects German from German text with stopwords', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'fr'], ['name' => 'French', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Grundwasserqualität und geologische Formationen',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Eine umfassende Studie über die Analyse von Grundwassersystemen mit modernen Techniken.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'similarityScore', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('de');
+});
+
+it('detects German from accent hints in text', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Gewässeruntersuchung mit Müller-Methode',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('de');
+});
+
+it('detects French from French text with accent marks', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'fr'], ['name' => 'French', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Étude de la qualité des eaux souterraines',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Données de recherche pour l\'analyse géologique avec des techniques avancées.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'similarityScore', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('fr');
+});
+
+it('detects Spanish from Spanish text with stopwords and accents', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'es'], ['name' => 'Spanish', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Análisis de la calidad del agua subterránea',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Investigación exhaustiva sobre sistemas de acuíferos con técnicas modernas.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('es');
+});
+
+it('detects Italian from Italian text', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'it'], ['name' => 'Italian', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Studio della qualità dell\'acqua sotterranea',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Ricerca comprensiva sui sistemi di falde acquifere con tecniche avanzate.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('it');
+});
+
+it('detects Dutch from Dutch text', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'nl'], ['name' => 'Dutch', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Studie van de kwaliteit van grondwater',
+        'language' => null,
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Onderzoek naar aquiférsystemen met geavanceerde technieken.',
+        'description_type_id' => 1,
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('nl');
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// ─ LOW-SIGNAL RECORDS (should NOT generate suggestions) ─
+// ══════════════════════════════════════════════════════════════════════════════════
+
+it('skips records with only acronyms and alphanumeric codes', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
     Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
 
     Title::factory()->create([
         'resource_id' => $resource->id,
-        'value' => 'ABC123 XYZ',
+        'value' => 'ABC123 XYZ DEF456',
         'language' => null,
     ]);
 
     $suggestions = [];
-    $service = new LanguageSuggestionDiscoveryService();
+    $service = new LanguageSuggestionDiscoveryService;
 
-    $count = $service->discover(
+    $service->discover(
         storeSuggestion: function (
             int $resourceId,
             string $targetType,
@@ -131,21 +485,263 @@ it('skips low-confidence text that is unlikely to be useful', function () {
             ?float $similarityScore,
             ?array $metadata,
         ) use (&$suggestions): bool {
-            $suggestions[] = compact(
-                'resourceId',
-                'targetType',
-                'targetId',
-                'suggestedValue',
-                'suggestedLabel',
-                'similarityScore',
-                'metadata',
-            );
+            $suggestions[] = compact('suggestedValue');
 
             return true;
         },
         onProgress: fn (string $message) => null,
     );
 
-    expect($count)->toBe(0);
     expect($suggestions)->toHaveCount(0);
+});
+
+it('skips records with only proper nouns and acronyms', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'NASA USGS GFZ',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(0);
+});
+
+it('skips records with only mathematical formulas and symbols', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'H₂O + SiO₂ → H₄SiO₄',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(0);
+});
+
+it('skips records with empty or whitespace-only content', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => '   ',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(0);
+});
+
+it('skips records with mixed language and insufficient signal in either', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'ABC XYZ Mixed 123',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(0);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// ─ RESOURCE FILTERING (only processes resources without language_id) ─
+// ══════════════════════════════════════════════════════════════════════════════════
+
+it('skips resources that already have a language assigned', function () {
+    $language = Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    $resource = Resource::factory()->create(['language_id' => $language->id]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Eine Studie über Grundwasser',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(0);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════
+// ─ CONFIDENCE SCORING (validate score calculations) ─
+// ══════════════════════════════════════════════════════════════════════════════════
+
+it('assigns high confidence to explicit language suggestions', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Test',
+        'language' => 'de',
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('similarityScore');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions[0]['similarityScore'])->toBe(0.95);
+});
+
+it('assigns confidence scores based on text signal strength', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    // Strong English signal
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'A comprehensive study of groundwater quality analysis with research data',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('similarityScore');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions[0]['similarityScore'])->toBeGreaterThan(0.6);
+    expect($suggestions[0]['similarityScore'])->toBeLessThanOrEqual(0.9);
 });
