@@ -319,6 +319,48 @@ describe('OrcidSuggestionCard – ORCID link', () => {
         expect(screen.queryByRole('link', { name: '0000-0001-2345-6780' })).not.toBeInTheDocument();
         expect(screen.getByText(/0000-0001-2345-6780/)).toBeInTheDocument();
     });
+        it('renders the resource DOI as a clickable link', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+    
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toBeInTheDocument();
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.5880/test.2024.001');
+    });
+    it('renders the DOI link as visibly underlined', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+    );
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toHaveClass('underline');
+    });
+    it('opens the DOI landing page in a new browser tab', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+        
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toHaveAttribute('target', '_blank');
+        const rel = link.getAttribute('rel') ?? '';
+        expect(rel).toContain('noopener');
+        expect(rel).toContain('noreferrer');
+    });
 });
 
 describe('SpdxRightsSuggestionCard - SPDX preview', () => {
