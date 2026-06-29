@@ -573,6 +573,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 funders via the ROR API v2
                             </li>
                             <li>
+                                <strong>Suggested Resource Languages</strong> – Finds resources without a language assignment and proposes
+                                the most likely language from title, description, subject, and publisher context.
+                            </li>
+                            <li>
                                 
                                 <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
                                 using title-text detection and supporting language hints

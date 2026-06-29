@@ -1,5 +1,15 @@
 [
     {
+        "version": "1.0.1",
+        "date": "2026-06-29",
+        "improvements": [
+            {
+                "title": "Resource Language Suggestions",
+                "description": "Added a new assistance module that finds resources without a language assignment and proposes the most likely resource language from title, description, subject, and publisher context. Accepted suggestions update the resource language directly and duplicate or dismissed suggestions are suppressed."
+            }
+        ]
+    },
+    {
         "version": "1.0.0",
         "date": "2026-06-03",
         "features": [

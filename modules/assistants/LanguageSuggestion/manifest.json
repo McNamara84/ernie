@@ -1,0 +1,24 @@
+{
+  "id": "language-suggestion",
+  "name": "Language Suggestions",
+  "description": "Detects missing resource language metadata from titles, descriptions, subjects and publisher context.",
+  "icon": "Flag",
+  "version": "1.0.0",
+  "assistant_class": "Modules\\Assistants\\LanguageSuggestion\\Assistant",
+  "route_prefix": "language",
+  "lock_key": "language_discovery_running",
+  "cache_key_prefix": "language_discovery",
+  "sort_order": 35,
+  "status_labels": {
+    "checking": "Starting language discovery...",
+    "completed_with_results": "Language discovery completed: {count} new suggestion(s) found.",
+    "completed_empty": "Language discovery completed: No new suggestions found.",
+    "failed": "Language discovery failed: {error}",
+    "already_running": "A language discovery job is already running."
+  },
+  "empty_state": {
+    "title": "No pending language suggestions",
+    "description": "No resources without language metadata were found."
+  },
+  "card_component": null
+}
