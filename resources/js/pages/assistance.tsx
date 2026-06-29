@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarDays, Check, MapPin, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -622,6 +622,66 @@ function SizeFormatSuggestionCard({
 }
 // ── Per-section state ────────────────────────────────────────────────
 
+function DateTypeSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: BaseSuggestionItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = isRecord(suggestion.metadata) ? suggestion.metadata : null;
+    const collectedDatesCount = typeof metadata?.collected_dates_count === 'number' ? metadata.collected_dates_count : null;
+    const geoLocationsCount = typeof metadata?.geo_locations_count === 'number' ? metadata.geo_locations_count : null;
+    const evidence = typeof metadata?.evidence === 'string' ? metadata.evidence : null;
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            <CalendarDays className="mr-1 h-3 w-3" />
+                            Collected dates
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                            <MapPin className="mr-1 h-3 w-3" />
+                            Geolocations
+                        </Badge>
+                        {collectedDatesCount !== null && geoLocationsCount !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {collectedDatesCount}:{geoLocationsCount}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <p className="text-sm font-medium">{String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType suggestion')}</p>
+
+                    {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
+
+                    <p className="text-xs text-muted-foreground">
+                        Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}
+                    </p>
+                </div>
+
+                <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 interface SectionState {
     isChecking: boolean;
     progress: string;
@@ -745,7 +805,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         } else {
                             toast.info(message);
                         }
-                        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                        router.reload({ only: ['sections', 'manifests', 'pendingAssistanceTotalCount'] });
                     } else if (status.status === 'failed') {
                         pollingRefs.current[id] = null;
                         patch(id, { isChecking: false, progress: '' });
@@ -856,7 +916,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 } else {
                     toast.warning(data.message);
                 }
-                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                router.reload({ only: ['sections', 'manifests', 'pendingAssistanceTotalCount'] });
             } catch {
                 toast.error('Failed to accept suggestion.');
             } finally {
@@ -873,7 +933,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             try {
                 await axios.post(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
                 toast.info('Suggestion declined.');
-                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                router.reload({ only: ['sections', 'manifests', 'pendingAssistanceTotalCount'] });
             } catch {
                 toast.error('Failed to decline suggestion.');
             } finally {
@@ -920,6 +980,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             case 'size-format-suggestion':
                 return (
                     <SizeFormatSuggestionCard
+                        suggestion={item}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'date-type-suggestion':
+                return (
+                    <DateTypeSuggestionCard
                         suggestion={item}
                         onAccept={onAccept}
                         onDecline={onDecline}
