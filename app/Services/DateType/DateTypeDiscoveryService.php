@@ -5,38 +5,31 @@ declare(strict_types=1);
 namespace App\Services\DateType;
 
 use App\Models\Resource;
-use Closure;
 use Illuminate\Database\Eloquent\Builder;
-
-final class DateTypeSuggestionDiscoveryService
-{
-    public const string TARGET_TYPE = 'resource_date_geolocation_count';
-
-    private const int CHUNK_SIZE = 100;
-    /** @var array<int, string> */
-    private const array COLLECTED_DATE_TYPES = ['Collected', 'collected'];
 use App\Services\DateType\DateTypeSchemaorgExtraction;
-use App\Services\DateType\DateTypeCoverageCorrectionDiscoveryService;
 use Closure;
-use Illuminate\Database\Eloquent\Builder;
 
 final class DateTypeDiscoveryService
 {
-    // private const = ein Wert der sich nie ändern darf
-    // der Unterschied zur Variable = Variable darf verändert werden und Konstante nicht 
-    // bei Änderungen müsste man nur diese Zahl ändern und nicht im ganzen Code 
+    public const string TARGET_TYPE = 'resource_date_geolocation_count';
+
+    // oder 100??
     private const int CHUNK_SIZE = 50;
+
+    /** @var array<int, string> */
+    private const array COLLECTED_DATE_TYPES = ['Collected', 'collected'];
 
     public function __construct(
         private readonly DateTypeSchemaorgExtraction $extractService,
-        private readonly DateTypeCoverageCorrectionDiscoveryService $coverageCorrectionDiscovery,
+        // private readonly DateTypeCoverageCorrectionDiscoveryService $coverageCorrectionDiscovery, :
+        // -> existiert gerade nicht, war eine Platzhalter-Datei: DateTypeCoverageCorrectionDiscoveryService
     ) {}
 
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
      * @param  Closure(string): void  $onProgress
-     */
-    public function discover(Closure $storeSuggestion, Closure $onProgress): int
+     */      
+    public function discover(string $assistantId, Closure $storeSuggestion, Closure $onProgress): int
     {
         $count = 0;
         $processed = 0;
@@ -51,47 +44,17 @@ final class DateTypeDiscoveryService
                 'geoLocations as geo_locations_count',
             ])
             ->orderBy('id')
-            ->chunkById(self::CHUNK_SIZE, function ($resources) use (&$count, &$processed, $total, $storeSuggestion, $onProgress): void {
-                /** @var iterable<int, Resource> $resources */
-                foreach ($resources as $resource) {
-                    $processed++;
-                    $onProgress("Checking resource {$processed} of {$total}");
-
-                    if ($this->storeMatchedCountSuggestion($resource, $storeSuggestion)) {
-                        $count++;
-                    }
-    // die Funktio bekommt vom Assistenten: $assistantId, Closure $storeSuggestion, Closure $onProgress
-    public function discover(string $assistantId, Closure $storeSuggestion, Closure $onProgress): int
-    {
-        // zählt wie viele Suggestion gespeichert werden 
-        $count = 0;
-        // zählt wie viele Resourcen geprüft wurden 
-        $processed = 0;
-        // holt Datenbankabfrage für passende Resources
-        $query = $this->candidateQuery();
-        // clone: query wird kopiert, damit die ursprüngliche query danach weiterverwendet werden kann
-        // werden query zusammengezählt 
-        $total = (clone $query)->count();
-
-        $query
-            // nach id sortieren 
-            ->orderBy('id')
-            // bedeutet, lade nicht alles gleich, sondern in 50er Blöcke 
-            // self::CHUNK_SIZE = nimm diese Konstante aus dieser Klasse; Konstante gehört zur Klasse und nicht zu einem Objekt 
-            // function = bekommt Parameter $resources
-            // use = nimm diese Variablen von außerhalb und mach sie innerhalb der Closure verfügbar -> es werden Kopien erstellt
-            // damit die originale und keine Kopien verändert werden, wird durch das "&" signalisiert -> nimm die Originale 
             ->chunkById(self::CHUNK_SIZE, function ($resources) use ( &$count, &$processed, $total, $assistantId, $storeSuggestion, $onProgress) : void {
-               // @var iterable<int, Resource> $resources = Variable $resources enthält mehrere Resource-Objekte
                 /** @var iterable<int, Resource> $resources */
                 foreach ($resources as $resource) {
-                    // ++ = erhöhe den Wert um 1
-                    $processed++;
-                    // hier wird resource x von beispielsweise 120 Resources sich angeschaut 
+                    $processed++; 
                     $onProgress("Checking resource {$processed} of {$total}");
                     // prüft die aktuelle Resource auf Suggestion
                     // die zurückgegebene Anzahl der suggestion wird zur Gesamtzahl addiert
                     $count += $this->discoverForResource($assistantId, $resource, $storeSuggestion);
+                    if ($this->storeMatchedCountSuggestion($resource, $storeSuggestion)) {
+                        $count++;
+                    }
                 }
             });
 
@@ -105,10 +68,10 @@ final class DateTypeDiscoveryService
     {
         $storedCount = 0;
 
+        // NEU, da coverageCorrectionDiscovery entfällt
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
-            ...$this->coverageCorrectionDiscovery->discover($resource),
-
+             //  ...$this->coverageCorrectionDiscovery->discover($resource),
         ];
 
         $existingDateTypes = $resource->dates()
@@ -172,9 +135,9 @@ final class DateTypeDiscoveryService
         /** @var Builder<Resource> $query */
         $query = Resource::query()
             ->whereNotNull('doi')
-            ->whereHas('dates.dateType', fn (Builder $query): Builder => $query
-                ->whereIn('slug', self::COLLECTED_DATE_TYPES));
             ->whereDoesntHave('igsnMetadata')
+            ->whereHas('dates.dateType', fn (Builder $query): Builder => $query
+                ->whereIn('slug', self::COLLECTED_DATE_TYPES))
             ->whereDoesntHave('resourceType', fn (Builder $query): Builder => $query->where('slug', 'physical-object'))
             ->where(function (Builder $query): void {
                 $query->whereDoesntHave('dates', function (Builder $query): void 
@@ -235,7 +198,7 @@ final class DateTypeDiscoveryService
             ],
         );
     }
-}
+
 
      /** 
       * @return array<int, array<string, mixed>>
