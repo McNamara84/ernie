@@ -32,11 +32,14 @@ class Assistant extends AbstractAssistant
         return __DIR__ . '/manifest.json';
     }
 
-    #[\Override]
+       #[\Override]
     protected function query(int $perPage): LengthAwarePaginator
     {
         return SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
-            ->orderBy('discovered_at', 'desc')
+            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
+            ->select('suggested_relations.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_relations.discovered_at')
             ->paginate($perPage, ['*'], 'relation_page');
     }
 

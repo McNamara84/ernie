@@ -55,13 +55,16 @@ abstract class GenericTableAssistant extends AbstractAssistant
 
     // ── GenericTableAssistant provides all storage logic ─────────────
 
-    #[\Override]
+       #[\Override]
     protected function query(int $perPage): LengthAwarePaginator
     {
         /** @var LengthAwarePaginator<int, Model> */
         return AssistantSuggestion::where('assistant_id', $this->getId())
             ->with('resource')
-            ->orderByDesc('discovered_at')
+            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
+            ->select('assistant_suggestions.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('assistant_suggestions.discovered_at')
             ->paginate($perPage, ['*'], $this->getId() . '_page');
     }
 
