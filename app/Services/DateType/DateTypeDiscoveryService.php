@@ -236,7 +236,9 @@ final class DateTypeDiscoveryService
         );
     }
 }
-     * @return array<int, array<string, mixed>>
+
+     /** 
+      * @return array<int, array<string, mixed>>
      */
     private function lookupSchemaorgDates(Resource $resource): array
     {

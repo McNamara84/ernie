@@ -7,10 +7,6 @@ namespace Modules\Assistants\DateTypeSuggestion;
 use App\Jobs\DiscoverAssistantSuggestionsJob;
 use App\Models\AssistantSuggestion;
 use App\Services\Assistance\GenericTableAssistant;
-use App\Services\DateType\DateTypeSuggestionAcceptanceService;
-use App\Services\DateType\DateTypeSuggestionDiscoveryService;
-use App\Models\AssistantSuggestion;
-use App\Services\Assistance\GenericTableAssistant;
 use App\Services\DateType\DateTypeAcceptanceService;
 use App\Services\DateType\DateTypeDiscoveryService;
 use Closure;
@@ -18,8 +14,6 @@ use Closure;
 final class Assistant extends GenericTableAssistant
 {
     public function __construct(
-        private readonly DateTypeSuggestionDiscoveryService $discoveryService,
-        private readonly DateTypeSuggestionAcceptanceService $acceptanceService,
         private readonly DateTypeDiscoveryService $discoveryService,
         private readonly DateTypeAcceptanceService $acceptanceService,
     ) {
@@ -70,7 +64,7 @@ final class Assistant extends GenericTableAssistant
         DiscoverAssistantSuggestionsJob::dispatchSync($this->getId(), $jobId, $lockOwner, $this->getLockKey());
     }
 
-    /** @return array{success: bool, message: string} */
+    
     /**
      * Apply the suggestion when a curator clicks "Accept".
      *
