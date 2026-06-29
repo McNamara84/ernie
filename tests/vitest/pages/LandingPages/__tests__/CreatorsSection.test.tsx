@@ -68,6 +68,52 @@ describe('CreatorsSection', () => {
         expect(screen.getByLabelText('ROR profile of GFZ Potsdam')).toBeInTheDocument();
     });
 
+    it('renders all creator affiliations in a prose list item', () => {
+        const creator = mockCreator({
+            creatorable: {
+                id: 2,
+                type: 'Person',
+                name: 'Falchi, Fabio',
+                given_name: 'Fabio',
+                family_name: 'Falchi',
+                name_identifier: '0000-0002-1111-2222',
+                name_identifier_scheme: 'ORCID',
+            },
+            affiliations: [
+                {
+                    id: 1,
+                    name: "ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso",
+                    affiliation_identifier: 'https://ror.org/01abcde23',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+                {
+                    id: 2,
+                    name: 'Light Pollution Science and Technology Institute, Thiene, Italy',
+                    affiliation_identifier: 'https://ror.org/04z8jg394',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+            ],
+        });
+
+        render(<CreatorsSection creators={[creator]} />);
+
+        const listItem = screen.getByRole('listitem');
+        expect(listItem).not.toHaveClass('flex');
+        expect(listItem).toHaveClass('leading-6');
+        expect(listItem).toHaveTextContent('Falchi, Fabio');
+        expect(screen.getByText("ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toBeInTheDocument();
+        expect(screen.getByText('Light Pollution Science and Technology Institute, Thiene, Italy')).toBeInTheDocument();
+        expect(screen.getByLabelText('ORCID profile of Falchi, Fabio')).toHaveAttribute('href', 'https://orcid.org/0000-0002-1111-2222');
+        expect(screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toHaveAttribute(
+            'href',
+            'https://ror.org/01abcde23',
+        );
+        expect(screen.getByLabelText('ROR profile of Light Pollution Science and Technology Institute, Thiene, Italy')).toHaveAttribute(
+            'href',
+            'https://ror.org/04z8jg394',
+        );
+    });
+
     it('renders institution name for non-person creators', () => {
         const creator = mockCreator({
             creatorable: {
@@ -106,18 +152,20 @@ describe('CreatorsSection', () => {
     });
 
     it('limits initially visible creators and shows the full list on request', () => {
-        const creators = Array.from({ length: 4 }, (_, i) => mockCreator({
-            id: i + 1,
-            creatorable: {
+        const creators = Array.from({ length: 4 }, (_, i) =>
+            mockCreator({
                 id: i + 1,
-                type: 'Person',
-                name: `Creator, ${i + 1}`,
-                given_name: `${i + 1}`,
-                family_name: 'Creator',
-                name_identifier: null,
-                name_identifier_scheme: null,
-            },
-        }));
+                creatorable: {
+                    id: i + 1,
+                    type: 'Person',
+                    name: `Creator, ${i + 1}`,
+                    given_name: `${i + 1}`,
+                    family_name: 'Creator',
+                    name_identifier: null,
+                    name_identifier_scheme: null,
+                },
+            }),
+        );
 
         render(<CreatorsSection creators={creators} displayLimit={2} />);
 

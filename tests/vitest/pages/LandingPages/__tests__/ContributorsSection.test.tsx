@@ -60,6 +60,50 @@ describe('ContributorsSection', () => {
         expect(screen.getByLabelText('ORCID profile of Doe, John')).toBeInTheDocument();
     });
 
+    it('renders all contributor affiliations and keeps roles at the end', () => {
+        const contributor = mockContributor({
+            contributorable: {
+                id: 5,
+                type: 'Person',
+                name: 'Cinzano, Pierantonio',
+                given_name: 'Pierantonio',
+                family_name: 'Cinzano',
+                name_identifier: '0000-0003-1111-2222',
+                name_identifier_scheme: 'ORCID',
+            },
+            contributor_types: ['DataCollector', 'ProjectLeader'],
+            affiliations: [
+                {
+                    id: 1,
+                    name: "ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso",
+                    affiliation_identifier: 'https://ror.org/01abcde23',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+                {
+                    id: 2,
+                    name: 'Light Pollution Science and Technology Institute, Thiene, Italy',
+                    affiliation_identifier: null,
+                    affiliation_identifier_scheme: null,
+                },
+            ],
+        });
+
+        render(<ContributorsSection contributors={[contributor]} />);
+
+        const listItem = screen.getByRole('listitem');
+        expect(listItem).not.toHaveClass('flex');
+        expect(listItem).toHaveClass('leading-6');
+        expect(listItem).toHaveTextContent('Cinzano, Pierantonio');
+        expect(listItem).toHaveTextContent('(DataCollector, ProjectLeader)');
+        expect(screen.getByText("ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toBeInTheDocument();
+        expect(screen.getByText('Light Pollution Science and Technology Institute, Thiene, Italy')).toBeInTheDocument();
+        expect(screen.getByLabelText('ORCID profile of Cinzano, Pierantonio')).toHaveAttribute('href', 'https://orcid.org/0000-0003-1111-2222');
+        expect(screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toHaveAttribute(
+            'href',
+            'https://ror.org/01abcde23',
+        );
+    });
+
     it('does not show expand button when under threshold', () => {
         const contributors = Array.from({ length: 5 }, (_, i) => mockContributor({ id: i + 1 }));
         render(<ContributorsSection contributors={contributors} />);
