@@ -655,3 +655,111 @@ describe('RorSuggestionCard – ROR link', () => {
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
     });
 });
+
+describe('DOI link – Landing page navigation', () => {
+    it('renders the DOI as a clickable link', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toBeInTheDocument();
+    });
+
+    it('displays the DOI link as underlined (clearly recognizable as a link)', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toHaveClass('underline');
+    });
+
+    it('links to the correct landing page URL using the legacy route', () => {
+        const suggestion = makeOrcidSuggestion({ resource_id: 42 });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toHaveAttribute('href', '/datasets/42');
+    });
+
+    it('opens the landing page in a new browser tab', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toHaveAttribute('target', '_blank');
+    });
+
+    it('includes noopener noreferrer for security', () => {
+        const suggestion = makeOrcidSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        const rel = link.getAttribute('rel') ?? '';
+        expect(rel).toContain('noopener');
+        expect(rel).toContain('noreferrer');
+    });
+
+    it('renders multiple DOI links with correct unique URLs for each resource', () => {
+        const suggestions = [
+            makeOrcidSuggestion({ id: 1, resource_id: 10, resource_doi: '10.5880/gfz.1' }),
+            makeOrcidSuggestion({ id: 2, resource_id: 20, resource_doi: '10.5880/gfz.2' }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated(suggestions) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link1 = screen.getByRole('link', { name: '10.5880/gfz.1' });
+        const link2 = screen.getByRole('link', { name: '10.5880/gfz.2' });
+
+        expect(link1).toHaveAttribute('href', '/datasets/10');
+        expect(link2).toHaveAttribute('href', '/datasets/20');
+    });
+
+    it('displays fallback text when DOI is missing', () => {
+        const suggestion = makeOrcidSuggestion({ resource_doi: '' });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Dataset')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: '10.5880/test.2024.001' })).not.toBeInTheDocument();
+    });
+});

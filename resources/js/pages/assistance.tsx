@@ -1060,7 +1060,18 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                         {Object.entries(grouped).map(([resourceId, group]) => (
                                             <div key={resourceId} className="space-y-3">
                                                 <div className="flex items-baseline gap-2">
-                                                    <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
+                                                    {group.doi ? (
+                                                        <a
+                                                            href={`/datasets/${resourceId}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="font-mono text-sm font-semibold text-primary underline hover:text-primary/80"
+                                                        >
+                                                            {group.doi}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="font-mono text-sm font-semibold text-primary">Dataset</span>
+                                                    )}
                                                     <span className="text-sm text-muted-foreground">— {group.title}</span>
                                                     <Badge variant="secondary" className="ml-auto text-xs">
                                                         {group.items.length} suggestion(s)
