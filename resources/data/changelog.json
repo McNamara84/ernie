@@ -45,11 +45,11 @@
             },
             {
                 "title": "Bulk Actions on Resources Page",
-                "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). DOI registration actions are hidden for users without DOI registration permission. Resource actions are now accessed from the selection toolbar menu after selecting one or more rows."
+                "description": "Curators can now select one or more resources via checkboxes and work from a clearer selection toolbar. Edit and Set up landing page are quick actions directly in the toolbar, while exports, DOI registration, metadata updates, related items, and deletion remain grouped in the Actions menu. Bulk DataCite registration/update supports up to 25 selected resources, and bulk export downloads selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format for up to 100 resources. If the browser blocks editor tabs, ERNIE shows fallback links for the affected resources."
             },
             {
-                "title": "Batch Draft Deletion on Resources Page",
-                "description": "Admins, Group Leaders, and Curators can now delete selected draft resources directly from the Resources bulk action menu. The action is limited to draft resources without a DOI and without any landing page, and the confirmation dialog reports how many drafts will be deleted before the request is submitted. Registered resources and resources with configured landing pages remain protected from batch deletion."
+                "title": "Batch Resource Deletion on Resources Page",
+                "description": "Admins, Group Leaders, and Curators can delete selected non-published resources from the Resources Actions menu. Draft, curation, and preview resources are grouped in the confirmation dialog and can be selected independently; preview resources include a warning that their preview landing pages will be removed. Published resources are shown as protected and are never submitted for deletion."
             },
             {
                 "title": "Landing Page Template Management",

@@ -25,8 +25,7 @@ const openActionsMenu = async () => {
     await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
 };
 
-const clickAction = async (testId: string) => {
-    await openActionsMenu();
+const clickQuickAction = async (testId: string) => {
     await userEvent.click(screen.getByTestId(testId));
 };
 
@@ -79,7 +78,7 @@ describe('ResourcesBulkActionsToolbar', () => {
         expect(screen.getByTestId('resources-action-register-doi')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-update-metadata')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();
-        expect(screen.getByTestId('resources-action-setup-landing-page')).toHaveAttribute('data-variant', 'default');
+        expect(screen.getByTestId('resources-action-setup-landing-page')).toHaveAttribute('data-variant', 'outline');
         expect(screen.getByTestId('resources-action-update-metadata')).toHaveAttribute('data-variant', 'default');
         expect(screen.getByTestId('resources-action-delete')).toHaveAttribute('data-variant', 'destructive');
     });
@@ -111,7 +110,7 @@ describe('ResourcesBulkActionsToolbar', () => {
             <ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} onAction={onAction} />,
         );
 
-        await clickAction('resources-action-edit');
+        await clickQuickAction('resources-action-edit');
 
         expect(onAction).toHaveBeenCalledTimes(1);
         expect(onAction).toHaveBeenCalledWith('edit');
@@ -119,8 +118,6 @@ describe('ResourcesBulkActionsToolbar', () => {
 
     it('uses the action label as the title for available actions', async () => {
         render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} />);
-
-        await openActionsMenu();
 
         const item = screen.getByTestId('resources-action-edit');
         expect(item).toHaveAttribute('title', 'Edit');
@@ -143,8 +140,6 @@ describe('ResourcesBulkActionsToolbar', () => {
                 onUnavailableAction={onUnavailableAction}
             />,
         );
-
-        await openActionsMenu();
 
         const item = screen.getByTestId('resources-action-setup-landing-page');
         expect(item).toHaveAttribute('data-unavailable', 'true');
