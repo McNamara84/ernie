@@ -59,7 +59,7 @@ describe('CreatorsSection', () => {
                 {
                     id: 1,
                     name: 'GFZ Potsdam',
-                    affiliation_identifier: 'https://ror.org/04z8jg394',
+                    affiliation_identifier: ' https://ror.org/04z8jg394 ',
                     affiliation_identifier_scheme: 'ROR',
                 },
             ],
@@ -84,13 +84,13 @@ describe('CreatorsSection', () => {
                 {
                     id: 1,
                     name: "ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso",
-                    affiliation_identifier: 'https://ror.org/01abcde23',
+                    affiliation_identifier: ' https://ror.org/01abcde23 ',
                     affiliation_identifier_scheme: 'ROR',
                 },
                 {
                     id: 2,
                     name: 'Light Pollution Science and Technology Institute, Thiene, Italy',
-                    affiliation_identifier: 'https://ror.org/04z8jg394',
+                    affiliation_identifier: ' https://ror.org/04z8jg394 ',
                     affiliation_identifier_scheme: 'ROR',
                 },
             ],

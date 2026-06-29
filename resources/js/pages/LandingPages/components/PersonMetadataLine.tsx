@@ -20,12 +20,14 @@ function resolveOrcidUrl(identifier: string): string {
     return `https://orcid.org/${normalized}`;
 }
 
-function isRorAffiliation(affiliation: LandingPageAffiliation): boolean {
-    return (
-        affiliation.affiliation_identifier !== null &&
-        affiliation.affiliation_identifier.trim() !== '' &&
-        affiliation.affiliation_identifier_scheme?.toUpperCase() === 'ROR'
-    );
+function resolveRorUrl(affiliation: LandingPageAffiliation): string | null {
+    const normalizedIdentifier = affiliation.affiliation_identifier?.trim() ?? '';
+
+    if (normalizedIdentifier === '' || affiliation.affiliation_identifier_scheme?.toUpperCase() !== 'ROR') {
+        return null;
+    }
+
+    return normalizedIdentifier;
 }
 
 export function PersonMetadataLine({ name, orcid, affiliations = [], roleLabel }: PersonMetadataLineProps) {
@@ -53,17 +55,17 @@ export function PersonMetadataLine({ name, orcid, affiliations = [], roleLabel }
             )}
 
             {visibleAffiliations.map((affiliation, index) => {
-                const hasRor = isRorAffiliation(affiliation);
+                const rorUrl = resolveRorUrl(affiliation);
 
                 return (
                     <Fragment key={`${affiliation.id}-${index}`}>
                         <span>; </span>
                         <span>{affiliation.name}</span>
-                        {hasRor && (
+                        {rorUrl && (
                             <>
                                 <span aria-hidden="true"> </span>
                                 <a
-                                    href={affiliation.affiliation_identifier ?? undefined}
+                                    href={rorUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className={PID_ICON_LINK_CLASS}
