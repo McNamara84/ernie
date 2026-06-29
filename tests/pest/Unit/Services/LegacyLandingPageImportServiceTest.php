@@ -65,9 +65,34 @@ describe('LegacyLandingPageImportService', function () {
 
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->downloads_unavailable)->toBeTrue()
             ->and($landingPage->is_published)->toBeFalse()
             ->and($resource->fresh(['landingPage'])->publicStatus())->toBe('review');
     });
+
+    it('clears downloads unavailable when legacy files are synced later', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.empty.then.files']);
+        $landingPage = LandingPage::factory()->downloadsUnavailable()->draft()->create([
+            'resource_id' => $resource->id,
+            'ftp_url' => null,
+        ]);
+
+        $result = (new LegacyLandingPageImportService)->syncMissingFileEntries(
+            resource: $resource,
+            fileEntries: [
+                ['url' => 'https://datapub.gfz.de/now-available.zip', 'label' => 'Now available', 'visible' => 'public'],
+            ],
+            isPublished: true,
+        );
+
+        $landingPage = $landingPage->fresh();
+
+        expect($result['changed'])->toBeTrue()
+            ->and($result['ftp_url_added'])->toBeTrue()
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/now-available.zip')
+            ->and($landingPage->downloads_unavailable)->toBeFalse();
+    });
+
     it('creates a landing page while syncing missing legacy files for an existing resource', function () {
         $resource = Resource::factory()->create(['doi' => '10.5880/landing.sync.create']);
 

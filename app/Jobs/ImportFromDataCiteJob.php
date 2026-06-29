@@ -11,6 +11,7 @@ use App\Services\DataCiteLandingPageImportService;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
+use App\Services\LegacyLandingPageDecisionService;
 use App\Services\LegacyLandingPageImportService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
 use App\Services\MetaworksDownloadUrlService;
@@ -500,13 +501,23 @@ class ImportFromDataCiteJob implements ShouldQueue
         MetaworksDownloadUrlService $metaworksService,
         bool $shouldLookupMetaworks = true,
     ): array {
+        if ($this->shouldSkipLegacyDoi($doi)) {
+            Log::info('Skipping legacy DOI marked as test/delete', ['doi' => $doi]);
+
+            return [
+                'status' => 'skipped',
+                'metaworks_unavailable' => false,
+                'enriched' => false,
+            ];
+        }
+
         try {
             $existingResource = Resource::where('doi', $doi)->first();
 
             if ($existingResource !== null) {
                 Log::debug('Skipping existing DOI', ['doi' => $doi]);
 
-                $dataCiteLandingPageSync = $this->syncDataCiteLandingPage($existingResource, $doiRecord);
+                $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $doiRecord);
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
                 if ($shouldLookupMetaworks && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
@@ -544,7 +555,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                 $existingResource = Resource::where('doi', $doi)->first();
                 $dataCiteLandingPageSync = $existingResource !== null
-                    ? $this->syncDataCiteLandingPage($existingResource, $preparedDoiRecord)
+                    ? $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $preparedDoiRecord)
                     : $this->emptyDataCiteLandingPageSyncResult();
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
@@ -564,7 +575,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             $this->enrichImportedResourceFromLegacyDatabases($importedResource, $doi);
 
-            $this->syncDataCiteLandingPage($importedResource, $preparedDoiRecord);
+            $this->syncDataCiteLandingPageIfAllowed($importedResource, $doi, $preparedDoiRecord);
 
             $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
@@ -595,7 +606,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                 $existingResource = Resource::where('doi', $doi)->first();
                 $dataCiteLandingPageSync = $existingResource !== null
-                    ? $this->syncDataCiteLandingPage($existingResource, $doiRecord)
+                    ? $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $doiRecord)
                     : $this->emptyDataCiteLandingPageSyncResult();
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
@@ -618,11 +629,15 @@ class ImportFromDataCiteJob implements ShouldQueue
      * @param  array<string, mixed>  $doiRecord
      * @return array{changed: bool}
      */
-    private function syncDataCiteLandingPage(Resource $resource, array $doiRecord): array
+    private function syncDataCiteLandingPageIfAllowed(Resource $resource, string $doi, array $doiRecord): array
     {
         $attributes = is_array($doiRecord['attributes'] ?? null)
             ? $doiRecord['attributes']
             : $doiRecord;
+
+        if (! app(LegacyLandingPageDecisionService::class)->shouldImportDataCiteUrlAsExternal($doi, $attributes)) {
+            return $this->emptyDataCiteLandingPageSyncResult();
+        }
 
         try {
             $result = app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, $attributes);
@@ -655,8 +670,8 @@ class ImportFromDataCiteJob implements ShouldQueue
         string $doi,
         MetaworksDownloadUrlService $metaworksService,
     ): array {
-        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool} $fileResult */
-        $fileResult = ['files' => [], 'allPublic' => false];
+        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool} $fileResult */
+        $fileResult = ['files' => [], 'allPublic' => false, 'resourceFound' => false];
 
         try {
             $fileResult = $metaworksService->lookupFileEntries($doi);
@@ -672,15 +687,14 @@ class ImportFromDataCiteJob implements ShouldQueue
             ];
         }
 
-        if ($fileResult['files'] === []) {
-            return $this->emptyLegacyDownloadSyncResult();
-        }
+        $fileResult += ['resourceFound' => false];
 
         try {
             $syncResult = app(LegacyLandingPageImportService::class)->syncMissingFileEntries(
                 resource: $resource,
                 fileEntries: $fileResult['files'],
-                isPublished: $fileResult['allPublic'],
+                isPublished: $fileResult['files'] !== [] && $fileResult['allPublic'],
+                createWhenEmpty: $fileResult['resourceFound'] === true,
             );
         } catch (\Throwable $exception) {
             Log::warning('Failed to sync landing page with download links', [
@@ -833,6 +847,11 @@ class ImportFromDataCiteJob implements ShouldQueue
             'doi' => $normalizedDoi,
             'doiRecord' => $normalizedRecord,
         ];
+    }
+
+    private function shouldSkipLegacyDoi(string $doi): bool
+    {
+        return app(LegacyLandingPageDecisionService::class)->shouldSkipLegacyDoi($doi);
     }
 
     private function normalizeDoi(string $doi): string

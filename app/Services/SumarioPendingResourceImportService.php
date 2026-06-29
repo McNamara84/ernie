@@ -37,6 +37,16 @@ class SumarioPendingResourceImportService
     public function importPendingByDoi(string $doi, int $userId): array
     {
         $normalisedDoi = $this->normaliseDoi($doi);
+
+        if ($this->shouldSkipLegacyDoi($normalisedDoi)) {
+            return [
+                'status' => 'skipped',
+                'resource' => null,
+                'doi' => $normalisedDoi,
+                'error' => null,
+            ];
+        }
+
         $oldDataset = $this->findPendingDatasetByDoi($normalisedDoi);
 
         if ($oldDataset === null) {
@@ -105,6 +115,15 @@ class SumarioPendingResourceImportService
         foreach ($pendingDatasets as $oldDataset) {
             $summary['processed']++;
             $doi = $this->normaliseDoi((string) $oldDataset->identifier);
+
+            if ($this->shouldSkipLegacyDoi($doi)) {
+                $summary['skipped']++;
+                if (count($summary['skipped_dois']) < $maxStoredDois) {
+                    $summary['skipped_dois'][] = $doi;
+                }
+
+                continue;
+            }
 
             if (Resource::where('doi', $doi)->exists()) {
                 $summary['skipped']++;
@@ -443,6 +462,11 @@ class SumarioPendingResourceImportService
         $year = (int) $year;
 
         return $year >= 1000 && $year <= 9999 ? $year : null;
+    }
+
+    private function shouldSkipLegacyDoi(string $doi): bool
+    {
+        return app(LegacyLandingPageDecisionService::class)->shouldSkipLegacyDoi($doi);
     }
 
     private function normaliseDoi(string $doi): string
