@@ -61,12 +61,12 @@ Topics include:
 - reviewer preview
 - acceptance workflow
 - metadata update
-- XML export behavior
+- preparation for XML export
 - regression testing
 
 Result:
 
-- accepted language suggestions become part of the title metadata and are exported correctly
+- accepted language suggestions become part of the title metadata and are available for future XML export
 
 ---
 
@@ -127,25 +127,19 @@ Expected Behaviour:
 
 ## XML Export
 
-Accepted language values should appear as xml:lang attributes in exported XML.
+Accepted title language values should be stored in the database and become available for future XML export as xml:lang attributes.
 
 Example:
 
-Before:
-
-```xml
-<title>
-Groundwater Recharge
-</title>
-```
-
-After:
+Future XML Export:
 
 ```xml
 <title xml:lang="en">
 Groundwater Recharge
 </title>
 ```
+
+The XML export itself is implemented in a separate follow-up issue after the title language has been persisted successfully.
 
 ---
 
@@ -358,8 +352,10 @@ Verify:
 
 Verify:
 
-- xml:lang is exported correctly
-- existing export functionality remains unchanged
+- accepted title languages are stored correctly
+- existing export behaviour is not affected by persisting title languages
+
+A dedicated XML export test will be implemented together with the DataCite export changes.
 
 ---
 
@@ -384,7 +380,9 @@ Verify:
 
 ## Export Assumptions
 
-Existing export logic may contain assumptions about NULL language values.
+The current XML export still assumes Resource.language for title xml:lang attributes.
+
+A follow-up issue will update the export to use Title.language instead.
 
 Potential Impact:
 
@@ -424,7 +422,7 @@ The issue focuses on:
 - reviewing language suggestions
 - accepting language suggestions safely
 - protecting existing metadata
-- exporting xml:lang attributes correctly
+- persisting title language information for future xml:lang export
 - preventing duplicate or stale suggestions
 - ensuring stable behaviour through automated tests
 
@@ -444,7 +442,31 @@ The issue focuses on:
     "sort_order": 50,
     "card_component": "TitleLanguageCard"
 }
-
+## manifest Paul 
+{
+    "id": "title-language-suggestion",
+    "name": "Title Language Detection",
+    "description": "Detects the language of titles and suggests the code to save.",
+    "icon": "Globe",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\TitleSuggestion\\Assistant",
+    "route_prefix": "title-language",
+    "lock_key": "title_language_detection_running",
+    "cache_key_prefix": "title_language_detection",
+    "sort_order": 45,
+    "status_labels": {
+        "checking": "Detecting title languages...",
+        "completed_with_results": "Language detection completed: {count} new suggestion(s) found.",
+        "completed_empty": "Language detection completed: No new suggestions found.",
+        "failed": "Language detection failed: {error}",
+        "already_running": "A language detection job is already running."
+    },
+    "empty_state": {
+        "title": "No pending title language suggestions",
+        "description": "All titles already have a language code or no suggestions were found."
+    },
+    "card_component": null
+}
 ## assistant.php
 <?php
 
@@ -705,4 +727,141 @@ if (empty($currentLanguage)) {
 
 if ($currentLanguageMatch < 0.90) {
     // Sprache vorhanden, aber wahrscheinlich falsch → Korrekturvorschlag
+}
+
+## Paul VS Code 
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Assistants\TitleSuggestion;
+
+use App\Models\AssistantSuggestion;
+use App\Models\Title;
+use App\Services\Assistance\GenericTableAssistant;
+use Closure;
+use Nitotm\Eld\Eld;
+
+class Assistant extends GenericTableAssistant
+{
+    private LanguageDetector $detector;
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        $this->detector = new LanguageDetector();
+    }
+
+    protected function getManifestPath(): string
+    {
+        return __DIR__ . '/manifest.json';
+    }
+
+    protected function discover(Closure $onProgress): int
+    {
+        $titles = Title::whereNull('language')
+            ->orWhere('language', '')
+            ->cursor();
+
+        $count = 0;
+
+        foreach ($titles as $title) {
+            $onProgress("Detecting language for title #{$title->id}");
+
+            $detection = $this->detectLanguage($title->value);
+
+            if ($detection === null) {
+                continue;
+            }
+
+            if ($this->storeSuggestion(
+                resourceId: $title->resource_id,
+                targetType: 'title',
+                targetId: $title->id,
+                suggestedValue: $detection['code'],
+                suggestedLabel: $detection['label'],
+                similarityScore: $detection['confidence'],
+                metadata: [
+                    'title_text' => $title->value,
+                    'current_language' => ...,
+                    'current_language_label' => ...,
+                    'proposed_language' => ...,
+                    'proposed_language_label' => ...,
+                    'confidence' => ...,
+                    'confidence_percent' => ...,
+                    'warning' => ...,
+                    'has_overwrite_warning' => ...,
+                    'reason' => ...,
+                    'source_hash' => ...,
+                    'source_snapshot' => ...,
+                    'is_stale' => false,
+],
+            )) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    protected function applyAccepted(AssistantSuggestion $suggestion): array
+    {
+        $title = Title::find($suggestion->target_id);
+
+        if ($title === null) {
+            return [
+                'success' => false,
+                'message' => 'Title record not found.',
+            ];
+        }
+
+        $title->language = $suggestion->suggested_value;
+        $title->save();
+
+        return [
+            'success' => true,
+            'message' => "Title language set to {$suggestion->suggested_label}.",
+        ];
+    }
+
+    private function detectLanguage(string $text): ?array
+    {
+        $result = $this->detector->detect($text);
+
+        if ($result === null || empty($result->language)) {
+            return null;
+        }
+
+        $languageCode = strtolower((string) $result->language);
+
+if (! in_array($languageCode, self::SUPPORTED_LANGUAGES, true)) {
+    return null;
+}
+
+if (method_exists($result, 'isReliable') && ! $result->isReliable()) {
+    return null;
+}
+        $confidence = isset($result->score) ? (float) $result->score : null;
+
+        if ($languageCode === '' || $confidence === null) {
+            return null;
+        }
+
+        return [
+            'code' => $languageCode,
+            'label' => $this->languageLabel($languageCode),
+            'confidence' => $confidence,
+        ];
+    }
+
+    private function languageLabel(string $code): string
+    {
+        return match ($code) {
+            'de' => 'German',
+            'en' => 'English',
+            'fr' => 'French',
+            default => strtoupper($code),
+        };
+    }
 }
