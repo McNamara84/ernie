@@ -184,6 +184,49 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('OrcidSuggestionCard – ORCID link', () => {
+
+    it('renders the suggested DOI as a clickable link', () => {
+        const suggestion = makeOrcidSuggestion({resource_doi : '10.5880/digis.e.2025.002'});
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/digis.e.2025.002' });
+        expect(link).toBeInTheDocument();
+    });
+
+    it('renders the DOI link as underlined', () => {
+        const suggestion = makeOrcidSuggestion({resource_doi : '10.5880/digis.e.2025.002'});
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/digis.e.2025.002' });
+        expect(link).toHaveClass('underline');
+    });
+
+    it('links to the correct DOI landing page', () => {
+        const suggestion = makeOrcidSuggestion({resource_doi : '10.5880/digis.e.2025.002' });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/digis.e.2025.002' });
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.5880/digis.e.2025.002');
+    });
+
     it('renders the suggested ORCID as a clickable link', () => {
         const suggestion = makeOrcidSuggestion();
 
