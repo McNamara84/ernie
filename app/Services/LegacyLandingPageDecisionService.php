@@ -13,7 +13,7 @@ class LegacyLandingPageDecisionService
     {
         $doi = strtolower(trim($doi));
 
-        return str_contains($doi, 'test') || str_contains($doi, 'delete');
+        return preg_match('/(?:^|[^a-z0-9])(?:test|delete)(?:$|[^a-z0-9])/', $doi) === 1;
     }
 
     /**

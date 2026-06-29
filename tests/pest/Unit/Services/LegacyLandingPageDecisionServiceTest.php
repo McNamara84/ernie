@@ -11,13 +11,21 @@ it('skips legacy dois marked as test or delete', function (string $doi): void {
 })->with([
     'test suffix' => ['10.5880/fidgeo.test.to.be.deleted'],
     'delete suffix' => ['10.5880/GFZ.DELETE.001'],
+    'hyphen separated delete marker' => ['10.5880/gfz-delete-001'],
+    'underscore separated test marker' => ['10.5880/gfz_test_001'],
 ]);
 
-it('does not skip ordinary legacy dois', function (): void {
+it('does not skip ordinary legacy dois', function (string $doi): void {
     $service = new LegacyLandingPageDecisionService;
 
-    expect($service->shouldSkipLegacyDoi('10.5880/gfz.2.6.2023.010'))->toBeFalse();
-});
+    expect($service->shouldSkipLegacyDoi($doi))->toBeFalse();
+})->with([
+    'ordinary GFZ DOI' => ['10.5880/gfz.2.6.2023.010'],
+    'latest contains test as substring' => ['10.5880/latest.2026.001'],
+    'contest contains test as substring' => ['10.5880/contest.dataset.001'],
+    'laTEST contains test as substring with mixed case' => ['10.5880/laTEST.001'],
+    'deleted is not a delete marker segment' => ['10.5880/to.be.deleted'],
+]);
 
 it('recognizes old Data Services runtime URLs', function (string $url): void {
     $service = new LegacyLandingPageDecisionService;
