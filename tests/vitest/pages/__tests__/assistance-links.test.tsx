@@ -184,6 +184,22 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('OrcidSuggestionCard – ORCID link', () => {
+    it('renders the resource DOI as an underlined link that opens in a new tab', () => {
+        const suggestion = makeOrcidSuggestion({ resource_doi: '10.5880/test.2024.001' });
+
+        render(
+            <AssistancePage
+                sections={{ 'orcid-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2024.001' });
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.5880%2Ftest.2024.001');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveClass('underline');
+    });
+
     it('renders the suggested ORCID as a clickable link', () => {
         const suggestion = makeOrcidSuggestion();
 
