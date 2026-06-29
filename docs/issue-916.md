@@ -79,3 +79,6 @@ The implementation should include tests verifying that:
 - **Accept All** applies every pending suggestion for the resource.
 - Accepted suggestions are removed from the list.
 - A confirmation message accurately summarizes the applied updates.
+
+# Code Vorschlag:
+
