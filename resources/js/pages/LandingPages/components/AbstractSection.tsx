@@ -44,7 +44,7 @@ export function AbstractSection({
     resourceId,
     jsonLdExportUrl,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
-    displayLimits = { creators: 50, contributors: 50 },
+    displayLimits = { creators: 50, contributors: 50, citationAuthors: 50 },
 }: AbstractSectionProps) {
     const expandedSectionOrder = expandMetadataOrder(sectionOrder);
 

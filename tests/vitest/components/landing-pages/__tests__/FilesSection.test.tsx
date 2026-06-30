@@ -297,12 +297,12 @@ describe('FilesSection', () => {
             expect(screen.getByText('License')).toBeInTheDocument();
         });
 
-        it('displays SPDX identifier in tooltip', () => {
+        it('displays the SPDX identifier without a prefix in the tooltip', () => {
             render(<FilesSection licenses={mockLicenses} />);
 
             // CC licenses include icon aria-label in accessible name
             const licenseLink = screen.getByRole('link', { name: /CC BY 4\.0/ });
-            expect(licenseLink).toHaveAttribute('title', 'SPDX: CC-BY-4.0');
+            expect(licenseLink).toHaveAttribute('title', 'CC-BY-4.0');
         });
     });
 

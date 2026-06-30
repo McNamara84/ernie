@@ -205,7 +205,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * Input normalization – reuses the same logic as StoreResourceRequest.
+     * Input normalization - reuses the same logic as StoreResourceRequest.
      */
     protected function prepareForValidation(): void
     {
@@ -1035,7 +1035,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * After-validation hooks — structural checks with minimal mandatory field enforcement.
+     * After-validation hooks - structural checks with minimal mandatory field enforcement.
      *
      * Unlike StoreResourceRequest, this does NOT require:
      * - At least one Abstract description
@@ -1046,7 +1046,7 @@ class StoreDraftResourceRequest extends FormRequest
      * - Main Title must exist (at least one)
      * - Person authors must have lastName if provided
      * - Contributors must have proper structure if provided
-     * - Polygon coverages must have at least 3 points
+     * - Polygon and line coverages must have the required minimum number of points
      *
      * @return array<int, callable(Validator): void>
      */
@@ -1114,7 +1114,7 @@ class StoreDraftResourceRequest extends FormRequest
                     );
                 }
             },
-            // Validate polygon coverages have at least 3 points
+            // Validate polygon and line coverages have the required minimum number of points
             function (Validator $validator): void {
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
@@ -1129,13 +1129,14 @@ class StoreDraftResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon') {
+                    if ($type === 'polygon' || $type === 'line') {
                         $polygonPoints = $coverage['polygonPoints'] ?? [];
+                        $minimumPoints = $type === 'polygon' ? 3 : 2;
 
-                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                        if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
                     }
@@ -1145,7 +1146,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase, or return null.
      */
     private function normalizeDoiInput(mixed $input): mixed
     {

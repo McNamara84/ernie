@@ -56,11 +56,15 @@ class LegacyLandingPageImportService
      * @param  list<array{url: string, label?: string|null, visible?: string|null}>  $fileEntries
      * @return array{changed: bool, created: bool, ftp_url_added: bool, links_added: int, landing_page: LandingPage|null}
      */
-    public function syncMissingFileEntries(Resource $resource, array $fileEntries, bool $isPublished): array
-    {
+    public function syncMissingFileEntries(
+        Resource $resource,
+        array $fileEntries,
+        bool $isPublished,
+        bool $createWhenEmpty = false,
+    ): array {
         $fileEntries = $this->normaliseFileEntries($fileEntries);
 
-        if ($fileEntries === []) {
+        if ($fileEntries === [] && ! $createWhenEmpty) {
             return $this->syncResult();
         }
 
@@ -73,20 +77,37 @@ class LegacyLandingPageImportService
                 return $this->syncResult(
                     changed: true,
                     created: true,
-                    ftpUrlAdded: true,
+                    ftpUrlAdded: $fileEntries !== [],
                     linksAdded: max(count($fileEntries) - 1, 0),
                     landingPage: $this->createDefaultLandingPage($resource, $fileEntries, $isPublished),
                 );
             }
 
+            if ($fileEntries === []) {
+                return $this->syncResult(landingPage: $landingPage);
+            }
+
+            if ($landingPage->isExternal()) {
+                return $this->syncResult(landingPage: $landingPage);
+            }
+
             $landingPage->loadMissing('links');
 
             $ftpUrlAdded = false;
+            $downloadsUnavailableCleared = false;
             $primaryFile = $fileEntries[0];
 
             if ($this->isBlank($landingPage->ftp_url)) {
-                $landingPage->forceFill(['ftp_url' => $primaryFile['url']])->save();
+                $landingPage->forceFill([
+                    'ftp_url' => $primaryFile['url'],
+                    'downloads_unavailable' => false,
+                ])->save();
                 $ftpUrlAdded = $landingPage->wasChanged('ftp_url');
+                $downloadsUnavailableCleared = $landingPage->wasChanged('downloads_unavailable');
+                $landingPage->refresh()->load('links');
+            } elseif ($landingPage->downloads_unavailable) {
+                $landingPage->forceFill(['downloads_unavailable' => false])->save();
+                $downloadsUnavailableCleared = $landingPage->wasChanged('downloads_unavailable');
                 $landingPage->refresh()->load('links');
             }
 
@@ -111,7 +132,7 @@ class LegacyLandingPageImportService
             }
 
             return $this->syncResult(
-                changed: $ftpUrlAdded || $linksAdded > 0,
+                changed: $ftpUrlAdded || $downloadsUnavailableCleared || $linksAdded > 0,
                 ftpUrlAdded: $ftpUrlAdded,
                 linksAdded: $linksAdded,
                 landingPage: $landingPage->fresh(['links']),
@@ -139,6 +160,7 @@ class LegacyLandingPageImportService
             'resource_id' => $resource->id,
             'template' => 'default_gfz',
             'ftp_url' => $primaryFile['url'] ?? null,
+            'downloads_unavailable' => $primaryFile === null,
             'is_published' => $shouldPublish,
             'published_at' => $shouldPublish ? now() : null,
         ]);

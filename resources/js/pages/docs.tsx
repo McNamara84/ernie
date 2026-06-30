@@ -338,7 +338,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
-                                linking research instruments and ROR for research organizations
+                                linking research instruments, ROR for research organizations, and RAiD for research
+                                activities
                             </li>
                             <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
@@ -387,6 +388,11 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>
                                 <strong>ROR (Research Organization Registry):</strong> Organization data used for
                                 affiliation lookups. The ROR dataset is fetched from the Zenodo data dump and can be
+                                provided to ELMO via the API.
+                            </li>
+                            <li>
+                                <strong>RAiD (Research Activity Identifier):</strong> Public research activity records
+                                discovered through DataCite. RAiD projects can be updated from Editor Settings and
                                 provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
@@ -461,6 +467,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <p className="text-sm text-muted-foreground">
                             Downloads the full ROR data dump from Zenodo. Can also be triggered from Editor
                             Settings.
+                        </p>
+
+                        <h4>Update RAiD Projects (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-raid-projects" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads public RAiD project records discovered through DataCite. Can also be triggered
+                            from Editor Settings.
                         </p>
 
                         <h4>Update MSL Keywords</h4>
@@ -722,6 +735,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
@@ -1518,7 +1534,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Create Landing Page">
-                                <p>Click the landing page icon button to generate a draft.</p>
+                                <p>Select the resource and click the <strong>Set up landing page</strong> quick action in the bulk toolbar to open the setup modal.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Preview">
                                 <p>Review how the landing page will appear before publishing.</p>
@@ -1548,7 +1564,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Open Landing Page Setup">
-                                <p>Click the landing page icon for your resource and open the setup modal.</p>
+                                <p>Select the resource on <code>/resources</code> and click <strong>Set up landing page</strong> in the bulk toolbar to open the setup modal.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Add Links">
                                 <p>
@@ -1817,9 +1833,21 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             selected.
                         </p>
 
+                        <h4>Quick Resource Actions</h4>
+                        <p>
+                            <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
+                            Edit opens every selected resource in the Data Editor. If the browser blocks one or more editor tabs, ERNIE shows a
+                            fallback dialog with direct editor links. Set up landing page stays visible as a quick action and reports the standard
+                            single-record message when more than one row is selected.
+                        </p>
+                        <p>
+                            The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related
+                            items, and deletion remain grouped together.
+                        </p>
+
                         <h4>Bulk Export (all roles)</h4>
                         <p>
-                            Click <strong>Export Selected</strong> to download a single ZIP archive containing
+                            Open the <strong>Actions</strong> menu and choose the desired export command to download a single ZIP archive containing
                             the metadata of every selected resource in your chosen format:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
@@ -1835,15 +1863,30 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Bulk Register / Update DOI (Curator and above)</h4>
                         <p>
-                            Click <strong>Register Selected</strong> to push every selected resource to DataCite
-                            in one batch. The bulk flow <strong>only updates resources that already have a
-                            DOI</strong>; the button is disabled when the selection contains any DOI-less resource
-                            so you never accidentally mint a DOI without picking a prefix. To mint a new DOI,
-                            open the resource in the editor and use the single-resource register action there.
-                            Resources without a landing page or that are physical samples (IGSNs) are skipped
-                            and reported in the response toast.
+                            Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
+                            push selected resources to DataCite in one batch. The bulk flow <strong>only updates resources that already have a DOI</strong>;
+                            the action is unavailable when the selection contains any DOI-less resource so you never accidentally mint a DOI without
+                            picking a prefix. To mint a new DOI, open the resource in the editor and use the single-resource register action there.
+                            Resources without a landing page or that are physical samples (IGSNs) are skipped and reported in the response toast.
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
+
+                        {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                            <>
+                                <h4>Delete Selected Resources (Curator and above)</h4>
+                                <p>
+                                    Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources that have not been
+                                    published. DOI and landing page data no longer block deletion by themselves: draft, curation, and preview resources
+                                    can be deleted as long as their public status is not published.
+                                </p>
+                                <p>
+                                    The confirmation dialog groups the current selection into draft, curation, preview, and published resources. You can
+                                    choose which deletable groups to submit. Preview resources show an additional warning because their preview landing
+                                    pages will be removed with the resource. Published resources are listed as protected and are never sent to the delete
+                                    endpoint.
+                                </p>
+                            </>
+                        )}
 
                         <h4>Resizable Columns</h4>
                         <p>
