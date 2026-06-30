@@ -139,6 +139,7 @@ final readonly class CrossrefFunderRorAcceptanceService
         $ambiguity = is_array($metadata['ambiguity'] ?? null) ? $metadata['ambiguity'] : [];
 
         $rorId = $this->normalizer->canonicalRorIdentifier($proposed['funder_identifier'] ?? null);
+        $metadataRorId = $this->normalizer->canonicalRorIdentifier($proposed['ror_id'] ?? null);
         $normalizedCrossrefFunderId = $this->normalizer->filledString($current['normalized_crossref_funder_id'] ?? null);
         $proposedType = $this->normalizer->filledString($proposed['funder_identifier_type'] ?? null);
         $schemeUri = $this->normalizer->filledString($proposed['scheme_uri'] ?? null);
