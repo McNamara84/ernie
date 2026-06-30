@@ -618,6 +618,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
                                     a suggestion when a resource has multiple download locations.
                                 </p>
+                                <p className="mt-2">
+                                    Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier, provenance,
+                                    confidence evidence, and conflict warnings. Accepting updates only the funding-reference identifier, identifier type,
+                                    and scheme URI; funder names and award metadata are preserved.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
