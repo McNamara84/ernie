@@ -80,6 +80,12 @@ describe('CreatorsSection', () => {
                     affiliation_identifier: 'https://example.com/institution',
                     affiliation_identifier_scheme: 'ROR',
                 },
+                {
+                    id: 2,
+                    name: 'Invalid ROR Institute',
+                    affiliation_identifier: 'abc',
+                    affiliation_identifier_scheme: 'ROR',
+                },
             ],
         });
 
@@ -87,6 +93,8 @@ describe('CreatorsSection', () => {
 
         expect(screen.getByText('Example Institute')).toBeInTheDocument();
         expect(screen.queryByLabelText('ROR profile of Example Institute')).not.toBeInTheDocument();
+        expect(screen.getByText('Invalid ROR Institute')).toBeInTheDocument();
+        expect(screen.queryByLabelText('ROR profile of Invalid ROR Institute')).not.toBeInTheDocument();
     });
 
     it('renders all creator affiliations in a prose list item', () => {

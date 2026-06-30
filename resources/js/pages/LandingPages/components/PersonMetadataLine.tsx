@@ -13,6 +13,7 @@ interface PersonMetadataLineProps {
 
 const PID_ICON_LINK_CLASS =
     '-m-3 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center p-3 align-text-bottom transition-opacity hover:opacity-80';
+const ROR_ID_PATTERN = /^0[a-z0-9]{6}\d{2}$/;
 
 function resolveOrcidUrl(identifier: string): string {
     const normalized = identifier.trim().replace(/^(?:https?:\/\/)?(?:www\.)?orcid\.org\//i, '');
@@ -35,7 +36,7 @@ function resolveRorUrl(affiliation: LandingPageAffiliation): string | null {
 
     const rorId = (rorUrlMatch?.[1] ?? identifier).replace(/^\/+|\/+$/g, '').toLowerCase();
 
-    if (!/^[a-z0-9]+$/.test(rorId)) {
+    if (!ROR_ID_PATTERN.test(rorId)) {
         return null;
     }
 
