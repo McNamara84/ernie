@@ -16,6 +16,7 @@ import {
     type AssistantManifest,
     type BaseSuggestionItem,
     type CheckStatusResponse,
+    type SuggestedCrossrefFunderRorItem,
     type PaginatedData,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
@@ -436,6 +437,178 @@ function confidenceLabel(confidence: string | null): string | null {
     }
 }
 
+function metadataText(value: unknown): string | null {
+    if (value === null || value === undefined || Array.isArray(value) || typeof value === 'object') {
+        return null;
+    }
+
+    const text = String(value).trim();
+
+    return text === '' ? null : text;
+}
+
+function metadataList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+
+    return value.map((item) => metadataText(item)).filter((item): item is string => item !== null);
+}
+
+function CrossrefFunderRorMetadataBlock({ title, fields }: { title: string; fields: Array<[string, unknown]> }) {
+    const entries = fields
+        .map(([label, value]) => [label, metadataText(value)] as const)
+        .filter(([, value]) => value !== null);
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</p>
+            {entries.length > 0 ? (
+                <dl className="space-y-1 text-xs">
+                    {entries.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className="break-words font-mono text-foreground">{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : (
+                <p className="text-xs text-muted-foreground">No metadata captured.</p>
+            )}
+        </div>
+    );
+}
+
+function CrossrefFunderRorIdentifier({ value }: { value: string }) {
+    if (isValidRorUrl(value)) {
+        return (
+            <a href={value} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline hover:text-primary/80">
+                {value}
+            </a>
+        );
+    }
+
+    return <span className="break-all font-mono">{value}</span>;
+}
+
+function CrossrefFunderRorSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedCrossrefFunderRorItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata;
+    const current = metadata?.current;
+    const proposed = metadata?.proposed;
+    const provenance = metadata?.provenance;
+    const confidence = metadata?.confidence;
+    const ambiguity = metadata?.ambiguity;
+    const rorIdentifier = proposed?.funder_identifier ?? proposed?.ror_id ?? suggestion.suggested_value;
+    const confidenceLevel = metadataText(confidence?.level);
+    const confidenceScore = typeof confidence?.score === 'number' ? confidence.score : suggestion.similarity_score;
+    const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
+    const warnings = metadataList(ambiguity?.warnings);
+    const evidence = metadataList(confidence?.evidence);
+    const preservedFields = metadataList(metadata?.acceptance?.preserve);
+    const rorTypes = metadataList(proposed?.ror_types);
+    const ambiguityStatus = metadataText(ambiguity?.status);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            funding_reference #{suggestion.target_id}
+                        </Badge>
+                        {confidenceLevel && <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>}
+                        {percent !== null && <Badge variant="secondary" className="text-xs">{percent}% registry match</Badge>}
+                        {ambiguityStatus && (
+                            <Badge variant={warnings.length > 0 ? 'destructive' : 'secondary'} className="text-xs">
+                                {ambiguityStatus === 'none' ? 'No ambiguity' : `Ambiguity: ${ambiguityStatus}`}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{current?.funder_name ?? suggestion.suggested_label}</p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                            ROR: <CrossrefFunderRorIdentifier value={rorIdentifier} />
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <CrossrefFunderRorMetadataBlock
+                            title="Current Crossref Funder ID"
+                            fields={[
+                                ['funderName', current?.funder_name],
+                                ['identifier', current?.funder_identifier],
+                                ['type', current?.funder_identifier_type],
+                                ['schemeURI', current?.scheme_uri],
+                                ['normalized', current?.normalized_crossref_funder_id],
+                            ]}
+                        />
+                        <CrossrefFunderRorMetadataBlock
+                            title="Proposed ROR identifier"
+                            fields={[
+                                ['displayName', proposed?.ror_display_name],
+                                ['identifier', rorIdentifier],
+                                ['type', proposed?.funder_identifier_type],
+                                ['schemeURI', proposed?.scheme_uri],
+                                ['status', proposed?.ror_status],
+                                ['types', rorTypes.join(', ')],
+                            ]}
+                        />
+                    </div>
+
+                    {warnings.length > 0 && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                            <div className="flex gap-2">
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <div className="space-y-1">
+                                    <p>Review warning(s) from the mapping evidence:</p>
+                                    <ul className="list-inside list-disc">
+                                        {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        Accept updates only the funding reference identifier, identifier type, and scheme URI.
+                        {preservedFields.length > 0 && <span> Preserved fields: {preservedFields.join(', ')}.</span>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {proposed?.matched_external_id?.value && <span>Matched FundRef: {proposed.matched_external_id.value}</span>}
+                        {proposed?.matched_external_id?.matched_in && <span>Evidence: {proposed.matched_external_id.matched_in}</span>}
+                        {provenance?.source && <span>Source: {provenance.source}</span>}
+                        {provenance?.source_file && <span>File: {provenance.source_file}</span>}
+                        {provenance?.source_retrieved_at && <span>Retrieved: {provenance.source_retrieved_at}</span>}
+                        {provenance?.matching_strategy && <span>Strategy: {provenance.matching_strategy}</span>}
+                        {evidence.length > 0 && <span>Confidence evidence: {evidence.join(', ')}</span>}
+                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 function probeMethodLabel(probeMethod: string | null, targetType: unknown): string | null {
     if (!probeMethod) return null;
 
@@ -930,6 +1103,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 return (
                     <SpdxRightsSuggestionCard
                         suggestion={item as unknown as SuggestedSpdxRightsItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'crossref-funder-ror-suggestion':
+                return (
+                    <CrossrefFunderRorSuggestionCard
+                        suggestion={item as unknown as SuggestedCrossrefFunderRorItem}
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}

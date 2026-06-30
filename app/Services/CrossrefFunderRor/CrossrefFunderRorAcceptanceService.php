@@ -135,16 +135,27 @@ final readonly class CrossrefFunderRorAcceptanceService
         $metadata = $suggestion->metadata ?? [];
         $current = is_array($metadata['current'] ?? null) ? $metadata['current'] : [];
         $proposed = is_array($metadata['proposed'] ?? null) ? $metadata['proposed'] : [];
+        $confidence = is_array($metadata['confidence'] ?? null) ? $metadata['confidence'] : [];
+        $ambiguity = is_array($metadata['ambiguity'] ?? null) ? $metadata['ambiguity'] : [];
 
         $rorId = $this->normalizer->canonicalRorIdentifier($proposed['funder_identifier'] ?? null);
         $normalizedCrossrefFunderId = $this->normalizer->filledString($current['normalized_crossref_funder_id'] ?? null);
         $proposedType = $this->normalizer->filledString($proposed['funder_identifier_type'] ?? null);
         $schemeUri = $this->normalizer->filledString($proposed['scheme_uri'] ?? null);
+        $confidenceLevel = $this->normalizer->filledString($confidence['level'] ?? null);
+        $ambiguityStatus = $this->normalizer->filledString($ambiguity['status'] ?? null);
 
-        if ($rorId === null || $normalizedCrossrefFunderId === null) {
+        if ($rorId === null || $metadataRorId === null || $normalizedCrossrefFunderId === null) {
             return [
                 'success' => false,
                 'message' => 'This suggestion does not contain complete Crossref-to-ROR metadata.',
+            ];
+        }
+
+        if ($rorId !== $metadataRorId) {
+            return [
+                'success' => false,
+                'message' => 'The proposed ROR identifier metadata is inconsistent.',
             ];
         }
 
@@ -159,6 +170,20 @@ final readonly class CrossrefFunderRorAcceptanceService
             return [
                 'success' => false,
                 'message' => 'Only ROR funder identifier suggestions can be accepted by this assistant.',
+            ];
+        }
+
+        if ($confidenceLevel !== 'high') {
+            return [
+                'success' => false,
+                'message' => 'Only high-confidence Crossref-to-ROR suggestions can be accepted.',
+            ];
+        }
+
+        if ($ambiguityStatus === 'suppressed') {
+            return [
+                'success' => false,
+                'message' => 'Suppressed or ambiguous Crossref-to-ROR mappings cannot be accepted.',
             ];
         }
 
