@@ -4,7 +4,14 @@ import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { BaseSuggestionItem, PaginatedData, SuggestedCrossrefFunderRorItem, SuggestedOrcidItem, SuggestedRorItem, SuggestedSpdxRightsItem } from '@/types/assistance';
+import type {
+    BaseSuggestionItem,
+    PaginatedData,
+    SuggestedCrossrefFunderRorItem,
+    SuggestedOrcidItem,
+    SuggestedRorItem,
+    SuggestedSpdxRightsItem,
+} from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
@@ -149,7 +156,6 @@ function makeSizeFormatSuggestion(overrides: Partial<BaseSuggestionItem> = {}): 
         ...overrides,
     };
 }
-
 
 function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFunderRorItem> = {}): SuggestedCrossrefFunderRorItem {
     const metadata: SuggestedCrossrefFunderRorItem['metadata'] = {
@@ -417,10 +423,7 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         expect(screen.getByText('Creative Commons Attribution 4.0 International')).toBeInTheDocument();
         expect(screen.getAllByText('CC-BY-4.0')).not.toHaveLength(0);
         expect(screen.getByText('https://spdx.org/licenses/')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'SPDX reference' })).toHaveAttribute(
-            'href',
-            'https://spdx.org/licenses/CC-BY-4.0.html',
-        );
+        expect(screen.getByRole('link', { name: 'SPDX reference' })).toHaveAttribute('href', 'https://spdx.org/licenses/CC-BY-4.0.html');
         expect(screen.getByText(/Clicking Accept links only this rights statement/)).toBeInTheDocument();
     });
 
@@ -446,9 +449,7 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         const suggestion = makeSpdxRightsSuggestion({ id: 42 });
         const user = userEvent.setup();
 
-        mockedAxiosPost
-            .mockResolvedValueOnce({ data: { success: true, message: 'SPDX suggestion accepted.' } })
-            .mockResolvedValueOnce({ data: {} });
+        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'SPDX suggestion accepted.' } }).mockResolvedValueOnce({ data: {} });
 
         render(
             <AssistancePage
@@ -573,9 +574,7 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         const suggestion = makeSizeFormatSuggestion({ id: 77 });
         const user = userEvent.setup();
 
-        mockedAxiosPost
-            .mockResolvedValueOnce({ data: { success: true, message: 'Format applied.' } })
-            .mockResolvedValueOnce({ data: {} });
+        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Format applied.' } }).mockResolvedValueOnce({ data: {} });
 
         render(
             <AssistancePage
@@ -605,13 +604,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         render(
             <AssistancePage
                 sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[
-                    makeManifest(
-                        CROSSREF_FUNDER_ROR_ASSISTANT_ID,
-                        CROSSREF_FUNDER_ROR_ROUTE_PREFIX,
-                        CROSSREF_FUNDER_ROR_ASSISTANT_NAME,
-                    ),
-                ]}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
             />,
         );
 
@@ -631,13 +624,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         render(
             <AssistancePage
                 sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[
-                    makeManifest(
-                        CROSSREF_FUNDER_ROR_ASSISTANT_ID,
-                        CROSSREF_FUNDER_ROR_ROUTE_PREFIX,
-                        CROSSREF_FUNDER_ROR_ASSISTANT_NAME,
-                    ),
-                ]}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
             />,
         );
 
@@ -665,13 +652,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         render(
             <AssistancePage
                 sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[
-                    makeManifest(
-                        CROSSREF_FUNDER_ROR_ASSISTANT_ID,
-                        CROSSREF_FUNDER_ROR_ROUTE_PREFIX,
-                        CROSSREF_FUNDER_ROR_ASSISTANT_NAME,
-                    ),
-                ]}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
             />,
         );
 
@@ -686,13 +667,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         render(
             <AssistancePage
                 sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[
-                    makeManifest(
-                        CROSSREF_FUNDER_ROR_ASSISTANT_ID,
-                        CROSSREF_FUNDER_ROR_ROUTE_PREFIX,
-                        CROSSREF_FUNDER_ROR_ASSISTANT_NAME,
-                    ),
-                ]}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
             />,
         );
 
@@ -715,13 +690,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         render(
             <AssistancePage
                 sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[
-                    makeManifest(
-                        CROSSREF_FUNDER_ROR_ASSISTANT_ID,
-                        CROSSREF_FUNDER_ROR_ROUTE_PREFIX,
-                        CROSSREF_FUNDER_ROR_ASSISTANT_NAME,
-                    ),
-                ]}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
             />,
         );
 
@@ -740,13 +709,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         render(
             <AssistancePage
                 sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[
-                    makeManifest(
-                        CROSSREF_FUNDER_ROR_ASSISTANT_ID,
-                        CROSSREF_FUNDER_ROR_ROUTE_PREFIX,
-                        CROSSREF_FUNDER_ROR_ASSISTANT_NAME,
-                    ),
-                ]}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
             />,
         );
 

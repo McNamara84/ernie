@@ -82,9 +82,7 @@ function SuggestionCard({
                         <span className="font-mono text-sm break-all">{suggestion.identifier}</span>
                     </div>
 
-                    {suggestion.source_title && (
-                        <p className="text-sm font-medium text-foreground">&quot;{suggestion.source_title}&quot;</p>
-                    )}
+                    {suggestion.source_title && <p className="text-sm font-medium text-foreground">&quot;{suggestion.source_title}&quot;</p>}
 
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {suggestion.source_publisher && <span>Publisher: {suggestion.source_publisher}</span>}
@@ -135,9 +133,7 @@ function OrcidSuggestionCard({
                         <Badge variant="secondary" className="text-xs capitalize">
                             {suggestion.source_context}
                         </Badge>
-                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>
-                            {percent}% match
-                        </Badge>
+                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>{percent}% match</Badge>
                     </div>
 
                     <div className="space-y-1">
@@ -156,15 +152,9 @@ function OrcidSuggestionCard({
                                 suggestion.suggested_orcid
                             )}
                         </p>
-                        {candidateName && (
-                            <p className="text-sm text-muted-foreground">
-                                Candidate: {candidateName}
-                            </p>
-                        )}
+                        {candidateName && <p className="text-sm text-muted-foreground">Candidate: {candidateName}</p>}
                         {suggestion.candidate_affiliations.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                Affiliations: {suggestion.candidate_affiliations.join(', ')}
-                            </p>
+                            <p className="text-xs text-muted-foreground">Affiliations: {suggestion.candidate_affiliations.join(', ')}</p>
                         )}
                     </div>
 
@@ -235,13 +225,13 @@ function RightsMetadataBlock({ title, values }: { title: string; values: Record<
 
     return (
         <div className="min-w-0 rounded-md border bg-muted/20 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</p>
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
             {entries.length > 0 ? (
                 <dl className="space-y-1 text-xs">
                     {entries.map(([label, value]) => (
                         <div key={label} className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
                             <dt className="text-muted-foreground">{label}</dt>
-                            <dd className="break-words font-mono text-foreground">{value}</dd>
+                            <dd className="font-mono break-words text-foreground">{value}</dd>
                         </div>
                     ))}
                 </dl>
@@ -274,7 +264,9 @@ function SpdxRightsSuggestionCard({
                         <Badge variant="outline" className="text-xs">
                             SPDX
                         </Badge>
-                        {percent !== null && <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>{percent}% match</Badge>}
+                        {percent !== null && (
+                            <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>{percent}% match</Badge>
+                        )}
                         <Badge variant="secondary" className="text-xs">
                             resource_right #{suggestion.target_id}
                         </Badge>
@@ -290,8 +282,8 @@ function SpdxRightsSuggestionCard({
                         <div className="flex gap-2">
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                             <p>
-                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only empty
-                                catalog fields may be filled.
+                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only
+                                empty catalog fields may be filled.
                             </p>
                         </div>
                     </div>
@@ -345,16 +337,12 @@ function RorSuggestionCard({
                             <Building2 className="mr-1 h-3 w-3" />
                             {entityTypeLabel(suggestion.entity_type)}
                         </Badge>
-                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>
-                            {percent}% match
-                        </Badge>
+                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>{percent}% match</Badge>
                     </div>
 
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-foreground">{suggestion.entity_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                            &rarr; {suggestion.suggested_name}
-                        </p>
+                        <p className="text-sm text-muted-foreground">&rarr; {suggestion.suggested_name}</p>
                         <p className="font-mono text-xs text-muted-foreground">
                             ROR:{' '}
                             {isValidRorUrl(suggestion.suggested_ror_id) ? (
@@ -371,9 +359,7 @@ function RorSuggestionCard({
                             )}
                         </p>
                         {suggestion.ror_aliases.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                Also known as: {suggestion.ror_aliases.slice(0, 3).join(', ')}
-                            </p>
+                            <p className="text-xs text-muted-foreground">Also known as: {suggestion.ror_aliases.slice(0, 3).join(', ')}</p>
                         )}
                     </div>
 
@@ -454,19 +440,17 @@ function metadataList(value: unknown): string[] {
 }
 
 function CrossrefFunderRorMetadataBlock({ title, fields }: { title: string; fields: Array<[string, unknown]> }) {
-    const entries = fields
-        .map(([label, value]) => [label, metadataText(value)] as const)
-        .filter(([, value]) => value !== null);
+    const entries = fields.map(([label, value]) => [label, metadataText(value)] as const).filter(([, value]) => value !== null);
 
     return (
         <div className="min-w-0 rounded-md border bg-muted/20 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</p>
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
             {entries.length > 0 ? (
                 <dl className="space-y-1 text-xs">
                     {entries.map(([label, value]) => (
                         <div key={label} className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
                             <dt className="text-muted-foreground">{label}</dt>
-                            <dd className="break-words font-mono text-foreground">{value}</dd>
+                            <dd className="font-mono break-words text-foreground">{value}</dd>
                         </div>
                     ))}
                 </dl>
@@ -486,7 +470,7 @@ function CrossrefFunderRorIdentifier({ value }: { value: string }) {
         );
     }
 
-    return <span className="break-all font-mono">{value}</span>;
+    return <span className="font-mono break-all">{value}</span>;
 }
 
 function CrossrefFunderRorSuggestionCard({
@@ -524,8 +508,14 @@ function CrossrefFunderRorSuggestionCard({
                         <Badge variant="outline" className="text-xs">
                             funding_reference #{suggestion.target_id}
                         </Badge>
-                        {confidenceLevel && <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>}
-                        {percent !== null && <Badge variant="secondary" className="text-xs">{percent}% registry match</Badge>}
+                        {confidenceLevel && (
+                            <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>
+                        )}
+                        {percent !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {percent}% registry match
+                            </Badge>
+                        )}
                         {ambiguityStatus && (
                             <Badge variant={warnings.length > 0 ? 'destructive' : 'secondary'} className="text-xs">
                                 {ambiguityStatus === 'none' ? 'No ambiguity' : `Ambiguity: ${ambiguityStatus}`}
@@ -571,7 +561,9 @@ function CrossrefFunderRorSuggestionCard({
                                 <div className="space-y-1">
                                     <p>Review warning(s) from the mapping evidence:</p>
                                     <ul className="list-inside list-disc">
-                                        {warnings.map((warning) => <li key={warning}>{warning}</li>)}
+                                        {warnings.map((warning) => (
+                                            <li key={warning}>{warning}</li>
+                                        ))}
                                     </ul>
                                 </div>
                             </div>
@@ -755,9 +747,7 @@ function SizeFormatSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>
-                            {targetTypeLabel(suggestion.target_type, isZip)}
-                        </Badge>
+                        <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>{targetTypeLabel(suggestion.target_type, isZip)}</Badge>
                         {displayConfidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{displayConfidence}</Badge>}
                         {displayProbeMethod && (
                             <Badge variant="secondary" className="text-xs">
@@ -771,7 +761,12 @@ function SizeFormatSuggestionCard({
                     {(sourceUrl || filename || parsedFileCount !== null) && (
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             {sourceUrl && (
-                                <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="max-w-full break-all underline hover:text-foreground">
+                                <a
+                                    href={sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="max-w-full break-all underline hover:text-foreground"
+                                >
                                     Open source
                                 </a>
                             )}
@@ -889,13 +884,16 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
     // ── Polling logic ────────────────────────────────────────────────
 
-    const stopPolling = useCallback((id: string) => {
-        const timer = pollingRefs.current[id];
-        if (timer !== null) {
-            clearTimeout(timer);
-            pollingRefs.current[id] = null;
-        }
-    }, [pollingRefs]);
+    const stopPolling = useCallback(
+        (id: string) => {
+            const timer = pollingRefs.current[id];
+            if (timer !== null) {
+                clearTimeout(timer);
+                pollingRefs.current[id] = null;
+            }
+        },
+        [pollingRefs],
+    );
 
     const startPolling = useCallback(
         (manifest: AssistantManifest, jobId: string) => {
@@ -903,9 +901,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
             const pollStatus = async () => {
                 try {
-                    const { data: status } = await axios.get<CheckStatusResponse>(
-                        `/assistance/check/${id}/${jobId}/status`,
-                    );
+                    const { data: status } = await axios.get<CheckStatusResponse>(`/assistance/check/${id}/${jobId}/status`);
                     patch(id, { progress: status.progress ?? '' });
 
                     if (status.status === 'completed') {
@@ -913,15 +909,17 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         patch(id, { isChecking: false, progress: '' });
 
                         // Pick correct label and interpolate {count}
-                        const found = (status as Record<string, unknown>).newSuggestionsFound
-                            ?? (status as Record<string, unknown>).newRelationsFound
-                            ?? (status as Record<string, unknown>).newOrcidsFound
-                            ?? (status as Record<string, unknown>).newRorsFound
-                            ?? 0;
+                        const found =
+                            (status as Record<string, unknown>).newSuggestionsFound ??
+                            (status as Record<string, unknown>).newRelationsFound ??
+                            (status as Record<string, unknown>).newOrcidsFound ??
+                            (status as Record<string, unknown>).newRorsFound ??
+                            0;
                         const count = Number(found);
-                        const label = count > 0
-                            ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
-                            : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
+                        const label =
+                            count > 0
+                                ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
+                                : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
                         const message = label.replace('{count}', String(count));
 
                         if (count > 0) {
@@ -963,9 +961,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             } catch (error) {
                 patch(id, { isChecking: false, progress: '' });
                 if (axios.isAxiosError(error) && error.response?.status === 409) {
-                    toast.warning(
-                        error.response.data?.error ?? manifest.statusLabels.already_running ?? 'Already running.',
-                    );
+                    toast.warning(error.response.data?.error ?? manifest.statusLabels.already_running ?? 'Already running.');
                 } else {
                     toast.error(`Failed to start ${manifest.name}.`);
                 }
@@ -1031,9 +1027,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             addProcessingId(manifest.id, suggestionId);
 
             try {
-                const { data } = await axios.post<AcceptResponse>(
-                    `/assistance/${manifest.routePrefix}/${suggestionId}/accept`,
-                );
+                const { data } = await axios.post<AcceptResponse>(`/assistance/${manifest.routePrefix}/${suggestionId}/accept`);
 
                 if (data.success) {
                     toast.success(data.message);
@@ -1102,14 +1096,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     />
                 );
             case 'size-format-suggestion':
-                return (
-                    <SizeFormatSuggestionCard
-                        suggestion={item}
-                        onAccept={onAccept}
-                        onDecline={onDecline}
-                        isProcessing={isProcessing}
-                    />
-                );
+                return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
             case 'spdx-license-suggestion':
                 return (
                     <SpdxRightsSuggestionCard
@@ -1186,7 +1173,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     const state = states[manifest.id];
                     if (!state?.isChecking || !state.progress) return null;
                     return (
-                        <div key={`progress-${manifest.id}`} className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                        <div
+                            key={`progress-${manifest.id}`}
+                            className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground"
+                        >
                             <Spinner size="sm" />
                             <span>{state.progress}</span>
                         </div>
@@ -1228,12 +1218,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                             : manifest.emptyState.description}
                                     </CardDescription>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleCheck(manifest)}
-                                    disabled={state?.isChecking ?? false}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => handleCheck(manifest)} disabled={state?.isChecking ?? false}>
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />
