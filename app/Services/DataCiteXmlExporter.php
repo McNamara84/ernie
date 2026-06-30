@@ -280,18 +280,22 @@ class DataCiteXmlExporter
             }
 
             // Add language
-            if ($resource->language) {
-                $titleElement->setAttributeNS(
-                    self::XML_NAMESPACE,
-                    'xml:lang',
-                    $resource->language->code ?? 'en'
-                );
+            
+                $lang = null;
+
+            if ($title->language) {
+                $lang = strtolower($title->language);
+            } elseif ($resource->language) {
+                $lang = $resource->language->code ?? 'en';
             } elseif ($resource->igsnMetadata) {
-                // IGSN resources default to English since IGSN CSV doesn't include language
+                $lang = 'en';
+            }
+
+            if ($lang !== null) {
                 $titleElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    'en'
+                    $lang
                 );
             }
 
