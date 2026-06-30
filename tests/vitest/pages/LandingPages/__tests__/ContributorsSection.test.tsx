@@ -78,7 +78,7 @@ describe('ContributorsSection', () => {
                 {
                     id: 1,
                     name: "ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso",
-                    affiliation_identifier: ' https://ror.org/01abcde23 ',
+                    affiliation_identifier: ' ror.org/01ABCDe23/ ',
                     affiliation_identifier_scheme: 'ROR',
                 },
                 {

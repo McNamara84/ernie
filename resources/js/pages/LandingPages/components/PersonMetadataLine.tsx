@@ -21,13 +21,25 @@ function resolveOrcidUrl(identifier: string): string {
 }
 
 function resolveRorUrl(affiliation: LandingPageAffiliation): string | null {
-    const normalizedIdentifier = affiliation.affiliation_identifier?.trim() ?? '';
+    const identifier = affiliation.affiliation_identifier?.trim() ?? '';
 
-    if (normalizedIdentifier === '' || affiliation.affiliation_identifier_scheme?.toUpperCase() !== 'ROR') {
+    if (identifier === '' || affiliation.affiliation_identifier_scheme?.toUpperCase() !== 'ROR') {
         return null;
     }
 
-    return normalizedIdentifier;
+    const rorUrlMatch = identifier.match(/^(?:https?:\/\/)?(?:www\.)?ror\.org\/(.+)$/i);
+
+    if (!rorUrlMatch && /^https?:\/\//i.test(identifier)) {
+        return null;
+    }
+
+    const rorId = (rorUrlMatch?.[1] ?? identifier).replace(/^\/+|\/+$/g, '').toLowerCase();
+
+    if (!/^[a-z0-9]+$/.test(rorId)) {
+        return null;
+    }
+
+    return `https://ror.org/${rorId}`;
 }
 
 export function PersonMetadataLine({ name, orcid, affiliations = [], roleLabel }: PersonMetadataLineProps) {

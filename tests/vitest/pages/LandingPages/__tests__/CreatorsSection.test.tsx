@@ -59,14 +59,34 @@ describe('CreatorsSection', () => {
                 {
                     id: 1,
                     name: 'GFZ Potsdam',
-                    affiliation_identifier: ' https://ror.org/04z8jg394 ',
+                    affiliation_identifier: ' www.ror.org/04z8jg394 ',
                     affiliation_identifier_scheme: 'ROR',
                 },
             ],
         });
         render(<CreatorsSection creators={[creator]} />);
         expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
-        expect(screen.getByLabelText('ROR profile of GFZ Potsdam')).toBeInTheDocument();
+        const rorLink = screen.getByLabelText('ROR profile of GFZ Potsdam');
+        expect(rorLink).toBeInTheDocument();
+        expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
+    });
+
+    it('does not render ROR link for non-ROR absolute URL identifiers', () => {
+        const creator = mockCreator({
+            affiliations: [
+                {
+                    id: 1,
+                    name: 'Example Institute',
+                    affiliation_identifier: 'https://example.com/institution',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+            ],
+        });
+
+        render(<CreatorsSection creators={[creator]} />);
+
+        expect(screen.getByText('Example Institute')).toBeInTheDocument();
+        expect(screen.queryByLabelText('ROR profile of Example Institute')).not.toBeInTheDocument();
     });
 
     it('renders all creator affiliations in a prose list item', () => {
@@ -90,7 +110,7 @@ describe('CreatorsSection', () => {
                 {
                     id: 2,
                     name: 'Light Pollution Science and Technology Institute, Thiene, Italy',
-                    affiliation_identifier: ' https://ror.org/04z8jg394 ',
+                    affiliation_identifier: '04Z8JG394',
                     affiliation_identifier_scheme: 'ROR',
                 },
             ],
