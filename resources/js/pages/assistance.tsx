@@ -16,8 +16,8 @@ import {
     type AssistantManifest,
     type BaseSuggestionItem,
     type CheckStatusResponse,
-    type SuggestedCrossrefFunderRorItem,
     type PaginatedData,
+    type SuggestedCrossrefFunderRorItem,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
@@ -596,11 +596,22 @@ function CrossrefFunderRorSuggestionCard({
                 </div>
 
                 <div className="flex shrink-0 gap-2 self-start">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`crossref-funder-ror-decline-${suggestion.id}`}
+                        onClick={() => onDecline(suggestion.id)}
+                    >
                         <X className="mr-1 h-4 w-4" />
                         Decline
                     </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`crossref-funder-ror-accept-${suggestion.id}`}
+                        onClick={() => onAccept(suggestion.id)}
+                    >
                         <Check className="mr-1 h-4 w-4" />
                         Accept
                     </Button>
