@@ -11,7 +11,9 @@ use Closure;
 
 final class DateTypeDiscoveryService
 {
-    public const string TARGET_TYPE = 'resource_date_geolocation_count';
+    public const string TARGET_TYPE = 'date_type';
+
+    private const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
 
     // oder 100??
     private const int CHUNK_SIZE = 50;
@@ -81,8 +83,8 @@ final class DateTypeDiscoveryService
             ->filter()
             ->all();
 
-        $hasCreated = in_array('Created', $existingDateTypes, true);
-        $hasIssued = in_array('Issued', $existingDateTypes, true);
+        $hasCreated = in_array('Created', $existingDateTypes, true) || in_array('created', $existingDateTypes, true);
+        $hasIssued = in_array('Issued', $existingDateTypes, true) || in_array('issued', $existingDateTypes, true);
 
         foreach ($suggestions as $suggestion) 
         {
@@ -113,7 +115,7 @@ final class DateTypeDiscoveryService
 
             $stored = $storeSuggestion(
                 $resource->id,
-                'date_type',
+                self::TARGET_TYPE,
                 $resource->id,
                 $suggestedValue,
                 strtoupper($type).': '.$suggestedValue,
@@ -136,29 +138,27 @@ final class DateTypeDiscoveryService
         $query = Resource::query()
             ->whereNotNull('doi')
             ->whereDoesntHave('igsnMetadata')
-            ->whereHas('dates.dateType', fn (Builder $query): Builder => $query
-                ->whereIn('slug', self::COLLECTED_DATE_TYPES))
             ->whereDoesntHave('resourceType', fn (Builder $query): Builder => $query->where('slug', 'physical-object'))
             ->where(function (Builder $query): void {
                 $query->whereDoesntHave('dates', function (Builder $query): void 
                 {
                     $query->whereHas('dateType', function (Builder $query): void  
                     {
-                        $query->where('slug', 'Created');
+                        $query->whereIn('slug', ['Created', 'created']);
                     });
                 })
                 ->orWhereDoesntHave('dates', function (Builder $query): void 
                 {
                     $query->whereHas('dateType', function (Builder $query): void  
                     {
-                        $query->where('slug', 'Issued'); 
+                        $query->whereIn('slug', ['Issued', 'issued']); 
                     });
                 })
                 ->orWhereHas('dates', function (Builder $query): void 
                 {
                     $query->whereHas('dateType', function (Builder $query): void 
                     {
-                        $query->where('slug', 'Collected');
+                        $query->whereIn('slug', self::COLLECTED_DATE_TYPES);
                     });
                 });
             });
@@ -183,7 +183,7 @@ final class DateTypeDiscoveryService
 
         return $storeSuggestion(
             $resource->id,
-            self::TARGET_TYPE,
+            self::GEOLOCATION_COUNT_TARGET_TYPE,
             $resource->id,
             $suggestedValue,
             $suggestedLabel,
