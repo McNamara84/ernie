@@ -40,7 +40,9 @@ class Assistant extends AbstractAssistant
 
         return SuggestedRor::with(['resource.titles.titleType'])
             ->joinSub($enrichableCounts, 'enrichable_counts', 'suggested_rors.resource_id', '=', 'enrichable_counts.resource_id')
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
             ->select('suggested_rors.*', 'enrichable_counts.enrichable_count')
+            ->orderByDesc('resources.created_at')
             ->orderByDesc('enrichable_counts.enrichable_count')
             ->orderByDesc('suggested_rors.similarity_score')
             ->paginate(perPage: $perPage, pageName: 'ror_page');

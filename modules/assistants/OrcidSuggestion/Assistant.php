@@ -83,7 +83,9 @@ class Assistant extends AbstractAssistant
 
         return SuggestedOrcid::with(['resource.titles.titleType', 'person'])
             ->joinSub($enrichableCounts, 'enrichable_counts', 'suggested_orcids.resource_id', '=', 'enrichable_counts.resource_id')
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
             ->select('suggested_orcids.*', 'enrichable_counts.enrichable_count')
+            ->orderByDesc('resources.created_at')
             ->orderByDesc('enrichable_counts.enrichable_count')
             ->orderByDesc('suggested_orcids.similarity_score')
             ->paginate(perPage: $perPage, pageName: 'orcid_page');
