@@ -661,6 +661,51 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
         expect(screen.getByText('ror_display_name_differs_from_local_name')).toBeInTheDocument();
     });
 
+    it('renders sparse Crossref Funder ROR metadata with fallback labels', () => {
+        const sparseMetadata: SuggestedCrossrefFunderRorItem['metadata'] = {
+            current: {},
+            proposed: {
+                ror_id: 'not-a-ror-url',
+                ror_types: ['funder', '', { ignored: true }] as unknown as string[],
+            },
+            confidence: {
+                level: 'low',
+                evidence: ['single_active_ror_candidate', '', { ignored: true }] as unknown as string[],
+            },
+            ambiguity: {
+                status: 'none',
+                warnings: [],
+            },
+            acceptance: {
+                preserve: [],
+            },
+        };
+        const suggestion = makeCrossrefFunderRorSuggestion({
+            suggested_value: 'not-a-ror-url',
+            suggested_label: 'Sparse mapping suggestion',
+            similarity_score: null,
+            metadata: sparseMetadata,
+            discovered_at: '',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [CROSSREF_FUNDER_ROR_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(CROSSREF_FUNDER_ROR_ASSISTANT_ID, CROSSREF_FUNDER_ROR_ROUTE_PREFIX, CROSSREF_FUNDER_ROR_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('Sparse mapping suggestion')).toBeInTheDocument();
+        expect(screen.getByText('Low confidence')).toBeInTheDocument();
+        expect(screen.getByText('No ambiguity')).toBeInTheDocument();
+        expect(screen.getByText('No metadata captured.')).toBeInTheDocument();
+        expect(screen.getByText('funder')).toBeInTheDocument();
+        expect(screen.getByText('Confidence evidence: single_active_ror_candidate')).toBeInTheDocument();
+        expect(screen.getByText('Discovered: -')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'not-a-ror-url' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/Preserved fields:/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/registry match/)).not.toBeInTheDocument();
+    });
     it('renders canonical ROR identifiers as safe links', () => {
         const suggestion = makeCrossrefFunderRorSuggestion();
 

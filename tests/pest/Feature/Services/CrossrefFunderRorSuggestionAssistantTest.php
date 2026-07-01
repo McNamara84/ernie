@@ -177,6 +177,54 @@ it('does not accept stale Crossref-to-ROR suggestions when the current FundRef I
         ->and($fundingReference->funder_identifier_type_id)->toBe($crossrefType->id)
         ->and($fundingReference->scheme_uri)->toBe('https://doi.org/10.13039/');
 });
+it('rejects Crossref-to-ROR suggestions targeting unsupported entities', function (): void {
+    [$resource, $fundingReference, $crossrefType] = crossrefFunderRorAcceptanceFixture('10.5880/GFZ.2026.020');
+    $suggestion = crossrefFunderRorAcceptanceSuggestion(
+        $resource,
+        $fundingReference,
+        [],
+        ['target_type' => 'resource'],
+    );
+
+    $result = app(Assistant::class)->acceptSuggestion($suggestion->id);
+    $fundingReference->refresh();
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('unsupported entity type')
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and($fundingReference->funder_identifier_type_id)->toBe($crossrefType->id);
+});
+
+it('rejects Crossref-to-ROR suggestions whose funding reference no longer exists', function (): void {
+    [$resource, $fundingReference] = crossrefFunderRorAcceptanceFixture('10.5880/GFZ.2026.021');
+    $suggestion = crossrefFunderRorAcceptanceSuggestion($resource, $fundingReference);
+
+    $fundingReference->delete();
+
+    $result = app(Assistant::class)->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('no longer exists')
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
+it('rejects Crossref-to-ROR suggestions that do not propose a ROR identifier payload', function (): void {
+    [$resource, $fundingReference, $crossrefType] = crossrefFunderRorAcceptanceFixture('10.5880/GFZ.2026.022');
+    $suggestion = crossrefFunderRorAcceptanceSuggestion($resource, $fundingReference, [
+        'proposed' => [
+            'funder_identifier_type' => 'Crossref Funder ID',
+            'scheme_uri' => 'https://doi.org/10.13039/',
+        ],
+    ]);
+
+    $result = app(Assistant::class)->acceptSuggestion($suggestion->id);
+    $fundingReference->refresh();
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('Only ROR funder identifier suggestions')
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and($fundingReference->funder_identifier_type_id)->toBe($crossrefType->id);
+});
 it('does not accept suggestions when the target is no longer a Crossref Funder ID', function (): void {
     [$resource, $fundingReference, $crossrefType] = crossrefFunderRorAcceptanceFixture('10.5880/GFZ.2026.008');
     $otherType = FunderIdentifierType::where('name', 'Other')->firstOrFail();

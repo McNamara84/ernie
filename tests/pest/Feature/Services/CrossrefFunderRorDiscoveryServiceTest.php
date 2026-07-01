@@ -124,6 +124,13 @@ it('reads only eligible Crossref Funder ID funding references as normalized inpu
 
     crossrefFunderRorFundingReference(
         resource: $resource,
+        funderName: 'Malformed Crossref Funder ID',
+        identifier: 'https://doi.org/10.13039/not-numeric',
+        type: $crossrefType,
+    );
+
+    crossrefFunderRorFundingReference(
+        resource: $resource,
         funderName: 'Already ROR-normalized DFG',
         identifier: 'https://ror.org/018mejw64',
         type: $rorType,
@@ -467,4 +474,191 @@ it('suppresses exact mappings when all ROR candidates are inactive or not funder
         ->and($storedSuggestions)->toBeEmpty()
         ->and(implode("\n", $progressMessages))->toContain('only_inactive_or_withdrawn_ror_matches')
         ->and(implode("\n", $progressMessages))->toContain('ror_candidate_not_funder_type');
+});
+it('returns early when there are no eligible Crossref Funder ID funding references', function (): void {
+    $this->seed(FunderIdentifierTypeSeeder::class);
+
+    $mappingSource = new CrossrefFunderRorInMemoryMappingSource([]);
+    $service = new CrossrefFunderRorDiscoveryService(
+        inputProvider: new CrossrefFunderRorMatchInputProvider,
+        mappingSource: $mappingSource,
+    );
+
+    $progressMessages = [];
+
+    $count = $service->discover(
+        storeSuggestion: fn (): bool => throw new RuntimeException('No suggestion should be stored.'),
+        onProgress: function (string $message) use (&$progressMessages): void {
+            $progressMessages[] = $message;
+        },
+    );
+
+    expect($count)->toBe(0)
+        ->and($mappingSource->requestedFundrefIds)->toBe([])
+        ->and(implode("\n", $progressMessages))->toContain('No eligible Crossref Funder ID funding references found.');
+});
+
+it('does not count suggestions rejected by the storage callback', function (): void {
+    $this->seed(FunderIdentifierTypeSeeder::class);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.017')->create();
+    $crossrefType = crossrefFunderRorType('Crossref Funder ID');
+
+    crossrefFunderRorFundingReference(
+        resource: $resource,
+        funderName: 'Deutsche Forschungsgemeinschaft',
+        identifier: 'https://doi.org/10.13039/501100001659',
+        type: $crossrefType,
+    );
+
+    $mappingSource = new CrossrefFunderRorInMemoryMappingSource([
+        '501100001659' => [crossrefFunderRorCandidate()],
+    ]);
+    $service = new CrossrefFunderRorDiscoveryService(
+        inputProvider: new CrossrefFunderRorMatchInputProvider,
+        mappingSource: $mappingSource,
+    );
+
+    $progressMessages = [];
+
+    $count = $service->discover(
+        storeSuggestion: fn (): bool => false,
+        onProgress: function (string $message) use (&$progressMessages): void {
+            $progressMessages[] = $message;
+        },
+    );
+
+    expect($count)->toBe(0)
+        ->and(implode("\n", $progressMessages))->toContain('Stored 0 Crossref-to-ROR suggestion(s); suppressed 0 mapping(s).');
+});
+
+it('suppresses candidates with incomplete exact-match evidence or provenance', function (): void {
+    $this->seed(FunderIdentifierTypeSeeder::class);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.018')->create();
+    $crossrefType = crossrefFunderRorType('Crossref Funder ID');
+
+    crossrefFunderRorFundingReference(
+        resource: $resource,
+        funderName: 'Deutsche Forschungsgemeinschaft',
+        identifier: 'https://doi.org/10.13039/501100001659',
+        type: $crossrefType,
+    );
+
+    $mappingSource = new CrossrefFunderRorInMemoryMappingSource([
+        '501100001659' => [
+            crossrefFunderRorCandidate([
+                'external_ids' => [
+                    'fundref' => [
+                        'all' => ['501100004238'],
+                        'preferred' => '501100004238',
+                    ],
+                ],
+            ]),
+            crossrefFunderRorCandidate([
+                'ror_id' => 'not-a-ror-id',
+            ]),
+            crossrefFunderRorCandidate([
+                'source' => 'not-provenance',
+            ]),
+        ],
+    ]);
+    $service = new CrossrefFunderRorDiscoveryService(
+        inputProvider: new CrossrefFunderRorMatchInputProvider,
+        mappingSource: $mappingSource,
+    );
+
+    $progressMessages = [];
+
+    $count = $service->discover(
+        storeSuggestion: fn (): bool => true,
+        onProgress: function (string $message) use (&$progressMessages): void {
+            $progressMessages[] = $message;
+        },
+    );
+
+    $messages = implode("\n", $progressMessages);
+
+    expect($count)->toBe(0)
+        ->and($messages)->toContain('no_exact_ror_fundref_match')
+        ->and($messages)->toContain('ror_candidate_missing_valid_id')
+        ->and($messages)->toContain('ror_candidate_missing_provenance');
+});
+
+it('stores warning metadata when the local funder name differs from ROR names', function (): void {
+    $this->seed(FunderIdentifierTypeSeeder::class);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.019')->create();
+    $crossrefType = crossrefFunderRorType('Crossref Funder ID');
+
+    crossrefFunderRorFundingReference(
+        resource: $resource,
+        funderName: 'Local funding agency label',
+        identifier: 'https://doi.org/10.13039/501100001659',
+        type: $crossrefType,
+    );
+
+    $mappingSource = new CrossrefFunderRorInMemoryMappingSource([
+        '501100001659' => [
+            crossrefFunderRorCandidate([
+                'id' => 'https://ror.org/018mejw64',
+                'ror_id' => null,
+                'display_name' => 'Remote ROR Display Name',
+                'ror_display_name' => null,
+                'status' => 'active',
+                'ror_status' => null,
+                'types' => ['funder'],
+                'ror_types' => null,
+                'names' => [
+                    'Remote Alternate Name',
+                    ['value' => 'Remote Value Name'],
+                    ['label' => 'Remote Label Name'],
+                    ['ignored' => 'missing value'],
+                ],
+                'aliases' => ['Remote Alias'],
+                'labels' => [['label' => 'Remote Localized Label']],
+            ]),
+        ],
+    ]);
+    $service = new CrossrefFunderRorDiscoveryService(
+        inputProvider: new CrossrefFunderRorMatchInputProvider,
+        mappingSource: $mappingSource,
+    );
+
+    $storedSuggestions = [];
+
+    $count = $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$storedSuggestions): bool {
+            $storedSuggestions[] = compact(
+                'resourceId',
+                'targetType',
+                'targetId',
+                'suggestedValue',
+                'suggestedLabel',
+                'similarityScore',
+                'metadata',
+            );
+
+            return true;
+        },
+        onProgress: fn (string $message): null => null,
+    );
+
+    expect($count)->toBe(1)
+        ->and($storedSuggestions[0]['metadata']['proposed']['ror_display_name'])->toBe('Remote ROR Display Name')
+        ->and($storedSuggestions[0]['metadata']['proposed']['ror_status'])->toBe('active')
+        ->and($storedSuggestions[0]['metadata']['proposed']['ror_types'])->toBe(['funder'])
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['status'])->toBe('warning')
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['warnings'])->toEqualCanonicalizing([
+            'local_name_not_found_in_ror_names',
+            'ror_display_name_differs_from_local_name',
+        ]);
 });
