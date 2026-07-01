@@ -11,9 +11,16 @@ use App\Models\User;
 use App\Services\CrossrefFunderRor\CrossrefFunderRorDiscoveryService;
 use Database\Seeders\FunderIdentifierTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Vite;
 use Tests\TestCase;
 
 uses(RefreshDatabase::class)->group('assistant', 'browser', 'crossref-funder-ror');
+
+beforeEach(function (): void {
+    app(Vite::class)
+        ->useHotFile(storage_path('framework/testing-vite.hot'))
+        ->useBuildDirectory('build');
+});
 
 it('reviews and accepts a Crossref Funder ID to ROR suggestion from assistance', function (): void {
     /** @var TestCase $this */
