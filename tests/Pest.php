@@ -83,3 +83,36 @@ expect()->extend('toBeSuccessfulResponse', function () {
 */
 
 require_once __DIR__.'/pest/Helpers.php';
+
+describe('Issue #920 - DOI Link Checks', () => {
+
+// Test 1:
+it('Must render DOI element in view', () => {
+const doiLink = wrapper.find('.doi-link');
+expect(doiLink.exists()).toBe(true);
+});
+
+// Test 2:
+it('Must use an HTML anchor tag for DOI', () => {
+const doiLink = wrapper.find('.doi-link');
+expect(doiLink.element.tagName).toBe('A');
+});
+
+// Test 3:
+it('Must have a valid href attribute defined', () => {
+const doiLink = wrapper.find('.doi-link');
+expect(doiLink.attributes('href')).toBeDefined();
+});
+
+// Test 4:
+it('Must include underline class for clear identification', () => {
+const doiLink = wrapper.find('.doi-link');
+expect(doiLink.classes()).toContain('underline');
+});
+
+// Test 5:
+it('Must have target="_blank" attribute to open in a new tab', () => {
+const doiLink = wrapper.find('.doi-link');
+expect(doiLink.attributes('target')).toBe('_blank');
+});
+});
