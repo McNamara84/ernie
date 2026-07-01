@@ -112,6 +112,10 @@
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
             },
             {
+                "title": "Assistance: Crossref Funder ID to ROR Suggestions",
+                "description": "The Assistance page now includes a Crossref Funder ID to ROR assistant for funding references. It uses the locally generated ROR FundRef index to propose high-confidence ROR identifiers for funding references that currently use Crossref Funder IDs, shows provenance and exact-match evidence for review, and lets curators accept or decline each suggestion while preserving award metadata."
+            },
+            {
                 "title": "Assistance: SPDX Rights Suggestions",
                 "description": "Imported DataCite rights statements are now preserved as raw resource-right rows even before they are linked to the shared SPDX license catalog. The new SPDX Rights Suggestions assistant on /assistance reviews unresolved rights metadata from legacy, XML, and JSON imports, proposes trusted SPDX matches with evidence, and lets curators accept or decline each suggestion. Accepted suggestions link only the affected rights statement to the catalog while keeping the imported evidence for audit and export round-tripping."
             },

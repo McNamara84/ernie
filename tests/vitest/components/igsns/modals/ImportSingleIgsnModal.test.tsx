@@ -221,7 +221,9 @@ describe('ImportSingleIgsnModal', () => {
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
         expect(screen.getByText('Related IGSNs included')).toBeInTheDocument();
         expect(screen.getByText(/2 related IGSNs included/i)).toBeInTheDocument();
-        expect(mockOnSuccess).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(mockOnSuccess).toHaveBeenCalledOnce();
+        });
     });
 
     it('sends cancel request while running', async () => {
@@ -367,7 +369,9 @@ describe('ImportSingleIgsnModal', () => {
         vi.advanceTimersByTime(2000);
 
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
-        expect(mockOnSuccess).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(mockOnSuccess).toHaveBeenCalledOnce();
+        });
     });
 
     it('shows failed status from polling using failed DOI fallback error text', async () => {
@@ -455,7 +459,9 @@ describe('ImportSingleIgsnModal', () => {
         expect(screen.getByText('Import cancelled').closest('[role="alert"]')).toHaveClass('border-yellow-200');
         expect(screen.getByText('Import cancelled').closest('[role="alert"]')).not.toHaveClass('border-green-200');
         expect(screen.getByText(/Import stopped after processing 1 of 3 IGSNs/i)).toBeInTheDocument();
-        expect(mockOnSuccess).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(mockOnSuccess).toHaveBeenCalledOnce();
+        });
     });
 
     it('shows skipped and failed DOI details after expanding result sections', async () => {
