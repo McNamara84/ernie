@@ -579,6 +579,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 the ROR API v2
                             </li>
                             <li>
+                                <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
+                                proposes safe ROR replacements from the local ROR FundRef index
+                            </li>
+                            <li>
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed license
                                 metadata before export
                             </li>
