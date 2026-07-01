@@ -132,10 +132,14 @@ describe('RelatedItemForm', () => {
         );
 
         // Title field should now contain the autofilled value
-        expect(screen.getByDisplayValue('Autofilled Title')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('Autofilled Title')).toBeInTheDocument();
+        });
         // Open publication details to reveal publisher input
         await user.click(screen.getByRole('button', { name: /Publication details/ }));
-        expect(screen.getByDisplayValue('ACME')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('ACME')).toBeInTheDocument();
+        });
     });
 
     it('invokes onCancel when the Cancel button is clicked', async () => {
