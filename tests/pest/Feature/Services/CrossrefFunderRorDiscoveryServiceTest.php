@@ -316,6 +316,69 @@ it('stores high-confidence suggestions for exact active ROR fundref mappings', f
         ->and($progressMessages)->not->toBeEmpty();
 });
 
+it('ignores non-scalar FundRef external ID values while matching candidates', function (): void {
+    $this->seed(FunderIdentifierTypeSeeder::class);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.023')->create();
+    $crossrefType = crossrefFunderRorType('Crossref Funder ID');
+
+    crossrefFunderRorFundingReference(
+        resource: $resource,
+        funderName: 'Deutsche Forschungsgemeinschaft',
+        identifier: 'https://doi.org/10.13039/501100001659',
+        type: $crossrefType,
+    );
+
+    $mappingSource = new CrossrefFunderRorInMemoryMappingSource([
+        '501100001659' => [
+            crossrefFunderRorCandidate([
+                'external_ids' => [
+                    'fundref' => [
+                        'all' => [
+                            ['nested' => '501100001659'],
+                            (object) ['value' => '501100001659'],
+                            '',
+                            ' 501100001659 ',
+                        ],
+                        'preferred' => (object) ['value' => '501100001659'],
+                    ],
+                ],
+            ]),
+        ],
+    ]);
+
+    $service = new CrossrefFunderRorDiscoveryService(
+        inputProvider: new CrossrefFunderRorMatchInputProvider,
+        mappingSource: $mappingSource,
+    );
+
+    $storedMetadata = [];
+
+    $count = $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$storedMetadata): bool {
+            $storedMetadata[] = $metadata;
+
+            return true;
+        },
+        onProgress: fn (string $message): null => null,
+    );
+
+    expect($count)->toBe(1)
+        ->and($storedMetadata[0]['proposed']['matched_external_id'])->toBe([
+            'type' => 'fundref',
+            'value' => '501100001659',
+            'matched_in' => 'external_ids[type=fundref].all',
+            'preferred' => null,
+        ]);
+});
 it('suppresses valid Crossref Funder IDs when no exact ROR fundref mapping exists', function (): void {
     $this->seed(FunderIdentifierTypeSeeder::class);
 

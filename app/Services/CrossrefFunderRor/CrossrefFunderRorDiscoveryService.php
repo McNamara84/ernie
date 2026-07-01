@@ -222,7 +222,10 @@ final readonly class CrossrefFunderRorDiscoveryService
             return null;
         }
 
-        $values = array_map(fn (mixed $value): string => trim((string) $value), $all);
+        $values = array_values(array_filter(
+            array_map(fn (mixed $value): ?string => $this->stringValue($value), $all),
+            fn (?string $value): bool => $value !== null,
+        ));
 
         if (! in_array($fundrefId, $values, true)) {
             return null;
