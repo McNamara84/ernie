@@ -10,6 +10,7 @@
     "cache_key_prefix": "title_language_detection",
     "sort_order": 45,
     "status_labels": {
+        
         "checking": "Detecting title languages...",
         "completed_with_results": "Language detection completed: {count} new suggestion(s) found.",
         "completed_empty": "Language detection completed: No new suggestions found.",
