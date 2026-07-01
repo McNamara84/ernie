@@ -12,19 +12,23 @@ class ResourceLanguageAssistant
     {
         $this->detector = new LanguageDetector();
 
-        // Optional: only compare project-relevant languages.
-        // For ERNIE this is useful if the baseline focuses on de/en/fr.
+        // Limit detection to languages that are currently relevant for the project.
+        // This reduces false positives and keeps the first implementation simple.
         $this->detector->langSubset(['de', 'en', 'fr']);
     }
 
     public function suggest(array $resource): ?array
     {
+        // Do not create a suggestion if the resource already has a language.
+        // This prevents accidental overwrites in the preview step.
         if (!empty($resource['language'])) {
             return null;
         }
 
+        // Collect all text fields that may provide language evidence.
         $texts = $this->collectTexts($resource);
 
+        // If there is no usable text, no reliable suggestion can be created.
         if (count($texts) === 0) {
             return null;
         }
@@ -34,10 +38,13 @@ class ResourceLanguageAssistant
         foreach ($texts as $textItem) {
             $detected = $this->detectLanguage($textItem['text']);
 
+            // Skip text parts where the detector cannot return a useful result.
             if ($detected === null) {
                 continue;
             }
 
+            // Store each detection result as reviewer-facing evidence.
+            // This is later used by the Assistance preview.
             $evidence[] = [
                 'source' => $textItem['source'],
                 'text' => $textItem['text'],
@@ -51,23 +58,18 @@ class ResourceLanguageAssistant
             return null;
         }
 
+        // Decide whether the collected evidence is strong enough
+        // to create a resource language suggestion.
         $decision = $this->decide($evidence);
 
         if ($decision === null) {
             return null;
         }
 
-        return [
-            'type' => 'resource-language-suggestion',
-            'resource_id' => $resource['id'] ?? null,
-            'proposed_language' => $decision['language'],
-            'proposed_language_label' => $this->languageLabel($decision['language']),
-            'confidence' => $decision['confidence'],
-            'status' => 'suggested',
-            'evidence_summary' => $decision['summary'],
-            'explanation' => $decision['explanation'],
-            'evidence' => $evidence,
-        ];
+        // Task 1: Build the reviewer preview.
+        // This payload contains exactly the data the Assistance card needs:
+        // proposed language, confidence and evidence summary.
+        return $this->buildReviewerPreview($resource, $decision, $evidence);
     }
 
     private function collectTexts(array $resource): array
@@ -77,6 +79,7 @@ class ResourceLanguageAssistant
         foreach ($resource['titles'] ?? [] as $title) {
             $value = trim((string) ($title['title'] ?? ''));
 
+            // Short titles are risky for language detection.
             if (mb_strlen($value) >= 10) {
                 $texts[] = [
                     'source' => 'title',
@@ -88,6 +91,7 @@ class ResourceLanguageAssistant
         foreach ($resource['descriptions'] ?? [] as $description) {
             $value = trim((string) ($description['description'] ?? ''));
 
+            // Descriptions provide stronger evidence, but should still contain enough text.
             if (mb_strlen($value) >= 30) {
                 $texts[] = [
                     'source' => 'description',
@@ -114,6 +118,8 @@ class ResourceLanguageAssistant
     {
         $result = $this->detector->detect($text);
 
+        // "und" means undetermined.
+        // In that case the assistant should not create evidence.
         if ($result->language === 'und') {
             return null;
         }
@@ -133,6 +139,7 @@ class ResourceLanguageAssistant
         $languages = [];
 
         foreach ($evidence as $item) {
+            // Only reliable detection results are used for the final suggestion.
             if (!$item['reliable']) {
                 continue;
             }
@@ -154,17 +161,18 @@ class ResourceLanguageAssistant
             return null;
         }
 
-        arsort($languages);
-
-        $bestLanguage = array_key_first($languages);
-        $best = $languages[$bestLanguage];
-
+        // If multiple languages are detected, skip for now.
+        // This avoids forcing multilingual records into one resource language.
         if (count($languages) > 1) {
             return null;
         }
 
+        $bestLanguage = array_key_first($languages);
+        $best = $languages[$bestLanguage];
+
         $confidence = (int) round($best['confidence_sum'] / $best['count']);
 
+        // Low confidence suggestions should not be shown to the curator.
         if ($confidence < 60) {
             return null;
         }
@@ -177,6 +185,46 @@ class ResourceLanguageAssistant
                 'The resource has no language value. The available metadata consistently indicates %s.',
                 $this->languageLabel($bestLanguage)
             ),
+        ];
+    }
+
+    private function buildReviewerPreview(array $resource, array $decision, array $evidence): array
+    {
+        // This method is the implementation of Task 1:
+        // "Build the reviewer preview."
+        //
+        // The returned structure is designed for the Assistance card.
+        // The UI can display:
+        // - proposed_language / proposed_language_label
+        // - confidence
+        // - evidence_summary
+        // - explanation
+        // - evidence details if needed
+
+        return [
+            'type' => 'resource-language-suggestion',
+            'resource_id' => $resource['id'] ?? null,
+
+            // Main reviewer-facing recommendation.
+            'proposed_language' => $decision['language'],
+            'proposed_language_label' => $this->languageLabel($decision['language']),
+
+            // Confidence shown in the Assistance card.
+            'confidence' => $decision['confidence'],
+
+            // Short explanation shown directly in the card preview.
+            'evidence_summary' => $decision['summary'],
+
+            // Longer explanation for reviewer trust and auditability.
+            'explanation' => $decision['explanation'],
+
+            // Detailed evidence can be used by the UI later,
+            // for example in an expandable section.
+            'evidence' => $evidence,
+
+            // The suggestion is only prepared for review here.
+            // Accepting and saving the language belongs to Task 2.
+            'status' => 'pending',
         ];
     }
 
