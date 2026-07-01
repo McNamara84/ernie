@@ -498,6 +498,45 @@ it('does not write FundRef candidates when the ROR status is missing', function 
 
     File::delete([$outputPath, $fundrefIndexPath]);
 });
+
+it('does not write FundRef candidates when the ROR identifier is malformed', function () {
+    $organizations = [
+        [
+            'id' => 'https://ror.org/abcdef123',
+            'name' => 'Malformed ROR identifier organization',
+            'status' => 'active',
+            'types' => ['funder'],
+            'external_ids' => [
+                'FundRef' => [
+                    'preferred' => '501100001659',
+                    'all' => ['501100001659'],
+                ],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://zenodo.org/api/records*' => Http::response(getRorIdsCommandMetadata(), 200),
+        'https://example.org/ror-data-latest.zip' => Http::response(getRorIdsCommandZipData($organizations), 200),
+    ]);
+
+    $outputPath = storage_path('app/testing/'.Str::random(8).'-ror-affiliations.json');
+    $fundrefIndexPath = dirname($outputPath).DIRECTORY_SEPARATOR.'ror-fundref-index.json';
+    File::ensureDirectoryExists(dirname($outputPath));
+
+    $this->artisan('get-ror-ids', ['--output' => $outputPath])
+        ->assertExitCode(0);
+
+    $decoded = json_decode(File::get($outputPath), true, 512, JSON_THROW_ON_ERROR);
+    $fundrefIndex = json_decode(File::get($fundrefIndexPath), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($decoded['total'])->toBe(1)
+        ->and($decoded['data'][0]['prefLabel'])->toBe('Malformed ROR identifier organization')
+        ->and($fundrefIndex['total'])->toBe(0)
+        ->and($fundrefIndex['data'])->toBe([]);
+
+    File::delete([$outputPath, $fundrefIndexPath]);
+});
 it('skips malformed JSONL rows while processing gzipped ROR dumps', function () {
     $validOrganization = [
         'id' => 'https://ror.org/018mejw64',

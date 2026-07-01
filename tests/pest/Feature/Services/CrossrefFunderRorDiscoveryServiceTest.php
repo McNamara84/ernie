@@ -379,6 +379,51 @@ it('ignores non-scalar FundRef external ID values while matching candidates', fu
             'preferred' => null,
         ]);
 });
+
+it('suppresses exact mappings when the ROR identifier does not match the canonical pattern', function (): void {
+    $this->seed(FunderIdentifierTypeSeeder::class);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.024')->create();
+    $crossrefType = crossrefFunderRorType('Crossref Funder ID');
+
+    crossrefFunderRorFundingReference(
+        resource: $resource,
+        funderName: 'Deutsche Forschungsgemeinschaft',
+        identifier: 'https://doi.org/10.13039/501100001659',
+        type: $crossrefType,
+    );
+
+    $mappingSource = new CrossrefFunderRorInMemoryMappingSource([
+        '501100001659' => [
+            crossrefFunderRorCandidate([
+                'ror_id' => 'https://ror.org/abcdef123',
+            ]),
+        ],
+    ]);
+
+    $service = new CrossrefFunderRorDiscoveryService(
+        inputProvider: new CrossrefFunderRorMatchInputProvider,
+        mappingSource: $mappingSource,
+    );
+
+    $storedSuggestions = [];
+    $progressMessages = [];
+
+    $count = $service->discover(
+        storeSuggestion: function () use (&$storedSuggestions): bool {
+            $storedSuggestions[] = true;
+
+            return true;
+        },
+        onProgress: function (string $message) use (&$progressMessages): void {
+            $progressMessages[] = $message;
+        },
+    );
+
+    expect($count)->toBe(0)
+        ->and($storedSuggestions)->toBeEmpty()
+        ->and(implode("\n", $progressMessages))->toContain('ror_candidate_missing_valid_id');
+});
 it('suppresses valid Crossref Funder IDs when no exact ROR fundref mapping exists', function (): void {
     $this->seed(FunderIdentifierTypeSeeder::class);
 

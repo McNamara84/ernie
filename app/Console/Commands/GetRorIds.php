@@ -873,7 +873,7 @@ class GetRorIds extends Command
 
     private function canonicalRorIdentifier(string $identifier): ?string
     {
-        if (preg_match('#^(?:https?://)?(?:www\.)?ror\.org/([a-z0-9]{9})/?$#i', trim($identifier), $matches)) {
+        if (preg_match('#^(?:https?://)?(?:www\.)?ror\.org/(0[a-z0-9]{6}\d{2})/?$#i', trim($identifier), $matches)) {
             return 'https://ror.org/'.strtolower($matches[1]);
         }
 

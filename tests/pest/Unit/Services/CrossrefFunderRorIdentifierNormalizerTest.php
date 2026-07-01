@@ -47,6 +47,10 @@ it('rejects unsupported ROR identifiers', function (?string $input): void {
     'blank' => [''],
     'too short' => ['018mejw6'],
     'too long' => ['018mejw640'],
+    'does not start with zero URL' => ['https://ror.org/abcdef123'],
+    'does not start with zero bare id' => ['abcdef123'],
+    'does not end with two digits URL' => ['https://ror.org/018mejwx4'],
+    'does not end with two digits bare id' => ['018mejwx4'],
     'wrong host' => ['https://example.org/018mejw64'],
     'path suffix' => ['https://ror.org/018mejw64/about'],
 ]);

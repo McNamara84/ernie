@@ -66,11 +66,11 @@ final class CrossrefFunderRorIdentifierNormalizer
             return null;
         }
 
-        if (preg_match('#^(?:https?://)?(?:www\.)?ror\.org/([a-z0-9]{9})/?$#i', $value, $matches)) {
+        if (preg_match('#^(?:https?://)?(?:www\.)?ror\.org/(0[a-z0-9]{6}\d{2})/?$#i', $value, $matches)) {
             return self::ROR_SCHEME_URI.strtolower($matches[1]);
         }
 
-        if (preg_match('/^[a-z0-9]{9}$/i', $value)) {
+        if (preg_match('/^0[a-z0-9]{6}\d{2}$/i', $value)) {
             return self::ROR_SCHEME_URI.strtolower($value);
         }
 
