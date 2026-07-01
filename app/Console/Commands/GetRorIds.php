@@ -763,6 +763,12 @@ class GetRorIds extends Command
             return null;
         }
 
+        $status = $this->stringValue(Arr::get($decoded, 'status'));
+
+        if ($status === null) {
+            return null;
+        }
+
         $types = Arr::get($decoded, 'types', []);
 
         if (! is_array($types)) {
@@ -772,7 +778,7 @@ class GetRorIds extends Command
         return [
             'ror_id' => $rorId,
             'ror_display_name' => $organization['prefLabel'],
-            'ror_status' => $this->stringValue(Arr::get($decoded, 'status')) ?? 'active',
+            'ror_status' => $status,
             'ror_types' => array_values(array_filter(array_map('strval', $types))),
             'ror_record_last_modified' => $this->stringValue(Arr::get($decoded, 'updated'))
                 ?? $this->stringValue(Arr::get($decoded, 'last_modified')),

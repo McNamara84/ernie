@@ -403,6 +403,7 @@ it('processes schema v2 ROR names and list-style FundRef external identifiers', 
             'names' => [
                 ['value' => 'Schema v2 Label Fallback', 'types' => ['label']],
             ],
+            'status' => 'active',
             'types' => 'not-an-array',
             'last_modified' => '2026-02-03T00:00:00Z',
             'external_ids' => [
@@ -460,6 +461,43 @@ it('processes schema v2 ROR names and list-style FundRef external identifiers', 
     File::delete([$outputPath, $fundrefIndexPath]);
 });
 
+it('does not write FundRef candidates when the ROR status is missing', function () {
+    $organizations = [
+        [
+            'id' => 'https://ror.org/018mejw64',
+            'name' => 'Incomplete ROR status organization',
+            'types' => ['funder'],
+            'external_ids' => [
+                'FundRef' => [
+                    'preferred' => '501100001659',
+                    'all' => ['501100001659'],
+                ],
+            ],
+        ],
+    ];
+
+    Http::fake([
+        'https://zenodo.org/api/records*' => Http::response(getRorIdsCommandMetadata(), 200),
+        'https://example.org/ror-data-latest.zip' => Http::response(getRorIdsCommandZipData($organizations), 200),
+    ]);
+
+    $outputPath = storage_path('app/testing/'.Str::random(8).'-ror-affiliations.json');
+    $fundrefIndexPath = dirname($outputPath).DIRECTORY_SEPARATOR.'ror-fundref-index.json';
+    File::ensureDirectoryExists(dirname($outputPath));
+
+    $this->artisan('get-ror-ids', ['--output' => $outputPath])
+        ->assertExitCode(0);
+
+    $decoded = json_decode(File::get($outputPath), true, 512, JSON_THROW_ON_ERROR);
+    $fundrefIndex = json_decode(File::get($fundrefIndexPath), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($decoded['total'])->toBe(1)
+        ->and($decoded['data'][0]['prefLabel'])->toBe('Incomplete ROR status organization')
+        ->and($fundrefIndex['total'])->toBe(0)
+        ->and($fundrefIndex['data'])->toBe([]);
+
+    File::delete([$outputPath, $fundrefIndexPath]);
+});
 it('skips malformed JSONL rows while processing gzipped ROR dumps', function () {
     $validOrganization = [
         'id' => 'https://ror.org/018mejw64',
