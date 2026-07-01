@@ -81,4 +81,183 @@ The implementation should include tests verifying that:
 - A confirmation message accurately summarizes the applied updates.
 
 # Code Vorschlag:
+// app/Providers/AssistantServiceProvider.php
 
+Route::middleware(['web', 'auth', 'verified', 'can:access-assistance'])
+    ->prefix('assistance')
+    ->group(function () use ($registrar) {
+        Route::get('/', [AssistanceController::class, 'index'])
+            ->name('assistance');
+
+        Route::post('/check-all', [AssistanceController::class, 'checkAll'])
+            ->name('assistance.check-all');
+
+        // New: bulk actions for the "All Assistants" tab
+        Route::post('/suggestions/accept-selected', [AssistanceController::class, 'acceptSelected'])
+            ->name('assistance.suggestions.accept-selected');
+
+        Route::post('/suggestions/decline-selected', [AssistanceController::class, 'declineSelected'])
+            ->name('assistance.suggestions.decline-selected');
+
+        foreach ($registrar->getAll() as $assistant) {
+            $prefix = $assistant->getManifest()->routePrefix;
+            $id = $assistant->getId();
+
+            Route::post("/check/{$id}", [AssistanceController::class, 'check'])
+                ->name("assistance.check.{$id}")
+                ->defaults('assistantId', $id);
+
+            Route::post("/{$prefix}/{suggestion}/accept", [AssistanceController::class, 'accept'])
+                ->where('suggestion', '[0-9]+')
+                ->name("assistance.{$id}.accept")
+                ->defaults('assistantId', $id);
+
+            Route::post("/{$prefix}/{suggestion}/decline", [AssistanceController::class, 'decline'])
+                ->where('suggestion', '[0-9]+')
+                ->name("assistance.{$id}.decline")
+                ->defaults('assistantId', $id);
+        }
+    });
+ // app/Http/Controllers/AssistanceController.php
+
+public function acceptSelected(Request $request): JsonResponse
+{
+    $data = $request->validate([
+        'suggestions' => ['required', 'array', 'min:1'],
+        'suggestions.*.assistantId' => ['required', 'string'],
+        'suggestions.*.suggestionId' => ['required', 'integer'],
+    ]);
+
+    $accepted = [];
+
+    foreach ($data['suggestions'] as $item) {
+        $assistant = $this->registrar->get($item['assistantId']);
+
+        if ($assistant === null) {
+            continue;
+        }
+
+        $result = $assistant->acceptSuggestion($item['suggestionId']);
+
+        $accepted[] = [
+            'assistantId' => $item['assistantId'],
+            'suggestionId' => $item['suggestionId'],
+            'result' => $result,
+        ];
+    }
+
+    return response()->json([
+        'success' => true,
+        'acceptedCount' => count($accepted),
+        'accepted' => $accepted,
+    ]);
+}
+
+public function declineSelected(DeclineSuggestionRequest $request): JsonResponse
+{
+    $data = $request->validate([
+        'suggestions' => ['required', 'array', 'min:1'],
+        'suggestions.*.assistantId' => ['required', 'string'],
+        'suggestions.*.suggestionId' => ['required', 'integer'],
+        'reason' => ['nullable', 'string'],
+    ]);
+
+    /** @var User $user */
+    $user = $request->user();
+
+    $declinedCount = 0;
+
+    foreach ($data['suggestions'] as $item) {
+        $assistant = $this->registrar->get($item['assistantId']);
+
+        if ($assistant === null) {
+            continue;
+        }
+
+        $assistant->declineSuggestion(
+            $item['suggestionId'],
+            $user,
+            $request->input('reason')
+        );
+
+        $declinedCount++;
+    }
+
+    return response()->json([
+        'success' => true,
+        'declinedCount' => $declinedCount,
+    ]);
+}
+
+// resources/js/pages/assistance.tsx
+
+type SelectedSuggestion = {
+    assistantId: string;
+    suggestionId: number;
+};
+
+const [activeTab, setActiveTab] = useState<'by-assistant' | 'all-assistants'>('by-assistant');
+const [selected, setSelected] = useState<Record<number, SelectedSuggestion[]>>({});
+
+function toggleSuggestion(resourceId: number, suggestion: SelectedSuggestion) {
+    setSelected((current) => {
+        const existing = current[resourceId] ?? [];
+
+        const alreadySelected = existing.some(
+            (item) =>
+                item.assistantId === suggestion.assistantId &&
+                item.suggestionId === suggestion.suggestionId,
+        );
+
+        return {
+            ...current,
+            [resourceId]: alreadySelected
+                ? existing.filter(
+                      (item) =>
+                          !(
+                              item.assistantId === suggestion.assistantId &&
+                              item.suggestionId === suggestion.suggestionId
+                          ),
+                  )
+                : [...existing, suggestion],
+        };
+    });
+}
+
+function acceptSelected(resourceId: number) {
+    router.post(route('assistance.suggestions.accept-selected'), {
+        suggestions: selected[resourceId] ?? [],
+    });
+}
+
+function acceptAll(resourceId: number, suggestions: SelectedSuggestion[]) {
+    router.post(route('assistance.suggestions.accept-selected'), {
+        suggestions,
+    });
+}
+
+function groupSuggestionsByResource(sections: Record<string, any>) {
+    const grouped: Record<number, any> = {};
+
+    Object.entries(sections).forEach(([assistantId, paginatedSuggestions]) => {
+        paginatedSuggestions.data.forEach((suggestion: any) => {
+            const resourceId = suggestion.resource_id;
+
+            if (!grouped[resourceId]) {
+                grouped[resourceId] = {
+                    resourceId,
+                    doi: suggestion.doi,
+                    title: suggestion.title,
+                    suggestions: [],
+                };
+            }
+
+            grouped[resourceId].suggestions.push({
+                ...suggestion,
+                assistantId,
+            });
+        });
+    });
+
+    return Object.values(grouped);
+}
