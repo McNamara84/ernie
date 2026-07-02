@@ -360,7 +360,7 @@ XML;
     $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
 
     expect($acceptedDate)->not->toBeNull()
-        ->and($acceptedDate->date_value)->toBe(now()->format('Y-m-d'))
+        ->and($acceptedDate->date_value)->toBe($acceptedDate->created_at->toDateString())
         ->and($createdDate)->not->toBeNull()
         ->and($createdDate->date_value)->toBe('2023-05-20');
 });
@@ -389,7 +389,7 @@ XML;
     $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
 
     expect($acceptedDate)->not->toBeNull()
-        ->and($acceptedDate->date_value)->toBe(now()->format('Y-m-d'))
+        ->and($acceptedDate->date_value)->toBe($acceptedDate->created_at->toDateString())
         ->and($createdDate)->toBeNull();
 });
 

@@ -817,7 +817,7 @@ describe('RegisterDoiModal', () => {
             // observe the loading state while the request is in flight.
             mockPost
                 .mockRejectedValueOnce(warningResponse)
-                .mockImplementationOnce(() => new Promise(() => {}));
+                .mockImplementation(() => new Promise(() => {}));
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {
@@ -862,7 +862,7 @@ describe('RegisterDoiModal', () => {
             // observe the retry button's loading state while the request is in flight.
             mockPost
                 .mockRejectedValueOnce(warningResponse)
-                .mockImplementationOnce(() => new Promise(() => {}));
+                .mockImplementation(() => new Promise(() => {}));
 
             render(<RegisterDoiModal {...defaultProps} />);
             await waitFor(() => {

@@ -127,7 +127,7 @@ test('doi registration succeeds with valid data for new doi', function () {
 
     expect($this->resource->doi)->toBe('10.83279/test-12345')
         ->and($issuedDate)->not->toBeNull()
-        ->and($issuedDate->date_value)->toBe(now()->format('Y-m-d'));
+        ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
 });
 
 test('doi registration updates metadata for existing doi', function () {

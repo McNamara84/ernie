@@ -1011,6 +1011,13 @@ class ResourceStorageService
         }
     }
 
+    /**
+     * Ensure a one-time system-managed DataCite date exists.
+     *
+     * This helper is intentionally limited to Accepted and Issued dates, which
+     * are written once and then preserved. Updated is refreshed by storeDates()
+     * on resource updates because it has overwrite semantics.
+     */
     public function ensureSystemDate(Resource $resource, string $dateTypeSlug, ?string $dateValue = null): void
     {
         $dateTypeKey = Str::kebab($dateTypeSlug);

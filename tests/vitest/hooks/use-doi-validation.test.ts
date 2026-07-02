@@ -27,11 +27,13 @@ function mockDoiEndpoint(response: DoiValidationResponse | ((body: unknown) => D
 describe('useDoiValidation', () => {
     beforeEach(() => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
     });
 
     afterEach(() => {
         vi.clearAllMocks();
         vi.useRealTimers();
+        document.head.innerHTML = '';
     });
 
     describe('Initial state', () => {

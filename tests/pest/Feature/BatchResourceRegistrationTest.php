@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
+use App\Services\OrcidService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Mockery\MockInterface;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config([
@@ -35,7 +41,7 @@ describe('BatchResourceRegistrationController@register', function () {
         LandingPage::factory()->create(['resource_id' => $resource2->id]);
 
         Http::fake([
-            '*datacite.org/*' => function (\Illuminate\Http\Client\Request $request) {
+            '*datacite.org/*' => function (Request $request) {
                 $payload = $request->data();
                 $doi = $payload['data']['attributes']['doi'] ?? 'unknown';
 
@@ -71,7 +77,7 @@ describe('BatchResourceRegistrationController@register', function () {
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
         Http::fake([
-            '*datacite.org/*' => function (\Illuminate\Http\Client\Request $request) {
+            '*datacite.org/*' => function (Request $request) {
                 $payload = $request->data();
 
                 return Http::response([
@@ -100,7 +106,7 @@ describe('BatchResourceRegistrationController@register', function () {
         expect($resource->doi)->not->toBeNull()->toStartWith('10.83279/');
         expect($response->json('success.0.updated'))->toBeFalse()
             ->and($issuedDate)->not->toBeNull()
-            ->and($issuedDate->date_value)->toBe(now()->format('Y-m-d'));
+            ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
     });
 
     test('fails items without DOI when no prefix is provided', function () {
@@ -347,7 +353,7 @@ describe('BatchResourceRegistrationController@register', function () {
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
             ->once()
-            ->andThrow(new \InvalidArgumentException('Bad payload'));
+            ->andThrow(new InvalidArgumentException('Bad payload'));
         app()->instance(DataCiteRegistrationService::class, $mock);
 
         $response = $this->actingAs($this->user)
@@ -366,7 +372,7 @@ describe('BatchResourceRegistrationController@register', function () {
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('registerDoi')
             ->once()
-            ->andThrow(new \RuntimeException('Service offline'));
+            ->andThrow(new RuntimeException('Service offline'));
         app()->instance(DataCiteRegistrationService::class, $mock);
 
         $response = $this->actingAs($this->user)
@@ -388,7 +394,7 @@ describe('BatchResourceRegistrationController@register', function () {
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
             ->once()
-            ->andThrow(new \LogicException('Internal stack trace details'));
+            ->andThrow(new LogicException('Internal stack trace details'));
         app()->instance(DataCiteRegistrationService::class, $mock);
 
         $response = $this->actingAs($this->user)
@@ -410,7 +416,7 @@ describe('BatchResourceRegistrationController@register', function () {
         $mock = Mockery::mock(DataCiteRegistrationService::class);
         $mock->shouldReceive('updateMetadata')
             ->once()
-            ->andThrow(new \LogicException('Detailed debug message'));
+            ->andThrow(new LogicException('Detailed debug message'));
         app()->instance(DataCiteRegistrationService::class, $mock);
 
         $response = $this->actingAs($this->user)
@@ -479,18 +485,18 @@ describe('BatchResourceRegistrationController@register', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-BAD']);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
-        $person = \App\Models\Person::factory()->create([
+        $person = Person::factory()->create([
             'given_name' => 'Bad',
             'family_name' => 'Author',
             'name_identifier' => '0000-0002-1825-0097',
             'name_identifier_scheme' => 'ORCID',
         ]);
-        \App\Models\ResourceCreator::factory()
+        ResourceCreator::factory()
             ->forPerson($person)
             ->position(0)
             ->create(['resource_id' => $resource->id]);
 
-        $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
+        $this->mock(OrcidService::class, function (MockInterface $mock) {
             $mock->shouldReceive('validateOrcid')
                 ->andReturn([
                     'valid' => false,
@@ -521,18 +527,18 @@ describe('BatchResourceRegistrationController@register', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-WARN']);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
-        $person = \App\Models\Person::factory()->create([
+        $person = Person::factory()->create([
             'given_name' => 'Flaky',
             'family_name' => 'Network',
             'name_identifier' => '0000-0002-1825-0097',
             'name_identifier_scheme' => 'ORCID',
         ]);
-        \App\Models\ResourceCreator::factory()
+        ResourceCreator::factory()
             ->forPerson($person)
             ->position(0)
             ->create(['resource_id' => $resource->id]);
 
-        $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
+        $this->mock(OrcidService::class, function (MockInterface $mock) {
             $mock->shouldReceive('validateOrcid')
                 ->andReturn([
                     'valid' => false,
@@ -559,24 +565,24 @@ describe('BatchResourceRegistrationController@register', function () {
         $resource = Resource::factory()->create(['doi' => '10.83279/ORCID-MIX']);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
-        $badPerson = \App\Models\Person::factory()->create([
+        $badPerson = Person::factory()->create([
             'given_name' => 'Bad',
             'family_name' => 'One',
             'name_identifier' => '0000-0002-1825-0097',
             'name_identifier_scheme' => 'ORCID',
         ]);
-        $flakyPerson = \App\Models\Person::factory()->create([
+        $flakyPerson = Person::factory()->create([
             'given_name' => 'Flaky',
             'family_name' => 'Two',
             'name_identifier' => '0000-0001-5109-3700',
             'name_identifier_scheme' => 'ORCID',
         ]);
-        \App\Models\ResourceCreator::factory()->forPerson($badPerson)->position(0)
+        ResourceCreator::factory()->forPerson($badPerson)->position(0)
             ->create(['resource_id' => $resource->id]);
-        \App\Models\ResourceCreator::factory()->forPerson($flakyPerson)->position(1)
+        ResourceCreator::factory()->forPerson($flakyPerson)->position(1)
             ->create(['resource_id' => $resource->id]);
 
-        $this->mock(\App\Services\OrcidService::class, function (\Mockery\MockInterface $mock) {
+        $this->mock(OrcidService::class, function (MockInterface $mock) {
             $mock->shouldReceive('validateOrcid')
                 ->with('0000-0002-1825-0097', Mockery::any(), Mockery::any())
                 ->andReturn([
