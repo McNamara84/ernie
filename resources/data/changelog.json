@@ -122,6 +122,10 @@
         ],
         "improvements": [
             {
+                "title": "Faster Resource Editing from the Resources Table",
+                "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE reuses the existing fallback dialog if the browser blocks the editor tab."
+            },
+            {
                 "title": "Resizable Resources Table Columns",
                 "description": "The Resources table now lets curators manually adjust every visible metadata column except the selection checkbox. Column widths are saved in the browser, can be reset to defaults, and long values stay on one line with ellipsis plus hover tooltips for the full text. Resize handles support mouse dragging and keyboard controls on tablet and desktop screens."
             },
