@@ -1029,11 +1029,13 @@ class ResourceStorageService
             ->first();
 
         if (! $dateType instanceof DateType) {
-            $dateType = DateType::query()->create([
-                'name' => $systemDateTypes[$dateTypeKey]['name'],
-                'slug' => $systemDateTypes[$dateTypeKey]['slug'],
-                'is_active' => true,
-            ]);
+            $dateType = DateType::query()->createOrFirst(
+                ['slug' => $systemDateTypes[$dateTypeKey]['slug']],
+                [
+                    'name' => $systemDateTypes[$dateTypeKey]['name'],
+                    'is_active' => true,
+                ],
+            );
         }
 
         if ($resource->dates()->where('date_type_id', $dateType->id)->exists()) {
