@@ -56,9 +56,14 @@ describe('BatchResourceRegistrationController@register', function () {
 
         $response->assertOk();
         $data = $response->json();
+        $issuedDate = $resource1->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['issued']);
+        })->first();
+
         expect($data['success'])->toHaveCount(2);
         expect($data['failed'])->toHaveCount(0);
-        expect($data['success'][0]['updated'])->toBeTrue();
+        expect($data['success'][0]['updated'])->toBeTrue()
+            ->and($issuedDate)->toBeNull();
     });
 
     test('registers a new DOI when prefix is provided and resource lacks a DOI', function () {
@@ -88,8 +93,14 @@ describe('BatchResourceRegistrationController@register', function () {
         $response->assertOk();
 
         $resource->refresh();
+        $issuedDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['issued']);
+        })->first();
+
         expect($resource->doi)->not->toBeNull()->toStartWith('10.83279/');
-        expect($response->json('success.0.updated'))->toBeFalse();
+        expect($response->json('success.0.updated'))->toBeFalse()
+            ->and($issuedDate)->not->toBeNull()
+            ->and($issuedDate->date_value)->toBe(now()->format('Y-m-d'));
     });
 
     test('fails items without DOI when no prefix is provided', function () {

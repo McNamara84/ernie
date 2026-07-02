@@ -28,7 +28,6 @@ use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
-use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -1012,53 +1011,100 @@ class ResourceStorageService
         }
     }
 
+    public function ensureSystemDate(Resource $resource, string $dateTypeSlug, ?string $dateValue = null): void
+    {
+        $dateTypeKey = Str::kebab($dateTypeSlug);
+        $systemDateTypes = [
+            'accepted' => ['name' => 'Accepted', 'slug' => 'Accepted'],
+            'issued' => ['name' => 'Issued', 'slug' => 'Issued'],
+            'updated' => ['name' => 'Updated', 'slug' => 'Updated'],
+        ];
+
+        if (! array_key_exists($dateTypeKey, $systemDateTypes)) {
+            throw new \InvalidArgumentException('Only Accepted, Issued, and Updated can be written as system dates.');
+        }
+
+        $dateType = DateType::query()
+            ->whereRaw('LOWER(slug) = ?', [$dateTypeKey])
+            ->first();
+
+        if (! $dateType instanceof DateType) {
+            $dateType = DateType::query()->create([
+                'name' => $systemDateTypes[$dateTypeKey]['name'],
+                'slug' => $systemDateTypes[$dateTypeKey]['slug'],
+                'is_active' => true,
+            ]);
+        }
+
+        if ($resource->dates()->where('date_type_id', $dateType->id)->exists()) {
+            return;
+        }
+
+        $resource->dates()->create([
+            'date_type_id' => $dateType->id,
+            'date_value' => $dateValue ?? now()->format('Y-m-d'),
+            'start_date' => null,
+            'end_date' => null,
+            'date_information' => null,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */
     private function storeDates(Resource $resource, array $data, bool $isUpdate): void
     {
-        // Save dates
-        // Note: 'created' and 'updated' dates are auto-managed and should not be
-        // submitted by the frontend. They are handled separately below.
-
-        // Pre-fetch all date type IDs in a single query to avoid N+1 queries
-        // This lookup map is used for both system date types and user-provided dates
         /** @var array<string, int> $dateTypeLookup */
         $dateTypeLookup = DateType::query()
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (DateType $type): array => [Str::kebab($type->slug) => $type->id])
             ->all();
-        $createdDateTypeId = $dateTypeLookup['created'] ?? null;
+
         $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
+        $dates = isset($data['dates']) && is_array($data['dates']) ? $data['dates'] : [];
 
         if ($isUpdate) {
-            // When updating, preserve 'created' date (never overwritten) and delete
-            // all other user-managed dates. The 'updated' date is handled separately below.
-            if ($createdDateTypeId !== null) {
+            $submittedDateTypes = collect($dates)
+                ->filter(fn (mixed $date): bool => is_array($date))
+                ->map(fn (array $date): string => Str::kebab((string) ($date['dateType'] ?? '')))
+                ->filter(fn (string $dateType): bool => $dateType !== '')
+                ->unique()
+                ->values()
+                ->all();
+
+            $preservedDateTypeKeys = ['accepted', 'issued', 'coverage'];
+            if (! in_array('created', $submittedDateTypes, true)) {
+                $preservedDateTypeKeys[] = 'created';
+            }
+
+            $preservedDateTypeIds = array_values(array_filter(
+                array_map(fn (string $dateType): ?int => $dateTypeLookup[$dateType] ?? null, $preservedDateTypeKeys),
+                fn (?int $dateTypeId): bool => $dateTypeId !== null,
+            ));
+
+            if ($preservedDateTypeIds !== []) {
                 $resource->dates()
-                    ->where('date_type_id', '!=', $createdDateTypeId)
+                    ->whereNotIn('date_type_id', $preservedDateTypeIds)
                     ->delete();
             } else {
-                // If 'created' type doesn't exist, delete all dates
                 $resource->dates()->delete();
             }
         }
 
-        $dates = $data['dates'] ?? [];
-
         foreach ($dates as $index => $date) {
-            // Skip 'created' and 'updated' date types - these are auto-managed
-            if (in_array(Str::kebab((string) ($date['dateType'] ?? '')), ['created', 'updated'], true)) {
+            if (! is_array($date)) {
                 continue;
             }
 
-            // Use the pre-fetched lookup map instead of querying for each date
             $dateTypeKey = Str::kebab((string) ($date['dateType'] ?? ''));
+
+            if (in_array($dateTypeKey, ['accepted', 'issued', 'updated', 'coverage'], true)) {
+                continue;
+            }
+
             $dateTypeId = $dateTypeLookup[$dateTypeKey] ?? null;
 
             if ($dateTypeId === null) {
-                // Throw validation exception for unknown date type to prevent silent data loss
-                // This will rollback the transaction and return a proper validation error response
                 $submittedDateType = (string) ($date['dateType'] ?? '');
                 Log::warning('Unknown date type slug: '.$submittedDateType);
 
@@ -1073,7 +1119,7 @@ class ResourceStorageService
             $endDate = $endDate !== '' ? $endDate : null;
             $mode = isset($date['dateMode']) ? Str::kebab(trim((string) $date['dateMode'])) : null;
             $mode = $mode !== '' ? $mode : null;
-            $supportsPeriod = in_array($dateTypeKey, ['collected', 'valid', 'other'], true);
+            $supportsPeriod = in_array($dateTypeKey, ['created', 'collected', 'valid', 'other'], true);
 
             if ($mode !== null && ! in_array($mode, ['single', 'range'], true)) {
                 throw ValidationException::withMessages([
@@ -1091,7 +1137,7 @@ class ResourceStorageService
                 $messages = [];
 
                 if (! $supportsPeriod) {
-                    $messages["dates.$index.dateMode"] = ['Only Collected, Valid, and Other dates can be stored as periods.'];
+                    $messages["dates.$index.dateMode"] = ['Only Created, Collected, Valid, and Other dates can be stored as periods.'];
                 }
 
                 if ($startDate === null) {
@@ -1116,9 +1162,13 @@ class ResourceStorageService
 
                 if (! $supportsPeriod) {
                     throw ValidationException::withMessages([
-                        "dates.$index.endDate" => ['Only Collected, Valid, and Other dates can include an end date.'],
+                        "dates.$index.endDate" => ['Only Created, Collected, Valid, and Other dates can include an end date.'],
                     ]);
                 }
+            }
+
+            if ($startDate === null && $endDate === null) {
+                continue;
             }
 
             $hasRange = ($mode === 'range' || ($mode === null && $endDate !== null))
@@ -1134,33 +1184,7 @@ class ResourceStorageService
             ]);
         }
 
-        // Auto-manage 'created' date: Set only on new resources (not on updates)
-        // Issue #371: If an imported 'created' date is provided (from XML/DataCite import),
-        // use that date instead of the current date. This preserves the original creation
-        // date from external sources like ELMO.
-        if (! $isUpdate && $createdDateTypeId !== null) {
-            // Check if an imported created date was provided
-            $importedCreatedDate = $data['importedCreatedDate'] ?? null;
-
-            // Use imported date if available, otherwise use current date as fallback
-            $createdDateValue = $importedCreatedDate !== null && $importedCreatedDate !== ''
-                ? Carbon::parse($importedCreatedDate)->format('Y-m-d')
-                : now()->format('Y-m-d');
-
-            $resource->dates()->create([
-                'date_type_id' => $createdDateTypeId,
-                'date_value' => $createdDateValue,
-                'start_date' => null,
-                'end_date' => null,
-                'date_information' => null,
-            ]);
-        }
-
-        // Auto-manage 'updated' date: Update timestamp on every update operation.
-        // This reflects when the resource was last saved by a curator.
         if ($isUpdate && $updatedDateTypeId !== null) {
-            // Create new 'updated' date with current timestamp
-            // (any existing 'updated' entry was already deleted above)
             $resource->dates()->create([
                 'date_type_id' => $updatedDateTypeId,
                 'date_value' => now()->format('Y-m-d'),

@@ -1221,15 +1221,12 @@ class DataCiteToResourceTransformer
     /**
      * Transform dates from DataCite format.
      *
-     * Issue #371: If no 'Created' date is present in the DataCite response,
-     * a fallback 'Created' date with the current date is automatically added.
+     * Imported Created dates are preserved, but no fallback Created date is generated.
      *
      * @param  array<int, array<string, mixed>>  $dates
      */
     private function transformDates(array $dates, Resource $resource): void
     {
-        $hasCreatedDate = false;
-
         foreach ($dates as $dateData) {
             $date = $dateData['date'] ?? null;
 
@@ -1241,11 +1238,6 @@ class DataCiteToResourceTransformer
             $dateTypeId = null;
             if ($dateType !== null) {
                 $dateTypeId = $this->getLookupId(DateType::class, 'slug', $dateType);
-
-                // Track if we have a 'Created' date
-                if (strtolower((string) $dateType) === 'created') {
-                    $hasCreatedDate = true;
-                }
             }
 
             // Skip if we couldn't resolve the date type (it's required)
@@ -1299,23 +1291,6 @@ class DataCiteToResourceTransformer
                 'date_type_id' => $dateTypeId,
                 'date_information' => $dateData['dateInformation'] ?? null,
             ]);
-        }
-
-        // Issue #371: If no 'Created' date was imported, add current date as fallback
-        // This ensures every imported resource has a valid creation date
-        if (! $hasCreatedDate) {
-            $createdDateTypeId = $this->getLookupId(DateType::class, 'slug', 'Created');
-
-            if ($createdDateTypeId !== null) {
-                ResourceDate::create([
-                    'resource_id' => $resource->id,
-                    'date_value' => now()->format('Y-m-d'),
-                    'start_date' => null,
-                    'end_date' => null,
-                    'date_type_id' => $createdDateTypeId,
-                    'date_information' => null,
-                ]);
-            }
         }
     }
 

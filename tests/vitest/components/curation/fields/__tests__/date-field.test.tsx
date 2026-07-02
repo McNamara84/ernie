@@ -117,12 +117,12 @@ describe('DateField', () => {
         expect(screen.getByText(/2024-12-31/)).toBeInTheDocument();
     });
 
-    it('marks date as required for created type', () => {
+    it('does not mark created dates as required', () => {
         render(<DateField {...defaultProps} dateType="created" />);
 
         const label = screen.getByText('Date');
         const requiredIndicator = label.parentElement?.querySelector('.text-destructive');
-        expect(requiredIndicator).toBeInTheDocument();
+        expect(requiredIndicator).not.toBeInTheDocument();
     });
 
     it('hides labels when isFirst is false', () => {

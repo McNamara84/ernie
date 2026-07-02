@@ -1047,10 +1047,9 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
             ->and($createdDate->date_value)->toBe('2022-06-15');
     });
 
-    it('adds fallback Created date with current date when not in DataCite response', function (): void {
+    it('does not add a Created date when it is missing from the DataCite response', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
-        $today = now()->format('Y-m-d');
 
         $doiData = [
             'attributes' => [
@@ -1068,19 +1067,16 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
         $resource = $transformer->transform($doiData, $user->id);
 
-        // Find the 'Created' date
         $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
         })->first();
 
-        expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($today);
+        expect($createdDate)->toBeNull();
     });
 
-    it('adds fallback Created date when dates array is empty', function (): void {
+    it('does not add a Created date when the DataCite response has no dates', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
-        $today = now()->format('Y-m-d');
 
         $doiData = [
             'attributes' => [
@@ -1090,19 +1086,16 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
                 'creators' => [
                     ['familyName' => 'Brown', 'givenName' => 'Bob', 'nameType' => 'Personal'],
                 ],
-                // No dates array at all
             ],
         ];
 
         $resource = $transformer->transform($doiData, $user->id);
 
-        // Find the 'Created' date
         $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
         })->first();
 
-        expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($today);
+        expect($createdDate)->toBeNull();
     });
 
     it('does not duplicate Created date when already present', function (): void {
@@ -1174,6 +1167,35 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
         'Valid' => 'Valid',
         'Other' => 'Other',
     ]);
+
+    it('imports Created ranges from the DataCite API as stored periods', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/imported-created-period',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Created imported period']],
+                'creators' => [
+                    ['familyName' => 'Period', 'givenName' => 'Pat', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2020-01-01/2020-12-31', 'dateType' => 'Created'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBeNull()
+            ->and($createdDate->start_date)->toBe('2020-01-01')
+            ->and($createdDate->end_date)->toBe('2020-12-31');
+    });
 });
 
 describe('DataCiteToResourceTransformer - nameType inference and null family_name handling', function (): void {

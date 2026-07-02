@@ -283,6 +283,26 @@ describe('JSON Upload - DataCite JSON format', function () {
         expect($data['dates'][1]['endDate'])->toBe('2025-12-31');
     });
 
+    test('does not store Accepted as a system date for JSON uploads', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'dates' => [
+                ['date' => '2024-01-15', 'dateType' => 'Accepted'],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('accepted-date.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $data = getJsonUploadData($response);
+        $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+        $storedDateTypes = $resource->dates->pluck('dateType.slug')->all();
+
+        expect($data['dates'][0]['dateType'])->toBe('accepted')
+            ->and($storedDateTypes)->not->toContain('Accepted');
+    });
+
     test('extracts licenses', function () {
         $this->actingAs(User::factory()->create());
 

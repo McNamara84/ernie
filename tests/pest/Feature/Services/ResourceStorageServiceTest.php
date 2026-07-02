@@ -1020,68 +1020,100 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
         ], $this->user->id))->toThrow(ValidationException::class);
     });
 
-    it('uses imported created date when provided for new resources', function () {
+    it('stores explicit Created dates as editor-provided single dates', function () {
         $resourceType = ResourceType::first();
-        $importedDate = '2023-05-15';
+        $createdDateValue = '2023-05-15';
 
-        $data = [
+        [$resource, $isUpdate] = $this->service->store([
             'resourceId' => null,
             'year' => 2024,
             'resourceType' => $resourceType->id,
             'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+                ['title' => 'Explicit Created Resource', 'titleType' => 'MainTitle'],
             ],
             'authors' => [
                 ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
             ],
-            'importedCreatedDate' => $importedDate,
-        ];
+            'dates' => [
+                [
+                    'dateType' => 'Created',
+                    'dateMode' => 'single',
+                    'startDate' => $createdDateValue,
+                ],
+            ],
+        ], $this->user->id);
 
-        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
-
-        // Find the 'created' date
         $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
         })->first();
 
         expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($importedDate)
+            ->and($createdDate->date_value)->toBe($createdDateValue)
+            ->and($createdDate->start_date)->toBeNull()
+            ->and($createdDate->end_date)->toBeNull()
             ->and($isUpdate)->toBeFalse();
     });
 
-    it('uses current date as fallback when no imported created date is provided', function () {
+    it('stores explicit Created periods as editor-provided ranges', function () {
         $resourceType = ResourceType::first();
-        $today = now()->format('Y-m-d');
 
-        $data = [
+        [$resource] = $this->service->store([
             'resourceId' => null,
             'year' => 2024,
             'resourceType' => $resourceType->id,
             'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+                ['title' => 'Created Period Resource', 'titleType' => 'MainTitle'],
             ],
             'authors' => [
-                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
             ],
-            // No importedCreatedDate provided
-        ];
-
-        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+            'dates' => [
+                [
+                    'dateType' => 'Created',
+                    'dateMode' => 'range',
+                    'startDate' => '2020-01-01',
+                    'endDate' => '2020-12-31',
+                ],
+            ],
+        ], $this->user->id);
 
         $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
         })->first();
 
         expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($today);
+            ->and($createdDate->date_value)->toBeNull()
+            ->and($createdDate->start_date)->toBe('2020-01-01')
+            ->and($createdDate->end_date)->toBe('2020-12-31');
     });
 
-    it('preserves existing created date on resource update', function () {
+    it('does not create a Created date when none is provided', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'No Created Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+        ], $this->user->id);
+
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->toBeNull();
+    });
+
+    it('preserves an existing Created date on update when the payload does not include Created', function () {
         $resourceType = ResourceType::first();
         $originalDate = '2021-03-01';
 
-        // Create initial resource with an imported date
-        $data = [
+        [$resource] = $this->service->store([
             'resourceId' => null,
             'year' => 2024,
             'resourceType' => $resourceType->id,
@@ -1091,15 +1123,13 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             'authors' => [
                 ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
             ],
-            'importedCreatedDate' => $originalDate,
-        ];
+            'dates' => [
+                ['dateType' => 'Created', 'dateMode' => 'single', 'startDate' => $originalDate],
+            ],
+        ], $this->user->id);
 
-        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
-        $originalResourceId = $resource->id;
-
-        // Update the resource (even with a new importedCreatedDate, it should be ignored)
-        $updateData = [
-            'resourceId' => $originalResourceId,
+        [$updatedResource, $wasUpdate] = $this->service->store([
+            'resourceId' => $resource->id,
             'year' => 2025,
             'resourceType' => $resourceType->id,
             'titles' => [
@@ -1108,10 +1138,10 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             'authors' => [
                 ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Smith', 'position' => 0],
             ],
-            'importedCreatedDate' => '2026-01-01', // This should be ignored on update
-        ];
-
-        [$updatedResource, $wasUpdate] = $this->service->store($updateData, $this->user->id);
+            'dates' => [
+                ['dateType' => 'Available', 'dateMode' => 'single', 'startDate' => '2025-01-01'],
+            ],
+        ], $this->user->id);
 
         $createdDate = $updatedResource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
@@ -1119,34 +1149,96 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
         expect($wasUpdate)->toBeTrue()
             ->and($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($originalDate); // Original date preserved
+            ->and($createdDate->date_value)->toBe($originalDate);
     });
 
-    it('handles empty string as no imported date', function () {
+    it('replaces an existing Created date when the payload includes Created', function () {
         $resourceType = ResourceType::first();
-        $today = now()->format('Y-m-d');
 
-        $data = [
+        [$resource] = $this->service->store([
             'resourceId' => null,
             'year' => 2024,
             'resourceType' => $resourceType->id,
             'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+                ['title' => 'Original Created Replacement Resource', 'titleType' => 'MainTitle'],
             ],
             'authors' => [
                 ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
             ],
-            'importedCreatedDate' => '', // Empty string should fall back to current date
-        ];
+            'dates' => [
+                ['dateType' => 'Created', 'dateMode' => 'single', 'startDate' => '2021-03-01'],
+            ],
+        ], $this->user->id);
 
-        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+        [$updatedResource] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2025,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Updated Created Replacement Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Smith', 'position' => 0],
+            ],
+            'dates' => [
+                ['dateType' => 'Created', 'dateMode' => 'single', 'startDate' => '2022-04-02'],
+            ],
+        ], $this->user->id);
 
-        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+        $createdDates = $updatedResource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
-        })->first();
+        })->get();
 
-        expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($today);
+        expect($createdDates)->toHaveCount(1)
+            ->and($createdDates->first()->date_value)->toBe('2022-04-02');
+    });
+
+    it('ignores system-managed date types submitted directly with editor dates', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'System Date Guard Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                ['dateType' => 'Accepted', 'dateMode' => 'single', 'startDate' => '2024-01-15'],
+                ['dateType' => 'Issued', 'dateMode' => 'single', 'startDate' => '2024-02-15'],
+                ['dateType' => 'Updated', 'dateMode' => 'single', 'startDate' => '2024-03-15'],
+                ['dateType' => 'Coverage', 'dateMode' => 'single', 'startDate' => '2024-04-15'],
+                ['dateType' => 'Created', 'dateMode' => 'single', 'startDate' => '2024-05-15'],
+            ],
+        ], $this->user->id);
+
+        $storedDateTypes = $resource->dates()->with('dateType')->get()->pluck('dateType.slug')->all();
+
+        expect($storedDateTypes)->toContain('Created')
+            ->and($storedDateTypes)->not->toContain('Accepted')
+            ->and($storedDateTypes)->not->toContain('Issued')
+            ->and($storedDateTypes)->not->toContain('Updated')
+            ->and($storedDateTypes)->not->toContain('Coverage');
+    });
+
+    it('creates system dates idempotently without allowing Created through the helper', function () {
+        $resource = Resource::factory()->create();
+
+        $this->service->ensureSystemDate($resource, 'Issued', '2026-07-02');
+        $this->service->ensureSystemDate($resource, 'Issued', '2026-07-03');
+
+        $issuedDates = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['issued']);
+        })->get();
+
+        expect($issuedDates)->toHaveCount(1)
+            ->and($issuedDates->first()->date_value)->toBe('2026-07-02');
+
+        expect(fn () => $this->service->ensureSystemDate($resource, 'Created', '2026-07-02'))
+            ->toThrow(\InvalidArgumentException::class);
     });
 
     describe('Instruments', function () {

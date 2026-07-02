@@ -3987,7 +3987,7 @@ describe('DataCiteForm', () => {
             expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
         });
 
-        it('starts with empty dates array (created/updated are auto-managed by backend)', () => {
+        it('starts with an empty dates array when no editable dates are provided', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4003,12 +4003,12 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            // No date fields should be present by default since Created/Updated are auto-managed
+            // No date fields should be present by default.
             const dateInputs = document.querySelectorAll('input[type="date"]');
             expect(dateInputs).toHaveLength(0);
         });
 
-        it('supports adding date types (excludes created and updated)', async () => {
+        it('supports adding date types (excludes accepted, issued, updated, and coverage)', async () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4037,14 +4037,20 @@ describe('DataCiteForm', () => {
             );
             expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
 
-            // Verify 'Created' and 'Updated' are not available in dropdown
+            // Verify system-managed date types are not available, while Created is editable.
             const dateTypeTriggers = allComboboxes.filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[0]);
 
-            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
+            const issuedOption = screen.queryByRole('option', { name: 'Issued' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
-            expect(createdOption).not.toBeInTheDocument();
+            const coverageOption = screen.queryByRole('option', { name: 'Coverage' });
+            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            expect(acceptedOption).not.toBeInTheDocument();
+            expect(issuedOption).not.toBeInTheDocument();
             expect(updatedOption).not.toBeInTheDocument();
+            expect(coverageOption).not.toBeInTheDocument();
+            expect(createdOption).toBeInTheDocument();
         });
 
         it('supports removing date fields', async () => {
@@ -4061,8 +4067,8 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[
-                        { dateType: 'accepted', startDate: '2024-01-15', endDate: '' },
-                        { dateType: 'issued', startDate: '2024-02-01', endDate: '' },
+                        { dateType: 'available', startDate: '2024-01-15', endDate: '' },
+                        { dateType: 'submitted', startDate: '2024-02-01', endDate: '' },
                     ]}
                 />,
             );
@@ -4099,7 +4105,7 @@ describe('DataCiteForm', () => {
                     authorRoles={authorRoles}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
-                    initialDates={[{ dateType: 'accepted', startDate: '2024-01-15', endDate: '' }]}
+                    initialDates={[{ dateType: 'available', startDate: '2024-01-15', endDate: '' }]}
                 />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -4110,15 +4116,18 @@ describe('DataCiteForm', () => {
             const dateTypeTriggers = screen.getAllByRole('combobox').filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[1]);
 
-            // 'Accepted' should not be available since it's already used
-            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
-            expect(acceptedOption).not.toBeInTheDocument();
+            // 'Available' should not be available since it's already used.
+            const availableOption = screen.queryByRole('option', { name: 'Available' });
+            expect(availableOption).not.toBeInTheDocument();
 
-            // 'Created' and 'Updated' are auto-managed; 'Coverage' belongs to Spatial and Temporal Coverage.
+            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
+            const issuedOption = screen.queryByRole('option', { name: 'Issued' });
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
             const coverageOption = screen.queryByRole('option', { name: 'Coverage' });
-            expect(createdOption).not.toBeInTheDocument();
+            expect(acceptedOption).not.toBeInTheDocument();
+            expect(issuedOption).not.toBeInTheDocument();
+            expect(createdOption).toBeInTheDocument();
             expect(updatedOption).not.toBeInTheDocument();
             expect(coverageOption).not.toBeInTheDocument();
         });
@@ -4136,11 +4145,11 @@ describe('DataCiteForm', () => {
                     authorRoles={authorRoles}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
-                    initialDates={[{ dateType: 'accepted', startDate: '', endDate: '' }]}
+                    initialDates={[{ dateType: 'available', startDate: '', endDate: '' }]}
                 />,
             );
 
-            const description = screen.getByText(/The date that the publisher accepted/);
+            const description = screen.getByText(/The date the resource is made publicly available/);
             expect(description).toBeInTheDocument();
         });
 
@@ -4157,7 +4166,7 @@ describe('DataCiteForm', () => {
                     authorRoles={authorRoles}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
-                    initialDates={[{ dateType: 'valid', startDate: '', endDate: '' }]}
+                    initialDates={[{ dateType: 'created', startDate: '', endDate: '' }]}
                 />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -4208,16 +4217,16 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
             expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
 
-            // Open the date type selector and change to "accepted" (since Created is auto-managed)
+            // Open the date type selector and change to "available" (a single-date-only type).
             const dateTypeTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('dateType'));
             expect(dateTypeTrigger).toBeDefined();
             if (dateTypeTrigger) {
                 await user.click(dateTypeTrigger);
-                const acceptedOption = screen.getByRole('option', { name: /Accepted/ });
-                await user.click(acceptedOption);
+                const availableOption = screen.getByRole('option', { name: /Available/ });
+                await user.click(availableOption);
             }
 
-            // After changing to "accepted", should only have 1 date picker
+            // After changing to "available", should only have 1 date picker
             allComboboxes = screen.getAllByRole('combobox');
             datePickerComboboxes = allComboboxes.filter(
                 (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
@@ -4227,7 +4236,7 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
 
-        it('filters out created, updated, and coverage dates from initialDates', () => {
+        it('filters out accepted, issued, updated, and coverage dates from initialDates', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4241,22 +4250,23 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[
-                        { dateType: 'created', startDate: '2024-01-01', endDate: '' },
+                        { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
+                        { dateType: 'issued', startDate: '2024-02-10', endDate: '' },
                         { dateType: 'updated', startDate: '2024-06-15', endDate: '' },
                         { dateType: 'coverage', startDate: '2024-03-01', endDate: '2024-03-31' },
-                        { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
+                        { dateType: 'created', startDate: '2024-01-01', endDate: '' },
                     ]}
                 />,
             );
 
-            // Only 'accepted' should be shown; created/updated are auto-managed and coverage is edited elsewhere.
+            // Only 'created' should be shown; Accepted/Issued/Updated are system-managed and Coverage is edited elsewhere.
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
             const datePickerComboboxes = allComboboxes.filter(
                 (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(1);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-10');
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
     });
 

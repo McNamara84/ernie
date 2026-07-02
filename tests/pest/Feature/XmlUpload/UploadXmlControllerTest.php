@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -353,6 +354,15 @@ XML;
 
     $response->assertSessionDataPath('dates.4.dateType', 'other');
     $response->assertSessionDataPath('dates.4.startDate', '2024-06-15');
+
+    $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+    $acceptedDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'accepted');
+    $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
+
+    expect($acceptedDate)->not->toBeNull()
+        ->and($acceptedDate->date_value)->toBe(now()->format('Y-m-d'))
+        ->and($createdDate)->not->toBeNull()
+        ->and($createdDate->date_value)->toBe('2023-05-20');
 });
 
 test('handles XML without dates gracefully', function () {
@@ -373,6 +383,14 @@ XML;
         ->assertOk();
 
     $response->assertSessionDataPath('dates', []);
+
+    $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+    $acceptedDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'accepted');
+    $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
+
+    expect($acceptedDate)->not->toBeNull()
+        ->and($acceptedDate->date_value)->toBe(now()->format('Y-m-d'))
+        ->and($createdDate)->toBeNull();
 });
 
 test('filters out empty dates from XML', function () {
