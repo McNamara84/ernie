@@ -38,9 +38,9 @@ use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Rights\ResourceRightsStorageService;
 use App\Services\Xml\Sections\RightsSectionParser;
+use App\Support\DataCiteDateNormalizer;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Saloon\XmlWrangler\XmlReader;
@@ -1245,13 +1245,14 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            // Parse the date - DataCite uses RKMS-ISO8601 which can be a range with /
+            // Parse the date without inventing missing precision. DataCite uses
+            // RKMS-ISO8601, where ranges are separated by /.
             $dateValue = null;
             $startDate = null;
             $endDate = null;
 
             if (str_contains($date, '/')) {
-                // Date range format: YYYY-MM-DD/YYYY-MM-DD or open-ended "YYYY-MM-DD/"
+                // Date range format: YYYY-MM-DD/YYYY-MM-DD, YYYY/YYYY, or open-ended "YYYY-MM-DD/"
                 // RKMS-ISO8601 allows open-ended ranges where end date is omitted.
                 //
                 // Parsing logic for "2020-01-01/":
@@ -1262,7 +1263,7 @@ class DataCiteToResourceTransformer
                 // Malformed input handling:
                 // - "2020-01-01//" -> explode limit=2 yields ['2020-01-01', '/'], parseDate('/') returns null
                 // - "//" -> explode limit=2 yields ['', '/'], both parsed as null
-                // - Empty or only slashes result in null dates, which are handled gracefully below.
+                // - Empty or only slashes result in null dates and are skipped below.
                 //
                 // Note: isRange() returns true only for CLOSED ranges (both dates present).
                 // isOpenEndedRange() returns true when start_date is set but end_date is null.
@@ -1270,17 +1271,20 @@ class DataCiteToResourceTransformer
                 // DataCite's schema doesn't support the trailing slash format.
                 $parts = explode('/', $date, 2);
                 $startDate = $this->parseDate($parts[0], false);
-                // Empty string after trailing slash results in null endDate (intentional)
-                // isEndDate=true ensures year-only formats like "2020" become "2020-12-31"
+                // Empty string after trailing slash results in null endDate (intentional).
                 $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1], true) : null;
             } else {
-                // Single date (not a range): Always use isEndDate=false (start of period).
-                // This follows the DataCite convention where incomplete dates represent
-                // the earliest possible date (e.g., "2020" means "2020-01-01").
-                // The date type (Issued, Collected, etc.) does NOT influence this decision
-                // because DataCite metadata semantics treat all partial dates consistently
-                // as the start of the period they represent.
+                // Single date (not a range): preserve the original precision.
                 $dateValue = $this->parseDate($date, false);
+            }
+
+            if ($dateValue === null && $startDate === null && $endDate === null) {
+                Log::warning('DataCite import: Skipping unsupported or invalid date value', [
+                    'date' => $date,
+                    'dateType' => $dateType,
+                ]);
+
+                continue;
             }
 
             ResourceDate::create([
@@ -1842,85 +1846,15 @@ class DataCiteToResourceTransformer
     }
 
     /**
-     * Parse a date string into a format suitable for database storage.
+     * Parse a DataCite/RKMS-ISO8601 date string for database storage.
      *
-     * Handles various DataCite date formats like YYYY, YYYY-MM, YYYY-MM-DD.
-     * Validates that parsed dates are real calendar dates (e.g., rejects 2024-02-30).
-     *
-     * IMPORTANT: For year-only (YYYY) and year-month (YYYY-MM) formats, this method
-     * normalizes to full dates. For start dates, it uses the beginning of the period
-     * (YYYY-01-01 or YYYY-MM-01). For end dates, it uses the end of the period
-     * (YYYY-12-31 or YYYY-MM-{last day of month}).
-     *
-     * @param  string|null  $date  The date string to parse
-     * @param  bool  $isEndDate  Whether this is an end date (uses end of period instead of start)
-     * @return string|null The parsed date in YYYY-MM-DD format, or null if invalid
+     * The imported value's precision is preserved: `YYYY` stays `YYYY`,
+     * `YYYY-MM` stays `YYYY-MM`, and full dates stay full dates. Invalid
+     * calendar dates are rejected instead of being corrected to a different
+     * date.
      */
     private function parseDate(?string $date, bool $isEndDate = false): ?string
     {
-        if ($date === null || $date === '') {
-            return null;
-        }
-
-        // Try to parse the date - DataCite allows various ISO 8601 formats
-        // Note: Using [0-9] instead of \d for strict ASCII digit matching
-        // as required by ISO 8601 standard (prevents matching Unicode digits)
-        $date = trim($date);
-
-        // Full date: YYYY-MM-DD
-        if (preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/', $date, $matches)) {
-            // Validate this is a real calendar date (e.g., reject 2024-02-30)
-            if (checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
-                return $date;
-            }
-            // Invalid calendar date - try Carbon as fallback, but log a warning
-            // as this may introduce data quality issues (e.g., 2024-02-30 -> 2024-03-01)
-            try {
-                $correctedDate = Carbon::parse($date)->format('Y-m-d');
-                Log::warning('DataCite import: Invalid calendar date corrected by Carbon', [
-                    'original' => $date,
-                    'corrected' => $correctedDate,
-                ]);
-
-                return $correctedDate;
-            } catch (\Exception) {
-                return null;
-            }
-        }
-
-        // Year and month: YYYY-MM
-        // For start dates: YYYY-MM-01 (first day of month)
-        // For end dates: YYYY-MM-{last day} (last day of month)
-        if (preg_match('/^([0-9]{4})-([0-9]{2})$/', $date, $matches)) {
-            // Validate month is valid (01-12)
-            $month = (int) $matches[2];
-            $year = (int) $matches[1];
-            if ($month >= 1 && $month <= 12) {
-                if ($isEndDate) {
-                    // Calculate last day of the month
-                    $lastDay = (new \DateTime("{$year}-{$month}-01"))->format('t');
-
-                    return sprintf('%04d-%02d-%s', $year, $month, $lastDay);
-                }
-
-                return $date.'-01';
-            }
-
-            return null;
-        }
-
-        // Year only: YYYY
-        // For start dates: YYYY-01-01 (January 1st)
-        // For end dates: YYYY-12-31 (December 31st)
-        if (preg_match('/^([0-9]{4})$/', $date)) {
-            return $isEndDate ? $date.'-12-31' : $date.'-01-01';
-        }
-
-        // Try to parse with Carbon for other formats
-        try {
-            return Carbon::parse($date)->format('Y-m-d');
-        } catch (\Exception) {
-            return null;
-        }
+        return DataCiteDateNormalizer::normalize($date, true);
     }
 }

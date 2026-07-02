@@ -1035,26 +1035,57 @@ class ResourceStorageService
             ->first();
 
         if (! $dateType instanceof DateType) {
-            $dateType = DateType::query()->firstOrCreate(
-                ['slug' => $systemDateTypes[$dateTypeKey]['slug']],
-                [
-                    'name' => $systemDateTypes[$dateTypeKey]['name'],
-                    'is_active' => true,
-                ],
-            );
+            try {
+                $dateType = DateType::query()->firstOrCreate(
+                    ['slug' => $systemDateTypes[$dateTypeKey]['slug']],
+                    [
+                        'name' => $systemDateTypes[$dateTypeKey]['name'],
+                        'is_active' => true,
+                    ],
+                );
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+
+                $dateType = DateType::query()
+                    ->whereRaw('LOWER(slug) = ?', [$dateTypeKey])
+                    ->first();
+
+                if (! $dateType instanceof DateType) {
+                    throw $exception;
+                }
+            }
         }
 
-        if ($resource->dates()->where('date_type_id', $dateType->id)->exists()) {
-            return;
-        }
+        DB::transaction(function () use ($resource, $dateType, $dateValue): void {
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->lockForUpdate()
+                ->findOrFail($resource->getKey());
 
-        $resource->dates()->create([
-            'date_type_id' => $dateType->id,
-            'date_value' => $dateValue ?? now()->format('Y-m-d'),
-            'start_date' => null,
-            'end_date' => null,
-            'date_information' => null,
-        ]);
+            if ($lockedResource->dates()->where('date_type_id', $dateType->id)->exists()) {
+                return;
+            }
+
+            $lockedResource->dates()->create([
+                'date_type_id' => $dateType->id,
+                'date_value' => $dateValue ?? now()->format('Y-m-d'),
+                'start_date' => null,
+                'end_date' => null,
+                'date_information' => null,
+            ]);
+        });
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $errorInfo = $exception->errorInfo ?? [];
+        $sqlState = isset($errorInfo[0]) ? (string) $errorInfo[0] : '';
+        $driverCode = isset($errorInfo[1]) ? (string) $errorInfo[1] : '';
+
+        return in_array($sqlState, ['23000', '23505'], true)
+            || in_array($driverCode, ['19', '1062'], true);
     }
 
     /**
