@@ -170,6 +170,13 @@ const clickResourceAction = async (testId: string) => {
 
     await userEvent.click(screen.getByTestId(testId));
 };
+
+const waitForFilterOptionsToLoad = async () => {
+    await waitFor(() => {
+        expect(axiosGetMock).toHaveBeenCalledWith('/resources/filter-options');
+    });
+};
+
 describe('ResourcesPage - bulk selection', () => {
     let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
     let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
@@ -277,8 +284,9 @@ describe('ResourcesPage - bulk selection', () => {
         });
     });
 
-    it('renders selection checkboxes and the idle toolbar hint', () => {
+    it('renders selection checkboxes and the idle toolbar hint', async () => {
         render(<ResourcesPage {...buildProps()} />);
+        await waitForFilterOptionsToLoad();
 
         expect(screen.getByTestId('resources-select-all')).toBeInTheDocument();
         expect(screen.getByTestId('resources-row-checkbox-1')).toBeInTheDocument();
@@ -287,8 +295,9 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
     });
 
-    it('updates selected count when rows are toggled', () => {
+    it('updates selected count when rows are toggled', async () => {
         render(<ResourcesPage {...buildProps()} />);
+        await waitForFilterOptionsToLoad();
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
         expect(screen.getByText(/^1 resource selected$/i)).toBeInTheDocument();
@@ -340,6 +349,19 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
         expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('shows fallback editor links when a row editor tab is blocked', async () => {
+        openMock.mockReturnValueOnce(null);
+        render(<ResourcesPage {...buildProps()} />);
+        await waitForFilterOptionsToLoad();
+
+        fireEvent.click(screen.getByRole('row', { name: /open resource 10\.9999\/one in editor/i }));
+
+        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('fallback links'));
+        expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('target', '_blank');
     });
 
     it('keeps single-resource actions visible but reports a useful error for multi-selection', async () => {
@@ -910,9 +932,10 @@ describe('ResourcesPage - bulk selection', () => {
         }
     });
 
-    it('renders the import buttons alongside the action toolbar', () => {
+    it('renders the import buttons alongside the action toolbar', async () => {
         const props = { ...buildProps(), canImportFromDataCite: true };
         render(<ResourcesPage {...props} />);
+        await waitForFilterOptionsToLoad();
 
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();

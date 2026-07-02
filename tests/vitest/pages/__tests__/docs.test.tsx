@@ -233,6 +233,24 @@ describe('Docs page', () => {
         expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
     });
 
+    it('documents opening resources from the resources table row', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab.');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides controlled keywords section when all vocabulary families are disabled', async () => {
         const { user } = renderDocsPage(
             'beginner',
