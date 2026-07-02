@@ -237,9 +237,10 @@ const RESOURCE_ROW_INTERACTIVE_SELECTOR = [
 ].join(',');
 
 const shouldIgnoreResourceRowActivation = (event: ReactMouseEvent<HTMLTableRowElement> | ReactKeyboardEvent<HTMLTableRowElement>): boolean => {
-    const target = event.target;
+    const eventTarget = event.target;
+    const target = eventTarget instanceof Element ? eventTarget : eventTarget instanceof Text ? eventTarget.parentElement : null;
 
-    if (!(target instanceof Element)) {
+    if (target === null) {
         return false;
     }
 

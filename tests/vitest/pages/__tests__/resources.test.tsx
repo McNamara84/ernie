@@ -93,7 +93,7 @@ const clickResourceAction = async (testId: string) => {
 
 describe('ResourcesPage', () => {
     let originalOpen: typeof window.open;
-    let originalClipboard: Clipboard | undefined;
+    let originalClipboardDescriptor: PropertyDescriptor | undefined;
     let openMock: ReturnType<typeof vi.fn>;
     let clipboardWriteTextMock: ReturnType<typeof vi.fn>;
 
@@ -108,7 +108,7 @@ describe('ResourcesPage', () => {
         buildCurationQueryFromResourceMock.mockResolvedValue({});
         editorRouteMock.mockClear();
         originalOpen = window.open;
-        originalClipboard = navigator.clipboard;
+        originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
         openMock = vi.fn().mockReturnValue({ closed: false });
         clipboardWriteTextMock = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(window, 'open', {
@@ -142,11 +142,11 @@ describe('ResourcesPage', () => {
             configurable: true,
             writable: true,
         });
-        Object.defineProperty(navigator, 'clipboard', {
-            value: originalClipboard,
-            configurable: true,
-            writable: true,
-        });
+        if (originalClipboardDescriptor) {
+            Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
+        } else {
+            Reflect.deleteProperty(navigator, 'clipboard');
+        }
     });
 
     it('renders a table with the streamlined dataset overview', async () => {
@@ -475,6 +475,45 @@ describe('ResourcesPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /published - click to open doi and copy url to clipboard/i }));
 
         expect(clipboardWriteTextMock).toHaveBeenCalledWith('https://doi.org/10.9999/example');
+        expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openMock).not.toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+    });
+
+    it('does not activate the row when an interactive status badge text node is clicked', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'published',
+            landingPage: { id: 1, is_published: true, public_url: 'https://example.test/resource' },
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        const statusTextNode = screen.getByText('Published').firstChild;
+
+        expect(statusTextNode).toBeInstanceOf(Text);
+
+        fireEvent.click(statusTextNode as Text);
+
         expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
         expect(editorRouteMock).not.toHaveBeenCalled();
         expect(openMock).not.toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
