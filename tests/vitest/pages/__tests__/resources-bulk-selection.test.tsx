@@ -342,6 +342,18 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
+    it('shows fallback editor links when a row editor tab is blocked', () => {
+        openMock.mockReturnValueOnce(null);
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByRole('row', { name: /open resource 10\.9999\/one in editor/i }));
+
+        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('fallback links'));
+        expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
+        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('target', '_blank');
+    });
+
     it('keeps single-resource actions visible but reports a useful error for multi-selection', async () => {
         render(<ResourcesPage {...buildProps()} />);
 

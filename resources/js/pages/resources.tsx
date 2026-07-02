@@ -224,6 +224,30 @@ const formatDeleteStatusCount = (status: ResourceDeleteStatus, count: number): s
 
 const getResourceActionLabel = (resource: Resource): string => resource.title ?? resource.doi ?? `Resource #${resource.id}`;
 
+const RESOURCE_ROW_INTERACTIVE_SELECTOR = [
+    'a',
+    'button',
+    'input',
+    'select',
+    'textarea',
+    '[role="button"]',
+    '[role="checkbox"]',
+    '[role="menuitem"]',
+    '[data-resource-row-action]',
+].join(',');
+
+const shouldIgnoreResourceRowActivation = (event: ReactMouseEvent<HTMLTableRowElement> | ReactKeyboardEvent<HTMLTableRowElement>): boolean => {
+    const target = event.target;
+
+    if (!(target instanceof Element)) {
+        return false;
+    }
+
+    const interactiveElement = target.closest(RESOURCE_ROW_INTERACTIVE_SELECTOR);
+
+    return interactiveElement !== null && event.currentTarget.contains(interactiveElement);
+};
+
 const getFilenameFromContentDisposition = (contentDisposition: string | undefined, fallback: string): string => {
     const filenameMatch = contentDisposition?.match(/filename="?([^"]+)"?/);
 
@@ -502,6 +526,7 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
             tabIndex={disabled ? -1 : 0}
             title={`Resize ${label} column`}
             data-testid={`resources-column-resize-${columnKey}`}
+            data-resource-row-action="true"
             onPointerDown={handlePointerDown}
             onKeyDown={handleKeyDown}
         >
@@ -1291,30 +1316,77 @@ function ResourcesPage({
             toast.error(errorMessage);
         }
     }, []);
+
+    const openResourceEditorTab = useCallback((resource: Resource): BlockedEditorTab | null => {
+        if (typeof resource.id !== 'number') {
+            return null;
+        }
+
+        const url = editorRoute({ query: { resourceId: resource.id } }).url;
+        const opened = window.open(url, '_blank', 'noopener,noreferrer');
+
+        if (opened !== null) {
+            return null;
+        }
+
+        return {
+            id: resource.id,
+            label: getResourceActionLabel(resource),
+            url,
+        };
+    }, []);
+
+    const warnAboutBlockedEditorTabs = useCallback((blockedTabs: BlockedEditorTab[]) => {
+        if (blockedTabs.length === 0) {
+            return;
+        }
+
+        setBlockedEditorTabs(blockedTabs);
+        toast.warning('Your browser blocked one or more editor tabs. Use the fallback links to continue editing.');
+    }, []);
+
     const handleEditSelectedResources = useCallback(() => {
         if (selectedResources.length === 0) {
             toast.error('Select one or more resources first.');
             return;
         }
 
-        const blockedTabs: BlockedEditorTab[] = [];
-        selectedResources.forEach((resource) => {
-            const url = editorRoute({ query: { resourceId: resource.id } }).url;
-            const opened = window.open(url, '_blank', 'noopener,noreferrer');
-            if (opened === null) {
-                blockedTabs.push({
-                    id: resource.id,
-                    label: getResourceActionLabel(resource),
-                    url,
-                });
-            }
-        });
+        const blockedTabs = selectedResources.map(openResourceEditorTab).filter((tab): tab is BlockedEditorTab => tab !== null);
+        warnAboutBlockedEditorTabs(blockedTabs);
+    }, [openResourceEditorTab, selectedResources, warnAboutBlockedEditorTabs]);
 
-        if (blockedTabs.length > 0) {
-            setBlockedEditorTabs(blockedTabs);
-            toast.warning('Your browser blocked one or more editor tabs. Use the fallback links to continue editing.');
-        }
-    }, [selectedResources]);
+    const handleResourceRowActivation = useCallback(
+        (resource: Resource) => {
+            const blockedTab = openResourceEditorTab(resource);
+            warnAboutBlockedEditorTabs(blockedTab ? [blockedTab] : []);
+        },
+        [openResourceEditorTab, warnAboutBlockedEditorTabs],
+    );
+
+    const handleResourceRowClick = useCallback(
+        (resource: Resource, event: ReactMouseEvent<HTMLTableRowElement>) => {
+            if (shouldIgnoreResourceRowActivation(event)) {
+                return;
+            }
+
+            handleResourceRowActivation(resource);
+        },
+        [handleResourceRowActivation],
+    );
+
+    const handleResourceRowKeyDown = useCallback(
+        (resource: Resource, event: ReactKeyboardEvent<HTMLTableRowElement>) => {
+            const isActivationKey = event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar';
+
+            if (!isActivationKey || shouldIgnoreResourceRowActivation(event)) {
+                return;
+            }
+
+            event.preventDefault();
+            handleResourceRowActivation(resource);
+        },
+        [handleResourceRowActivation],
+    );
 
     const handleBatchExportSelectedResources = useCallback(
         async (action: ResourceExportAction) => {
@@ -1706,6 +1778,7 @@ function ResourcesPage({
                             }
                             aria-label={ariaLabel}
                             title={ariaLabel}
+                            data-resource-row-action={isClickable ? 'true' : undefined}
                         >
                             <span className="truncate">{statusLabel}</span>
                         </span>
@@ -1992,15 +2065,25 @@ function ResourcesPage({
                                             {loading && sortedResources.length === 0 && <LoadingSkeleton />}
                                             {sortedResources.map((resource, index) => {
                                                 const isLast = index === sortedResources.length - 1;
+                                                const hasEditableResource = typeof resource.id === 'number';
                                                 const resourceLabel =
-                                                    resource.doi ?? resource.title ?? (resource.id !== undefined ? `#${resource.id}` : 'entry');
+                                                    resource.doi ?? resource.title ?? (hasEditableResource ? `#${resource.id}` : 'entry');
+
                                                 return (
                                                     <TableRow
                                                         key={deriveResourceRowKey(resource)}
-                                                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        className={cn(
+                                                            'hover:bg-gray-50 dark:hover:bg-gray-800',
+                                                            hasEditableResource &&
+                                                                'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
+                                                        )}
                                                         ref={isLast ? lastResourceElementRef : null}
-                                                        data-state={
-                                                            resource.id !== undefined && selectedIds.has(resource.id) ? 'selected' : undefined
+                                                        data-state={hasEditableResource && selectedIds.has(resource.id) ? 'selected' : undefined}
+                                                        tabIndex={hasEditableResource ? 0 : undefined}
+                                                        aria-label={hasEditableResource ? `Open resource ${resourceLabel} in editor` : undefined}
+                                                        onClick={hasEditableResource ? (event) => handleResourceRowClick(resource, event) : undefined}
+                                                        onKeyDown={
+                                                            hasEditableResource ? (event) => handleResourceRowKeyDown(resource, event) : undefined
                                                         }
                                                     >
                                                         <TableCell className="w-12 min-w-12 align-middle">
