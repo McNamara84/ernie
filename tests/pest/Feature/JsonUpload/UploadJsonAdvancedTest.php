@@ -489,7 +489,7 @@ describe('JSON Upload - Contributor edge cases', function () {
 });
 
 describe('JSON Upload - Date normalization', function () {
-    test('normalizes year-only dates', function () {
+    test('preserves year-only date precision', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -503,10 +503,10 @@ describe('JSON Upload - Date normalization', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['dates'][0]['startDate'])->toBe('2025-01-01');
+        expect($data['dates'][0]['startDate'])->toBe('2025');
     });
 
-    test('normalizes year-month dates', function () {
+    test('preserves year-month date precision', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -520,7 +520,7 @@ describe('JSON Upload - Date normalization', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['dates'][0]['startDate'])->toBe('2025-06-01');
+        expect($data['dates'][0]['startDate'])->toBe('2025-06');
     });
 
     test('strips time from datetime values', function () {

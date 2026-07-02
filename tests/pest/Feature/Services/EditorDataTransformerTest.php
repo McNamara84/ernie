@@ -1280,7 +1280,7 @@ describe('transformDates', function (): void {
             ->and($result['Created']['dateMode'])->toBe('single')
             ->and($result['Created']['startDate'])->toBe('2024-01-15')
             ->and($result['Available']['dateMode'])->toBe('single')
-            ->and($result['Available']['startDate'])->toBe('2027-06-01');
+            ->and($result['Available']['startDate'])->toBe('2027-06');
     });
 });
 
