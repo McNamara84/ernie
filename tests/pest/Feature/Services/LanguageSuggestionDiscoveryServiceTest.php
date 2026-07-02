@@ -206,6 +206,48 @@ it('detects English from scientific English content with domain terms', function
     expect($suggestions[0]['suggestedValue'])->toBe('en');
 });
 
+it('skips suggestions when explicit title and description languages conflict', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Eine Studie über geologische Proben',
+        'language' => 'de',
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'This dataset contains research data and analysis for the study.',
+        'description_type_id' => 1,
+        'language' => 'en',
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $count = $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($count)->toBe(0);
+    expect($suggestions)->toHaveCount(0);
+});
+
 // ══════════════════════════════════════════════════════════════════════════════════
 // ─ NON-ENGLISH LANGUAGE DETECTION (German, French, Spanish, Italian, Dutch) ─
 // ══════════════════════════════════════════════════════════════════════════════════

@@ -108,13 +108,23 @@ final class LanguageSuggestionDiscoveryService
             return null;
         }
 
-        $explicitLanguages = $this->collectExplicitLanguages($resource);
-        $explicitKnown = array_values(array_unique(array_filter($explicitLanguages, static fn (string $code): bool => in_array($code, $languageCodes, true))));
+        $evidence = $this->collectEvidence($resource, $languageCodes);
+        if ($evidence === []) {
+            return null;
+        }
 
-        if ($explicitKnown !== []) {
-            $counts = array_count_values($explicitKnown);
+        $explicitModes = array_values(array_unique(array_filter(array_column($evidence, 'language'), static fn (?string $code): bool => $code !== null && in_array($code, $languageCodes, true))));
+        $explicitLanguages = array_values(array_filter($explicitModes, static fn (string $code): bool => in_array($code, $languageCodes, true)));
+
+        if ($explicitLanguages !== []) {
+            $counts = array_count_values($explicitLanguages);
             arsort($counts);
             $code = (string) array_key_first($counts);
+            $sourceCount = count($counts);
+
+            if ($sourceCount > 1) {
+                return null;
+            }
 
             return [
                 'code' => $code,
@@ -123,7 +133,8 @@ final class LanguageSuggestionDiscoveryService
                 'source' => 'explicit_language',
                 'scores' => $counts,
                 'evidence' => [
-                    'explicit_languages' => $explicitKnown,
+                    'explicit_languages' => $explicitLanguages,
+                    'evidence' => $evidence,
                     'text' => $this->collectText($resource),
                 ],
             ];
@@ -170,26 +181,33 @@ final class LanguageSuggestionDiscoveryService
                 'text' => $text,
                 'top_score' => $topScore,
                 'second_score' => $secondScore,
+                'evidence' => $evidence,
             ],
         ];
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, array{source: string, language: string|null}>
      */
-    private function collectExplicitLanguages(Resource $resource): array
+    private function collectEvidence(Resource $resource, array $languageCodes): array
     {
-        $languages = [];
+        $evidence = [];
 
         foreach ($resource->titles as $title) {
             if (is_string($title->language) && $title->language !== '') {
-                $languages[] = $this->normaliseCode($title->language);
+                $code = $this->normaliseCode($title->language);
+                if (in_array($code, $languageCodes, true)) {
+                    $evidence[] = ['source' => 'title', 'language' => $code];
+                }
             }
         }
 
         foreach ($resource->descriptions as $description) {
             if (is_string($description->language) && $description->language !== '') {
-                $languages[] = $this->normaliseCode($description->language);
+                $code = $this->normaliseCode($description->language);
+                if (in_array($code, $languageCodes, true)) {
+                    $evidence[] = ['source' => 'description', 'language' => $code];
+                }
             }
         }
 
@@ -197,12 +215,22 @@ final class LanguageSuggestionDiscoveryService
             if ($subject->language_id !== null) {
                 $language = Language::query()->find($subject->language_id);
                 if ($language instanceof Language) {
-                    $languages[] = $this->normaliseCode($language->code);
+                    $code = $this->normaliseCode($language->code);
+                    if (in_array($code, $languageCodes, true)) {
+                        $evidence[] = ['source' => 'subject', 'language' => $code];
+                    }
                 }
             }
         }
 
-        return array_filter($languages, static fn (string $value): bool => $value !== '');
+        if ($resource->publisher !== null && is_string($resource->publisher->name) && $resource->publisher->name !== '') {
+            $publisherLanguage = $this->inferPublisherLanguage($resource->publisher->name);
+            if ($publisherLanguage !== null && in_array($publisherLanguage, $languageCodes, true)) {
+                $evidence[] = ['source' => 'publisher', 'language' => $publisherLanguage];
+            }
+        }
+
+        return $evidence;
     }
 
     private function collectText(Resource $resource): string
@@ -274,6 +302,25 @@ final class LanguageSuggestionDiscoveryService
         }
 
         return sprintf('%s (%s)', $language->name, $language->code);
+    }
+
+    private function inferPublisherLanguage(string $publisherName): ?string
+    {
+        $name = mb_strtolower($publisherName);
+
+        if (str_contains($name, 'gfz') || str_contains($name, 'helmholtz')) {
+            return 'en';
+        }
+
+        if (str_contains($name, 'deutsche')) {
+            return 'de';
+        }
+
+        if (str_contains($name, 'france') || str_contains($name, 'français')) {
+            return 'fr';
+        }
+
+        return null;
     }
 
     private function normaliseCode(string $code): string
