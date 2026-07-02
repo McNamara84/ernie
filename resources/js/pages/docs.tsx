@@ -1832,6 +1832,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             actions toolbar sits directly below the filter row and shows how many resources are
                             selected.
                         </p>
+                        <p>
+                            Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and copy the DOI or preview URL.
+                        </p>
 
                         <h4>Quick Resource Actions</h4>
                         <p>
