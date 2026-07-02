@@ -1017,11 +1017,10 @@ class ResourceStorageService
         $systemDateTypes = [
             'accepted' => ['name' => 'Accepted', 'slug' => 'Accepted'],
             'issued' => ['name' => 'Issued', 'slug' => 'Issued'],
-            'updated' => ['name' => 'Updated', 'slug' => 'Updated'],
         ];
 
         if (! array_key_exists($dateTypeKey, $systemDateTypes)) {
-            throw new \InvalidArgumentException('Only Accepted, Issued, and Updated can be written as system dates.');
+            throw new \InvalidArgumentException('Only Accepted and Issued can be written as system dates.');
         }
 
         $dateType = DateType::query()
@@ -1029,7 +1028,7 @@ class ResourceStorageService
             ->first();
 
         if (! $dateType instanceof DateType) {
-            $dateType = DateType::query()->createOrFirst(
+            $dateType = DateType::query()->firstOrCreate(
                 ['slug' => $systemDateTypes[$dateTypeKey]['slug']],
                 [
                     'name' => $systemDateTypes[$dateTypeKey]['name'],

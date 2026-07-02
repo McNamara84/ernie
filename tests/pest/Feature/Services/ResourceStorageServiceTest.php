@@ -1225,7 +1225,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($storedDateTypes)->not->toContain('Coverage');
     });
 
-    it('creates missing system dates idempotently without allowing Created through the helper', function () {
+    it('creates missing system dates idempotently without allowing Created or Updated through the helper', function () {
         $resource = Resource::factory()->create();
 
         DateType::query()->whereRaw('LOWER(slug) = ?', ['issued'])->delete();
@@ -1244,6 +1244,9 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             ->and($issuedDates->first()->date_value)->toBe('2026-07-02');
 
         expect(fn () => $this->service->ensureSystemDate($resource, 'Created', '2026-07-02'))
+            ->toThrow(InvalidArgumentException::class);
+
+        expect(fn () => $this->service->ensureSystemDate($resource, 'Updated', '2026-07-03'))
             ->toThrow(InvalidArgumentException::class);
     });
 
