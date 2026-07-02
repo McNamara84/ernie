@@ -3,7 +3,7 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import axios from 'axios';
-import { Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
+import { AlertTriangle, Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -18,6 +18,7 @@ import {
     isLandingPageNotFoundError,
 } from '@/components/landing-pages/modals/landing-page-modal-helpers';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +69,7 @@ type DownloadUrlSuggestionEntry = {
 type PersistedLandingPageDraftState = {
     template: string;
     ftpUrl: string;
+    downloadsUnavailable: boolean;
     isPublished: boolean;
     externalDomainId: string;
     externalPath: string;
@@ -89,6 +91,7 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
     return {
         template: draftState.template,
         ftpUrl: draftState.ftpUrl,
+        downloadsUnavailable: draftState.downloadsUnavailable,
         isPublished: draftState.isPublished,
         externalDomainId: draftState.externalDomainId,
         externalPath: draftState.externalPath,
@@ -145,6 +148,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null): Persisted
         return {
             template: parsed.template,
             ftpUrl: typeof parsed.ftpUrl === 'string' ? parsed.ftpUrl : '',
+            downloadsUnavailable: parsed.downloadsUnavailable === true,
             isPublished: parsed.isPublished === true,
             externalDomainId: typeof parsed.externalDomainId === 'string' ? parsed.externalDomainId : '',
             externalPath: typeof parsed.externalPath === 'string' ? parsed.externalPath : '',
@@ -300,6 +304,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         return {
             template: preferredTemplate,
             ftpUrl: config?.ftp_url ?? '',
+            downloadsUnavailable: config?.downloads_unavailable === true,
             isPublished: (config?.status ?? 'draft') === 'published',
             externalDomainId: String(config?.external_domain_id ?? ''),
             externalPath: config?.external_path ?? '',
@@ -311,6 +316,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const applyDraftState = useCallback((draftState: PersistedLandingPageDraftState) => {
         setTemplate(draftState.template);
         setFtpUrl(draftState.ftpUrl);
+        setDownloadsUnavailable(draftState.downloadsUnavailable);
         setIsPublished(draftState.isPublished);
         setExternalDomainId(draftState.externalDomainId);
         setExternalPath(draftState.externalPath);
@@ -320,6 +326,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const [template, setTemplate] = useState<string>(initialTemplate);
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
+    const [downloadsUnavailable, setDownloadsUnavailable] = useState<boolean>(existingConfig?.downloads_unavailable === true);
     const [isPublished, setIsPublished] = useState<boolean>((existingConfig?.status ?? 'draft') === 'published');
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
@@ -354,6 +361,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const isExternal = template === 'external';
     const isIgsn = template === 'default_gfz_igsn';
     const supportsFtpUrl = !isExternal && !isIgsn;
+    const supportsDownloadsUnavailable = supportsFtpUrl;
     const supportsLinks = !isExternal && !isIgsn;
     const MAX_LINKS = 10;
 
@@ -384,12 +392,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const currentDraftState = useMemo<PersistedLandingPageDraftState>(() => ({
         template,
         ftpUrl,
+        downloadsUnavailable,
         isPublished,
         externalDomainId,
         externalPath,
         landingPageTemplateId,
         links: cloneLandingPageLinks(links),
-    }), [externalDomainId, externalPath, ftpUrl, isPublished, landingPageTemplateId, links, template]);
+    }), [downloadsUnavailable, externalDomainId, externalPath, ftpUrl, isPublished, landingPageTemplateId, links, template]);
     const baselineDraftState = useMemo(
         () => buildDraftStateFromConfig(currentConfig),
         [buildDraftStateFromConfig, currentConfig],
@@ -532,6 +541,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 isPublished,
                 supportsFtpUrl,
                 ftpUrl,
+                supportsDownloadsUnavailable,
+                downloadsUnavailable,
                 supportsLinks,
                 links,
                 isExternal,
@@ -626,6 +637,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             template !== currentTemplate ||
             // ftpUrl is irrelevant for external and IGSN templates.
             (supportsFtpUrl && ftpUrl !== (currentConfig.ftp_url ?? '')) ||
+            (supportsDownloadsUnavailable && downloadsUnavailable !== (currentConfig.downloads_unavailable === true)) ||
             isPublished !== (currentConfig.status === 'published') ||
             landingPageTemplateId !== currentLandingPageTemplateId;
 
@@ -646,7 +658,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             );
         }
         return baseChanges || linksChanged;
-    }, [currentConfig, template, ftpUrl, isPublished, externalDomainId, externalPath, links, landingPageTemplateId, resource.resourcetypegeneral, supportsFtpUrl]);
+    }, [currentConfig, template, ftpUrl, downloadsUnavailable, isPublished, externalDomainId, externalPath, links, landingPageTemplateId, resource.resourcetypegeneral, supportsFtpUrl, supportsDownloadsUnavailable]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
@@ -798,6 +810,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                     landingPageTemplateId,
                     supportsFtpUrl,
                     ftpUrl,
+                    supportsDownloadsUnavailable,
+                    downloadsUnavailable,
                     supportsLinks,
                     links,
                     isExternal,
@@ -1161,6 +1175,34 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                         Direct link to download the primary data files. Start typing or pick a suggested domain or full URL from
                                         existing landing pages.
                                     </p>
+                                )}
+
+                                {supportsDownloadsUnavailable && (
+                                    <div className="space-y-2 rounded-md border p-3">
+                                        <div className="flex items-start gap-3">
+                                            <Checkbox
+                                                id="downloads-unavailable"
+                                                checked={downloadsUnavailable}
+                                                onCheckedChange={(checked) => setDownloadsUnavailable(checked === true)}
+                                                className="mt-0.5"
+                                            />
+                                            <div className="space-y-1">
+                                                <Label htmlFor="downloads-unavailable" className="text-sm font-medium">
+                                                    No data available for download
+                                                </Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Hide the Files section on the landing page while keeping saved download values for later use.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {downloadsUnavailable && hasImportedFiles && (
+                                            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                                                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                                                <p>Imported download files will be hidden on the public landing page while this option is enabled.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}

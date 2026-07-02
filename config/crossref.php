@@ -9,7 +9,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Configuration for looking up citation metadata via the Crossref API,
-    | used by the Citation Manager for DOI auto-fill (primary source,
+    | used by the Related Item Manager for DOI auto-fill (primary source,
     | falling back to DataCite).
     |
     */

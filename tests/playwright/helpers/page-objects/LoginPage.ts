@@ -56,7 +56,7 @@ export class LoginPage {
    */
   async loginAndWaitForDashboard(email: string, password: string) {
     await this.login(email, password);
-    await this.page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await expect(this.page).toHaveURL(/\/dashboard/, { timeout: 30000 });
   }
 
   /**

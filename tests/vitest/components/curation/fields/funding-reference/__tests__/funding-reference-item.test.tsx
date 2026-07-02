@@ -68,6 +68,22 @@ describe('FundingReferenceItem', () => {
         expect(screen.getByLabelText(/Funder Name/i)).toBeInTheDocument();
     });
 
+    it('renders the card with an editable visual treatment', () => {
+        const validFunding = { ...defaultFunding, funderName: 'Deutsche Forschungsgemeinschaft' };
+        render(<FundingReferenceItem {...defaultProps} funding={validFunding} />);
+
+        const card = screen.getByTestId('funding-reference-card');
+        expect(card).toHaveClass('bg-card');
+        expect(card).toHaveClass('text-card-foreground');
+        expect(card).toHaveClass('border-border');
+        expect(card).toHaveClass('border-l-4');
+        expect(card).toHaveClass('border-l-gfz-primary');
+        expect(card).toHaveClass('shadow-md');
+        expect(card).toHaveClass('focus-within:ring-[3px]');
+        expect(card).not.toHaveClass('bg-muted');
+        expect(card).not.toHaveClass('bg-muted/30');
+    });
+
     it('calls onFunderNameChange when typing in funder name field', async () => {
         const user = userEvent.setup();
         render(<FundingReferenceItem {...defaultProps} />);
@@ -128,6 +144,18 @@ describe('FundingReferenceItem', () => {
         expect(screen.getByLabelText(/Award\/Grant Number/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Award URI/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/Award Title/i)).toBeInTheDocument();
+    });
+
+    it('renders expanded award details without a muted disabled-looking background', () => {
+        const expandedFunding = { ...defaultFunding, funderName: 'Deutsche Forschungsgemeinschaft', isExpanded: true };
+        render(<FundingReferenceItem {...defaultProps} funding={expandedFunding} />);
+
+        const awardDetails = screen.getByTestId('funding-reference-award-details');
+        expect(awardDetails).toHaveClass('bg-background');
+        expect(awardDetails).toHaveClass('border-dashed');
+        expect(awardDetails).toHaveClass('border-input');
+        expect(awardDetails).not.toHaveClass('bg-muted');
+        expect(awardDetails).not.toHaveClass('bg-muted/30');
     });
 
     it('does not render award detail fields when collapsed', () => {
@@ -273,6 +301,30 @@ describe('FundingReferenceItem', () => {
         expect(screen.getByLabelText(/Award\/Grant Number/i)).toHaveValue('GRANT-123');
         expect(screen.getByLabelText(/Award URI/i)).toHaveValue('https://grant.example.com');
         expect(screen.getByLabelText(/Award Title/i)).toHaveValue('Test Grant Title');
+    });
+
+    it('marks the funder name input invalid when it is empty', () => {
+        render(<FundingReferenceItem {...defaultProps} />);
+
+        const input = screen.getByLabelText(/Funder Name/i);
+        expect(input).toHaveAttribute('aria-invalid', 'true');
+        expect(input).toHaveAttribute('aria-describedby', 'funding-1-funder-name-error');
+        expect(screen.getByText('Funder name is required')).toBeInTheDocument();
+    });
+
+    it('marks the award URI input invalid when the expanded value is not a URL', () => {
+        const invalidFunding = {
+            ...defaultFunding,
+            funderName: 'Deutsche Forschungsgemeinschaft',
+            awardUri: 'not-a-url',
+            isExpanded: true,
+        };
+        render(<FundingReferenceItem {...defaultProps} funding={invalidFunding} />);
+
+        const input = screen.getByLabelText(/Award URI/i);
+        expect(input).toHaveAttribute('aria-invalid', 'true');
+        expect(input).toHaveAttribute('aria-describedby', 'funding-1-award-uri-error');
+        expect(screen.getByText('Invalid URL format')).toBeInTheDocument();
     });
 
     it('displays Crossref Funder ID badge with correct icon', () => {

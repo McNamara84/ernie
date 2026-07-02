@@ -26,6 +26,8 @@ use Illuminate\Contracts\Validation\ValidationRule;
  */
 final class SafeUrl implements ValidationRule
 {
+    public function __construct(private readonly ?string $messagePrefix = null) {}
+
     /**
      * Allowed URL schemes for safe rendering in HTML href attributes.
      *
@@ -47,7 +49,7 @@ final class SafeUrl implements ValidationRule
 
         // Must be a string
         if (! is_string($value)) {
-            $fail('The :attribute must be a string.');
+            $this->fail($fail, 'The :attribute must be a string.');
 
             return;
         }
@@ -57,7 +59,7 @@ final class SafeUrl implements ValidationRule
 
         // If parsing fails completely, the URL is malformed
         if ($uri === null) {
-            $fail('The :attribute must be a valid URL.');
+            $this->fail($fail, 'The :attribute must be a valid URL.');
 
             return;
         }
@@ -67,7 +69,7 @@ final class SafeUrl implements ValidationRule
 
         // Check for missing scheme (relative URLs like "example.com/path")
         if ($scheme === null) {
-            $fail('The :attribute must include a URL scheme (http or https).');
+            $this->fail($fail, 'The :attribute must include a URL scheme (http or https).');
 
             return;
         }
@@ -75,7 +77,7 @@ final class SafeUrl implements ValidationRule
         // For http/https URLs, we require a host (reject "http://" without host)
         if (in_array(strtolower($scheme), self::ALLOWED_SCHEMES, true)) {
             if ($host === null || $host === '') {
-                $fail('The :attribute must be a valid URL.');
+                $this->fail($fail, 'The :attribute must be a valid URL.');
 
                 return;
             }
@@ -86,6 +88,14 @@ final class SafeUrl implements ValidationRule
 
         // Reject other schemes (javascript:, data:, vbscript:, ftp:, file:, etc.)
         // This is the XSS protection
-        $fail('The :attribute must use http or https protocol.');
+        $this->fail($fail, 'The :attribute must use http or https protocol.');
+    }
+
+    /**
+     * @param  Closure(string, ?string=): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     */
+    private function fail(Closure $fail, string $message): void
+    {
+        $fail($this->messagePrefix !== null ? $this->messagePrefix.' '.$message : $message);
     }
 }

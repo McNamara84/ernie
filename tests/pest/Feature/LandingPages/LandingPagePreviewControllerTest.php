@@ -42,6 +42,31 @@ describe('Session Preview Creation', function () {
             ->toHaveKey('resource_id', $this->resource->id);
     });
 
+    test('stores downloads unavailable preview data while retaining submitted download values in session', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'downloads_unavailable' => true,
+            'links' => [
+                [
+                    'url' => 'https://example.org/supporting-repository',
+                    'label' => 'Supporting repository',
+                    'position' => 0,
+                ],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $sessionKey = "landing_page_preview.{$this->resource->id}";
+        $sessionData = Session::get($sessionKey);
+
+        expect($sessionData)
+            ->toHaveKey('downloads_unavailable', true)
+            ->toHaveKey('ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
+            ->and($sessionData['links'][0]['url'])->toBe('https://example.org/supporting-repository');
+    });
+
     test('validates required template field', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page/preview", []);
 
@@ -162,6 +187,33 @@ describe('Session Preview Display', function () {
             );
     });
 
+    test('session preview hides download payloads when downloads are unavailable', function () {
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'downloads_unavailable' => true,
+            'links' => [
+                [
+                    'url' => 'https://example.org/supporting-repository',
+                    'label' => 'Supporting repository',
+                    'position' => 0,
+                ],
+            ],
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.downloads_unavailable', true)
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.files', [])
+                ->where('landingPage.links', [])
+            );
+    });
+
     test('returns 404 when session preview does not exist', function () {
         $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
 
@@ -209,6 +261,9 @@ describe('Session Preview Display', function () {
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/custom-igsn-logo.png',
+            'creator_display_limit' => 13,
+            'contributor_display_limit' => 14,
+            'citation_author_display_limit' => 15,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -228,6 +283,9 @@ describe('Session Preview Display', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('displayLimits.creators', 13)
+                ->where('displayLimits.contributors', 14)
+                ->where('displayLimits.citationAuthors', 15)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-igsn-logo.png'))
             );
     });
@@ -246,6 +304,9 @@ describe('Session Preview Display', function () {
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/normalized-igsn-logo.png',
+            'creator_display_limit' => 16,
+            'contributor_display_limit' => 17,
+            'citation_author_display_limit' => 18,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -269,6 +330,9 @@ describe('Session Preview Display', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('displayLimits.creators', 16)
+                ->where('displayLimits.contributors', 17)
+                ->where('displayLimits.citationAuthors', 18)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/normalized-igsn-logo.png'))
             );
     });
@@ -285,6 +349,11 @@ describe('Session Preview Display', function () {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->user->id,
             'logo_path' => 'landing-page-logos/test/resource-logo.png',
+        ]);
+        LandingPageTemplate::defaultForType(LandingPageTemplate::TEMPLATE_TYPE_IGSN)->update([
+            'creator_display_limit' => 31,
+            'contributor_display_limit' => 41,
+            'citation_author_display_limit' => 61,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -303,11 +372,19 @@ describe('Session Preview Display', function () {
                 ->where('landingPage.landing_page_template_id', null)
                 ->where('customLogoUrl', null)
                 ->where('sectionOrder', null)
+                ->where('displayLimits.creators', 31)
+                ->where('displayLimits.contributors', 41)
+                ->where('displayLimits.citationAuthors', 61)
             );
     });
 
     test('preview display ignores built-in default template ids passed as custom overrides', function () {
         $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+        $defaultTemplate->update([
+            'creator_display_limit' => 31,
+            'contributor_display_limit' => 41,
+            'citation_author_display_limit' => 61,
+        ]);
 
         Session::put("landing_page_preview.{$this->resource->id}", [
             'template' => 'default_gfz',
@@ -324,6 +401,9 @@ describe('Session Preview Display', function () {
                 ->where('landingPage.landing_page_template_id', null)
                 ->where('customLogoUrl', null)
                 ->where('sectionOrder', null)
+                ->where('displayLimits.creators', 31)
+                ->where('displayLimits.contributors', 41)
+                ->where('displayLimits.citationAuthors', 61)
             );
     });
 });

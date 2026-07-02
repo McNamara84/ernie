@@ -466,6 +466,40 @@ test('transforms rights to licenses with correct field mapping', function () {
         ]);
 });
 
+test('transforms custom licenses without SPDX identifiers', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $customRight = new Right;
+    $customRight->forceFill([
+        'id' => 7,
+        'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+        'name' => 'Community Data License',
+        'uri' => 'https://example.test/licenses/community-data',
+        'scheme_uri' => null,
+    ]);
+
+    $resource->setRelation('rights', new EloquentCollection([$customRight]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['licenses'][0])->toMatchArray([
+        'id' => 7,
+        'name' => 'Community Data License',
+        'spdx_id' => null,
+        'reference' => 'https://example.test/licenses/community-data',
+        'scheme_uri' => null,
+    ]);
+});
 test('transforms multiple licenses correctly', function () {
     $transformer = new LandingPageResourceTransformer;
 
@@ -477,6 +511,7 @@ test('transforms multiple licenses correctly', function () {
         'identifier' => 'CC-BY-4.0',
         'name' => 'Creative Commons Attribution 4.0 International',
         'uri' => 'https://creativecommons.org/licenses/by/4.0/',
+        'scheme_uri' => 'https://spdx.org/licenses/',
     ]);
 
     $mit = new Right;
@@ -485,6 +520,7 @@ test('transforms multiple licenses correctly', function () {
         'identifier' => 'MIT',
         'name' => 'MIT License',
         'uri' => 'https://opensource.org/licenses/MIT',
+        'scheme_uri' => 'https://spdx.org/licenses/',
     ]);
 
     $resource->setRelation('rights', new EloquentCollection([$ccBy, $mit]));

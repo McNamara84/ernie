@@ -15,7 +15,6 @@ use Tests\TestCase;
  *
  * @see Issue #363
  */
-
 uses()->group('resources', 'bulk-actions', 'browser');
 
 describe('Resources page bulk actions (smoke)', function (): void {
@@ -31,7 +30,7 @@ describe('Resources page bulk actions (smoke)', function (): void {
 
         $page = visit('/resources')
             ->assertNoSmoke()
-            ->assertSee('Select rows to enable bulk actions');
+            ->assertSee('Select rows to enable resource actions');
 
         $page->click('[data-testid="resources-select-all"]')
             ->assertSee('resources selected');
@@ -49,10 +48,13 @@ describe('Resources page bulk actions (smoke)', function (): void {
 
         visit('/resources')
             ->assertNoSmoke()
-            ->assertDontSee('Register Selected');
+            ->click('[data-testid="resources-select-all"]')
+            ->assertSee('resources selected')
+            ->click('[data-testid="resources-actions-menu-trigger"]')
+            ->assertDontSee('Register DOI');
     });
 
-    it('shows the export dropdown trigger for any authenticated user', function (): void {
+    it('shows export actions for any authenticated user', function (): void {
         /** @var TestCase $this */
         $user = User::factory()->create([
             'role' => UserRole::BEGINNER,
@@ -64,6 +66,9 @@ describe('Resources page bulk actions (smoke)', function (): void {
 
         visit('/resources')
             ->assertNoSmoke()
-            ->assertVisible('[data-testid="bulk-export-button"]');
+            ->click('[data-testid="resources-select-all"]')
+            ->assertSee('resources selected')
+            ->click('[data-testid="resources-actions-menu-trigger"]')
+            ->assertVisible('[data-testid="resources-action-export-datacite-json"]');
     });
 });

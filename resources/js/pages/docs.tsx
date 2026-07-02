@@ -338,7 +338,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
-                                linking research instruments and ROR for research organizations
+                                linking research instruments, ROR for research organizations, and RAiD for research
+                                activities
                             </li>
                             <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
@@ -387,6 +388,11 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             <li>
                                 <strong>ROR (Research Organization Registry):</strong> Organization data used for
                                 affiliation lookups. The ROR dataset is fetched from the Zenodo data dump and can be
+                                provided to ELMO via the API.
+                            </li>
+                            <li>
+                                <strong>RAiD (Research Activity Identifier):</strong> Public research activity records
+                                discovered through DataCite. RAiD projects can be updated from Editor Settings and
                                 provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
@@ -461,6 +467,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <p className="text-sm text-muted-foreground">
                             Downloads the full ROR data dump from Zenodo. Can also be triggered from Editor
                             Settings.
+                        </p>
+
+                        <h4>Update RAiD Projects (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-raid-projects" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads public RAiD project records discovered through DataCite. Can also be triggered
+                            from Editor Settings.
                         </p>
 
                         <h4>Update MSL Keywords</h4>
@@ -576,6 +589,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 
                                 <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
                                 using title-text detection and supporting language hints
+                                <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
+                                license metadata before export
+                            </li>
+                            <li>
+                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose
+                                missing DataCite size and file-format metadata
                             </li>
                         </ul>
 
@@ -592,6 +611,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
                                     score. Title language suggestions also show the title text, current language, proposed language, confidence,
                                     and evidence summary so you can verify how the recommendation was created.
+                                </p>
+                                <p className="mt-2">
+                                    SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
+                                    Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
+                                    unchanged and dismisses the suggestion.
+                                </p>
+                                <p className="mt-2">
+                                    Size and format suggestions show the detected value, source URL, probe method, and confidence level. Size values
+                                    use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
+                                    a suggestion when a resource has multiple download locations.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
@@ -725,6 +754,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
@@ -1085,6 +1117,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Drag & Drop Reordering</h4>
                         <p>Reorder authors and contributors by dragging them to the desired position.</p>
+
+                        <h4>Contact Persons</h4>
+                        <p>
+                            Authors can be marked as contact persons with the CP checkbox. When imported metadata contains the same person as both
+                            an author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the
+                            separate creator and Contact Person contributor records required for DataCite export.
+                        </p>
                     </>
                 ),
             },
@@ -1374,18 +1413,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'citation-manager',
-                title: 'Citation Manager',
+                title: 'Related Item Manager',
                 icon: Quote,
                 minRole: 'beginner',
                 content: (
                     <>
                         <h3>
-                            Inline Citations (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
+                            Related Items (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
                         </h3>
                         <p>
-                            The Citation Manager complements plain <em>Related Identifiers</em> by allowing you to attach full bibliographic
-                            metadata for related works — including title, authors, publication year, volume, issue, pages, and publisher —
-                            directly to the resource. This is especially useful when citing a work that has no persistent identifier, or when
+                            The Related Item Manager complements plain <em>Related Identifiers</em> by allowing you to attach full metadata
+                            for resources related to the one being registered, including title, authors, publication year, volume, issue,
+                            pages, and publisher. This is especially useful when a related resource has no persistent identifier, or when
                             the linked record should remain visible even if the external DOI later becomes unavailable.
                         </p>
                         <p>You can open this workflow anywhere ERNIE lets you edit a resource.</p>
@@ -1394,15 +1433,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Resources list:</strong> click the quote icon <code>&quot;</code> in the Actions column of any row to open the
-                                Citation Manager modal for that resource.
+                                Related Item Manager modal for that resource.
                             </li>
                             <li>
-                                <strong>Curation form:</strong> expand the <em>Citations</em> accordion to add, edit, or delete citations while
+                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items while
                                 editing a resource.
                             </li>
                         </ul>
 
-                        <h4>Adding a Citation</h4>
+                        <h4>Adding a Related Item</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Auto-fill by DOI (recommended)">
                                 <p>
@@ -1418,13 +1457,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
                                 <p>
-                                    Every citation requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
+                                    Every related item requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
                                     contributors additionally carry a <em>contributorType</em> (Editor, Translator, …).
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Save & Reorder">
                                 <p>
-                                    Citations are persisted immediately. Drag rows in the list to change their display order on the landing
+                                    Related items are persisted immediately. Drag rows in the list to change their display order on the landing
                                     page. Switch between APA and IEEE preview styles and copy the formatted citation with one click.
                                 </p>
                             </WorkflowSteps.Step>
@@ -1432,16 +1471,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Export &amp; Import</h4>
                         <p>
-                            Citations are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
+                            Related items are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
                             <code>&lt;relatedItems&gt;</code>/<code>relatedItems</code> and in the Schema.org landing page markup
                             (<code>citation</code> block). XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on import and
-                            pre-filled in the editor. The DataCite JSON import path imports citations automatically.
+                            pre-filled in the editor. The DataCite JSON import path imports related items automatically.
                         </p>
 
                         <h4>On the Landing Page</h4>
                         <p>
-                            Inline citations appear in the <em>Related Work</em> section alongside standard related identifiers, labelled with
-                            an <em>Inline metadata</em> badge. If the citation has a DOI or URL identifier, the card links out to the external
+                            Related items appear in the <em>Related Work</em> section under the <em>Citations</em> heading, labelled with an{' '}
+                            <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
                             resource.
                         </p>
                     </>
@@ -1500,6 +1539,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such
                             as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
                         </p>
+                        <p>
+                            If a generated GFZ landing page should not offer downloads yet, enable{' '}
+                            <strong>No data available for download</strong> in the same Download URL section. ERNIE keeps the saved primary URL,
+                            imported legacy files, and additional download links in the setup modal, but hides the complete Files section on the
+                            preview and public landing page until the option is disabled again.
+                        </p>
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Navigate to Resources">
@@ -1508,7 +1553,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Create Landing Page">
-                                <p>Click the landing page icon button to generate a draft.</p>
+                                <p>Select the resource and click the <strong>Set up landing page</strong> quick action in the bulk toolbar to open the setup modal.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Preview">
                                 <p>Review how the landing page will appear before publishing.</p>
@@ -1538,7 +1583,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Open Landing Page Setup">
-                                <p>Click the landing page icon for your resource and open the setup modal.</p>
+                                <p>Select the resource on <code>/resources</code> and click <strong>Set up landing page</strong> in the bulk toolbar to open the setup modal.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Add Links">
                                 <p>
@@ -1806,10 +1851,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             actions toolbar sits directly below the filter row and shows how many resources are
                             selected.
                         </p>
+                        <p>
+                            Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and copy the DOI or preview URL.
+                        </p>
+
+                        <h4>Quick Resource Actions</h4>
+                        <p>
+                            <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
+                            Edit opens every selected resource in the Data Editor. If the browser blocks one or more editor tabs, ERNIE shows a
+                            fallback dialog with direct editor links. Set up landing page stays visible as a quick action and reports the standard
+                            single-record message when more than one row is selected.
+                        </p>
+                        <p>
+                            The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related
+                            items, and deletion remain grouped together.
+                        </p>
 
                         <h4>Bulk Export (all roles)</h4>
                         <p>
-                            Click <strong>Export Selected</strong> to download a single ZIP archive containing
+                            Open the <strong>Actions</strong> menu and choose the desired export command to download a single ZIP archive containing
                             the metadata of every selected resource in your chosen format:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
@@ -1825,15 +1885,43 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Bulk Register / Update DOI (Curator and above)</h4>
                         <p>
-                            Click <strong>Register Selected</strong> to push every selected resource to DataCite
-                            in one batch. The bulk flow <strong>only updates resources that already have a
-                            DOI</strong>; the button is disabled when the selection contains any DOI-less resource
-                            so you never accidentally mint a DOI without picking a prefix. To mint a new DOI,
-                            open the resource in the editor and use the single-resource register action there.
-                            Resources without a landing page or that are physical samples (IGSNs) are skipped
-                            and reported in the response toast.
+                            Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
+                            push selected resources to DataCite in one batch. The bulk flow <strong>only updates resources that already have a DOI</strong>;
+                            the action is unavailable when the selection contains any DOI-less resource so you never accidentally mint a DOI without
+                            picking a prefix. To mint a new DOI, open the resource in the editor and use the single-resource register action there.
+                            Resources without a landing page or that are physical samples (IGSNs) are skipped and reported in the response toast.
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
+
+                        {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                            <>
+                                <h4>Delete Selected Resources (Curator and above)</h4>
+                                <p>
+                                    Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources that have not been
+                                    published. DOI and landing page data no longer block deletion by themselves: draft, curation, and preview resources
+                                    can be deleted as long as their public status is not published.
+                                </p>
+                                <p>
+                                    The confirmation dialog groups the current selection into draft, curation, preview, and published resources. You can
+                                    choose which deletable groups to submit. Preview resources show an additional warning because their preview landing
+                                    pages will be removed with the resource. Published resources are listed as protected and are never sent to the delete
+                                    endpoint.
+                                </p>
+                            </>
+                        )}
+
+                        <h4>Resizable Columns</h4>
+                        <p>
+                            On tablet and desktop screens, drag the resize handle at the right edge of a column header to adjust the Resources
+                            table to your available screen width. Focus a handle with the keyboard and use Arrow Left or Arrow Right for fine
+                            adjustments, Shift plus Arrow Left or Arrow Right for larger steps, Home for the minimum width, and End for the
+                            maximum width. ERNIE saves your column widths in this browser, and the reset button above the table restores the
+                            defaults.
+                        </p>
+                        <p>
+                            Long values are shortened with an ellipsis when a column becomes narrow. Hover over a shortened value to see the
+                            complete text in a tooltip.
+                        </p>
 
                         <h4>Responsive Layout</h4>
                         <p>

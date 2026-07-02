@@ -56,7 +56,7 @@ class StoreRelatedItemRequest extends FormRequest
 
             // Item-level scheme metadata (DataCite 4.7 relatedItem attributes).
             // Required so XML/DataCite-imported citations round-trip through the
-            // Citation Manager modal without losing these values on update.
+            // Related Item Manager modal without losing these values on update.
             'related_metadata_scheme' => ['nullable', 'string', 'max:255'],
             'scheme_uri' => ['nullable', 'string', 'max:512'],
             'scheme_type' => ['nullable', 'string', 'max:64'],

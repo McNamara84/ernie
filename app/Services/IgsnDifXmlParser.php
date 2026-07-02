@@ -42,7 +42,7 @@ class IgsnDifXmlParser
     public function enrichFromDifXml(string $difXml, Resource $resource, IgsnMetadata $igsnMetadata): bool
     {
         try {
-            $xml = @simplexml_load_string($difXml);
+            $xml = @simplexml_load_string($difXml, \SimpleXMLElement::class, LIBXML_NONET);
             if ($xml === false) {
                 Log::warning('Failed to parse DIF XML', ['resource_id' => $resource->id]);
 

@@ -64,6 +64,7 @@ class LandingPageTemplateController extends Controller
             'left_column_order' => $defaultTemplate->left_column_order,
             'creator_display_limit' => $defaultTemplate->creator_display_limit,
             'contributor_display_limit' => $defaultTemplate->contributor_display_limit,
+            'citation_author_display_limit' => $defaultTemplate->citation_author_display_limit,
             'created_by' => $request->user()?->id,
         ]);
 
@@ -85,12 +86,12 @@ class LandingPageTemplateController extends Controller
         $validated = $request->validated();
 
         if ($landingPageTemplate->isDefault()) {
-            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit'];
+            $editableDefaultFields = ['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit'];
             $unsupportedFields = array_diff(array_keys($validated), $editableDefaultFields);
 
             if ($unsupportedFields !== []) {
                 return response()->json([
-                    'message' => 'Only creator and contributor display limits can be updated on default templates.',
+                    'message' => 'Only creator, contributor, and citation author display limits can be updated on default templates.',
                     'error' => 'default_template_immutable',
                 ], 403);
             }
@@ -116,6 +117,10 @@ class LandingPageTemplateController extends Controller
 
         if (isset($validated['contributor_display_limit'])) {
             $updateData['contributor_display_limit'] = $validated['contributor_display_limit'];
+        }
+
+        if (isset($validated['citation_author_display_limit'])) {
+            $updateData['citation_author_display_limit'] = $validated['citation_author_display_limit'];
         }
 
         $landingPageTemplate->fill($updateData);
@@ -270,6 +275,7 @@ class LandingPageTemplateController extends Controller
                 'left_column_order',
                 'creator_display_limit',
                 'contributor_display_limit',
+                'citation_author_display_limit',
             ]);
 
         return response()->json([

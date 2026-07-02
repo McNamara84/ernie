@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\OldDatasetKeywordTransformer;
+use Illuminate\Support\Facades\Storage;
 
 // Note: covers() is intentionally omitted because OldDatasetKeywordTransformer
 // is excluded from the <source> coverage configuration in phpunit.xml
@@ -28,6 +29,7 @@ describe('transform', function () {
             ->and($result['text'])->toBe('EARTH SCIENCE > Atmosphere > Clouds')
             ->and($result['uuid'])->toBe('12345678-abcd-1234-abcd-123456789012')
             ->and($result['id'])->toContain('12345678-abcd-1234-abcd-123456789012')
+            ->and($result['schemeURI'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
             ->and($result['description'])->toBe('Cloud patterns');
     });
 
@@ -90,6 +92,43 @@ describe('transform', function () {
         ];
 
         expect(OldDatasetKeywordTransformer::transform($old))->toBeNull();
+    });
+
+    it('resolves a missing legacy URI from the full GCMD keyword path', function () {
+        Storage::fake('local');
+        Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+            'data' => [[
+                'id' => 'earth-science',
+                'text' => 'EARTH SCIENCE',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [[
+                    'id' => 'biosphere',
+                    'text' => 'BIOSPHERE',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'children' => [[
+                        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/biomass',
+                        'text' => 'BIOMASS',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'schemeURI' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+                        'children' => [],
+                    ]],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        $old = (object) [
+            'keyword' => 'EARTH SCIENCE > BIOSPHERE > BIOMASS',
+            'thesaurus' => 'NASA/GCMD Earth Science Keywords',
+            'uri' => null,
+            'description' => null,
+        ];
+
+        $result = OldDatasetKeywordTransformer::transform($old);
+
+        expect($result)->not->toBeNull()
+            ->and($result['id'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/biomass')
+            ->and($result['scheme'])->toBe('Science Keywords')
+            ->and($result['schemeURI'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords');
     });
 });
 

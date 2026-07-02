@@ -27,7 +27,7 @@ export function CitationsField({ resourceId }: CitationsFieldProps) {
         return (
             <Alert>
                 <AlertDescription>
-                    Save the dataset first to manage its citations (DataCite <code>relatedItem</code>).
+                    Save the dataset first to manage its related items (DataCite <code>relatedItem</code>).
                 </AlertDescription>
             </Alert>
         );
@@ -40,10 +40,10 @@ export function CitationsField({ resourceId }: CitationsFieldProps) {
             <div className="flex items-center justify-between gap-2">
                 <p className="text-sm text-muted-foreground">
                     {itemsLoading
-                        ? 'Loading citations…'
+                        ? 'Loading related items…'
                         : count === 0
-                          ? 'No citations added yet.'
-                          : `${count} citation${count === 1 ? '' : 's'} linked to this dataset.`}
+                          ? 'No related items added yet.'
+                          : `${count} related item${count === 1 ? '' : 's'} linked to this dataset.`}
                 </p>
                 <Button
                     type="button"
@@ -54,7 +54,7 @@ export function CitationsField({ resourceId }: CitationsFieldProps) {
                     data-testid="open-citation-manager"
                 >
                     <Quote className="mr-2 size-4" aria-hidden="true" />
-                    Manage Citations
+                    Manage Related Items
                 </Button>
             </div>
 

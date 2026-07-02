@@ -29,6 +29,7 @@ describe('Upload Types', () => {
         it('returns false for success response', () => {
             const response: XmlUploadSuccessResponse = {
                 success: true,
+                resourceId: 123,
                 sessionKey: 'abc123',
             };
 
@@ -40,13 +41,24 @@ describe('Upload Types', () => {
         it('returns true for XML success response with explicit success', () => {
             const response: XmlUploadSuccessResponse = {
                 success: true,
+                resourceId: 123,
                 sessionKey: 'abc123',
             };
 
             expect(isSessionUploadSuccess(response)).toBe(true);
         });
 
-        it('returns true for XML success response without success field (real backend response)', () => {
+        it('returns true for XML success response with resource id (real backend response)', () => {
+            const response = {
+                success: true,
+                resourceId: 123,
+                sessionKey: 'abc123',
+            } as XmlUploadSuccessResponse;
+
+            expect(isSessionUploadSuccess(response)).toBe(true);
+        });
+
+        it('returns true for legacy XML success response with only session key', () => {
             const response = {
                 sessionKey: 'abc123',
             } as XmlUploadSuccessResponse;
@@ -56,6 +68,8 @@ describe('Upload Types', () => {
 
         it('returns true for JSON upload success response', () => {
             const response: JsonUploadSuccessResponse = {
+                success: true,
+                resourceId: 456,
                 sessionKey: 'json_upload_abc123',
             };
 
@@ -109,6 +123,7 @@ describe('Upload Types', () => {
         it('returns false for XML success response', () => {
             const response: XmlUploadSuccessResponse = {
                 success: true,
+                resourceId: 123,
                 sessionKey: 'abc123',
             };
 

@@ -267,6 +267,23 @@ describe('FilesSection', () => {
             );
         });
 
+        it('renders a license without reference as a non-link badge', () => {
+            render(
+                <FilesSection
+                    licenses={[
+                        {
+                            id: 3,
+                            name: 'Custom Rights Statement',
+                            spdx_id: null,
+                            reference: null,
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByText('Custom Rights Statement').closest('a')).toBeNull();
+            expect(screen.queryByRole('link', { name: 'Custom Rights Statement' })).not.toBeInTheDocument();
+        });
         it('does not render license section when no licenses', () => {
             render(<FilesSection licenses={[]} />);
 
@@ -280,12 +297,12 @@ describe('FilesSection', () => {
             expect(screen.getByText('License')).toBeInTheDocument();
         });
 
-        it('displays SPDX identifier in tooltip', () => {
+        it('displays the SPDX identifier without a prefix in the tooltip', () => {
             render(<FilesSection licenses={mockLicenses} />);
 
             // CC licenses include icon aria-label in accessible name
             const licenseLink = screen.getByRole('link', { name: /CC BY 4\.0/ });
-            expect(licenseLink).toHaveAttribute('title', 'SPDX: CC-BY-4.0');
+            expect(licenseLink).toHaveAttribute('title', 'CC-BY-4.0');
         });
     });
 

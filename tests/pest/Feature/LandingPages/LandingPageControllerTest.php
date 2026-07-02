@@ -2,20 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\LandingPageController;
 use App\Enums\CacheKey;
+use App\Http\Controllers\LandingPageController;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\User;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
 
 covers(LandingPageController::class);
 
 uses()->group('landing-pages');
 
-function portalFacetCacheRepository(CacheKey $cacheKey): \Illuminate\Contracts\Cache\Repository
+function portalFacetCacheRepository(CacheKey $cacheKey): Repository
 {
     if (method_exists(Cache::getStore(), 'tags')) {
         return Cache::tags($cacheKey->tags());
@@ -61,6 +62,50 @@ describe('Landing Page Creation', function () {
             ->status->toBe('draft')
             ->preview_token->not->toBeNull()
             ->published_at->toBeNull();
+    });
+
+    test('can mark generated landing page downloads unavailable without clearing retained download values', function () {
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
+            'downloads_unavailable' => true,
+            'status' => 'draft',
+            'links' => [
+                [
+                    'url' => 'https://example.org/supporting-repository',
+                    'label' => 'Supporting repository',
+                    'position' => 0,
+                ],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('landing_page.downloads_unavailable', true)
+            ->assertJsonPath('landing_page.ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
+            ->assertJsonPath('landing_page.links.0.url', 'https://example.org/supporting-repository');
+
+        $landingPage = $this->resource->fresh()->landingPage->load('links');
+
+        expect($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz-potsdam.de/download/test.zip')
+            ->and($landingPage->links)->toHaveCount(1);
+    });
+
+    test('does not retain downloads unavailable for external landing pages', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://external.example.org/')->create();
+
+        $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => '/datasets/123',
+            'downloads_unavailable' => true,
+            'status' => 'draft',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('landing_page.downloads_unavailable', false);
+
+        expect($this->resource->fresh()->landingPage->downloads_unavailable)->toBeFalse();
     });
 
     test('creating a draft landing page does not invalidate portal facet caches', function () {
@@ -171,6 +216,42 @@ describe('Landing Page Updates', function () {
 
         expect($this->landingPage->fresh())
             ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/updated.zip');
+    });
+
+    test('can toggle downloads unavailable without clearing retained download configuration', function () {
+        $this->landingPage->update([
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/original.zip',
+            'downloads_unavailable' => false,
+        ]);
+        $this->landingPage->links()->create([
+            'url' => 'https://example.org/original-link',
+            'label' => 'Original link',
+            'position' => 0,
+        ]);
+
+        $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'downloads_unavailable' => true,
+            'status' => 'draft',
+        ])->assertOk()
+            ->assertJsonPath('landing_page.downloads_unavailable', true)
+            ->assertJsonPath('landing_page.ftp_url', 'https://datapub.gfz-potsdam.de/download/original.zip')
+            ->assertJsonPath('landing_page.links.0.url', 'https://example.org/original-link');
+
+        $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'downloads_unavailable' => false,
+            'status' => 'draft',
+        ])->assertOk()
+            ->assertJsonPath('landing_page.downloads_unavailable', false)
+            ->assertJsonPath('landing_page.ftp_url', 'https://datapub.gfz-potsdam.de/download/original.zip')
+            ->assertJsonPath('landing_page.links.0.url', 'https://example.org/original-link');
+
+        $landingPage = $this->landingPage->fresh()->load('links');
+
+        expect($landingPage->downloads_unavailable)->toBeFalse()
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz-potsdam.de/download/original.zip')
+            ->and($landingPage->links)->toHaveCount(1);
     });
 
     test('can publish draft landing page', function () {
@@ -634,6 +715,7 @@ describe('Landing Page Template Assignment', function () {
             'external_domain_id' => $domain->id,
             'external_path' => 'dataset/123',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated.zip',
+            'downloads_unavailable' => true,
             'links' => [
                 [
                     'url' => 'https://example.org/details',
@@ -648,11 +730,42 @@ describe('Landing Page Template Assignment', function () {
             ->assertJson([
                 'message' => 'The request includes fields that are not supported for this landing page template.',
             ])
-            ->assertJsonValidationErrors(['ftp_url', 'links']);
+            ->assertJsonValidationErrors(['ftp_url', 'downloads_unavailable', 'links']);
 
         expect($this->resource->fresh()->landingPage)
             ->template->toBe('default_gfz')
             ->ftp_url->toBe('https://datapub.gfz-potsdam.de/download/original.zip')
+            ->downloads_unavailable->toBeFalse()
+            ->external_domain_id->toBeNull()
+            ->external_path->toBeNull();
+    });
+
+    test('rejects downloads unavailable as an unsupported external template field even when false', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://data.gfz.de/')->create();
+
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'downloads_unavailable' => true,
+        ]);
+
+        $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'external',
+            'external_domain_id' => $domain->id,
+            'external_path' => 'dataset/123',
+            'downloads_unavailable' => false,
+            'status' => 'draft',
+        ]);
+
+        $response->assertUnprocessable()
+            ->assertJson([
+                'message' => 'The request includes fields that are not supported for this landing page template.',
+            ])
+            ->assertJsonValidationErrors(['downloads_unavailable']);
+
+        expect($this->resource->fresh()->landingPage)
+            ->template->toBe('default_gfz')
+            ->downloads_unavailable->toBeTrue()
             ->external_domain_id->toBeNull()
             ->external_path->toBeNull();
     });

@@ -233,6 +233,24 @@ describe('Docs page', () => {
         expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
     });
 
+    it('documents opening resources from the resources table row', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab.');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides controlled keywords section when all vocabulary families are disabled', async () => {
         const { user } = renderDocsPage(
             'beginner',
@@ -342,6 +360,46 @@ describe('Docs page', () => {
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
     });
 
+    it('documents resource quick actions and grouped delete behavior for curators', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Edit and Set up landing page appear as quick actions directly in the selection toolbar.');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Delete Selected Resources (Curator and above)')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Published resources are listed as protected and are never sent to the delete endpoint.');
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('hides resource delete documentation for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
+    });
+
     it('shows landing page templates for group leaders', async () => {
         const groupLeaderPage = renderDocsPage('group_leader');
         await openDatasetsTab(groupLeaderPage.user);
@@ -354,13 +412,24 @@ describe('Docs page', () => {
         expect(screen.queryByText('Custom Landing Page Templates')).not.toBeInTheDocument();
     });
 
-    it('shows citation manager documentation for beginners', async () => {
+    it('shows related item manager documentation for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText(/Inline Citations \(DataCite 4\.7/i)).toBeInTheDocument();
+        expect(screen.getByText(/Related Items \(DataCite 4\.7/i)).toBeInTheDocument();
         expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Related items appear in the Related Work section under the Citations heading, labelled with an Inline metadata badge.');
+            }),
+        ).toBeInTheDocument();
     });
 
     it('hides resource types documentation when no resource types are active', async () => {

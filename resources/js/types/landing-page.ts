@@ -19,7 +19,7 @@ export type RightColumnSection =
 /**
  * Left column section identifiers for landing page templates.
  */
-export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'contact' | 'model_description' | 'related_work';
+export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'dates' | 'contact' | 'model_description' | 'related_work';
 
 /**
  * Section order configuration for landing page templates.
@@ -76,6 +76,9 @@ export interface LandingPageTemplateConfig {
     /** Number of contributors shown initially on public landing pages */
     contributor_display_limit: number;
 
+    /** Number of citation authors shown before et al. */
+    citation_author_display_limit: number;
+
     /** ID of user who created this template */
     created_by: number | null;
 
@@ -107,6 +110,7 @@ export interface LandingPageTemplateSummary {
     left_column_order: LeftColumnSection[];
     creator_display_limit?: number;
     contributor_display_limit?: number;
+    citation_author_display_limit?: number;
 }
 
 /**
@@ -115,6 +119,7 @@ export interface LandingPageTemplateSummary {
 export interface LandingPageDisplayLimits {
     creators: number;
     contributors: number;
+    citationAuthors: number;
 }
 
 /**
@@ -222,6 +227,9 @@ export interface LandingPageConfig {
 
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
+
+    /** Whether the generated landing page should hide the Files section */
+    downloads_unavailable?: boolean;
 
     /** Public tracked redirect URL used only on published landing pages */
     tracked_ftp_url?: string | null;
@@ -351,10 +359,12 @@ export interface LandingPageLicense {
     id: number;
     /** Display name of the license */
     name: string;
-    /** SPDX identifier (e.g., 'CC-BY-4.0') */
-    spdx_id: string;
+    /** SPDX identifier (e.g., 'CC-BY-4.0'); null for custom licenses */
+    spdx_id: string | null;
     /** URL to license text */
-    reference: string;
+    reference: string | null;
+    /** Rights scheme URI, e.g. SPDX scheme for SPDX licenses */
+    scheme_uri?: string | null;
     /** Legacy: license name */
     rights?: string;
     /** Legacy: license URI */
@@ -430,7 +440,7 @@ export interface LandingPageRelatedItemTitle {
 }
 
 /**
- * Inline relatedItem entry (DataCite 4.7 Citation Manager). Rendered on the
+ * Inline relatedItem entry (DataCite 4.7 Related Item Manager). Rendered on the
  * landing page alongside plain relatedIdentifiers with a visual distinction.
  */
 export interface LandingPageRelatedItem {

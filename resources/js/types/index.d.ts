@@ -133,6 +133,8 @@ export interface License {
     id: number;
     identifier: string;
     name: string;
+    uri?: string | null;
+    scheme_uri?: string | null;
 }
 
 /**
@@ -144,6 +146,7 @@ export interface Right {
     identifier: string;
     name: string;
     uri?: string | null;
+    scheme_uri?: string | null;
 }
 
 export interface Language {

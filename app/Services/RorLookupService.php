@@ -89,6 +89,7 @@ class RorLookupService
      * - Full URL: https://ror.org/04z8jg394
      * - Bare ID: 04z8jg394
      * - HTTP URL: http://ror.org/04z8jg394
+     * - Protocol-less URL: ror.org/04z8jg394
      *
      * @return string|null Canonical ROR URL (e.g., "https://ror.org/04z8jg394") or null
      */
@@ -100,12 +101,12 @@ class RorLookupService
             return null;
         }
 
-        // If already a full URL with ror.org host, extract and normalize
-        if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
+        // If already a URL with ror.org host, extract and normalize
+        if (preg_match('#^(?:https?://)?(?:www\.)?ror\.org/(.+)$#i', $trimmed, $matches)) {
             $rorId = Str::lower(trim($matches[1], '/'));
 
             // Only accept a single alphanumeric segment (valid ROR ID format)
-            return preg_match('/^[a-z0-9]+$/', $rorId) ? 'https://ror.org/' . $rorId : null;
+            return preg_match('/^[a-z0-9]+$/', $rorId) ? 'https://ror.org/'.$rorId : null;
         }
 
         // If it looks like a URL with a non-ROR host, don't process it
@@ -117,7 +118,7 @@ class RorLookupService
         $path = Str::lower(trim($trimmed, '/'));
 
         // Only accept a single alphanumeric segment (valid ROR ID format)
-        return preg_match('/^[a-z0-9]+$/', $path) ? 'https://ror.org/' . $path : null;
+        return preg_match('/^[a-z0-9]+$/', $path) ? 'https://ror.org/'.$path : null;
     }
 
     /**
@@ -127,7 +128,7 @@ class RorLookupService
      */
     public function isRorUrl(string $value): bool
     {
-        return (bool) preg_match('#^https?://ror\.org/[a-z0-9]+/?$#i', trim($value));
+        return (bool) preg_match('#^(?:https?://)?(?:www\.)?ror\.org/[a-z0-9]+/?$#i', trim($value));
     }
 
     /**

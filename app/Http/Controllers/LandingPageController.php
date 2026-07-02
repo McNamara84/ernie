@@ -12,8 +12,8 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
-use App\Support\UrlNormalizer;
 use App\Support\Traits\ChecksCacheTagging;
+use App\Support\UrlNormalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -38,6 +38,11 @@ class LandingPageController extends Controller
     }
 
     public static function templateSupportsFtpUrl(string $template): bool
+    {
+        return $template === LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
+    }
+
+    public static function templateSupportsDownloadsUnavailable(string $template): bool
     {
         return $template === LandingPageTemplate::DEFAULT_TEMPLATE_SLUG;
     }
@@ -70,6 +75,12 @@ class LandingPageController extends Controller
         if (array_key_exists('links', $validated) && ! self::templateSupportsLinks($template)) {
             $unsupportedFields['links'] = [
                 'The links field is not supported for this landing page template.',
+            ];
+        }
+
+        if (array_key_exists('downloads_unavailable', $validated) && ! self::templateSupportsDownloadsUnavailable($template)) {
+            $unsupportedFields['downloads_unavailable'] = [
+                'The downloads_unavailable field is not supported for this landing page template.',
             ];
         }
 
@@ -258,6 +269,9 @@ class LandingPageController extends Controller
                     'ftp_url' => self::templateSupportsFtpUrl($validated['template'])
                         ? ($validated['ftp_url'] ?? null)
                         : null,
+                    'downloads_unavailable' => self::templateSupportsDownloadsUnavailable($validated['template'])
+                        ? ($validated['downloads_unavailable'] ?? false)
+                        : false,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
                 ];
@@ -267,6 +281,7 @@ class LandingPageController extends Controller
                     $createData['external_domain_id'] = $validated['external_domain_id'];
                     $createData['external_path'] = $validated['external_path'];
                     $createData['ftp_url'] = null; // FTP URL not relevant for external pages
+                    $createData['downloads_unavailable'] = false;
                 }
 
                 $landingPage = $resource->landingPage()->create($createData);
@@ -483,6 +498,14 @@ class LandingPageController extends Controller
                 $landingPage->ftp_url = null;
             }
 
+            if (self::templateSupportsDownloadsUnavailable($effectiveTemplate)) {
+                if (array_key_exists('downloads_unavailable', $validated)) {
+                    $landingPage->downloads_unavailable = $validated['downloads_unavailable'];
+                }
+            } else {
+                $landingPage->downloads_unavailable = false;
+            }
+
             // Update external landing page fields
             if (self::templateSupportsExternalFields($effectiveTemplate)) {
                 if (array_key_exists('external_domain_id', $validated)) {
@@ -493,6 +516,7 @@ class LandingPageController extends Controller
                 }
                 // Clear FTP URL for external pages (not relevant)
                 $landingPage->ftp_url = null;
+                $landingPage->downloads_unavailable = false;
             } else {
                 // Clear external fields when switching away from external template
                 $landingPage->external_domain_id = null;
@@ -642,6 +666,9 @@ class LandingPageController extends Controller
         $payload['ftp_url'] = self::templateSupportsFtpUrl($effectiveTemplate)
             ? $landingPage->ftp_url
             : null;
+        $payload['downloads_unavailable'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
+            ? $landingPage->downloads_unavailable
+            : false;
         $payload['links'] = self::templateSupportsLinks($effectiveTemplate)
             ? $landingPage->links->values()->toArray()
             : [];
@@ -743,7 +770,6 @@ class LandingPageController extends Controller
         }
 
         /** @var array<string, int|string> $parts */
-
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
         $host = strtolower((string) ($parts['host'] ?? ''));
 
@@ -767,7 +793,6 @@ class LandingPageController extends Controller
         }
 
         /** @var array<string, int|string> $parts */
-
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
         $host = strtolower((string) ($parts['host'] ?? ''));
 

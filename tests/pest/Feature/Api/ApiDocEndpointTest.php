@@ -51,6 +51,7 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('tags.0.name', 'Editor Configuration')
         ->assertJsonPath('tags.1.name', 'Vocabularies')
         ->assertJsonPath('tags.0.summary', 'Metadata types and editor option endpoints')
+        ->assertJsonPath('tags.3.name', 'IGSN Imports')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.tags.0', 'Editor Configuration')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.security.0.ElmoApiKey', [])
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.tags.0', 'Editor Configuration')
@@ -88,13 +89,47 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/RorAffiliations')
         ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.404.description', 'ROR is disabled or data file not found')
-        // ROR schema
+        // RAiD projects endpoint
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.tags.0', 'Vocabularies')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.security.0.ElmoApiKey', [])
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.summary', 'Get RAiD projects for ELMO')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/RaidProjects')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.404.description', 'RAiD is disabled or data file not found')
+        // Authenticated IGSN import endpoint
+        ->assertJsonPath('paths./igsns/import/start-single.post.tags.0', 'IGSN Imports')
+        ->assertJsonPath('paths./igsns/import/start-single.post.requestBody.content.application/json.schema.$ref', '#/components/schemas/SingleIgsnImportRequest')
+        ->assertJsonPath('paths./igsns/import/start-single.post.responses.200.content.application/json.schema.$ref', '#/components/schemas/IgsnImportStartResponse')
+        ->assertJsonPath('paths./igsns/import/start-single.post.responses.403.$ref', '#/components/responses/ForbiddenError')
+        ->assertJsonPath('paths./igsns/import/start-single.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
+        ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
+        // PID schemas
+        ->assertJsonPath('components.schemas.RaidProjects.description', 'Public RAiD project records with metadata wrapper')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.0', 'string')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.1', 'null')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.format', 'uri')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.type.0', 'string')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.type.1', 'null')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.format', 'uri')
+        ->assertJsonPath('components.schemas.PidAvailability.example.raid.displayName', 'RAiD (Research Activity Identifier)')
         ->assertJsonPath('components.schemas.RorAffiliations.description', 'ROR affiliations data with metadata wrapper')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/TitleType')
         ->assertJsonPath('paths./api/v1/title-types/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/License')
+        ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.200.content.application/json.example.0.uri', 'https://creativecommons.org/licenses/by/4.0/')
+        ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.200.content.application/json.example.0.scheme_uri', 'https://spdx.org/licenses/')
+        ->assertJsonPath('paths./api/v1/licenses/elmo/{resourceTypeSlug}.get.responses.200.content.application/json.example.0.uri', 'https://spdx.org/licenses/MIT.html')
+        ->assertJsonPath('paths./api/v1/licenses/elmo/{resourceTypeSlug}.get.responses.200.content.application/json.example.0.scheme_uri', 'https://spdx.org/licenses/')
+        ->assertJsonPath('components.schemas.License.properties.uri.type.0', 'string')
+        ->assertJsonPath('components.schemas.License.properties.uri.type.1', 'null')
+        ->assertJsonPath('components.schemas.License.properties.uri.format', 'uri')
+        ->assertJsonPath('components.schemas.License.properties.scheme_uri.type.0', 'string')
+        ->assertJsonPath('components.schemas.License.properties.scheme_uri.type.1', 'null')
+        ->assertJsonPath('components.schemas.License.properties.scheme_uri.format', 'uri')
+        ->assertJsonPath('components.schemas.License.required.3', 'uri')
+        ->assertJsonPath('components.schemas.License.required.4', 'scheme_uri')
         ->assertJsonPath('paths./api/v1/licenses/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/languages/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/Language')
         ->assertJsonPath('paths./api/v1/languages/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
@@ -131,6 +166,8 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonMissingPath('components.schemas.ErnieResourceType')
         ->assertJsonPath('components.securitySchemes.ElmoApiKey.name', 'X-API-Key')
         ->assertJsonPath('components.securitySchemes.ElmoApiKey.type', 'apiKey')
+        ->assertJsonPath('components.securitySchemes.LaravelSession.in', 'cookie')
+        ->assertJsonPath('components.securitySchemes.CsrfToken.name', 'X-CSRF-TOKEN')
         ->assertJsonPath('components.schemas.Role.properties.slug.type', 'string')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.id.type', 'integer')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string')
@@ -151,15 +188,15 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->toContain('string', 'null');
 });
 
-    it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
-        $spec = getJson('/api/v1/doc')
+it('serves an OpenAPI 3.2 document without legacy nullable keywords', function () {
+    $spec = getJson('/api/v1/doc')
         ->assertOk()
         ->json();
 
-        expect($spec['openapi'])->toBe('3.2.0')
+    expect($spec['openapi'])->toBe('3.2.0')
         ->and($spec['info']['license'])->not->toHaveKey('url')
         ->and(containsArrayKeyRecursively($spec, 'nullable'))->toBeFalse();
-    });
+});
 
 it('returns 500 when the OpenAPI file is missing (JSON)', function () {
     File::shouldReceive('exists')

@@ -37,6 +37,16 @@ class SumarioPendingResourceImportService
     public function importPendingByDoi(string $doi, int $userId): array
     {
         $normalisedDoi = $this->normaliseDoi($doi);
+
+        if ($this->shouldSkipLegacyDoi($normalisedDoi)) {
+            return [
+                'status' => 'skipped',
+                'resource' => null,
+                'doi' => $normalisedDoi,
+                'error' => null,
+            ];
+        }
+
         $oldDataset = $this->findPendingDatasetByDoi($normalisedDoi);
 
         if ($oldDataset === null) {
@@ -106,6 +116,15 @@ class SumarioPendingResourceImportService
             $summary['processed']++;
             $doi = $this->normaliseDoi((string) $oldDataset->identifier);
 
+            if ($this->shouldSkipLegacyDoi($doi)) {
+                $summary['skipped']++;
+                if (count($summary['skipped_dois']) < $maxStoredDois) {
+                    $summary['skipped_dois'][] = $doi;
+                }
+
+                continue;
+            }
+
             if (Resource::where('doi', $doi)->exists()) {
                 $summary['skipped']++;
                 if (count($summary['skipped_dois']) < $maxStoredDois) {
@@ -143,10 +162,7 @@ class SumarioPendingResourceImportService
     {
         return OldDataset::query()
             ->where('publicstatus', 'pending')
-            ->where(function ($query) use ($doi): void {
-                $query->where('identifier', $doi)
-                    ->orWhere('identifier', strtoupper($doi));
-            })
+            ->where('identifier', $doi)
             ->first();
     }
 
@@ -201,6 +217,7 @@ class SumarioPendingResourceImportService
             'resourceType' => $this->resolveResourceTypeId($editorData['resourceType'] ?? null),
             'titles' => $this->normaliseTitles($editorData['titles'] ?? [], $oldDataset, $doi),
             'licenses' => $this->normaliseStringList($editorData['initialRights'] ?? []),
+            'rawRights' => is_array($editorData['initialRawRights'] ?? null) ? array_values($editorData['initialRawRights']) : [],
             'authors' => $this->normaliseContributors($editorData['authors'] ?? []),
             'contributors' => $this->normaliseContributors($editorData['contributors'] ?? [], true),
             'descriptions' => $this->normaliseDescriptions($editorData['descriptions'] ?? []),
@@ -445,6 +462,11 @@ class SumarioPendingResourceImportService
         $year = (int) $year;
 
         return $year >= 1000 && $year <= 9999 ? $year : null;
+    }
+
+    private function shouldSkipLegacyDoi(string $doi): bool
+    {
+        return app(LegacyLandingPageDecisionService::class)->shouldSkipLegacyDoi($doi);
     }
 
     private function normaliseDoi(string $doi): string

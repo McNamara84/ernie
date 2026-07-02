@@ -37,6 +37,7 @@ use Illuminate\Support\Str;
  * @property array<int, string> $left_column_order Ordered section keys for left column
  * @property int $creator_display_limit Number of creators shown initially on landing pages
  * @property int $contributor_display_limit Number of contributors shown initially on landing pages
+ * @property int $citation_author_display_limit Number of creators shown before et al. in citations
  * @property int|null $created_by FK to users table
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -116,6 +117,7 @@ class LandingPageTemplate extends Model
      */
     public const RESOURCE_LEFT_COLUMN_SECTIONS = [
         'files',
+        'dates',
         'contact',
         'model_description',
         'related_work',
@@ -129,6 +131,7 @@ class LandingPageTemplate extends Model
     public const IGSN_LEFT_COLUMN_SECTIONS = [
         'general',
         'acquisition',
+        'dates',
         'contact',
         'model_description',
         'related_work',
@@ -143,6 +146,7 @@ class LandingPageTemplate extends Model
         'files',
         'general',
         'acquisition',
+        'dates',
         'contact',
         'model_description',
         'related_work',
@@ -164,6 +168,7 @@ class LandingPageTemplate extends Model
         'left_column_order',
         'creator_display_limit',
         'contributor_display_limit',
+        'citation_author_display_limit',
         'created_by',
     ];
 
@@ -178,6 +183,7 @@ class LandingPageTemplate extends Model
         'left_column_order' => 'array',
         'creator_display_limit' => 'integer',
         'contributor_display_limit' => 'integer',
+        'citation_author_display_limit' => 'integer',
     ];
 
     /**
@@ -549,6 +555,7 @@ class LandingPageTemplate extends Model
                             'left_column_order' => self::leftColumnSectionsForTemplateType($templateType),
                             'creator_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'contributor_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
+                            'citation_author_display_limit' => self::DEFAULT_DISPLAY_LIMIT,
                             'created_by' => null,
                         ]
                     );

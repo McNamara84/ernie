@@ -10,7 +10,7 @@ import type { AffiliationTag } from '@/types/affiliations';
 
 import type { AuthorEntry, InstitutionAuthorEntry, PersonAuthorEntry } from '../fields/author';
 import type { ContributorEntry, ContributorRoleTag, InstitutionContributorEntry, PersonContributorEntry } from '../fields/contributor';
-import type { InitialAffiliationInput, InitialAuthor, InitialContributor, SerializedAffiliation } from '../types/datacite-form-types';
+import type { DateEntry, InitialAffiliationInput, InitialAuthor, InitialContributor, LicenseEntry, SerializedAffiliation, TitleEntry } from '../types/datacite-form-types';
 
 // ============================================================================
 // String Normalization
@@ -321,7 +321,13 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
     }
 
     const base = createEmptyPersonContributor();
-    const personContributor = contributor as { orcid?: string | null; firstName?: string | null; lastName?: string | null; email?: string | null; website?: string | null };
+    const personContributor = contributor as {
+        orcid?: string | null;
+        firstName?: string | null;
+        lastName?: string | null;
+        email?: string | null;
+        website?: string | null;
+    };
 
     return {
         ...base,
@@ -342,7 +348,8 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
 // Form State Validators
 // ============================================================================
 
-import type { DateEntry, LicenseEntry, TitleEntry } from '../types/datacite-form-types';
+
+type LicenseEntryLike = LicenseEntry | { license?: string | null };
 
 /**
  * Check if a new title can be added based on current state.
@@ -351,16 +358,59 @@ export function canAddTitle(titles: TitleEntry[], maxTitles: number): boolean {
     return titles.length < maxTitles && titles.length > 0 && !!titles[titles.length - 1].title;
 }
 
+export function hasCompleteLicenseEntry(entry: LicenseEntryLike | undefined): boolean {
+    if (!entry) {
+        return false;
+    }
+
+    if ('mode' in entry && entry.mode === 'custom') {
+        return entry.name.trim() !== '' && entry.uri.trim() !== '';
+    }
+
+    return typeof entry.license === 'string' && entry.license.trim() !== '';
+}
+
+export function hasAnyLicenseEntryContent(entry: LicenseEntryLike | undefined): boolean {
+    if (!entry) {
+        return false;
+    }
+
+    if ('mode' in entry && entry.mode === 'custom') {
+        return entry.name.trim() !== '' || entry.uri.trim() !== '';
+    }
+
+    return typeof entry.license === 'string' && entry.license.trim() !== '';
+}
+
+export function isHttpUrl(value: string): boolean {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Check if a new license can be added based on current state.
  */
-export function canAddLicense(licenseEntries: LicenseEntry[], maxLicenses: number): boolean {
-    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && !!licenseEntries[licenseEntries.length - 1].license;
+export function canAddLicense(licenseEntries: LicenseEntryLike[], maxLicenses: number): boolean {
+    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && hasCompleteLicenseEntry(licenseEntries[licenseEntries.length - 1]);
 }
 
 /**
  * Check if a new date can be added based on current state.
  */
 export function canAddDate(dates: DateEntry[], maxDates: number): boolean {
-    return dates.length < maxDates && dates.length > 0 && (!!dates[dates.length - 1].startDate || !!dates[dates.length - 1].endDate);
+    if (dates.length >= maxDates || dates.length === 0) {
+        return false;
+    }
+
+    const lastDate = dates[dates.length - 1];
+
+    if (lastDate.dateMode === 'range') {
+        return Boolean(lastDate.startDate && lastDate.endDate);
+    }
+
+    return Boolean(lastDate.startDate || lastDate.endDate);
 }

@@ -81,6 +81,34 @@ describe('Box locations', function () {
             ->and($geoLocation->hasPoint())->toBeFalse();
     });
 
+    it('normalizes blank nullable coordinate values before persisting', function () {
+        $geoLocation = GeoLocation::create([
+            'resource_id' => $this->resource->id,
+            'geo_type' => 'box',
+            'west_bound_longitude' => '37.704000',
+            'east_bound_longitude' => '',
+            'south_bound_latitude' => '-3.316760',
+            'north_bound_latitude' => '   ',
+            'point_longitude' => 'not-a-coordinate',
+            'point_latitude' => null,
+            'elevation' => '',
+            'in_polygon_point_longitude' => '',
+            'in_polygon_point_latitude' => 'not-a-coordinate',
+        ]);
+
+        $freshGeoLocation = GeoLocation::find($geoLocation->id);
+
+        expect((string) $freshGeoLocation->west_bound_longitude)->toBe('37.70400000')
+            ->and($freshGeoLocation->east_bound_longitude)->toBeNull()
+            ->and((string) $freshGeoLocation->south_bound_latitude)->toBe('-3.31676000')
+            ->and($freshGeoLocation->north_bound_latitude)->toBeNull()
+            ->and($freshGeoLocation->point_longitude)->toBeNull()
+            ->and($freshGeoLocation->point_latitude)->toBeNull()
+            ->and($freshGeoLocation->elevation)->toBeNull()
+            ->and($freshGeoLocation->in_polygon_point_longitude)->toBeNull()
+            ->and($freshGeoLocation->in_polygon_point_latitude)->toBeNull();
+    });
+
     it('creates a valid box via factory', function () {
         $geoLocation = GeoLocation::factory()->withBox()->create([
             'resource_id' => $this->resource->id,

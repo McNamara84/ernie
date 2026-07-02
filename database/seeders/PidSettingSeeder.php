@@ -28,5 +28,14 @@ class PidSettingSeeder extends Seeder
                 'is_elmo_active' => true,
             ]
         );
+
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_RAID],
+            [
+                'display_name' => 'RAiD (Research Activity Identifier)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
     }
 }

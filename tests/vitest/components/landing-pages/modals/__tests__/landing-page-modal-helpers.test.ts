@@ -33,6 +33,28 @@ describe('landing-page-modal-helpers', () => {
         });
     });
 
+    it('includes downloads unavailable for generated resource setup payloads', () => {
+        expect(buildLandingPageSetupPayload({
+            template: 'default_gfz',
+            landingPageTemplateId: null,
+            isPublished: false,
+            supportsFtpUrl: true,
+            ftpUrl: 'https://datapub.example.org/download',
+            supportsDownloadsUnavailable: true,
+            downloadsUnavailable: true,
+            supportsLinks: true,
+            links: [{ url: 'https://example.org/repository', label: 'Repository', position: 0 }],
+            isExternal: false,
+        })).toEqual({
+            template: 'default_gfz',
+            landing_page_template_id: null,
+            status: 'draft',
+            ftp_url: 'https://datapub.example.org/download',
+            downloads_unavailable: true,
+            links: [{ url: 'https://example.org/repository', label: 'Repository', position: 0 }],
+        });
+    });
+
     it('builds IGSN setup payloads without resource-only fields', () => {
         expect(buildLandingPageSetupPayload({
             template: 'default_gfz_igsn',
@@ -82,6 +104,25 @@ describe('landing-page-modal-helpers', () => {
             template: 'default_gfz',
             landing_page_template_id: null,
             ftp_url: 'https://datapub.example.org/download',
+        });
+    });
+
+    it('includes downloads unavailable in generated resource preview payloads', () => {
+        expect(buildLandingPagePreviewPayload({
+            template: 'default_gfz',
+            landingPageTemplateId: null,
+            supportsFtpUrl: true,
+            ftpUrl: 'https://datapub.example.org/download',
+            supportsDownloadsUnavailable: true,
+            downloadsUnavailable: true,
+            supportsLinks: true,
+            links: [],
+            isExternal: false,
+        })).toEqual({
+            template: 'default_gfz',
+            landing_page_template_id: null,
+            ftp_url: 'https://datapub.example.org/download',
+            downloads_unavailable: true,
         });
     });
 

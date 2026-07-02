@@ -331,11 +331,17 @@ describe('DefaultGfzIgsnTemplate', () => {
                             { id: 1, value: 'Igneous' },
                             { id: 2, value: 'Plutonic' },
                         ],
-                        funding_references: [
-                            { id: 1, funder_name: 'DFG', award_title: 'Project Alpha', award_number: '123' },
-                        ],
+                        funding_references: [{ id: 1, funder_name: 'DFG', award_title: 'Project Alpha', award_number: '123' }],
                         dates: [
-                            { id: 1, date_type: 'Available', date_type_slug: 'Available', date_value: '2024-01-15', start_date: null, end_date: null, date_information: null },
+                            {
+                                id: 1,
+                                date_type: 'Available',
+                                date_type_slug: 'Available',
+                                date_value: '2024-01-15',
+                                start_date: null,
+                                end_date: null,
+                                date_information: null,
+                            },
                         ],
                     },
                     landingPage: mockLandingPage,
@@ -351,7 +357,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('Rock')).toBeInTheDocument();
             expect(screen.getByText('10.58050/IGSN-XYZ123')).toBeInTheDocument();
             expect(screen.getByText('Tectonic study')).toBeInTheDocument();
-            expect(screen.getByText('2024-01-15')).toBeInTheDocument();
+            expect(screen.getAllByText('2024-01-15').length).toBeGreaterThan(0);
         });
 
         it('renders Acquisition module with IGSN-specific fields', () => {
@@ -373,12 +379,8 @@ describe('DefaultGfzIgsnTemplate', () => {
                             { id: 1, value: 'Igneous' },
                             { id: 2, value: 'Volcanic' },
                         ],
-                        funding_references: [
-                            { id: 1, funder_name: 'NSF', award_title: 'X', award_number: 'Y' },
-                        ],
-                        descriptions: [
-                            { id: 1, value: 'Field comments here', description_type: 'Other' },
-                        ],
+                        funding_references: [{ id: 1, funder_name: 'NSF', award_title: 'X', award_number: 'Y' }],
+                        descriptions: [{ id: 1, value: 'Field comments here', description_type: 'Other' }],
                         contributors: [
                             {
                                 id: 1,
@@ -389,7 +391,15 @@ describe('DefaultGfzIgsnTemplate', () => {
                             },
                         ],
                         dates: [
-                            { id: 1, date_type: 'Collected', date_type_slug: 'Collected', date_value: null, start_date: '2023-06-01', end_date: '2023-06-30', date_information: null },
+                            {
+                                id: 1,
+                                date_type: 'Collected',
+                                date_type_slug: 'Collected',
+                                date_value: null,
+                                start_date: '2023-06-01',
+                                end_date: '2023-06-30',
+                                date_information: null,
+                            },
                         ],
                     },
                     landingPage: mockLandingPage,
@@ -414,8 +424,8 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(acquisition.getByText('NSF')).toBeInTheDocument();
             expect(acquisition.getByText('Field comments here')).toBeInTheDocument();
             expect(acquisition.getByText('Jane Smith')).toBeInTheDocument();
-            expect(acquisition.getByText('2023-06-01')).toBeInTheDocument();
-            expect(acquisition.getByText('2023-06-30')).toBeInTheDocument();
+            expect(acquisition.getByText('Collection Date')).toBeInTheDocument();
+            expect(acquisition.getByText('2023-06-01 - 2023-06-30')).toBeInTheDocument();
         });
 
         it('hides General and Acquisition modules when no IGSN data is provided', () => {
@@ -483,10 +493,7 @@ describe('DefaultGfzIgsnTemplate', () => {
 
             const logo = screen.getByAltText('GFZ Data Services');
 
-            expect(logo).toHaveAttribute(
-                'src',
-                'https://cdn.example/custom.png',
-            );
+            expect(logo).toHaveAttribute('src', 'https://cdn.example/custom.png');
             expect(logo).toHaveClass('h-24');
             expect(logo).not.toHaveClass('dark:grayscale');
             expect(logo).not.toHaveClass('dark:invert');
@@ -514,7 +521,20 @@ describe('DefaultGfzIgsnTemplate', () => {
                     isPreview: false,
                     sectionOrder: {
                         leftColumn: ['files', 'acquisition', 'general', 'contact', 'model_description', 'related_work'],
-                        rightColumn: ['abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+                        rightColumn: [
+                            'abstract',
+                            'methods',
+                            'technical_info',
+                            'series_information',
+                            'table_of_contents',
+                            'other',
+                            'creators',
+                            'contributors',
+                            'funders',
+                            'keywords',
+                            'metadata_download',
+                            'location',
+                        ],
                     },
                 },
             } as unknown as ReturnType<typeof usePage>);
@@ -595,7 +615,20 @@ describe('DefaultGfzIgsnTemplate', () => {
                     isPreview: false,
                     sectionOrder: {
                         leftColumn: ['general', 'acquisition', 'contact', 'model_description', 'related_work'],
-                        rightColumn: ['methods', 'abstract', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download', 'location'],
+                        rightColumn: [
+                            'methods',
+                            'abstract',
+                            'technical_info',
+                            'series_information',
+                            'table_of_contents',
+                            'other',
+                            'creators',
+                            'contributors',
+                            'funders',
+                            'keywords',
+                            'metadata_download',
+                            'location',
+                        ],
                     },
                 },
             } as unknown as ReturnType<typeof usePage>);

@@ -20,7 +20,9 @@ interface ImportProgress {
     imported: number;
     skipped: number;
     failed: number;
+    enriched?: number;
     skipped_dois: string[];
+    enriched_dois?: string[];
     failed_dois: Array<{ doi: string; error: string }>;
     started_at?: string;
     completed_at?: string;
@@ -45,7 +47,6 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     const [showFailedDois, setShowFailedDois] = useState(false);
     const hasNotifiedSuccessRef = useRef(false);
 
-    // Reset state when modal opens/closes
     useEffect(() => {
         if (!isOpen) {
             setModalState('confirm');
@@ -60,68 +61,68 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, [isOpen]);
 
     useEffect(() => {
-        if (!isOpen || modalState !== 'completed' || (progress?.imported ?? 0) < 1 || hasNotifiedSuccessRef.current) {
+        const changedCount = (progress?.imported ?? 0) + (progress?.enriched ?? 0);
+
+        if (!isOpen || modalState !== 'completed' || changedCount < 1 || hasNotifiedSuccessRef.current) {
             return;
         }
 
         hasNotifiedSuccessRef.current = true;
         onSuccess?.();
-    }, [isOpen, modalState, onSuccess, progress?.imported]);
+    }, [isOpen, modalState, onSuccess, progress?.enriched, progress?.imported]);
 
-    // Poll for progress updates with adaptive interval using setTimeout chains.
-    // This approach avoids race conditions that can occur with setInterval + clearInterval,
-    // as each poll schedules the next one only after completion.
     useEffect(() => {
         if (!importId || modalState !== 'running') {
             return;
         }
 
         let isCancelled = false;
-        let timeoutId: ReturnType<typeof setTimeout>;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const startTime = Date.now();
 
         const poll = async () => {
-            if (isCancelled) return;
+            if (isCancelled) {
+                return;
+            }
 
             try {
                 const response = await axios.get<ImportProgress>(`/datacite/import/${importId}/status`);
 
-                if (isCancelled) return; // Check again after async operation
+                if (isCancelled) {
+                    return;
+                }
 
                 setProgress(response.data);
 
                 if (response.data.status === 'completed') {
                     setModalState('completed');
-                    return; // Stop polling
-                } else if (response.data.status === 'failed' || response.data.status === 'cancelled') {
-                    setModalState('failed');
-                    setError(response.data.error || 'Import failed');
-                    return; // Stop polling
+                    return;
                 }
 
-                // Schedule next poll with adaptive delay:
-                // - 2s for the first 60 seconds
-                // - 5s afterward to reduce server load during long imports
+                if (response.data.status === 'failed' || response.data.status === 'cancelled') {
+                    setModalState('failed');
+                    setError(response.data.error || 'Import failed');
+                    return;
+                }
+
                 const elapsed = Date.now() - startTime;
-                const delay = elapsed < 60000 ? 2000 : 5000;
-                timeoutId = setTimeout(poll, delay);
+                timeoutId = setTimeout(poll, elapsed < 60000 ? 2000 : 5000);
             } catch (err) {
                 console.error('Failed to fetch import status:', err);
-                // Continue polling even on error, with the current delay
                 if (!isCancelled) {
                     const elapsed = Date.now() - startTime;
-                    const delay = elapsed < 60000 ? 2000 : 5000;
-                    timeoutId = setTimeout(poll, delay);
+                    timeoutId = setTimeout(poll, elapsed < 60000 ? 2000 : 5000);
                 }
             }
         };
 
-        // Start polling immediately
-        poll();
+        void poll();
 
         return () => {
             isCancelled = true;
-            clearTimeout(timeoutId);
+            if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+            }
         };
     }, [importId, modalState]);
 
@@ -142,7 +143,9 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                 imported: 0,
                 skipped: 0,
                 failed: 0,
+                enriched: 0,
                 skipped_dois: [],
+                enriched_dois: [],
                 failed_dois: [],
             });
 
@@ -155,13 +158,14 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             let errorMessage = 'Failed to start import';
             if (isAxiosError(err)) {
                 if (err.response?.status === 419) {
-                    // CSRF token mismatch - reload page to get fresh token
                     toast.error('Session expired', {
                         description: 'Reloading page to refresh session...',
                     });
                     setTimeout(() => router.reload(), 1500);
                     return;
-                } else if (err.response?.status === 403) {
+                }
+
+                if (err.response?.status === 403) {
                     errorMessage = 'You do not have permission to import from DataCite.';
                 } else {
                     errorMessage = err.response?.data?.message || err.message;
@@ -180,6 +184,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, [onClose]);
 
     const progressPercent = progress && progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+    const enrichedCount = progress?.enriched ?? 0;
 
     const formatDuration = (startedAt?: string, completedAt?: string): string => {
         if (!startedAt) return '';
@@ -194,26 +199,16 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         return `${minutes}m ${remainingSeconds}s`;
     };
 
-    /**
-     * Calculate estimated remaining time based on current processing rate.
-     *
-     * Note: This estimate assumes uniform processing time per DOI. In practice,
-     * skipped DOIs are processed faster than imported ones, so the estimate may
-     * be less accurate when there are many skipped DOIs. For simplicity, we use
-     * an average rate rather than tracking imported vs skipped times separately.
-     */
     const formatRemainingTime = (startedAt?: string, processed?: number, total?: number): string => {
         if (!startedAt || !processed || !total || processed === 0) return '';
 
         const start = new Date(startedAt);
         const now = new Date();
         const elapsedSeconds = (now.getTime() - start.getTime()) / 1000;
-
-        // Calculate rate (DOIs per second)
         const rate = processed / elapsedSeconds;
+
         if (rate === 0) return '';
 
-        // Calculate remaining time
         const remaining = total - processed;
         const remainingSeconds = Math.round(remaining / rate);
 
@@ -222,6 +217,65 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         const secs = remainingSeconds % 60;
         return `~${minutes}m ${secs}s remaining`;
     };
+
+    const pluralizeResource = (count: number): string => (count === 1 ? 'resource' : 'resources');
+
+    const addDuration = (message: string, startedAt?: string, completedAt?: string): string => {
+        const duration = formatDuration(startedAt, completedAt);
+
+        return `${message}${duration ? ` in ${duration}` : ''}.`;
+    };
+
+    const formatCompletionSummary = (completedProgress: ImportProgress): string => {
+        const linksAddedCount = completedProgress.enriched ?? 0;
+
+        if (completedProgress.imported > 0 && linksAddedCount > 0) {
+            return addDuration(
+                `Imported ${completedProgress.imported} ${pluralizeResource(completedProgress.imported)} and added legacy links to ${linksAddedCount} existing ${pluralizeResource(linksAddedCount)}`,
+                completedProgress.started_at,
+                completedProgress.completed_at,
+            );
+        }
+
+        if (completedProgress.imported > 0) {
+            return addDuration(
+                `Imported ${completedProgress.imported} ${pluralizeResource(completedProgress.imported)}`,
+                completedProgress.started_at,
+                completedProgress.completed_at,
+            );
+        }
+
+        if (linksAddedCount > 0) {
+            return addDuration(
+                `Added legacy links to ${linksAddedCount} existing ${pluralizeResource(linksAddedCount)}`,
+                completedProgress.started_at,
+                completedProgress.completed_at,
+            );
+        }
+
+        return addDuration('No resources were imported or changed', completedProgress.started_at, completedProgress.completed_at);
+    };
+
+    const summaryCards = progress ? (
+        <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.imported}</div>
+                <div className="text-xs text-muted-foreground">Imported</div>
+            </div>
+            <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950">
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{progress.skipped}</div>
+                <div className="text-xs text-muted-foreground">Skipped</div>
+            </div>
+            <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-950">
+                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{enrichedCount}</div>
+                <div className="text-xs text-muted-foreground">Links Added</div>
+            </div>
+            <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950">
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.failed}</div>
+                <div className="text-xs text-muted-foreground">Failed</div>
+            </div>
+        </div>
+    ) : null;
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -240,7 +294,6 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                 </DialogHeader>
 
                 <div className="py-4">
-                    {/* Confirmation State */}
                     {modalState === 'confirm' && (
                         <div className="space-y-4">
                             <Alert>
@@ -249,9 +302,10 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                 <AlertDescription>
                                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
                                         <li>All DOIs registered with your GFZ DataCite credentials will be fetched</li>
-                                        <li>DOIs already in ERNIE will be skipped (not overwritten)</li>
+                                        <li>DOIs already in ERNIE will not be overwritten</li>
+                                        <li>Missing legacy download links can be added to existing Resources</li>
                                         <li>New legacy DOIs will be imported as Resources</li>
-                                        <li>You will see a summary of skipped DOIs after completion</li>
+                                        <li>You will see a summary of imported, links added, skipped, and failed DOIs after completion</li>
                                     </ul>
                                 </AlertDescription>
                             </Alert>
@@ -266,7 +320,6 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                         </div>
                     )}
 
-                    {/* Running State */}
                     {modalState === 'running' && progress && (
                         <div className="space-y-4">
                             <div className="space-y-2">
@@ -282,20 +335,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                 <Progress value={progressPercent} className="h-2" />
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                                <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
-                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.imported}</div>
-                                    <div className="text-xs text-muted-foreground">Imported</div>
-                                </div>
-                                <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950">
-                                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{progress.skipped}</div>
-                                    <div className="text-xs text-muted-foreground">Skipped</div>
-                                </div>
-                                <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950">
-                                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.failed}</div>
-                                    <div className="text-xs text-muted-foreground">Failed</div>
-                                </div>
-                            </div>
+                            {summaryCards}
 
                             {progress.started_at && (
                                 <div className="text-center text-xs text-muted-foreground">
@@ -310,40 +350,24 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                         </div>
                     )}
 
-                    {/* Completed State */}
                     {modalState === 'completed' && progress && (
                         <div className="space-y-4">
                             <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
                                 <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
                                 <AlertTitle className="text-green-800 dark:text-green-200">Import Complete</AlertTitle>
                                 <AlertDescription className="text-green-700 dark:text-green-300">
-                                    Successfully imported {progress.imported} resources in{' '}
-                                    {formatDuration(progress.started_at, progress.completed_at)}.
+                                    {formatCompletionSummary(progress)}
                                 </AlertDescription>
                             </Alert>
 
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                                <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
-                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.imported}</div>
-                                    <div className="text-xs text-muted-foreground">Imported</div>
-                                </div>
-                                <div className="rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950">
-                                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{progress.skipped}</div>
-                                    <div className="text-xs text-muted-foreground">Skipped</div>
-                                </div>
-                                <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950">
-                                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{progress.failed}</div>
-                                    <div className="text-xs text-muted-foreground">Failed</div>
-                                </div>
-                            </div>
+                            {summaryCards}
 
-                            {/* Skipped DOIs */}
                             {progress.skipped > 0 && (
                                 <Collapsible open={showSkippedDois} onOpenChange={setShowSkippedDois}>
                                     <CollapsibleTrigger asChild>
                                         <Button variant="ghost" size="sm" className="w-full justify-between">
                                             <span>Skipped DOIs (already exist)</span>
-                                            <span className="text-muted-foreground">{showSkippedDois ? '▲' : '▼'}</span>
+                                            <span className="text-muted-foreground">{showSkippedDois ? 'Hide' : 'Show'}</span>
                                         </Button>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
@@ -358,13 +382,12 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                 </Collapsible>
                             )}
 
-                            {/* Failed DOIs */}
                             {progress.failed > 0 && (
                                 <Collapsible open={showFailedDois} onOpenChange={setShowFailedDois}>
                                     <CollapsibleTrigger asChild>
                                         <Button variant="ghost" size="sm" className="w-full justify-between text-red-600 dark:text-red-400">
                                             <span>Failed DOIs</span>
-                                            <span>{showFailedDois ? '▲' : '▼'}</span>
+                                            <span>{showFailedDois ? 'Hide' : 'Show'}</span>
                                         </Button>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
@@ -382,7 +405,6 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                         </div>
                     )}
 
-                    {/* Failed State */}
                     {modalState === 'failed' && (
                         <Alert variant="destructive">
                             <XCircle className="size-4" />

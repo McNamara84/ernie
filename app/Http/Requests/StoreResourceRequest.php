@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Rules\HasMainTitle;
+use App\Rules\SafeUrl;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -20,6 +22,8 @@ use Illuminate\Validation\Validator;
 
 class StoreResourceRequest extends FormRequest
 {
+    use ValidatesEditorDates;
+
     /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
@@ -55,8 +59,20 @@ class StoreResourceRequest extends FormRequest
             // Title types are validated in after(): allow 'main-title' even if there is no DB TitleType row.
             'titles.*.titleType' => ['required', 'string', 'max:255'],
             'titles.*.language' => ['nullable', 'string', 'max:10'],
-            'licenses' => ['required', 'array', 'min:1'],
+            'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
+            'customLicenses' => ['nullable', 'array'],
+            'customLicenses.*.name' => ['required', 'string', 'max:255'],
+            'customLicenses.*.uri' => ['required', 'string', new SafeUrl('[Licenses & Rights]'), 'max:512'],
+            'customLicenses.*.sourceResourceRightId' => ['nullable', 'integer', Rule::exists('resource_rights', 'id')],
+            'rawRights' => ['nullable', 'array'],
+            'rawRights.*.rights' => ['nullable', 'string'],
+            'rawRights.*.rightsUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.rightsIdentifier' => ['nullable', 'string', 'max:255'],
+            'rawRights.*.rightsIdentifierScheme' => ['nullable', 'string', 'max:100'],
+            'rawRights.*.schemeUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.lang' => ['nullable', 'string', 'max:10'],
+            'rawRights.*.source' => ['nullable', 'string', 'max:100'],
             'authors' => ['required', 'array', 'min:1'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'authors.*.position' => ['required', 'integer', 'min:0'],
@@ -101,6 +117,7 @@ class StoreResourceRequest extends FormRequest
                 'string',
                 Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
             ],
+            'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
@@ -159,10 +176,10 @@ class StoreResourceRequest extends FormRequest
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
 
-            // Citation Manager: inline <relatedItem> metadata (DataCite 4.7).
+            // Related Item Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
             // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
-            // spaces — e.g. `JournalArticle`); kept in sync with
+            // spaces -- e.g. `JournalArticle`); kept in sync with
             // `StoreRelatedItemRequest` and the vocabularies endpoint via
             // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
             // matching instance helper `dataciteResourceTypeGeneral()`).
@@ -303,8 +320,9 @@ class StoreResourceRequest extends FormRequest
             ];
         }
 
-        /** @var array<int, mixed> $rawLicenses */
-        $rawLicenses = $this->input('licenses', []);
+        /** @var mixed $rawLicensesInput */
+        $rawLicensesInput = $this->input('licenses', []);
+        $rawLicenses = is_array($rawLicensesInput) ? $rawLicensesInput : [];
 
         $licenses = [];
 
@@ -317,6 +335,14 @@ class StoreResourceRequest extends FormRequest
 
             $licenses[] = $normalized;
         }
+
+        $normalizedLicenses = is_array($rawLicensesInput) || $rawLicensesInput === null
+            ? $licenses
+            : $rawLicensesInput;
+
+        /** @var mixed $rawRightsInput */
+        $rawRightsInput = $this->input('rawRights', []);
+        $rawRights = $this->normalizeRawRightsInput($rawRightsInput);
 
         /** @var array<int, array<string, mixed>|mixed> $rawAuthors */
         $rawAuthors = $this->input('authors', []);
@@ -589,6 +615,9 @@ class StoreResourceRequest extends FormRequest
             $endDate = isset($date['endDate'])
                 ? trim((string) $date['endDate'])
                 : null;
+            $dateMode = isset($date['dateMode'])
+                ? Str::kebab(trim((string) $date['dateMode']))
+                : null;
             $dateInformation = isset($date['dateInformation'])
                 ? trim((string) $date['dateInformation'])
                 : null;
@@ -602,6 +631,7 @@ class StoreResourceRequest extends FormRequest
 
             $dates[] = [
                 'dateType' => $normalizedType,
+                ...($dateMode !== null && $dateMode !== '' ? ['dateMode' => $dateMode] : []),
                 'startDate' => $startDate !== '' ? $startDate : null,
                 'endDate' => $endDate !== '' ? $endDate : null,
                 'dateInformation' => $dateInformation !== '' ? $dateInformation : null,
@@ -825,7 +855,8 @@ class StoreResourceRequest extends FormRequest
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
             'language' => $this->filled('language') ? trim((string) $this->input('language')) : null,
             'titles' => $titles,
-            'licenses' => $licenses,
+            'licenses' => $normalizedLicenses,
+            'rawRights' => $rawRights,
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
             'contributors' => $contributors,
@@ -839,11 +870,170 @@ class StoreResourceRequest extends FormRequest
             'fundingReferences' => $fundingReferences,
         ]);
 
+        if ($this->has('customLicenses')) {
+            $this->merge([
+                'customLicenses' => $this->normalizeCustomLicensesInput($this->input('customLicenses', [])),
+            ]);
+        }
+
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     * Normalize raw DataCite rights input to the camelCase keys used by the UI.
+     *
+     * The storage layer later maps these keys to database columns. Keeping this
+     * step in the request avoids passing arrays, objects, or whitespace-only
+     * strings further into the application.
+     *
+     * @return array<int, array<string, string>>|mixed
+     */
+    private function normalizeRawRightsInput(mixed $rawRightsInput): mixed
+    {
+        if (! is_array($rawRightsInput)) {
+            return $rawRightsInput;
+        }
+
+        $rawRights = [];
+
+        foreach ($rawRightsInput as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [
+                'rights' => $this->rightsStringValue($statement, ['rights', 'rights_text']),
+                'rightsUri' => $this->rightsStringValue($statement, ['rightsUri', 'rightsURI', 'rights_uri']),
+                'rightsIdentifier' => $this->rightsStringValue($statement, ['rightsIdentifier', 'rights_identifier']),
+                'rightsIdentifierScheme' => $this->rightsStringValue($statement, ['rightsIdentifierScheme', 'rights_identifier_scheme']),
+                'schemeUri' => $this->rightsStringValue($statement, ['schemeUri', 'schemeURI', 'scheme_uri']),
+                'lang' => $this->rightsStringValue($statement, ['lang', 'language']),
+                'source' => $this->rightsStringValue($statement, ['source']),
+            ];
+
+            $normalized = array_filter(
+                $normalized,
+                fn (?string $value): bool => $value !== null,
+            );
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
+    }
+
+    /**
+     * @param  array<int, mixed>  $rawRights
+     */
+    private function rawRightsContainEvidence(array $rawRights): bool
+    {
+        foreach ($rawRights as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            foreach (['rights', 'rightsUri', 'rightsIdentifier'] as $key) {
+                $value = $statement[$key] ?? null;
+
+                if ($value !== null && ! is_array($value) && ! is_object($value) && trim((string) $value) !== '') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>|mixed
+     */
+    private function normalizeCustomLicensesInput(mixed $customLicensesInput): mixed
+    {
+        if (! is_array($customLicensesInput)) {
+            return $customLicensesInput;
+        }
+
+        $customLicenses = [];
+
+        foreach ($customLicensesInput as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $normalized = [
+                'name' => $this->rightsStringValue($entry, ['name', 'rights', 'rights_text']),
+                'uri' => $this->rightsStringValue($entry, ['uri', 'rightsUri', 'rightsURI', 'rights_uri']),
+            ];
+
+            if (array_key_exists('sourceResourceRightId', $entry) || array_key_exists('source_resource_right_id', $entry)) {
+                $sourceId = $entry['sourceResourceRightId'] ?? $entry['source_resource_right_id'];
+                $normalized['sourceResourceRightId'] = is_numeric($sourceId) ? (int) $sourceId : $sourceId;
+            }
+
+            if ($normalized['name'] === null && $normalized['uri'] === null && ! array_key_exists('sourceResourceRightId', $normalized)) {
+                continue;
+            }
+
+            $customLicenses[] = array_filter(
+                $normalized,
+                fn (mixed $value): bool => $value !== null,
+            );
+        }
+
+        return $customLicenses;
+    }
+
+    /**
+     * @param  array<int, mixed>  $customLicenses
+     */
+    private function customLicensesContainEvidence(array $customLicenses): bool
+    {
+        foreach ($customLicenses as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            foreach (['name', 'uri'] as $key) {
+                $value = $entry[$key] ?? null;
+
+                if ($value !== null && ! is_array($value) && ! is_object($value) && trim((string) $value) !== '') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $statement
+     * @param  list<string>  $keys
+     */
+    private function rightsStringValue(array $statement, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $statement)) {
+                continue;
+            }
+
+            $value = $statement[$key];
+
+            if ($value === null || is_array($value) || is_object($value)) {
+                return null;
+            }
+
+            $value = trim((string) $value);
+
+            return $value === '' ? null : $value;
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase, or return null.
      *
      * Reuses the normalization logic from DoiSuggestionService to ensure consistent
      * DOI handling across the entire system (validation, storage, duplicate checks).
@@ -910,6 +1100,11 @@ class StoreResourceRequest extends FormRequest
             'licenses.min' => '[Licenses & Rights] At least one license is required.',
             'licenses.*.exists' => '[Licenses & Rights] License #:position is not a recognized license.',
             'licenses.*.distinct' => '[Licenses & Rights] License #:position is a duplicate.',
+            'customLicenses.*.name.required' => '[Licenses & Rights] Custom license #:position requires a name.',
+            'customLicenses.*.name.max' => '[Licenses & Rights] Custom license #:position name exceeds the maximum length of :max characters.',
+            'customLicenses.*.uri.required' => '[Licenses & Rights] Custom license #:position requires a license text URL.',
+            'customLicenses.*.uri.max' => '[Licenses & Rights] Custom license #:position URL exceeds the maximum length of :max characters.',
+            'customLicenses.*.sourceResourceRightId.exists' => '[Licenses & Rights] Custom license #:position cannot be linked to the imported rights statement.',
 
             // Authors
             'authors.required' => '[Authors] At least one author is required.',
@@ -939,6 +1134,7 @@ class StoreResourceRequest extends FormRequest
             // Dates
             'dates.*.dateType.required' => '[Dates] Date #:position must have a type.',
             'dates.*.dateType.in' => '[Dates] Date #:position has an invalid type.',
+            'dates.*.dateMode.in' => '[Dates] Date #:position has an invalid date mode.',
             'dates.*.startDate.date' => '[Dates] Date #:position has an invalid start date.',
             'dates.*.endDate.date' => '[Dates] Date #:position has an invalid end date.',
 
@@ -986,10 +1182,41 @@ class StoreResourceRequest extends FormRequest
         ];
     }
 
+    /**
+     * Human-readable labels for rule messages that interpolate :attribute.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'customLicenses.*.uri' => 'Custom license #:position license text URL',
+        ];
+    }
+
     /** @return array<int, callable(Validator): void> */
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $this->validateEditorDates($validator);
+            },
+            function (Validator $validator): void {
+                $licenses = $this->input('licenses', []);
+                $rawRights = $this->input('rawRights', []);
+                $customLicenses = $this->input('customLicenses', []);
+
+                $hasSelectedLicense = is_array($licenses) && count($licenses) > 0;
+                $hasRawRightsEvidence = is_array($rawRights) && $this->rawRightsContainEvidence($rawRights);
+                $hasCustomLicenseEvidence = is_array($customLicenses) && $this->customLicensesContainEvidence($customLicenses);
+
+                if (! $hasSelectedLicense && ! $hasRawRightsEvidence && ! $hasCustomLicenseEvidence) {
+                    $validator->errors()->add(
+                        'licenses',
+                        '[Licenses & Rights] At least one license, custom license, or imported rights statement is required.',
+                    );
+                }
+            },
             function (Validator $validator): void {
                 /** @var mixed $candidateTitles */
                 $candidateTitles = $this->input('titles', []);
@@ -1146,7 +1373,7 @@ class StoreResourceRequest extends FormRequest
 
                     $roles = $contributor['roles'] ?? [];
 
-                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
+                    // Skip roles-empty check -- already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
 
                     // Require email when Contact Person role is assigned to a person contributor
                     if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {
@@ -1194,7 +1421,7 @@ class StoreResourceRequest extends FormRequest
                 }
             },
             function (Validator $validator): void {
-                // Validate polygon coverages have at least 3 points
+                // Validate polygon and line coverages have the required minimum number of points
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
                 if (! is_array($coverages)) {
@@ -1208,13 +1435,14 @@ class StoreResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon') {
+                    if ($type === 'polygon' || $type === 'line') {
                         $polygonPoints = $coverage['polygonPoints'] ?? [];
+                        $minimumPoints = $type === 'polygon' ? 3 : 2;
 
-                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                        if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
                     }

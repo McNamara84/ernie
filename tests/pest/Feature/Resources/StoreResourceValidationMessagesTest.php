@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Enums\ContributorCategory;
+use App\Models\ContributorType;
 use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\TitleType;
@@ -57,6 +60,26 @@ function seedValidationLookupTables(): int
         'is_active' => true,
         'is_elmo_active' => true,
     ]);
+
+    ContributorType::firstOrCreate(
+        ['slug' => 'ContactPerson'],
+        [
+            'name' => 'Contact Person',
+            'category' => ContributorCategory::PERSON,
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]
+    );
+
+    ContributorType::firstOrCreate(
+        ['slug' => 'Other'],
+        [
+            'name' => 'Other',
+            'category' => ContributorCategory::BOTH,
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]
+    );
 
     Datacenter::create(['name' => 'Test Datacenter']);
 
@@ -505,7 +528,52 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
         expect($errors[0])->toStartWith('[Resource Information]');
     });
 
-    test('draft with author without lastName returns [Authors] prefix', function () {
+    test('draft with contact author without email succeeds and stores nullable contact info', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'isContact' => true,
+                    'email' => '',
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(201);
+
+        $resource = Resource::query()
+            ->with(['creators.creatorable', 'contributors.contributorTypes'])
+            ->findOrFail($response->json('resource.id'));
+
+        $creator = $resource->creators->first();
+        expect($creator)->not->toBeNull()
+            ->and($creator->is_contact)->toBeTrue()
+            ->and($creator->email)->toBeNull()
+            ->and($creator->creatorable->family_name)->toBe('Doe')
+            ->and($creator->creatorable->given_name)->toBe('Jane');
+
+        $contributor = $resource->contributors->first();
+        expect($contributor)->not->toBeNull()
+            ->and($contributor->email)->toBeNull()
+            ->and($contributor->contributorTypes->pluck('slug')->all())->toBe(['ContactPerson']);
+    });
+
+    test('draft with incomplete authors succeeds and skips unpersistable author rows', function () {
         $user = User::factory()->create();
         seedValidationLookupTables();
 
@@ -523,6 +591,123 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
                     'lastName' => '',
                     'affiliations' => [],
                 ],
+                [
+                    'type' => 'institution',
+                    'position' => 1,
+                    'institutionName' => '',
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(201);
+
+        $resource = Resource::query()
+            ->with('creators')
+            ->findOrFail($response->json('resource.id'));
+
+        expect($resource->creators)->toHaveCount(0);
+    });
+
+    test('draft with incomplete contributors succeeds and skips unpersistable contributor rows', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => '',
+                    'roles' => ['Data Collector'],
+                    'affiliations' => [],
+                ],
+                [
+                    'type' => 'institution',
+                    'position' => 1,
+                    'institutionName' => '',
+                    'roles' => ['Hosting Institution'],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(201);
+
+        $resource = Resource::query()
+            ->with('contributors')
+            ->findOrFail($response->json('resource.id'));
+
+        expect($resource->contributors)->toHaveCount(0);
+    });
+
+    test('draft with contributor without roles succeeds and falls back to other role', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => [],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(201);
+
+        $resource = Resource::query()
+            ->with('contributors.contributorTypes')
+            ->findOrFail($response->json('resource.id'));
+
+        $contributor = $resource->contributors->first();
+        expect($contributor)->not->toBeNull()
+            ->and($contributor->contributorTypes->pluck('slug')->all())->toBe(['Other']);
+    });
+
+    test('draft with non-array contributor roles returns [Contributors] prefix', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => 'ContactPerson',
+                    'affiliations' => [],
+                ],
             ],
         ];
 
@@ -530,11 +715,236 @@ describe('Store Draft Resource – Section-Prefixed Validation Messages (Issue #
             ->postJson(route('editor.resources.store-draft'), $payload);
 
         $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['contributors.0.roles']);
 
         $allErrors = $response->json('errors');
-        $errors = $allErrors['authors.0.lastName'] ?? null;
-        expect($errors)->toBeArray();
-        expect($errors[0])->toStartWith('[Authors]');
+        $roleErrors = $allErrors['contributors.0.roles'] ?? null;
+
+        expect($roleErrors)->toBeArray()
+            ->and($roleErrors[0])->toStartWith('[Contributors]');
+    });
+
+    test('draft with non-string contributor role items returns [Contributors] prefix', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => [
+                        ['slug' => 'ContactPerson'],
+                        42,
+                    ],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors([
+            'contributors.0.roles.0',
+            'contributors.0.roles.1',
+        ]);
+
+        $allErrors = $response->json('errors');
+        $arrayRoleErrors = $allErrors['contributors.0.roles.0'] ?? null;
+        $integerRoleErrors = $allErrors['contributors.0.roles.1'] ?? null;
+
+        expect($arrayRoleErrors)->toBeArray()
+            ->and($integerRoleErrors)->toBeArray()
+            ->and($arrayRoleErrors[0])->toStartWith('[Contributors]')
+            ->and($integerRoleErrors[0])->toStartWith('[Contributors]');
+    });
+
+    test('draft with empty contributor role item returns [Contributors] prefix', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => ['   '],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['contributors.0.roles.0']);
+
+        $allErrors = $response->json('errors');
+        $roleErrors = $allErrors['contributors.0.roles.0'] ?? null;
+
+        expect($roleErrors)->toBeArray()
+            ->and($roleErrors[0])->toStartWith('[Contributors]')
+            ->and($roleErrors[0])->toContain('empty role');
+    });
+
+    test('draft with malformed author contact fields still returns [Authors] prefix', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'isContact' => true,
+                    'email' => 'not-an-email',
+                    'website' => 'not-a-url',
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['authors.0.email', 'authors.0.website']);
+
+        $allErrors = $response->json('errors');
+        $emailErrors = $allErrors['authors.0.email'] ?? null;
+        $websiteErrors = $allErrors['authors.0.website'] ?? null;
+
+        expect($emailErrors)->toBeArray()
+            ->and($websiteErrors)->toBeArray()
+            ->and($emailErrors[0])->toStartWith('[Authors]')
+            ->and($websiteErrors[0])->toStartWith('[Authors]');
+    });
+
+    test('draft with malformed contributor contact fields still returns [Contributors] prefix', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'roles' => ['ContactPerson'],
+                    'email' => 'not-an-email',
+                    'website' => 'not-a-url',
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['contributors.0.email', 'contributors.0.website']);
+
+        $allErrors = $response->json('errors');
+        $emailErrors = $allErrors['contributors.0.email'] ?? null;
+        $websiteErrors = $allErrors['contributors.0.website'] ?? null;
+
+        expect($emailErrors)->toBeArray()
+            ->and($websiteErrors)->toBeArray()
+            ->and($emailErrors[0])->toStartWith('[Contributors]')
+            ->and($websiteErrors[0])->toStartWith('[Contributors]');
+    });
+
+    test('draft with invalid author and contributor types preserves original error indexes after filtering', function () {
+        $user = User::factory()->create();
+        seedValidationLookupTables();
+
+        $payload = [
+            'resourceId' => null,
+            'doi' => null,
+            'titles' => [
+                ['title' => 'Draft Title', 'titleType' => 'main-title'],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'Filtered',
+                    'lastName' => '',
+                    'affiliations' => [],
+                ],
+                [
+                    'type' => 'alien',
+                    'position' => 1,
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'affiliations' => [],
+                ],
+            ],
+            'contributors' => [
+                [
+                    'type' => 'person',
+                    'position' => 0,
+                    'firstName' => 'Filtered',
+                    'lastName' => '',
+                    'roles' => ['Data Collector'],
+                    'affiliations' => [],
+                ],
+                [
+                    'type' => 'alien',
+                    'position' => 1,
+                    'firstName' => 'John',
+                    'lastName' => 'Smith',
+                    'roles' => ['Data Collector'],
+                    'affiliations' => [],
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('editor.resources.store-draft'), $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['authors.1.type', 'contributors.1.type']);
+
+        $allErrors = $response->json('errors');
+        $authorErrors = $allErrors['authors.1.type'] ?? null;
+        $contributorErrors = $allErrors['contributors.1.type'] ?? null;
+
+        expect($authorErrors)->toBeArray()
+            ->and($contributorErrors)->toBeArray()
+            ->and($authorErrors[0])->toStartWith('[Authors]')
+            ->and($contributorErrors[0])->toStartWith('[Contributors]')
+            ->and($allErrors)->not->toHaveKeys(['authors.0.type', 'contributors.0.type']);
     });
 
     test('draft with polygon with fewer than 3 points returns [Spatial & Temporal Coverage] prefix', function () {

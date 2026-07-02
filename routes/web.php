@@ -17,8 +17,8 @@ use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
 use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
-use App\Http\Controllers\LandingPageDownloadRedirectController;
 use App\Http\Controllers\LandingPageDomainController;
+use App\Http\Controllers\LandingPageDownloadRedirectController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\LandingPageTemplateController;
@@ -35,8 +35,8 @@ use App\Http\Controllers\ResourceDoiRegistrationController;
 use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
 use App\Http\Controllers\Settings\PidSettingsController;
-use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
+use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadIgsnCsvController;
 use App\Http\Controllers\UploadJsonController;
@@ -48,6 +48,7 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\User;
 use App\Services\GuidedTours\GuidedTourAssignmentService;
+use App\Services\ResourceCacheService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -351,7 +352,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->name('resources.register-doi');
 
-    // Related Items (DataCite 4.7) — Citation Manager
+    // Related Items (DataCite 4.7) — Related Item Manager
     Route::get('related-items/vocabularies', [RelatedItemController::class, 'vocabularies'])
         ->name('related-items.vocabularies');
     Route::get('resources/{resource}/related-items', [RelatedItemController::class, 'index'])
@@ -365,7 +366,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('resources/{resource}/related-items/reorder', [RelatedItemController::class, 'reorder'])
         ->name('resources.related-items.reorder');
 
-    // Citation Manager DOI auto-fill lookup (Crossref → DataCite fallback)
+    // Related Item Manager DOI auto-fill lookup (Crossref → DataCite fallback)
     Route::get('api/v1/citation-lookup', [CitationLookupController::class, 'lookup'])
         ->middleware('throttle:30,1')
         ->name('api.citation-lookup');
@@ -396,6 +397,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('resources/all', [ResourceController::class, 'destroyAll'])
         ->middleware('can:delete-all-resources')
         ->name('resources.destroy-all');
+
+    Route::delete('resources/batch', [ResourceController::class, 'destroyBatch'])
+        ->name('resources.batch-destroy');
 
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
@@ -487,6 +491,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // IGSN Import from DataCite
     Route::post('igsns/import/start', [IgsnImportController::class, 'start'])
         ->name('igsns.import.start');
+    Route::post('igsns/import/start-single', [IgsnImportController::class, 'startSingle'])
+        ->name('igsns.import.start-single');
     Route::get('igsns/import/{importId}/status', [IgsnImportController::class, 'status'])
         ->name('igsns.import.status');
     Route::post('igsns/import/{importId}/cancel', [IgsnImportController::class, 'cancel'])
@@ -515,7 +521,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             shouldAutostart: (bool) $request->session()->get('guided_tours.autostart_after_login', false),
         );
 
-        $physicalObjectTypeId = app(\App\Services\ResourceCacheService::class)->getPhysicalObjectTypeId();
+        $physicalObjectTypeId = app(ResourceCacheService::class)->getPhysicalObjectTypeId();
 
         $applyNonIgsnResourceFilter = static function ($query) use ($physicalObjectTypeId): void {
             if ($physicalObjectTypeId === null) {
@@ -562,38 +568,56 @@ Route::middleware(['auth', 'verified'])->group(function () {
         $applyNonIgsnResourceFilter($draftQuery);
 
         $draftQuery->where(function ($q) {
-                $q->whereNull('publication_year')
-                    ->orWhereNull('resource_type_id')
-                    ->orWhereDoesntHave('creators')
-                    ->orWhereDoesntHave('rights')
-                    ->orWhere(function ($titleQ) {
-                        // No Main Title with non-empty trimmed value
-                        // (legacy: NULL title_type_id counts as MainTitle)
-                        $titleQ->whereDoesntHave('titles', function ($tq) {
-                            $tq->whereRaw("TRIM(value) != ''")
-                                ->where(function ($typeQ) {
-                                    $typeQ->whereNull('title_type_id')
-                                        ->orWhereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
-                                });
-                        });
-                    })
-                    ->orWhereDoesntHave('descriptions', function ($dq) {
-                        $dq->whereRaw("TRIM(value) != ''")
-                            ->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
+            $q->whereNull('publication_year')
+                ->orWhereNull('resource_type_id')
+                ->orWhereDoesntHave('creators')
+                ->orWhereDoesntHave('rights')
+                ->orWhere(function ($titleQ) {
+                    // No Main Title with non-empty trimmed value
+                    // (legacy: NULL title_type_id counts as MainTitle)
+                    $titleQ->whereDoesntHave('titles', function ($tq) {
+                        $tq->whereRaw("TRIM(value) != ''")
+                            ->where(function ($typeQ) {
+                                $typeQ->whereNull('title_type_id')
+                                    ->orWhereHas('titleType', fn ($tt) => $tt->where('slug', 'MainTitle'));
+                            });
                     });
-            });
+                })
+                ->orWhereDoesntHave('descriptions', function ($dq) {
+                    $dq->whereRaw("TRIM(value) != ''")
+                        ->whereHas('descriptionType', fn ($dt) => $dt->where('slug', 'Abstract'));
+                });
+        });
 
         $draftCount = $draftQuery->count();
 
-        $recentDrafts = (clone $draftQuery)
-            ->with('titles.titleType')
+        $recentResourceQuery = Resource::query();
+
+        $applyNonIgsnResourceFilter($recentResourceQuery);
+
+        $recentResources = $recentResourceQuery
+            ->with([
+                'titles.titleType',
+                'creators',
+                'rights',
+                'descriptions.descriptionType',
+                'landingPage',
+            ])
+            ->where(function ($q) use ($user) {
+                $q->where('updated_by_user_id', $user->id)
+                    ->orWhere(function ($createdQ) use ($user) {
+                        $createdQ->whereNull('updated_by_user_id')
+                            ->where('created_by_user_id', $user->id);
+                    });
+            })
             ->orderBy('updated_at', 'desc')
             ->take(5)
             ->get()
             ->map(fn (Resource $r) => [
                 'id' => $r->id,
-                'title' => $r->mainTitle ?? 'Untitled Draft',
+                'title' => $r->mainTitle ?? 'Untitled Resource',
                 'updated_at' => $r->updated_at?->toISOString(),
+                'status' => $r->publicStatus(),
             ])
             ->all();
 
@@ -601,7 +625,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'dataInstitutionCount' => $dataInstitutionCount,
             'igsnInstitutionCount' => $igsnInstitutionCount,
             'draftCount' => $draftCount,
-            'recentDrafts' => $recentDrafts,
+            'recentResources' => $recentResources,
             'phpVersion' => PHP_VERSION,
             'laravelVersion' => app()->version(),
             'guidedTour' => $guidedTour,
@@ -629,6 +653,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.msl');
     Route::get('vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments'])
         ->name('vocabularies.pid4inst-instruments');
+    Route::get('vocabularies/raid-projects', [VocabularyController::class, 'raidProjects'])
+        ->name('vocabularies.raid-projects');
     Route::get('vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale'])
         ->name('vocabularies.chronostrat-timescale');
     Route::get('vocabularies/gemet', [VocabularyController::class, 'gemetThesaurus'])

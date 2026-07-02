@@ -33,6 +33,7 @@ class UpdateLandingPageRequest extends FormRequest
             'template' => ['sometimes', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
             'landing_page_template_id' => ['nullable', 'integer', 'exists:landing_page_templates,id'],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'downloads_unavailable' => ['sometimes', 'boolean'],
             'links' => ['nullable', 'array', 'max:10'],
             'links.*.url' => ['required', new SafeUrl, 'max:2048'],
             'links.*.label' => ['required', 'string', 'max:255'],

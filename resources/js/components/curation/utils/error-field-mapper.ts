@@ -44,6 +44,7 @@ const SECTION_MAP: Record<string, SectionMapping> = {
     titles: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     datacenters: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     licenses: { sectionId: 'licenses-rights', sectionName: 'Licenses & Rights' },
+    customLicenses: { sectionId: 'licenses-rights', sectionName: 'Licenses & Rights' },
     authors: { sectionId: 'authors', sectionName: 'Authors' },
     contributors: { sectionId: 'contributors', sectionName: 'Contributors' },
     descriptions: { sectionId: 'descriptions', sectionName: 'Descriptions' },
@@ -173,6 +174,14 @@ function resolveFieldSelector(backendKey: string): string | null {
                 return '#datacenter';
             case 'licenses':
                 return `[data-testid="license-select-${index}"]`;
+            case 'customLicenses':
+                if (subfield === 'name') {
+                    return `[data-testid="custom-license-name-${index}"]`;
+                }
+                if (subfield === 'uri') {
+                    return `[data-testid="custom-license-uri-${index}"]`;
+                }
+                return null;
             // The following field components do not have stable data-testid attributes yet.
             // Return null to fall back to opening the correct accordion section.
             case 'fundingReferences':
@@ -224,6 +233,10 @@ function resolveFieldId(backendKey: string): string | null {
     }
 
     if (prefix === 'licenses' && index === '0') {
+        return 'license-0';
+    }
+
+    if (prefix === 'customLicenses' && index === '0' && (subfield === 'name' || subfield === 'uri')) {
         return 'license-0';
     }
 
