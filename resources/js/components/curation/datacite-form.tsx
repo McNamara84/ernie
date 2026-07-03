@@ -14,6 +14,7 @@ import {
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
+import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -99,8 +100,6 @@ const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
 const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
 const DRAFT_AUTOSAVE_INTERVAL_MS = 60_000;
-const LANDING_PAGE_PLACEHOLDER_URL = 'about:blank';
-const LANDING_PAGE_POPUP_BLOCKED_MESSAGE = 'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.';
 
 type DraftAutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -143,18 +142,6 @@ function getLandingPagePreviewMissingUrlMessage(landingPage: LandingPagePreviewT
     }
 
     return 'Unable to open landing page. The public or external URL is missing.';
-}
-
-function openLandingPagePreviewPlaceholder(): Window | null {
-    // Do not pass `noopener` here: browsers may return `null` for noopener
-    // windows, and this flow needs the WindowProxy to navigate after async save.
-    const previewWindow = window.open(LANDING_PAGE_PLACEHOLDER_URL, '_blank');
-
-    if (previewWindow) {
-        previewWindow.opener = null;
-    }
-
-    return previewWindow;
 }
 
 function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandingPageSummary {
@@ -3475,7 +3462,7 @@ export default function DataCiteForm({
                                     type="button"
                                     variant="outline"
                                     data-testid="show-lp-preview-button"
-                                    disabled={!isDraftSaveable || dateValidationIssues.length > 0 || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                                    disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
                                     aria-busy={isPreparingLandingPagePreview}
                                     onClick={() => void handleShowLandingPagePreview()}
                                 >

@@ -4737,6 +4737,33 @@ describe('DataCiteForm', () => {
             expect(previewButton).toBeEnabled();
         });
 
+        it('shows guided date validation feedback when landing page preview is clicked with invalid dates', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Invalid Preview Date Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
+            });
+
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            expect(previewButton).toBeEnabled();
+
+            await user.click(previewButton);
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(await screen.findByText('Please resolve the date validation issues before opening the landing page preview.')).toBeInTheDocument();
+        });
+
         it('saves the current editor state as a draft and opens an existing draft landing page preview URL', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { previewWindow } = createPreopenedPreviewWindow();
