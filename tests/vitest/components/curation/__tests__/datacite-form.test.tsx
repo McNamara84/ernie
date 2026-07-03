@@ -5009,9 +5009,9 @@ describe('DataCiteForm', () => {
                     id: 9,
                     is_published: true,
                     status: 'published',
-                    public_url: undefined as unknown as string,
+                    public_url: '   ',
                     preview_url: null,
-                    external_url: 'https://external.example.org/dataset',
+                    external_url: '  https://external.example.org/dataset  ',
                 },
             });
 
@@ -5048,7 +5048,7 @@ describe('DataCiteForm', () => {
                     is_published: false,
                     status: 'draft',
                     public_url: 'https://example.test/draft-without-preview',
-                    preview_url: null,
+                    preview_url: '   ',
                     external_url: null,
                 },
             });
@@ -5081,9 +5081,9 @@ describe('DataCiteForm', () => {
                     id: 11,
                     is_published: true,
                     status: 'published',
-                    public_url: undefined as unknown as string,
+                    public_url: '   ',
                     preview_url: null,
-                    external_url: null,
+                    external_url: '',
                 },
             });
 

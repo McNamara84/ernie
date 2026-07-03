@@ -121,12 +121,18 @@ type LandingPagePreviewSetupResource = {
     resourcetypegeneral?: string;
 };
 
+function normalizeLandingPagePreviewTarget(url?: string | null): string | null {
+    const trimmedUrl = url?.trim();
+
+    return trimmedUrl || null;
+}
+
 function getLandingPagePreviewTarget(landingPage: LandingPagePreviewTarget): string | null {
     if (landingPage.status === 'draft') {
-        return landingPage.preview_url ?? null;
+        return normalizeLandingPagePreviewTarget(landingPage.preview_url);
     }
 
-    return landingPage.public_url ?? landingPage.external_url ?? null;
+    return normalizeLandingPagePreviewTarget(landingPage.public_url) ?? normalizeLandingPagePreviewTarget(landingPage.external_url);
 }
 
 function getLandingPagePreviewMissingUrlMessage(landingPage: LandingPagePreviewTarget): string {
