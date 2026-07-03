@@ -4725,6 +4725,8 @@ describe('DataCiteForm', () => {
             expect(previewButton).toBeEnabled();
         });
 
+
+
         it('saves the current editor state as a draft and opens an existing draft landing page preview URL', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
@@ -4834,6 +4836,36 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
+        it('closes the setup landing page modal from the editor flow', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 98 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Close Setup Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            await act(async () => {
+                modalProps.onClose();
+            });
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+            });
+        });
+
         it('opens the new landing page preview after setup succeeds from the editor', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
@@ -4872,6 +4904,302 @@ describe('DataCiteForm', () => {
             });
 
             expect(openSpy).toHaveBeenCalledWith('https://example.test/draft-new-lp?preview=token', '_blank', 'noopener,noreferrer');
+        });
+
+        it('shows the preparing state while the preview draft save is in progress', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const draftSave = createDeferred<{
+                data: { message: string; resource: { id: number } };
+                status: number;
+                statusText: string;
+                headers: Record<string, never>;
+                config: Record<string, never>;
+            }>();
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockReturnValue(draftSave.promise);
+
+            renderDataCiteForm({
+                initialResourceId: '102',
+                initialTitles: [{ title: 'Preparing Preview Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 16,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/preparing-published',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            await user.click(previewButton);
+
+            await waitFor(() => {
+                expect(previewButton).toHaveTextContent('Preparing...');
+            });
+            expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+            expect(screen.getByTestId('save-resource-button')).toBeDisabled();
+
+            await act(async () => {
+                draftSave.resolve({
+                    data: { message: 'Draft saved.', resource: { id: 102 } },
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {},
+                    config: {},
+                });
+            });
+
+            await waitFor(() => {
+                expect(openSpy).toHaveBeenCalledWith('https://example.test/preparing-published', '_blank', 'noopener,noreferrer');
+            });
+        });
+
+        it('falls back to the existing resource ID and external URL for published external landing pages', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.' },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '44',
+                initialTitles: [{ title: 'External Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 9,
+                    is_published: true,
+                    status: 'published',
+                    public_url: undefined as unknown as string,
+                    preview_url: null,
+                    external_url: 'https://external.example.org/dataset',
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            await waitFor(() => {
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ resourceId: 44 }),
+                    expect.any(Object),
+                );
+            });
+            expect(openSpy).toHaveBeenCalledWith('https://external.example.org/dataset', '_blank', 'noopener,noreferrer');
+        });
+
+        it('shows an error instead of opening a draft landing page without a preview URL', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const { toast } = await import('sonner');
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 45 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '45',
+                initialTitles: [{ title: 'Draft Without Preview URL', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 10,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/draft-without-preview',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Unable to open landing page preview. The preview URL is missing.');
+            });
+            expect(openSpy).not.toHaveBeenCalled();
+        });
+
+        it('shows an error instead of opening a published landing page without any URL', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const { toast } = await import('sonner');
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 46 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '46',
+                initialTitles: [{ title: 'Published Without URL', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 11,
+                    is_published: true,
+                    status: 'published',
+                    public_url: undefined as unknown as string,
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Unable to open landing page preview. The preview URL is missing.');
+            });
+            expect(openSpy).not.toHaveBeenCalled();
+        });
+
+        it('shows an error when draft saving succeeds without any resource ID', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved without resource.' },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Missing Resource ID Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Unable to open landing page preview because the draft resource ID is missing.')).toBeInTheDocument();
+            expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+            expect(openSpy).not.toHaveBeenCalled();
+        });
+
+        it('keeps the user in the editor when the preview draft save hits an expired session', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 419, data: {} },
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Expired Session Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Your session has expired. Please refresh the page and try again.')).toBeInTheDocument();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+            expect(mockSetupLandingPageModal).not.toHaveBeenCalledWith(expect.objectContaining({ isOpen: true }));
+        });
+
+        it('shows backend messages when preview draft saving fails without field errors', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: {
+                    status: 500,
+                    data: { message: 'Preview draft generation is temporarily unavailable.' },
+                },
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Backend Message Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Preview draft generation is temporarily unavailable.')).toBeInTheDocument();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows mapped backend validation errors when preview draft saving fails with field errors', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Preview draft validation failed.',
+                        errors: {
+                            titles: ['A landing page preview title is required.'],
+                        },
+                    },
+                },
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Validation Error Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Preview draft validation failed.')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^A landing page preview title is required\.$/i })).toBeInTheDocument();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows a network error when preview draft saving fails without an axios response', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue(new Error('Network Error'));
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Network Error Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(
+                await screen.findByText('A network error prevented saving the draft before opening the landing page preview. Please try again.'),
+            ).toBeInTheDocument();
+            expect(consoleSpy).toHaveBeenCalledWith('Failed to save draft before opening landing page preview', expect.any(Error));
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('closes the setup modal without opening a tab when setup reports no landing page', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 101 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Setup Removed Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            await act(async () => {
+                modalProps.onSuccess(null);
+            });
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+            });
+            expect(openSpy).not.toHaveBeenCalled();
         });
     });
     describe('Save Draft (Issue #548)', () => {

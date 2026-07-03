@@ -982,6 +982,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('removes draft landing page preview', async () => {
+            const onSuccess = vi.fn();
             // Use a draft config (not published)
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
@@ -997,6 +998,7 @@ describe('SetupLandingPageModal', () => {
                     resource={mockResource}
                     isOpen={true}
                     onClose={mockOnClose}
+                    onSuccess={onSuccess}
                 />,
             );
 
@@ -1014,6 +1016,7 @@ describe('SetupLandingPageModal', () => {
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                 );
             });
+            expect(onSuccess).toHaveBeenCalledWith(null);
 
             // Cleanup
             vi.unstubAllGlobals();
@@ -2455,7 +2458,49 @@ describe('SetupLandingPageModal', () => {
             await user.click(saveButton);
 
             await waitFor(() => {
-                expect(onSuccess).toHaveBeenCalled();
+                expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ id: mockExistingConfig.id, status: 'draft' }));
+            });
+        });
+
+        it('calls onSuccess with null when the save response contains no landing page', async () => {
+            const onSuccess = vi.fn();
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page request accepted',
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    onSuccess={onSuccess}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(onSuccess).toHaveBeenCalledWith(null);
             });
         });
 
