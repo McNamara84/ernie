@@ -4236,6 +4236,36 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
 
+        it('hydrates space-separated datetime values into date, time, and timezone controls', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'available', startDate: '2024-01-15 09:35:20Z', endDate: '' }]}
+                />,
+            );
+
+            const allComboboxes = screen.getAllByRole('combobox');
+            const datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
+            );
+            const timeInput = screen.getByLabelText('Time (optional)') as HTMLInputElement;
+            const timezoneTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('startTimezone'));
+
+            expect(datePickerComboboxes).toHaveLength(1);
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-15');
+            expect(timeInput).toHaveValue('09:35:20');
+            expect(timezoneTrigger).toHaveTextContent('UTC');
+        });
+
         it('filters out accepted, issued, updated, and coverage dates from initialDates', () => {
             render(
                 <DataCiteForm
