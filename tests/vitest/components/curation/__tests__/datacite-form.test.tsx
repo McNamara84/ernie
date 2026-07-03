@@ -4729,7 +4729,7 @@ describe('DataCiteForm', () => {
 
         it('saves the current editor state as a draft and opens an existing draft landing page preview URL', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved.', resource: { id: 42 } },
@@ -4767,7 +4767,7 @@ describe('DataCiteForm', () => {
 
         it('opens an existing published landing page public URL after saving the draft', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved.', resource: { id: 43 } },
@@ -4798,9 +4798,43 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('opens the setup landing page modal after draft saving when no landing page exists', { timeout: 30000 }, async () => {
+        it('shows a toast when the browser blocks the landing page tab', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const { toast } = await import('sonner');
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 43 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '43',
+                initialTitles: [{ title: 'Blocked Popup Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 8,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/published-resource',
+                    preview_url: 'https://example.test/published-resource?preview=token',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            await waitFor(() => {
+                expect(openSpy).toHaveBeenCalledWith('https://example.test/published-resource', '_blank', 'noopener,noreferrer');
+            });
+            expect(toast.error).toHaveBeenCalledWith('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
+        });
+
+        it('opens the setup landing page modal after draft saving when no landing page exists', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved.', resource: { id: 99 } },
@@ -4868,7 +4902,7 @@ describe('DataCiteForm', () => {
 
         it('opens the new landing page preview after setup succeeds from the editor', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved.', resource: { id: 100 } },
@@ -4908,7 +4942,7 @@ describe('DataCiteForm', () => {
 
         it('shows the preparing state while the preview draft save is in progress', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const draftSave = createDeferred<{
                 data: { message: string; resource: { id: number } };
                 status: number;
@@ -4958,7 +4992,7 @@ describe('DataCiteForm', () => {
 
         it('falls back to the existing resource ID and external URL for published external landing pages', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved.' },
@@ -4995,7 +5029,7 @@ describe('DataCiteForm', () => {
 
         it('shows an error instead of opening a draft landing page without a preview URL', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const { toast } = await import('sonner');
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
@@ -5029,7 +5063,7 @@ describe('DataCiteForm', () => {
 
         it('shows an error instead of opening a published landing page without any URL', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const { toast } = await import('sonner');
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
@@ -5056,14 +5090,14 @@ describe('DataCiteForm', () => {
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
             await waitFor(() => {
-                expect(toast.error).toHaveBeenCalledWith('Unable to open landing page preview. The preview URL is missing.');
+                expect(toast.error).toHaveBeenCalledWith('Unable to open landing page. The public or external URL is missing.');
             });
             expect(openSpy).not.toHaveBeenCalled();
         });
 
         it('shows an error when draft saving succeeds without any resource ID', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved without resource.' },
@@ -5172,7 +5206,7 @@ describe('DataCiteForm', () => {
 
         it('closes the setup modal without opening a tab when setup reports no landing page', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
                 data: { message: 'Draft saved.', resource: { id: 101 } },

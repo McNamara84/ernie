@@ -129,6 +129,14 @@ function getLandingPagePreviewTarget(landingPage: LandingPagePreviewTarget): str
     return landingPage.public_url ?? landingPage.external_url ?? null;
 }
 
+function getLandingPagePreviewMissingUrlMessage(landingPage: LandingPagePreviewTarget): string {
+    if (landingPage.status === 'draft') {
+        return 'Unable to open landing page preview. The preview URL is missing.';
+    }
+
+    return 'Unable to open landing page. The public or external URL is missing.';
+}
+
 function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandingPageSummary {
     return {
         id: landingPage.id,
@@ -1948,11 +1956,15 @@ export default function DataCiteForm({
         const previewTarget = getLandingPagePreviewTarget(landingPage);
 
         if (!previewTarget) {
-            toast.error('Unable to open landing page preview. The preview URL is missing.');
+            toast.error(getLandingPagePreviewMissingUrlMessage(landingPage));
             return;
         }
 
-        window.open(previewTarget, '_blank', 'noopener,noreferrer');
+        const openedWindow = window.open(previewTarget, '_blank', 'noopener,noreferrer');
+
+        if (!openedWindow) {
+            toast.error('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
+        }
     }, []);
     const draftAutosaveMessage = useMemo(() => {
         if (draftAutosaveStatus === 'idle') {
