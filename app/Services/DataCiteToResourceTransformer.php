@@ -1270,12 +1270,12 @@ class DataCiteToResourceTransformer
                 // During export, open-ended ranges are exported as single dates because
                 // DataCite's schema doesn't support the trailing slash format.
                 $parts = explode('/', $date, 2);
-                $startDate = $this->parseDate($parts[0], false);
+                $startDate = $this->parseDate($parts[0]);
                 // Empty string after trailing slash results in null endDate (intentional).
-                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1], true) : null;
+                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1]) : null;
             } else {
                 // Single date (not a range): preserve the original precision.
-                $dateValue = $this->parseDate($date, false);
+                $dateValue = $this->parseDate($date);
             }
 
             if ($dateValue === null && $startDate === null && $endDate === null) {
@@ -1853,7 +1853,7 @@ class DataCiteToResourceTransformer
      * calendar dates are rejected instead of being corrected to a different
      * date.
      */
-    private function parseDate(?string $date, bool $isEndDate = false): ?string
+    private function parseDate(?string $date): ?string
     {
         return DataCiteDateNormalizer::normalize($date, true);
     }
