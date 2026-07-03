@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -353,6 +354,58 @@ XML;
 
     $response->assertSessionDataPath('dates.4.dateType', 'other');
     $response->assertSessionDataPath('dates.4.startDate', '2024-06-15');
+
+    $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+    $acceptedDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'accepted');
+    $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
+
+    expect($acceptedDate)->not->toBeNull()
+        ->and($acceptedDate->date_value)->toBe($acceptedDate->created_at->toDateString())
+        ->and($createdDate)->not->toBeNull()
+        ->and($createdDate->date_value)->toBe('2023-05-20');
+});
+
+test('preserves partial date precision without expanding XML dates to full dates', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <titles>
+    <title>Example Title</title>
+  </titles>
+  <dates>
+    <date dateType="Created">2009</date>
+    <date dateType="Collected">2009/2010</date>
+    <date dateType="Valid">2009-05/2010-06</date>
+  </dates>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('partial-dates.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('dates.0.dateType', 'created');
+    $response->assertSessionDataPath('dates.0.startDate', '2009');
+    $response->assertSessionDataPath('dates.1.dateType', 'collected');
+    $response->assertSessionDataPath('dates.1.startDate', '2009');
+    $response->assertSessionDataPath('dates.1.endDate', '2010');
+    $response->assertSessionDataPath('dates.2.dateType', 'valid');
+    $response->assertSessionDataPath('dates.2.startDate', '2009-05');
+    $response->assertSessionDataPath('dates.2.endDate', '2010-06');
+
+    $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+    $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
+    $collectedDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'collected');
+    $validDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'valid');
+
+    expect($createdDate?->date_value)->toBe('2009')
+        ->and($collectedDate?->start_date)->toBe('2009')
+        ->and($collectedDate?->end_date)->toBe('2010')
+        ->and($validDate?->start_date)->toBe('2009-05')
+        ->and($validDate?->end_date)->toBe('2010-06');
 });
 
 test('handles XML without dates gracefully', function () {
@@ -373,6 +426,14 @@ XML;
         ->assertOk();
 
     $response->assertSessionDataPath('dates', []);
+
+    $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+    $acceptedDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'accepted');
+    $createdDate = $resource->dates->first(fn ($date) => strtolower((string) $date->dateType?->slug) === 'created');
+
+    expect($acceptedDate)->not->toBeNull()
+        ->and($acceptedDate->date_value)->toBe($acceptedDate->created_at->toDateString())
+        ->and($createdDate)->toBeNull();
 });
 
 test('filters out empty dates from XML', function () {

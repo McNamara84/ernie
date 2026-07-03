@@ -215,7 +215,7 @@ export default function DataCiteForm({
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
 
-    // Date types shown in the Dates section. Created/Updated are automatic;
+    // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const MAX_DATES = dateTypes.filter((dt) => isEditableDateType(dt.slug)).length;
 
@@ -381,16 +381,6 @@ export default function DataCiteForm({
         }
         return [];
     });
-    // Extract imported 'created' date from initial data (for XML/DataCite imports)
-    // This date should be preserved and sent to the backend instead of using today's date
-    const importedCreatedDate = useMemo(() => {
-        if (initialDates && initialDates.length > 0) {
-            const createdDate = initialDates.find((date) => date.dateType.toLowerCase() === 'created');
-            return createdDate?.startDate || null;
-        }
-        return null;
-    }, [initialDates]);
-
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
             return initialDates
@@ -419,7 +409,7 @@ export default function DataCiteForm({
                     };
                 });
         }
-        // Start with empty dates array - 'created' and 'updated' are auto-managed
+        // Start with an empty Dates section when no editable imported dates exist.
         return [];
     });
 
@@ -1268,7 +1258,6 @@ export default function DataCiteForm({
     }, [authors]);
 
     // Date validation issues (general validation for user-entered dates)
-    // Note: 'Created' and 'Updated' dates are now auto-managed by the backend
     const dateValidationIssues = useMemo(() => {
         const issues: string[] = [];
 
@@ -1570,7 +1559,7 @@ export default function DataCiteForm({
     }, [spatialTemporalCoverages]);
 
     const datesStatus = useMemo(() => {
-        // Dates section is now optional since 'Created' and 'Updated' are auto-managed
+        // Dates are optional because DataCite does not require a user-entered editor date.
         const hasAnyDate = dates.some((date) => hasValidDateValue(date));
 
         if (!hasAnyDate) {
@@ -2016,7 +2005,7 @@ export default function DataCiteForm({
                 affiliation_ror: string | null;
             }[];
             descriptions: { descriptionType: string; description: string; language?: string | null }[];
-            dates: { dateType: string; startDate: string | null; endDate: string | null }[];
+            dates: { dateType: string; dateMode: DateMode; startDate: string | null; endDate: string | null }[];
             freeKeywords: string[];
             gcmdKeywords: {
                 id: string;
@@ -2061,7 +2050,6 @@ export default function DataCiteForm({
                 name: string;
             }[];
             datacenters: number[];
-            importedCreatedDate: string | null;
             resourceId?: number;
             rawRights: DataCiteFormProps['initialRawRights'];
         } = {
@@ -2159,7 +2147,6 @@ export default function DataCiteForm({
                 name: inst.name,
             })),
             datacenters: selectedDatacenters,
-            importedCreatedDate,
         };
 
         if (resolvedResourceId !== null) {
@@ -2180,7 +2167,6 @@ export default function DataCiteForm({
         freeKeywords,
         fundingReferences,
         gcmdKeywords,
-        importedCreatedDate,
         initialRelatedItems,
         instruments,
         licenseEntries,

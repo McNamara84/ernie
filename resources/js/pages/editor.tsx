@@ -41,7 +41,7 @@ interface EditorProps {
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
-    dates?: { dateType: string; startDate: string; endDate: string }[];
+    dates?: { dateType: string; dateMode?: 'single' | 'range'; startDate: string; endDate: string }[];
     gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
     freeKeywords?: string[];
     gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];

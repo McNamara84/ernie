@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightResult;
 use App\Services\Orcid\OrcidPreflightValidator;
+use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -51,6 +52,7 @@ class BatchResourceRegistrationController extends Controller
 
         /** @var DataCiteRegistrationService $service */
         $service = app(DataCiteRegistrationService::class);
+        $resourceStorageService = app(ResourceStorageService::class);
 
         // Resolve the ORCID preflight validator once and reuse it for every
         // resource in the batch to avoid repeated container lookups.
@@ -139,6 +141,7 @@ class BatchResourceRegistrationController extends Controller
                 if (! $wasAlreadyRegistered && $doi !== null && $doi !== $resource->doi) {
                     $resource->doi = $doi;
                     $resource->save();
+                    $resourceStorageService->ensureSystemDate($resource, 'Issued');
                 }
 
                 $results['success'][] = [

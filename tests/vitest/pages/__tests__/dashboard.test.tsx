@@ -74,6 +74,21 @@ vi.mock('@/routes/igsns', () => ({
     index: { url: () => '/igsns' },
 }));
 
+let csrfMeta: HTMLMetaElement | null = null;
+
+const appendCsrfMeta = (content = 'test-token') => {
+    removeCsrfMeta();
+    csrfMeta = document.createElement('meta');
+    csrfMeta.name = 'csrf-token';
+    csrfMeta.content = content;
+    document.head.appendChild(csrfMeta);
+};
+
+const removeCsrfMeta = () => {
+    csrfMeta?.remove();
+    csrfMeta = null;
+};
+
 describe('Dashboard', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({ 
@@ -383,7 +398,7 @@ describe('Dashboard', () => {
 describe('handleXmlFiles', () => {
     beforeEach(() => {
         routerMock.get.mockReset();
-        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+        appendCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
@@ -418,7 +433,7 @@ describe('handleXmlFiles', () => {
     });
 
     it('falls back to the XSRF cookie and legacy session redirect when the meta token is unavailable', async () => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=cookie-token';
 
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
@@ -445,7 +460,7 @@ describe('handleXmlFiles', () => {
     });
 
     it('throws when csrf token is missing', async () => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi.spyOn(global, 'fetch');
 
@@ -482,7 +497,7 @@ describe('handleXmlFiles', () => {
     });
 
     afterEach(() => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
@@ -490,7 +505,7 @@ describe('handleXmlFiles', () => {
 describe('handleJsonFiles', () => {
     beforeEach(() => {
         routerMock.get.mockReset();
-        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+        appendCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
@@ -521,7 +536,7 @@ describe('handleJsonFiles', () => {
     });
 
     afterEach(() => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
