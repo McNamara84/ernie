@@ -146,6 +146,8 @@ function getLandingPagePreviewMissingUrlMessage(landingPage: LandingPagePreviewT
 }
 
 function openLandingPagePreviewPlaceholder(): Window | null {
+    // Do not pass `noopener` here: browsers may return `null` for noopener
+    // windows, and this flow needs the WindowProxy to navigate after async save.
     const previewWindow = window.open(LANDING_PAGE_PLACEHOLDER_URL, '_blank');
 
     if (previewWindow) {

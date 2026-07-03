@@ -4718,7 +4718,7 @@ describe('DataCiteForm', () => {
             const previewWindow = {
                 location: { href: 'about:blank' },
                 close,
-                opener: null,
+                opener: { source: 'test-opener' },
             } as unknown as Window;
 
             return { close, previewWindow };
@@ -4766,6 +4766,7 @@ describe('DataCiteForm', () => {
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
             expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxios.post).toHaveBeenCalledWith(
                     '/editor/resources/draft',
@@ -5045,6 +5046,7 @@ describe('DataCiteForm', () => {
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
             expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxios.post).toHaveBeenCalledWith(
                     '/editor/resources/draft',

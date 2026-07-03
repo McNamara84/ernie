@@ -99,7 +99,7 @@ describe('SetupLandingPageModal', () => {
         const previewWindow = {
             location: { href: 'about:blank' },
             close,
-            opener: null,
+            opener: { source: 'test-opener' },
         } as unknown as Window;
 
         return { close, previewWindow };
@@ -862,6 +862,7 @@ describe('SetupLandingPageModal', () => {
             await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
@@ -1385,6 +1386,7 @@ describe('SetupLandingPageModal', () => {
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
@@ -2528,6 +2530,7 @@ describe('SetupLandingPageModal', () => {
             await user.click(previewButton!);
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
