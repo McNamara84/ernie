@@ -18,6 +18,7 @@ beforeEach(function () {
 // ─ EXPLICIT LANGUAGE DETECTION (from title/description language attributes) ─
 // ══════════════════════════════════════════════════════════════════════════════════
 
+// Erkennt explizite deutsche Sprache aus dem Sprachattribut des Titels
 it('detects explicit German language from title language attribute', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -66,6 +67,7 @@ it('detects explicit German language from title language attribute', function ()
     expect($suggestions[0]['metadata']['source'])->toBe('explicit_language');
 });
 
+// Priorisiert explizite Sprache gegenüber Text-Heuristiken
 it('prioritizes explicit language over text heuristics', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -114,6 +116,7 @@ it('prioritizes explicit language over text heuristics', function () {
 // ─ ENGLISH TEXT DETECTION (various English content patterns) ─
 // ══════════════════════════════════════════════════════════════════════════════════
 
+// Erkennt Englisch aus klarem englischem Titel und Beschreibung
 it('detects English from clear English title and description', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -164,6 +167,7 @@ it('detects English from clear English title and description', function () {
     expect($suggestions[0]['metadata']['source'])->toBe('text_heuristic');
 });
 
+// Erkennt Englisch aus wissenschaftlichem englischem Inhalt mit Fachbegriffen
 it('detects English from scientific English content with domain terms', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -206,6 +210,7 @@ it('detects English from scientific English content with domain terms', function
     expect($suggestions[0]['suggestedValue'])->toBe('en');
 });
 
+// Überspringt Vorschläge, wenn sich Titel- und Beschreibungssprachen widersprechen
 it('skips suggestions when explicit title and description languages conflict', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -252,6 +257,7 @@ it('skips suggestions when explicit title and description languages conflict', f
 // ─ NON-ENGLISH LANGUAGE DETECTION (German, French, Spanish, Italian, Dutch) ─
 // ══════════════════════════════════════════════════════════════════════════════════
 
+// Erkennt Deutsch aus deutschem Text mit Stoppwörtern
 it('detects German from German text with stopwords', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -295,6 +301,7 @@ it('detects German from German text with stopwords', function () {
     expect($suggestions[0]['suggestedValue'])->toBe('de');
 });
 
+// Erkennt Deutsch aus Akzenthinweisen im Text
 it('detects German from accent hints in text', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -331,6 +338,7 @@ it('detects German from accent hints in text', function () {
     expect($suggestions[0]['suggestedValue'])->toBe('de');
 });
 
+// Erkennt Französisch aus französischem Text mit Akzentzeichen
 it('detects French from French text with accent marks', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -373,6 +381,7 @@ it('detects French from French text with accent marks', function () {
     expect($suggestions[0]['suggestedValue'])->toBe('fr');
 });
 
+// Erkennt Spanisch aus spanischem Text mit Stoppwörtern und Akzenten
 it('detects Spanish from Spanish text with stopwords and accents', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -415,6 +424,7 @@ it('detects Spanish from Spanish text with stopwords and accents', function () {
     expect($suggestions[0]['suggestedValue'])->toBe('es');
 });
 
+// Erkennt Italienisch aus italienischem Text
 it('detects Italian from Italian text', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -457,6 +467,7 @@ it('detects Italian from Italian text', function () {
     expect($suggestions[0]['suggestedValue'])->toBe('it');
 });
 
+// Erkennt Niederländisch aus niederländischem Text
 it('detects Dutch from Dutch text', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -503,6 +514,7 @@ it('detects Dutch from Dutch text', function () {
 // ─ LOW-SIGNAL RECORDS (should NOT generate suggestions) ─
 // ══════════════════════════════════════════════════════════════════════════════════
 
+// Überspringt Datensätze mit nur Akronymen und alphanumerischen Codes
 it('skips records with only acronyms and alphanumeric codes', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -537,6 +549,7 @@ it('skips records with only acronyms and alphanumeric codes', function () {
     expect($suggestions)->toHaveCount(0);
 });
 
+// Überspringt Datensätze mit nur Eigennamen und Akronymen
 it('skips records with only proper nouns and acronyms', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -571,6 +584,7 @@ it('skips records with only proper nouns and acronyms', function () {
     expect($suggestions)->toHaveCount(0);
 });
 
+// Überspringt Datensätze mit nur mathematischen Formeln und Symbolen
 it('skips records with only mathematical formulas and symbols', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -605,6 +619,7 @@ it('skips records with only mathematical formulas and symbols', function () {
     expect($suggestions)->toHaveCount(0);
 });
 
+// Überspringt Datensätze mit leerem oder nur Leerzeichen enthaltenden Inhalt
 it('skips records with empty or whitespace-only content', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -639,6 +654,7 @@ it('skips records with empty or whitespace-only content', function () {
     expect($suggestions)->toHaveCount(0);
 });
 
+// Überspringt Datensätze mit gemischter Sprache und unzureichendem Signal in beiden
 it('skips records with mixed language and insufficient signal in either', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -678,6 +694,7 @@ it('skips records with mixed language and insufficient signal in either', functi
 // ─ RESOURCE FILTERING (only processes resources without language_id) ─
 // ══════════════════════════════════════════════════════════════════════════════════
 
+// Überspringt Ressourcen, die bereits eine Sprache zugewiesen haben
 it('skips resources that already have a language assigned', function () {
     $language = Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
     Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
@@ -717,6 +734,7 @@ it('skips resources that already have a language assigned', function () {
 // ─ CONFIDENCE SCORING (validate score calculations) ─
 // ══════════════════════════════════════════════════════════════════════════════════
 
+// Weist hohe Konfidenz expliziten Sprachvorschlägen zu
 it('assigns high confidence to explicit language suggestions', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
@@ -751,6 +769,7 @@ it('assigns high confidence to explicit language suggestions', function () {
     expect($suggestions[0]['similarityScore'])->toBe(0.95);
 });
 
+// Weist Konfidenzwerte basierend auf der Stärke des Textsignals zu
 it('assigns confidence scores based on text signal strength', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
 
