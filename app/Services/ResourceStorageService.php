@@ -1100,22 +1100,11 @@ class ResourceStorageService
             ->all();
 
         $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
-        $dates = isset($data['dates']) && is_array($data['dates']) ? $data['dates'] : [];
+        $hasSubmittedDates = array_key_exists('dates', $data);
+        $dates = $hasSubmittedDates && is_array($data['dates']) ? $data['dates'] : [];
 
-        if ($isUpdate) {
-            $submittedDateTypes = collect($dates)
-                ->filter(fn (mixed $date): bool => is_array($date))
-                ->map(fn (array $date): string => Str::kebab((string) ($date['dateType'] ?? '')))
-                ->filter(fn (string $dateType): bool => $dateType !== '')
-                ->unique()
-                ->values()
-                ->all();
-
+        if ($isUpdate && $hasSubmittedDates) {
             $preservedDateTypeKeys = ['accepted', 'issued', 'coverage'];
-            if (! in_array('created', $submittedDateTypes, true)) {
-                $preservedDateTypeKeys[] = 'created';
-            }
-
             $preservedDateTypeIds = array_values(array_filter(
                 array_map(fn (string $dateType): ?int => $dateTypeLookup[$dateType] ?? null, $preservedDateTypeKeys),
                 fn (?int $dateTypeId): bool => $dateTypeId !== null,
@@ -1224,6 +1213,10 @@ class ResourceStorageService
         }
 
         if ($isUpdate && $updatedDateTypeId !== null) {
+            $resource->dates()
+                ->where('date_type_id', $updatedDateTypeId)
+                ->delete();
+
             $resource->dates()->create([
                 'date_type_id' => $updatedDateTypeId,
                 'date_value' => now()->format('Y-m-d'),

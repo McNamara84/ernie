@@ -1110,7 +1110,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
         expect($createdDate)->toBeNull();
     });
 
-    it('preserves an existing Created date on update when the payload does not include Created', function () {
+    it('removes an existing Created date on update when the submitted dates omit Created', function () {
         $resourceType = ResourceType::first();
         $originalDate = '2021-03-01';
 
@@ -1149,8 +1149,90 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
         })->first();
 
         expect($wasUpdate)->toBeTrue()
+            ->and($createdDate)->toBeNull();
+    });
+
+    it('preserves an existing Created date on update when no dates payload is provided', function () {
+        $resourceType = ResourceType::first();
+        $originalDate = '2021-03-01';
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Original Title', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                ['dateType' => 'Created', 'dateMode' => 'single', 'startDate' => $originalDate],
+            ],
+        ], $this->user->id);
+
+        [$updatedResource, $wasUpdate] = $this->service->store([
+            'resourceId' => $resource->id,
+            'year' => 2025,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Updated Title', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Smith', 'position' => 0],
+            ],
+        ], $this->user->id);
+
+        $createdDate = $updatedResource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($wasUpdate)->toBeTrue()
             ->and($createdDate)->not->toBeNull()
             ->and($createdDate->date_value)->toBe($originalDate);
+    });
+
+    it('refreshes the system-managed Updated date on updates without submitted dates', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Updated Refresh Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+        ], $this->user->id);
+
+        $updatePayload = [
+            'resourceId' => $resource->id,
+            'year' => 2025,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Updated Refresh Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Smith', 'position' => 0],
+            ],
+        ];
+
+        [, $wasFirstUpdate] = $this->service->store($updatePayload, $this->user->id);
+        [$updatedResource, $wasSecondUpdate] = $this->service->store($updatePayload, $this->user->id);
+
+        expect($wasFirstUpdate)->toBeTrue()
+            ->and($wasSecondUpdate)->toBeTrue();
+
+        $updatedDates = $updatedResource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['updated']);
+        })->get();
+        $updatedDate = $updatedDates->first();
+
+        expect($updatedDates)->toHaveCount(1)
+            ->and($updatedDate)->not->toBeNull();
+        expect($updatedDate?->date_value)->toBe($updatedDate?->created_at?->toDateString());
     });
 
     it('replaces an existing Created date when the payload includes Created', function () {
