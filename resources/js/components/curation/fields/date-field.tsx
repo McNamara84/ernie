@@ -106,7 +106,6 @@ export function DateField({
                     {isFirst && (
                         <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>
                             {isDateRange ? 'Start Date' : 'Date'}
-                            {dateType === 'created' && <span className="font-bold text-destructive"> *</span>}
                         </Label>
                     )}
                     {isPartialDate(startDate) ? (
@@ -136,7 +135,6 @@ export function DateField({
                             onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
                             placeholder="Select date"
                             dateFormat="yyyy-MM-dd"
-                            required={dateType === 'created'}
                         />
                     )}
                 </div>

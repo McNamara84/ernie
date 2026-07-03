@@ -25,13 +25,26 @@ function mockDoiEndpoint(response: DoiValidationResponse | ((body: unknown) => D
 }
 
 describe('useDoiValidation', () => {
+    let csrfMeta: HTMLMetaElement | null = null;
+
+    const appendCsrfMeta = () => {
+        csrfMeta?.remove();
+        csrfMeta = document.createElement('meta');
+        csrfMeta.name = 'csrf-token';
+        csrfMeta.content = 'test-csrf-token';
+        document.head.appendChild(csrfMeta);
+    };
+
     beforeEach(() => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        appendCsrfMeta();
     });
 
     afterEach(() => {
         vi.clearAllMocks();
         vi.useRealTimers();
+        csrfMeta?.remove();
+        csrfMeta = null;
     });
 
     describe('Initial state', () => {

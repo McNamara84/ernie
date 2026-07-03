@@ -9,6 +9,7 @@ use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightValidator;
+use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -111,6 +112,7 @@ class ResourceDoiRegistrationController extends Controller
 
             $resource->doi = $doi;
             $resource->save();
+            app(ResourceStorageService::class)->ensureSystemDate($resource, 'Issued');
 
             Log::info('DOI saved to resource', [
                 'resource_id' => $resource->id,

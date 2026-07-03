@@ -115,15 +115,12 @@ class StoreResourceRequest extends FormRequest
             'dates.*.dateType' => [
                 'required',
                 'string',
-                Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
+                Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
-            // Imported 'created' date from XML/DataCite import (Issue #371)
-            // If provided, this date is used instead of the current date for new resources
-            'importedCreatedDate' => ['nullable', 'date'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
             'gcmdKeywords' => ['nullable', 'array'],

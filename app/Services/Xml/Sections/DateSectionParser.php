@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Support\DataCiteDateNormalizer;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Saloon\XmlWrangler\XmlReader;
@@ -12,9 +13,9 @@ use Saloon\XmlWrangler\XmlReader;
  * Parses `<dates>/<date>` elements from a DataCite XML document.
  *
  * The output is intentionally rich: each entry contains the normalised
- * `startDate`/`endDate` (YYYY-MM-DD) plus the original raw value so that
+ * `startDate`/`endDate` plus the original raw value so that
  * downstream processing (e.g. coverage extraction) can recover full
- * datetime components.
+ * datetime components. Partial DataCite dates keep their precision.
  */
 final readonly class DateSectionParser
 {
@@ -62,12 +63,12 @@ final readonly class DateSectionParser
     }
 
     /**
-     * Normalize a date string to YYYY-MM-DD format.
+     * Normalize a DataCite date string without inventing precision.
      *
      * Handles various input formats:
      * - Full date: "2024-01-15" -> "2024-01-15"
-     * - Year only: "2024" -> "2024-01-01"
-     * - Year-month: "2024-06" -> "2024-06-01"
+     * - Year only: "2024" -> "2024"
+     * - Year-month: "2024-06" -> "2024-06"
      * - DateTime: "2024-01-15 10:30:00" -> "2024-01-15"
      * - Invalid/empty: returns empty string
      */
@@ -79,34 +80,10 @@ final readonly class DateSectionParser
             return '';
         }
 
-        if (str_contains($dateValue, ' ')) {
-            $dateValue = explode(' ', $dateValue)[0];
-        }
+        $normalized = DataCiteDateNormalizer::normalize($dateValue);
 
-        if (str_contains($dateValue, 'T')) {
-            $dateValue = explode('T', $dateValue)[0];
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
-            return $dateValue;
-        }
-
-        if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
-            return $matches[1].'-'.$matches[2].'-01';
-        }
-
-        if (preg_match('/^\d{4}$/', $dateValue)) {
-            return $dateValue.'-01-01';
-        }
-
-        $timestamp = strtotime($dateValue);
-        if ($timestamp !== false) {
-            Log::debug('Date normalization used strtotime fallback', [
-                'original' => $dateValue,
-                'normalized' => date('Y-m-d', $timestamp),
-            ]);
-
-            return date('Y-m-d', $timestamp);
+        if ($normalized !== null) {
+            return $normalized;
         }
 
         Log::warning('Could not parse date value during XML import', [
