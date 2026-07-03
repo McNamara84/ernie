@@ -49,8 +49,9 @@ interface SetupLandingPageModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: (landingPage?: LandingPageConfig | null) => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
     existingConfig?: LandingPageConfig | null;
+    openPreviewOnSuccess?: boolean;
 }
 
 const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
@@ -261,7 +262,7 @@ function SortableLinkItem({
     );
 }
 
-export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupLandingPageModalProps) {
+export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig, openPreviewOnSuccess = false }: SetupLandingPageModalProps) {
     // PhysicalObject resources (IGSNs) default to the IGSN renderer; everything
     // else uses the standard `default_gfz` template.
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
@@ -544,6 +545,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
+        let preopenedPreviewWindow: Window | null = null;
+
+        if (openPreviewOnSuccess) {
+            preopenedPreviewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!preopenedPreviewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+        }
+
         setIsSaving(true);
 
         try {
@@ -589,8 +601,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Ignore errors from clearing preview session
             }
 
-            onSuccess?.(response.data.landing_page ?? null);
+            const savedLandingPage = response.data.landing_page ?? null;
+
+            if (preopenedPreviewWindow) {
+                onSuccess?.(savedLandingPage, preopenedPreviewWindow);
+            } else {
+                onSuccess?.(savedLandingPage);
+            }
         } catch (error) {
+            preopenedPreviewWindow?.close();
             console.error('Failed to save landing page:', error);
             toast.error(getLandingPageRequestErrorMessage(error, 'Failed to save landing page configuration'));
         } finally {
@@ -618,6 +637,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
 
         setIsSaving(true);
+
 
         try {
             await axios.delete(`/resources/${resource.id}/landing-page`);

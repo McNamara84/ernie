@@ -19,7 +19,8 @@ type MockSetupLandingPageModalProps = {
         resourcetypegeneral?: string;
     };
     onClose?: () => void;
-    onSuccess?: (landingPage?: LandingPageConfig | null) => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
+    openPreviewOnSuccess?: boolean;
 };
 
 const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
@@ -4882,6 +4883,7 @@ describe('DataCiteForm', () => {
                     resourcetypegeneral: 'PhysicalObject',
                 }),
             );
+            expect(modalProps.openPreviewOnSuccess).toBe(true);
             expect(openSpy).not.toHaveBeenCalled();
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
@@ -4916,8 +4918,9 @@ describe('DataCiteForm', () => {
             });
         });
 
-        it('opens the new landing page preview after setup succeeds from the editor', { timeout: 30000 }, async () => {
+        it('opens the new landing page preview in the tab preopened by setup save', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
@@ -4939,21 +4942,25 @@ describe('DataCiteForm', () => {
             const modalProps = calls[calls.length - 1][0];
 
             await act(async () => {
-                modalProps.onSuccess({
-                    id: 15,
-                    resource_id: 100,
-                    template: 'default_gfz',
-                    status: 'draft',
-                    public_url: 'https://example.test/draft-new-lp',
-                    preview_url: 'https://example.test/draft-new-lp?preview=token',
-                    external_url: null,
-                    view_count: 0,
-                    created_at: '2026-07-03T00:00:00Z',
-                    updated_at: '2026-07-03T00:00:00Z',
-                });
+                modalProps.onSuccess(
+                    {
+                        id: 15,
+                        resource_id: 100,
+                        template: 'default_gfz',
+                        status: 'draft',
+                        public_url: 'https://example.test/draft-new-lp',
+                        preview_url: 'https://example.test/draft-new-lp?preview=token',
+                        external_url: null,
+                        view_count: 0,
+                        created_at: '2026-07-03T00:00:00Z',
+                        updated_at: '2026-07-03T00:00:00Z',
+                    },
+                    previewWindow,
+                );
             });
 
-            expect(openSpy).toHaveBeenCalledWith('https://example.test/draft-new-lp?preview=token', '_blank', 'noopener,noreferrer');
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(previewWindow.location.href).toBe('https://example.test/draft-new-lp?preview=token');
         });
 
         it('shows the preparing state while the preview draft save is in progress', { timeout: 30000 }, async () => {
@@ -5265,8 +5272,9 @@ describe('DataCiteForm', () => {
             expect(mockRouterVisit).not.toHaveBeenCalled();
         });
 
-        it('closes the setup modal without opening a tab when setup reports no landing page', { timeout: 30000 }, async () => {
+        it('closes the setup modal and preopened tab when setup reports no landing page', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { close, previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
@@ -5288,13 +5296,15 @@ describe('DataCiteForm', () => {
             const modalProps = calls[calls.length - 1][0];
 
             await act(async () => {
-                modalProps.onSuccess(null);
+                modalProps.onSuccess(null, previewWindow);
             });
 
             await waitFor(() => {
                 expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
             });
             expect(openSpy).not.toHaveBeenCalled();
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
         });
     });
     describe('Save Draft (Issue #548)', () => {

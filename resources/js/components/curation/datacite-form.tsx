@@ -2780,12 +2780,13 @@ export default function DataCiteForm({
     }, []);
 
     const handleLandingPageSetupSuccess = useCallback(
-        (landingPage?: LandingPageConfig | null) => {
+        (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
             if (landingPage) {
                 const summary = toEditorLandingPageSummary(landingPage);
                 setLandingPageForPreview(summary);
-                openLandingPagePreview(summary);
+                openLandingPagePreview(summary, preopenedPreviewWindow);
             } else {
+                preopenedPreviewWindow?.close();
                 setLandingPageForPreview(null);
             }
 
@@ -3527,6 +3528,7 @@ export default function DataCiteForm({
                     isOpen={isLandingPageSetupOpen}
                     onClose={handleCloseLandingPageSetup}
                     onSuccess={handleLandingPageSetupSuccess}
+                    openPreviewOnSuccess={true}
                 />
             )}
             {/* DOI Conflict Modal */}

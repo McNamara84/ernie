@@ -827,6 +827,122 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('passes a preopened preview tab to onSuccess when auto-opening after save is requested', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            const landingPage = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+            };
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: landingPage,
+                },
+            });
+            const onSuccess = vi.fn();
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    onSuccess={onSuccess}
+                    openPreviewOnSuccess={true}
+                />,
+            );
+
+            await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({ template: 'default_gfz', status: 'draft' }),
+                );
+            });
+            expect(onSuccess).toHaveBeenCalledWith(landingPage, previewWindow);
+            expect(previewWindow.location.href).toBe('about:blank');
+
+            vi.unstubAllGlobals();
+        });
+
+        it('does not save when the auto-open preview tab is blocked', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            const mockOpen = vi.fn().mockReturnValue(null);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    openPreviewOnSuccess={true}
+                />,
+            );
+
+            await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith(
+                'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.',
+            );
+
+            vi.unstubAllGlobals();
+        });
+
+        it('closes the preopened preview tab when auto-open save fails', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            mockedAxiosPost.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 500, data: { message: 'Preview save failed.' } },
+            });
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    openPreviewOnSuccess={true}
+                />,
+            );
+
+            await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(mockedToastError).toHaveBeenCalledWith('Preview save failed.');
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+            expect(consoleSpy).toHaveBeenCalledWith('Failed to save landing page:', expect.any(Object));
+
+            consoleSpy.mockRestore();
+            vi.unstubAllGlobals();
+        });
+
         it('sends downloads unavailable while preserving the entered download URL', async () => {
             mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
@@ -1314,7 +1430,9 @@ describe('SetupLandingPageModal', () => {
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
             expect(mockedAxiosPost).not.toHaveBeenCalled();
-            expect(mockedToastError).toHaveBeenCalledWith('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
+            expect(mockedToastError).toHaveBeenCalledWith(
+                'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.',
+            );
 
             vi.unstubAllGlobals();
         });
