@@ -193,6 +193,15 @@ export type InitialContributor =
 // Component Props
 // ============================================================================
 
+export interface EditorLandingPageSummary {
+    id: number;
+    is_published: boolean;
+    status: 'draft' | 'published';
+    public_url: string;
+    preview_url?: string | null;
+    external_url?: string | null;
+}
+
 export interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
@@ -215,6 +224,7 @@ export interface DataCiteFormProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     initialResourceId?: string;
+    initialLandingPage?: EditorLandingPageSummary | null;
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string; language?: string | null }[];

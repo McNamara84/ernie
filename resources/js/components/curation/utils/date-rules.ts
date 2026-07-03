@@ -1,7 +1,7 @@
 export type DateMode = 'single' | 'range';
 
-export const DATE_RANGE_CAPABLE_TYPES = ['collected', 'valid', 'other'] as const;
-export const NON_EDITABLE_DATE_TYPES = ['created', 'updated', 'coverage'] as const;
+export const DATE_RANGE_CAPABLE_TYPES = ['created', 'collected', 'valid', 'other'] as const;
+export const NON_EDITABLE_DATE_TYPES = ['accepted', 'issued', 'updated', 'coverage'] as const;
 
 export function normalizeDateTypeSlug(value: string | null | undefined): string {
     return (value ?? '').trim().toLowerCase();

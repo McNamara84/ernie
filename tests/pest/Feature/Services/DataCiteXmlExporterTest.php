@@ -952,6 +952,7 @@ describe('DataCiteXmlExporter - Dates', function () {
             ->and($xml)->toContain('dateType="'.$dateTypeName.'"')
             ->and($xml)->toContain('2023-01-01/2023-12-31</date>');
     })->with([
+        'Created' => ['Created', 'Created'],
         'Collected' => ['Collected', 'Collected'],
         'Valid' => ['Valid', 'Valid'],
         'Other' => ['Other', 'Other'],

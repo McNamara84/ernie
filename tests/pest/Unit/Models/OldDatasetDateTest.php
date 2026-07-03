@@ -80,3 +80,36 @@ it('clears end dates for unsupported legacy date types in single-date mode', fun
             'endDate' => '',
         ]);
 });
+
+it('preserves partial legacy date precision without expanding to full dates', function (): void {
+    DB::connection('metaworks')->table('date')->insert([
+        [
+            'resource_id' => 1,
+            'datetype' => 'Created',
+            'start' => '2009',
+            'end' => '2010',
+        ],
+        [
+            'resource_id' => 1,
+            'datetype' => 'Available',
+            'start' => '2009-05',
+            'end' => null,
+        ],
+    ]);
+
+    $dates = OldDataset::findOrFail(1)->getResourceDates();
+
+    expect($dates)->toHaveCount(2)
+        ->and($dates[0])->toMatchArray([
+            'dateType' => 'created',
+            'dateMode' => 'range',
+            'startDate' => '2009',
+            'endDate' => '2010',
+        ])
+        ->and($dates[1])->toMatchArray([
+            'dateType' => 'available',
+            'dateMode' => 'single',
+            'startDate' => '2009-05',
+            'endDate' => '',
+        ]);
+});

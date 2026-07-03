@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-26",
+        "date": "2026-07-03",
         "features": [
+            {
+                "title": "Landing Page Preview from the Data Editor",
+                "description": "Curators can now click Show LP Preview next to Save Draft and Save & Validate in the Data Editor. ERNIE saves the current metadata as a draft first, then opens the existing landing page preview or public URL in a new browser tab. If no landing page exists yet, the regular setup modal opens and automatically launches the newly created preview after setup."
+            },
             {
                 "title": "RAiD Persistent Identifier Support",
                 "description": "Editor Settings now include RAiD (Research Activity Identifier) alongside PID4INST and ROR. Admins and Group Leaders can enable RAiD separately for ERNIE and ELMO, check DataCite-backed RAiD project counts for updates, trigger background refreshes, and expose normalized RAiD project metadata to ELMO through the API-key protected vocabulary endpoint."
@@ -110,6 +114,10 @@
             {
                 "title": "Assistance: Suggested ROR-IDs Discovery",
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
+            },
+            {
+                "title": "Assistance: Crossref Funder ID to ROR Suggestions",
+                "description": "The Assistance page now includes a Crossref Funder ID to ROR assistant for funding references. It uses the locally generated ROR FundRef index to propose high-confidence ROR identifiers for funding references that currently use Crossref Funder IDs, shows provenance and exact-match evidence for review, and lets curators accept or decline each suggestion while preserving award metadata."
             },
             {
                 "title": "Assistance: SPDX Rights Suggestions",
