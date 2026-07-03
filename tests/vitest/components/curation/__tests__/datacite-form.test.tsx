@@ -4715,13 +4715,21 @@ describe('DataCiteForm', () => {
     describe('Landing page preview (Issue #968)', () => {
         const createPreopenedPreviewWindow = () => {
             const close = vi.fn();
+            const documentClose = vi.fn();
+            const documentOpen = vi.fn();
+            const documentWrite = vi.fn();
             const previewWindow = {
                 location: { href: 'about:blank' },
                 close,
+                document: {
+                    close: documentClose,
+                    open: documentOpen,
+                    write: documentWrite,
+                },
                 opener: { source: 'test-opener' },
             } as unknown as Window;
 
-            return { close, previewWindow };
+            return { close, documentClose, documentOpen, documentWrite, previewWindow };
         };
 
         it('renders the preview button and enables it after a Main Title is entered', { timeout: 30000 }, async () => {
@@ -4766,7 +4774,7 @@ describe('DataCiteForm', () => {
 
         it('saves the current editor state as a draft and opens an existing draft landing page preview URL', { timeout: 30000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-            const { previewWindow } = createPreopenedPreviewWindow();
+            const { documentWrite, previewWindow } = createPreopenedPreviewWindow();
             const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
             const mockedAxios = axios as unknown as { post: Mock };
             mockedAxios.post.mockResolvedValue({
@@ -4793,6 +4801,8 @@ describe('DataCiteForm', () => {
             await user.click(screen.getByTestId('show-lp-preview-button'));
 
             expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('name="referrer"'));
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('content="no-referrer"'));
             expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxios.post).toHaveBeenCalledWith(

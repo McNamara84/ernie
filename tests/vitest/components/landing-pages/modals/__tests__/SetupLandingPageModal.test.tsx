@@ -96,13 +96,21 @@ describe('SetupLandingPageModal', () => {
 
     const createPreopenedPreviewWindow = () => {
         const close = vi.fn();
+        const documentClose = vi.fn();
+        const documentOpen = vi.fn();
+        const documentWrite = vi.fn();
         const previewWindow = {
             location: { href: 'about:blank' },
             close,
+            document: {
+                close: documentClose,
+                open: documentOpen,
+                write: documentWrite,
+            },
             opener: { source: 'test-opener' },
         } as unknown as Window;
 
-        return { close, previewWindow };
+        return { close, documentClose, documentOpen, documentWrite, previewWindow };
     };
 
     beforeEach(() => {
@@ -843,7 +851,7 @@ describe('SetupLandingPageModal', () => {
                 },
             });
             const onSuccess = vi.fn();
-            const { previewWindow } = createPreopenedPreviewWindow();
+            const { documentWrite, previewWindow } = createPreopenedPreviewWindow();
             const mockOpen = vi.fn().mockReturnValue(previewWindow);
             vi.stubGlobal('open', mockOpen);
 
@@ -862,6 +870,8 @@ describe('SetupLandingPageModal', () => {
             await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
 
             expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('name="referrer"'));
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('content="no-referrer"'));
             expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith(

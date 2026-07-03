@@ -627,7 +627,6 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
         setIsSaving(true);
 
-
         try {
             await axios.delete(`/resources/${resource.id}/landing-page`);
             clearPersistedDraftState();
