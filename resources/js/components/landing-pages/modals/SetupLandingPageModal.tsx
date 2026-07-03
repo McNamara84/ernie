@@ -59,12 +59,24 @@ const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
 };
 
 const LANDING_PAGE_DRAFT_STORAGE_PREFIX = 'setup-landing-page-modal:draft';
+const LANDING_PAGE_PREVIEW_PLACEHOLDER_URL = 'about:blank';
+const LANDING_PAGE_POPUP_BLOCKED_MESSAGE = 'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.';
 
 type DownloadUrlSuggestionEntry = {
     id: string;
     value: string;
     usageCount: number;
 };
+
+function openLandingPagePreviewPlaceholder(): Window | null {
+    const previewWindow = window.open(LANDING_PAGE_PREVIEW_PLACEHOLDER_URL, '_blank');
+
+    if (previewWindow) {
+        previewWindow.opener = null;
+    }
+
+    return previewWindow;
+}
 
 type PersistedLandingPageDraftState = {
     template: string;
@@ -804,6 +816,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 return;
             }
 
+            const previewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!previewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+
             try {
                 const payload = buildLandingPagePreviewPayload({
                     template,
@@ -822,11 +841,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Store preview in session and get preview URL
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
 
-                // Open preview in new tab
+                // Open preview in the tab that was created synchronously by the click handler.
                 const previewUrlFromServer = response.data?.preview_url;
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
+                previewWindow.location.href = previewUrlFromServer || fallbackPreviewUrl;
             } catch (error) {
+                previewWindow.close();
                 console.error('Failed to create preview:', error);
                 toast.error(getLandingPageRequestErrorMessage(error, 'Failed to create preview'));
             }

@@ -99,6 +99,8 @@ const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
 const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
 const DRAFT_AUTOSAVE_INTERVAL_MS = 60_000;
+const LANDING_PAGE_PLACEHOLDER_URL = 'about:blank';
+const LANDING_PAGE_POPUP_BLOCKED_MESSAGE = 'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.';
 
 type DraftAutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
@@ -141,6 +143,16 @@ function getLandingPagePreviewMissingUrlMessage(landingPage: LandingPagePreviewT
     }
 
     return 'Unable to open landing page. The public or external URL is missing.';
+}
+
+function openLandingPagePreviewPlaceholder(): Window | null {
+    const previewWindow = window.open(LANDING_PAGE_PLACEHOLDER_URL, '_blank');
+
+    if (previewWindow) {
+        previewWindow.opener = null;
+    }
+
+    return previewWindow;
 }
 
 function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandingPageSummary {
@@ -1958,18 +1970,24 @@ export default function DataCiteForm({
         }),
         [form.doi, mainTitleForLandingPage, selectedResourceTypeName],
     );
-    const openLandingPagePreview = useCallback((landingPage: LandingPagePreviewTarget) => {
+    const openLandingPagePreview = useCallback((landingPage: LandingPagePreviewTarget, preopenedWindow?: Window | null) => {
         const previewTarget = getLandingPagePreviewTarget(landingPage);
 
         if (!previewTarget) {
+            preopenedWindow?.close();
             toast.error(getLandingPagePreviewMissingUrlMessage(landingPage));
+            return;
+        }
+
+        if (preopenedWindow) {
+            preopenedWindow.location.href = previewTarget;
             return;
         }
 
         const openedWindow = window.open(previewTarget, '_blank', 'noopener,noreferrer');
 
         if (!openedWindow) {
-            toast.error('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
+            toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
         }
     }, []);
     const draftAutosaveMessage = useMemo(() => {
@@ -2729,14 +2747,26 @@ export default function DataCiteForm({
     ]);
 
     const handleShowLandingPagePreview = useCallback(async () => {
+        let preopenedPreviewWindow: Window | null = null;
+
+        if (landingPageForPreview) {
+            preopenedPreviewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!preopenedPreviewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+        }
+
         const result = await saveDraftForLandingPagePreview();
 
         if (!result) {
+            preopenedPreviewWindow?.close();
             return;
         }
 
         if (landingPageForPreview) {
-            openLandingPagePreview(landingPageForPreview);
+            openLandingPagePreview(landingPageForPreview, preopenedPreviewWindow);
             return;
         }
 
