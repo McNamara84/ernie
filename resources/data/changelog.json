@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-26",
+        "date": "2026-07-03",
         "features": [
+            {
+                "title": "Landing Page Preview from the Data Editor",
+                "description": "Curators can now click Show LP Preview next to Save Draft and Save & Validate in the Data Editor. ERNIE saves the current metadata as a draft first, then opens the existing landing page preview or public URL in a new browser tab. If no landing page exists yet, the regular setup modal opens and automatically launches the newly created preview after setup."
+            },
             {
                 "title": "RAiD Persistent Identifier Support",
                 "description": "Editor Settings now include RAiD (Research Activity Identifier) alongside PID4INST and ROR. Admins and Group Leaders can enable RAiD separately for ERNIE and ELMO, check DataCite-backed RAiD project counts for updates, trigger background refreshes, and expose normalized RAiD project metadata to ELMO through the API-key protected vocabulary endpoint."
@@ -125,6 +129,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Faster Resource Editing from the Resources Table",
+                "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE reuses the existing fallback dialog if the browser blocks the editor tab."
+            },
             {
                 "title": "Resizable Resources Table Columns",
                 "description": "The Resources table now lets curators manually adjust every visible metadata column except the selection checkbox. Column widths are saved in the browser, can be reset to defaults, and long values stay on one line with ellipsis plus hover tooltips for the full text. Resize handles support mouse dragging and keyboard controls on tablet and desktop screens."

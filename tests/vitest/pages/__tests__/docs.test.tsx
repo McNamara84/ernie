@@ -233,6 +233,24 @@ describe('Docs page', () => {
         expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
     });
 
+    it('documents opening resources from the resources table row', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab.');
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides controlled keywords section when all vocabulary families are disabled', async () => {
         const { user } = renderDocsPage(
             'beginner',
@@ -340,6 +358,28 @@ describe('Docs page', () => {
         // Verify tab switched and curator sees Landing Pages
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+    });
+
+    it('documents the landing page preview action in the Data Editor', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getAllByText('Show LP Preview').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('From the Data Editor, click Show LP Preview next to Save Draft and Save & Validate') &&
+                    text.includes('automatically opens the preview after you create it.')
+                );
+            }),
+        ).toBeInTheDocument();
     });
 
     it('documents resource quick actions and grouped delete behavior for curators', async () => {

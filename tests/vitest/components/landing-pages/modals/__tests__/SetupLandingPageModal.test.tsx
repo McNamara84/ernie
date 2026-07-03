@@ -94,6 +94,25 @@ describe('SetupLandingPageModal', () => {
 
     const mockOnClose = vi.fn();
 
+    const createPreopenedPreviewWindow = () => {
+        const close = vi.fn();
+        const documentClose = vi.fn();
+        const documentOpen = vi.fn();
+        const documentWrite = vi.fn();
+        const previewWindow = {
+            location: { href: 'about:blank' },
+            close,
+            document: {
+                close: documentClose,
+                open: documentOpen,
+                write: documentWrite,
+            },
+            opener: { source: 'test-opener' },
+        } as unknown as Window;
+
+        return { close, documentClose, documentOpen, documentWrite, previewWindow };
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
         window.sessionStorage.clear();
@@ -816,6 +835,125 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('passes a preopened preview tab to onSuccess when auto-opening after save is requested', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            const landingPage = {
+                ...mockExistingConfig,
+                status: 'draft' as const,
+            };
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page created',
+                    landing_page: landingPage,
+                },
+            });
+            const onSuccess = vi.fn();
+            const { documentWrite, previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    onSuccess={onSuccess}
+                    openPreviewOnSuccess={true}
+                />,
+            );
+
+            await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('name="referrer"'));
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('content="no-referrer"'));
+            expect(previewWindow.opener).toBeNull();
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith(
+                    expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
+                    expect.objectContaining({ template: 'default_gfz', status: 'draft' }),
+                );
+            });
+            expect(onSuccess).toHaveBeenCalledWith(landingPage, previewWindow);
+            expect(previewWindow.location.href).toBe('about:blank');
+
+            vi.unstubAllGlobals();
+        });
+
+        it('does not save when the auto-open preview tab is blocked', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            const mockOpen = vi.fn().mockReturnValue(null);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    openPreviewOnSuccess={true}
+                />,
+            );
+
+            await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith(
+                'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.',
+            );
+
+            vi.unstubAllGlobals();
+        });
+
+        it('closes the preopened preview tab when auto-open save fails', async () => {
+            mockedAxiosGet.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            mockedAxiosPost.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 500, data: { message: 'Preview save failed.' } },
+            });
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    openPreviewOnSuccess={true}
+                />,
+            );
+
+            await user.click(await screen.findByRole('button', { name: /Create Preview/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(mockedToastError).toHaveBeenCalledWith('Preview save failed.');
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+            expect(consoleSpy).toHaveBeenCalledWith('Failed to save landing page:', expect.any(Object));
+
+            consoleSpy.mockRestore();
+            vi.unstubAllGlobals();
+        });
+
         it('sends downloads unavailable while preserving the entered download URL', async () => {
             mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
@@ -982,6 +1120,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('removes draft landing page preview', async () => {
+            const onSuccess = vi.fn();
             // Use a draft config (not published)
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
             mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
@@ -997,6 +1136,7 @@ describe('SetupLandingPageModal', () => {
                     resource={mockResource}
                     isOpen={true}
                     onClose={mockOnClose}
+                    onSuccess={onSuccess}
                 />,
             );
 
@@ -1014,6 +1154,7 @@ describe('SetupLandingPageModal', () => {
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                 );
             });
+            expect(onSuccess).toHaveBeenCalledWith(null);
 
             // Cleanup
             vi.unstubAllGlobals();
@@ -1237,7 +1378,8 @@ describe('SetupLandingPageModal', () => {
                 data: { preview_url: '/resources/123/landing-page/preview' },
             });
 
-            const mockOpen = vi.fn();
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
             vi.stubGlobal('open', mockOpen);
 
             const user = userEvent.setup();
@@ -1253,6 +1395,8 @@ describe('SetupLandingPageModal', () => {
             await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
             await user.click(screen.getByRole('button', { name: /^Preview$/i }));
 
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
@@ -1264,12 +1408,86 @@ describe('SetupLandingPageModal', () => {
                 );
             });
 
-            expect(mockOpen).toHaveBeenCalledWith(
-                '/resources/123/landing-page/preview',
-                '_blank',
-                'noopener,noreferrer',
+            await waitFor(() => {
+                expect(previewWindow.location.href).toBe('/resources/123/landing-page/preview');
+            });
+            expect(mockOpen).toHaveBeenCalledTimes(1);
+
+            vi.unstubAllGlobals();
+        });
+
+        it('shows a toast without generating a session preview when the placeholder tab is blocked', async () => {
+            const draftConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft',
+                downloads_unavailable: false,
+            };
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
+
+            const mockOpen = vi.fn().mockReturnValue(null);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
             );
 
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(mockedAxiosPost).not.toHaveBeenCalled();
+            expect(mockedToastError).toHaveBeenCalledWith(
+                'Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.',
+            );
+
+            vi.unstubAllGlobals();
+        });
+
+        it('closes the preopened session preview tab when preview generation fails', async () => {
+            const draftConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                status: 'draft',
+                downloads_unavailable: false,
+            };
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
+            mockedAxiosPost.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 500, data: { message: 'Preview generation failed.' } },
+            });
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
+            vi.stubGlobal('open', mockOpen);
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await user.click(await screen.findByRole('checkbox', { name: /no data available for download/i }));
+            await user.click(screen.getByRole('button', { name: /^Preview$/i }));
+
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(mockedToastError).toHaveBeenCalledWith('Preview generation failed.');
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+            expect(consoleSpy).toHaveBeenCalledWith('Failed to create preview:', expect.any(Object));
+
+            consoleSpy.mockRestore();
             vi.unstubAllGlobals();
         });
 
@@ -2287,7 +2505,8 @@ describe('SetupLandingPageModal', () => {
                 });
             });
 
-            const mockOpen = vi.fn();
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const mockOpen = vi.fn().mockReturnValue(previewWindow);
             vi.stubGlobal('open', mockOpen);
 
             const user = userEvent.setup();
@@ -2320,6 +2539,8 @@ describe('SetupLandingPageModal', () => {
             expect(previewButton).toBeDefined();
             await user.click(previewButton!);
 
+            expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
             await waitFor(() => {
                 expect(mockedAxiosPost).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page/preview`),
@@ -2328,6 +2549,9 @@ describe('SetupLandingPageModal', () => {
                         landing_page_template_id: 8,
                     }),
                 );
+            });
+            await waitFor(() => {
+                expect(previewWindow.location.href).toBe('/resources/123/landing-page/preview');
             });
 
             vi.unstubAllGlobals();
@@ -2455,7 +2679,49 @@ describe('SetupLandingPageModal', () => {
             await user.click(saveButton);
 
             await waitFor(() => {
-                expect(onSuccess).toHaveBeenCalled();
+                expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ id: mockExistingConfig.id, status: 'draft' }));
+            });
+        });
+
+        it('calls onSuccess with null when the save response contains no landing page', async () => {
+            const onSuccess = vi.fn();
+
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.includes('/api/landing-page-templates')) {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+                if (url.includes('/api/landing-page-domains')) {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+                return Promise.reject({ isAxiosError: true, response: { status: 404 } });
+            });
+            mockedAxiosPost.mockResolvedValue({
+                data: {
+                    message: 'Landing page request accepted',
+                    preview_url: '/preview',
+                },
+            });
+            mockedAxiosDelete.mockResolvedValue({});
+
+            const user = userEvent.setup();
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                    onSuccess={onSuccess}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            await user.click(screen.getByRole('button', { name: /Create Preview/i }));
+
+            await waitFor(() => {
+                expect(onSuccess).toHaveBeenCalledWith(null);
             });
         });
 

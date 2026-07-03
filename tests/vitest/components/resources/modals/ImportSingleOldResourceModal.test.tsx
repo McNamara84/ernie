@@ -183,9 +183,7 @@ describe('ImportSingleOldResourceModal', () => {
 
         expect(await screen.findByText('Legacy links added')).toBeInTheDocument();
         expect(screen.getByText(/already existed in ERNIE\. Missing legacy download links were added/i)).toBeInTheDocument();
-        await waitFor(() => {
-            expect(mockOnSuccess).toHaveBeenCalledOnce();
-        });
+        await waitFor(() => expect(mockOnSuccess).toHaveBeenCalledOnce());
     });
 
     it('calls onSuccess as soon as a new resource was imported', async () => {
@@ -213,9 +211,7 @@ describe('ImportSingleOldResourceModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
-        await waitFor(() => {
-            expect(mockOnSuccess).toHaveBeenCalledOnce();
-        });
+        await waitFor(() => expect(mockOnSuccess).toHaveBeenCalledOnce());
         expect(mockOnClose).not.toHaveBeenCalled();
     });
 
@@ -244,9 +240,7 @@ describe('ImportSingleOldResourceModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import complete')).toBeInTheDocument();
-        await waitFor(() => {
-            expect(mockOnSuccess).toHaveBeenCalledOnce();
-        });
+        await waitFor(() => expect(mockOnSuccess).toHaveBeenCalledOnce());
 
         rerender(<ImportSingleOldResourceModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 

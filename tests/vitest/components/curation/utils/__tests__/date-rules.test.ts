@@ -9,7 +9,8 @@ describe('date-rules', () => {
         expect(normalizeDateTypeSlug(undefined)).toBe('');
     });
 
-    it('allows date periods only for Collected, Valid, and Other', () => {
+    it('allows date periods only for Created, Collected, Valid, and Other', () => {
+        expect(isDateRangeCapable('Created')).toBe(true);
         expect(isDateRangeCapable('Collected')).toBe(true);
         expect(isDateRangeCapable('valid')).toBe(true);
         expect(isDateRangeCapable('OTHER')).toBe(true);
@@ -17,10 +18,12 @@ describe('date-rules', () => {
         expect(isDateRangeCapable('coverage')).toBe(false);
     });
 
-    it('keeps created, updated, and coverage out of the editable Dates section', () => {
-        expect(isEditableDateType('created')).toBe(false);
+    it('keeps system-managed and coverage date types out of the editable Dates section', () => {
+        expect(isEditableDateType('accepted')).toBe(false);
+        expect(isEditableDateType('issued')).toBe(false);
         expect(isEditableDateType('updated')).toBe(false);
         expect(isEditableDateType('coverage')).toBe(false);
+        expect(isEditableDateType('created')).toBe(true);
         expect(isEditableDateType('collected')).toBe(true);
     });
 });

@@ -94,7 +94,7 @@ export function parseDateTime(isoString: string | null | undefined): ParsedDateT
         return { date: '', time: null, timezone: null };
     }
 
-    const str = isoString.trim();
+    const str = isoString.trim().replace(/^(\d{4}-\d{2}-\d{2})\s+(?=\d{2}:\d{2})/, '$1T');
 
     // No time component — date only
     if (!str.includes('T')) {
