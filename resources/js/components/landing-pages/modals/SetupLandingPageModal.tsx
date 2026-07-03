@@ -7,6 +7,7 @@ import { AlertTriangle, Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-r
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
 import {
     buildLandingPagePreviewPayload,
@@ -49,8 +50,9 @@ interface SetupLandingPageModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: () => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
     existingConfig?: LandingPageConfig | null;
+    openPreviewOnSuccess?: boolean;
 }
 
 const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
@@ -249,7 +251,7 @@ function SortableLinkItem({
     );
 }
 
-export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupLandingPageModalProps) {
+export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig, openPreviewOnSuccess = false }: SetupLandingPageModalProps) {
     // PhysicalObject resources (IGSNs) default to the IGSN renderer; everything
     // else uses the standard `default_gfz` template.
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
@@ -532,6 +534,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
+        let preopenedPreviewWindow: Window | null = null;
+
+        if (openPreviewOnSuccess) {
+            preopenedPreviewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!preopenedPreviewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+        }
+
         setIsSaving(true);
 
         try {
@@ -577,8 +590,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Ignore errors from clearing preview session
             }
 
-            onSuccess?.();
+            const savedLandingPage = response.data.landing_page ?? null;
+
+            if (preopenedPreviewWindow) {
+                onSuccess?.(savedLandingPage, preopenedPreviewWindow);
+            } else {
+                onSuccess?.(savedLandingPage);
+            }
         } catch (error) {
+            preopenedPreviewWindow?.close();
             console.error('Failed to save landing page:', error);
             toast.error(getLandingPageRequestErrorMessage(error, 'Failed to save landing page configuration'));
         } finally {
@@ -614,7 +634,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setPreviewUrl('');
             applyDraftState(buildDraftStateFromConfig(null));
             toast.success('Landing page preview removed successfully');
-            onSuccess?.();
+            onSuccess?.(null);
             onClose();
         } catch (error) {
             console.error('Failed to remove preview:', error);
@@ -804,6 +824,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 return;
             }
 
+            const previewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!previewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+
             try {
                 const payload = buildLandingPagePreviewPayload({
                     template,
@@ -822,11 +849,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Store preview in session and get preview URL
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
 
-                // Open preview in new tab
+                // Open preview in the tab that was created synchronously by the click handler.
                 const previewUrlFromServer = response.data?.preview_url;
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
+                previewWindow.location.href = previewUrlFromServer || fallbackPreviewUrl;
             } catch (error) {
+                previewWindow.close();
                 console.error('Failed to create preview:', error);
                 toast.error(getLandingPageRequestErrorMessage(error, 'Failed to create preview'));
             }

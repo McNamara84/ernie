@@ -360,6 +360,28 @@ describe('Docs page', () => {
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
     });
 
+    it('documents the landing page preview action in the Data Editor', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getAllByText('Show LP Preview').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('From the Data Editor, click Show LP Preview next to Save Draft and Save & Validate') &&
+                    text.includes('automatically opens the preview after you create it.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents resource quick actions and grouped delete behavior for curators', async () => {
         const { user } = renderDocsPage('curator');
 

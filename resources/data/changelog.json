@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-26",
+        "date": "2026-07-03",
         "features": [
+            {
+                "title": "Landing Page Preview from the Data Editor",
+                "description": "Curators can now click Show LP Preview next to Save Draft and Save & Validate in the Data Editor. ERNIE saves the current metadata as a draft first, then opens the existing landing page preview or public URL in a new browser tab. If no landing page exists yet, the regular setup modal opens and automatically launches the newly created preview after setup."
+            },
             {
                 "title": "RAiD Persistent Identifier Support",
                 "description": "Editor Settings now include RAiD (Research Activity Identifier) alongside PID4INST and ROR. Admins and Group Leaders can enable RAiD separately for ERNIE and ELMO, check DataCite-backed RAiD project counts for updates, trigger background refreshes, and expose normalized RAiD project metadata to ELMO through the API-key protected vocabulary endpoint."

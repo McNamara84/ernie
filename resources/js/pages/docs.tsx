@@ -838,12 +838,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Save">
                                 <p>
-                                    Choose one of two options:
+                                    Choose one of these actions:
                                 </p>
                                 <ul>
                                     <li>
                                         <strong>"Save Draft"</strong> – Save an incomplete dataset with just a Main Title. You can return later to
                                         complete it. Drafts are shown with an amber badge in the resource list and on the dashboard.
+                                    </li>
+                                    <li>
+                                        <strong>"Show LP Preview"</strong> – Save the current editor values as a draft first, then open the landing
+                                        page preview. If no landing page exists yet, ERNIE opens the setup modal. After creating the preview there,
+                                        the landing page opens in a new browser tab.
                                     </li>
                                     <li>
                                         <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields
@@ -1526,6 +1531,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             imported legacy files, and additional download links in the setup modal, but hides the complete Files section on the
                             preview and public landing page until the option is disabled again.
                         </p>
+                        <p>
+                            From the Data Editor, click <strong>Show LP Preview</strong> next to <strong>Save Draft</strong> and{' '}
+                            <strong>Save &amp; Validate</strong> to save the current metadata as a draft and open the landing page flow immediately.
+                            Existing landing pages open in a new browser tab. If the resource has no landing page yet, ERNIE opens the setup modal and
+                            automatically opens the preview after you create it.
+                        </p>
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Navigate to Resources">
@@ -1534,7 +1545,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Create Landing Page">
-                                <p>Select the resource and click the <strong>Set up landing page</strong> quick action in the bulk toolbar to open the setup modal.</p>
+                                <p>
+                                    Select the resource and click the <strong>Set up landing page</strong> quick action in the bulk toolbar, or use{' '}
+                                    <strong>Show LP Preview</strong> directly in the Data Editor.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Preview">
                                 <p>Review how the landing page will appear before publishing.</p>
