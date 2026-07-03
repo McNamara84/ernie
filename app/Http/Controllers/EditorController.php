@@ -271,6 +271,7 @@ class EditorController extends Controller
                 'fundingReferences.funderIdentifierType',
                 'instruments',
                 'datacenters',
+                'landingPage.externalDomain',
             ])
             ->findOrFail($resourceId);
 

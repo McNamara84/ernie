@@ -8,12 +8,26 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
+import type { LandingPageConfig } from '@/types/landing-page';
 
-const { mockRouterPut, mockRouterVisit, mockUsePageProps } = vi.hoisted(() => ({
+type MockSetupLandingPageModalProps = {
+    isOpen: boolean;
+    resource?: {
+        id: number;
+        doi?: string | null;
+        title?: string;
+        resourcetypegeneral?: string;
+    };
+    onClose?: () => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null) => void;
+};
+
+const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
     mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
+    mockSetupLandingPageModal: vi.fn(),
     mockUsePageProps: vi.fn(() => ({
         curationAccordionOpenItems: null as string[] | null,
     })),
@@ -34,6 +48,17 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
+vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    default: (props: MockSetupLandingPageModalProps) => {
+        mockSetupLandingPageModal(props);
+
+        if (!props.isOpen) {
+            return null;
+        }
+
+        return <div data-testid="setup-landing-page-modal" />;
+    },
+}));
 vi.mock('sonner', () => ({
     toast: {
         success: vi.fn(),
@@ -293,6 +318,7 @@ describe('DataCiteForm', () => {
         // Reset router mock for each test
         mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
+        mockSetupLandingPageModal.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
         });
@@ -4685,6 +4711,169 @@ describe('DataCiteForm', () => {
         });
     });
 
+    describe('Landing page preview (Issue #968)', () => {
+        it('renders the preview button and enables it after a Main Title is entered', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderDataCiteForm();
+
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            expect(previewButton).toBeDisabled();
+
+            await user.type(screen.getByRole('textbox', { name: /Title/ }), 'Preview Dataset');
+
+            expect(previewButton).toBeEnabled();
+        });
+
+        it('saves the current editor state as a draft and opens an existing draft landing page preview URL', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Preview Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 7,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/draft-without-token',
+                    preview_url: 'https://example.test/draft-preview?preview=token',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            await waitFor(() => {
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ resourceId: 42 }),
+                    expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
+                );
+            });
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/draft-preview?preview=token', '_blank', 'noopener,noreferrer');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('opens an existing published landing page public URL after saving the draft', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 43 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '43',
+                initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 8,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/published-resource',
+                    preview_url: 'https://example.test/published-resource?preview=token',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            await waitFor(() => {
+                expect(openSpy).toHaveBeenCalledWith('https://example.test/published-resource', '_blank', 'noopener,noreferrer');
+            });
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('opens the setup landing page modal after draft saving when no landing page exists', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 99 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                resourceTypes: [
+                    { id: 1, name: 'Dataset' },
+                    { id: 2, name: 'PhysicalObject' },
+                ],
+                initialResourceType: '2',
+                initialTitles: [{ title: 'Sample Preview', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            expect(modalProps.resource).toEqual(
+                expect.objectContaining({
+                    id: 99,
+                    title: 'Sample Preview',
+                    resourcetypegeneral: 'PhysicalObject',
+                }),
+            );
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('opens the new landing page preview after setup succeeds from the editor', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 100 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'New LP Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            await act(async () => {
+                modalProps.onSuccess({
+                    id: 15,
+                    resource_id: 100,
+                    template: 'default_gfz',
+                    status: 'draft',
+                    public_url: 'https://example.test/draft-new-lp',
+                    preview_url: 'https://example.test/draft-new-lp?preview=token',
+                    external_url: null,
+                    view_count: 0,
+                    created_at: '2026-07-03T00:00:00Z',
+                    updated_at: '2026-07-03T00:00:00Z',
+                });
+            });
+
+            expect(openSpy).toHaveBeenCalledWith('https://example.test/draft-new-lp?preview=token', '_blank', 'noopener,noreferrer');
+        });
+    });
     describe('Save Draft (Issue #548)', () => {
         it('disables the draft button when no Main Title is entered', { timeout: 30000 }, async () => {
             render(

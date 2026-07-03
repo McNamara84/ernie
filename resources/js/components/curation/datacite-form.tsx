@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, Save } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, Eye, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -14,6 +14,7 @@ import {
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
+import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -28,6 +29,7 @@ import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-util
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
+import type { LandingPageConfig } from '@/types/landing-page';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
@@ -64,6 +66,7 @@ import {
     type DataCiteFormData,
     type DataCiteFormProps,
     type DateEntry,
+    type EditorLandingPageSummary,
     type LicenseEntry,
     MAIN_TITLE_SLUG,
     type RawRightsInput,
@@ -86,7 +89,7 @@ import {
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
 // Re-export types for backward compatibility with existing imports
-export type { DataCiteFormProps, InitialAuthor, InitialContributor, RawRightsInput } from './types/datacite-form-types';
+export type { DataCiteFormProps, EditorLandingPageSummary, InitialAuthor, InitialContributor, RawRightsInput } from './types/datacite-form-types';
 
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
@@ -103,6 +106,39 @@ type DraftSaveResponse = {
     message?: string;
     resource?: { id: number };
 };
+
+type LandingPagePreviewTarget = {
+    status?: 'draft' | 'published' | string;
+    public_url?: string | null;
+    preview_url?: string | null;
+    external_url?: string | null;
+};
+
+type LandingPagePreviewSetupResource = {
+    id: number;
+    doi?: string | null;
+    title?: string;
+    resourcetypegeneral?: string;
+};
+
+function getLandingPagePreviewTarget(landingPage: LandingPagePreviewTarget): string | null {
+    if (landingPage.status === 'draft') {
+        return landingPage.preview_url ?? null;
+    }
+
+    return landingPage.public_url ?? landingPage.external_url ?? null;
+}
+
+function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandingPageSummary {
+    return {
+        id: landingPage.id,
+        is_published: landingPage.status === 'published',
+        status: landingPage.status,
+        public_url: landingPage.public_url,
+        preview_url: landingPage.preview_url,
+        external_url: landingPage.external_url,
+    };
+}
 
 function normalizeAccordionItems(
     items: readonly string[],
@@ -192,6 +228,7 @@ export default function DataCiteForm({
     initialLicenses = [],
     initialRawRights = [],
     initialResourceId,
+    initialLandingPage = null,
     initialAuthors = [],
     initialContributors = [],
     initialDescriptions = [],
@@ -1884,9 +1921,39 @@ export default function DataCiteForm({
         return Number.isFinite(parsed) ? parsed : null;
     });
 
+    const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
+    const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
+    const [pendingLandingPageSetupResource, setPendingLandingPageSetupResource] = useState<LandingPagePreviewSetupResource | null>(null);
+    const [isLandingPageSetupOpen, setIsLandingPageSetupOpen] = useState(false);
+
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
     const resourcesUrl = useMemo(() => resources.url(), []);
+    const mainTitleForLandingPage = useMemo(() => {
+        return titles.find((title) => title.titleType === MAIN_TITLE_SLUG)?.title.trim() || titles[0]?.title.trim() || undefined;
+    }, [titles]);
+    const selectedResourceTypeName = useMemo(() => {
+        return resourceTypes.find((type) => String(type.id) === form.resourceType)?.name;
+    }, [form.resourceType, resourceTypes]);
+    const buildLandingPageSetupResource = useCallback(
+        (resourceId: number): LandingPagePreviewSetupResource => ({
+            id: resourceId,
+            doi: form.doi?.trim() || null,
+            title: mainTitleForLandingPage,
+            resourcetypegeneral: selectedResourceTypeName,
+        }),
+        [form.doi, mainTitleForLandingPage, selectedResourceTypeName],
+    );
+    const openLandingPagePreview = useCallback((landingPage: LandingPagePreviewTarget) => {
+        const previewTarget = getLandingPagePreviewTarget(landingPage);
+
+        if (!previewTarget) {
+            toast.error('Unable to open landing page preview. The preview URL is missing.');
+            return;
+        }
+
+        window.open(previewTarget, '_blank', 'noopener,noreferrer');
+    }, []);
     const draftAutosaveMessage = useMemo(() => {
         if (draftAutosaveStatus === 'idle') {
             return null;
@@ -2212,7 +2279,7 @@ export default function DataCiteForm({
     }, [buildPayload, resolvedResourceId]);
 
     const saveDraftSilently = useCallback(async () => {
-        if (!isDraftSaveable || dateValidationIssues.length > 0 || isSaving || isSavingDraft || draftAutosaveInFlightRef.current) {
+        if (!isDraftSaveable || dateValidationIssues.length > 0 || isSaving || isSavingDraft || isPreparingLandingPagePreview || draftAutosaveInFlightRef.current) {
             return;
         }
 
@@ -2257,7 +2324,7 @@ export default function DataCiteForm({
         } finally {
             draftAutosaveInFlightRef.current = false;
         }
-    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isSaving, isSavingDraft, markDraftAutosaveSaved]);
+    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isPreparingLandingPagePreview, isSaving, isSavingDraft, markDraftAutosaveSaved]);
 
     useEffect(() => {
         const autosaveTimerId = window.setInterval(() => {
@@ -2563,6 +2630,122 @@ export default function DataCiteForm({
             setIsSavingDraft(false);
         }
     };
+
+    const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
+        if (!isDraftSaveable) return null;
+
+        setIsPreparingLandingPagePreview(true);
+        setErrorMessage(null);
+        setMappedValidationErrors([]);
+        clearBackendErrors();
+
+        if (dateValidationIssues.length > 0) {
+            setHasAttemptedSubmit(true);
+            revealValidationErrors({ dates: dateValidationIssues }, 'Please resolve the date validation issues before opening the landing page preview.');
+            setIsPreparingLandingPagePreview(false);
+            return null;
+        }
+
+        const payload = buildPayload();
+
+        try {
+            const response = await axios.post(draftSaveUrl, payload, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+            });
+
+            const data = response.data as DraftSaveResponse | null;
+            const savedResourceId = data?.resource?.id ?? resolvedResourceId;
+
+            if (!savedResourceId) {
+                setErrorMessage('Unable to open landing page preview because the draft resource ID is missing.');
+                return null;
+            }
+
+            setResolvedResourceId(savedResourceId);
+            updateDraftAutosaveSignature(payload, savedResourceId);
+            setHasAttemptedSubmit(false);
+
+            return { resourceId: savedResourceId };
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const response = error.response;
+
+                if (response?.status === 419) {
+                    setErrorMessage('Your session has expired. Please refresh the page and try again.');
+                    return null;
+                }
+
+                if (response) {
+                    const defaultError = 'Unable to save draft before opening the landing page preview.';
+                    const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
+
+                    if (parsed?.errors) {
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
+                    } else {
+                        setErrorMessage(parsed?.message || defaultError);
+                    }
+
+                    return null;
+                }
+            }
+
+            console.error('Failed to save draft before opening landing page preview', error);
+            setErrorMessage('A network error prevented saving the draft before opening the landing page preview. Please try again.');
+            return null;
+        } finally {
+            setIsPreparingLandingPagePreview(false);
+        }
+    }, [
+        applyBackendValidationErrors,
+        buildPayload,
+        clearBackendErrors,
+        dateValidationIssues,
+        draftSaveUrl,
+        isDraftSaveable,
+        resolvedResourceId,
+        revealValidationErrors,
+        updateDraftAutosaveSignature,
+    ]);
+
+    const handleShowLandingPagePreview = useCallback(async () => {
+        const result = await saveDraftForLandingPagePreview();
+
+        if (!result) {
+            return;
+        }
+
+        if (landingPageForPreview) {
+            openLandingPagePreview(landingPageForPreview);
+            return;
+        }
+
+        setPendingLandingPageSetupResource(buildLandingPageSetupResource(result.resourceId));
+        setIsLandingPageSetupOpen(true);
+    }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
+
+    const handleCloseLandingPageSetup = useCallback(() => {
+        setIsLandingPageSetupOpen(false);
+        setPendingLandingPageSetupResource(null);
+    }, []);
+
+    const handleLandingPageSetupSuccess = useCallback(
+        (landingPage?: LandingPageConfig | null) => {
+            if (landingPage) {
+                const summary = toEditorLandingPageSummary(landingPage);
+                setLandingPageForPreview(summary);
+                openLandingPagePreview(summary);
+            } else {
+                setLandingPageForPreview(null);
+            }
+
+            setIsLandingPageSetupOpen(false);
+            setPendingLandingPageSetupResource(null);
+        },
+        [openLandingPagePreview],
+    );
 
     // ===================================================================
     // Status Badge Rendering Helper
@@ -3219,7 +3402,7 @@ export default function DataCiteForm({
                                     type="button"
                                     variant="outline"
                                     data-testid="save-draft-button"
-                                    disabled={!isDraftSaveable || isSavingDraft || isSaving}
+                                    disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
                                     aria-busy={isSavingDraft}
                                     onClick={handleSaveDraft}
                                 >
@@ -3238,11 +3421,33 @@ export default function DataCiteForm({
                         <TooltipTrigger asChild>
                             <span tabIndex={0}>
                                 <Button
+                                    type="button"
+                                    variant="outline"
+                                    data-testid="show-lp-preview-button"
+                                    disabled={!isDraftSaveable || dateValidationIssues.length > 0 || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                                    aria-busy={isPreparingLandingPagePreview}
+                                    onClick={() => void handleShowLandingPagePreview()}
+                                >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    {isPreparingLandingPagePreview ? 'Preparing...' : 'Show LP Preview'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {!isDraftSaveable && !isPreparingLandingPagePreview && (
+                            <TooltipContent side="top" align="end" className="max-w-sm">
+                                <p className="text-sm">Enter a Main Title to preview the landing page.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                <Button
                                     type="submit"
                                     data-testid="save-resource-button"
-                                    disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                    disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
                                     aria-busy={isSaving}
-                                    aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                    aria-disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
                                 >
                                     {isSaving ? 'Saving...' : 'Save & Validate'}
                                 </Button>
@@ -3268,6 +3473,14 @@ export default function DataCiteForm({
                     </p>
                 )}
             </div>
+            {pendingLandingPageSetupResource && (
+                <SetupLandingPageModal
+                    resource={pendingLandingPageSetupResource}
+                    isOpen={isLandingPageSetupOpen}
+                    onClose={handleCloseLandingPageSetup}
+                    onSuccess={handleLandingPageSetupSuccess}
+                />
+            )}
             {/* DOI Conflict Modal */}
             {conflictData && (
                 <DoiConflictModal

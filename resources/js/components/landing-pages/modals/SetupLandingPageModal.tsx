@@ -49,7 +49,7 @@ interface SetupLandingPageModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: () => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null) => void;
     existingConfig?: LandingPageConfig | null;
 }
 
@@ -577,7 +577,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Ignore errors from clearing preview session
             }
 
-            onSuccess?.();
+            onSuccess?.(response.data.landing_page ?? null);
         } catch (error) {
             console.error('Failed to save landing page:', error);
             toast.error(getLandingPageRequestErrorMessage(error, 'Failed to save landing page configuration'));
@@ -614,7 +614,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setPreviewUrl('');
             applyDraftState(buildDraftStateFromConfig(null));
             toast.success('Landing page preview removed successfully');
-            onSuccess?.();
+            onSuccess?.(null);
             onClose();
         } catch (error) {
             console.error('Failed to remove preview:', error);

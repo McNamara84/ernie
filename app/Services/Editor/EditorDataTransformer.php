@@ -81,6 +81,14 @@ class EditorDataTransformer
             'mslLaboratories' => $this->transformMslLaboratories($resource),
             'instruments' => $this->transformInstruments($resource),
             'initialDatacenters' => $resource->datacenters->pluck('id')->all(),
+            'landingPage' => $resource->landingPage ? [
+                'id' => $resource->landingPage->id,
+                'is_published' => $resource->landingPage->is_published,
+                'status' => $resource->landingPage->status,
+                'public_url' => $resource->landingPage->public_url,
+                'preview_url' => $resource->landingPage->preview_url,
+                'external_url' => $resource->landingPage->external_url,
+            ] : null,
         ];
     }
 
