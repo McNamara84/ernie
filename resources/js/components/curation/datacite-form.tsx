@@ -109,7 +109,7 @@ type DraftSaveResponse = {
 };
 
 type LandingPagePreviewTarget = {
-    status?: 'draft' | 'published' | string;
+    status?: LandingPageConfig['status'];
     public_url?: string | null;
     preview_url?: string | null;
     external_url?: string | null;
