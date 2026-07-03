@@ -8,8 +8,14 @@ use App\Models\User;
 use App\Services\LegacyResourceLookupService;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 
 covers(DataCiteImportController::class);
+
+beforeEach(function (): void {
+    Config::set('datacite.production.prefixes', ['10.5880', '10.14470']);
+});
 
 describe('POST /datacite/import/start', function (): void {
     test('admin can start import', function (): void {
@@ -34,24 +40,18 @@ describe('POST /datacite/import/start', function (): void {
 });
 
 describe('POST /datacite/import/start-single', function (): void {
-    test('admin can start single import for a legacy DOI URL', function (): void {
+    test('admin can start single import for a configured DataCite DOI URL', function (): void {
         Bus::fake();
         $admin = User::factory()->admin()->create();
 
-        $lookupService = new class extends LegacyResourceLookupService
+        $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            public array $receivedDois = [];
-
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
-                $this->receivedDois[] = $doi;
-
-                return true;
+                throw new RuntimeException('Legacy lookup should not be used for configured DataCite prefixes.');
             }
-        };
-
-        $this->app->instance(LegacyResourceLookupService::class, $lookupService);
+        });
 
         $response = $this->actingAs($admin)
             ->postJson('/datacite/import/start-single', [
@@ -59,8 +59,6 @@ describe('POST /datacite/import/start-single', function (): void {
             ])
             ->assertOk()
             ->assertJsonStructure(['import_id', 'message']);
-
-        expect($lookupService->receivedDois)->toBe(['10.5880/gfz.ojsj.2026.001']);
 
         $importId = $response->json('import_id');
         $status = Cache::get("datacite_import:{$importId}");
@@ -70,6 +68,58 @@ describe('POST /datacite/import/start-single', function (): void {
 
         Bus::assertDispatched(ImportFromDataCiteJob::class, function (ImportFromDataCiteJob $job): bool {
             return $job->getSingleDoi() === '10.5880/gfz.ojsj.2026.001';
+        });
+    });
+
+    test('admin can start single import for the GEOFON 10.14470 prefix without a legacy row', function (): void {
+        Bus::fake();
+        $admin = User::factory()->admin()->create();
+
+        $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
+        {
+            #[Override]
+            public function existsByDoi(string $doi): bool
+            {
+                throw new RuntimeException('Legacy lookup should not be used for configured DataCite prefixes.');
+            }
+        });
+
+        $this->actingAs($admin)
+            ->postJson('/datacite/import/start-single', [
+                'doi' => '10.14470/RV968923',
+            ])
+            ->assertOk();
+
+        Bus::assertDispatched(ImportFromDataCiteJob::class, function (ImportFromDataCiteJob $job): bool {
+            return $job->getSingleDoi() === '10.14470/rv968923';
+        });
+    });
+
+    test('admin can start single import for an unconfigured DOI with a legacy fallback row', function (): void {
+        Bus::fake();
+        $admin = User::factory()->admin()->create();
+
+        $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
+        {
+            public array $receivedDois = [];
+
+            #[Override]
+            public function existsByDoi(string $doi): bool
+            {
+                $this->receivedDois[] = $doi;
+
+                return true;
+            }
+        });
+
+        $this->actingAs($admin)
+            ->postJson('/datacite/import/start-single', [
+                'doi' => '10.9999/legacy.only',
+            ])
+            ->assertOk();
+
+        Bus::assertDispatched(ImportFromDataCiteJob::class, function (ImportFromDataCiteJob $job): bool {
+            return $job->getSingleDoi() === '10.9999/legacy.only';
         });
     });
 
@@ -87,49 +137,46 @@ describe('POST /datacite/import/start-single', function (): void {
         Bus::assertNothingDispatched();
     });
 
-    test('returns validation error when DOI is not a GFZ legacy resource', function (): void {
+    test('returns validation error when DOI has no configured prefix and no legacy fallback row', function (): void {
         Bus::fake();
         $admin = User::factory()->admin()->create();
 
-        $lookupService = new class extends LegacyResourceLookupService
+        $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 return false;
             }
-        };
-
-        $this->app->instance(LegacyResourceLookupService::class, $lookupService);
+        });
 
         $this->actingAs($admin)
             ->postJson('/datacite/import/start-single', [
-                'doi' => '10.5880/gfz.ojsj.2026.001',
+                'doi' => '10.9999/missing',
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['doi']);
+            ->assertJsonValidationErrors(['doi'])
+            ->assertJsonPath('errors.doi.0', 'Only DOIs with a configured GFZ DataCite prefix or GFZ legacy resources can be imported with this action.');
 
         Bus::assertNothingDispatched();
     });
 
-    test('returns service unavailable when legacy lookup fails', function (): void {
+    test('returns service unavailable when legacy fallback lookup fails', function (): void {
         Bus::fake();
         $admin = User::factory()->admin()->create();
 
-        $lookupService = new class extends LegacyResourceLookupService
+        $this->app->instance(LegacyResourceLookupService::class, new class extends LegacyResourceLookupService
         {
-            #[\Override]
+            #[Override]
             public function existsByDoi(string $doi): bool
             {
                 throw new RuntimeException('Legacy DB unavailable');
             }
-        };
-
-        $this->app->instance(LegacyResourceLookupService::class, $lookupService);
+        });
 
         $this->actingAs($admin)
             ->postJson('/datacite/import/start-single', [
-                'doi' => '10.5880/gfz.ojsj.2026.001',
+                'doi' => '10.9999/legacy.lookup.unavailable',
             ])
             ->assertStatus(503)
             ->assertJsonPath('message', 'The legacy resource database is currently unavailable. Please try again later.');
@@ -141,7 +188,7 @@ describe('POST /datacite/import/start-single', function (): void {
 describe('GET /datacite/import/{importId}/status', function (): void {
     test('returns status for existing import', function (): void {
         $admin = User::factory()->admin()->create();
-        $importId = \Illuminate\Support\Str::uuid()->toString();
+        $importId = Str::uuid()->toString();
 
         Cache::put("datacite_import:{$importId}", [
             'status' => 'running',
@@ -165,7 +212,7 @@ describe('GET /datacite/import/{importId}/status', function (): void {
 
     test('returns 404 for unknown import', function (): void {
         $admin = User::factory()->admin()->create();
-        $importId = \Illuminate\Support\Str::uuid()->toString();
+        $importId = Str::uuid()->toString();
 
         $this->actingAs($admin)
             ->getJson("/datacite/import/{$importId}/status")

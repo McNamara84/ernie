@@ -6,7 +6,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polygon, Polyline, Rectangle, TileLayer, Tooltip, useMap } from 'react-leaflet';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -53,6 +53,14 @@ const WORLD_BOUNDS: L.LatLngBoundsExpression = [
     [-90, -180],
     [90, 180],
 ];
+
+function formatCoordinate(value: number): string {
+    return value.toFixed(6);
+}
+
+function formatLineWaypointTooltip(point: { longitude: number; latitude: number }): string {
+    return 'Lat: ' + formatCoordinate(point.latitude) + ', Lon: ' + formatCoordinate(point.longitude);
+}
 
 /**
  * Check if a GeoLocation has a valid point defined
@@ -349,14 +357,33 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
 
             {/* Line as polyline (open path) */}
             {hasLine(geoLocation) && (
-                <Polyline
-                    positions={geoLocation.polygon_points!.map((p) => [p.latitude, p.longitude])}
-                    pathOptions={{
-                        color: GFZ_BLUE,
-                        weight: 3,
-                        dashArray: '8, 4',
-                    }}
-                />
+                <>
+                    <Polyline
+                        positions={geoLocation.polygon_points!.map((p) => [p.latitude, p.longitude])}
+                        pathOptions={{
+                            color: GFZ_BLUE,
+                            weight: 3,
+                            dashArray: '8, 4',
+                        }}
+                    />
+                    {geoLocation.polygon_points!.map((point, index) => (
+                        <CircleMarker
+                            key={`${geoLocation.id}-line-waypoint-${index}`}
+                            center={[point.latitude, point.longitude]}
+                            radius={5}
+                            pathOptions={{
+                                color: GFZ_BLUE,
+                                fillColor: GFZ_BLUE,
+                                fillOpacity: 0.85,
+                                weight: 1,
+                            }}
+                        >
+                            <Tooltip direction="top" sticky>
+                                {formatLineWaypointTooltip(point)}
+                            </Tooltip>
+                        </CircleMarker>
+                    ))}
+                </>
             )}
         </>
     );
@@ -423,7 +450,7 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
                     Location
                 </h2>
                 {hasGlobalCoverage && <GlobalCoverageNotice />}
-                <Skeleton className="aspect-[2/1] w-full rounded-lg" />
+                <Skeleton className="aspect-square w-full rounded-lg" />
             </LandingPageCard>
         );
     }
@@ -436,7 +463,7 @@ export function LocationSection({ geoLocations, isDark = false }: LocationSectio
             {hasGlobalCoverage && <GlobalCoverageNotice />}
             {hasMappableLocations && (
                 <div
-                    className="relative z-0 aspect-[2/1] w-full overflow-hidden rounded-lg"
+                    className="relative z-0 aspect-square w-full overflow-hidden rounded-lg"
                     data-testid="map-container"
                     aria-label="Map showing the geographic location of the dataset"
                 >

@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-06-23",
+        "date": "2026-06-26",
         "features": [
+            {
+                "title": "RAiD Persistent Identifier Support",
+                "description": "Editor Settings now include RAiD (Research Activity Identifier) alongside PID4INST and ROR. Admins and Group Leaders can enable RAiD separately for ERNIE and ELMO, check DataCite-backed RAiD project counts for updates, trigger background refreshes, and expose normalized RAiD project metadata to ELMO through the API-key protected vocabulary endpoint."
+            },
             {
                 "title": "Landing Pages Without Download Sections",
                 "description": "Generated GFZ landing pages can now be marked as having no data available for download. Curators can keep existing primary download URLs, legacy imported files, and additional download links in the setup modal for later reuse, while the public landing page and preview hide the complete Files section until downloads are enabled again."
@@ -41,11 +45,11 @@
             },
             {
                 "title": "Bulk Actions on Resources Page",
-                "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). DOI registration actions are hidden for users without DOI registration permission. Resource actions are now accessed from the selection toolbar menu after selecting one or more rows."
+                "description": "Curators can now select one or more resources via checkboxes and work from a clearer selection toolbar. Edit and Set up landing page are quick actions directly in the toolbar, while exports, DOI registration, metadata updates, related items, and deletion remain grouped in the Actions menu. Bulk DataCite registration/update supports up to 25 selected resources, and bulk export downloads selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format for up to 100 resources. If the browser blocks editor tabs, ERNIE shows fallback links for the affected resources."
             },
             {
-                "title": "Batch Draft Deletion on Resources Page",
-                "description": "Admins, Group Leaders, and Curators can now delete selected draft resources directly from the Resources bulk action menu. The action is limited to draft resources without a DOI and without any landing page, and the confirmation dialog reports how many drafts will be deleted before the request is submitted. Registered resources and resources with configured landing pages remain protected from batch deletion."
+                "title": "Batch Resource Deletion on Resources Page",
+                "description": "Admins, Group Leaders, and Curators can delete selected non-published resources from the Resources Actions menu. Draft, curation, and preview resources are grouped in the confirmation dialog and can be selected independently; preview resources include a warning that their preview landing pages will be removed. Published resources are shown as protected and are never submitted for deletion."
             },
             {
                 "title": "Landing Page Template Management",
@@ -117,6 +121,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Faster Resource Editing from the Resources Table",
+                "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE reuses the existing fallback dialog if the browser blocks the editor tab."
+            },
             {
                 "title": "Resizable Resources Table Columns",
                 "description": "The Resources table now lets curators manually adjust every visible metadata column except the selection checkbox. Column widths are saved in the browser, can be reset to defaults, and long values stay on one line with ellipsis plus hover tooltips for the full text. Resize handles support mouse dragging and keyboard controls on tablet and desktop screens."

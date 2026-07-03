@@ -36,6 +36,24 @@ interface UpdateCheckResult {
     lastUpdated: string | null;
 }
 
+interface PidLocalStatusOverride {
+    exists: boolean;
+    itemCount: number;
+    lastUpdated: string | null;
+}
+
+export function getCompletedPidLocalStatus(
+    pidSetting: Pick<PidSettingData, 'itemCount'>,
+    updateInfo: Pick<UpdateCheckResult, 'remoteCount'> | null,
+    completedAt?: string,
+): PidLocalStatusOverride {
+    return {
+        exists: true,
+        itemCount: updateInfo?.remoteCount ?? pidSetting.itemCount,
+        lastUpdated: completedAt ?? new Date().toISOString(),
+    };
+}
+
 interface JobStatus {
     status: 'running' | 'completed' | 'failed';
     pidType: string;
@@ -53,10 +71,16 @@ interface PidSettingRowProps {
     onUpdateComplete?: () => void;
 }
 
-function getTypeLabels(type: string): { countLabel: string; sourceName: string } {
-    return type === 'ror'
-        ? { countLabel: 'organizations', sourceName: 'ROR' }
-        : { countLabel: 'instruments', sourceName: 'b2inst' };
+export function getTypeLabels(type: string): { countLabel: string; sourceName: string } {
+    if (type === 'ror') {
+        return { countLabel: 'organizations', sourceName: 'ROR' };
+    }
+
+    if (type === 'raid') {
+        return { countLabel: 'projects', sourceName: 'DataCite RAiD search' };
+    }
+
+    return { countLabel: 'instruments', sourceName: 'b2inst' };
 }
 
 function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdateComplete }: PidSettingRowProps) {
@@ -65,10 +89,15 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
     const [checkError, setCheckError] = useState<string | null>(null);
     const [updateJobId, setUpdateJobId] = useState<string | null>(null);
     const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+    const [localStatusOverride, setLocalStatusOverride] = useState<PidLocalStatusOverride | null>(null);
     const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { auth } = usePage<SharedData>().props;
     const canManageThesauri = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
+
+    useEffect(() => {
+        setLocalStatusOverride(null);
+    }, [pidSetting.exists, pidSetting.itemCount, pidSetting.lastUpdated, pidSetting.type]);
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -140,6 +169,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                     setUpdateJobId(null);
 
                     if (status.status === 'completed') {
+                        setLocalStatusOverride(getCompletedPidLocalStatus(pidSetting, updateInfo, status.completedAt));
                         setCheckStatus('idle');
                         setUpdateInfo(null);
                         onUpdateComplete?.();
@@ -149,7 +179,7 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                 // Transient network errors: continue polling
             }
         },
-        [onUpdateComplete, pidSetting.type],
+        [onUpdateComplete, pidSetting, updateInfo],
     );
 
     const triggerUpdate = useCallback(async () => {
@@ -210,6 +240,11 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
 
     const isUpdating = updateJobId !== null && jobStatus?.status === 'running';
     const { countLabel, sourceName } = getTypeLabels(pidSetting.type);
+    const localStatus = localStatusOverride ?? {
+        exists: pidSetting.exists,
+        itemCount: pidSetting.itemCount,
+        lastUpdated: pidSetting.lastUpdated,
+    };
 
     return (
         <div className="rounded-lg border p-4" data-testid={`pid-setting-row-${pidSetting.type}`}>
@@ -218,16 +253,16 @@ function PidSettingRow({ pidSetting, onActiveChange, onElmoActiveChange, onUpdat
                 <div className="flex-1">
                     <h3 className="font-medium">{pidSetting.displayName}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                        {pidSetting.exists ? (
+                        {localStatus.exists ? (
                             <>
                                 <span className="flex items-center gap-1">
                                     <Database className="h-3.5 w-3.5" />
-                                    {pidSetting.itemCount.toLocaleString()} {countLabel}
+                                    {localStatus.itemCount.toLocaleString()} {countLabel}
                                 </span>
                                 <span className="text-muted-foreground/50">&bull;</span>
                                 <span className="flex items-center gap-1">
                                     <Calendar className="h-3.5 w-3.5" />
-                                    {formatDate(pidSetting.lastUpdated)}
+                                    {formatDate(localStatus.lastUpdated)}
                                 </span>
                             </>
                         ) : (
