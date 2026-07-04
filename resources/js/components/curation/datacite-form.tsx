@@ -3520,7 +3520,7 @@ export default function DataCiteForm({
                 </div>
                 {draftAutosaveMessage && (
                     <p
-                        className={`${draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'} max-w-[calc(100vw-1rem)] text-right opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100 lg:opacity-100 [@media(hover:none)]:opacity-100`}
+                        className={`${draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'} max-w-[calc(100vw-1rem)] text-right opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 group-focus-within:opacity-100 lg:opacity-100 [@media(hover:none)]:opacity-100`}
                         data-testid="draft-autosave-status"
                         aria-live="polite"
                     >

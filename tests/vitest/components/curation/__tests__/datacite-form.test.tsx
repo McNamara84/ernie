@@ -5736,7 +5736,11 @@ describe('DataCiteForm', () => {
                     }),
                 );
                 expect(mockRouterVisit).not.toHaveBeenCalled();
-                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent(/Draft autosaved/);
+
+                const autosaveStatus = screen.getByTestId('draft-autosave-status');
+                expect(autosaveStatus).toHaveTextContent(/Draft autosaved/);
+                expect(autosaveStatus).toHaveClass('group-focus-within:opacity-100');
+                expect(autosaveStatus).not.toHaveClass('focus-within:opacity-100');
             } finally {
                 view.unmount();
                 vi.useRealTimers();
