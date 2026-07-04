@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\SubjectEnrichment;
 
+use App\Models\Subject;
 use App\Support\PortalSubjectNormalizer;
 use Closure;
 
@@ -50,6 +51,16 @@ final readonly class SubjectEnrichmentDiscoveryService
                     'Suppressed subject %d: %s.',
                     $input->targetId,
                     implode(', ', $result->suppressionReasons),
+                ));
+
+                continue;
+            }
+
+            if ($this->resourceAlreadyHasControlledConcept($input, $result->concept)) {
+                $suppressed++;
+                $onProgress(sprintf(
+                    'Suppressed subject %d: resource already has this controlled subject concept.',
+                    $input->targetId,
                 ));
 
                 continue;
@@ -268,5 +279,52 @@ final readonly class SubjectEnrichmentDiscoveryService
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function resourceAlreadyHasControlledConcept(
+        SubjectEnrichmentMatchInput $input,
+        SubjectVocabularyConcept $concept,
+    ): bool {
+        $valueUri = $concept->valueUri();
+        $classificationCode = $concept->classificationCode;
+
+        if ($valueUri === null && $classificationCode === null) {
+            return false;
+        }
+
+        $otherSubjects = Subject::query()
+            ->where('resource_id', $input->resourceId)
+            ->whereKeyNot($input->targetId)
+            ->get();
+
+        foreach ($otherSubjects as $otherSubject) {
+            $otherInput = $this->inputProvider->inputFor($otherSubject);
+            if (! $otherInput instanceof SubjectEnrichmentMatchInput || ! $otherInput->isControlled) {
+                continue;
+            }
+
+            if (! $this->sameConceptScheme($otherInput, $concept)) {
+                continue;
+            }
+
+            if ($valueUri !== null && $otherInput->valueUri === $valueUri) {
+                return true;
+            }
+
+            if ($classificationCode !== null && $otherInput->classificationCode === $classificationCode) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function sameConceptScheme(
+        SubjectEnrichmentMatchInput $otherInput,
+        SubjectVocabularyConcept $concept,
+    ): bool {
+        return $otherInput->subjectScheme === $concept->scheme
+            || $otherInput->normalizedSubjectScheme === $concept->scheme
+            || $otherInput->schemeUri === $concept->schemeUri;
     }
 }
