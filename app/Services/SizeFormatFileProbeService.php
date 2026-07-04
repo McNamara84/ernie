@@ -782,15 +782,22 @@ class SizeFormatFileProbeService
         $path = parse_url($url, PHP_URL_PATH);
 
         if (! is_string($path) || $path === '') {
-            return basename($url);
+            return $this->decodeFilenameSegment(basename($url));
         }
 
-        return basename(rawurldecode($path));
+        return $this->decodeFilenameSegment(basename($path));
+    }
+
+    private function decodeFilenameSegment(string $filename): string
+    {
+        $encodedSeparatorsPreserved = str_ireplace(['%2f', '%5c'], ['%252F', '%255C'], $filename);
+
+        return rawurldecode($encodedSeparatorsPreserved);
     }
 
     private function isDataDescriptionFile(string $filename): bool
     {
-        $normalized = strtolower(html_entity_decode(rawurldecode(basename($filename)), ENT_QUOTES | ENT_HTML5));
+        $normalized = strtolower(html_entity_decode($this->decodeFilenameSegment(basename($filename)), ENT_QUOTES | ENT_HTML5));
 
         return preg_match('/(^|[^a-z0-9])data[-_]?description(?=$|[^a-z0-9])/', $normalized) === 1;
     }

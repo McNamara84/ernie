@@ -97,6 +97,33 @@ it('skips direct data description file probes before sending http requests', fun
     Http::assertNothingSent();
 });
 
+it('extracts direct probe filenames before decoding encoded slashes', function () {
+    $url = 'https://datapub.gfz.de/download/dataset/archive%2Fdata-description.pdf';
+
+    Http::fake([
+        $url => Http::response('', 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => '2048',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl($url);
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'])->toHaveCount(2)
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/pdf',
+        ])
+        ->and($result['suggestions'][1])->toMatchArray([
+            'type' => 'size',
+            'inferred_value' => '2 KB',
+        ]);
+
+    Http::assertSentCount(1);
+});
+
 it('applies data description filename matching narrowly and case insensitively', function () {
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
