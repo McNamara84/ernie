@@ -2845,9 +2845,10 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
-    const showSaveDraftDisabledTooltip = !isDraftSaveable && !isSavingDraft;
-    const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isPreparingLandingPagePreview;
-    const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isSaving;
+    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview;
+    const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isEditorActionInFlight;
 
     const renderEditorActions = () => (
         <>

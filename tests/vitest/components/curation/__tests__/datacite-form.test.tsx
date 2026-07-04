@@ -5119,6 +5119,15 @@ describe('DataCiteForm', () => {
             renderDataCiteForm({
                 initialResourceId: '102',
                 initialTitles: [{ title: 'Preparing Preview Dataset', titleType: 'main-title' }],
+                initialGcmdKeywords: [
+                    {
+                        id: 'legacy-preview-keyword',
+                        path: 'MSL > Legacy Preview Keyword',
+                        text: 'Legacy Preview Keyword',
+                        scheme: 'MSL',
+                        isLegacy: 'true',
+                    },
+                ],
                 initialLandingPage: {
                     id: 16,
                     is_published: true,
@@ -5130,6 +5139,11 @@ describe('DataCiteForm', () => {
             });
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
+
             await user.click(previewButton);
 
             expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
@@ -5137,7 +5151,8 @@ describe('DataCiteForm', () => {
                 expect(previewButton).toHaveTextContent('Preparing...');
             });
             expect(screen.getByTestId('save-draft-button')).toBeDisabled();
-            expect(screen.getByTestId('save-resource-button')).toBeDisabled();
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).not.toHaveAttribute('tabindex');
 
             await act(async () => {
                 draftSave.resolve({
