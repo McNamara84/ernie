@@ -28,12 +28,12 @@ final class SubjectEnrichmentMatchInputProvider
             ->get();
 
         return $rows
-            ->map(fn (Subject $subject): ?SubjectEnrichmentMatchInput => $this->toInput($subject))
+            ->map(fn (Subject $subject): ?SubjectEnrichmentMatchInput => $this->inputFor($subject))
             ->filter()
             ->values();
     }
 
-    private function toInput(Subject $subject): ?SubjectEnrichmentMatchInput
+    public function inputFor(Subject $subject): ?SubjectEnrichmentMatchInput
     {
         $value = $this->filledString($subject->value);
         if ($value === null) {

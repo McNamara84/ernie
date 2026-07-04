@@ -19,7 +19,7 @@ it('parses and autoloads the subject metadata enrichment assistant manifest', fu
         ->and($manifest->routePrefix)->toBe('subject-metadata-enrichment');
 });
 
-it('keeps accepting subject enrichment suggestions guarded for issue 814', function (): void {
+it('keeps invalid subject enrichment suggestions when acceptance metadata is incomplete', function (): void {
     $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81306')->create();
     $suggestion = AssistantSuggestion::create([
         'assistant_id' => SubjectEnrichmentDiscoveryService::ASSISTANT_ID,
@@ -38,7 +38,7 @@ it('keeps accepting subject enrichment suggestions guarded for issue 814', funct
 
     expect($result)->toBe([
         'success' => false,
-        'message' => 'Accepting subject enrichment suggestions is implemented in Issue 814.',
+        'message' => 'This subject metadata suggestion does not match its target subject.',
     ])
         ->and(AssistantSuggestion::query()->whereKey($suggestion->id)->exists())->toBeTrue();
 });

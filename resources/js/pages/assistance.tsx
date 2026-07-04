@@ -22,6 +22,7 @@ import {
     type SuggestedRelationItem,
     type SuggestedRorItem,
     type SuggestedSpdxRightsItem,
+    type SuggestedSubjectMetadataEnrichmentItem,
 } from '@/types/assistance';
 import { validateORCID } from '@/utils/validation-rules';
 
@@ -439,6 +440,199 @@ function metadataList(value: unknown): string[] {
     return value.map((item) => metadataText(item)).filter((item): item is string => item !== null);
 }
 
+function metadataStringValues(value: unknown): string[] {
+    if (Array.isArray(value)) return metadataList(value);
+
+    if (isRecord(value)) {
+        return Object.values(value)
+            .map((item) => metadataText(item))
+            .filter((item): item is string => item !== null);
+    }
+
+    const text = metadataText(value);
+
+    return text === null ? [] : [text];
+}
+
+const SUBJECT_FIELD_LABELS: Record<string, string> = {
+    value: 'subject',
+    subject_scheme: 'subjectScheme',
+    scheme_uri: 'schemeURI',
+    value_uri: 'valueURI',
+    classification_code: 'classificationCode',
+    breadcrumb_path: 'breadcrumbPath',
+    language: 'lang',
+};
+
+function SubjectMetadataBlock({ title, fields }: { title: string; fields: Array<[string, unknown]> }) {
+    const entries = fields.map(([label, value]) => [label, metadataText(value)] as const).filter(([, value]) => value !== null);
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
+            {entries.length > 0 ? (
+                <dl className="space-y-1 text-xs">
+                    {entries.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className="font-mono break-words text-foreground">{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : (
+                <p className="text-xs text-muted-foreground">No metadata captured.</p>
+            )}
+        </div>
+    );
+}
+
+function subjectUpdateFields(updates: Record<string, string> | undefined): Array<[string, unknown]> {
+    if (!updates) return [];
+
+    return Object.entries(SUBJECT_FIELD_LABELS)
+        .filter(([field]) => field !== 'value' && Object.prototype.hasOwnProperty.call(updates, field))
+        .map(([field, label]) => [label, updates[field]] as [string, unknown]);
+}
+
+function SubjectMetadataEnrichmentCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedSubjectMetadataEnrichmentItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata;
+    const current = metadata?.current;
+    const proposed = metadata?.proposed;
+    const vocabulary = metadata?.vocabulary;
+    const match = metadata?.match;
+    const provenance = metadata?.provenance;
+    const confidence = metadata?.confidence;
+    const ambiguity = metadata?.ambiguity;
+    const confidenceLevel = metadataText(confidence?.level);
+    const confidenceScore = typeof confidence?.score === 'number' ? confidence.score : suggestion.similarity_score;
+    const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
+    const warningMessages = metadataStringValues(ambiguity?.warning_messages);
+    const warnings = metadataList(ambiguity?.warnings);
+    const evidence = metadataList(confidence?.evidence);
+    const preservedFields = metadataList(proposed?.preserve);
+    const matchedFields = metadataList(match?.matched_fields);
+    const ambiguityStatus = metadataText(ambiguity?.status);
+    const updateFields = subjectUpdateFields(proposed?.updates);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            subject #{suggestion.target_id}
+                        </Badge>
+                        {confidenceLevel && (
+                            <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>
+                        )}
+                        {percent !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {percent}% vocabulary match
+                            </Badge>
+                        )}
+                        {ambiguityStatus && (
+                            <Badge variant={warningMessages.length > 0 || warnings.length > 0 ? 'destructive' : 'secondary'} className="text-xs">
+                                {ambiguityStatus === 'none' ? 'No ambiguity' : `Ambiguity: ${ambiguityStatus}`}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{suggestion.suggested_label}</p>
+                        <p className="font-mono text-xs break-words text-muted-foreground">{suggestion.suggested_value}</p>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <SubjectMetadataBlock
+                            title="Current Subject metadata"
+                            fields={[
+                                [SUBJECT_FIELD_LABELS.value, current?.value],
+                                [SUBJECT_FIELD_LABELS.subject_scheme, current?.subject_scheme],
+                                [SUBJECT_FIELD_LABELS.scheme_uri, current?.scheme_uri],
+                                [SUBJECT_FIELD_LABELS.value_uri, current?.value_uri],
+                                [SUBJECT_FIELD_LABELS.classification_code, current?.classification_code],
+                                [SUBJECT_FIELD_LABELS.breadcrumb_path, current?.breadcrumb_path],
+                                [SUBJECT_FIELD_LABELS.language, current?.language],
+                            ]}
+                        />
+                        <SubjectMetadataBlock title="Will update DataCite Subject fields" fields={updateFields} />
+                    </div>
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        Accept enriches only the listed DataCite Subject fields.
+                        {preservedFields.length > 0 && <span> Preserved fields: {preservedFields.join(', ')}.</span>}
+                    </div>
+
+                    {(warningMessages.length > 0 || warnings.length > 0) && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                            <div className="flex gap-2">
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <div className="space-y-1">
+                                    <p>Review warning(s) before accepting this subject enrichment:</p>
+                                    <ul className="list-inside list-disc">
+                                        {warningMessages.map((warning) => (
+                                            <li key={warning}>{warning}</li>
+                                        ))}
+                                        {warningMessages.length === 0 &&
+                                            warnings.map((warning) => (
+                                                <li key={warning}>{warning}</li>
+                                            ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {vocabulary?.scheme && <span>Vocabulary: {vocabulary.scheme}</span>}
+                        {vocabulary?.source && <span>Source: {vocabulary.source}</span>}
+                        {(vocabulary?.local_cache_file || provenance?.source_file) && (
+                            <span>File: {vocabulary?.local_cache_file ?? provenance?.source_file}</span>
+                        )}
+                        {match?.strategy && <span>Strategy: {match.strategy}</span>}
+                        {matchedFields.length > 0 && <span>Matched fields: {matchedFields.join(', ')}</span>}
+                        {typeof match?.candidate_count === 'number' && <span>Candidates: {match.candidate_count}</span>}
+                        {match?.path_normalization_applied && <span>Path normalization: {match.path_normalization_applied}</span>}
+                        {evidence.length > 0 && <span>Confidence evidence: {evidence.join(', ')}</span>}
+                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`subject-metadata-enrichment-decline-${suggestion.id}`}
+                        onClick={() => onDecline(suggestion.id)}
+                    >
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`subject-metadata-enrichment-accept-${suggestion.id}`}
+                        onClick={() => onAccept(suggestion.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 function CrossrefFunderRorMetadataBlock({ title, fields }: { title: string; fields: Array<[string, unknown]> }) {
     const entries = fields.map(([label, value]) => [label, metadataText(value)] as const).filter(([, value]) => value !== null);
 
@@ -1110,6 +1304,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 return (
                     <CrossrefFunderRorSuggestionCard
                         suggestion={item as unknown as SuggestedCrossrefFunderRorItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'subject-metadata-enrichment':
+                return (
+                    <SubjectMetadataEnrichmentCard
+                        suggestion={item as unknown as SuggestedSubjectMetadataEnrichmentItem}
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}

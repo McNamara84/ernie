@@ -6,6 +6,7 @@ namespace Modules\Assistants\SubjectMetadataEnrichment;
 
 use App\Models\AssistantSuggestion;
 use App\Services\Assistance\GenericTableAssistant;
+use App\Services\SubjectEnrichment\SubjectEnrichmentAcceptanceService;
 use App\Services\SubjectEnrichment\SubjectEnrichmentDiscoveryService;
 use Closure;
 
@@ -13,6 +14,7 @@ final class Assistant extends GenericTableAssistant
 {
     public function __construct(
         private readonly SubjectEnrichmentDiscoveryService $discoveryService,
+        private readonly SubjectEnrichmentAcceptanceService $acceptanceService,
     ) {
         parent::__construct();
     }
@@ -55,9 +57,6 @@ final class Assistant extends GenericTableAssistant
     #[\Override]
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
-        return [
-            'success' => false,
-            'message' => 'Accepting subject enrichment suggestions is implemented in Issue 814.',
-        ];
+        return $this->acceptanceService->accept($suggestion);
     }
 }
