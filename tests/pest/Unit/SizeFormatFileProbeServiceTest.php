@@ -104,8 +104,9 @@ it('applies data description filename matching narrowly and case insensitively',
             <a href="sample_data_description.pdf">sample_data_description.pdf</a> 2026-06-14 10:01 2K
             <a href="sample_DataDescription.PDF">sample_DataDescription.PDF</a> 2026-06-14 10:02 3K
             <a href="sample_description.pdf">sample_description.pdf</a> 2026-06-14 10:03 4K
-            <a href="readme.pdf">readme.pdf</a> 2026-06-14 10:04 5K
-            <a href="data.csv">data.csv</a> 2026-06-14 10:05 6K
+            <a href="metadata_description.pdf">metadata_description.pdf</a> 2026-06-14 10:04 7K
+            <a href="readme.pdf">readme.pdf</a> 2026-06-14 10:05 5K
+            <a href="data.csv">data.csv</a> 2026-06-14 10:06 6K
             HTML),
     ]);
 
@@ -115,6 +116,7 @@ it('applies data description filename matching narrowly and case insensitively',
 
     expect($filenames)->toEqualCanonicalizing([
         'sample_description.pdf',
+        'metadata_description.pdf',
         'readme.pdf',
         'data.csv',
     ]);
@@ -131,12 +133,13 @@ it('applies data description filename matching narrowly and case insensitively',
     expect(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
         'application/pdf',
         'application/pdf',
+        'application/pdf',
         'text/csv',
     ])
         ->and($sizeSuggestions)->toHaveCount(1)
-        ->and($sizeSuggestions[0]['inferred_value'])->toBe('15 KB')
-        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3)
-        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(3);
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('22 KB')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(4)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(4);
 });
 
 it('does not explore directories outside the original download tree', function () {

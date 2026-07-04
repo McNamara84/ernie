@@ -792,9 +792,7 @@ class SizeFormatFileProbeService
     {
         $normalized = strtolower(html_entity_decode(rawurldecode(basename($filename)), ENT_QUOTES | ENT_HTML5));
 
-        return str_contains($normalized, 'data-description')
-            || str_contains($normalized, 'data_description')
-            || str_contains(str_replace(['-', '_'], '', $normalized), 'datadescription');
+        return preg_match('/(^|[^a-z0-9])data[-_]?description(?=$|[^a-z0-9])/', $normalized) === 1;
     }
 
     private function extractFileMetadata(string $filename): ?string
