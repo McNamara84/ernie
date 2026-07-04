@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-07-03",
+        "date": "2026-07-06",
         "features": [
             {
                 "title": "Landing Page Preview from the Data Editor",
@@ -126,6 +126,10 @@
             {
                 "title": "Assistance: Size and Format Suggestions",
                 "description": "New 'Size and Format Suggestions' assistant on /assistance for discovering missing DataCite size and format metadata from approved GFZ download URLs. The assistant resolves allowed doi.org targets safely, inspects landing-page download links, HTTP headers, ranged metadata, Apache directory listings, and file names, then proposes evidence-backed size and MIME format suggestions with confidence levels. Curators can accept suggestions to add the corresponding DataCite size or format record, or decline suggestions that should not be applied."
+            },
+            {
+                "title": "Assistance: Subject Metadata Enrichment",
+                "description": "The Assistance page now includes a Subject Metadata Enrichment assistant for completing DataCite Subject metadata from supported local vocabulary caches. It detects legacy breadcrumb paths, stable concept URIs, notation-backed concepts, and globally unique free keywords, shows provenance and transfer warnings, and lets curators accept only the proposed subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and language updates while preserving the imported subject text."
             }
         ],
         "improvements": [

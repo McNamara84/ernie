@@ -138,6 +138,93 @@ export interface SuggestedCrossrefFunderRorItem extends BaseSuggestionItem {
     similarity_score: number | null;
     metadata: CrossrefFunderRorSuggestionMetadata | null;
 }
+export interface SubjectEnrichmentCurrentMetadata {
+    subject_id?: number;
+    resource_id?: number;
+    value?: string | null;
+    subject_scheme?: string | null;
+    normalized_subject_scheme?: string | null;
+    scheme_uri?: string | null;
+    value_uri?: string | null;
+    classification_code?: string | null;
+    breadcrumb_path?: string | null;
+    language?: string | null;
+    is_controlled?: boolean;
+}
+
+export interface SubjectEnrichmentProposedMetadata {
+    subject_scheme?: string | null;
+    scheme_uri?: string | null;
+    value_uri?: string | null;
+    classification_code?: string | null;
+    breadcrumb_path?: string | null;
+    label?: string | null;
+    language?: string | null;
+    updates?: Record<string, string>;
+    preserve?: string[];
+    concept?: Record<string, unknown>;
+}
+
+export interface SubjectMetadataEnrichmentSuggestionMetadata {
+    contract_version?: string;
+    issue?: number;
+    current?: SubjectEnrichmentCurrentMetadata;
+    proposed?: SubjectEnrichmentProposedMetadata;
+    vocabulary?: {
+        scheme?: string;
+        scheme_uri?: string;
+        source?: string;
+        source_registry_url?: string;
+        local_cache_file?: string;
+        local_cache_updated_at?: string | null;
+        version?: string | null;
+    };
+    match?: {
+        strategy?: string;
+        input?: string | null;
+        normalized_input?: string | null;
+        matched_fields?: string[];
+        candidate_count?: number;
+        suppression_reason?: string | null;
+        path_normalization_applied?: string | null;
+    };
+    provenance?: {
+        source?: string;
+        source_file?: string;
+        source_retrieved_at?: string;
+        source_generated_by?: string;
+        matching_strategy?: string;
+        path_normalization_applied?: string | null;
+    };
+    confidence?: {
+        level?: string;
+        score?: number;
+        evidence?: string[];
+    };
+    ambiguity?: {
+        status?: string;
+        candidate_count?: number;
+        candidate_ids?: string[];
+        notes?: string[];
+        warnings?: string[];
+        warning_messages?: string[] | Record<string, string>;
+    };
+    acceptance?: {
+        updates?: string[];
+        preconditions?: string[];
+        stale_if?: string[];
+        implementation_issue?: number;
+    };
+}
+
+export interface SuggestedSubjectMetadataEnrichmentItem extends BaseSuggestionItem {
+    target_type: 'subject';
+    target_id: number;
+    suggested_value: string;
+    suggested_label: string;
+    similarity_score: number | null;
+    metadata: SubjectMetadataEnrichmentSuggestionMetadata | null;
+}
 export interface AssistancePageProps {
     sections: Record<string, PaginatedData<BaseSuggestionItem>>;
     manifests: AssistantManifest[];

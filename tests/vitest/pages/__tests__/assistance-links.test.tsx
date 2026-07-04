@@ -11,6 +11,7 @@ import type {
     SuggestedOrcidItem,
     SuggestedRorItem,
     SuggestedSpdxRightsItem,
+    SuggestedSubjectMetadataEnrichmentItem,
 } from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
@@ -59,6 +60,9 @@ const SIZE_FORMAT_ASSISTANT_NAME = 'Size and Format Suggestions';
 const CROSSREF_FUNDER_ROR_ASSISTANT_ID = 'crossref-funder-ror-suggestion';
 const CROSSREF_FUNDER_ROR_ROUTE_PREFIX = 'crossref-funder-rors';
 const CROSSREF_FUNDER_ROR_ASSISTANT_NAME = 'Crossref Funder ROR Suggestions';
+const SUBJECT_METADATA_ASSISTANT_ID = 'subject-metadata-enrichment';
+const SUBJECT_METADATA_ROUTE_PREFIX = 'subject-metadata-enrichment';
+const SUBJECT_METADATA_ASSISTANT_NAME = 'Subject Metadata Enrichment';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
@@ -229,6 +233,101 @@ function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFun
         similarity_score: 1,
         metadata: metadataOverride ?? metadata,
         discovered_at: '2026-06-24T10:00:00+00:00',
+        ...rest,
+    };
+}
+function makeSubjectMetadataEnrichmentSuggestion(overrides: Partial<SuggestedSubjectMetadataEnrichmentItem> = {}): SuggestedSubjectMetadataEnrichmentItem {
+    const metadata: SuggestedSubjectMetadataEnrichmentItem['metadata'] = {
+        contract_version: '1.0',
+        issue: 813,
+        current: {
+            subject_id: 814,
+            resource_id: 60,
+            value: 'multi-scale laboratories',
+            subject_scheme: null,
+            normalized_subject_scheme: null,
+            scheme_uri: null,
+            value_uri: null,
+            classification_code: null,
+            breadcrumb_path: null,
+            language: 'en',
+            is_controlled: false,
+        },
+        proposed: {
+            subject_scheme: 'EPOS MSL vocabulary',
+            scheme_uri: 'https://epos-msl.uu.nl/voc',
+            value_uri: 'https://epos-msl.uu.nl/voc/multi-scale-laboratories',
+            classification_code: null,
+            breadcrumb_path: 'multi-scale laboratories',
+            label: 'multi-scale laboratories',
+            language: 'en',
+            updates: {
+                subject_scheme: 'EPOS MSL vocabulary',
+                scheme_uri: 'https://epos-msl.uu.nl/voc',
+                value_uri: 'https://epos-msl.uu.nl/voc/multi-scale-laboratories',
+                breadcrumb_path: 'multi-scale laboratories',
+            },
+            preserve: ['value', 'resource_id'],
+        },
+        vocabulary: {
+            scheme: 'EPOS MSL vocabulary',
+            scheme_uri: 'https://epos-msl.uu.nl/voc',
+            source: 'utrecht_msl_vocabulary',
+            local_cache_file: 'msl-vocabulary.json',
+            local_cache_updated_at: '2026-07-04T00:00:00Z',
+        },
+        match: {
+            strategy: 'global_exact_label',
+            input: 'multi-scale laboratories',
+            normalized_input: 'multi-scale laboratories',
+            matched_fields: ['value'],
+            candidate_count: 1,
+            suppression_reason: null,
+        },
+        provenance: {
+            source: 'utrecht_msl_vocabulary',
+            source_file: 'msl-vocabulary.json',
+            source_retrieved_at: '2026-07-04T00:00:00Z',
+            matching_strategy: 'global_exact_label',
+        },
+        confidence: {
+            level: 'high',
+            score: 1,
+            evidence: ['globally_unique_free_keyword_match', 'single_candidate', 'source_cache_recorded'],
+        },
+        ambiguity: {
+            status: 'warning',
+            candidate_count: 1,
+            candidate_ids: ['https://epos-msl.uu.nl/voc/multi-scale-laboratories'],
+            notes: [],
+            warnings: ['free_keyword_can_be_transferred_to_thesaurus_keyword'],
+            warning_messages: {
+                free_keyword_can_be_transferred_to_thesaurus_keyword:
+                    'This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.',
+            },
+        },
+        acceptance: {
+            updates: ['subject_scheme', 'scheme_uri', 'value_uri', 'breadcrumb_path'],
+            preconditions: ['target subject still exists', 'matching strategy still resolves exactly one candidate'],
+            stale_if: ['subject value changed', 'source cache was refreshed and candidate no longer resolves uniquely'],
+            implementation_issue: 814,
+        },
+    };
+
+    const { metadata: metadataOverride, ...rest } = overrides;
+
+    return {
+        id: 814,
+        resource_id: 60,
+        resource_doi: '10.5880/test.2026.814',
+        resource_title: 'Subject metadata enrichment example resource',
+        target_type: 'subject',
+        target_id: 814,
+        suggested_value: 'https://epos-msl.uu.nl/voc/multi-scale-laboratories',
+        suggested_label: 'Transfer Free Keyword "multi-scale laboratories" to EPOS MSL vocabulary',
+        similarity_score: 1,
+        metadata: metadataOverride ?? metadata,
+        discovered_at: '2026-07-04T10:00:00+00:00',
         ...rest,
     };
 }
@@ -768,6 +867,75 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/crossref-funder-rors/860/decline');
+        });
+    });
+});
+describe('SubjectMetadataEnrichmentCard - DataCite Subject preview', () => {
+    it('shows current subject metadata beside the fields that will be updated', () => {
+        const suggestion = makeSubjectMetadataEnrichmentSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SUBJECT_METADATA_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SUBJECT_METADATA_ASSISTANT_ID, SUBJECT_METADATA_ROUTE_PREFIX, SUBJECT_METADATA_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('Current Subject metadata')).toBeInTheDocument();
+        expect(screen.getByText('Will update DataCite Subject fields')).toBeInTheDocument();
+        expect(screen.getAllByText('multi-scale laboratories')).not.toHaveLength(0);
+        expect(screen.getByText('EPOS MSL vocabulary')).toBeInTheDocument();
+        expect(screen.getByText('https://epos-msl.uu.nl/voc')).toBeInTheDocument();
+        expect(screen.getAllByText('https://epos-msl.uu.nl/voc/multi-scale-laboratories')).not.toHaveLength(0);
+        expect(screen.getByText('Preserved fields: value, resource_id.')).toBeInTheDocument();
+    });
+
+    it('renders free keyword transfer warnings and provenance evidence', () => {
+        const suggestion = makeSubjectMetadataEnrichmentSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SUBJECT_METADATA_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SUBJECT_METADATA_ASSISTANT_ID, SUBJECT_METADATA_ROUTE_PREFIX, SUBJECT_METADATA_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('Ambiguity: warning')).toBeInTheDocument();
+        expect(screen.getByText('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.')).toBeInTheDocument();
+        expect(screen.getByText('Vocabulary: EPOS MSL vocabulary')).toBeInTheDocument();
+        expect(screen.getByText('Source: utrecht_msl_vocabulary')).toBeInTheDocument();
+        expect(screen.getByText('File: msl-vocabulary.json')).toBeInTheDocument();
+        expect(screen.getByText('Strategy: global_exact_label')).toBeInTheDocument();
+        expect(screen.getByText('Matched fields: value')).toBeInTheDocument();
+        expect(screen.getByText('Candidates: 1')).toBeInTheDocument();
+        expect(screen.getByText(/globally_unique_free_keyword_match/)).toBeInTheDocument();
+    });
+
+    it('posts accept and decline requests through the subject metadata route prefix', async () => {
+        const suggestion = makeSubjectMetadataEnrichmentSuggestion({ id: 914 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'Subject metadata enrichment applied.' } })
+            .mockResolvedValueOnce({ data: {} });
+
+        render(
+            <AssistancePage
+                sections={{ [SUBJECT_METADATA_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SUBJECT_METADATA_ASSISTANT_ID, SUBJECT_METADATA_ROUTE_PREFIX, SUBJECT_METADATA_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/subject-metadata-enrichment/914/accept');
+        });
+
+        await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/subject-metadata-enrichment/914/decline');
         });
     });
 });

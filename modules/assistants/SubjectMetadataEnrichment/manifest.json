@@ -1,0 +1,24 @@
+{
+    "id": "subject-metadata-enrichment",
+    "name": "Subject Metadata Enrichment",
+    "description": "Proposes DataCite subject metadata such as scheme URI, value URI, classification code, language, and provenance.",
+    "icon": "Tags",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\SubjectMetadataEnrichment\\Assistant",
+    "route_prefix": "subject-metadata-enrichment",
+    "lock_key": "subject_metadata_enrichment_discovery_running",
+    "cache_key_prefix": "subject_metadata_enrichment_discovery",
+    "sort_order": 50,
+    "status_labels": {
+        "checking": "Starting subject metadata enrichment discovery...",
+        "completed_with_results": "Subject metadata enrichment discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "Subject metadata enrichment discovery completed: No new suggestions found.",
+        "failed": "Subject metadata enrichment discovery failed: {error}",
+        "already_running": "A subject metadata enrichment discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending subject enrichment suggestions",
+        "description": "No subjects currently have a safe local vocabulary enrichment suggestion."
+    },
+    "card_component": null
+}

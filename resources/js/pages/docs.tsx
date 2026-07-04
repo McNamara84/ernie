@@ -590,6 +590,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose missing
                                 DataCite size and file-format metadata
                             </li>
+                            <li>
+                                <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary caches while preserving imported subject text
+                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -616,6 +619,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier,
                                     provenance, confidence evidence, and conflict warnings. Accepting updates only the funding-reference identifier,
                                     identifier type, and scheme URI; funder names and award metadata are preserved.
+                                </p>
+                                <p className="mt-2">
+                                    Subject Metadata Enrichment suggestions compare the stored Subject row with proposed DataCite fields such as
+                                    subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and lang. Accepting revalidates the match
+                                    against the current local vocabulary cache, updates only the listed fields, and preserves the original subject text.
+                                    Free Keyword transfer suggestions show a warning before they become controlled thesaurus keywords.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
