@@ -170,6 +170,7 @@ it('stores high-confidence suggestions for controlled GCMD path-only subjects', 
         ->and($storedSuggestions[0]['metadata']['current']['subject_scheme'])->toBe('NASA/GCMD Earth Science Keywords')
         ->and($storedSuggestions[0]['metadata']['current']['normalized_subject_scheme'])->toBe('Science Keywords')
         ->and($storedSuggestions[0]['metadata']['proposed']['subject_scheme'])->toBe('GCMD Science Keywords')
+        ->and($storedSuggestions[0]['metadata']['proposed']['concept']['scheme'])->toBe('GCMD Science Keywords')
         ->and($storedSuggestions[0]['metadata']['proposed']['scheme_uri'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
         ->and($storedSuggestions[0]['metadata']['proposed']['value_uri'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb')
         ->and($storedSuggestions[0]['metadata']['proposed']['classification_code'])->toBeNull()
@@ -239,6 +240,7 @@ it('keeps the canonical GCMD Platforms subject scheme when enriching platform me
         ->and($storedSuggestions[0]['metadata']['current']['subject_scheme'])->toBe('GCMD Platforms')
         ->and($storedSuggestions[0]['metadata']['current']['normalized_subject_scheme'])->toBe('Platforms')
         ->and($storedSuggestions[0]['metadata']['proposed']['subject_scheme'])->toBe('GCMD Platforms')
+        ->and($storedSuggestions[0]['metadata']['proposed']['concept']['scheme'])->toBe('GCMD Platforms')
         ->and($storedSuggestions[0]['metadata']['proposed']['updates'])->not->toHaveKey('subject_scheme')
         ->and($storedSuggestions[0]['metadata']['proposed']['updates'])->toMatchArray([
             'scheme_uri' => $schemeUri,

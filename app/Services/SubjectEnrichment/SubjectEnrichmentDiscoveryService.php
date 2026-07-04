@@ -194,7 +194,9 @@ final readonly class SubjectEnrichmentDiscoveryService
                 'value',
                 'resource_id',
             ],
-            'concept' => $concept->toVocabularyPayload(),
+            'concept' => array_replace($concept->toVocabularyPayload(), [
+                'scheme' => $subjectScheme,
+            ]),
         ];
     }
 

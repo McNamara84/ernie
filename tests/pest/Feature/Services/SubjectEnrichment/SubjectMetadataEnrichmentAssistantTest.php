@@ -119,6 +119,7 @@ it('refreshes existing subject metadata suggestions when the canonical subject s
         ->and(AssistantSuggestion::query()->count())->toBe(1)
         ->and($suggestion->suggested_label)->toBe('Complete subject metadata for "VOYAGER 1" from GCMD Platforms')
         ->and($suggestion->metadata['proposed']['subject_scheme'])->toBe('GCMD Platforms')
+        ->and($suggestion->metadata['proposed']['concept']['scheme'])->toBe('GCMD Platforms')
         ->and($suggestion->metadata['proposed']['updates'])->not->toHaveKey('subject_scheme')
         ->and($suggestion->metadata['proposed']['updates'])->toMatchArray([
             'scheme_uri' => $schemeUri,
