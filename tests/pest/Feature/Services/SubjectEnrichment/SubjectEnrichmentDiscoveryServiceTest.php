@@ -231,6 +231,44 @@ it('stores free keyword suggestions only when the exact concept label is globall
         ->toBe('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.');
 });
 
+it('stores stable concept URI free-text suggestions without a transfer warning', function (): void {
+    subjectEnrichmentDiscoveryPutVocabulary('gcmd-science-keywords.json', subjectEnrichmentDiscoveryGcmdData());
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81308')->create();
+    $subject = subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'https://cmr.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb',
+    ]);
+
+    [$count, $storedSuggestions] = subjectEnrichmentRunDiscovery(subjectEnrichmentDiscoveryService());
+
+    expect($count)->toBe(1)
+        ->and($storedSuggestions)->toHaveCount(1)
+        ->and($storedSuggestions[0]['targetId'])->toBe($subject->id)
+        ->and($storedSuggestions[0]['metadata']['match']['strategy'])->toBe('stable_concept_uri')
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['status'])->toBe('none')
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['warnings'])->toBe([])
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['warning_messages'])->toBe([]);
+});
+
+it('stores recognized scheme-prefixed free-text paths without a transfer warning', function (): void {
+    subjectEnrichmentDiscoveryPutVocabulary('gcmd-science-keywords.json', subjectEnrichmentDiscoveryGcmdData());
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81309')->create();
+    $subject = subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'Science Keywords > EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER',
+    ]);
+
+    [$count, $storedSuggestions] = subjectEnrichmentRunDiscovery(subjectEnrichmentDiscoveryService());
+
+    expect($count)->toBe(1)
+        ->and($storedSuggestions)->toHaveCount(1)
+        ->and($storedSuggestions[0]['targetId'])->toBe($subject->id)
+        ->and($storedSuggestions[0]['metadata']['match']['strategy'])->toBe('recognized_scheme_prefixed_path')
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['status'])->toBe('none')
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['warnings'])->toBe([])
+        ->and($storedSuggestions[0]['metadata']['ambiguity']['warning_messages'])->toBe([]);
+});
+
 it('suppresses free keyword transfer suggestions when the controlled concept value URI already exists on the resource', function (): void {
     subjectEnrichmentDiscoveryPutVocabulary('msl-vocabulary.json', [
         'lastUpdated' => '2026-07-04T00:00:00Z',
@@ -355,6 +393,9 @@ it('stores legacy path normalization provenance when old controlled paths omit a
 
     expect($count)->toBe(1)
         ->and($storedSuggestions[0]['metadata']['match']['strategy'])->toBe('exact_legacy_breadcrumb_path')
+        ->and($storedSuggestions[0]['metadata']['match']['matched_fields'])->toBe(['breadcrumb_path', 'value'])
+        ->and($storedSuggestions[0]['metadata']['match']['input'])->toBe('Science Keywords > EARTH SCIENCE > ATMOSPHERE > PARTICULATE MATTER')
+        ->and($storedSuggestions[0]['metadata']['match']['normalized_input'])->toBe('science keywords > earth science > atmosphere > particulate matter')
         ->and($storedSuggestions[0]['metadata']['match']['path_normalization_applied'])->toBe('legacy_ordered_subsequence')
         ->and($storedSuggestions[0]['metadata']['provenance']['path_normalization_applied'])->toBe('legacy_ordered_subsequence')
         ->and($storedSuggestions[0]['metadata']['proposed']['breadcrumb_path'])->toBe('EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER');

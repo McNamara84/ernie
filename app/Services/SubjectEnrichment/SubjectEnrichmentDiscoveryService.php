@@ -231,15 +231,22 @@ final readonly class SubjectEnrichmentDiscoveryService
      */
     private function matchInput(SubjectEnrichmentMatchInput $input, array $matchedFields): ?string
     {
-        $field = $matchedFields[0] ?? null;
+        foreach ($matchedFields as $field) {
+            $value = match ($field) {
+                'value_uri' => $input->valueUri,
+                'classification_code' => $input->classificationCode,
+                'breadcrumb_path' => $input->breadcrumbPath,
+                'value' => $input->value,
+                default => null,
+            };
 
-        return match ($field) {
-            'value_uri' => $input->valueUri,
-            'classification_code' => $input->classificationCode,
-            'breadcrumb_path' => $input->breadcrumbPath,
-            'value' => $input->value,
-            default => $input->breadcrumbPath ?? $input->value,
-        };
+            $filledValue = $this->filledString($value);
+            if ($filledValue !== null) {
+                return $filledValue;
+            }
+        }
+
+        return $this->filledString($input->breadcrumbPath) ?? $this->filledString($input->value);
     }
 
     /**

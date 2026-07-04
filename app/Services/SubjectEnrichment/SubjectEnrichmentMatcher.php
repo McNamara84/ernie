@@ -111,14 +111,14 @@ final readonly class SubjectEnrichmentMatcher
             }
 
             $pathMatch = $this->lookup->findGlobalExactPath($value);
-            $result = $this->resultForFreeMatchSet($pathMatch, 'global_exact_path', ['value']);
+            $result = $this->resultForFreeMatchSet($pathMatch, 'global_exact_path', ['value'], includeTransferWarning: true);
             if ($result !== null) {
                 return $result;
             }
         }
 
         $labelMatch = $this->lookup->findGlobalExactLabel($value);
-        $result = $this->resultForFreeMatchSet($labelMatch, 'global_exact_label', ['value']);
+        $result = $this->resultForFreeMatchSet($labelMatch, 'global_exact_label', ['value'], includeTransferWarning: true);
         if ($result !== null) {
             return $result;
         }
@@ -160,6 +160,7 @@ final readonly class SubjectEnrichmentMatcher
         SubjectVocabularyMatchSet $matchSet,
         string $strategy,
         array $matchedFields,
+        bool $includeTransferWarning = false,
     ): ?SubjectEnrichmentMatchResult {
         if ($matchSet->isEmpty()) {
             return null;
@@ -183,10 +184,10 @@ final readonly class SubjectEnrichmentMatcher
             concept: $concept,
             matchingStrategy: $strategy,
             matchedFields: $matchedFields,
-            warnings: [self::FREE_KEYWORD_TRANSFER_WARNING],
-            warningMessages: [
+            warnings: $includeTransferWarning ? [self::FREE_KEYWORD_TRANSFER_WARNING] : [],
+            warningMessages: $includeTransferWarning ? [
                 self::FREE_KEYWORD_TRANSFER_WARNING => self::FREE_KEYWORD_TRANSFER_MESSAGE,
-            ],
+            ] : [],
             pathNormalizationApplied: $matchSet->pathNormalizationApplied,
         );
     }

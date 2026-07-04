@@ -307,7 +307,8 @@ it('matches free-text values that are stable concept URIs', function (): void {
 
     expect($result->status)->toBe('matched')
         ->and($result->matchingStrategy)->toBe('stable_concept_uri')
-        ->and($result->warnings)->toBe(['free_keyword_can_be_transferred_to_thesaurus_keyword']);
+        ->and($result->warnings)->toBe([])
+        ->and($result->warningMessages)->toBe([]);
 });
 
 it('matches free-text recognized scheme-prefixed paths including legacy path normalization', function (): void {
@@ -322,6 +323,8 @@ it('matches free-text recognized scheme-prefixed paths including legacy path nor
 
     expect($exact->matchingStrategy)->toBe('recognized_scheme_prefixed_path')
         ->and($legacy->matchingStrategy)->toBe('recognized_scheme_prefixed_legacy_path')
+        ->and($exact->warnings)->toBe([])
+        ->and($legacy->warnings)->toBe([])
         ->and($legacy->pathNormalizationApplied)->toBe('legacy_ordered_subsequence');
 });
 
@@ -360,7 +363,9 @@ it('matches free-text full paths globally when no scheme prefix is present', fun
     ]));
 
     expect($result->status)->toBe('matched')
-        ->and($result->matchingStrategy)->toBe('global_exact_path');
+        ->and($result->matchingStrategy)->toBe('global_exact_path')
+        ->and($result->warnings)->toBe(['free_keyword_can_be_transferred_to_thesaurus_keyword'])
+        ->and($result->warningMessages['free_keyword_can_be_transferred_to_thesaurus_keyword'])->toBe('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.');
 });
 
 it('suppresses free-text values when URI, path, and label lookup all miss', function (): void {
