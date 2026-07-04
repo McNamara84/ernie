@@ -3,6 +3,7 @@
 use App\Models\ContributorType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\Language;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
@@ -378,6 +379,59 @@ describe('DataCiteXmlExporter - Titles', function () {
 
         expect($xml)->toContain('titleType="AlternativeTitle"')
             ->and($xml)->toContain('Alternative Name</title>');
+    });
+
+    test('uses title language for xml:lang and falls back to resource language when title language is missing', function () {
+        $french = Language::firstOrCreate(
+            ['code' => 'fr'],
+            ['code' => 'fr', 'name' => 'French', 'active' => true, 'elmo_active' => true]
+        );
+
+        $german = Language::firstOrCreate(
+            ['code' => 'de'],
+            ['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'language_id' => $german->id,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        $subtitleType = TitleType::firstOrCreate(
+            ['slug' => 'Subtitle'],
+            ['name' => 'Subtitle', 'slug' => 'Subtitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Translated Title',
+            'title_type_id' => $subtitleType->id,
+            'language' => $french->code,
+        ]);
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Fallback Title',
+            'title_type_id' => $mainTitleType->id,
+            'language' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleElements = $dom->getElementsByTagName('title');
+
+        expect($titleElements->length)->toBe(2)
+            ->and($titleElements->item(0)?->getAttribute('xml:lang'))->toBe('fr')
+            ->and($titleElements->item(1)?->getAttribute('xml:lang'))->toBe('de')
+            ->and($xml)->toContain('Translated Title')
+            ->and($xml)->toContain('Fallback Title');
     });
 });
 
