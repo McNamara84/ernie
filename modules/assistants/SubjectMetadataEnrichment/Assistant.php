@@ -76,12 +76,6 @@ final class Assistant extends GenericTableAssistant
             return false;
         }
 
-        $suggestion = AssistantSuggestion::where('assistant_id', $this->getId())
-            ->where('target_type', $targetType)
-            ->where('target_id', $targetId)
-            ->where('suggested_value', $suggestedValue)
-            ->first();
-
         $attributes = [
             'resource_id' => $resourceId,
             'suggested_label' => $suggestedLabel,
@@ -89,15 +83,19 @@ final class Assistant extends GenericTableAssistant
             'metadata' => $metadata,
         ];
 
-        if (! $suggestion instanceof AssistantSuggestion) {
-            AssistantSuggestion::create(array_merge([
+        $suggestion = AssistantSuggestion::firstOrCreate(
+            [
                 'assistant_id' => $this->getId(),
                 'target_type' => $targetType,
                 'target_id' => $targetId,
                 'suggested_value' => $suggestedValue,
+            ],
+            array_merge($attributes, [
                 'discovered_at' => now(),
-            ], $attributes));
+            ]),
+        );
 
+        if ($suggestion->wasRecentlyCreated) {
             return true;
         }
 
