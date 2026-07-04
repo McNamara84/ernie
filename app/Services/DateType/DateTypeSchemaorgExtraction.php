@@ -114,7 +114,7 @@ class DateTypeSchemaorgExtraction
             }
             $normalizedValue = DateTypeNormalizerService::normalize($value);
 
-            if ($normalizedValue === '') 
+            if ($normalizedValue === null) 
             {
                 continue;
             }
