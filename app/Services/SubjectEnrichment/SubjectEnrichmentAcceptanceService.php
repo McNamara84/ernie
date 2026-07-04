@@ -148,12 +148,14 @@ final readonly class SubjectEnrichmentAcceptanceService
             return $this->invalid('Suppressed subject metadata suggestions cannot be accepted.');
         }
 
-        $scheme = $this->lookup->normalizeSupportedScheme($this->filledString($proposed['subject_scheme'] ?? null));
+        $proposedSubjectScheme = $this->filledString($proposed['subject_scheme'] ?? null);
+        $scheme = $this->lookup->normalizeSupportedScheme($proposedSubjectScheme);
         if ($scheme === null) {
             return $this->invalid('This subject metadata suggestion proposes an unsupported subject scheme.');
         }
 
-        if ($this->filledString($proposed['subject_scheme'] ?? null) !== $scheme) {
+        $canonicalSubjectScheme = $this->lookup->canonicalSubjectScheme($scheme);
+        if ($canonicalSubjectScheme === null || $proposedSubjectScheme !== $canonicalSubjectScheme) {
             return $this->invalid('This subject metadata suggestion does not propose the canonical subject scheme.');
         }
 
@@ -280,8 +282,9 @@ final readonly class SubjectEnrichmentAcceptanceService
         }
 
         $concept = $result->concept;
+        $expectedSubjectScheme = $this->lookup->canonicalSubjectScheme($concept->scheme) ?? $concept->scheme;
         $expected = [
-            'subject_scheme' => $concept->scheme,
+            'subject_scheme' => $expectedSubjectScheme,
             'scheme_uri' => $concept->schemeUri,
             'value_uri' => $concept->valueUri(),
             'classification_code' => $concept->classificationCode,

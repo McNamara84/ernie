@@ -15,10 +15,11 @@ use Illuminate\Support\Facades\Storage;
  */
 final class SubjectVocabularyLookupService
 {
-    /** @var array<string, array{file: string, scheme_uri?: string, scheme_uri_config?: string, source: string, source_registry_url?: string, source_registry_url_config?: string, generated_by: string, version?: string, version_config?: string}> */
+    /** @var array<string, array{file: string, subject_scheme?: string, scheme_uri?: string, scheme_uri_config?: string, source: string, source_registry_url?: string, source_registry_url_config?: string, generated_by: string, version?: string, version_config?: string}> */
     private const SOURCES = [
         'Science Keywords' => [
             'file' => 'gcmd-science-keywords.json',
+            'subject_scheme' => 'GCMD Science Keywords',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
             'source' => 'nasa_gcmd_kms',
             'source_registry_url' => 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords?format=rdf',
@@ -26,6 +27,7 @@ final class SubjectVocabularyLookupService
         ],
         'Platforms' => [
             'file' => 'gcmd-platforms.json',
+            'subject_scheme' => 'GCMD Platforms',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms',
             'source' => 'nasa_gcmd_kms',
             'source_registry_url' => 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms?format=rdf',
@@ -33,6 +35,7 @@ final class SubjectVocabularyLookupService
         ],
         'Instruments' => [
             'file' => 'gcmd-instruments.json',
+            'subject_scheme' => 'GCMD Instruments',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments',
             'source' => 'nasa_gcmd_kms',
             'source_registry_url' => 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments?format=rdf',
@@ -148,6 +151,16 @@ final class SubjectVocabularyLookupService
         return $this->configuredString($source['scheme_uri_config'] ?? null)
             ?? $source['scheme_uri']
             ?? null;
+    }
+
+    public function canonicalSubjectScheme(string $scheme): ?string
+    {
+        $source = self::SOURCES[$scheme] ?? null;
+        if ($source === null) {
+            return null;
+        }
+
+        return $source['subject_scheme'] ?? $scheme;
     }
 
     public function findById(string $scheme, ?string $id): SubjectVocabularyMatchSet

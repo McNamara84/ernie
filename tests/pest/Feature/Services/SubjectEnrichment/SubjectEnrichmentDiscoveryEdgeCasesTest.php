@@ -46,6 +46,7 @@ function discoveryEdgeService(): SubjectEnrichmentDiscoveryService
     return new SubjectEnrichmentDiscoveryService(
         inputProvider: new SubjectEnrichmentMatchInputProvider,
         matcher: new SubjectEnrichmentMatcher($lookup),
+        lookup: $lookup,
     );
 }
 

@@ -247,7 +247,7 @@ it('suppresses controlled subjects that already have complete matching metadata'
 
     $result = matcherService()->match(matcherInput([
         'value' => 'EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER',
-        'subjectScheme' => 'Science Keywords',
+        'subjectScheme' => 'GCMD Science Keywords',
         'normalizedSubjectScheme' => 'Science Keywords',
         'schemeUri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
         'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb',
@@ -265,7 +265,7 @@ it('still matches complete controlled records when only the language differs', f
 
     $result = matcherService()->match(matcherInput([
         'value' => 'EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER',
-        'subjectScheme' => 'Science Keywords',
+        'subjectScheme' => 'GCMD Science Keywords',
         'normalizedSubjectScheme' => 'Science Keywords',
         'schemeUri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
         'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb',

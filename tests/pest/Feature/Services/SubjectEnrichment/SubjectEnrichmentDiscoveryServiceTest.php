@@ -104,6 +104,7 @@ function subjectEnrichmentDiscoveryService(): SubjectEnrichmentDiscoveryService
     return new SubjectEnrichmentDiscoveryService(
         inputProvider: new SubjectEnrichmentMatchInputProvider,
         matcher: new SubjectEnrichmentMatcher($lookup),
+        lookup: $lookup,
     );
 }
 
@@ -168,13 +169,13 @@ it('stores high-confidence suggestions for controlled GCMD path-only subjects', 
         ->and($storedSuggestions[0]['metadata']['current']['subject_id'])->toBe($subject->id)
         ->and($storedSuggestions[0]['metadata']['current']['subject_scheme'])->toBe('NASA/GCMD Earth Science Keywords')
         ->and($storedSuggestions[0]['metadata']['current']['normalized_subject_scheme'])->toBe('Science Keywords')
-        ->and($storedSuggestions[0]['metadata']['proposed']['subject_scheme'])->toBe('Science Keywords')
+        ->and($storedSuggestions[0]['metadata']['proposed']['subject_scheme'])->toBe('GCMD Science Keywords')
         ->and($storedSuggestions[0]['metadata']['proposed']['scheme_uri'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
         ->and($storedSuggestions[0]['metadata']['proposed']['value_uri'])->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb')
         ->and($storedSuggestions[0]['metadata']['proposed']['classification_code'])->toBeNull()
         ->and($storedSuggestions[0]['metadata']['proposed']['breadcrumb_path'])->toBe('EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER')
         ->and($storedSuggestions[0]['metadata']['proposed']['updates'])->toMatchArray([
-            'subject_scheme' => 'Science Keywords',
+            'subject_scheme' => 'GCMD Science Keywords',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
             'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb',
             'breadcrumb_path' => 'EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER',
@@ -187,6 +188,63 @@ it('stores high-confidence suggestions for controlled GCMD path-only subjects', 
         ->and($storedSuggestions[0]['metadata']['confidence']['evidence'])->toContain('single_candidate')
         ->and($storedSuggestions[0]['metadata']['ambiguity']['status'])->toBe('none')
         ->and(implode("\n", $progressMessages))->toContain('Stored 1 subject enrichment suggestion(s)');
+});
+
+it('keeps the canonical GCMD Platforms subject scheme when enriching platform metadata', function (): void {
+    $schemeUri = 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms';
+    $valueUri = 'https://gcmd.earthdata.nasa.gov/kms/concept/11111111-1111-4111-8111-111111111111';
+
+    subjectEnrichmentDiscoveryPutVocabulary('gcmd-platforms.json', [
+        'lastUpdated' => '2026-07-04T00:00:00Z',
+        'data' => [
+            [
+                'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/platforms-root',
+                'text' => 'Platforms',
+                'language' => 'en',
+                'scheme' => 'GCMD Platforms',
+                'schemeURI' => $schemeUri,
+                'children' => [
+                    [
+                        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/space-based-platforms',
+                        'text' => 'Space-based Platforms',
+                        'language' => 'en',
+                        'scheme' => 'GCMD Platforms',
+                        'schemeURI' => $schemeUri,
+                        'children' => [
+                            [
+                                'id' => $valueUri,
+                                'text' => 'VOYAGER 1',
+                                'language' => 'en',
+                                'scheme' => 'GCMD Platforms',
+                                'schemeURI' => $schemeUri,
+                                'children' => [],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81310')->create();
+    subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'Platforms > Space-based Platforms > VOYAGER 1',
+        'subject_scheme' => 'GCMD Platforms',
+    ]);
+
+    [$count, $storedSuggestions] = subjectEnrichmentRunDiscovery(subjectEnrichmentDiscoveryService());
+
+    expect($count)->toBe(1)
+        ->and($storedSuggestions)->toHaveCount(1)
+        ->and($storedSuggestions[0]['metadata']['current']['subject_scheme'])->toBe('GCMD Platforms')
+        ->and($storedSuggestions[0]['metadata']['current']['normalized_subject_scheme'])->toBe('Platforms')
+        ->and($storedSuggestions[0]['metadata']['proposed']['subject_scheme'])->toBe('GCMD Platforms')
+        ->and($storedSuggestions[0]['metadata']['proposed']['updates'])->not->toHaveKey('subject_scheme')
+        ->and($storedSuggestions[0]['metadata']['proposed']['updates'])->toMatchArray([
+            'scheme_uri' => $schemeUri,
+            'value_uri' => $valueUri,
+            'breadcrumb_path' => 'Space-based Platforms > VOYAGER 1',
+        ]);
 });
 
 it('stores free keyword suggestions only when the exact concept label is globally unique and includes the transfer warning', function (): void {
