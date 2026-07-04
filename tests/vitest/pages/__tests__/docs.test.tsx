@@ -375,7 +375,21 @@ describe('Docs page', () => {
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
                 return (
-                    text.includes('From the Data Editor, click Show LP Preview next to Save Draft and Save & Validate') &&
+                    text.includes('The action bar stays available while you move through the form.') &&
+                    text.includes('on touch screens it remains visible and compact.')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('From the Data Editor, click Show LP Preview in the bottom-right action bar next to Save Draft and Save & Validate') &&
                     text.includes('automatically opens the preview after you create it.')
                 );
             }),

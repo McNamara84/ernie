@@ -130,6 +130,10 @@
         ],
         "improvements": [
             {
+                "title": "Always-Available Data Editor Actions",
+                "description": "The Data Editor now keeps Save Draft, Show LP Preview, and Save & Validate anchored in the bottom-right corner so curators can use them from any point in the form. On smaller pointer-based screens the action group fades back until the cursor moves near it or a button receives focus, while touch devices keep the compact buttons visible."
+            },
+            {
                 "title": "Faster Resource Editing from the Resources Table",
                 "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE reuses the existing fallback dialog if the browser blocks the editor tab."
             },

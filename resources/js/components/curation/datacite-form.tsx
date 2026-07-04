@@ -2844,6 +2844,90 @@ export default function DataCiteForm({
         </>
     );
 
+    const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
+    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview;
+    const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isEditorActionInFlight;
+
+    const renderEditorActions = () => (
+        <>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={showSaveDraftDisabledTooltip ? 0 : undefined}>
+                        {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                            Drafts are partial saves; legacy keyword replacement is only
+                            required for full validation (Save & Validate). */}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={editorActionButtonClassName}
+                            data-testid="save-draft-button"
+                            disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                            aria-busy={isSavingDraft}
+                            onClick={handleSaveDraft}
+                        >
+                            <Save className="mr-2 h-4 w-4" />
+                            {isSavingDraft ? 'Saving...' : 'Save Draft'}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                {showSaveDraftDisabledTooltip && (
+                    <TooltipContent side="top" align="end" className="max-w-sm">
+                        <p className="text-sm">Enter a Main Title to save as draft.</p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={showLandingPagePreviewDisabledTooltip ? 0 : undefined}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={editorActionButtonClassName}
+                            data-testid="show-lp-preview-button"
+                            disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                            aria-busy={isPreparingLandingPagePreview}
+                            onClick={() => void handleShowLandingPagePreview()}
+                        >
+                            <Eye className="mr-2 h-4 w-4" />
+                            {isPreparingLandingPagePreview ? 'Preparing...' : 'Show LP Preview'}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                {showLandingPagePreviewDisabledTooltip && (
+                    <TooltipContent side="top" align="end" className="max-w-sm">
+                        <p className="text-sm">Enter a Main Title to preview the landing page.</p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={showSaveValidateDisabledTooltip ? 0 : undefined}>
+                        <Button
+                            type="submit"
+                            className={editorActionButtonClassName}
+                            data-testid="save-resource-button"
+                            disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
+                            aria-busy={isSaving}
+                            aria-disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
+                        >
+                            {isSaving ? 'Saving...' : 'Save & Validate'}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                {showSaveValidateDisabledTooltip && (
+                    <TooltipContent side="top" align="end" className="max-w-sm">
+                        <div className="space-y-2">
+                            <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
+                            <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
+                        </div>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+        </>
+    );
+
     // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
         if (errorMessage && mappedValidationErrors.length === 0) {
@@ -2870,7 +2954,7 @@ export default function DataCiteForm({
     );
 
     return (
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-36 sm:pb-28 lg:pb-24">
             {mappedValidationErrors.length > 0 ? (
                 <ClickableValidationAlert
                     ref={errorRef}
@@ -3428,82 +3512,19 @@ export default function DataCiteForm({
                         : []
                 }
             />
-            <div className="flex flex-col items-end gap-2">
-                <div className="flex justify-end gap-3">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
-                                    Drafts are partial saves; legacy keyword replacement is only
-                                    required for full validation (Save & Validate). */}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    data-testid="save-draft-button"
-                                    disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
-                                    aria-busy={isSavingDraft}
-                                    onClick={handleSaveDraft}
-                                >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    {isSavingDraft ? 'Saving...' : 'Save Draft'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {!isDraftSaveable && !isSavingDraft && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <p className="text-sm">Enter a Main Title to save as draft.</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    data-testid="show-lp-preview-button"
-                                    disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
-                                    aria-busy={isPreparingLandingPagePreview}
-                                    onClick={() => void handleShowLandingPagePreview()}
-                                >
-                                    <Eye className="mr-2 h-4 w-4" />
-                                    {isPreparingLandingPagePreview ? 'Preparing...' : 'Show LP Preview'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {!isDraftSaveable && !isPreparingLandingPagePreview && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <p className="text-sm">Enter a Main Title to preview the landing page.</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                <Button
-                                    type="submit"
-                                    data-testid="save-resource-button"
-                                    disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
-                                    aria-busy={isSaving}
-                                    aria-disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
-                                >
-                                    {isSaving ? 'Saving...' : 'Save & Validate'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {hasLegacyKeywords && !isSaving && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
-                                    <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                                </div>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
+            <div
+                data-testid="editor-floating-actions"
+                className="group fixed right-2 bottom-2 z-40 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 p-2 sm:right-4 sm:bottom-4 sm:max-w-[calc(100vw-2rem)] lg:right-6 lg:bottom-6 lg:p-0"
+            >
+                <div
+                    data-testid="editor-floating-actions-panel"
+                    className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 hover:opacity-100 focus-within:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"
+                >
+                    {renderEditorActions()}
                 </div>
                 {draftAutosaveMessage && (
                     <p
-                        className={draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}
+                        className={`${draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'} max-w-[calc(100vw-1rem)] text-right opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 group-focus-within:opacity-100 lg:opacity-100 [@media(hover:none)]:opacity-100`}
                         data-testid="draft-autosave-status"
                         aria-live="polite"
                     >

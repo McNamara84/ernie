@@ -440,6 +440,107 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('Floating editor actions (Issue #969)', () => {
+        it('keeps the editor action buttons in a fixed bottom-right action cluster', () => {
+            renderDataCiteForm();
+
+            const floatingActions = screen.getByTestId('editor-floating-actions');
+            const floatingPanel = screen.getByTestId('editor-floating-actions-panel');
+            const form = floatingActions.closest('form');
+
+            expect(form).toHaveClass('pb-36');
+            expect(form).toHaveClass('sm:pb-28');
+            expect(form).toHaveClass('lg:pb-24');
+            expect(floatingActions).toHaveClass('fixed');
+            expect(floatingActions).toHaveClass('right-2');
+            expect(floatingActions).toHaveClass('bottom-2');
+            expect(floatingActions).toHaveClass('z-40');
+            expect(floatingActions).toHaveClass('lg:right-6');
+            expect(floatingActions).toHaveClass('lg:bottom-6');
+            expect(floatingPanel).toHaveClass('flex');
+            expect(floatingPanel).toHaveClass('flex-wrap');
+            expect(floatingPanel).toHaveClass('justify-end');
+
+            expect(screen.getAllByTestId('save-draft-button')).toHaveLength(1);
+            expect(screen.getAllByTestId('show-lp-preview-button')).toHaveLength(1);
+            expect(screen.getAllByTestId('save-resource-button')).toHaveLength(1);
+        });
+
+        it('uses transparent small-screen idle state with hover, focus, and touch reveal fallbacks', () => {
+            renderDataCiteForm();
+
+            const floatingPanel = screen.getByTestId('editor-floating-actions-panel');
+
+            expect(floatingPanel).toHaveClass('opacity-20');
+            expect(floatingPanel).toHaveClass('group-hover:opacity-100');
+            expect(floatingPanel).toHaveClass('hover:opacity-100');
+            expect(floatingPanel).toHaveClass('focus-within:opacity-100');
+            expect(floatingPanel).toHaveClass('lg:opacity-100');
+            expect(floatingPanel.className).toContain('[@media(hover:none)]:opacity-100');
+        });
+
+        it('keeps actions compact and preserves form submit semantics', () => {
+            renderDataCiteForm();
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+            const form = screen.getByTestId('editor-floating-actions').closest('form');
+
+            for (const button of [draftButton, previewButton, saveButton]) {
+                expect(button).toHaveClass('h-8');
+                expect(button).toHaveClass('px-3');
+                expect(button).toHaveClass('text-xs');
+                expect(button).toHaveClass('sm:h-9');
+                expect(button).toHaveClass('sm:px-4');
+                expect(button).toHaveClass('sm:text-sm');
+                expect(button.closest('form')).toBe(form);
+            }
+
+            expect(saveButton).toHaveAttribute('type', 'submit');
+        });
+
+        it('only makes action tooltip wrappers tabbable while their disabled tooltip is available', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm();
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(draftButton.parentElement).toHaveAttribute('tabindex', '0');
+            expect(previewButton.parentElement).toHaveAttribute('tabindex', '0');
+            expect(saveButton).toBeEnabled();
+            expect(saveButton.parentElement).not.toHaveAttribute('tabindex');
+
+            await user.type(screen.getByRole('textbox', { name: /Title/ }), 'Keyboard Friendly Dataset');
+
+            expect(draftButton).toBeEnabled();
+            expect(previewButton).toBeEnabled();
+            expect(draftButton.parentElement).not.toHaveAttribute('tabindex');
+            expect(previewButton.parentElement).not.toHaveAttribute('tabindex');
+        });
+
+        it('keeps the Save & Validate wrapper tabbable only for the legacy-keywords tooltip state', () => {
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Legacy Keyword Dataset', titleType: 'main-title' }],
+                initialGcmdKeywords: [
+                    {
+                        id: 'legacy-msl-keyword',
+                        path: 'MSL > Legacy Keyword',
+                        text: 'Legacy Keyword',
+                        scheme: 'MSL',
+                        isLegacy: 'true',
+                    },
+                ],
+            });
+
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
+        });
+    });
     describe('Consolidated accordion section headers', () => {
         it('renders Resource Information as one visible section header with metadata in the trigger', () => {
             renderDataCiteForm();
@@ -5018,6 +5119,15 @@ describe('DataCiteForm', () => {
             renderDataCiteForm({
                 initialResourceId: '102',
                 initialTitles: [{ title: 'Preparing Preview Dataset', titleType: 'main-title' }],
+                initialGcmdKeywords: [
+                    {
+                        id: 'legacy-preview-keyword',
+                        path: 'MSL > Legacy Preview Keyword',
+                        text: 'Legacy Preview Keyword',
+                        scheme: 'MSL',
+                        isLegacy: 'true',
+                    },
+                ],
                 initialLandingPage: {
                     id: 16,
                     is_published: true,
@@ -5029,6 +5139,11 @@ describe('DataCiteForm', () => {
             });
 
             const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
+
             await user.click(previewButton);
 
             expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
@@ -5036,7 +5151,8 @@ describe('DataCiteForm', () => {
                 expect(previewButton).toHaveTextContent('Preparing...');
             });
             expect(screen.getByTestId('save-draft-button')).toBeDisabled();
-            expect(screen.getByTestId('save-resource-button')).toBeDisabled();
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).not.toHaveAttribute('tabindex');
 
             await act(async () => {
                 draftSave.resolve({
@@ -5676,7 +5792,11 @@ describe('DataCiteForm', () => {
                     }),
                 );
                 expect(mockRouterVisit).not.toHaveBeenCalled();
-                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent(/Draft autosaved/);
+
+                const autosaveStatus = screen.getByTestId('draft-autosave-status');
+                expect(autosaveStatus).toHaveTextContent(/Draft autosaved/);
+                expect(autosaveStatus).toHaveClass('group-focus-within:opacity-100');
+                expect(autosaveStatus).not.toHaveClass('focus-within:opacity-100');
             } finally {
                 view.unmount();
                 vi.useRealTimers();
