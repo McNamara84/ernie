@@ -107,6 +107,13 @@ describe('Services', function () {
             'App\Services\Spdx\SpdxRightsMatchInput',
             'App\Services\Spdx\SpdxRightsMatchInputProvider',
             'App\Services\Spdx\SpdxRightsMatchResult',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatchInput',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatchInputProvider',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatchResult',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatcher',
+            'App\Services\SubjectEnrichment\SubjectVocabularyConcept',
+            'App\Services\SubjectEnrichment\SubjectVocabularyMatchSet',
+            'App\Services\SubjectEnrichment\SubjectVocabularySource',
         ]);
 
     arch('services are not extending controllers')
