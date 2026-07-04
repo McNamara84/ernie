@@ -110,7 +110,8 @@ If a suggestion proposes only a scheme normalization and no concept identifier, 
       "https://gcmd.earthdata.nasa.gov/kms/concept/forests"
     ],
     "notes": [],
-    "warnings": []
+    "warnings": [],
+    "warning_messages": []
   },
   "acceptance": {
     "updates": [
@@ -271,6 +272,7 @@ Required:
 - `candidate_ids`
 - `notes`
 - `warnings`
+- `warning_messages`
 
 Allowed `status` values:
 
@@ -290,8 +292,15 @@ Use warning codes when a suggestion is still actionable but needs curator attent
 - `language_defaulted_to_en`
 - `source_cache_timestamp_missing`
 - `classification_code_not_available`
+- `free_keyword_can_be_transferred_to_thesaurus_keyword`
 
-Warnings must be visible in metadata even if the first UI renders only generic suggestion cards.
+When `free_keyword_can_be_transferred_to_thesaurus_keyword` is present, include this exact curator-facing warning in `ambiguity.warning_messages`:
+
+```text
+This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.
+```
+
+Warnings and warning messages must be visible in metadata even if the first UI renders only generic suggestion cards.
 
 ## Suppressed Candidate Record Shape
 
@@ -305,7 +314,7 @@ Suppressed cases should not be written to `assistant_suggestions` as actionable 
   "input": "water",
   "normalized_input": "water",
   "normalized_subject_scheme": null,
-  "reason": "free_text_leaf_label_only",
+  "reason": "free_text_label_not_globally_unique",
   "candidates": [
     {
       "scheme": "GEMET - GEneral Multilingual Environmental Thesaurus",

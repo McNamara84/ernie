@@ -80,7 +80,7 @@ The first release does not support:
 - Multilingual label expansion beyond source-provided language metadata and the local `en` default.
 - Unlisted classification systems such as DDC, ANZSRC/FOR, MeSH, Wikidata, SPDX, ROR, ORCID, or organization/funder registries.
 - Suggestions for rows whose current controlled metadata is already complete and consistent.
-- Free-text subject conversion unless the strategy in `02-mapping-and-normalization-rules.md` finds one unique high-confidence controlled match.
+- Free-text subject conversion unless the strategy in `02-mapping-and-normalization-rules.md` finds one unique high-confidence controlled match. Globally unique exact label or source-synonym matches are allowed, but must carry a curator-facing warning before later acceptance can convert the free keyword into a controlled thesaurus keyword.
 - Any implementation, UI, background job, acceptance workflow, or follow-up scope assigned to later sub-issues.
 
 ## First-release Outcome

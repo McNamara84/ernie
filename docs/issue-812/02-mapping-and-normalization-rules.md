@@ -31,8 +31,9 @@ Free-text subjects are not automatically controlled vocabulary entries. The firs
 - a full hierarchical breadcrumb path that matches exactly one supported vocabulary concept;
 - a stable concept URI from a supported source;
 - a notation that is unique in a supported source and clearly belongs to one scheme.
+- a normalized exact preferred-label or source-synonym match that is globally unique across all first-release vocabularies.
 
-Leaf-label-only free text, such as `water`, `forest`, or `geochemistry`, is not enough for an actionable suggestion because similar labels can exist in multiple vocabularies. Those cases should be suppressed or recorded as diagnostics for a later review flow.
+Leaf-label-only free text, such as `water`, `forest`, or `geochemistry`, is actionable only when the normalized exact label or source synonym resolves to exactly one candidate across all supported first-release vocabularies. Generic or repeated labels must be suppressed or recorded as diagnostics for a later review flow.
 
 ## Normalization Pipeline
 
@@ -145,7 +146,11 @@ First release synonym handling is intentionally narrow:
 
 Leaf-label matching is acceptable for controlled subjects only when the subject already provides a supported scheme and the leaf is unique inside that scheme.
 
-Leaf-label matching for free-text subjects is not actionable in first release unless another high-confidence signal identifies the scheme.
+Leaf-label matching for free-text subjects is actionable in first release only when the normalized exact label or source synonym is globally unique across all supported first-release vocabularies. The suggestion must include the warning code `free_keyword_can_be_transferred_to_thesaurus_keyword` and this curator-facing warning message:
+
+```text
+This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.
+```
 
 ## Free-text Discovery Rules
 
@@ -157,7 +162,8 @@ Free-text subjects have no scheme anchor. Therefore they use a stricter strategy
 | Full breadcrumb path, unique candidate across all supported schemes | Actionable suggestion with warning |
 | Stable concept URI from supported vocabulary | Actionable suggestion |
 | Unique notation with an identifiable scheme | Actionable suggestion |
-| Leaf label unique within one scheme but no scheme evidence | Suppress |
+| Exact preferred-label or source-synonym match, globally unique across all supported schemes | Actionable suggestion with warning |
+| Leaf label unique within one scheme but not globally unique | Suppress |
 | Leaf label appears in multiple schemes | Suppress as ambiguous |
 | No local cache for the apparent scheme | Suppress |
 
@@ -186,6 +192,7 @@ Use `high` only when exactly one candidate is supported by deterministic evidenc
 - exact full path match;
 - unique controlled legacy path match;
 - free-text path with recognized scheme prefix and unique candidate.
+- globally unique exact free-text preferred-label or source-synonym match.
 
 ### `medium`
 
@@ -202,7 +209,7 @@ Suppress when:
 - local cache is unavailable or invalid;
 - candidate count is zero;
 - candidate count is greater than one;
-- evidence is leaf-label-only free text;
+- evidence is free-text label matching without global uniqueness;
 - only fuzzy, inferred, or hand-waved label similarity exists;
 - current metadata conflicts with source evidence in a way that cannot be resolved deterministically.
 
@@ -228,7 +235,7 @@ Use stable reason codes for diagnostics, logs, or future reports:
 - `current_subject_already_complete`
 - `no_candidate_match`
 - `multiple_candidate_matches`
-- `free_text_leaf_label_only`
+- `free_text_label_not_globally_unique`
 - `ambiguous_cross_scheme_label`
 - `ambiguous_legacy_path`
 - `source_identifier_conflict`
