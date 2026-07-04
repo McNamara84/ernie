@@ -231,6 +231,81 @@ it('stores free keyword suggestions only when the exact concept label is globall
         ->toBe('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.');
 });
 
+it('suppresses free keyword transfer suggestions when the controlled concept value URI already exists on the resource', function (): void {
+    subjectEnrichmentDiscoveryPutVocabulary('msl-vocabulary.json', [
+        'lastUpdated' => '2026-07-04T00:00:00Z',
+        'data' => [
+            [
+                'id' => 'https://epos-msl.uu.nl/voc/multi-scale-laboratories',
+                'text' => 'multi-scale laboratories',
+                'language' => 'en',
+                'scheme' => 'EPOS MSL vocabulary',
+                'schemeURI' => 'https://epos-msl.uu.nl/voc',
+                'children' => [],
+            ],
+        ],
+    ]);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81306')->create();
+    $freeSubject = subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'multi-scale laboratories',
+    ]);
+    subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'multi-scale laboratories',
+        'subject_scheme' => 'Legacy MSL label',
+        'scheme_uri' => 'https://epos-msl.uu.nl/voc',
+        'value_uri' => 'https://epos-msl.uu.nl/voc/multi-scale-laboratories',
+        'breadcrumb_path' => 'multi-scale laboratories',
+    ]);
+
+    [$count, $storedSuggestions, $progressMessages] = subjectEnrichmentRunDiscovery(subjectEnrichmentDiscoveryService());
+
+    expect($count)->toBe(0)
+        ->and($storedSuggestions)->toBeEmpty()
+        ->and(implode("\n", $progressMessages))->toContain(sprintf(
+            'Suppressed subject %d: resource already has this controlled subject concept.',
+            $freeSubject->id,
+        ));
+});
+
+it('suppresses free keyword transfer suggestions when the controlled classification code already exists on the resource', function (): void {
+    subjectEnrichmentDiscoveryPutVocabulary('analytical-methods.json', [
+        'lastUpdated' => '2026-07-04T00:00:00Z',
+        'data' => [
+            [
+                'id' => 'icp-ms-local-id',
+                'text' => 'ICP-MS',
+                'notation' => 'ICP-MS',
+                'language' => 'en',
+                'scheme' => 'Analytical Methods for Geochemistry and Cosmochemistry',
+                'schemeURI' => 'https://w3id.org/geochem/1.0/analyticalmethod/method',
+                'children' => [],
+            ],
+        ],
+    ]);
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81307')->create();
+    $freeSubject = subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'ICP-MS',
+    ]);
+    subjectEnrichmentDiscoveryCreateSubject($resource, [
+        'value' => 'ICP-MS',
+        'subject_scheme' => 'Analytical Methods for Geochemistry and Cosmochemistry',
+        'scheme_uri' => 'https://w3id.org/geochem/1.0/analyticalmethod/method',
+        'classification_code' => 'ICP-MS',
+        'breadcrumb_path' => 'ICP-MS',
+    ]);
+
+    [$count, $storedSuggestions, $progressMessages] = subjectEnrichmentRunDiscovery(subjectEnrichmentDiscoveryService());
+
+    expect($count)->toBe(0)
+        ->and($storedSuggestions)->toBeEmpty()
+        ->and(implode("\n", $progressMessages))->toContain(sprintf(
+            'Suppressed subject %d: resource already has this controlled subject concept.',
+            $freeSubject->id,
+        ));
+});
+
 it('suppresses ambiguous free keyword labels across multiple vocabularies', function (): void {
     subjectEnrichmentDiscoveryPutVocabulary('msl-vocabulary.json', [
         'data' => [
