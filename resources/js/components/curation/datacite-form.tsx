@@ -2845,12 +2845,15 @@ export default function DataCiteForm({
     );
 
     const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
+    const showSaveDraftDisabledTooltip = !isDraftSaveable && !isSavingDraft;
+    const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isPreparingLandingPagePreview;
+    const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isSaving;
 
     const renderEditorActions = () => (
         <>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <span tabIndex={0}>
+                    <span tabIndex={showSaveDraftDisabledTooltip ? 0 : undefined}>
                         {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
                             Drafts are partial saves; legacy keyword replacement is only
                             required for full validation (Save & Validate). */}
@@ -2868,7 +2871,7 @@ export default function DataCiteForm({
                         </Button>
                     </span>
                 </TooltipTrigger>
-                {!isDraftSaveable && !isSavingDraft && (
+                {showSaveDraftDisabledTooltip && (
                     <TooltipContent side="top" align="end" className="max-w-sm">
                         <p className="text-sm">Enter a Main Title to save as draft.</p>
                     </TooltipContent>
@@ -2876,7 +2879,7 @@ export default function DataCiteForm({
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <span tabIndex={0}>
+                    <span tabIndex={showLandingPagePreviewDisabledTooltip ? 0 : undefined}>
                         <Button
                             type="button"
                             variant="outline"
@@ -2891,7 +2894,7 @@ export default function DataCiteForm({
                         </Button>
                     </span>
                 </TooltipTrigger>
-                {!isDraftSaveable && !isPreparingLandingPagePreview && (
+                {showLandingPagePreviewDisabledTooltip && (
                     <TooltipContent side="top" align="end" className="max-w-sm">
                         <p className="text-sm">Enter a Main Title to preview the landing page.</p>
                     </TooltipContent>
@@ -2899,7 +2902,7 @@ export default function DataCiteForm({
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <span tabIndex={0}>
+                    <span tabIndex={showSaveValidateDisabledTooltip ? 0 : undefined}>
                         <Button
                             type="submit"
                             className={editorActionButtonClassName}
@@ -2912,7 +2915,7 @@ export default function DataCiteForm({
                         </Button>
                     </span>
                 </TooltipTrigger>
-                {hasLegacyKeywords && !isSaving && (
+                {showSaveValidateDisabledTooltip && (
                     <TooltipContent side="top" align="end" className="max-w-sm">
                         <div className="space-y-2">
                             <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>

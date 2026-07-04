@@ -499,6 +499,47 @@ describe('DataCiteForm', () => {
 
             expect(saveButton).toHaveAttribute('type', 'submit');
         });
+
+        it('only makes action tooltip wrappers tabbable while their disabled tooltip is available', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm();
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(draftButton.parentElement).toHaveAttribute('tabindex', '0');
+            expect(previewButton.parentElement).toHaveAttribute('tabindex', '0');
+            expect(saveButton).toBeEnabled();
+            expect(saveButton.parentElement).not.toHaveAttribute('tabindex');
+
+            await user.type(screen.getByRole('textbox', { name: /Title/ }), 'Keyboard Friendly Dataset');
+
+            expect(draftButton).toBeEnabled();
+            expect(previewButton).toBeEnabled();
+            expect(draftButton.parentElement).not.toHaveAttribute('tabindex');
+            expect(previewButton.parentElement).not.toHaveAttribute('tabindex');
+        });
+
+        it('keeps the Save & Validate wrapper tabbable only for the legacy-keywords tooltip state', () => {
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Legacy Keyword Dataset', titleType: 'main-title' }],
+                initialGcmdKeywords: [
+                    {
+                        id: 'legacy-msl-keyword',
+                        path: 'MSL > Legacy Keyword',
+                        text: 'Legacy Keyword',
+                        scheme: 'MSL',
+                        isLegacy: 'true',
+                    },
+                ],
+            });
+
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
+        });
     });
     describe('Consolidated accordion section headers', () => {
         it('renders Resource Information as one visible section header with metadata in the trigger', () => {
