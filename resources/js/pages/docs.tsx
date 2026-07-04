@@ -836,8 +836,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Save">
-                                <p>
-                                    Choose one of these actions:
+                                <p>Choose one of these actions from the bottom-right editor action bar:</p>
+                                <p className="mt-2">
+                                    The action bar stays available while you move through the form. On smaller pointer-based screens it fades back
+                                    until you hover near the bottom-right corner or focus a button; on touch screens it remains visible and compact.
                                 </p>
                                 <ul>
                                     <li>
@@ -1545,10 +1547,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             again.
                         </p>
                         <p>
-                            From the Data Editor, click <strong>Show LP Preview</strong> next to <strong>Save Draft</strong> and{' '}
-                            <strong>Save &amp; Validate</strong> to save the current metadata as a draft and open the landing page flow immediately.
-                            Existing landing pages open in a new browser tab. If the resource has no landing page yet, ERNIE opens the setup modal and
-                            automatically opens the preview after you create it.
+                            From the Data Editor, click <strong>Show LP Preview</strong> in the bottom-right action bar next to{' '}
+                            <strong>Save Draft</strong> and <strong>Save &amp; Validate</strong> to save the current metadata as a draft and open the
+                            landing page flow immediately. Existing landing pages open in a new browser tab. If the resource has no landing page yet,
+                            ERNIE opens the setup modal and automatically opens the preview after you create it.
                         </p>
 
                         <WorkflowSteps>
