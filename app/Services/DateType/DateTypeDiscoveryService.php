@@ -23,6 +23,7 @@ final class DateTypeDiscoveryService
 
     public function __construct(
         private readonly DateTypeSchemaorgExtraction $extractService,
+        private readonly DateTypePlausibilityService $plausibilityService,
         // private readonly DateTypeCoverageCorrectionDiscoveryService $coverageCorrectionDiscovery, :
         // -> existiert gerade nicht, war eine Platzhalter-Datei: DateTypeCoverageCorrectionDiscoveryService
     ) {}
@@ -70,9 +71,27 @@ final class DateTypeDiscoveryService
     {
         $storedCount = 0;
 
+        $existingDates = $resource->dates()
+            ->with('dateType')
+            ->get();
+
+        $datesForReview = [];
+
+        foreach ($existingDates as $date) {
+            $dateType = $date->dateType?->slug;
+            $value = $date->date_value ?? $date->start_date;
+
+            if ($dateType !== null && $value !== null) {
+                $datesForReview[$dateType] = $value;
+            }
+        }
+
+        $reviewSuggestions = $this->plausibilityService->review($datesForReview);
+
         // NEU, da coverageCorrectionDiscovery entfällt
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
+            ...$reviewSuggestions,
              //  ...$this->coverageCorrectionDiscovery->discover($resource),
         ];
 
@@ -89,6 +108,24 @@ final class DateTypeDiscoveryService
         foreach ($suggestions as $suggestion) 
         {
             if (($suggestion['probe_method'] ?? null) === 'SKIP') {
+                continue;
+            }
+
+            if (($suggestion['suggestion_kind'] ?? null) === 'review') {
+                $stored = $storeSuggestion(
+                    $resource->id,
+                    self::TARGET_TYPE,
+                    $resource->id,
+                    (string) $suggestion['message'],
+                    (string) $suggestion['message'],
+                    $this->confidenceToScore($suggestion['confidence'] ?? null),
+                    $suggestion,
+                );
+
+                if ($stored) {
+                    $storedCount++;
+                }
+
                 continue;
             }
 
