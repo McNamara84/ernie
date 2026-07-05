@@ -7,6 +7,7 @@ namespace App\Services\DescriptionSegmentation;
 use App\Models\AssistantSuggestion;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Support\DescriptionSegmentation\DescriptionSegmentationPolicy;
 use Illuminate\Support\Facades\DB;
 
 final readonly class DescriptionSegmentationAcceptanceService

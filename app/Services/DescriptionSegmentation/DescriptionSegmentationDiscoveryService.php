@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\DescriptionSegmentation;
 
 use App\Models\Description;
+use App\Support\DescriptionSegmentation\DescriptionSegmentationPolicy;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -17,7 +18,7 @@ final readonly class DescriptionSegmentationDiscoveryService
     private const int CHUNK_SIZE = 50;
 
     public function __construct(
-        private DescriptionSegmentationPreviewBuilder $previewBuilder,
+        private DescriptionSegmentationPreviewService $previewBuilder,
     ) {}
 
     /**

@@ -5,10 +5,10 @@ declare(strict_types=1);
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Resource;
-use App\Services\DescriptionSegmentation\DescriptionSegmentationPolicy;
-use App\Services\DescriptionSegmentation\DescriptionSegmentationPreviewBuilder;
+use App\Services\DescriptionSegmentation\DescriptionSegmentationPreviewService;
+use App\Support\DescriptionSegmentation\DescriptionSegmentationPolicy;
 
-covers(DescriptionSegmentationPreviewBuilder::class);
+covers(DescriptionSegmentationPreviewService::class);
 
 function descriptionSegmentationPreviewType(string $slug, ?string $name = null): DescriptionType
 {
@@ -28,7 +28,7 @@ function descriptionSegmentationPreviewText(string $seed, int $sentences = 12): 
  */
 function descriptionSegmentationPreviewMetadata(Description $description): array
 {
-    $metadata = app(DescriptionSegmentationPreviewBuilder::class)->buildForDescription($description);
+    $metadata = app(DescriptionSegmentationPreviewService::class)->buildForDescription($description);
 
     if ($metadata === null) {
         throw new RuntimeException('Expected a description segmentation preview.');
@@ -119,7 +119,7 @@ it('suppresses keyword-only text without structural evidence', function (): void
         descriptionSegmentationPreviewText('This abstract mentions methods, software, formats, processing, stations, and sensor calibration inside normal prose without a labelled section boundary.', 45),
     );
 
-    expect(app(DescriptionSegmentationPreviewBuilder::class)->buildForDescription($description))->toBeNull();
+    expect(app(DescriptionSegmentationPreviewService::class)->buildForDescription($description))->toBeNull();
 });
 
 it('uses repeated file-like list structure as table of contents evidence', function (): void {
@@ -159,5 +159,5 @@ it('suppresses previews that would leave a contextless abstract remainder', func
     $methods = descriptionSegmentationPreviewText('Stations were installed, calibrated, sampled every minute, quality controlled, and processed with documented exclusion rules.', 55);
     $description = descriptionSegmentationPreviewDescription($overview."\n\nMethods:\n".$methods);
 
-    expect(app(DescriptionSegmentationPreviewBuilder::class)->buildForDescription($description))->toBeNull();
+    expect(app(DescriptionSegmentationPreviewService::class)->buildForDescription($description))->toBeNull();
 });

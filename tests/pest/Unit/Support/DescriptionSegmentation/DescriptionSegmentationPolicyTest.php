@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\DescriptionSegmentation\DescriptionSegmentationPolicy;
+use App\Support\DescriptionSegmentation\DescriptionSegmentationPolicy;
 
 covers(DescriptionSegmentationPolicy::class);
 

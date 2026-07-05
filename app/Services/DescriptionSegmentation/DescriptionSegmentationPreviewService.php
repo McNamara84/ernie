@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Services\DescriptionSegmentation;
 
 use App\Models\Description;
+use App\Support\DescriptionSegmentation\DescriptionSegmentationPolicy;
 
-final readonly class DescriptionSegmentationPreviewBuilder
+final readonly class DescriptionSegmentationPreviewService
 {
     public const string CONTRACT_VERSION = '1.0';
 
