@@ -1,14 +1,5 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import {
-    ArrowRight,
-    ClipboardCheck,
-    FilePlus2,
-    FlaskConical,
-    FolderClock,
-    type LucideIcon,
-    Settings,
-    Sparkles,
-} from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { ArrowRight, ClipboardCheck, FilePlus2, FlaskConical, FolderClock, type LucideIcon, Settings, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { GuidedTourAutostart } from '@/components/tours/guided-tour-autostart';
@@ -16,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { UnifiedDropzone } from '@/components/unified-dropzone';
+import { type DataCiteUploadResult, UnifiedDropzone } from '@/components/unified-dropzone';
 import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { type GuidedTourAutostartPayload } from '@/lib/tours/definitions';
@@ -34,9 +25,9 @@ type UploadSessionResponse = {
 
 /**
  * Shared helper for file uploads (XML, JSON, JSON-LD).
- * New uploads open the persisted draft by resource ID, with session key as fallback.
+ * New uploads return the persisted draft target so the dashboard can stay in place.
  */
-async function uploadSessionFile(file: File, route: { url: () => string }, sessionQueryKey: string): Promise<void> {
+async function uploadSessionFile(file: File, route: { url: () => string }, sessionQueryKey: string): Promise<DataCiteUploadResult> {
     const csrfHeaders = buildCsrfHeaders();
 
     if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
@@ -69,21 +60,35 @@ async function uploadSessionFile(file: File, route: { url: () => string }, sessi
                     message = errorData.message;
                 }
             } catch {
-                // Response body is not valid JSON (e.g. HTML error page) – use generic message
+                // Response body is not valid JSON (e.g. HTML error page) - use generic message
             }
             throw new Error(message);
         }
 
         const data: UploadSessionResponse = await response.json();
+        const resourceId = data.resourceId !== undefined && data.resourceId !== null ? String(data.resourceId).trim() : '';
+        const sessionKey = data.sessionKey ? String(data.sessionKey).trim() : '';
 
-        if (data.resourceId !== undefined && data.resourceId !== null && String(data.resourceId).trim() !== '') {
-            router.get(editorRoute({ query: { resourceId: String(data.resourceId) } }).url);
-            return;
+        if (resourceId !== '') {
+            return {
+                success: true,
+                uploadKind: 'datacite',
+                filename,
+                resourceId,
+                sessionKey: sessionKey || null,
+                editorUrl: editorRoute({ query: { resourceId } }).url,
+            };
         }
 
-        if (data.sessionKey) {
-            router.get(editorRoute({ query: { [sessionQueryKey]: data.sessionKey } }).url);
-            return;
+        if (sessionKey !== '') {
+            return {
+                success: true,
+                uploadKind: 'datacite',
+                filename,
+                resourceId: null,
+                sessionKey,
+                editorUrl: editorRoute({ query: { [sessionQueryKey]: sessionKey } }).url,
+            };
         }
 
         throw new Error('Upload completed but no editor target was returned for ' + filename + '.');
@@ -96,19 +101,19 @@ async function uploadSessionFile(file: File, route: { url: () => string }, sessi
     }
 }
 
-export const handleXmlFiles = async (files: File[]): Promise<void> => {
-    if (!files.length) return;
-    await uploadSessionFile(files[0], uploadXmlRoute, 'xmlSession');
+export const handleXmlFiles = async (files: File[]): Promise<DataCiteUploadResult | undefined> => {
+    if (!files.length) return undefined;
+    return uploadSessionFile(files[0], uploadXmlRoute, 'xmlSession');
 };
 
-export const handleJsonFiles = async (files: File[]): Promise<void> => {
-    if (!files.length) return;
-    await uploadSessionFile(files[0], uploadJsonRoute, 'jsonSession');
+export const handleJsonFiles = async (files: File[]): Promise<DataCiteUploadResult | undefined> => {
+    if (!files.length) return undefined;
+    return uploadSessionFile(files[0], uploadJsonRoute, 'jsonSession');
 };
 
 type DashboardProps = {
-    onXmlFiles?: (files: File[]) => Promise<void>;
-    onJsonFiles?: (files: File[]) => Promise<void>;
+    onXmlFiles?: (files: File[]) => Promise<DataCiteUploadResult | undefined>;
+    onJsonFiles?: (files: File[]) => Promise<DataCiteUploadResult | undefined>;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -161,8 +166,12 @@ function QuickActionCard({ title, description, icon: Icon, href, variant = 'outl
                     <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 space-y-1">
-                    <p className={cn('text-sm font-semibold leading-5 break-words', isPrimaryAction ? 'text-primary-foreground' : 'text-foreground')}>{title}</p>
-                    <p className={cn('text-xs leading-5 break-words', isPrimaryAction ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{description}</p>
+                    <p className={cn('text-sm leading-5 font-semibold break-words', isPrimaryAction ? 'text-primary-foreground' : 'text-foreground')}>
+                        {title}
+                    </p>
+                    <p className={cn('text-xs leading-5 break-words', isPrimaryAction ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                        {description}
+                    </p>
                 </div>
             </div>
             <ArrowRight
@@ -176,16 +185,22 @@ function QuickActionCard({ title, description, icon: Icon, href, variant = 'outl
 
     if (href) {
         return (
-            <Button asChild variant={variant} className="group h-auto w-full justify-start rounded-2xl border px-4 py-4 text-left whitespace-normal shadow-sm">
-                <Link href={href}>
-                    {content}
-                </Link>
+            <Button
+                asChild
+                variant={variant}
+                className="group h-auto w-full justify-start rounded-2xl border px-4 py-4 text-left whitespace-normal shadow-sm"
+            >
+                <Link href={href}>{content}</Link>
             </Button>
         );
     }
 
     return (
-        <Button variant={variant} className="group h-auto w-full justify-start rounded-2xl border px-4 py-4 text-left whitespace-normal shadow-sm" onClick={onClick}>
+        <Button
+            variant={variant}
+            className="group h-auto w-full justify-start rounded-2xl border px-4 py-4 text-left whitespace-normal shadow-sm"
+            onClick={onClick}
+        >
             {content}
         </Button>
     );
@@ -194,7 +209,7 @@ function QuickActionCard({ title, description, icon: Icon, href, variant = 'outl
 function OverviewMetric({ label, value, description }: { label: string; value: string | number; description: string }) {
     return (
         <div className="min-w-0 rounded-xl border bg-background/70 p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+            <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">{label}</p>
             <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
             <p className="mt-1 text-xs leading-5 break-words text-muted-foreground">{description}</p>
         </div>
@@ -283,10 +298,9 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
             },
             {
                 title: hasRecentResources ? 'Resume latest resource' : 'Browse resources',
-                description:
-                    hasRecentResources
-                        ? `Jump back into the resource you edited most recently.`
-                        : 'Open the resource list to review published and draft records.',
+                description: hasRecentResources
+                    ? `Jump back into the resource you edited most recently.`
+                    : 'Open the resource list to review published and draft records.',
                 href: recentResourceHref,
                 icon: FolderClock,
             },
@@ -412,7 +426,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                 // Random size (80% - 120% of original)
                 const size = 0.8 + Math.random() * 0.4;
 
-                // Random rotation (-15° to +15°)
+                // Random rotation (-15deg to +15deg)
                 const rotation = -15 + Math.random() * 30;
 
                 // Generate unique ID using counter
@@ -470,19 +484,20 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                             <CardHeader className="gap-4 pb-2">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div className="min-w-0 space-y-3">
-                                        <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
+                                        <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-xs tracking-[0.16em] uppercase">
                                             Today
                                         </Badge>
                                         <div className="space-y-1.5">
                                             <CardTitle className="text-2xl leading-tight break-words">Hello {auth.user.name}!</CardTitle>
                                             <CardDescription className="max-w-2xl text-sm leading-6">
-                                                Start from the task you actually need right now: resume recent work, create a new record, or jump into import without hunting through the navigation.
+                                                Start from the task you actually need right now: resume recent work, create a new record, or jump into
+                                                import without hunting through the navigation.
                                             </CardDescription>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4 rounded-2xl border bg-background/85 px-4 py-3 shadow-sm">
                                         <div className="min-w-0 text-right">
-                                            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Open drafts</p>
+                                            <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">Open drafts</p>
                                             <p className="mt-1 text-xs text-muted-foreground">Ready to resume</p>
                                         </div>
                                         <p className="text-3xl font-semibold tracking-tight text-foreground">{draftCount ?? 0}</p>
@@ -502,7 +517,9 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="space-y-1">
                                     <CardTitle className="text-lg">Continue where you left off</CardTitle>
-                                    <CardDescription>Resources you recently edited stay close at hand so you can jump back into work immediately.</CardDescription>
+                                    <CardDescription>
+                                        Resources you recently edited stay close at hand so you can jump back into work immediately.
+                                    </CardDescription>
                                 </div>
                                 {hasRecentResources && (
                                     <Button asChild variant="ghost" className="px-0 text-sm">
@@ -523,7 +540,9 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                                     className="group rounded-xl border bg-card px-4 py-3 transition-colors hover:border-primary/40 hover:bg-accent/30"
                                                 >
                                                     <div className="flex min-w-0 items-start justify-between gap-2">
-                                                        <p className="line-clamp-2 font-medium leading-6 text-foreground transition-colors group-hover:text-primary">{resource.title}</p>
+                                                        <p className="line-clamp-2 leading-6 font-medium text-foreground transition-colors group-hover:text-primary">
+                                                            {resource.title}
+                                                        </p>
                                                         {statusLabel && (
                                                             <Badge variant="secondary" className="shrink-0 rounded-full text-[0.68rem]">
                                                                 {statusLabel}
@@ -531,7 +550,9 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                                         )}
                                                     </div>
                                                     <p className="mt-1 text-sm text-muted-foreground">
-                                                        {resource.updated_at ? `Updated ${new Date(resource.updated_at).toLocaleDateString()}` : 'Resource available to resume'}
+                                                        {resource.updated_at
+                                                            ? `Updated ${new Date(resource.updated_at).toLocaleDateString()}`
+                                                            : 'Resource available to resume'}
                                                     </p>
                                                 </Link>
                                             );
@@ -551,15 +572,21 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                     </div>
 
                     <div className="grid gap-4" data-testid="dashboard-side-column">
-                        <Card id="dashboard-upload-panel" data-testid="dashboard-upload-card" className="border-primary/10" data-tour="dashboard-upload">
+                        <Card
+                            id="dashboard-upload-panel"
+                            data-testid="dashboard-upload-card"
+                            className="border-primary/10"
+                            data-tour="dashboard-upload"
+                        >
                             <CardHeader className="items-center text-center">
-                                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs uppercase tracking-[0.16em]">
+                                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs tracking-[0.16em] uppercase">
                                     Import hub
                                 </Badge>
                                 <div className="space-y-2">
                                     <CardTitle>Upload Files</CardTitle>
                                     <CardDescription>
-                                        Upload DataCite files or IGSN CSV files from one place and let ERNIE route them into the right curation flow.
+                                        Upload DataCite files or IGSN CSV files from one place, then review the result before choosing the next
+                                        workspace.
                                     </CardDescription>
                                 </div>
                             </CardHeader>
@@ -574,9 +601,21 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                                 <CardDescription>Fast health check for your curation workload and repository inventory.</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                                <OverviewMetric label="Datasets" value={datasetCount} description={`${dataInstitutions} institutions with registered data resources`} />
-                                <OverviewMetric label="IGSNs" value={igsnCountDisplay} description={`${igsnInstitutions} institutions with sample records`} />
-                                <OverviewMetric label="Drafts" value={draftCount ?? 0} description="Records that still need review or publication work" />
+                                <OverviewMetric
+                                    label="Datasets"
+                                    value={datasetCount}
+                                    description={`${dataInstitutions} institutions with registered data resources`}
+                                />
+                                <OverviewMetric
+                                    label="IGSNs"
+                                    value={igsnCountDisplay}
+                                    description={`${igsnInstitutions} institutions with sample records`}
+                                />
+                                <OverviewMetric
+                                    label="Drafts"
+                                    value={draftCount ?? 0}
+                                    description="Records that still need review or publication work"
+                                />
                                 {auth.user?.can_access_assistance && (
                                     <OverviewMetric
                                         label="Assistance"
@@ -625,7 +664,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                     <img
                         key={unicorn.id}
                         src="/images/unicorn.png"
-                        alt="🦄"
+                        alt="Unicorn"
                         className="pointer-events-none fixed z-50 duration-300 animate-in fade-in zoom-in"
                         style={{
                             left: `${unicorn.x}px`,

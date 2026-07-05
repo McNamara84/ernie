@@ -591,7 +591,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 DataCite size and file-format metadata
                             </li>
                             <li>
-                                <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary caches while preserving imported subject text
+                                <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary
+                                caches while preserving imported subject text
                             </li>
                         </ul>
 
@@ -623,8 +624,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p className="mt-2">
                                     Subject Metadata Enrichment suggestions compare the stored Subject row with proposed DataCite fields such as
                                     subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and lang. Accepting revalidates the match
-                                    against the current local vocabulary cache, updates only the listed fields, and preserves the original subject text.
-                                    Free Keyword transfer suggestions show a warning before they become controlled thesaurus keywords.
+                                    against the current local vocabulary cache, updates only the listed fields, and preserves the original subject
+                                    text. Free Keyword transfer suggestions show a warning before they become controlled thesaurus keywords.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
@@ -782,7 +783,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Uploading DataCite Files</h3>
                         <p>
                             The Dashboard (<code>/dashboard</code>) features a unified import hub for file uploads. The dropzone now keeps you
-                            informed with dedicated progress, success, and error states while routing each file type into the appropriate workflow.
+                            informed with dedicated progress, success, and error states while keeping the result on the dashboard for review.
                         </p>
 
                         <h4>Supported Formats</h4>
@@ -812,9 +813,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     and the failure reason visible so you can retry immediately.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={3} title="Automatic Redirect">
+                            <WorkflowSteps.Step number={3} title="Review Upload Result">
                                 <p>
-                                    After successful upload, you'll be redirected to the <strong>Data Editor</strong> with metadata pre-populated.
+                                    After successful upload, the dashboard shows a confirmation. Use <strong>Open in editor</strong> when you are
+                                    ready to review the pre-populated metadata.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -861,8 +863,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                         the landing page opens in a new browser tab.
                                     </li>
                                     <li>
-                                        <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields
-                                        (title, year, resource type, datacenter, language, license, authors, abstract) must be filled.
+                                        <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields (title,
+                                        year, resource type, datacenter, language, license, authors, abstract) must be filled.
                                     </li>
                                 </ul>
                                 <p className="mt-3">
@@ -1862,7 +1864,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             resources. The bulk actions toolbar sits directly below the filter row and shows how many resources are selected.
                         </p>
                         <p>
-                            Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and copy the DOI or preview URL.
+                            Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls
+                            keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and
+                            copy the DOI or preview URL.
                         </p>
 
                         <h4>Quick Resource Actions</h4>
@@ -2144,7 +2148,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Drop your CSV file onto the dropzone. The system auto-detects the file type.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Review Results">
-                                <p>A confirmation shows the number of IGSNs imported. You'll be redirected to the IGSN list.</p>
+                                <p>
+                                    A confirmation shows the number of IGSNs imported. Use <strong>View IGSNs</strong> when you are ready to open the
+                                    IGSN list.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 

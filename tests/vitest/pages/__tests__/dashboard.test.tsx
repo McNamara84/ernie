@@ -9,7 +9,7 @@ import Dashboard, { handleJsonFiles, handleXmlFiles } from '@/pages/dashboard';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
-const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const routerMock = vi.hoisted(() => ({ get: vi.fn(), visit: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -56,8 +56,7 @@ vi.mock('@/routes', () => {
 
     return {
         dashboard: () => makeRoute('/dashboard'),
-        editor: (params?: { query?: Record<string, string | number> }) => 
-            makeRoute('/editor', params?.query),
+        editor: (params?: { query?: Record<string, string | number> }) => makeRoute('/editor', params?.query),
         changelog: () => makeRoute('/changelog'),
         about: () => makeRoute('/about'),
         legalNotice: () => makeRoute('/legal-notice'),
@@ -91,9 +90,9 @@ const removeCsrfMeta = () => {
 
 describe('Dashboard', () => {
     beforeEach(() => {
-        usePageMock.mockReturnValue({ 
-            props: { 
-                auth: { user: { name: 'Jane', can_access_assistance: true, can_access_editor_settings: true } }, 
+        usePageMock.mockReturnValue({
+            props: {
+                auth: { user: { name: 'Jane', can_access_assistance: true, can_access_editor_settings: true } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
@@ -106,7 +105,7 @@ describe('Dashboard', () => {
                     { id: 12, title: 'Arctic campaign dataset', updated_at: '2026-05-11T10:00:00Z', status: 'curation' },
                     { id: 15, title: 'Rock core collection', updated_at: null, status: 'draft' },
                 ],
-            } 
+            },
         });
         handleXmlFilesSpy.mockClear();
     });
@@ -275,16 +274,16 @@ describe('Dashboard', () => {
     });
 
     it('generates correct PHP release link for major.minor version', () => {
-        usePageMock.mockReturnValueOnce({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 phpVersion: '8.5.3',
-                laravelVersion: '12.28.1'
-            } 
+                laravelVersion: '12.28.1',
+            },
         });
         render(<Dashboard />);
         const phpVersionLink = screen.getByRole('link', {
@@ -295,16 +294,16 @@ describe('Dashboard', () => {
     });
 
     it('generates correct Laravel release link for major version', () => {
-        usePageMock.mockReturnValueOnce({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 phpVersion: '8.4.12',
-                laravelVersion: '13.5.10'
-            } 
+                laravelVersion: '13.5.10',
+            },
         });
         render(<Dashboard />);
         const laravelVersionLink = screen.getByRole('link', {
@@ -315,21 +314,21 @@ describe('Dashboard', () => {
     });
 
     it('falls back to default versions when props are missing', () => {
-        usePageMock.mockReturnValueOnce({ 
-            props: { 
-                auth: { user: { name: 'Jane' } }, 
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
                 dataResourceCount: 17,
                 igsnCount: 5,
                 dataInstitutionCount: 3,
-                igsnInstitutionCount: 2
-            } 
+                igsnInstitutionCount: 2,
+            },
         });
         render(<Dashboard />);
-        
+
         // Should still display badges with fallback values
         const phpBadge = screen.getByText('8.4.12');
         const laravelBadge = screen.getByText('12.28.1');
-        
+
         expect(phpBadge).toBeInTheDocument();
         expect(laravelBadge).toBeInTheDocument();
     });
@@ -402,58 +401,66 @@ describe('handleXmlFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts xml file with csrf token and redirects to editor with resource id', async () => {
+    it('posts xml file with csrf token and returns an editor target without redirecting', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const sessionKey = 'xml_upload_test123';
         const resourceId = 123;
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                {
-                    ok: true,
-                    json: async () => ({
-                        resourceId,
-                        sessionKey,
-                    }),
-                } as Response,
-            );
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                resourceId,
+                sessionKey,
+            }),
+        } as Response);
 
-        await handleXmlFiles([file]);
+        const result = await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
         const [url, options] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-xml');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalled();
-        const [redirectUrl] = routerMock.get.mock.calls[0];
-        expect(typeof redirectUrl).toBe('string');
-        expect(redirectUrl).toBe(`/editor?resourceId=${resourceId}`);
+        expect(result).toEqual({
+            success: true,
+            uploadKind: 'datacite',
+            filename: 'test.xml',
+            resourceId: String(resourceId),
+            sessionKey,
+            editorUrl: `/editor?resourceId=${resourceId}`,
+        });
+        expect(routerMock.get).not.toHaveBeenCalled();
+
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
-    it('falls back to the XSRF cookie and legacy session redirect when the meta token is unavailable', async () => {
+    it('falls back to the XSRF cookie and returns a legacy session editor target when the meta token is unavailable', async () => {
         removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=cookie-token';
 
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const sessionKey = 'xml_upload_fallback123';
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue({
-                ok: true,
-                json: async () => ({ sessionKey }),
-            } as Response);
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+            ok: true,
+            json: async () => ({ sessionKey }),
+        } as Response);
 
-        await handleXmlFiles([file]);
+        const result = await handleXmlFiles([file]);
 
         const [, options] = fetchMock.mock.calls[0];
         const headers = (options as RequestInit).headers as Record<string, string>;
         // The encrypted cookie value must NOT be sent as X-CSRF-TOKEN because
-        // Laravel does not decrypt that header — only X-XSRF-TOKEN is decrypted.
+        // Laravel does not decrypt that header; only X-XSRF-TOKEN is decrypted.
         expect(headers['X-CSRF-TOKEN']).toBeUndefined();
         expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
-        expect(routerMock.get).toHaveBeenCalledWith(`/editor?xmlSession=${sessionKey}`);
+        expect(result).toEqual({
+            success: true,
+            uploadKind: 'datacite',
+            filename: 'test.xml',
+            resourceId: null,
+            sessionKey,
+            editorUrl: `/editor?xmlSession=${sessionKey}`,
+        });
+        expect(routerMock.get).not.toHaveBeenCalled();
 
         fetchMock.mockRestore();
         routerMock.get.mockReset();
@@ -472,9 +479,7 @@ describe('handleXmlFiles', () => {
 
     it('throws server error message', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue({ ok: false, json: async () => ({ message: 'Bad request' }) } as Response);
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, json: async () => ({ message: 'Bad request' }) } as Response);
 
         await expect(handleXmlFiles([file])).rejects.toThrow('Bad request');
         expect(routerMock.get).not.toHaveBeenCalled();
@@ -509,27 +514,33 @@ describe('handleJsonFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts json file with csrf token and redirects to editor with resource id', async () => {
+    it('posts json file with csrf token and returns an editor target without redirecting', async () => {
         const file = new File(['{"title":"Test"}'], 'metadata.json', { type: 'application/json' });
         const sessionKey = 'json_upload_test123';
         const resourceId = 456;
-        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
-            {
-                ok: true,
-                json: async () => ({
-                    resourceId,
-                    sessionKey,
-                }),
-            } as Response,
-        );
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                resourceId,
+                sessionKey,
+            }),
+        } as Response);
 
-        await handleJsonFiles([file]);
+        const result = await handleJsonFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
         const [url, options] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-json');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalledWith(`/editor?resourceId=${resourceId}`);
+        expect(result).toEqual({
+            success: true,
+            uploadKind: 'datacite',
+            filename: 'metadata.json',
+            resourceId: String(resourceId),
+            sessionKey,
+            editorUrl: `/editor?resourceId=${resourceId}`,
+        });
+        expect(routerMock.get).not.toHaveBeenCalled();
 
         fetchMock.mockRestore();
         routerMock.get.mockReset();
