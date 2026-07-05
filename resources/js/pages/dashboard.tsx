@@ -626,7 +626,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                             </CardContent>
                         </Card>
 
-                        <Card onMouseEnter={() => handleCardHover('environment')}>
+                        <Card onMouseEnter={() => handleCardHover('environment')} data-testid="dashboard-environment-card">
                             <CardHeader>
                                 <CardTitle>Environment</CardTitle>
                                 <CardDescription>Key runtime versions and release notes for the current stack.</CardDescription>
@@ -664,7 +664,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles, onJsonFiles = h
                     <img
                         key={unicorn.id}
                         src="/images/unicorn.png"
-                        alt="Unicorn"
+                        alt=""
+                        aria-hidden="true"
                         className="pointer-events-none fixed z-50 duration-300 animate-in fade-in zoom-in"
                         style={{
                             left: `${unicorn.x}px`,

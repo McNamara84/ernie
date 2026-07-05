@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -341,6 +341,25 @@ describe('Dashboard', () => {
         expect(dropzone).toHaveClass('bg-accent/60');
         fireEvent.dragLeave(dropzone);
         expect(dropzone).toHaveClass('bg-muted/60');
+    });
+
+    it('renders unicorn overlay as decorative when the easter egg is active', async () => {
+        render(<Dashboard />);
+        const welcomeCard = screen.getByTestId('dashboard-welcome-card');
+        const environmentCard = screen.getByTestId('dashboard-environment-card');
+
+        for (let i = 0; i < 11; i += 1) {
+            fireEvent.mouseEnter(welcomeCard);
+            fireEvent.mouseEnter(environmentCard);
+        }
+
+        await waitFor(() => {
+            expect(document.querySelector('img[src="/images/unicorn.png"]')).toBeInTheDocument();
+        });
+
+        const unicornImage = document.querySelector('img[src="/images/unicorn.png"]');
+        expect(unicornImage).toHaveAttribute('alt', '');
+        expect(unicornImage).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('triggers file input when clicking upload button', () => {
