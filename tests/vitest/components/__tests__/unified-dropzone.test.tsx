@@ -47,9 +47,9 @@ vi.mock('@/components/upload-error-modal', () => ({
 // Mock upload types
 vi.mock('@/types/upload', () => ({
     getUploadErrors: (response: Record<string, unknown>) => response.errors ?? (response.error ? [response.error] : []),
-    hasMultipleErrors: (response: Record<string, unknown>) => {
+    hasMultipleErrors: (response: Record<string, unknown>, threshold = 3) => {
         const errors = response.errors ?? (response.error ? [response.error] : []);
-        return Array.isArray(errors) && errors.length >= 3;
+        return Array.isArray(errors) && errors.length > threshold;
     },
 }));
 
@@ -340,6 +340,7 @@ describe('UnifiedDropzone', () => {
                             { row: 2, igsn: 'TEST001', message: 'Duplicate IGSN' },
                             { row: 3, igsn: 'TEST002', message: 'Missing sample type' },
                             { row: 4, igsn: 'TEST003', message: 'Invalid date' },
+                            { row: 5, igsn: 'TEST004', message: 'Missing material' },
                         ],
                     }),
                     {
