@@ -144,6 +144,26 @@ describe('Docs page', () => {
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it('documents description segmentation suggestions for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+
+        expect(screen.getByText('Description Segmentation Suggestions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract') &&
+                    text.includes('stale suggestions are rejected if the source Abstract changed after discovery.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides assistance documentation for curators', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
         expect(screen.queryByText('Metadata Enrichment Assistance')).not.toBeInTheDocument();

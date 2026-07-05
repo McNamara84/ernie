@@ -18,6 +18,7 @@ import {
     type CheckStatusResponse,
     type PaginatedData,
     type SuggestedCrossrefFunderRorItem,
+    type SuggestedDescriptionSegmentationItem,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
@@ -438,6 +439,23 @@ function metadataList(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
 
     return value.map((item) => metadataText(item)).filter((item): item is string => item !== null);
+}
+
+const DESCRIPTION_TYPE_LABELS: Record<string, string> = {
+    Abstract: 'Abstract',
+    Methods: 'Methods',
+    SeriesInformation: 'Series Information',
+    TableOfContents: 'Table of Contents',
+    TechnicalInfo: 'Technical Info',
+    Other: 'Other',
+};
+
+function descriptionTypeLabel(type: string | null): string | null {
+    if (type === null) {
+        return null;
+    }
+
+    return DESCRIPTION_TYPE_LABELS[type] ?? type;
 }
 
 function metadataStringValues(value: unknown): string[] {
@@ -995,6 +1013,158 @@ function SizeFormatSuggestionCard({
 }
 // ── Per-section state ────────────────────────────────────────────────
 
+
+function DescriptionPreviewBlock({ title, value }: { title: string; value: string | null | undefined }) {
+    const text = typeof value === 'string' && value.trim() !== '' ? value : null;
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
+            {text ? (
+                <div className="max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">{text}</div>
+            ) : (
+                <p className="text-xs text-muted-foreground">No text captured.</p>
+            )}
+        </div>
+    );
+}
+
+function DescriptionSegmentationSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedDescriptionSegmentationItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata;
+    const current = metadata?.current;
+    const proposed = metadata?.proposed;
+    const confidence = metadata?.confidence;
+    const confidenceLevel = metadataText(confidence?.level);
+    const confidenceScore = typeof confidence?.score === 'number' ? confidence.score : suggestion.similarity_score;
+    const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
+    const segments = Array.isArray(proposed?.segments) ? proposed.segments : [];
+    const targetTypes = metadataList(proposed?.target_types);
+    const targetTypeLabels = targetTypes.map((type) => descriptionTypeLabel(type) ?? type);
+    const suggestedLabel = targetTypeLabels.length > 0 ? `Split Abstract into ${targetTypeLabels.join(', ')}` : suggestion.suggested_label;
+    const confidenceEvidence = metadataList(confidence?.evidence);
+    const preconditions = metadataList(metadata?.acceptance?.preconditions);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            description #{suggestion.target_id}
+                        </Badge>
+                        {confidenceLevel && (
+                            <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>
+                        )}
+                        {percent !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {percent}% structural confidence
+                            </Badge>
+                        )}
+                        {targetTypes.length > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                                {targetTypeLabels.join(', ')}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{suggestedLabel}</p>
+                        <p className="font-mono text-xs break-words text-muted-foreground">{suggestion.suggested_value}</p>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <DescriptionPreviewBlock title="Current Abstract" value={current?.value} />
+                        <DescriptionPreviewBlock title="Proposed Abstract" value={proposed?.remaining_abstract} />
+                    </div>
+
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase">New Description segments</p>
+                        {segments.length > 0 ? (
+                            <div className="grid gap-2 xl:grid-cols-2">
+                                {segments.map((segment, index) => {
+                                    const segmentType = descriptionTypeLabel(metadataText(segment.description_type)) ?? `Segment ${index + 1}`;
+                                    const segmentConfidence = metadataText(segment.confidence);
+                                    const evidenceTypes = metadataList(segment.evidence_types);
+                                    const evidenceLabel = metadataText(segment.evidence_label);
+
+                                    return (
+                                        <div key={`${segmentType}-${index}`} className="min-w-0 rounded-md border bg-muted/20 p-3">
+                                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                                <Badge variant="outline" className="text-xs">
+                                                    {segmentType}
+                                                </Badge>
+                                                {segmentConfidence && (
+                                                    <Badge className={`text-xs ${confidenceBadgeColor(segmentConfidence)}`}>
+                                                        {confidenceLabel(segmentConfidence)}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">
+                                                {metadataText(segment.value) ?? 'No text captured.'}
+                                            </div>
+                                            {(evidenceLabel || evidenceTypes.length > 0) && (
+                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                    {evidenceLabel && <span>Evidence: {evidenceLabel}</span>}
+                                                    {evidenceTypes.length > 0 && <span> ({evidenceTypes.join(', ')})</span>}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">No segment preview captured.</div>
+                        )}
+                    </div>
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        Accept replaces only the source Abstract text and creates the listed Description segments.
+                        {preconditions.length > 0 && <span> Preconditions: {preconditions.join(', ')}.</span>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {metadata?.policy_version && <span>Policy: {metadata.policy_version}</span>}
+                        {confidenceEvidence.length > 0 && <span>Evidence: {confidenceEvidence.join(', ')}</span>}
+                        {current?.language && <span>Language: {current.language}</span>}
+                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`description-segmentation-decline-${suggestion.id}`}
+                        onClick={() => onDecline(suggestion.id)}
+                    >
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`description-segmentation-accept-${suggestion.id}`}
+                        onClick={() => onAccept(suggestion.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 interface SectionState {
     isChecking: boolean;
     progress: string;
@@ -1291,6 +1461,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 );
             case 'size-format-suggestion':
                 return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
+            case 'description-segmentation':
+                return (
+                    <DescriptionSegmentationSuggestionCard
+                        suggestion={item as unknown as SuggestedDescriptionSegmentationItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
             case 'spdx-license-suggestion':
                 return (
                     <SpdxRightsSuggestionCard

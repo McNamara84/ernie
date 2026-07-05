@@ -8,6 +8,7 @@ import type {
     BaseSuggestionItem,
     PaginatedData,
     SuggestedCrossrefFunderRorItem,
+    SuggestedDescriptionSegmentationItem,
     SuggestedOrcidItem,
     SuggestedRorItem,
     SuggestedSpdxRightsItem,
@@ -63,6 +64,9 @@ const CROSSREF_FUNDER_ROR_ASSISTANT_NAME = 'Crossref Funder ROR Suggestions';
 const SUBJECT_METADATA_ASSISTANT_ID = 'subject-metadata-enrichment';
 const SUBJECT_METADATA_ROUTE_PREFIX = 'subject-metadata-enrichment';
 const SUBJECT_METADATA_ASSISTANT_NAME = 'Subject Metadata Enrichment';
+const DESCRIPTION_SEGMENTATION_ASSISTANT_ID = 'description-segmentation';
+const DESCRIPTION_SEGMENTATION_ROUTE_PREFIX = 'description-segmentation';
+const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Suggestions';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
@@ -328,6 +332,75 @@ function makeSubjectMetadataEnrichmentSuggestion(overrides: Partial<SuggestedSub
         similarity_score: 1,
         metadata: metadataOverride ?? metadata,
         discovered_at: '2026-07-04T10:00:00+00:00',
+        ...rest,
+    };
+}
+function makeDescriptionSegmentationSuggestion(overrides: Partial<SuggestedDescriptionSegmentationItem> = {}): SuggestedDescriptionSegmentationItem {
+    const metadata: SuggestedDescriptionSegmentationItem['metadata'] = {
+        contract_version: '1.0',
+        issue: 816,
+        policy_version: 'issue-815-v1',
+        current: {
+            description_id: 815,
+            resource_id: 70,
+            description_type: 'Abstract',
+            value: 'Legacy overview paragraph that explains the dataset scope and context.\n\nMethods:\nStations were installed and calibrated.\n\nTechnical information:\nCSV and NetCDF files are included.',
+            value_hash: 'abc123',
+            language: 'en',
+        },
+        proposed: {
+            remaining_abstract: 'Legacy overview paragraph that explains the dataset scope and context.',
+            target_types: ['Methods', 'TechnicalInfo'],
+            segments: [
+                {
+                    description_type: 'Methods',
+                    value: 'Stations were installed and calibrated with quality control procedures before processing.',
+                    language: 'en',
+                    confidence: 'medium',
+                    confidence_score: 0.65,
+                    evidence_label: 'Methods',
+                    evidence_types: ['heading'],
+                },
+                {
+                    description_type: 'TechnicalInfo',
+                    value: 'CSV and NetCDF files are included with coordinate metadata and processing history files.',
+                    language: 'en',
+                    confidence: 'medium',
+                    confidence_score: 0.65,
+                    evidence_label: 'Technical information',
+                    evidence_types: ['heading'],
+                },
+            ],
+        },
+        confidence: {
+            level: 'medium',
+            score: 0.65,
+            evidence: ['heading'],
+        },
+        acceptance: {
+            updates: {
+                source_description: 'replace_abstract_value',
+                new_descriptions: ['Methods', 'TechnicalInfo'],
+            },
+            preconditions: ['source description still exists', 'source description text still matches the reviewed preview hash'],
+            stale_if: ['source Abstract text changed'],
+        },
+    };
+
+    const { metadata: metadataOverride, ...rest } = overrides;
+
+    return {
+        id: 815,
+        resource_id: 70,
+        resource_doi: '10.5880/test.2026.815',
+        resource_title: 'Description segmentation example resource',
+        target_type: 'description',
+        target_id: 815,
+        suggested_value: 'description-segmentation:abc123',
+        suggested_label: 'Split Abstract into Methods, TechnicalInfo',
+        similarity_score: 0.65,
+        metadata: metadataOverride ?? metadata,
+        discovered_at: '2026-07-05T10:00:00+00:00',
         ...rest,
     };
 }
@@ -1073,5 +1146,71 @@ describe('RorSuggestionCard – ROR link', () => {
 
         expect(screen.queryByRole('link', { name: 'https://ror.org/search' })).not.toBeInTheDocument();
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
+    });
+});
+
+describe('DescriptionSegmentationSuggestionCard - description split preview', () => {
+    it('shows the current abstract, proposed abstract, and new description segments', () => {
+        const suggestion = makeDescriptionSegmentationSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [DESCRIPTION_SEGMENTATION_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[
+                    makeManifest(
+                        DESCRIPTION_SEGMENTATION_ASSISTANT_ID,
+                        DESCRIPTION_SEGMENTATION_ROUTE_PREFIX,
+                        DESCRIPTION_SEGMENTATION_ASSISTANT_NAME,
+                    ),
+                ]}
+            />,
+        );
+
+        expect(screen.getByText('Current Abstract')).toBeInTheDocument();
+        expect(screen.getByText('Proposed Abstract')).toBeInTheDocument();
+        expect(screen.getByText('New Description segments')).toBeInTheDocument();
+        expect(screen.getByText('Split Abstract into Methods, Technical Info')).toBeInTheDocument();
+        expect(screen.getAllByText('Methods')).not.toHaveLength(0);
+        expect(screen.getByText('Methods, Technical Info')).toBeInTheDocument();
+        expect(screen.getByText('Technical Info')).toBeInTheDocument();
+        expect(screen.queryByText('TechnicalInfo')).not.toBeInTheDocument();
+        expect(screen.getAllByText(/Legacy overview paragraph that explains the dataset scope/)).toHaveLength(2);
+        expect(screen.getByText(/Stations were installed and calibrated with quality control procedures/)).toBeInTheDocument();
+        expect(screen.getByText(/CSV and NetCDF files are included with coordinate metadata/)).toBeInTheDocument();
+        expect(screen.getByText(/Accept replaces only the source Abstract text/)).toBeInTheDocument();
+        expect(screen.getByText(/Policy: issue-815-v1/)).toBeInTheDocument();
+    });
+
+    it('posts accept and decline requests through the description segmentation route prefix', async () => {
+        const suggestion = makeDescriptionSegmentationSuggestion({ id: 916 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Description segmentation applied.' } }).mockResolvedValueOnce({ data: {} });
+
+        render(
+            <AssistancePage
+                sections={{ [DESCRIPTION_SEGMENTATION_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[
+                    makeManifest(
+                        DESCRIPTION_SEGMENTATION_ASSISTANT_ID,
+                        DESCRIPTION_SEGMENTATION_ROUTE_PREFIX,
+                        DESCRIPTION_SEGMENTATION_ASSISTANT_NAME,
+                    ),
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByTestId('description-segmentation-accept-916'));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/description-segmentation/916/accept');
+            expect(screen.getByTestId('description-segmentation-accept-916')).not.toBeDisabled();
+        });
+
+        await user.click(screen.getByTestId('description-segmentation-decline-916'));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/description-segmentation/916/decline');
+        });
     });
 });

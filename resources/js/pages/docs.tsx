@@ -594,6 +594,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary
                                 caches while preserving imported subject text
                             </li>
+                            <li>
+                                <strong>Description Segmentation Suggestions</strong> - Reviews long legacy Abstract descriptions and proposes curator-approved
+                                splits into DataCite Methods, Technical Information, Table of Contents, or Series Information descriptions
+                            </li>
                         </ul>
 
                         <h4>Workflow</h4>
@@ -626,6 +630,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and lang. Accepting revalidates the match
                                     against the current local vocabulary cache, updates only the listed fields, and preserves the original subject
                                     text. Free Keyword transfer suggestions show a warning before they become controlled thesaurus keywords.
+                                </p>
+                                <p className="mt-2">
+                                    Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract and every
+                                    new Description segment. Accepting replaces only the reviewed source Abstract text and creates the listed Methods,
+                                    Technical Information, Table of Contents, or Series Information descriptions; stale suggestions are rejected if the
+                                    source Abstract changed after discovery.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
