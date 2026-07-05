@@ -130,6 +130,10 @@
             {
                 "title": "Assistance: Subject Metadata Enrichment",
                 "description": "The Assistance page now includes a Subject Metadata Enrichment assistant for completing DataCite Subject metadata from supported local vocabulary caches. It detects legacy breadcrumb paths, stable concept URIs, notation-backed concepts, and globally unique free keywords, shows provenance and transfer warnings, and lets curators accept only the proposed subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and language updates while preserving the imported subject text."
+            },
+            {
+                "title": "Assistance: Description Segmentation Suggestions",
+                "description": "The Assistance page now includes a Description Segmentation assistant for reviewing long legacy Abstract descriptions before splitting them into more precise DataCite description types. Suggestions show the current Abstract, the proposed remaining Abstract, target segments for Methods, Technical Information, Table of Contents, or Series Information, and evidence metadata. Accepting a suggestion updates only the reviewed Abstract and creates the listed Description records; declining keeps the legacy Abstract unchanged and dismisses that preview."
             }
         ],
         "improvements": [
