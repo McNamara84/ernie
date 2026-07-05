@@ -13,7 +13,7 @@ final class DateTypeAcceptanceService
     /** @return array{success: bool, message: string} */
     public function accept(AssistantSuggestion $suggestion): array
     {
-        if ($suggestion->target_type === DateTypeDiscoveryService::TARGET_TYPE) {
+        if ($suggestion->target_type === DateTypeDiscoveryService::GEOLOCATION_COUNT_TARGET_TYPE) {
             return $this->acceptCollectedCoverageCorrection($suggestion);
         }
 
