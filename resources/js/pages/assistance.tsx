@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, CalendarDays, Check, MapPin, RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarDays, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -1291,7 +1291,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         } else {
                             toast.info(message);
                         }
-                        router.reload({ only: ['sections', 'manifests', 'pendingAssistanceTotalCount'] });
+                        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
                     } else if (status.status === 'failed') {
                         pollingRefs.current[id] = null;
                         patch(id, { isChecking: false, progress: '' });
@@ -1398,7 +1398,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 } else {
                     toast.warning(data.message);
                 }
-                router.reload({ only: ['sections', 'manifests', 'pendingAssistanceTotalCount'] });
+                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
             } catch {
                 toast.error('Failed to accept suggestion.');
             } finally {
@@ -1415,7 +1415,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             try {
                 await axios.post(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
                 toast.info('Suggestion declined.');
-                router.reload({ only: ['sections', 'manifests', 'pendingAssistanceTotalCount'] });
+                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
             } catch {
                 toast.error('Failed to decline suggestion.');
             } finally {
@@ -1465,15 +1465,6 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 return (
                     <DescriptionSegmentationSuggestionCard
                         suggestion={item as unknown as SuggestedDescriptionSegmentationItem}
-                        onAccept={onAccept}
-                        onDecline={onDecline}
-                        isProcessing={isProcessing}
-                    />
-                );
-            case 'date-type-suggestion':
-                return (
-                    <DateTypeSuggestionCard
-                        suggestion={item}
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
