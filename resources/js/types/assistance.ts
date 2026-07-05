@@ -225,6 +225,59 @@ export interface SuggestedSubjectMetadataEnrichmentItem extends BaseSuggestionIt
     similarity_score: number | null;
     metadata: SubjectMetadataEnrichmentSuggestionMetadata | null;
 }
+export interface DescriptionSegmentationCurrentMetadata {
+    description_id?: number;
+    resource_id?: number;
+    description_type?: string;
+    value?: string;
+    value_hash?: string;
+    language?: string | null;
+}
+
+export interface DescriptionSegmentationSegmentMetadata {
+    description_type?: string;
+    value?: string;
+    language?: string | null;
+    confidence?: string | null;
+    confidence_score?: number | null;
+    evidence_label?: string | null;
+    evidence_types?: string[];
+    source_ranges?: Array<{ start?: number; end?: number }>;
+}
+
+export interface DescriptionSegmentationSuggestionMetadata {
+    contract_version?: string;
+    issue?: number;
+    policy_version?: string;
+    current?: DescriptionSegmentationCurrentMetadata;
+    proposed?: {
+        remaining_abstract?: string;
+        segments?: DescriptionSegmentationSegmentMetadata[];
+        target_types?: string[];
+    };
+    confidence?: {
+        level?: string;
+        score?: number;
+        evidence?: string[];
+    };
+    acceptance?: {
+        updates?: {
+            source_description?: string;
+            new_descriptions?: string[];
+        };
+        preconditions?: string[];
+        stale_if?: string[];
+    };
+}
+
+export interface SuggestedDescriptionSegmentationItem extends BaseSuggestionItem {
+    target_type: 'description';
+    target_id: number;
+    suggested_value: string;
+    suggested_label: string;
+    similarity_score: number | null;
+    metadata: DescriptionSegmentationSuggestionMetadata | null;
+}
 export interface AssistancePageProps {
     sections: Record<string, PaginatedData<BaseSuggestionItem>>;
     manifests: AssistantManifest[];
