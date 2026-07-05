@@ -165,6 +165,23 @@ function makeSizeFormatSuggestion(overrides: Partial<BaseSuggestionItem> = {}): 
     };
 }
 
+function makeGenericSuggestion(overrides: Partial<BaseSuggestionItem> = {}): BaseSuggestionItem {
+    return {
+        id: 88,
+        resource_id: 80,
+        resource_doi: '10.5880/test.2026.088',
+        resource_title: 'Generic suggestion example resource',
+        target_type: 'date_type',
+        target_id: 88,
+        suggested_value: '2024-07-01',
+        suggested_label: 'Suggestion',
+        similarity_score: null,
+        metadata: {},
+        discovered_at: '2026-07-05T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
 function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFunderRorItem> = {}): SuggestedCrossrefFunderRorItem {
     const metadata: SuggestedCrossrefFunderRorItem['metadata'] = {
         current: {
@@ -1215,9 +1232,9 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
     });
 });
 
-describe('DateTypeSuggestionCard - review hints', () => {
+describe('Generic assistance card- review hints', () => {
     it('renders review hints without accept or decline actions', () => {
-        const suggestion = makeDateTypeSuggestion({
+        const suggestion = makeGenericSuggestion({
             suggested_label:
                 'Created (2024-07-01) occurs after Submitted (2024-06-18). Please check whether the date values or date types are assigned correctly.',
             metadata: {
@@ -1238,7 +1255,7 @@ describe('DateTypeSuggestionCard - review hints', () => {
     });
 
     it('keeps accept and decline actions for date type suggestions', () => {
-        const suggestion = makeDateTypeSuggestion({
+        const suggestion = makeGenericSuggestion({
             suggested_label: 'CREATED: 2024-07-01',
             suggested_value: '2024-07-01',
             metadata: {
