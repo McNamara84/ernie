@@ -266,6 +266,41 @@ describe('loadSuggestions', function () {
             ->and($item['resource_doi'])->toBe($resource->doi)
             ->and($item)->toHaveKeys(['id', 'assistant_id', 'resource_id', 'target_type', 'target_id', 'discovered_at']);
     });
+
+    it('sorts suggestions by newest resource first', function () {
+        $olderResource = Resource::factory()->create([
+            'created_at' => now()->subDays(10),
+        ]);
+        $newerResource = Resource::factory()->create([
+            'created_at' => now()->subDay(),
+        ]);
+        $assistant = new TestGenericAssistant;
+
+        AssistantSuggestion::create([
+            'assistant_id' => $assistant->getId(),
+            'resource_id' => $olderResource->id,
+            'target_type' => 'right',
+            'target_id' => 1,
+            'suggested_value' => 'older',
+            'suggested_label' => 'Older suggestion',
+            'discovered_at' => now(),
+        ]);
+
+        AssistantSuggestion::create([
+            'assistant_id' => $assistant->getId(),
+            'resource_id' => $newerResource->id,
+            'target_type' => 'right',
+            'target_id' => 2,
+            'suggested_value' => 'newer',
+            'suggested_label' => 'Newer suggestion',
+            'discovered_at' => now()->subDays(5),
+        ]);
+
+        $items = $assistant->loadSuggestions(25)->items();
+
+        expect($items[0]['suggested_value'])->toBe('newer')
+            ->and($items[1]['suggested_value'])->toBe('older');
+    });
 });
 
 // =========================================================================

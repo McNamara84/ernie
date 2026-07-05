@@ -29,10 +29,10 @@ class Assistant extends AbstractAssistant
     #[\Override]
     protected function getManifestPath(): string
     {
-        return __DIR__ . '/manifest.json';
+        return __DIR__.'/manifest.json';
     }
 
-       #[\Override]
+    #[\Override]
     protected function query(int $perPage): LengthAwarePaginator
     {
         return SuggestedRelation::with(['resource.titles.titleType', 'identifierType', 'relationType'])
