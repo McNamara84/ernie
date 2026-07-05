@@ -194,7 +194,9 @@ final readonly class SubjectEnrichmentMatcher
 
     private function hasUsefulControlledUpdate(SubjectEnrichmentMatchInput $input, SubjectVocabularyConcept $concept): bool
     {
-        if ($input->subjectScheme !== $concept->scheme) {
+        $subjectScheme = $this->lookup->canonicalSubjectScheme($concept->scheme) ?? $concept->scheme;
+
+        if ($input->subjectScheme !== $subjectScheme) {
             return true;
         }
 

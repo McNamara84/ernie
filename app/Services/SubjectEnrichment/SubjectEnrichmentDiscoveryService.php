@@ -20,6 +20,7 @@ final readonly class SubjectEnrichmentDiscoveryService
     public function __construct(
         private SubjectEnrichmentMatchInputProvider $inputProvider,
         private SubjectEnrichmentMatcher $matcher,
+        private SubjectVocabularyLookupService $lookup,
     ) {}
 
     /**
@@ -170,9 +171,10 @@ final readonly class SubjectEnrichmentDiscoveryService
     private function proposedPayload(SubjectEnrichmentMatchInput $input, SubjectVocabularyConcept $concept): array
     {
         $valueUri = $concept->valueUri();
+        $subjectScheme = $this->lookup->canonicalSubjectScheme($concept->scheme) ?? $concept->scheme;
         $updates = [];
 
-        $this->addUpdate($updates, 'subject_scheme', $input->subjectScheme, $concept->scheme);
+        $this->addUpdate($updates, 'subject_scheme', $input->subjectScheme, $subjectScheme);
         $this->addUpdate($updates, 'scheme_uri', $input->schemeUri, $concept->schemeUri);
         $this->addUpdate($updates, 'value_uri', $input->valueUri, $valueUri);
         $this->addUpdate($updates, 'classification_code', $input->classificationCode, $concept->classificationCode);
@@ -180,7 +182,7 @@ final readonly class SubjectEnrichmentDiscoveryService
         $this->addUpdate($updates, 'language', $input->language, $concept->language);
 
         return [
-            'subject_scheme' => $concept->scheme,
+            'subject_scheme' => $subjectScheme,
             'scheme_uri' => $concept->schemeUri,
             'value_uri' => $valueUri,
             'classification_code' => $concept->classificationCode,
@@ -192,7 +194,9 @@ final readonly class SubjectEnrichmentDiscoveryService
                 'value',
                 'resource_id',
             ],
-            'concept' => $concept->toVocabularyPayload(),
+            'concept' => array_replace($concept->toVocabularyPayload(), [
+                'scheme' => $subjectScheme,
+            ]),
         ];
     }
 
@@ -274,7 +278,9 @@ final readonly class SubjectEnrichmentDiscoveryService
 
     private function suggestedLabel(SubjectVocabularyConcept $concept): string
     {
-        return sprintf('Complete subject metadata for "%s" from %s', $concept->label, $concept->scheme);
+        $subjectScheme = $this->lookup->canonicalSubjectScheme($concept->scheme) ?? $concept->scheme;
+
+        return sprintf('Complete subject metadata for "%s" from %s', $concept->label, $subjectScheme);
     }
 
     private function filledString(mixed $value): ?string

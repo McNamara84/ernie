@@ -22,6 +22,11 @@ it('reports source metadata for missing supported caches and rejects unsupported
 
     expect($lookup->normalizeSupportedScheme('NASA/GCMD Earth Science Keywords'))->toBe('Science Keywords')
         ->and($lookup->normalizeSupportedScheme('unknown scheme'))->toBeNull()
+        ->and($lookup->canonicalSubjectScheme('Science Keywords'))->toBe('GCMD Science Keywords')
+        ->and($lookup->canonicalSubjectScheme('Platforms'))->toBe('GCMD Platforms')
+        ->and($lookup->canonicalSubjectScheme('Instruments'))->toBe('GCMD Instruments')
+        ->and($lookup->canonicalSubjectScheme('EPOS MSL vocabulary'))->toBe('EPOS MSL vocabulary')
+        ->and($lookup->canonicalSubjectScheme('unknown scheme'))->toBeNull()
         ->and($lookup->canonicalSchemeUri('unknown scheme'))->toBeNull()
         ->and($lookup->isSchemeAvailable('unknown scheme'))->toBeFalse()
         ->and($lookup->isSchemeAvailable('Science Keywords'))->toBeFalse();

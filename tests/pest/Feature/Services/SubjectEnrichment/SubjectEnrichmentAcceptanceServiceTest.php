@@ -151,6 +151,7 @@ function subjectAcceptanceDiscoveryService(): SubjectEnrichmentDiscoveryService
     return new SubjectEnrichmentDiscoveryService(
         inputProvider: new SubjectEnrichmentMatchInputProvider,
         matcher: new SubjectEnrichmentMatcher($lookup),
+        lookup: $lookup,
     );
 }
 
@@ -263,12 +264,39 @@ it('accepts controlled GCMD suggestions and preserves the imported subject text'
         ->and(AssistantSuggestion::find($suggestion->id))->toBeNull()
         ->and($subject->value)->toBe('Science Keywords > EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER')
         ->and($subject->resource_id)->toBe($resource->id)
-        ->and($subject->subject_scheme)->toBe('Science Keywords')
+        ->and($subject->subject_scheme)->toBe('GCMD Science Keywords')
         ->and($subject->scheme_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords')
         ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/0e916c3b-d9ac-4fe1-bc7c-18772784f7fb')
         ->and($subject->classification_code)->toBeNull()
         ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > ATMOSPHERE > AEROSOLS > PARTICULATE MATTER')
         ->and($subject->getAttribute('language'))->toBe('en');
+});
+
+it('rejects suggestions that propose internal GCMD lookup keys as subject schemes', function (): void {
+    subjectAcceptancePutVocabulary('gcmd-science-keywords.json', subjectAcceptanceGcmdData());
+
+    $resource = Resource::factory()->withDoi('10.5880/GFZ.2026.81420')->create();
+    $subject = subjectAcceptanceCreateSubject($resource, [
+        'subject_scheme' => 'NASA/GCMD Earth Science Keywords',
+    ]);
+    $suggestion = subjectAcceptanceSuggestionFor($subject);
+
+    $metadata = $suggestion->metadata;
+    if (! is_array($metadata)) {
+        throw new RuntimeException('Expected subject enrichment metadata.');
+    }
+
+    $metadata['proposed']['subject_scheme'] = 'Science Keywords';
+    $metadata['proposed']['updates']['subject_scheme'] = 'Science Keywords';
+    $suggestion->update(['metadata' => $metadata]);
+
+    $result = app(Assistant::class)->acceptSuggestion($suggestion->id);
+    $subject->refresh();
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('canonical subject scheme')
+        ->and($subject->subject_scheme)->toBe('NASA/GCMD Earth Science Keywords')
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
 });
 
 it('accepts globally unique free keyword transfers while preserving the free keyword value', function (): void {
