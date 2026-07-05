@@ -353,11 +353,15 @@ describe('Dashboard', () => {
             fireEvent.mouseEnter(environmentCard);
         }
 
-        await waitFor(() => {
-            expect(document.querySelector('img[src="/images/unicorn.png"]')).toBeInTheDocument();
+        const unicornImage = await waitFor(() => {
+            const image = document.querySelector<HTMLImageElement>('img[src="/images/unicorn.png"]');
+            expect(image).toBeInTheDocument();
+            if (!image) {
+                throw new Error('Expected unicorn overlay image to be rendered');
+            }
+            return image;
         });
 
-        const unicornImage = document.querySelector('img[src="/images/unicorn.png"]');
         expect(unicornImage).toHaveAttribute('alt', '');
         expect(unicornImage).toHaveAttribute('aria-hidden', 'true');
     });

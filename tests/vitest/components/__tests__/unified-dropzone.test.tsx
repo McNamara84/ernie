@@ -358,6 +358,7 @@ describe('UnifiedDropzone', () => {
             });
 
             expect(screen.getByTestId('error-modal')).toBeInTheDocument();
+            expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
         });
         it('shows error when fetch rejects', async () => {
             vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));

@@ -374,7 +374,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                     </Alert>
 
                     {/* Show CSV-specific errors */}
-                    {lastUploadType === 'csv' && csvResult?.errors && csvResult.errors.length > 0 && (
+                    {lastUploadType === 'csv' && !showErrorModal && csvResult?.errors && csvResult.errors.length > 0 && (
                         <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
                             <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
                             <ul className="space-y-1 text-sm">
