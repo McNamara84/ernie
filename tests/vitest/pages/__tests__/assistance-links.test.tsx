@@ -655,3 +655,47 @@ describe('RorSuggestionCard – ROR link', () => {
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
     });
 });
+
+describe('DateTypeSuggestionCard - review hints', () => {
+    it('renders review hints without accept or decline actions', () => {
+        const suggestion = makeDateTypeSuggestion({
+            suggested_label:
+                'Created (2024-07-01) occurs after Submitted (2024-06-18). Please check whether the date values or date types are assigned correctly.',
+            metadata: {
+                suggestion_kind: 'review',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/^Hint: Created/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Decline' })).not.toBeInTheDocument();
+    });
+
+    it('keeps accept and decline actions for date type suggestions', () => {
+        const suggestion = makeDateTypeSuggestion({
+            suggested_label: 'CREATED: 2024-07-01',
+            suggested_value: '2024-07-01',
+            metadata: {
+                suggestion_kind: 'addition',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByText(/^Hint:/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
+    });
+});

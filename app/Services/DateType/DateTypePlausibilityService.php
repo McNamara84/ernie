@@ -7,7 +7,7 @@ namespace App\Services\DateType;
 final class DateTypePlausibilityService
 {
     /**
-     * Warum?
+     * Warum diese Reihenfolge?
      * Collected -> Daten wurden erhoben 
      * Created -> Daten wurden erstellt
      * Submitted -> Datensatz wurde eingereicht 
@@ -15,14 +15,21 @@ final class DateTypePlausibilityService
      * Issued -> Datensatz wurde veröffentlicht
      * Available -> Öffentlich verfügbar
      */
-    private const DATE_TYPE_ORDER = [
+    private const DATE_VALUE_ORDER = [
         ['Collected', 'Created'],
+        ['Collected', 'Submitted'],
+        ['Collected', 'Accepted'],
         ['Collected', 'Issued'],
+        ['Collected', 'Available'],
         ['Created', 'Submitted'],
         ['Created', 'Accepted'],
         ['Created', 'Issued'],
+        ['Created', 'Available'],
         ['Submitted', 'Accepted'],
+        ['Submitted', 'Issued'],
+        ['Submitted', 'Available'],
         ['Accepted', 'Issued'],
+        ['Accepted', 'Available'],
         ['Issued', 'Available'],
     ];
     
@@ -34,29 +41,45 @@ final class DateTypePlausibilityService
     {
         $warnings = [];
 
-        foreach (self::DATE_TYPE_ORDER as [$earlier, $later]) 
-        {
+        $presentTypes = array_keys($dates);
+
+        foreach (self::DATE_VALUE_ORDER as [$earlier, $later]) {
             if (! isset($dates[$earlier], $dates[$later])) {
-            continue;
+                continue;
             }
 
-            if ($dates[$earlier] > $dates[$later])
-            {
-                $warnings[] = 
-                [
-                    'suggestion_kind' => 'review',
-                    'message' => sprintf(
-                        '%s (%s) occurs after %s (%s). Please check that the date types are assigned correctly.',
-                        $earlier,
-                        $dates[$earlier],
-                        $later,
-                        $dates[$later],
-                    ),
-                    'confidence' => 'medium',
-                    'is_ambiguous' => true,
-                ];
+            $earlierPosition = array_search($earlier, $presentTypes, true);
+            $laterPosition = array_search($later, $presentTypes, true);
+            $typeOrderWrong = $earlierPosition !== false
+                && $laterPosition !== false
+                && $earlierPosition > $laterPosition;
+            $valueOrderWrong = $dates[$earlier] > $dates[$later];
+            
+            if ($typeOrderWrong || $valueOrderWrong) {
+                $warnings[] = $this->warning(
+                    $earlier,
+                    $dates[$earlier],
+                    $later,
+                    $dates[$later],
+                );
             }
         }
-        return $warnings;
+        return $warnings;     
+    }
+
+    private function warning(string $earlier, string $earlierValue, string $later, string $laterValue): array
+    {
+        return [
+            'suggestion_kind' => 'review',
+            'message' => sprintf(
+                '%s (%s) occurs after %s (%s). Please check whether the date values or date types are assigned correctly.',
+                $earlier,
+                $earlierValue,
+                $later,
+                $laterValue,
+            ),
+            'confidence' => 'medium',
+            'is_ambiguous' => true,
+        ];
     }
 }
