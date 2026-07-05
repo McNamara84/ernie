@@ -165,6 +165,7 @@ describe('UnifiedDropzone', () => {
             });
 
             expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
             expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
             expect(mockVisit).not.toHaveBeenCalled();
         });
@@ -237,6 +238,7 @@ describe('UnifiedDropzone', () => {
             });
 
             expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
             expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
             expect(mockVisit).not.toHaveBeenCalled();
         });
@@ -301,6 +303,33 @@ describe('UnifiedDropzone', () => {
             });
         });
 
+        it('shows row errors for structured CSV upload failures', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        success: false,
+                        message: 'Invalid CSV data',
+                        errors: [{ row: 2, igsn: 'TEST001', message: 'Duplicate IGSN' }],
+                    }),
+                    {
+                        status: 422,
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                ),
+            );
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('bad.csv', 'text/csv'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('Row Errors:')).toBeInTheDocument();
+            expect(screen.getByText(/Row 2:/)).toBeInTheDocument();
+            expect(screen.getByText('TEST001')).toBeInTheDocument();
+            expect(screen.getByText('Duplicate IGSN')).toBeInTheDocument();
+        });
         it('shows error when fetch rejects', async () => {
             vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 

@@ -253,6 +253,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setSelectedFile(file);
             setLastUploadType('xml');
             setError(null);
+            setCsvResult(null);
             setSuccessResult(null);
 
             try {
@@ -279,6 +280,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setSelectedFile(file);
             setLastUploadType('json');
             setError(null);
+            setCsvResult(null);
             setSuccessResult(null);
 
             try {
@@ -361,7 +363,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 </Alert>
 
                 {/* Show CSV-specific errors */}
-                {csvResult?.errors && csvResult.errors.length > 0 && (
+                {lastUploadType === 'csv' && csvResult?.errors && csvResult.errors.length > 0 && (
                     <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
                         <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
                         <ul className="space-y-1 text-sm">
