@@ -31,7 +31,7 @@ export type DataCiteUploadResult = {
     filename: string;
     resourceId?: string | null;
     sessionKey?: string | null;
-    editorUrl?: string | null;
+    editorUrl: string;
     message?: string;
 };
 
@@ -79,6 +79,14 @@ function normalizeErrors(errors?: LegacyUploadError[] | UploadError[]): UploadEr
             identifier: legacy.igsn,
         };
     });
+}
+
+function requireDataCiteEditorTarget(result: DataCiteUploadResult | undefined, filename: string): DataCiteUploadResult {
+    if (!result?.editorUrl || result.editorUrl.trim() === '') {
+        throw new Error(`Upload completed for ${filename}, but no editor target was returned. Please try again or contact support.`);
+    }
+
+    return result;
 }
 
 export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzoneProps) {
@@ -248,16 +256,9 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setSuccessResult(null);
 
             try {
-                const result = await onXmlUpload([file]);
+                const result = requireDataCiteEditorTarget(await onXmlUpload([file]), file.name);
                 setUploadProgress(100);
-                setSuccessResult(
-                    result ?? {
-                        success: true,
-                        uploadKind: 'datacite',
-                        filename: file.name,
-                        editorUrl: null,
-                    },
-                );
+                setSuccessResult(result);
                 setUploadState('success');
                 feedback.uploadSucceeded(file.name, 'Draft metadata is ready to review from the upload panel.');
             } catch (err) {
@@ -281,16 +282,9 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setSuccessResult(null);
 
             try {
-                const result = await onJsonUpload([file]);
+                const result = requireDataCiteEditorTarget(await onJsonUpload([file]), file.name);
                 setUploadProgress(100);
-                setSuccessResult(
-                    result ?? {
-                        success: true,
-                        uploadKind: 'datacite',
-                        filename: file.name,
-                        editorUrl: null,
-                    },
-                );
+                setSuccessResult(result);
                 setUploadState('success');
                 feedback.uploadSucceeded(file.name, 'Draft metadata is ready to review from the upload panel.');
             } catch (err) {
@@ -467,7 +461,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
 
                 <div className="flex flex-wrap justify-center gap-2">
                     {successResult.uploadKind === 'datacite' && successResult.editorUrl && (
-                        <Button type="button" onClick={() => router.visit(successResult.editorUrl ?? '')}>
+                        <Button type="button" onClick={() => router.visit(successResult.editorUrl)}>
                             <ExternalLink className="h-4 w-4" />
                             Open in editor
                         </Button>

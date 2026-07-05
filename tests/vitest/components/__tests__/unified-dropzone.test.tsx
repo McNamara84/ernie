@@ -65,8 +65,20 @@ describe('UnifiedDropzone', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        mockOnXmlUpload.mockResolvedValue(undefined);
-        mockOnJsonUpload.mockResolvedValue(undefined);
+        mockOnXmlUpload.mockImplementation(async (files: File[]) => ({
+            success: true,
+            uploadKind: 'datacite',
+            filename: files[0]?.name ?? 'metadata.xml',
+            resourceId: '1',
+            editorUrl: '/editor?resourceId=1',
+        }));
+        mockOnJsonUpload.mockImplementation(async (files: File[]) => ({
+            success: true,
+            uploadKind: 'datacite',
+            filename: files[0]?.name ?? 'metadata.json',
+            resourceId: '2',
+            editorUrl: '/editor?resourceId=2',
+        }));
     });
 
     describe('idle state', () => {
@@ -142,6 +154,20 @@ describe('UnifiedDropzone', () => {
             await userEvent.click(screen.getByRole('button', { name: /open in editor/i }));
             expect(mockVisit).toHaveBeenCalledWith('/editor?resourceId=42');
         });
+        it('shows an error when XML upload returns no editor target', async () => {
+            mockOnXmlUpload.mockResolvedValue(undefined);
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('metadata.xml', 'text/xml'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+        });
     });
 
     describe('JSON upload', () => {
@@ -198,6 +224,20 @@ describe('UnifiedDropzone', () => {
             });
 
             expect(screen.getByText('DataCite upload complete')).toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+        });
+        it('shows an error when JSON upload returns no editor target', async () => {
+            mockOnJsonUpload.mockResolvedValue(undefined);
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('metadata.json', 'application/json'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
             expect(mockVisit).not.toHaveBeenCalled();
         });
     });
