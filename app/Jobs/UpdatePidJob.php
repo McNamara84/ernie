@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Background job for updating PID4INST instruments from b2inst API.
+ * Background job for updating configured PID registry data.
  *
- * Wraps the get-pid4inst-instruments artisan command and provides
+ * Wraps the PID-specific artisan command and provides
  * progress tracking via cache for the frontend to poll.
  */
 class UpdatePidJob implements ShouldQueue
@@ -41,7 +41,7 @@ class UpdatePidJob implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param  string  $pidType  The PID type (pid4inst)
+     * @param  string  $pidType  The PID type (pid4inst, ror, raid)
      * @param  string  $jobId  Unique identifier for progress tracking (UUID format)
      *
      * @throws \InvalidArgumentException If pidType is invalid or jobId is not a valid UUID
@@ -52,7 +52,7 @@ class UpdatePidJob implements ShouldQueue
     ) {
         if (! in_array($pidType, PidSetting::getValidTypes(), true)) {
             throw new \InvalidArgumentException(
-                "Invalid PID type: {$pidType}. Valid types: " . implode(', ', PidSetting::getValidTypes())
+                "Invalid PID type: {$pidType}. Valid types: ".implode(', ', PidSetting::getValidTypes())
             );
         }
 
@@ -86,6 +86,7 @@ class UpdatePidJob implements ShouldQueue
         $progressMessage = match ($this->pidType) {
             PidSetting::TYPE_PID4INST => 'Fetching instruments from b2inst API...',
             PidSetting::TYPE_ROR => 'Fetching organizations from ROR data dump...',
+            PidSetting::TYPE_RAID => 'Fetching RAiD projects from DataCite...',
             default => 'Fetching data...',
         };
 

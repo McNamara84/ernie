@@ -163,9 +163,9 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">License</p>
                             <div className="flex flex-col gap-2">
                                 {licenses.map((license) => {
-                                    const title = license.spdx_id ? `SPDX: ${license.spdx_id}` : license.name;
+                                    const title = license.spdx_id ?? license.name;
                                     const icon = license.spdx_id ? (
-                                        <CreativeCommonsIcon spdxId={license.spdx_id} className="h-4 w-4" />
+                                        <CreativeCommonsIcon spdxId={license.spdx_id} />
                                     ) : license.reference ? (
                                         <ExternalLink className="h-4 w-4" aria-hidden="true" />
                                     ) : null;
@@ -180,6 +180,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                         return (
                                             <span
                                                 key={license.id}
+                                                data-testid="license-badge"
                                                 className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300"
                                                 title={title}
                                             >
@@ -194,6 +195,7 @@ export function FilesSection({ downloadUrl, downloadFiles, licenses, contactPers
                                             href={license.reference}
                                             target="_blank"
                                             rel="noopener noreferrer"
+                                            data-testid="license-badge"
                                             className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
                                             title={title}
                                         >

@@ -8,12 +8,27 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { DateType, DescriptionType, Language, License, ResourceType, Role, TitleType } from '@/types';
+import type { LandingPageConfig } from '@/types/landing-page';
 
-const { mockRouterPut, mockRouterVisit, mockUsePageProps } = vi.hoisted(() => ({
+type MockSetupLandingPageModalProps = {
+    isOpen: boolean;
+    resource?: {
+        id: number;
+        doi?: string | null;
+        title?: string;
+        resourcetypegeneral?: string;
+    };
+    onClose?: () => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
+    openPreviewOnSuccess?: boolean;
+};
+
+const { mockRouterPut, mockRouterVisit, mockSetupLandingPageModal, mockUsePageProps } = vi.hoisted(() => ({
     mockRouterPut: vi.fn(),
     mockRouterVisit: vi.fn().mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
         options?.onSuccess?.();
     }),
+    mockSetupLandingPageModal: vi.fn(),
     mockUsePageProps: vi.fn(() => ({
         curationAccordionOpenItems: null as string[] | null,
     })),
@@ -34,6 +49,17 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
+vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    default: (props: MockSetupLandingPageModalProps) => {
+        mockSetupLandingPageModal(props);
+
+        if (!props.isOpen) {
+            return null;
+        }
+
+        return <div data-testid="setup-landing-page-modal" />;
+    },
+}));
 vi.mock('sonner', () => ({
     toast: {
         success: vi.fn(),
@@ -293,6 +319,7 @@ describe('DataCiteForm', () => {
         // Reset router mock for each test
         mockRouterPut.mockClear();
         mockRouterVisit.mockClear();
+        mockSetupLandingPageModal.mockClear();
         mockRouterVisit.mockImplementation((_url: string, options?: { onSuccess?: () => void }) => {
             options?.onSuccess?.();
         });
@@ -413,6 +440,107 @@ describe('DataCiteForm', () => {
             />,
         );
 
+    describe('Floating editor actions (Issue #969)', () => {
+        it('keeps the editor action buttons in a fixed bottom-right action cluster', () => {
+            renderDataCiteForm();
+
+            const floatingActions = screen.getByTestId('editor-floating-actions');
+            const floatingPanel = screen.getByTestId('editor-floating-actions-panel');
+            const form = floatingActions.closest('form');
+
+            expect(form).toHaveClass('pb-36');
+            expect(form).toHaveClass('sm:pb-28');
+            expect(form).toHaveClass('lg:pb-24');
+            expect(floatingActions).toHaveClass('fixed');
+            expect(floatingActions).toHaveClass('right-2');
+            expect(floatingActions).toHaveClass('bottom-2');
+            expect(floatingActions).toHaveClass('z-40');
+            expect(floatingActions).toHaveClass('lg:right-6');
+            expect(floatingActions).toHaveClass('lg:bottom-6');
+            expect(floatingPanel).toHaveClass('flex');
+            expect(floatingPanel).toHaveClass('flex-wrap');
+            expect(floatingPanel).toHaveClass('justify-end');
+
+            expect(screen.getAllByTestId('save-draft-button')).toHaveLength(1);
+            expect(screen.getAllByTestId('show-lp-preview-button')).toHaveLength(1);
+            expect(screen.getAllByTestId('save-resource-button')).toHaveLength(1);
+        });
+
+        it('uses transparent small-screen idle state with hover, focus, and touch reveal fallbacks', () => {
+            renderDataCiteForm();
+
+            const floatingPanel = screen.getByTestId('editor-floating-actions-panel');
+
+            expect(floatingPanel).toHaveClass('opacity-20');
+            expect(floatingPanel).toHaveClass('group-hover:opacity-100');
+            expect(floatingPanel).toHaveClass('hover:opacity-100');
+            expect(floatingPanel).toHaveClass('focus-within:opacity-100');
+            expect(floatingPanel).toHaveClass('lg:opacity-100');
+            expect(floatingPanel.className).toContain('[@media(hover:none)]:opacity-100');
+        });
+
+        it('keeps actions compact and preserves form submit semantics', () => {
+            renderDataCiteForm();
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+            const form = screen.getByTestId('editor-floating-actions').closest('form');
+
+            for (const button of [draftButton, previewButton, saveButton]) {
+                expect(button).toHaveClass('h-8');
+                expect(button).toHaveClass('px-3');
+                expect(button).toHaveClass('text-xs');
+                expect(button).toHaveClass('sm:h-9');
+                expect(button).toHaveClass('sm:px-4');
+                expect(button).toHaveClass('sm:text-sm');
+                expect(button.closest('form')).toBe(form);
+            }
+
+            expect(saveButton).toHaveAttribute('type', 'submit');
+        });
+
+        it('only makes action tooltip wrappers tabbable while their disabled tooltip is available', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            renderDataCiteForm();
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(draftButton.parentElement).toHaveAttribute('tabindex', '0');
+            expect(previewButton.parentElement).toHaveAttribute('tabindex', '0');
+            expect(saveButton).toBeEnabled();
+            expect(saveButton.parentElement).not.toHaveAttribute('tabindex');
+
+            await user.type(screen.getByRole('textbox', { name: /Title/ }), 'Keyboard Friendly Dataset');
+
+            expect(draftButton).toBeEnabled();
+            expect(previewButton).toBeEnabled();
+            expect(draftButton.parentElement).not.toHaveAttribute('tabindex');
+            expect(previewButton.parentElement).not.toHaveAttribute('tabindex');
+        });
+
+        it('keeps the Save & Validate wrapper tabbable only for the legacy-keywords tooltip state', () => {
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Legacy Keyword Dataset', titleType: 'main-title' }],
+                initialGcmdKeywords: [
+                    {
+                        id: 'legacy-msl-keyword',
+                        path: 'MSL > Legacy Keyword',
+                        text: 'Legacy Keyword',
+                        scheme: 'MSL',
+                        isLegacy: 'true',
+                    },
+                ],
+            });
+
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
+        });
+    });
     describe('Consolidated accordion section headers', () => {
         it('renders Resource Information as one visible section header with metadata in the trigger', () => {
             renderDataCiteForm();
@@ -3987,7 +4115,7 @@ describe('DataCiteForm', () => {
             expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
         });
 
-        it('starts with empty dates array (created/updated are auto-managed by backend)', () => {
+        it('starts with an empty dates array when no editable dates are provided', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4003,12 +4131,12 @@ describe('DataCiteForm', () => {
                 />,
             );
 
-            // No date fields should be present by default since Created/Updated are auto-managed
+            // No date fields should be present by default.
             const dateInputs = document.querySelectorAll('input[type="date"]');
             expect(dateInputs).toHaveLength(0);
         });
 
-        it('supports adding date types (excludes created and updated)', async () => {
+        it('supports adding date types (excludes accepted, issued, updated, and coverage)', async () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4037,14 +4165,20 @@ describe('DataCiteForm', () => {
             );
             expect(datePickerComboboxes.length).toBeGreaterThanOrEqual(1);
 
-            // Verify 'Created' and 'Updated' are not available in dropdown
+            // Verify system-managed date types are not available, while Created is editable.
             const dateTypeTriggers = allComboboxes.filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[0]);
 
-            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
+            const issuedOption = screen.queryByRole('option', { name: 'Issued' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
-            expect(createdOption).not.toBeInTheDocument();
+            const coverageOption = screen.queryByRole('option', { name: 'Coverage' });
+            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            expect(acceptedOption).not.toBeInTheDocument();
+            expect(issuedOption).not.toBeInTheDocument();
             expect(updatedOption).not.toBeInTheDocument();
+            expect(coverageOption).not.toBeInTheDocument();
+            expect(createdOption).toBeInTheDocument();
         });
 
         it('supports removing date fields', async () => {
@@ -4061,8 +4195,8 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[
-                        { dateType: 'accepted', startDate: '2024-01-15', endDate: '' },
-                        { dateType: 'issued', startDate: '2024-02-01', endDate: '' },
+                        { dateType: 'available', startDate: '2024-01-15', endDate: '' },
+                        { dateType: 'submitted', startDate: '2024-02-01', endDate: '' },
                     ]}
                 />,
             );
@@ -4099,7 +4233,7 @@ describe('DataCiteForm', () => {
                     authorRoles={authorRoles}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
-                    initialDates={[{ dateType: 'accepted', startDate: '2024-01-15', endDate: '' }]}
+                    initialDates={[{ dateType: 'available', startDate: '2024-01-15', endDate: '' }]}
                 />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -4110,15 +4244,18 @@ describe('DataCiteForm', () => {
             const dateTypeTriggers = screen.getAllByRole('combobox').filter((el) => el.getAttribute('id')?.includes('dateType'));
             await user.click(dateTypeTriggers[1]);
 
-            // 'Accepted' should not be available since it's already used
-            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
-            expect(acceptedOption).not.toBeInTheDocument();
+            // 'Available' should not be available since it's already used.
+            const availableOption = screen.queryByRole('option', { name: 'Available' });
+            expect(availableOption).not.toBeInTheDocument();
 
-            // 'Created' and 'Updated' are auto-managed; 'Coverage' belongs to Spatial and Temporal Coverage.
+            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
+            const issuedOption = screen.queryByRole('option', { name: 'Issued' });
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
             const coverageOption = screen.queryByRole('option', { name: 'Coverage' });
-            expect(createdOption).not.toBeInTheDocument();
+            expect(acceptedOption).not.toBeInTheDocument();
+            expect(issuedOption).not.toBeInTheDocument();
+            expect(createdOption).toBeInTheDocument();
             expect(updatedOption).not.toBeInTheDocument();
             expect(coverageOption).not.toBeInTheDocument();
         });
@@ -4136,11 +4273,11 @@ describe('DataCiteForm', () => {
                     authorRoles={authorRoles}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
-                    initialDates={[{ dateType: 'accepted', startDate: '', endDate: '' }]}
+                    initialDates={[{ dateType: 'available', startDate: '', endDate: '' }]}
                 />,
             );
 
-            const description = screen.getByText(/The date that the publisher accepted/);
+            const description = screen.getByText(/The date the resource is made publicly available/);
             expect(description).toBeInTheDocument();
         });
 
@@ -4157,7 +4294,7 @@ describe('DataCiteForm', () => {
                     authorRoles={authorRoles}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
-                    initialDates={[{ dateType: 'valid', startDate: '', endDate: '' }]}
+                    initialDates={[{ dateType: 'created', startDate: '', endDate: '' }]}
                 />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -4208,16 +4345,16 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
             expect(datePickerComboboxes[1]).toHaveTextContent('2024-12-31');
 
-            // Open the date type selector and change to "accepted" (since Created is auto-managed)
+            // Open the date type selector and change to "available" (a single-date-only type).
             const dateTypeTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('dateType'));
             expect(dateTypeTrigger).toBeDefined();
             if (dateTypeTrigger) {
                 await user.click(dateTypeTrigger);
-                const acceptedOption = screen.getByRole('option', { name: /Accepted/ });
-                await user.click(acceptedOption);
+                const availableOption = screen.getByRole('option', { name: /Available/ });
+                await user.click(availableOption);
             }
 
-            // After changing to "accepted", should only have 1 date picker
+            // After changing to "available", should only have 1 date picker
             allComboboxes = screen.getAllByRole('combobox');
             datePickerComboboxes = allComboboxes.filter(
                 (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
@@ -4227,7 +4364,37 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
 
-        it('filters out created, updated, and coverage dates from initialDates', () => {
+        it('hydrates space-separated datetime values into date, time, and timezone controls', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'available', startDate: '2024-01-15 09:35:20Z', endDate: '' }]}
+                />,
+            );
+
+            const allComboboxes = screen.getAllByRole('combobox');
+            const datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
+            );
+            const timeInput = screen.getByLabelText('Time (optional)') as HTMLInputElement;
+            const timezoneTrigger = allComboboxes.find((el) => el.getAttribute('id')?.includes('startTimezone'));
+
+            expect(datePickerComboboxes).toHaveLength(1);
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-15');
+            expect(timeInput).toHaveValue('09:35:20');
+            expect(timezoneTrigger).toHaveTextContent('UTC');
+        });
+
+        it('filters out accepted, issued, updated, and coverage dates from initialDates', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -4241,22 +4408,23 @@ describe('DataCiteForm', () => {
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     initialDates={[
-                        { dateType: 'created', startDate: '2024-01-01', endDate: '' },
+                        { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
+                        { dateType: 'issued', startDate: '2024-02-10', endDate: '' },
                         { dateType: 'updated', startDate: '2024-06-15', endDate: '' },
                         { dateType: 'coverage', startDate: '2024-03-01', endDate: '2024-03-31' },
-                        { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
+                        { dateType: 'created', startDate: '2024-01-01', endDate: '' },
                     ]}
                 />,
             );
 
-            // Only 'accepted' should be shown; created/updated are auto-managed and coverage is edited elsewhere.
+            // Only 'created' should be shown; Accepted/Issued/Updated are system-managed and Coverage is edited elsewhere.
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
             const datePickerComboboxes = allComboboxes.filter(
                 (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(1);
-            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-10');
+            expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
     });
 
@@ -4645,6 +4813,655 @@ describe('DataCiteForm', () => {
         });
     });
 
+    describe('Landing page preview (Issue #968)', () => {
+        const createPreopenedPreviewWindow = () => {
+            const close = vi.fn();
+            const documentClose = vi.fn();
+            const documentOpen = vi.fn();
+            const documentWrite = vi.fn();
+            const previewWindow = {
+                location: { href: 'about:blank' },
+                close,
+                document: {
+                    close: documentClose,
+                    open: documentOpen,
+                    write: documentWrite,
+                },
+                opener: { source: 'test-opener' },
+            } as unknown as Window;
+
+            return { close, documentClose, documentOpen, documentWrite, previewWindow };
+        };
+
+        it('renders the preview button and enables it after a Main Title is entered', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            renderDataCiteForm();
+
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            expect(previewButton).toBeDisabled();
+
+            await user.type(screen.getByRole('textbox', { name: /Title/ }), 'Preview Dataset');
+
+            expect(previewButton).toBeEnabled();
+        });
+
+        it('shows guided date validation feedback when landing page preview is clicked with invalid dates', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Invalid Preview Date Dataset', titleType: 'main-title' }],
+                initialDates: [{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }],
+            });
+
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            expect(previewButton).toBeEnabled();
+
+            await user.click(previewButton);
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(await screen.findByText('Please resolve the date validation issues before opening the landing page preview.')).toBeInTheDocument();
+        });
+
+        it('saves the current editor state as a draft and opens an existing draft landing page preview URL', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { documentWrite, previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Preview Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 7,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/draft-without-token',
+                    preview_url: 'https://example.test/draft-preview?preview=token',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('name="referrer"'));
+            expect(documentWrite).toHaveBeenCalledWith(expect.stringContaining('content="no-referrer"'));
+            expect(previewWindow.opener).toBeNull();
+            await waitFor(() => {
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ resourceId: 42 }),
+                    expect.objectContaining({ headers: expect.objectContaining({ Accept: 'application/json' }) }),
+                );
+            });
+            await waitFor(() => {
+                expect(previewWindow.location.href).toBe('https://example.test/draft-preview?preview=token');
+            });
+            expect(openSpy).toHaveBeenCalledTimes(1);
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('opens an existing published landing page public URL after saving the draft', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 43 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '43',
+                initialTitles: [{ title: 'Published Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 8,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/published-resource',
+                    preview_url: 'https://example.test/published-resource?preview=token',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(previewWindow.location.href).toBe('https://example.test/published-resource');
+            });
+            expect(openSpy).toHaveBeenCalledTimes(1);
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows a toast when the browser blocks the landing page tab', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+            const { toast } = await import('sonner');
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 43 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '43',
+                initialTitles: [{ title: 'Blocked Popup Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 8,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/published-resource',
+                    preview_url: 'https://example.test/published-resource?preview=token',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(toast.error).toHaveBeenCalledWith('Your browser blocked the landing page tab. Please allow pop-ups for ERNIE and try again.');
+        });
+
+        it('opens the setup landing page modal after draft saving when no landing page exists', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 99 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                resourceTypes: [
+                    { id: 1, name: 'Dataset' },
+                    { id: 2, name: 'PhysicalObject' },
+                ],
+                initialResourceType: '2',
+                initialTitles: [{ title: 'Sample Preview', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            expect(modalProps.resource).toEqual(
+                expect.objectContaining({
+                    id: 99,
+                    title: 'Sample Preview',
+                    resourcetypegeneral: 'PhysicalObject',
+                }),
+            );
+            expect(modalProps.openPreviewOnSuccess).toBe(true);
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('closes the setup landing page modal from the editor flow', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 98 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Close Setup Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            await act(async () => {
+                modalProps.onClose();
+            });
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+            });
+        });
+
+        it('opens the new landing page preview in the tab preopened by setup save', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 100 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'New LP Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            await act(async () => {
+                modalProps.onSuccess(
+                    {
+                        id: 15,
+                        resource_id: 100,
+                        template: 'default_gfz',
+                        status: 'draft',
+                        public_url: 'https://example.test/draft-new-lp',
+                        preview_url: 'https://example.test/draft-new-lp?preview=token',
+                        external_url: null,
+                        view_count: 0,
+                        created_at: '2026-07-03T00:00:00Z',
+                        updated_at: '2026-07-03T00:00:00Z',
+                    },
+                    previewWindow,
+                );
+            });
+
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(previewWindow.location.href).toBe('https://example.test/draft-new-lp?preview=token');
+        });
+
+        it('shows the preparing state while the preview draft save is in progress', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const draftSave = createDeferred<{
+                data: { message: string; resource: { id: number } };
+                status: number;
+                statusText: string;
+                headers: Record<string, never>;
+                config: Record<string, never>;
+            }>();
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockReturnValue(draftSave.promise);
+
+            renderDataCiteForm({
+                initialResourceId: '102',
+                initialTitles: [{ title: 'Preparing Preview Dataset', titleType: 'main-title' }],
+                initialGcmdKeywords: [
+                    {
+                        id: 'legacy-preview-keyword',
+                        path: 'MSL > Legacy Preview Keyword',
+                        text: 'Legacy Preview Keyword',
+                        scheme: 'MSL',
+                        isLegacy: 'true',
+                    },
+                ],
+                initialLandingPage: {
+                    id: 16,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/preparing-published',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            const previewButton = screen.getByTestId('show-lp-preview-button');
+            const saveButton = screen.getByTestId('save-resource-button');
+
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
+
+            await user.click(previewButton);
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(previewButton).toHaveTextContent('Preparing...');
+            });
+            expect(screen.getByTestId('save-draft-button')).toBeDisabled();
+            expect(saveButton).toBeDisabled();
+            expect(saveButton.parentElement).not.toHaveAttribute('tabindex');
+
+            await act(async () => {
+                draftSave.resolve({
+                    data: { message: 'Draft saved.', resource: { id: 102 } },
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {},
+                    config: {},
+                });
+            });
+
+            await waitFor(() => {
+                expect(previewWindow.location.href).toBe('https://example.test/preparing-published');
+            });
+            expect(openSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('falls back to the existing resource ID and external URL for published external landing pages', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.' },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '44',
+                initialTitles: [{ title: 'External Dataset', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 9,
+                    is_published: true,
+                    status: 'published',
+                    public_url: '   ',
+                    preview_url: null,
+                    external_url: '  https://external.example.org/dataset  ',
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(previewWindow.opener).toBeNull();
+            await waitFor(() => {
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({ resourceId: 44 }),
+                    expect.any(Object),
+                );
+            });
+            await waitFor(() => {
+                expect(previewWindow.location.href).toBe('https://external.example.org/dataset');
+            });
+        });
+
+        it('shows an error instead of opening a draft landing page without a preview URL', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const { toast } = await import('sonner');
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 45 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '45',
+                initialTitles: [{ title: 'Draft Without Preview URL', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 10,
+                    is_published: false,
+                    status: 'draft',
+                    public_url: 'https://example.test/draft-without-preview',
+                    preview_url: '   ',
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Unable to open landing page preview. The preview URL is missing.');
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+        });
+
+        it('shows an error instead of opening a published landing page without any URL', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const { toast } = await import('sonner');
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 46 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '46',
+                initialTitles: [{ title: 'Published Without URL', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 11,
+                    is_published: true,
+                    status: 'published',
+                    public_url: '   ',
+                    preview_url: null,
+                    external_url: '',
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            await waitFor(() => {
+                expect(toast.error).toHaveBeenCalledWith('Unable to open landing page. The public or external URL is missing.');
+            });
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+        });
+
+        it('closes the preopened landing page tab when preview draft saving fails', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockReturnValue(previewWindow);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 419, data: {} },
+            });
+
+            renderDataCiteForm({
+                initialResourceId: '47',
+                initialTitles: [{ title: 'Existing Preview Save Failure', titleType: 'main-title' }],
+                initialLandingPage: {
+                    id: 12,
+                    is_published: true,
+                    status: 'published',
+                    public_url: 'https://example.test/save-failure',
+                    preview_url: null,
+                    external_url: null,
+                },
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(openSpy).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(await screen.findByText('Your session has expired. Please refresh the page and try again.')).toBeInTheDocument();
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows an error when draft saving succeeds without any resource ID', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved without resource.' },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Missing Resource ID Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Unable to open landing page preview because the draft resource ID is missing.')).toBeInTheDocument();
+            expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+            expect(openSpy).not.toHaveBeenCalled();
+        });
+
+        it('keeps the user in the editor when the preview draft save hits an expired session', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: { status: 419, data: {} },
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Expired Session Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Your session has expired. Please refresh the page and try again.')).toBeInTheDocument();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+            expect(mockSetupLandingPageModal).not.toHaveBeenCalledWith(expect.objectContaining({ isOpen: true }));
+        });
+
+        it('shows backend messages when preview draft saving fails without field errors', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: {
+                    status: 500,
+                    data: { message: 'Preview draft generation is temporarily unavailable.' },
+                },
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Backend Message Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Preview draft generation is temporarily unavailable.')).toBeInTheDocument();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows mapped backend validation errors when preview draft saving fails with field errors', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue({
+                isAxiosError: true,
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Preview draft validation failed.',
+                        errors: {
+                            titles: ['A landing page preview title is required.'],
+                        },
+                    },
+                },
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Validation Error Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(await screen.findByText('Preview draft validation failed.')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^A landing page preview title is required\.$/i })).toBeInTheDocument();
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('shows a network error when preview draft saving fails without an axios response', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockRejectedValue(new Error('Network Error'));
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Network Error Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+
+            expect(
+                await screen.findByText('A network error prevented saving the draft before opening the landing page preview. Please try again.'),
+            ).toBeInTheDocument();
+            expect(consoleSpy).toHaveBeenCalledWith('Failed to save draft before opening landing page preview', expect.any(Error));
+            expect(mockRouterVisit).not.toHaveBeenCalled();
+        });
+
+        it('closes the setup modal and preopened tab when setup reports no landing page', { timeout: 30000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { close, previewWindow } = createPreopenedPreviewWindow();
+            const openSpy = vi.spyOn(window, 'open').mockImplementation(() => window);
+            const mockedAxios = axios as unknown as { post: Mock };
+            mockedAxios.post.mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 101 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Setup Removed Dataset', titleType: 'main-title' }],
+            });
+
+            await user.click(screen.getByTestId('show-lp-preview-button'));
+            expect(await screen.findByTestId('setup-landing-page-modal')).toBeInTheDocument();
+
+            const calls = mockSetupLandingPageModal.mock.calls;
+            const modalProps = calls[calls.length - 1][0];
+
+            await act(async () => {
+                modalProps.onSuccess(null, previewWindow);
+            });
+
+            await waitFor(() => {
+                expect(screen.queryByTestId('setup-landing-page-modal')).not.toBeInTheDocument();
+            });
+            expect(openSpy).not.toHaveBeenCalled();
+            expect(close).toHaveBeenCalledTimes(1);
+            expect(previewWindow.location.href).toBe('about:blank');
+        });
+    });
     describe('Save Draft (Issue #548)', () => {
         it('disables the draft button when no Main Title is entered', { timeout: 30000 }, async () => {
             render(
@@ -4975,7 +5792,11 @@ describe('DataCiteForm', () => {
                     }),
                 );
                 expect(mockRouterVisit).not.toHaveBeenCalled();
-                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent(/Draft autosaved/);
+
+                const autosaveStatus = screen.getByTestId('draft-autosave-status');
+                expect(autosaveStatus).toHaveTextContent(/Draft autosaved/);
+                expect(autosaveStatus).toHaveClass('group-focus-within:opacity-100');
+                expect(autosaveStatus).not.toHaveClass('focus-within:opacity-100');
             } finally {
                 view.unmount();
                 vi.useRealTimers();

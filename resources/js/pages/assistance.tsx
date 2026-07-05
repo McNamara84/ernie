@@ -17,10 +17,13 @@ import {
     type BaseSuggestionItem,
     type CheckStatusResponse,
     type PaginatedData,
+    type SuggestedCrossrefFunderRorItem,
+    type SuggestedDescriptionSegmentationItem,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
     type SuggestedSpdxRightsItem,
+    type SuggestedSubjectMetadataEnrichmentItem,
 } from '@/types/assistance';
 import { validateORCID } from '@/utils/validation-rules';
 
@@ -81,9 +84,7 @@ function SuggestionCard({
                         <span className="font-mono text-sm break-all">{suggestion.identifier}</span>
                     </div>
 
-                    {suggestion.source_title && (
-                        <p className="text-sm font-medium text-foreground">&quot;{suggestion.source_title}&quot;</p>
-                    )}
+                    {suggestion.source_title && <p className="text-sm font-medium text-foreground">&quot;{suggestion.source_title}&quot;</p>}
 
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {suggestion.source_publisher && <span>Publisher: {suggestion.source_publisher}</span>}
@@ -134,9 +135,7 @@ function OrcidSuggestionCard({
                         <Badge variant="secondary" className="text-xs capitalize">
                             {suggestion.source_context}
                         </Badge>
-                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>
-                            {percent}% match
-                        </Badge>
+                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>{percent}% match</Badge>
                     </div>
 
                     <div className="space-y-1">
@@ -155,15 +154,9 @@ function OrcidSuggestionCard({
                                 suggestion.suggested_orcid
                             )}
                         </p>
-                        {candidateName && (
-                            <p className="text-sm text-muted-foreground">
-                                Candidate: {candidateName}
-                            </p>
-                        )}
+                        {candidateName && <p className="text-sm text-muted-foreground">Candidate: {candidateName}</p>}
                         {suggestion.candidate_affiliations.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                Affiliations: {suggestion.candidate_affiliations.join(', ')}
-                            </p>
+                            <p className="text-xs text-muted-foreground">Affiliations: {suggestion.candidate_affiliations.join(', ')}</p>
                         )}
                     </div>
 
@@ -234,13 +227,13 @@ function RightsMetadataBlock({ title, values }: { title: string; values: Record<
 
     return (
         <div className="min-w-0 rounded-md border bg-muted/20 p-3">
-            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</p>
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
             {entries.length > 0 ? (
                 <dl className="space-y-1 text-xs">
                     {entries.map(([label, value]) => (
                         <div key={label} className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
                             <dt className="text-muted-foreground">{label}</dt>
-                            <dd className="break-words font-mono text-foreground">{value}</dd>
+                            <dd className="font-mono break-words text-foreground">{value}</dd>
                         </div>
                     ))}
                 </dl>
@@ -273,7 +266,9 @@ function SpdxRightsSuggestionCard({
                         <Badge variant="outline" className="text-xs">
                             SPDX
                         </Badge>
-                        {percent !== null && <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>{percent}% match</Badge>}
+                        {percent !== null && (
+                            <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>{percent}% match</Badge>
+                        )}
                         <Badge variant="secondary" className="text-xs">
                             resource_right #{suggestion.target_id}
                         </Badge>
@@ -289,8 +284,8 @@ function SpdxRightsSuggestionCard({
                         <div className="flex gap-2">
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                             <p>
-                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only empty
-                                catalog fields may be filled.
+                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only
+                                empty catalog fields may be filled.
                             </p>
                         </div>
                     </div>
@@ -344,16 +339,12 @@ function RorSuggestionCard({
                             <Building2 className="mr-1 h-3 w-3" />
                             {entityTypeLabel(suggestion.entity_type)}
                         </Badge>
-                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>
-                            {percent}% match
-                        </Badge>
+                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score)}`}>{percent}% match</Badge>
                     </div>
 
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-foreground">{suggestion.entity_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                            &rarr; {suggestion.suggested_name}
-                        </p>
+                        <p className="text-sm text-muted-foreground">&rarr; {suggestion.suggested_name}</p>
                         <p className="font-mono text-xs text-muted-foreground">
                             ROR:{' '}
                             {isValidRorUrl(suggestion.suggested_ror_id) ? (
@@ -370,9 +361,7 @@ function RorSuggestionCard({
                             )}
                         </p>
                         {suggestion.ror_aliases.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                Also known as: {suggestion.ror_aliases.slice(0, 3).join(', ')}
-                            </p>
+                            <p className="text-xs text-muted-foreground">Also known as: {suggestion.ror_aliases.slice(0, 3).join(', ')}</p>
                         )}
                     </div>
 
@@ -436,6 +425,405 @@ function confidenceLabel(confidence: string | null): string | null {
     }
 }
 
+function metadataText(value: unknown): string | null {
+    if (value === null || value === undefined || Array.isArray(value) || typeof value === 'object') {
+        return null;
+    }
+
+    const text = String(value).trim();
+
+    return text === '' ? null : text;
+}
+
+function metadataList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+
+    return value.map((item) => metadataText(item)).filter((item): item is string => item !== null);
+}
+
+const DESCRIPTION_TYPE_LABELS: Record<string, string> = {
+    Abstract: 'Abstract',
+    Methods: 'Methods',
+    SeriesInformation: 'Series Information',
+    TableOfContents: 'Table of Contents',
+    TechnicalInfo: 'Technical Info',
+    Other: 'Other',
+};
+
+function descriptionTypeLabel(type: string | null): string | null {
+    if (type === null) {
+        return null;
+    }
+
+    return DESCRIPTION_TYPE_LABELS[type] ?? type;
+}
+
+function metadataStringValues(value: unknown): string[] {
+    if (Array.isArray(value)) return metadataList(value);
+
+    if (isRecord(value)) {
+        return Object.values(value)
+            .map((item) => metadataText(item))
+            .filter((item): item is string => item !== null);
+    }
+
+    const text = metadataText(value);
+
+    return text === null ? [] : [text];
+}
+
+const SUBJECT_FIELD_LABELS: Record<string, string> = {
+    value: 'subject',
+    subject_scheme: 'subjectScheme',
+    scheme_uri: 'schemeURI',
+    value_uri: 'valueURI',
+    classification_code: 'classificationCode',
+    breadcrumb_path: 'breadcrumbPath',
+    language: 'lang',
+};
+
+function SubjectMetadataBlock({ title, fields }: { title: string; fields: Array<[string, unknown]> }) {
+    const entries = fields.map(([label, value]) => [label, metadataText(value)] as const).filter(([, value]) => value !== null);
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
+            {entries.length > 0 ? (
+                <dl className="space-y-1 text-xs">
+                    {entries.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className="font-mono break-words text-foreground">{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : (
+                <p className="text-xs text-muted-foreground">No metadata captured.</p>
+            )}
+        </div>
+    );
+}
+
+function subjectUpdateFields(updates: Record<string, string> | undefined): Array<[string, unknown]> {
+    if (!updates) return [];
+
+    return Object.entries(SUBJECT_FIELD_LABELS)
+        .filter(([field]) => field !== 'value' && Object.prototype.hasOwnProperty.call(updates, field))
+        .map(([field, label]) => [label, updates[field]] as [string, unknown]);
+}
+
+function SubjectMetadataEnrichmentCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedSubjectMetadataEnrichmentItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata;
+    const current = metadata?.current;
+    const proposed = metadata?.proposed;
+    const vocabulary = metadata?.vocabulary;
+    const match = metadata?.match;
+    const provenance = metadata?.provenance;
+    const confidence = metadata?.confidence;
+    const ambiguity = metadata?.ambiguity;
+    const confidenceLevel = metadataText(confidence?.level);
+    const confidenceScore = typeof confidence?.score === 'number' ? confidence.score : suggestion.similarity_score;
+    const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
+    const warningMessages = metadataStringValues(ambiguity?.warning_messages);
+    const warnings = metadataList(ambiguity?.warnings);
+    const evidence = metadataList(confidence?.evidence);
+    const preservedFields = metadataList(proposed?.preserve);
+    const matchedFields = metadataList(match?.matched_fields);
+    const ambiguityStatus = metadataText(ambiguity?.status);
+    const updateFields = subjectUpdateFields(proposed?.updates);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            subject #{suggestion.target_id}
+                        </Badge>
+                        {confidenceLevel && (
+                            <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>
+                        )}
+                        {percent !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {percent}% vocabulary match
+                            </Badge>
+                        )}
+                        {ambiguityStatus && (
+                            <Badge variant={warningMessages.length > 0 || warnings.length > 0 ? 'destructive' : 'secondary'} className="text-xs">
+                                {ambiguityStatus === 'none' ? 'No ambiguity' : `Ambiguity: ${ambiguityStatus}`}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{suggestion.suggested_label}</p>
+                        <p className="font-mono text-xs break-words text-muted-foreground">{suggestion.suggested_value}</p>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <SubjectMetadataBlock
+                            title="Current Subject metadata"
+                            fields={[
+                                [SUBJECT_FIELD_LABELS.value, current?.value],
+                                [SUBJECT_FIELD_LABELS.subject_scheme, current?.subject_scheme],
+                                [SUBJECT_FIELD_LABELS.scheme_uri, current?.scheme_uri],
+                                [SUBJECT_FIELD_LABELS.value_uri, current?.value_uri],
+                                [SUBJECT_FIELD_LABELS.classification_code, current?.classification_code],
+                                [SUBJECT_FIELD_LABELS.breadcrumb_path, current?.breadcrumb_path],
+                                [SUBJECT_FIELD_LABELS.language, current?.language],
+                            ]}
+                        />
+                        <SubjectMetadataBlock title="Will update DataCite Subject fields" fields={updateFields} />
+                    </div>
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        Accept enriches only the listed DataCite Subject fields.
+                        {preservedFields.length > 0 && <span> Preserved fields: {preservedFields.join(', ')}.</span>}
+                    </div>
+
+                    {(warningMessages.length > 0 || warnings.length > 0) && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                            <div className="flex gap-2">
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <div className="space-y-1">
+                                    <p>Review warning(s) before accepting this subject enrichment:</p>
+                                    <ul className="list-inside list-disc">
+                                        {warningMessages.map((warning) => (
+                                            <li key={warning}>{warning}</li>
+                                        ))}
+                                        {warningMessages.length === 0 &&
+                                            warnings.map((warning) => (
+                                                <li key={warning}>{warning}</li>
+                                            ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {vocabulary?.scheme && <span>Vocabulary: {vocabulary.scheme}</span>}
+                        {vocabulary?.source && <span>Source: {vocabulary.source}</span>}
+                        {(vocabulary?.local_cache_file || provenance?.source_file) && (
+                            <span>File: {vocabulary?.local_cache_file ?? provenance?.source_file}</span>
+                        )}
+                        {match?.strategy && <span>Strategy: {match.strategy}</span>}
+                        {matchedFields.length > 0 && <span>Matched fields: {matchedFields.join(', ')}</span>}
+                        {typeof match?.candidate_count === 'number' && <span>Candidates: {match.candidate_count}</span>}
+                        {match?.path_normalization_applied && <span>Path normalization: {match.path_normalization_applied}</span>}
+                        {evidence.length > 0 && <span>Confidence evidence: {evidence.join(', ')}</span>}
+                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`subject-metadata-enrichment-decline-${suggestion.id}`}
+                        onClick={() => onDecline(suggestion.id)}
+                    >
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`subject-metadata-enrichment-accept-${suggestion.id}`}
+                        onClick={() => onAccept(suggestion.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+function CrossrefFunderRorMetadataBlock({ title, fields }: { title: string; fields: Array<[string, unknown]> }) {
+    const entries = fields.map(([label, value]) => [label, metadataText(value)] as const).filter(([, value]) => value !== null);
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
+            {entries.length > 0 ? (
+                <dl className="space-y-1 text-xs">
+                    {entries.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className="font-mono break-words text-foreground">{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : (
+                <p className="text-xs text-muted-foreground">No metadata captured.</p>
+            )}
+        </div>
+    );
+}
+
+function CrossrefFunderRorIdentifier({ value }: { value: string }) {
+    if (isValidRorUrl(value)) {
+        return (
+            <a href={value} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline hover:text-primary/80">
+                {value}
+            </a>
+        );
+    }
+
+    return <span className="font-mono break-all">{value}</span>;
+}
+
+function CrossrefFunderRorSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedCrossrefFunderRorItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata;
+    const current = metadata?.current;
+    const proposed = metadata?.proposed;
+    const provenance = metadata?.provenance;
+    const confidence = metadata?.confidence;
+    const ambiguity = metadata?.ambiguity;
+    const rorIdentifier = proposed?.funder_identifier ?? proposed?.ror_id ?? suggestion.suggested_value;
+    const confidenceLevel = metadataText(confidence?.level);
+    const confidenceScore = typeof confidence?.score === 'number' ? confidence.score : suggestion.similarity_score;
+    const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
+    const warnings = metadataList(ambiguity?.warnings);
+    const evidence = metadataList(confidence?.evidence);
+    const preservedFields = metadataList(metadata?.acceptance?.preserve);
+    const rorTypes = metadataList(proposed?.ror_types);
+    const ambiguityStatus = metadataText(ambiguity?.status);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            funding_reference #{suggestion.target_id}
+                        </Badge>
+                        {confidenceLevel && (
+                            <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>
+                        )}
+                        {percent !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {percent}% registry match
+                            </Badge>
+                        )}
+                        {ambiguityStatus && (
+                            <Badge variant={warnings.length > 0 ? 'destructive' : 'secondary'} className="text-xs">
+                                {ambiguityStatus === 'none' ? 'No ambiguity' : `Ambiguity: ${ambiguityStatus}`}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{current?.funder_name ?? suggestion.suggested_label}</p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                            ROR: <CrossrefFunderRorIdentifier value={rorIdentifier} />
+                        </p>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <CrossrefFunderRorMetadataBlock
+                            title="Current Crossref Funder ID"
+                            fields={[
+                                ['funderName', current?.funder_name],
+                                ['identifier', current?.funder_identifier],
+                                ['type', current?.funder_identifier_type],
+                                ['schemeURI', current?.scheme_uri],
+                                ['normalized', current?.normalized_crossref_funder_id],
+                            ]}
+                        />
+                        <CrossrefFunderRorMetadataBlock
+                            title="Proposed ROR identifier"
+                            fields={[
+                                ['displayName', proposed?.ror_display_name],
+                                ['identifier', rorIdentifier],
+                                ['type', proposed?.funder_identifier_type],
+                                ['schemeURI', proposed?.scheme_uri],
+                                ['status', proposed?.ror_status],
+                                ['types', rorTypes.join(', ')],
+                            ]}
+                        />
+                    </div>
+
+                    {warnings.length > 0 && (
+                        <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                            <div className="flex gap-2">
+                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                <div className="space-y-1">
+                                    <p>Review warning(s) from the mapping evidence:</p>
+                                    <ul className="list-inside list-disc">
+                                        {warnings.map((warning) => (
+                                            <li key={warning}>{warning}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        Accept updates only the funding reference identifier, identifier type, and scheme URI.
+                        {preservedFields.length > 0 && <span> Preserved fields: {preservedFields.join(', ')}.</span>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {proposed?.matched_external_id?.value && <span>Matched FundRef: {proposed.matched_external_id.value}</span>}
+                        {proposed?.matched_external_id?.matched_in && <span>Evidence: {proposed.matched_external_id.matched_in}</span>}
+                        {provenance?.source && <span>Source: {provenance.source}</span>}
+                        {provenance?.source_file && <span>File: {provenance.source_file}</span>}
+                        {provenance?.source_retrieved_at && <span>Retrieved: {provenance.source_retrieved_at}</span>}
+                        {provenance?.matching_strategy && <span>Strategy: {provenance.matching_strategy}</span>}
+                        {evidence.length > 0 && <span>Confidence evidence: {evidence.join(', ')}</span>}
+                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`crossref-funder-ror-decline-${suggestion.id}`}
+                        onClick={() => onDecline(suggestion.id)}
+                    >
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`crossref-funder-ror-accept-${suggestion.id}`}
+                        onClick={() => onAccept(suggestion.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 function probeMethodLabel(probeMethod: string | null, targetType: unknown): string | null {
     if (!probeMethod) return null;
 
@@ -571,9 +959,7 @@ function SizeFormatSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>
-                            {targetTypeLabel(suggestion.target_type, isZip)}
-                        </Badge>
+                        <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>{targetTypeLabel(suggestion.target_type, isZip)}</Badge>
                         {displayConfidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{displayConfidence}</Badge>}
                         {displayProbeMethod && (
                             <Badge variant="secondary" className="text-xs">
@@ -587,7 +973,12 @@ function SizeFormatSuggestionCard({
                     {(sourceUrl || filename || parsedFileCount !== null) && (
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                             {sourceUrl && (
-                                <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="max-w-full break-all underline hover:text-foreground">
+                                <a
+                                    href={sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="max-w-full break-all underline hover:text-foreground"
+                                >
                                     Open source
                                 </a>
                             )}
@@ -622,6 +1013,158 @@ function SizeFormatSuggestionCard({
 }
 // ── Per-section state ────────────────────────────────────────────────
 
+
+function DescriptionPreviewBlock({ title, value }: { title: string; value: string | null | undefined }) {
+    const text = typeof value === 'string' && value.trim() !== '' ? value : null;
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
+            {text ? (
+                <div className="max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">{text}</div>
+            ) : (
+                <p className="text-xs text-muted-foreground">No text captured.</p>
+            )}
+        </div>
+    );
+}
+
+function DescriptionSegmentationSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedDescriptionSegmentationItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata;
+    const current = metadata?.current;
+    const proposed = metadata?.proposed;
+    const confidence = metadata?.confidence;
+    const confidenceLevel = metadataText(confidence?.level);
+    const confidenceScore = typeof confidence?.score === 'number' ? confidence.score : suggestion.similarity_score;
+    const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
+    const segments = Array.isArray(proposed?.segments) ? proposed.segments : [];
+    const targetTypes = metadataList(proposed?.target_types);
+    const targetTypeLabels = targetTypes.map((type) => descriptionTypeLabel(type) ?? type);
+    const suggestedLabel = targetTypeLabels.length > 0 ? `Split Abstract into ${targetTypeLabels.join(', ')}` : suggestion.suggested_label;
+    const confidenceEvidence = metadataList(confidence?.evidence);
+    const preconditions = metadataList(metadata?.acceptance?.preconditions);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            description #{suggestion.target_id}
+                        </Badge>
+                        {confidenceLevel && (
+                            <Badge className={`text-xs ${confidenceBadgeColor(confidenceLevel)}`}>{confidenceLabel(confidenceLevel)}</Badge>
+                        )}
+                        {percent !== null && (
+                            <Badge variant="secondary" className="text-xs">
+                                {percent}% structural confidence
+                            </Badge>
+                        )}
+                        {targetTypes.length > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                                {targetTypeLabels.join(', ')}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">{suggestedLabel}</p>
+                        <p className="font-mono text-xs break-words text-muted-foreground">{suggestion.suggested_value}</p>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <DescriptionPreviewBlock title="Current Abstract" value={current?.value} />
+                        <DescriptionPreviewBlock title="Proposed Abstract" value={proposed?.remaining_abstract} />
+                    </div>
+
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase">New Description segments</p>
+                        {segments.length > 0 ? (
+                            <div className="grid gap-2 xl:grid-cols-2">
+                                {segments.map((segment, index) => {
+                                    const segmentType = descriptionTypeLabel(metadataText(segment.description_type)) ?? `Segment ${index + 1}`;
+                                    const segmentConfidence = metadataText(segment.confidence);
+                                    const evidenceTypes = metadataList(segment.evidence_types);
+                                    const evidenceLabel = metadataText(segment.evidence_label);
+
+                                    return (
+                                        <div key={`${segmentType}-${index}`} className="min-w-0 rounded-md border bg-muted/20 p-3">
+                                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                                <Badge variant="outline" className="text-xs">
+                                                    {segmentType}
+                                                </Badge>
+                                                {segmentConfidence && (
+                                                    <Badge className={`text-xs ${confidenceBadgeColor(segmentConfidence)}`}>
+                                                        {confidenceLabel(segmentConfidence)}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">
+                                                {metadataText(segment.value) ?? 'No text captured.'}
+                                            </div>
+                                            {(evidenceLabel || evidenceTypes.length > 0) && (
+                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                    {evidenceLabel && <span>Evidence: {evidenceLabel}</span>}
+                                                    {evidenceTypes.length > 0 && <span> ({evidenceTypes.join(', ')})</span>}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">No segment preview captured.</div>
+                        )}
+                    </div>
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        Accept replaces only the source Abstract text and creates the listed Description segments.
+                        {preconditions.length > 0 && <span> Preconditions: {preconditions.join(', ')}.</span>}
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {metadata?.policy_version && <span>Policy: {metadata.policy_version}</span>}
+                        {confidenceEvidence.length > 0 && <span>Evidence: {confidenceEvidence.join(', ')}</span>}
+                        {current?.language && <span>Language: {current.language}</span>}
+                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`description-segmentation-decline-${suggestion.id}`}
+                        onClick={() => onDecline(suggestion.id)}
+                    >
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={`description-segmentation-accept-${suggestion.id}`}
+                        onClick={() => onAccept(suggestion.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 interface SectionState {
     isChecking: boolean;
     progress: string;
@@ -705,13 +1248,16 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
     // ── Polling logic ────────────────────────────────────────────────
 
-    const stopPolling = useCallback((id: string) => {
-        const timer = pollingRefs.current[id];
-        if (timer !== null) {
-            clearTimeout(timer);
-            pollingRefs.current[id] = null;
-        }
-    }, [pollingRefs]);
+    const stopPolling = useCallback(
+        (id: string) => {
+            const timer = pollingRefs.current[id];
+            if (timer !== null) {
+                clearTimeout(timer);
+                pollingRefs.current[id] = null;
+            }
+        },
+        [pollingRefs],
+    );
 
     const startPolling = useCallback(
         (manifest: AssistantManifest, jobId: string) => {
@@ -719,9 +1265,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
             const pollStatus = async () => {
                 try {
-                    const { data: status } = await axios.get<CheckStatusResponse>(
-                        `/assistance/check/${id}/${jobId}/status`,
-                    );
+                    const { data: status } = await axios.get<CheckStatusResponse>(`/assistance/check/${id}/${jobId}/status`);
                     patch(id, { progress: status.progress ?? '' });
 
                     if (status.status === 'completed') {
@@ -729,15 +1273,17 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         patch(id, { isChecking: false, progress: '' });
 
                         // Pick correct label and interpolate {count}
-                        const found = (status as Record<string, unknown>).newSuggestionsFound
-                            ?? (status as Record<string, unknown>).newRelationsFound
-                            ?? (status as Record<string, unknown>).newOrcidsFound
-                            ?? (status as Record<string, unknown>).newRorsFound
-                            ?? 0;
+                        const found =
+                            (status as Record<string, unknown>).newSuggestionsFound ??
+                            (status as Record<string, unknown>).newRelationsFound ??
+                            (status as Record<string, unknown>).newOrcidsFound ??
+                            (status as Record<string, unknown>).newRorsFound ??
+                            0;
                         const count = Number(found);
-                        const label = count > 0
-                            ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
-                            : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
+                        const label =
+                            count > 0
+                                ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
+                                : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
                         const message = label.replace('{count}', String(count));
 
                         if (count > 0) {
@@ -779,9 +1325,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             } catch (error) {
                 patch(id, { isChecking: false, progress: '' });
                 if (axios.isAxiosError(error) && error.response?.status === 409) {
-                    toast.warning(
-                        error.response.data?.error ?? manifest.statusLabels.already_running ?? 'Already running.',
-                    );
+                    toast.warning(error.response.data?.error ?? manifest.statusLabels.already_running ?? 'Already running.');
                 } else {
                     toast.error(`Failed to start ${manifest.name}.`);
                 }
@@ -847,9 +1391,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             addProcessingId(manifest.id, suggestionId);
 
             try {
-                const { data } = await axios.post<AcceptResponse>(
-                    `/assistance/${manifest.routePrefix}/${suggestionId}/accept`,
-                );
+                const { data } = await axios.post<AcceptResponse>(`/assistance/${manifest.routePrefix}/${suggestionId}/accept`);
 
                 if (data.success) {
                     toast.success(data.message);
@@ -918,9 +1460,11 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     />
                 );
             case 'size-format-suggestion':
+                return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
+            case 'description-segmentation':
                 return (
-                    <SizeFormatSuggestionCard
-                        suggestion={item}
+                    <DescriptionSegmentationSuggestionCard
+                        suggestion={item as unknown as SuggestedDescriptionSegmentationItem}
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
@@ -930,6 +1474,24 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 return (
                     <SpdxRightsSuggestionCard
                         suggestion={item as unknown as SuggestedSpdxRightsItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'crossref-funder-ror-suggestion':
+                return (
+                    <CrossrefFunderRorSuggestionCard
+                        suggestion={item as unknown as SuggestedCrossrefFunderRorItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'subject-metadata-enrichment':
+                return (
+                    <SubjectMetadataEnrichmentCard
+                        suggestion={item as unknown as SuggestedSubjectMetadataEnrichmentItem}
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
@@ -993,7 +1555,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     const state = states[manifest.id];
                     if (!state?.isChecking || !state.progress) return null;
                     return (
-                        <div key={`progress-${manifest.id}`} className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                        <div
+                            key={`progress-${manifest.id}`}
+                            className="flex items-center gap-2 rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground"
+                        >
                             <Spinner size="sm" />
                             <span>{state.progress}</span>
                         </div>
@@ -1035,12 +1600,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                             : manifest.emptyState.description}
                                     </CardDescription>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleCheck(manifest)}
-                                    disabled={state?.isChecking ?? false}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => handleCheck(manifest)} disabled={state?.isChecking ?? false}>
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />

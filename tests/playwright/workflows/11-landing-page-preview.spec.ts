@@ -97,9 +97,11 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(firstResourceRow).toBeVisible();
         await firstResourceRow.getByRole('checkbox').click();
         await expect(page.getByText(/^1 resource selected$/)).toBeVisible();
-        await page.getByTestId('resources-actions-menu-trigger').click();
-
         const setupLandingPageButton = page.getByTestId('resources-action-setup-landing-page');
+        if (!(await setupLandingPageButton.isVisible().catch(() => false))) {
+            await page.getByTestId('resources-actions-menu-trigger').click();
+        }
+
         await expect(setupLandingPageButton).toBeVisible();
         await expect(setupLandingPageButton).toBeEnabled();
         await setupLandingPageButton.click();

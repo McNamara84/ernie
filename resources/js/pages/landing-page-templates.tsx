@@ -135,6 +135,7 @@ export default function LandingPageTemplatesPage() {
     const [editLeftOrder, setEditLeftOrder] = useState<LeftColumnSection[]>([]);
     const [editCreatorDisplayLimit, setEditCreatorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editContributorDisplayLimit, setEditContributorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
+    const [editCitationAuthorDisplayLimit, setEditCitationAuthorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [saving, setSaving] = useState(false);
 
     // Delete dialog
@@ -182,6 +183,7 @@ export default function LandingPageTemplatesPage() {
         setEditLeftOrder(normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type));
         setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
+        setEditCitationAuthorDisplayLimit(String(tmpl.citation_author_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditOpen(true);
     };
 
@@ -195,7 +197,8 @@ export default function LandingPageTemplatesPage() {
 
     const areDisplayLimitsValid =
         isValidDisplayLimit(editCreatorDisplayLimit) &&
-        isValidDisplayLimit(editContributorDisplayLimit);
+        isValidDisplayLimit(editContributorDisplayLimit) &&
+        isValidDisplayLimit(editCitationAuthorDisplayLimit);
 
     const handleSave = async () => {
         if (!editTemplate) return;
@@ -205,6 +208,7 @@ export default function LandingPageTemplatesPage() {
                 ? {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
+                      citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
                   }
                 : {
                       name: editName.trim(),
@@ -212,6 +216,7 @@ export default function LandingPageTemplatesPage() {
                       left_column_order: normalizeLeftColumnOrder(editLeftOrder, editTemplate.template_type),
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
+                      citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
                   };
 
             await axios.put(`/landing-pages/${editTemplate.id}`, payload);
@@ -381,7 +386,7 @@ export default function LandingPageTemplatesPage() {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/20 p-2 text-xs">
+                                <div className="grid grid-cols-3 gap-2 rounded-md border bg-muted/20 p-2 text-xs">
                                     <div>
                                         <span className="block font-medium text-foreground">Creators shown</span>
                                         <span className="text-muted-foreground">{tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT}</span>
@@ -390,23 +395,27 @@ export default function LandingPageTemplatesPage() {
                                         <span className="block font-medium text-foreground">Contributors shown</span>
                                         <span className="text-muted-foreground">{tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT}</span>
                                     </div>
+                                    <div>
+                                        <span className="block font-medium text-foreground">Citation authors</span>
+                                        <span className="text-muted-foreground">{tmpl.citation_author_display_limit ?? DISPLAY_LIMIT_DEFAULT}</span>
+                                    </div>
                                 </div>
 
                                 {/* Section Order Summary */}
                                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                                     <div>
-                                        <span className="font-medium text-foreground">Right Column:</span>
-                                        <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
-                                            {normalizeRightColumnOrder(tmpl.right_column_order).map((key) => (
-                                                <li key={key}>{RIGHT_SECTION_LABELS[key] ?? key}</li>
-                                            ))}
-                                        </ol>
-                                    </div>
-                                    <div>
                                         <span className="font-medium text-foreground">Left Column:</span>
                                         <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
                                             {normalizeLeftColumnOrder(tmpl.left_column_order, tmpl.template_type).map((key) => (
                                                 <li key={key}>{LEFT_SECTION_LABELS[key] ?? key}</li>
+                                            ))}
+                                        </ol>
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-foreground">Right Column:</span>
+                                        <ol className="mt-0.5 list-inside list-decimal space-y-0.5">
+                                            {normalizeRightColumnOrder(tmpl.right_column_order).map((key) => (
+                                                <li key={key}>{RIGHT_SECTION_LABELS[key] ?? key}</li>
                                             ))}
                                         </ol>
                                     </div>
@@ -521,8 +530,8 @@ export default function LandingPageTemplatesPage() {
                         </DialogTitle>
                         <DialogDescription>
                             {editTemplate?.is_default
-                                ? 'Customize how many creators and contributors are shown initially for this built-in template.'
-                                : 'Customize the template name, section order, and initial creator/contributor display limits.'}
+                                ? 'Customize how many creators, contributors, and citation authors are shown for this built-in template.'
+                                : 'Customize the template name, section order, and creator/contributor/citation display limits.'}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -542,7 +551,7 @@ export default function LandingPageTemplatesPage() {
                             </>
                         )}
 
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-4 md:grid-cols-3">
                             <div className="space-y-2">
                                 <Label htmlFor="edit-creator-display-limit">Creators shown initially</Label>
                                 <Input
@@ -569,6 +578,19 @@ export default function LandingPageTemplatesPage() {
                                     onChange={(e) => setEditContributorDisplayLimit(e.target.value)}
                                 />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-citation-author-display-limit">Citation authors before et al.</Label>
+                                <Input
+                                    id="edit-citation-author-display-limit"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={DISPLAY_LIMIT_MIN}
+                                    max={DISPLAY_LIMIT_MAX}
+                                    step={1}
+                                    value={editCitationAuthorDisplayLimit}
+                                    onChange={(e) => setEditCitationAuthorDisplayLimit(e.target.value)}
+                                />
+                            </div>
                         </div>
 
                         {!editTemplate?.is_default && (
@@ -576,13 +598,6 @@ export default function LandingPageTemplatesPage() {
                                 <Separator />
 
                                 <div className="grid gap-6 md:grid-cols-2">
-                                    <SectionOrderEditor
-                                        title="Right Column (main content)"
-                                        items={editRightOrder}
-                                        labels={RIGHT_SECTION_LABELS}
-                                        description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
-                                        onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as RightColumnSection[]))}
-                                    />
                                     <SectionOrderEditor
                                         title="Left Column (sidebar)"
                                         items={editLeftOrder}
@@ -593,6 +608,13 @@ export default function LandingPageTemplatesPage() {
                                                 : 'Resource templates render files, contact details, and related material in the sidebar.'
                                         }
                                         onReorder={(items) => setEditLeftOrder(items as LeftColumnSection[])}
+                                    />
+                                    <SectionOrderEditor
+                                        title="Right Column (main content)"
+                                        items={editRightOrder}
+                                        labels={RIGHT_SECTION_LABELS}
+                                        description="Description modules render inside one shared metadata card. Location / Map stays outside that card and snaps to the top or bottom position."
+                                        onReorder={(items) => setEditRightOrder(normalizeRightColumnOrder(items as RightColumnSection[]))}
                                     />
                                 </div>
                             </>

@@ -16,7 +16,7 @@ trait ValidatesEditorDates
      *
      * @var list<string>
      */
-    private const EDITOR_PERIOD_DATE_TYPES = ['collected', 'valid', 'other'];
+    private const EDITOR_PERIOD_DATE_TYPES = ['created', 'collected', 'valid', 'other'];
 
     private function validateEditorDates(Validator $validator): void
     {
@@ -82,7 +82,7 @@ trait ValidatesEditorDates
             if (! in_array($dateType, self::EDITOR_PERIOD_DATE_TYPES, true)) {
                 $validator->errors()->add(
                     "dates.$index.endDate",
-                    '[Dates] Date #'.($index + 1).' can only use a period for Collected, Valid, or Other.',
+                    '[Dates] Date #'.($index + 1).' can only use a period for Created, Collected, Valid, or Other.',
                 );
 
                 continue;

@@ -284,6 +284,10 @@ class SizeFormatFileProbeService
             return $this->skip($fileUrl, 'unsupported_source_url');
         }
 
+        if ($this->isDataDescriptionFile($this->filenameFromUrl($fileUrl))) {
+            return $this->skip($fileUrl, 'data_description_file');
+        }
+
         try {
             $response = $headResponse ?? Http::timeout(10)
                 ->connectTimeout(5)
@@ -584,6 +588,10 @@ class SizeFormatFileProbeService
                 continue;
             }
 
+            if ($this->isDataDescriptionFile($filename)) {
+                continue;
+            }
+
             $fileMetadata = $this->extractFileMetadata($filename);
 
             $files[] = [
@@ -767,6 +775,31 @@ class SizeFormatFileProbeService
         }
 
         return array_values($uniqueFiles);
+    }
+
+    private function filenameFromUrl(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+
+        if (! is_string($path) || $path === '') {
+            return $this->decodeFilenameSegment(basename($url));
+        }
+
+        return $this->decodeFilenameSegment(basename($path));
+    }
+
+    private function decodeFilenameSegment(string $filename): string
+    {
+        $encodedSeparatorsPreserved = str_ireplace(['%2f', '%5c'], ['%252F', '%255C'], $filename);
+
+        return rawurldecode($encodedSeparatorsPreserved);
+    }
+
+    private function isDataDescriptionFile(string $filename): bool
+    {
+        $normalized = strtolower(html_entity_decode($this->decodeFilenameSegment(basename($filename)), ENT_QUOTES | ENT_HTML5));
+
+        return preg_match('/(^|[^a-z0-9])data[-_]?description(?=$|[^a-z0-9])/', $normalized) === 1;
     }
 
     private function extractFileMetadata(string $filename): ?string

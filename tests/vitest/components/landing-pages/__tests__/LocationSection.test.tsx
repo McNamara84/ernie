@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @vitest-environment jsdom
  */
 import { render, screen } from '@testing-library/react';
@@ -29,6 +29,16 @@ vi.mock('react-leaflet', () => ({
     )),
     Polyline: vi.fn(({ positions }) => (
         <div data-testid="polyline" data-positions={JSON.stringify(positions)} />
+    )),
+    CircleMarker: vi.fn(({ center, children }) => (
+        <div data-testid="circle-marker" data-center={JSON.stringify(center)}>
+            {children}
+        </div>
+    )),
+    Tooltip: vi.fn(({ children, direction, sticky }) => (
+        <div data-testid="tooltip" data-direction={direction} data-sticky={String(sticky)}>
+            {children}
+        </div>
     )),
     useMap: vi.fn(() => ({
         fitBounds: vi.fn(),
@@ -151,7 +161,7 @@ describe('LocationSection', () => {
             expect(screen.getByTestId('map-container')).toBeInTheDocument();
         });
 
-        it('should render maps with a 2:1 aspect ratio and bounded world tiles', () => {
+        it('should render maps with a 1:1 aspect ratio and bounded world tiles', () => {
             render(
                 <LocationSection
                     geoLocations={[
@@ -171,7 +181,7 @@ describe('LocationSection', () => {
                 />,
             );
 
-            expect(screen.getByTestId('map-container')).toHaveClass('aspect-[2/1]');
+            expect(screen.getByTestId('map-container')).toHaveClass('aspect-square');
             expect(screen.getByTestId('leaflet-map').dataset.maxBounds).toBe('[[-90,-180],[90,180]]');
             expect(screen.getByTestId('leaflet-map').dataset.maxBoundsViscosity).toBe('1');
             expect(screen.getByTestId('leaflet-map').dataset.worldCopyJump).toBe('false');
@@ -342,6 +352,41 @@ describe('LocationSection', () => {
         });
     });
 
+    describe('line locations', () => {
+        it('should render a Polyline and coordinate tooltips for every waypoint', () => {
+            const linePoints = [
+                { longitude: 13.0661, latitude: 52.3806 },
+                { longitude: 14.1234, latitude: 53.9876 },
+                { longitude: 15.5, latitude: 54.25 },
+            ];
+
+            render(
+                <LocationSection
+                    geoLocations={[
+                        {
+                            id: 1,
+                            place: 'Survey line',
+                            point_longitude: null,
+                            point_latitude: null,
+                            west_bound_longitude: null,
+                            east_bound_longitude: null,
+                            south_bound_latitude: null,
+                            north_bound_latitude: null,
+                            polygon_points: linePoints,
+                            geo_type: 'line',
+                        },
+                    ]}
+                />,
+            );
+
+            expect(screen.getByTestId('polyline')).toBeInTheDocument();
+            expect(screen.getAllByTestId('circle-marker')).toHaveLength(3);
+            expect(screen.getAllByTestId('tooltip')).toHaveLength(3);
+            expect(screen.getByText('Lat: 52.380600, Lon: 13.066100')).toBeInTheDocument();
+            expect(screen.getByText('Lat: 53.987600, Lon: 14.123400')).toBeInTheDocument();
+            expect(screen.getByText('Lat: 54.250000, Lon: 15.500000')).toBeInTheDocument();
+        });
+    });
     describe('mixed locations', () => {
         it('should render all geometry types together', () => {
             render(

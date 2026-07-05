@@ -47,7 +47,8 @@ const guidedTourDefinitions: Record<string, GuidedTourDefinition> = {
                 id: 'dashboard-upload',
                 element: '[data-tour="dashboard-upload"]',
                 title: 'Upload Area',
-                description: 'Use this area to upload DataCite XML, JSON, JSON-LD, or IGSN CSV files and continue in the editor.',
+                description:
+                    'Use this area to upload DataCite XML, JSON, JSON-LD, or IGSN CSV files, then review the result before opening the editor or IGSN list.',
                 side: 'top',
                 align: 'center',
             },

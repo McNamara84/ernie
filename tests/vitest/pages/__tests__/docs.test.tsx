@@ -144,6 +144,26 @@ describe('Docs page', () => {
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it('documents description segmentation suggestions for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+
+        expect(screen.getByText('Description Segmentation Suggestions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract') &&
+                    text.includes('stale suggestions are rejected if the source Abstract changed after discovery.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides assistance documentation for curators', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
         expect(screen.queryByText('Metadata Enrichment Assistance')).not.toBeInTheDocument();
@@ -231,6 +251,24 @@ describe('Docs page', () => {
 
         expect(screen.getByText(/legacy DataCite 4\.6 \+ ISO envelope format/i)).toBeInTheDocument();
         expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
+    });
+
+    it('documents opening resources from the resources table row', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab.');
+            }),
+        ).toBeInTheDocument();
     });
 
     it('hides controlled keywords section when all vocabulary families are disabled', async () => {
@@ -340,6 +378,82 @@ describe('Docs page', () => {
         // Verify tab switched and curator sees Landing Pages
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+    });
+
+    it('documents the landing page preview action in the Data Editor', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getAllByText('Show LP Preview').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('The action bar stays available while you move through the form.') &&
+                    text.includes('on touch screens it remains visible and compact.')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('From the Data Editor, click Show LP Preview in the bottom-right action bar next to Save Draft and Save & Validate') &&
+                    text.includes('automatically opens the preview after you create it.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('documents resource quick actions and grouped delete behavior for curators', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Edit and Set up landing page appear as quick actions directly in the selection toolbar.');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Delete Selected Resources (Curator and above)')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Published resources are listed as protected and are never sent to the delete endpoint.');
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('hides resource delete documentation for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
     });
 
     it('shows landing page templates for group leaders', async () => {

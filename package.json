@@ -39,7 +39,7 @@
     "types": "npm run types:app && npm run types:test",
     "types:app": "tsc -p tsconfig.json --noEmit",
     "types:test": "tsc -p tests/vitest/tsconfig.json --noEmit",
-    "shadcn": "npx shadcn@4.7.0",
+    "shadcn": "npx shadcn@4.13.0",
     "test": "node ./scripts/run-vitest.mjs",
     "test:run": "node ./scripts/run-vitest.mjs run",
     "test:coverage": "node ./scripts/run-vitest.mjs run --coverage",

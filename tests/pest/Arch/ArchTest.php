@@ -81,6 +81,11 @@ describe('Services', function () {
             'App\Services\Citations\CrossrefClient',
             'App\Services\Citations\CrossrefTypeMapper',
             'App\Services\Citations\DataCiteTypeMapper',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorFundrefIndexMappingSource',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorIdentifierNormalizer',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorMappingSource',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorMatchInput',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorMatchInputProvider',
             'App\Services\Xml\DataCiteXmlImportParser',
             'App\Services\Xml\DataCiteXmlImportResult',
             'App\Services\Xml\Sections\AuthorSectionParser',
@@ -102,6 +107,13 @@ describe('Services', function () {
             'App\Services\Spdx\SpdxRightsMatchInput',
             'App\Services\Spdx\SpdxRightsMatchInputProvider',
             'App\Services\Spdx\SpdxRightsMatchResult',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatchInput',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatchInputProvider',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatchResult',
+            'App\Services\SubjectEnrichment\SubjectEnrichmentMatcher',
+            'App\Services\SubjectEnrichment\SubjectVocabularyConcept',
+            'App\Services\SubjectEnrichment\SubjectVocabularyMatchSet',
+            'App\Services\SubjectEnrichment\SubjectVocabularySource',
         ]);
 
     arch('services are not extending controllers')

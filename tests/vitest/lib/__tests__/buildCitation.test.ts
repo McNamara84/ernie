@@ -470,4 +470,62 @@ describe('buildCitation', () => {
             'Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
+    it('limits citation creators and appends et al. when more creators exist than the configured limit', () => {
+        const resource: CitationResource = {
+            creators: [
+                { creatorable: { type: 'Person', given_name: 'John', family_name: 'Doe' } },
+                { creatorable: { type: 'Person', given_name: 'Jane', family_name: 'Smith' } },
+                { creatorable: { type: 'Person', given_name: 'Alice', family_name: 'Miller' } },
+            ],
+            titles: [{ title: 'Long Author Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.LONG.2026',
+        };
+
+        const citation = buildCitation(resource, { creatorLimit: 2 });
+
+        expect(citation).toBe(
+            'Doe, J.; Smith, J.; et al. (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026'
+        );
+    });
+
+    it('does not append et al. when creator count is equal to the configured limit', () => {
+        const resource: CitationResource = {
+            creators: [
+                { creatorable: { type: 'Person', given_name: 'John', family_name: 'Doe' } },
+                { creatorable: { type: 'Person', given_name: 'Jane', family_name: 'Smith' } },
+            ],
+            titles: [{ title: 'Exact Limit Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.EXACT.2026',
+        };
+
+        const citation = buildCitation(resource, { creatorLimit: 2 });
+
+        expect(citation).toBe(
+            'Doe, J.; Smith, J. (2026): Exact Limit Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.EXACT.2026'
+        );
+    });
+
+    it('applies citation creator limits after filtering invalid creator entries', () => {
+        const resource: CitationResource = {
+            creators: [
+                {},
+                { creatorable: { type: 'Person', given_name: 'John', family_name: 'Doe' } },
+                { creatorable: { type: 'Person', given_name: 'Jane', family_name: 'Smith' } },
+            ],
+            titles: [{ title: 'Filtered Creator Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.FILTERED.2026',
+        };
+
+        const citation = buildCitation(resource, { creatorLimit: 2 });
+
+        expect(citation).toBe(
+            'Doe, J.; Smith, J. (2026): Filtered Creator Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.FILTERED.2026'
+        );
+    });
 });

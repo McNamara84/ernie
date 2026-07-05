@@ -112,6 +112,14 @@ describe('date-utils', () => {
             });
         });
 
+        it('parses space-separated datetime with Z timezone', () => {
+            expect(parseDateTime('2022-10-06 09:35:20Z')).toEqual({
+                date: '2022-10-06',
+                time: '09:35:20',
+                timezone: 'Z',
+            });
+        });
+
         it('parses datetime with seconds', () => {
             expect(parseDateTime('2022-10-06T09:35:00+01:00')).toEqual({
                 date: '2022-10-06',

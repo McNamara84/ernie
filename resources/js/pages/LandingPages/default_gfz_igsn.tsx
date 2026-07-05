@@ -38,6 +38,7 @@ interface DefaultGfzIgsnTemplatePageProps {
 const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
     creators: 50,
     contributors: 50,
+    citationAuthors: 50,
 };
 
 /**
@@ -53,7 +54,7 @@ export default function DefaultGfzIgsnTemplate() {
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview);
+    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ?? IGSN_LEFT_COLUMN_SECTIONS;

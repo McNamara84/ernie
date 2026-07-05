@@ -47,9 +47,9 @@ vi.mock('@/components/upload-error-modal', () => ({
 // Mock upload types
 vi.mock('@/types/upload', () => ({
     getUploadErrors: (response: Record<string, unknown>) => response.errors ?? (response.error ? [response.error] : []),
-    hasMultipleErrors: (response: Record<string, unknown>) => {
+    hasMultipleErrors: (response: Record<string, unknown>, threshold = 3) => {
         const errors = response.errors ?? (response.error ? [response.error] : []);
-        return Array.isArray(errors) && errors.length >= 3;
+        return Array.isArray(errors) && errors.length > threshold;
     },
 }));
 
@@ -65,8 +65,20 @@ describe('UnifiedDropzone', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        mockOnXmlUpload.mockResolvedValue(undefined);
-        mockOnJsonUpload.mockResolvedValue(undefined);
+        mockOnXmlUpload.mockImplementation(async (files: File[]) => ({
+            success: true,
+            uploadKind: 'datacite',
+            filename: files[0]?.name ?? 'metadata.xml',
+            resourceId: '1',
+            editorUrl: '/editor?resourceId=1',
+        }));
+        mockOnJsonUpload.mockImplementation(async (files: File[]) => ({
+            success: true,
+            uploadKind: 'datacite',
+            filename: files[0]?.name ?? 'metadata.json',
+            resourceId: '2',
+            editorUrl: '/editor?resourceId=2',
+        }));
     });
 
     describe('idle state', () => {
@@ -119,6 +131,44 @@ describe('UnifiedDropzone', () => {
                 expect(screen.getByTestId('dropzone-uploading-state')).toBeInTheDocument();
             });
         });
+        it('shows a DataCite success state and opens the editor only on click', async () => {
+            mockOnXmlUpload.mockResolvedValue({
+                success: true,
+                uploadKind: 'datacite',
+                filename: 'metadata.xml',
+                resourceId: '42',
+                editorUrl: '/editor?resourceId=42',
+            });
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('metadata.xml', 'text/xml'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-success-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('DataCite upload complete')).toBeInTheDocument();
+            expect(screen.getByText(/Draft resource #42 is ready to review/i)).toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+
+            await userEvent.click(screen.getByRole('button', { name: /open in editor/i }));
+            expect(mockVisit).toHaveBeenCalledWith('/editor?resourceId=42');
+        });
+        it('shows an error when XML upload returns no editor target', async () => {
+            mockOnXmlUpload.mockResolvedValue(undefined);
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('metadata.xml', 'text/xml'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+        });
     });
 
     describe('JSON upload', () => {
@@ -158,6 +208,40 @@ describe('UnifiedDropzone', () => {
                 expect(screen.getByTestId('dropzone-uploading-state')).toBeInTheDocument();
             });
         });
+        it('shows a DataCite success state for JSON without navigating automatically', async () => {
+            mockOnJsonUpload.mockResolvedValue({
+                success: true,
+                uploadKind: 'datacite',
+                filename: 'metadata.json',
+                resourceId: '77',
+                editorUrl: '/editor?resourceId=77',
+            });
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('metadata.json', 'application/json'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-success-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('DataCite upload complete')).toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+        });
+        it('shows an error when JSON upload returns no editor target', async () => {
+            mockOnJsonUpload.mockResolvedValue(undefined);
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('metadata.json', 'application/json'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByTestId('dropzone-error-alert')).toHaveTextContent(/no editor target was returned/i);
+            expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('dropzone-success-state')).not.toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+        });
     });
 
     describe('CSV upload', () => {
@@ -179,9 +263,9 @@ describe('UnifiedDropzone', () => {
             });
         });
 
-        it('shows success state after successful CSV upload', async () => {
+        it('shows success state after successful CSV upload without navigating automatically', async () => {
             vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-                new Response(JSON.stringify({ success: true, created: 3 }), {
+                new Response(JSON.stringify({ success: true, created: 3, filename: 'test.csv' }), {
                     status: 200,
                     headers: { 'Content-Type': 'application/json' },
                 }),
@@ -193,6 +277,14 @@ describe('UnifiedDropzone', () => {
             await waitFor(() => {
                 expect(screen.getByTestId('dropzone-success-state')).toBeInTheDocument();
             });
+
+            expect(screen.getByText('IGSN import complete')).toBeInTheDocument();
+            expect(screen.getByTestId('dropzone-success-alert')).toHaveTextContent(/test\.csv imported 3 IGSN resource/i);
+            expect(screen.getByRole('button', { name: /view igsns/i })).toBeInTheDocument();
+            expect(mockVisit).not.toHaveBeenCalled();
+
+            await userEvent.click(screen.getByRole('button', { name: /view igsns/i }));
+            expect(mockVisit).toHaveBeenCalledWith('/igsns');
         });
 
         it('shows error state when CSV upload fails', async () => {
@@ -211,6 +303,63 @@ describe('UnifiedDropzone', () => {
             });
         });
 
+        it('shows row errors for structured CSV upload failures', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        success: false,
+                        message: 'Invalid CSV data',
+                        errors: [{ row: 2, igsn: 'TEST001', message: 'Duplicate IGSN' }],
+                    }),
+                    {
+                        status: 422,
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                ),
+            );
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('bad.csv', 'text/csv'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByText('Row Errors:')).toBeInTheDocument();
+            expect(screen.getByText(/Row 2:/)).toBeInTheDocument();
+            expect(screen.getByText('TEST001')).toBeInTheDocument();
+            expect(screen.getByText('Duplicate IGSN')).toBeInTheDocument();
+        });
+        it('shows the error modal for CSV upload failures with many row errors', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        success: false,
+                        message: 'Multiple CSV rows failed',
+                        errors: [
+                            { row: 2, igsn: 'TEST001', message: 'Duplicate IGSN' },
+                            { row: 3, igsn: 'TEST002', message: 'Missing sample type' },
+                            { row: 4, igsn: 'TEST003', message: 'Invalid date' },
+                            { row: 5, igsn: 'TEST004', message: 'Missing material' },
+                        ],
+                    }),
+                    {
+                        status: 422,
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                ),
+            );
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('bad.csv', 'text/csv'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByTestId('error-modal')).toBeInTheDocument();
+            expect(screen.queryByText('Row Errors:')).not.toBeInTheDocument();
+        });
         it('shows error when fetch rejects', async () => {
             vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
@@ -224,7 +373,7 @@ describe('UnifiedDropzone', () => {
     });
 
     describe('reset behavior', () => {
-        it('resets to idle when "Upload Another File" button is clicked', async () => {
+        it('resets to idle when "Upload another file" button is clicked', async () => {
             vi.spyOn(globalThis, 'fetch').mockResolvedValue(
                 new Response(JSON.stringify({ success: true, created: 1 }), {
                     status: 200,
@@ -239,7 +388,7 @@ describe('UnifiedDropzone', () => {
                 expect(screen.getByTestId('dropzone-success-state')).toBeInTheDocument();
             });
 
-            await userEvent.click(screen.getByText('Upload Another File'));
+            await userEvent.click(screen.getByText('Upload another file'));
             expect(screen.getByTestId('unified-dropzone')).toBeInTheDocument();
         });
 

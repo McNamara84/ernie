@@ -159,8 +159,13 @@ const openResourceActionsMenu = async () => {
     await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
 };
 
+const QUICK_RESOURCE_ACTION_TEST_IDS = new Set(['resources-action-edit', 'resources-action-setup-landing-page']);
+
 const clickResourceAction = async (testId: string) => {
-    await openResourceActionsMenu();
+    if (!QUICK_RESOURCE_ACTION_TEST_IDS.has(testId)) {
+        await openResourceActionsMenu();
+    }
+
     await userEvent.click(screen.getByTestId(testId));
 };
 
@@ -178,7 +183,7 @@ describe('ResourcesPage - extended', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        localStorage.clear();
+        window.localStorage.clear();
         axiosGetMock.mockResolvedValue({ data: {} });
         Object.assign(mockUser, {
             role: 'group_leader',
@@ -427,7 +432,7 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();
         });
 
-        it('enables delete only for selected drafts without DOI and without landing page', async () => {
+        it('enables delete for selected non-published resources', async () => {
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
@@ -439,13 +444,14 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByRole('alertdialog')).toBeInTheDocument();
         });
 
-        it('keeps delete unavailable for draft resources with persistent identifiers', async () => {
-            renderPage({ resources: [makeResource({ id: 5, publicstatus: 'draft', landingPage: null })] });
+        it('keeps published resources out of the submitted delete request', async () => {
+            renderPage({ resources: [makeResource({ id: 5, publicstatus: 'published', landingPage })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await clickResourceAction('resources-action-delete');
 
-            expect(toastMock.error).toHaveBeenCalledWith('Resources with persistent identifiers cannot be deleted.');
+            expect(screen.getByText(/no selected resources can be deleted/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
             expect(routerMock.delete).not.toHaveBeenCalled();
         });
 
@@ -454,12 +460,12 @@ describe('ResourcesPage - extended', () => {
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await clickResourceAction('resources-action-delete');
-            await userEvent.click(screen.getByRole('button', { name: /^delete draft$/i }));
+            await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
 
             expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [5] }, preserveScroll: true }));
         });
 
-        it('hides delete action when the user lacks draft-delete permission', async () => {
+        it('hides delete action when the user lacks delete permission', async () => {
             mockUser.role = 'beginner';
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));

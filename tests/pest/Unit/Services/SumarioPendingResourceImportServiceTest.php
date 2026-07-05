@@ -271,4 +271,36 @@ describe('SumarioPendingResourceImportService', function () {
 
         expect($result['status'])->toBe('skipped');
     });
+
+    it('skips pending SUMARIO resources whose DOI contains test or delete', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 58,
+            'publicstatus' => 'pending',
+            'identifier' => '10.5880/fidgeo.test.to.be.deleted',
+        ]);
+
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader->shouldNotReceive('loadForEditor');
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage->shouldNotReceive('store');
+
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService->shouldNotReceive('lookupFileEntries');
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: Mockery::mock(LegacyMetaworksDatacenterLookupService::class),
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $result = $service->importPendingByDoi('10.5880/fidgeo.test.to.be.deleted', 1);
+
+        expect($result['status'])->toBe('skipped')
+            ->and($result['doi'])->toBe('10.5880/fidgeo.test.to.be.deleted')
+            ->and(Resource::where('doi', '10.5880/fidgeo.test.to.be.deleted')->exists())->toBeFalse();
+    });
 });

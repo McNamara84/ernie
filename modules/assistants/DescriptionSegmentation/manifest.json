@@ -1,0 +1,24 @@
+{
+    "id": "description-segmentation",
+    "name": "Description Segmentation Suggestions",
+    "description": "Splits long legacy Abstract descriptions into curator-reviewed DataCite Description Types.",
+    "icon": "TextSelect",
+    "version": "1.0.0",
+    "assistant_class": "Modules\\Assistants\\DescriptionSegmentation\\Assistant",
+    "route_prefix": "description-segmentation",
+    "lock_key": "description_segmentation_discovery_running",
+    "cache_key_prefix": "description_segmentation_discovery",
+    "sort_order": 42,
+    "status_labels": {
+        "checking": "Starting description segmentation discovery...",
+        "completed_with_results": "Description segmentation discovery completed: {count} new suggestion(s) found.",
+        "completed_empty": "Description segmentation discovery completed: No new suggestions found.",
+        "failed": "Description segmentation discovery failed: {error}",
+        "already_running": "A description segmentation discovery job is already running."
+    },
+    "empty_state": {
+        "title": "No pending description segmentation suggestions",
+        "description": "No legacy Abstract descriptions need segmentation. Click \"Check\" to search again."
+    },
+    "card_component": null
+}
