@@ -254,19 +254,22 @@ test.describe('Stage Full Workflow Test', () => {
     console.log('Step 2: Uploading XML file...');
     
     await page.goto('/dashboard');
-    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    await expect(page.getByTestId('unified-dropzone')).toBeVisible();
     
-    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    const fileInput = page.getByTestId('unified-file-input');
     const xmlFilePath = resolveDatasetExample('datacite-example-dataset-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
     
     console.log('✓ XML file uploaded');
 
     // ========================================
-    // STEP 3: Wait for Editor
+    // STEP 3: Review upload result and open editor
     // ========================================
-    console.log('Step 3: Waiting for editor to load...');
+    console.log('Step 3: Reviewing upload result and opening editor...');
     
+    await expect(page.getByTestId('dropzone-success-state')).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('dropzone-success-alert')).toContainText('DataCite upload complete');
+    await page.getByRole('button', { name: /open in editor/i }).click();
     await page.waitForURL(/\/editor/, { timeout: 30000 });
     
     // Wait for form to be fully loaded

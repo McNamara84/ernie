@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
-import DataCiteForm, { type InitialAuthor, type InitialContributor, type RawRightsInput } from '@/components/curation/datacite-form';
+import DataCiteForm, { type EditorLandingPageSummary, type InitialAuthor, type InitialContributor, type RawRightsInput } from '@/components/curation/datacite-form';
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -38,6 +38,7 @@ interface EditorProps {
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];
     resourceId?: string;
+    landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
@@ -70,6 +71,7 @@ export default function Editor({
     initialLicenses = [],
     initialRawRights = [],
     resourceId,
+    landingPage = null,
     authors = [],
     contributors = [],
     descriptions = [],
@@ -274,6 +276,7 @@ export default function Editor({
                         initialLicenses={initialLicenses}
                         initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
+                        initialLandingPage={landingPage}
                         initialAuthors={authors}
                         initialContributors={contributors}
                         initialDescriptions={descriptions}

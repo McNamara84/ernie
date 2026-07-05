@@ -43,6 +43,132 @@ it('explores nested directories and creates one total size suggestion', function
     Http::assertSentCount(3);
 });
 
+it('excludes data description files from directory format and size suggestions', function () {
+    Http::fake([
+        'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/' => Http::response(<<<'HTML'
+            <a href="2026-047_Moreira-et-al_data/">2026-047_Moreira-et-al_data/</a> 2026-07-03 14:38 -
+            <a href="2026-047_Moreira-et-al_data-description.pdf">2026-047_Moreira-et-al_data-description.pdf</a> 2026-07-03 14:38 450K
+            HTML),
+        'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/2026-047_Moreira-et-al_data/' => Http::response(<<<'HTML'
+            <a href="2026-047_Moreira-et-al_data-Lisbon1.csv">2026-047_Moreira-et-al_data-Lisbon1.csv</a> 2026-07-03 14:38 41K
+            <a href="2026-047_Moreira-et-al_data-Lisbon2.csv">2026-047_Moreira-et-al_data-Lisbon2.csv</a> 2026-07-03 14:38 53K
+            HTML),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/');
+
+    expect($result['raw_evidence']['files'])->toHaveCount(2)
+        ->and(array_column($result['raw_evidence']['files'], 'filename'))->toEqualCanonicalizing([
+            '2026-047_Moreira-et-al_data-Lisbon1.csv',
+            '2026-047_Moreira-et-al_data-Lisbon2.csv',
+        ]);
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect(array_column($formatSuggestions, 'inferred_value'))
+        ->each->toBe('text/csv')
+        ->and(array_column($formatSuggestions, 'source_url'))->not->toContain('https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/2026-047_Moreira-et-al_data-description.pdf')
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('94 KB')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2);
+
+    Http::assertSentCount(2);
+});
+
+it('skips direct data description file probes before sending http requests', function () {
+    Http::fake();
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/10.5880.FIDGEO.2026.047-Mnbvfgh/2026-047_Moreira-et-al_data-description.pdf');
+
+    expect($result['probe_method'])->toBe('SKIP')
+        ->and($result['skip_reason'])->toBe('data_description_file')
+        ->and($result['suggestions'])->toBeEmpty();
+
+    Http::assertNothingSent();
+});
+
+it('extracts direct probe filenames before decoding encoded slashes', function () {
+    $url = 'https://datapub.gfz.de/download/dataset/archive%2Fdata-description.pdf';
+
+    Http::fake([
+        $url => Http::response('', 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Length' => '2048',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl($url);
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'])->toHaveCount(2)
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/pdf',
+        ])
+        ->and($result['suggestions'][1])->toMatchArray([
+            'type' => 'size',
+            'inferred_value' => '2 KB',
+        ]);
+
+    Http::assertSentCount(1);
+});
+
+it('applies data description filename matching narrowly and case insensitively', function () {
+    Http::fake([
+        'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="sample_data-description.pdf">sample_data-description.pdf</a> 2026-06-14 10:00 1K
+            <a href="sample_data_description.pdf">sample_data_description.pdf</a> 2026-06-14 10:01 2K
+            <a href="sample_DataDescription.PDF">sample_DataDescription.PDF</a> 2026-06-14 10:02 3K
+            <a href="sample_description.pdf">sample_description.pdf</a> 2026-06-14 10:03 4K
+            <a href="metadata_description.pdf">metadata_description.pdf</a> 2026-06-14 10:04 7K
+            <a href="readme.pdf">readme.pdf</a> 2026-06-14 10:05 5K
+            <a href="data.csv">data.csv</a> 2026-06-14 10:06 6K
+            HTML),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+    $filenames = array_column($result['raw_evidence']['files'], 'filename');
+
+    expect($filenames)->toEqualCanonicalizing([
+        'sample_description.pdf',
+        'metadata_description.pdf',
+        'readme.pdf',
+        'data.csv',
+    ]);
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+        'application/pdf',
+        'application/pdf',
+        'application/pdf',
+        'text/csv',
+    ])
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('22 KB')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(4)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(4);
+});
+
 it('does not explore directories outside the original download tree', function () {
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'

@@ -144,6 +144,26 @@ describe('Docs page', () => {
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it('documents description segmentation suggestions for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+
+        expect(screen.getByText('Description Segmentation Suggestions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract') &&
+                    text.includes('stale suggestions are rejected if the source Abstract changed after discovery.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides assistance documentation for curators', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
         expect(screen.queryByText('Metadata Enrichment Assistance')).not.toBeInTheDocument();
@@ -358,6 +378,42 @@ describe('Docs page', () => {
         // Verify tab switched and curator sees Landing Pages
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+    });
+
+    it('documents the landing page preview action in the Data Editor', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getAllByText('Show LP Preview').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('The action bar stays available while you move through the form.') &&
+                    text.includes('on touch screens it remains visible and compact.')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('From the Data Editor, click Show LP Preview in the bottom-right action bar next to Save Draft and Save & Validate') &&
+                    text.includes('automatically opens the preview after you create it.')
+                );
+            }),
+        ).toBeInTheDocument();
     });
 
     it('documents resource quick actions and grouped delete behavior for curators', async () => {
