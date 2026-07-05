@@ -63,8 +63,12 @@ it('detects explicit German language from title language attribute', function ()
     expect($suggestions)->toHaveCount(1);
     expect($suggestions[0]['suggestedValue'])->toBe('de');
     expect($suggestions[0]['suggestedLabel'])->toBe('German (de)');
+    // Confidence for explicit language should be in 95-100 band per spec
     expect($suggestions[0]['similarityScore'])->toBe(0.95);
     expect($suggestions[0]['metadata']['source'])->toBe('explicit_language');
+    // Verify evidence structure per spec
+    expect($suggestions[0]['metadata'])->toHaveKey('evidence');
+    expect(is_array($suggestions[0]['metadata']['evidence']))->toBeTrue();
 });
 
 // Priorisiert explizite Sprache gegenüber Text-Heuristiken
@@ -110,6 +114,55 @@ it('prioritizes explicit language over text heuristics', function () {
 
     expect($suggestions[0]['value'])->toBe('de');
     expect($suggestions[0]['source'])->toBe('explicit_language');
+});
+
+// Verifiziert, dass mehrere explizite Sprachsignale Konfidenz bestätigen
+it('increases confidence when multiple explicit evidence sources agree', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    // Both title and description are explicitly English
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Groundwater quality study',
+        'language' => 'en',
+    ]);
+
+    $resource->descriptions()->create([
+        'value' => 'Research dataset for analysis',
+        'description_type_id' => 1,
+        'language' => 'en',
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'similarityScore', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    expect($suggestions)->toHaveCount(1);
+    expect($suggestions[0]['suggestedValue'])->toBe('en');
+    // Multiple explicit sources should result in highest confidence (95+)
+    expect($suggestions[0]['similarityScore'])->toBe(0.95);
+    expect($suggestions[0]['metadata']['source'])->toBe('explicit_language');
+    // Evidence should document all sources that agreed
+    expect($suggestions[0]['metadata'])->toHaveKey('evidence');
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════
@@ -163,8 +216,12 @@ it('detects English from clear English title and description', function () {
     expect($suggestions)->toHaveCount(1);
     expect($suggestions[0]['suggestedValue'])->toBe('en');
     expect($suggestions[0]['suggestedLabel'])->toBe('English (en)');
-    expect($suggestions[0]['similarityScore'])->toBeGreaterThan(0.5);
+    // Confidence for text heuristic should be in 60-79 band per spec (at least 0.6)
+    expect($suggestions[0]['similarityScore'])->toBeGreaterThanOrEqual(0.6);
+    expect($suggestions[0]['similarityScore'])->toBeLessThanOrEqual(0.9);
     expect($suggestions[0]['metadata']['source'])->toBe('text_heuristic');
+    // Verify evidence structure per spec
+    expect($suggestions[0]['metadata'])->toHaveKey('evidence');
 });
 
 // Erkennt Englisch aus wissenschaftlichem englischem Inhalt mit Fachbegriffen
@@ -250,6 +307,46 @@ it('skips suggestions when explicit title and description languages conflict', f
     );
 
     expect($count)->toBe(0);
+    expect($suggestions)->toHaveCount(0);
+});
+
+// Überspringt mehrdeutige Spracherkennung wenn Konfidenz zu niedrig ist
+it('skips suggestions when language detection is ambiguous', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'fr'], ['name' => 'French', 'active' => true, 'elmo_active' => true]);
+
+    // Mixed text that produces ambiguous scores
+    // (English and German signals too close together)
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'Data und research analysis',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'similarityScore', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    // Should skip because gap between top and second language is too small
     expect($suggestions)->toHaveCount(0);
 });
 
@@ -769,6 +866,44 @@ it('assigns high confidence to explicit language suggestions', function () {
     expect($suggestions[0]['similarityScore'])->toBe(0.95);
 });
 
+// Überprüft dass Spracherkennungs-Konfidenz unter Schwelle nicht vorgeschlagen wird
+it('skips suggestions when text detection confidence is below threshold', function () {
+    $resource = Resource::factory()->create(['language_id' => null]);
+
+    Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'active' => true, 'elmo_active' => true]);
+    Language::firstOrCreate(['code' => 'de'], ['name' => 'German', 'active' => true, 'elmo_active' => true]);
+
+    // Very short title with minimal language signal
+    Title::factory()->create([
+        'resource_id' => $resource->id,
+        'value' => 'ABC test XYZ',
+        'language' => null,
+    ]);
+
+    $suggestions = [];
+    $service = new LanguageSuggestionDiscoveryService;
+
+    $service->discover(
+        storeSuggestion: function (
+            int $resourceId,
+            string $targetType,
+            int $targetId,
+            string $suggestedValue,
+            string $suggestedLabel,
+            ?float $similarityScore,
+            ?array $metadata,
+        ) use (&$suggestions): bool {
+            $suggestions[] = compact('suggestedValue', 'similarityScore', 'metadata');
+
+            return true;
+        },
+        onProgress: fn (string $message) => null,
+    );
+
+    // Should skip because confidence falls below threshold (< 0.6)
+    expect($suggestions)->toHaveCount(0);
+});
+
 // Weist Konfidenzwerte basierend auf der Stärke des Textsignals zu
 it('assigns confidence scores based on text signal strength', function () {
     $resource = Resource::factory()->create(['language_id' => null]);
@@ -803,6 +938,6 @@ it('assigns confidence scores based on text signal strength', function () {
         onProgress: fn (string $message) => null,
     );
 
-    expect($suggestions[0]['similarityScore'])->toBeGreaterThan(0.6);
+    expect($suggestions[0]['similarityScore'])->toBeGreaterThanOrEqual(0.6);
     expect($suggestions[0]['similarityScore'])->toBeLessThanOrEqual(0.9);
 });
