@@ -85,12 +85,16 @@ final readonly class DescriptionSegmentationPreviewService
                     'new_descriptions' => $segmentTypes,
                 ],
                 'preconditions' => [
+                    'preview contract version is still supported',
+                    'segmentation policy version is still current',
                     'source description still exists',
                     'source description type is still Abstract',
                     'source description text still matches the reviewed preview hash',
                     'target description types still exist',
                 ],
                 'stale_if' => [
+                    'preview contract version changed',
+                    'segmentation policy version changed',
                     'source Abstract text changed',
                     'source description type changed',
                     'target DescriptionType seed data changed',

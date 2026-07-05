@@ -133,6 +133,15 @@ final readonly class DescriptionSegmentationAcceptanceService
         }
 
         $metadata = is_array($suggestion->metadata) ? $suggestion->metadata : [];
+
+        if ($this->filledString($metadata['contract_version'] ?? null) !== DescriptionSegmentationPreviewService::CONTRACT_VERSION) {
+            return $this->invalid('Description segmentation suggestion is stale because the preview contract version changed.');
+        }
+
+        if ($this->filledString($metadata['policy_version'] ?? null) !== $this->policy->policyVersion()) {
+            return $this->invalid('Description segmentation suggestion is stale because the segmentation policy version changed.');
+        }
+
         $current = is_array($metadata['current'] ?? null) ? $metadata['current'] : [];
         $proposed = is_array($metadata['proposed'] ?? null) ? $metadata['proposed'] : [];
         $segments = is_array($proposed['segments'] ?? null) ? $proposed['segments'] : [];

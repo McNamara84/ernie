@@ -35,16 +35,24 @@ function descriptionSegmentationAssistantText(string $seed, int $sentences = 12)
     return trim(str_repeat($seed.' ', $sentences));
 }
 
-/**
- * @return array{current: array<string, mixed>, proposed: array{remaining_abstract: string, segments: list<array<string, mixed>>}}
- */
-function descriptionSegmentationAssistantMetadata(AssistantSuggestion $suggestion): array
+/** @return array<string, mixed> */
+function descriptionSegmentationAssistantRawMetadata(AssistantSuggestion $suggestion): array
 {
     $metadata = $suggestion->metadata;
 
     if (! is_array($metadata)) {
         throw new RuntimeException('Expected description segmentation suggestion metadata.');
     }
+
+    return $metadata;
+}
+
+/**
+ * @return array{current: array<string, mixed>, proposed: array{remaining_abstract: string, segments: list<array<string, mixed>>}}
+ */
+function descriptionSegmentationAssistantMetadata(AssistantSuggestion $suggestion): array
+{
+    $metadata = descriptionSegmentationAssistantRawMetadata($suggestion);
 
     $current = $metadata['current'] ?? null;
     $proposed = $metadata['proposed'] ?? null;
@@ -207,6 +215,44 @@ it('applies an accepted segmentation by updating the abstract and creating targe
             ->exists())->toBeTrue();
 });
 
+it('hashes suggestion values after substituting invalid utf8 in preview metadata', function (): void {
+    $service = app(DescriptionSegmentationDiscoveryService::class);
+    $description = new Description;
+    $description->forceFill(['id' => 815]);
+    $metadata = [
+        'current' => [
+            'value_hash' => hash('sha256', 'legacy abstract'),
+        ],
+        'proposed' => [
+            'remaining_abstract' => "Legacy abstract context with invalid byte \xB1.",
+            'target_types' => ['Methods'],
+            'segments' => [
+                [
+                    'description_type' => 'Methods',
+                    'value' => "Method section with invalid byte \xB1.",
+                ],
+            ],
+        ],
+        'policy_version' => 'issue-815-v1',
+    ];
+    $method = new ReflectionMethod($service, 'suggestedValue');
+    $method->setAccessible(true);
+
+    $suggestedValue = $method->invoke($service, $description, $metadata);
+    $expectedSignature = [
+        'description_id' => 815,
+        'value_hash' => $metadata['current']['value_hash'],
+        'proposed' => $metadata['proposed'],
+        'policy_version' => $metadata['policy_version'],
+    ];
+    $expectedValue = 'description-segmentation:'.hash(
+        'sha256',
+        json_encode($expectedSignature, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE),
+    );
+
+    expect($suggestedValue)->toBe($expectedValue);
+});
+
 it('keeps stale suggestions pending when the source abstract changed before acceptance', function (): void {
     $description = descriptionSegmentationAssistantSourceDescription();
     $assistant = app(Assistant::class);
@@ -222,6 +268,46 @@ it('keeps stale suggestions pending when the source abstract changed before acce
     expect($result)->toBe([
         'success' => false,
         'message' => 'Description segmentation suggestion is stale because the source Abstract text changed.',
+    ])
+        ->and(AssistantSuggestion::query()->whereKey($suggestion->id)->exists())->toBeTrue()
+        ->and(Description::query()->where('resource_id', $description->resource_id)->count())->toBe(1);
+});
+
+it('rejects suggestions with an outdated preview contract version', function (): void {
+    $description = descriptionSegmentationAssistantSourceDescription();
+    $assistant = app(Assistant::class);
+    $assistant->runDiscovery(function (string $message): void {});
+
+    $suggestion = AssistantSuggestion::query()->where('assistant_id', $assistant->getId())->sole();
+    $metadata = descriptionSegmentationAssistantRawMetadata($suggestion);
+    $metadata['contract_version'] = '0.0';
+    $suggestion->forceFill(['metadata' => $metadata])->save();
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toBe([
+        'success' => false,
+        'message' => 'Description segmentation suggestion is stale because the preview contract version changed.',
+    ])
+        ->and(AssistantSuggestion::query()->whereKey($suggestion->id)->exists())->toBeTrue()
+        ->and(Description::query()->where('resource_id', $description->resource_id)->count())->toBe(1);
+});
+
+it('rejects suggestions with an outdated segmentation policy version', function (): void {
+    $description = descriptionSegmentationAssistantSourceDescription();
+    $assistant = app(Assistant::class);
+    $assistant->runDiscovery(function (string $message): void {});
+
+    $suggestion = AssistantSuggestion::query()->where('assistant_id', $assistant->getId())->sole();
+    $metadata = descriptionSegmentationAssistantRawMetadata($suggestion);
+    $metadata['policy_version'] = 'issue-815-v0';
+    $suggestion->forceFill(['metadata' => $metadata])->save();
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toBe([
+        'success' => false,
+        'message' => 'Description segmentation suggestion is stale because the segmentation policy version changed.',
     ])
         ->and(AssistantSuggestion::query()->whereKey($suggestion->id)->exists())->toBeTrue()
         ->and(Description::query()->where('resource_id', $description->resource_id)->count())->toBe(1);

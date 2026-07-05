@@ -138,6 +138,6 @@ final readonly class DescriptionSegmentationDiscoveryService
             'policy_version' => $metadata['policy_version'] ?? null,
         ];
 
-        return 'description-segmentation:'.hash('sha256', json_encode($signature, JSON_THROW_ON_ERROR));
+        return 'description-segmentation:'.hash('sha256', json_encode($signature, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
     }
 }
