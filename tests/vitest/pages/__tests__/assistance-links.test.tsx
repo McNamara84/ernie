@@ -1169,9 +1169,11 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         expect(screen.getByText('Current Abstract')).toBeInTheDocument();
         expect(screen.getByText('Proposed Abstract')).toBeInTheDocument();
         expect(screen.getByText('New Description segments')).toBeInTheDocument();
-        expect(screen.getByText('Split Abstract into Methods, TechnicalInfo')).toBeInTheDocument();
+        expect(screen.getByText('Split Abstract into Methods, Technical Info')).toBeInTheDocument();
         expect(screen.getAllByText('Methods')).not.toHaveLength(0);
-        expect(screen.getAllByText('TechnicalInfo')).not.toHaveLength(0);
+        expect(screen.getByText('Methods, Technical Info')).toBeInTheDocument();
+        expect(screen.getByText('Technical Info')).toBeInTheDocument();
+        expect(screen.queryByText('TechnicalInfo')).not.toBeInTheDocument();
         expect(screen.getAllByText(/Legacy overview paragraph that explains the dataset scope/)).toHaveLength(2);
         expect(screen.getByText(/Stations were installed and calibrated with quality control procedures/)).toBeInTheDocument();
         expect(screen.getByText(/CSV and NetCDF files are included with coordinate metadata/)).toBeInTheDocument();

@@ -441,6 +441,23 @@ function metadataList(value: unknown): string[] {
     return value.map((item) => metadataText(item)).filter((item): item is string => item !== null);
 }
 
+const DESCRIPTION_TYPE_LABELS: Record<string, string> = {
+    Abstract: 'Abstract',
+    Methods: 'Methods',
+    SeriesInformation: 'Series Information',
+    TableOfContents: 'Table of Contents',
+    TechnicalInfo: 'Technical Info',
+    Other: 'Other',
+};
+
+function descriptionTypeLabel(type: string | null): string | null {
+    if (type === null) {
+        return null;
+    }
+
+    return DESCRIPTION_TYPE_LABELS[type] ?? type;
+}
+
 function metadataStringValues(value: unknown): string[] {
     if (Array.isArray(value)) return metadataList(value);
 
@@ -1032,6 +1049,8 @@ function DescriptionSegmentationSuggestionCard({
     const percent = typeof confidenceScore === 'number' ? Math.round(confidenceScore * 100) : null;
     const segments = Array.isArray(proposed?.segments) ? proposed.segments : [];
     const targetTypes = metadataList(proposed?.target_types);
+    const targetTypeLabels = targetTypes.map((type) => descriptionTypeLabel(type) ?? type);
+    const suggestedLabel = targetTypeLabels.length > 0 ? `Split Abstract into ${targetTypeLabels.join(', ')}` : suggestion.suggested_label;
     const confidenceEvidence = metadataList(confidence?.evidence);
     const preconditions = metadataList(metadata?.acceptance?.preconditions);
 
@@ -1053,13 +1072,13 @@ function DescriptionSegmentationSuggestionCard({
                         )}
                         {targetTypes.length > 0 && (
                             <Badge variant="secondary" className="text-xs">
-                                {targetTypes.join(', ')}
+                                {targetTypeLabels.join(', ')}
                             </Badge>
                         )}
                     </div>
 
                     <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">{suggestion.suggested_label}</p>
+                        <p className="text-sm font-medium text-foreground">{suggestedLabel}</p>
                         <p className="font-mono text-xs break-words text-muted-foreground">{suggestion.suggested_value}</p>
                     </div>
 
@@ -1073,7 +1092,7 @@ function DescriptionSegmentationSuggestionCard({
                         {segments.length > 0 ? (
                             <div className="grid gap-2 xl:grid-cols-2">
                                 {segments.map((segment, index) => {
-                                    const segmentType = metadataText(segment.description_type) ?? `Segment ${index + 1}`;
+                                    const segmentType = descriptionTypeLabel(metadataText(segment.description_type)) ?? `Segment ${index + 1}`;
                                     const segmentConfidence = metadataText(segment.confidence);
                                     const evidenceTypes = metadataList(segment.evidence_types);
                                     const evidenceLabel = metadataText(segment.evidence_label);

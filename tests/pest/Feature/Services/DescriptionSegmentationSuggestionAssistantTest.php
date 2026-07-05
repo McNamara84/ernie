@@ -10,6 +10,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\Assistance\AssistantManifest;
 use App\Services\DescriptionSegmentation\DescriptionSegmentationDiscoveryService;
+use Illuminate\Support\Facades\DB;
 use Modules\Assistants\DescriptionSegmentation\Assistant;
 
 function descriptionSegmentationAssistantType(string $slug, ?string $name = null): DescriptionType
@@ -116,12 +117,30 @@ it('discovers and stores description segmentation suggestions with review metada
         ->and($suggestion->resource_id)->toBe($description->resource_id)
         ->and($suggestion->target_type)->toBe(DescriptionSegmentationDiscoveryService::TARGET_TYPE)
         ->and($suggestion->target_id)->toBe($description->id)
-        ->and($suggestion->suggested_label)->toBe('Split Abstract into Methods, TechnicalInfo')
+        ->and($suggestion->suggested_label)->toBe('Split Abstract into Methods, Technical Info')
         ->and($suggestion->similarity_score)->toBe(0.65)
         ->and($metadata['current']['description_id'])->toBe($description->id)
         ->and($metadata['proposed']['segments'])->toHaveCount(2)
         ->and($metadata['proposed']['segments'][0]['description_type'])->toBe('Methods')
         ->and($metadata['proposed']['segments'][1]['description_type'])->toBe('TechnicalInfo');
+});
+
+it('does not eager load resource titles during discovery', function (): void {
+    descriptionSegmentationAssistantSourceDescription();
+    $assistant = app(Assistant::class);
+    $queries = [];
+
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = $query->sql;
+    });
+
+    $assistant->runDiscovery(function (string $message): void {});
+
+    $titleQueries = array_values(array_filter($queries, static function (string $sql): bool {
+        return (bool) preg_match('/\b(from|join)\s+[`"]?(titles|title_types)[`"]?/i', $sql);
+    }));
+
+    expect($titleQueries)->toBe([]);
 });
 
 it('refreshes an existing preview for the same source description', function (): void {

@@ -40,7 +40,7 @@ final readonly class DescriptionSegmentationDiscoveryService
         }
 
         $query
-            ->with(['descriptionType', 'resource.titles.titleType'])
+            ->with('descriptionType')
             ->orderBy('id')
             ->chunkById(self::CHUNK_SIZE, function ($descriptions) use (&$stored, &$processed, &$suppressed, $total, $storeSuggestion, $onProgress): void {
                 /** @var iterable<int, Description> $descriptions */
@@ -94,13 +94,23 @@ final readonly class DescriptionSegmentationDiscoveryService
     {
         $proposed = is_array($metadata['proposed'] ?? null) ? $metadata['proposed'] : [];
         $targetTypes = is_array($proposed['target_types'] ?? null) ? $proposed['target_types'] : [];
-        $labels = array_map(static fn (mixed $type): string => (string) $type, $targetTypes);
+        $labels = array_map(fn (mixed $type): string => $this->descriptionTypeLabel((string) $type), $targetTypes);
 
         if ($labels === []) {
             return 'Split Abstract into more specific Description Types';
         }
 
         return 'Split Abstract into '.implode(', ', $labels);
+    }
+
+    private function descriptionTypeLabel(string $slug): string
+    {
+        return match ($slug) {
+            'TechnicalInfo' => 'Technical Info',
+            'TableOfContents' => 'Table of Contents',
+            'SeriesInformation' => 'Series Information',
+            default => $slug,
+        };
     }
 
     /**
