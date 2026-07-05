@@ -115,15 +115,12 @@ class StoreResourceRequest extends FormRequest
             'dates.*.dateType' => [
                 'required',
                 'string',
-                Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
+                Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
-            // Imported 'created' date from XML/DataCite import (Issue #371)
-            // If provided, this date is used instead of the current date for new resources
-            'importedCreatedDate' => ['nullable', 'date'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
             'gcmdKeywords' => ['nullable', 'array'],
@@ -179,7 +176,7 @@ class StoreResourceRequest extends FormRequest
             // Related Item Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
             // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
-            // spaces — e.g. `JournalArticle`); kept in sync with
+            // spaces -- e.g. `JournalArticle`); kept in sync with
             // `StoreRelatedItemRequest` and the vocabularies endpoint via
             // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
             // matching instance helper `dataciteResourceTypeGeneral()`).
@@ -1033,7 +1030,7 @@ class StoreResourceRequest extends FormRequest
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase, or return null.
      *
      * Reuses the normalization logic from DoiSuggestionService to ensure consistent
      * DOI handling across the entire system (validation, storage, duplicate checks).
@@ -1373,7 +1370,7 @@ class StoreResourceRequest extends FormRequest
 
                     $roles = $contributor['roles'] ?? [];
 
-                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
+                    // Skip roles-empty check -- already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
 
                     // Require email when Contact Person role is assigned to a person contributor
                     if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {
@@ -1421,7 +1418,7 @@ class StoreResourceRequest extends FormRequest
                 }
             },
             function (Validator $validator): void {
-                // Validate polygon coverages have at least 3 points
+                // Validate polygon and line coverages have the required minimum number of points
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
                 if (! is_array($coverages)) {
@@ -1435,13 +1432,14 @@ class StoreResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon') {
+                    if ($type === 'polygon' || $type === 'line') {
                         $polygonPoints = $coverage['polygonPoints'] ?? [];
+                        $minimumPoints = $type === 'polygon' ? 3 : 2;
 
-                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                        if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
                     }

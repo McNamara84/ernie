@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 use function Pest\Laravel\actingAs;
 
@@ -114,7 +117,7 @@ describe('triggerUpdate for ROR', function () {
         expect($response->json('type'))->toBe('ror');
         expect($response->json('displayName'))->toBe('ROR (Research Organization Registry)');
 
-        Queue::assertPushed(\App\Jobs\UpdatePidJob::class, function ($job) {
+        Queue::assertPushed(UpdatePidJob::class, function ($job) {
             return true;
         });
     });
@@ -144,10 +147,10 @@ describe('triggerUpdate for ROR', function () {
 
 describe('updateStatus', function () {
     test('returns job status from cache', function () {
-        $jobId = \Illuminate\Support\Str::uuid()->toString();
-        $cacheKey = \App\Jobs\UpdatePidJob::getCacheKey($jobId);
+        $jobId = Str::uuid()->toString();
+        $cacheKey = UpdatePidJob::getCacheKey($jobId);
 
-        \Illuminate\Support\Facades\Cache::put($cacheKey, [
+        Cache::put($cacheKey, [
             'status' => 'running',
             'pidType' => 'ror',
             'progress' => 'Downloading ROR data dump from Zenodo...',
@@ -171,11 +174,83 @@ describe('updateStatus', function () {
     });
 
     test('returns 404 for expired or missing job', function () {
-        $jobId = \Illuminate\Support\Str::uuid()->toString();
+        $jobId = Str::uuid()->toString();
 
         actingAs(createAdmin())
             ->getJson("/pid-settings/update-status/{$jobId}")
             ->assertStatus(404)
             ->assertJsonPath('error', 'Job not found or expired');
+    });
+});
+
+describe('checkStatus for RAiD', function () {
+    test('returns comparison data for RAiD type', function () {
+        config([
+            'raid.datacite_endpoint' => 'https://api.datacite.example.test',
+            'raid.search_query' => 'identifiers.identifier:*raid.org.au*',
+        ]);
+
+        Storage::put('raid/raid-projects.json', json_encode([
+            'lastUpdated' => '2026-06-25T10:00:00Z',
+            'data' => [],
+            'total' => 500,
+        ]));
+
+        Http::fake([
+            'api.datacite.example.test/dois*' => Http::response([
+                'meta' => [
+                    'total' => 570,
+                    'totalPages' => 570,
+                    'page' => 1,
+                ],
+                'data' => [],
+            ], 200),
+        ]);
+
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_RAID],
+            [
+                'display_name' => 'RAiD (Research Activity Identifier)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        actingAs(createAdmin())
+            ->postJson('/pid-settings/raid/check')
+            ->assertOk()
+            ->assertJson([
+                'type' => 'raid',
+                'displayName' => 'RAiD (Research Activity Identifier)',
+                'localCount' => 500,
+                'remoteCount' => 570,
+                'updateAvailable' => true,
+                'lastUpdated' => '2026-06-25T10:00:00Z',
+            ]);
+    });
+});
+
+describe('triggerUpdate for RAiD', function () {
+    test('dispatches update job for RAiD type', function () {
+        Queue::fake();
+
+        PidSetting::firstOrCreate(
+            ['type' => PidSetting::TYPE_RAID],
+            [
+                'display_name' => 'RAiD (Research Activity Identifier)',
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ]
+        );
+
+        $response = actingAs(createAdmin())
+            ->postJson('/pid-settings/raid/update')
+            ->assertOk()
+            ->assertJsonStructure(['jobId', 'type', 'displayName', 'message']);
+
+        expect($response->json('type'))->toBe('raid');
+        expect($response->json('displayName'))->toBe('RAiD (Research Activity Identifier)');
+
+        Queue::assertPushed(UpdatePidJob::class);
     });
 });

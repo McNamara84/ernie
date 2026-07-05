@@ -7,13 +7,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StartSingleOldResourceImportRequest;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Resource;
-use App\Services\LegacyResourceLookupService;
+use App\Models\User;
+use App\Services\DoiImportEligibilityService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Controller for DataCite import operations.
@@ -37,7 +39,7 @@ class DataCiteImportController extends Controller
 
         $importId = Str::uuid()->toString();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $this->initializeProgress(importId: $importId, total: 0);
@@ -54,21 +56,21 @@ class DataCiteImportController extends Controller
     /**
      * Start a new single-resource import job.
      *
-     * Validates that the DOI belongs to a GFZ legacy resource before dispatching
-     * the background job.
+     * Validates that the DOI uses a configured GFZ DataCite prefix or belongs to
+     * a GFZ legacy resource before dispatching the background job.
      */
     public function startSingle(
         StartSingleOldResourceImportRequest $request,
-        LegacyResourceLookupService $legacyResourceLookupService
+        DoiImportEligibilityService $doiImportEligibilityService
     ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 
         $doi = $request->getDoi();
 
         try {
-            $exists = $legacyResourceLookupService->existsByDoi($doi);
+            $exists = $doiImportEligibilityService->canImport($doi);
         } catch (\Throwable $exception) {
-            Log::warning('Legacy DOI lookup failed before single DataCite import', [
+            Log::warning('DOI eligibility lookup failed before single DataCite import', [
                 'doi' => $doi,
                 'error' => $exception->getMessage(),
             ]);
@@ -79,14 +81,14 @@ class DataCiteImportController extends Controller
         }
 
         if (! $exists) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'doi' => 'Only GFZ legacy resources can be imported with this action.',
+            throw ValidationException::withMessages([
+                'doi' => 'Only DOIs with a configured GFZ DataCite prefix or GFZ legacy resources can be imported with this action.',
             ]);
         }
 
         $importId = Str::uuid()->toString();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $this->initializeProgress(importId: $importId, total: 1);

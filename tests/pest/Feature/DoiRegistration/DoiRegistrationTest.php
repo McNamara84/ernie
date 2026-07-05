@@ -121,7 +121,13 @@ test('doi registration succeeds with valid data for new doi', function () {
 
     // Verify DOI was saved to database
     $this->resource->refresh();
-    expect($this->resource->doi)->toBe('10.83279/test-12345');
+    $issuedDate = $this->resource->dates()->whereHas('dateType', function ($q) {
+        $q->whereRaw('LOWER(slug) = ?', ['issued']);
+    })->first();
+
+    expect($this->resource->doi)->toBe('10.83279/test-12345')
+        ->and($issuedDate)->not->toBeNull()
+        ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
 });
 
 test('doi registration updates metadata for existing doi', function () {
@@ -158,7 +164,12 @@ test('doi registration updates metadata for existing doi', function () {
         'success' => true,
         'updated' => true,
     ]);
-    expect($response->json('message'))->toContain('metadata updated');
+    $issuedDate = $this->resource->dates()->whereHas('dateType', function ($q) {
+        $q->whereRaw('LOWER(slug) = ?', ['issued']);
+    })->first();
+
+    expect($response->json('message'))->toContain('metadata updated')
+        ->and($issuedDate)->toBeNull();
 });
 
 test('doi registration allows metadata update without a prefix', function () {

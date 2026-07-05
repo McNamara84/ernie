@@ -146,6 +146,11 @@ class LandingPagePreviewController extends Controller
             $landingPageTemplateId = null;
         }
 
+        $expectedTemplateType = LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug);
+        $displayLimitTemplate = $templateConfig
+            ?? LandingPageTemplate::existingDefaultForType($expectedTemplateType)
+            ?? LandingPageTemplate::defaultForType($expectedTemplateType);
+
         $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
             && ($previewData['downloads_unavailable'] ?? false) === true;
         $ftpUrl = LandingPageController::templateSupportsFtpUrl($template) && ! $downloadsUnavailable
@@ -182,6 +187,11 @@ class LandingPagePreviewController extends Controller
             'isPreview' => true,
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,
+            'displayLimits' => [
+                'creators' => $displayLimitTemplate->creator_display_limit,
+                'contributors' => $displayLimitTemplate->contributor_display_limit,
+                'citationAuthors' => $displayLimitTemplate->citation_author_display_limit,
+            ],
         ]);
     }
 

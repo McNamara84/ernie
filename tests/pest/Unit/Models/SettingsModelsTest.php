@@ -36,12 +36,19 @@ describe('PidSetting model', function () {
         expect($model->getFilePath())->toBe('ror/ror-affiliations.json');
     });
 
+    it('returns correct file path for raid', function () {
+        $model = new PidSetting;
+        $model->type = PidSetting::TYPE_RAID;
+
+        expect($model->getFilePath())->toBe('raid/raid-projects.json');
+    });
+
     it('throws for unknown type in getFilePath', function () {
         $model = new PidSetting;
         $model->type = 'unknown';
 
         $model->getFilePath();
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 
     it('returns correct artisan command for pid4inst', function () {
         $model = new PidSetting;
@@ -57,23 +64,32 @@ describe('PidSetting model', function () {
         expect($model->getArtisanCommand())->toBe('get-ror-ids');
     });
 
+    it('returns correct artisan command for raid', function () {
+        $model = new PidSetting;
+        $model->type = PidSetting::TYPE_RAID;
+
+        expect($model->getArtisanCommand())->toBe('get-raid-projects');
+    });
+
     it('throws for unknown type in getArtisanCommand', function () {
         $model = new PidSetting;
         $model->type = 'unknown';
 
         $model->getArtisanCommand();
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 
     it('returns valid types', function () {
         $types = PidSetting::getValidTypes();
 
         expect($types)->toContain(PidSetting::TYPE_PID4INST)
-            ->toContain(PidSetting::TYPE_ROR);
+            ->toContain(PidSetting::TYPE_ROR)
+            ->toContain(PidSetting::TYPE_RAID);
     });
 
     it('has correct type constants', function () {
         expect(PidSetting::TYPE_PID4INST)->toBe('pid4inst');
         expect(PidSetting::TYPE_ROR)->toBe('ror');
+        expect(PidSetting::TYPE_RAID)->toBe('raid');
     });
 });
 
@@ -114,7 +130,7 @@ describe('ThesaurusSetting model', function () {
         $model->type = 'unknown';
 
         $model->getFilePath();
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 
     it('returns correct artisan command for each type', function () {
         $expectations = [
@@ -154,7 +170,7 @@ describe('ThesaurusSetting model', function () {
         $model->type = ThesaurusSetting::TYPE_CHRONOSTRAT;
 
         $model->getVocabularyType();
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 
     it('correctly identifies GCMD thesauri', function () {
         $gcmdTypes = [
@@ -282,5 +298,5 @@ describe('ThesaurusSetting model', function () {
         $model->type = 'unknown';
 
         $model->getCacheKey();
-    })->throws(\InvalidArgumentException::class);
+    })->throws(InvalidArgumentException::class);
 });

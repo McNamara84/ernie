@@ -297,8 +297,8 @@ test.describe('Landing Page - Licenses', () => {
     // Verify license full name is displayed
     await expect(landingPage.filesSection).toContainText('Creative Commons Attribution 4.0 International');
     
-    // Verify CC icons are displayed for Creative Commons license
-    const ccIcon = landingPage.filesSection.locator('[aria-label*="Creative Commons"]');
+    // Verify the official CC badge image is displayed for Creative Commons license
+    const ccIcon = landingPage.filesSection.locator('img[alt*="Creative Commons"]');
     await expect(ccIcon.first()).toBeVisible();
   });
 
@@ -310,12 +310,16 @@ test.describe('Landing Page - Licenses', () => {
     // Verify files section is visible
     await landingPage.verifyFilesSectionVisible();
     
-    // Check for License label and CC content
+    // Check for License label and the rendered license names
     await expect(landingPage.filesSection).toContainText('License');
-    await expect(landingPage.filesSection).toContainText('CC');
-    
-    // Verify CC icons are displayed
-    const ccIcon = landingPage.filesSection.locator('[aria-label*="Creative Commons"]');
+    await expect(landingPage.filesSection).toContainText('Creative Commons Attribution 4.0 International');
+    await expect(landingPage.filesSection).toContainText('Creative Commons Attribution Share Alike 4.0 International');
+    await expect(landingPage.filesSection).toContainText('Creative Commons Zero v1.0 Universal');
+
+    // Verify the official CC badge images are displayed
+    const licenseBadges = landingPage.filesSection.locator('[data-testid="license-badge"]');
+    await expect(licenseBadges).toHaveCount(3);
+    const ccIcon = landingPage.filesSection.locator('img[alt*="Creative Commons"]');
     await expect(ccIcon.first()).toBeVisible();
   });
 
@@ -325,8 +329,7 @@ test.describe('Landing Page - Licenses', () => {
     await landingPage.verifyPageLoaded();
 
     // Verify license link has target="_blank" and correct href pattern
-    // Note: Links use actual license URLs (e.g., creativecommons.org), with SPDX ID in title
-    const licenseLink = landingPage.filesSection.locator('a[title^="SPDX:"]');
+    const licenseLink = landingPage.filesSection.locator('a[data-testid="license-badge"]');
     await expect(licenseLink).toBeVisible();
     await expect(licenseLink).toHaveAttribute('target', '_blank');
     await expect(licenseLink).toHaveAttribute('rel', /noopener/);
@@ -337,10 +340,10 @@ test.describe('Landing Page - Licenses', () => {
     await landingPage.goto('single-license');
     await landingPage.verifyPageLoaded();
 
-    // Verify tooltip contains SPDX identifier
-    // License links use actual license URLs with SPDX ID in the title attribute
-    const licenseLink = landingPage.filesSection.locator('a[title^="SPDX:"]');
-    await expect(licenseLink).toHaveAttribute('title', /SPDX:/);
+    // Verify tooltip contains the SPDX identifier without the removed prefix
+    const licenseLink = landingPage.filesSection.locator('a[data-testid="license-badge"]');
+    await expect(licenseLink).toHaveAttribute('title', /CC-/);
+    await expect(licenseLink).not.toHaveAttribute('title', /SPDX:/);
   });
 });
 

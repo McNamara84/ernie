@@ -8,32 +8,63 @@ use DateTime;
 
 final class DateTypeNormalizerService
 {
-    public static function normalize(string $value): string
+    public static function normalize(?string $value): ?string
     {
+        if ($value === null) 
+        {
+            return null;
+        }
+
         $trimmed = trim($value);
 
         if ($trimmed === '') 
         {
-            return '';
+            return null;
         }
 
-        if (preg_match('/^-?\d{4}$/', $trimmed)) 
+        if (preg_match('/^\d{4}$/', $trimmed)) 
         {
             return $trimmed;
         }
 
-        if (preg_match('/^-?\d{4}-\d{2}$/', $trimmed)) 
+        if (preg_match('/^\d{4}-\d{2}$/', $trimmed, $matches)) 
         {
-            return $trimmed;
+            $month = (int) $matches[2];
+            if ($month >= 1 && $month <= 12)
+            {
+                return $trimmed;
+            } 
+            return null;
         }
 
-        if (preg_match('/^-?\d{4}-\d{2}-\d{2}$/', $trimmed)) 
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $trimmed, $matches)) 
         {
-            return $trimmed;
+            if (checkdate(
+                (int) $matches[2],
+                (int) $matches[3],
+                (int) $matches[1],
+            ))
+            {
+                return $trimmed;
+            }
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})(.*)$/', $trimmed, $matches)) {
+            if (! checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
+                return null;
             }
 
-        if (preg_match('/^-?\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/', $trimmed))  
-        {
+            $suffix = $matches[4];
+
+            if ($suffix === '') {
+                return $trimmed;
+            }
+
+            if (! self::hasIsoDateTimeSuffix($suffix)) {
+                return null;
+            }
+
             return $trimmed;
         }
 
@@ -44,8 +75,8 @@ final class DateTypeNormalizerService
             $normalizedStart = self::normalize($start);
             $normalizedEnd = self::normalize($end);
 
-            if ($normalizedStart === '' || $normalizedEnd === '') {
-                return '';
+            if ($normalizedStart === null || $normalizedEnd === null) {
+                return null;
             }
 
             return $normalizedStart.'/'.$normalizedEnd;
@@ -58,7 +89,8 @@ final class DateTypeNormalizerService
         // Y = Jahr mit vier Stellen
         // y = Jahr mit zwei Stellen
         $formats = [
-            'd.m.Y', 
+            'd.m.Y',
+            'd.m.y', 
             'Y.m.d',
             'j.n.Y',
             'Y.n.j',
@@ -67,18 +99,25 @@ final class DateTypeNormalizerService
             'd/m/Y',
             'Y/m/d',
             'Y-n-j',
-            'Y-m-d',
         ];
 
         foreach ($formats as $format)
         {
             $date = DateTime::createFromFormat($format, $trimmed);
 
-            if ($date !== false)
+            if ($date !== false && $date->format($format) === $trimmed)
             {
                 return $date->format('Y-m-d');
             }
         }
-        return '';
+        return null;
+    }
+
+    private static function hasIsoDateTimeSuffix(string $suffix): bool
+    {
+        return preg_match(
+            '/^[T ]\d{2}:\d{2}(?::\d{2})?(?:[.,]\d+)?(?:[Zz]|[+-]\d{2}:?\d{2})?$/',
+            $suffix,
+        ) === 1;
     }
 }

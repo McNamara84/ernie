@@ -11,7 +11,9 @@ use Closure;
 
 final class DateTypeDiscoveryService
 {
-    public const string TARGET_TYPE = 'resource_date_geolocation_count';
+    public const string TARGET_TYPE = 'date_type';
+
+    private const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
 
     // oder 100??
     private const int CHUNK_SIZE = 50;
@@ -21,6 +23,7 @@ final class DateTypeDiscoveryService
 
     public function __construct(
         private readonly DateTypeSchemaorgExtraction $extractService,
+        private readonly DateTypePlausibilityService $plausibilityService,
         // private readonly DateTypeCoverageCorrectionDiscoveryService $coverageCorrectionDiscovery, :
         // -> existiert gerade nicht, war eine Platzhalter-Datei: DateTypeCoverageCorrectionDiscoveryService
     ) {}
@@ -68,9 +71,27 @@ final class DateTypeDiscoveryService
     {
         $storedCount = 0;
 
+        $existingDates = $resource->dates()
+            ->with('dateType')
+            ->get();
+
+        $datesForReview = [];
+
+        foreach ($existingDates as $date) {
+            $dateType = $date->dateType?->slug;
+            $value = $date->date_value ?? $date->start_date;
+
+            if ($dateType !== null && $value !== null) {
+                $datesForReview[$dateType] = $value;
+            }
+        }
+
+        $reviewSuggestions = $this->plausibilityService->review($datesForReview);
+
         // NEU, da coverageCorrectionDiscovery entfällt
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
+            ...$reviewSuggestions,
              //  ...$this->coverageCorrectionDiscovery->discover($resource),
         ];
 
@@ -81,12 +102,30 @@ final class DateTypeDiscoveryService
             ->filter()
             ->all();
 
-        $hasCreated = in_array('Created', $existingDateTypes, true);
-        $hasIssued = in_array('Issued', $existingDateTypes, true);
+        $hasCreated = in_array('Created', $existingDateTypes, true) || in_array('created', $existingDateTypes, true);
+        $hasIssued = in_array('Issued', $existingDateTypes, true) || in_array('issued', $existingDateTypes, true);
 
         foreach ($suggestions as $suggestion) 
         {
             if (($suggestion['probe_method'] ?? null) === 'SKIP') {
+                continue;
+            }
+
+            if (($suggestion['suggestion_kind'] ?? null) === 'review') {
+                $stored = $storeSuggestion(
+                    $resource->id,
+                    self::TARGET_TYPE,
+                    $resource->id,
+                    (string) $suggestion['message'],
+                    (string) $suggestion['message'],
+                    $this->confidenceToScore($suggestion['confidence'] ?? null),
+                    $suggestion,
+                );
+
+                if ($stored) {
+                    $storedCount++;
+                }
+
                 continue;
             }
 
@@ -113,7 +152,7 @@ final class DateTypeDiscoveryService
 
             $stored = $storeSuggestion(
                 $resource->id,
-                'date_type',
+                self::TARGET_TYPE,
                 $resource->id,
                 $suggestedValue,
                 strtoupper($type).': '.$suggestedValue,
@@ -136,29 +175,27 @@ final class DateTypeDiscoveryService
         $query = Resource::query()
             ->whereNotNull('doi')
             ->whereDoesntHave('igsnMetadata')
-            ->whereHas('dates.dateType', fn (Builder $query): Builder => $query
-                ->whereIn('slug', self::COLLECTED_DATE_TYPES))
             ->whereDoesntHave('resourceType', fn (Builder $query): Builder => $query->where('slug', 'physical-object'))
             ->where(function (Builder $query): void {
                 $query->whereDoesntHave('dates', function (Builder $query): void 
                 {
                     $query->whereHas('dateType', function (Builder $query): void  
                     {
-                        $query->where('slug', 'Created');
+                        $query->whereIn('slug', ['Created', 'created']);
                     });
                 })
                 ->orWhereDoesntHave('dates', function (Builder $query): void 
                 {
                     $query->whereHas('dateType', function (Builder $query): void  
                     {
-                        $query->where('slug', 'Issued'); 
+                        $query->whereIn('slug', ['Issued', 'issued']); 
                     });
                 })
                 ->orWhereHas('dates', function (Builder $query): void 
                 {
                     $query->whereHas('dateType', function (Builder $query): void 
                     {
-                        $query->where('slug', 'Collected');
+                        $query->whereIn('slug', self::COLLECTED_DATE_TYPES);
                     });
                 });
             });
@@ -183,7 +220,7 @@ final class DateTypeDiscoveryService
 
         return $storeSuggestion(
             $resource->id,
-            self::TARGET_TYPE,
+            self::GEOLOCATION_COUNT_TARGET_TYPE,
             $resource->id,
             $suggestedValue,
             $suggestedLabel,

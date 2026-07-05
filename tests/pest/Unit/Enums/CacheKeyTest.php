@@ -10,6 +10,7 @@ it('generates correct cache keys without suffix', function () {
     expect(CacheKey::RESOURCE_LIST->key())->toBe('resources:list');
     expect(CacheKey::RESOURCE_DETAIL->key())->toBe('resources:detail');
     expect(CacheKey::GCMD_SCIENCE_KEYWORDS->key())->toBe('vocabularies:gcmd:science_keywords');
+    expect(CacheKey::RAID_PROJECTS->key())->toBe('vocabularies:raid:projects');
     expect(CacheKey::ROR_AFFILIATION->key())->toBe('ror:affiliation');
 });
 
@@ -39,6 +40,7 @@ it('returns correct TTL for vocabularies', function () {
     expect(CacheKey::GCMD_PLATFORMS->ttl())->toBe(86400);
     expect(CacheKey::GCMD_PROVIDERS->ttl())->toBe(86400);
     expect(CacheKey::MSL_KEYWORDS->ttl())->toBe(86400);
+    expect(CacheKey::RAID_PROJECTS->ttl())->toBe(86400);
 });
 
 it('returns correct TTL for ROR and ORCID', function () {
@@ -79,6 +81,7 @@ it('returns correct tags for vocabularies', function () {
     expect(CacheKey::GCMD_SCIENCE_KEYWORDS->tags())->toBe(['vocabularies']);
     expect(CacheKey::GCMD_INSTRUMENTS->tags())->toBe(['vocabularies']);
     expect(CacheKey::MSL_KEYWORDS->tags())->toBe(['vocabularies']);
+    expect(CacheKey::RAID_PROJECTS->tags())->toBe(['vocabularies']);
 });
 
 it('returns correct tags for ROR', function () {
@@ -113,7 +116,7 @@ it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 
     expect($vocabularyKeys)->toBeArray()
-        ->toHaveCount(10)
+        ->toHaveCount(11)
         ->each->toBeInstanceOf(CacheKey::class);
 
     $expectedKeys = [
@@ -123,6 +126,7 @@ it('returns all vocabulary keys', function () {
         CacheKey::GCMD_PROVIDERS,
         CacheKey::MSL_KEYWORDS,
         CacheKey::PID4INST_INSTRUMENTS,
+        CacheKey::RAID_PROJECTS,
         CacheKey::CHRONOSTRAT_TIMESCALE,
         CacheKey::GEMET_THESAURUS,
         CacheKey::ANALYTICAL_METHODS,

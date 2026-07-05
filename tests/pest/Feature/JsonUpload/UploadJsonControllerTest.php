@@ -283,6 +283,59 @@ describe('JSON Upload - DataCite JSON format', function () {
         expect($data['dates'][1]['endDate'])->toBe('2025-12-31');
     });
 
+    test('preserves partial date precision without expanding to full dates', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'dates' => [
+                ['date' => '2009', 'dateType' => 'Created'],
+                ['date' => '2009/2010', 'dateType' => 'Collected'],
+                ['date' => '2009-05/2010-06', 'dateType' => 'Valid'],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('partial-dates.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $data = getJsonUploadData($response);
+        $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+
+        $createdDate = $resource->dates->first(fn ($date) => $date->dateType?->slug === 'Created');
+        $collectedDate = $resource->dates->first(fn ($date) => $date->dateType?->slug === 'Collected');
+        $validDate = $resource->dates->first(fn ($date) => $date->dateType?->slug === 'Valid');
+
+        expect($data['dates'][0]['startDate'])->toBe('2009')
+            ->and($data['dates'][1]['startDate'])->toBe('2009')
+            ->and($data['dates'][1]['endDate'])->toBe('2010')
+            ->and($data['dates'][2]['startDate'])->toBe('2009-05')
+            ->and($data['dates'][2]['endDate'])->toBe('2010-06')
+            ->and($createdDate?->date_value)->toBe('2009')
+            ->and($collectedDate?->start_date)->toBe('2009')
+            ->and($collectedDate?->end_date)->toBe('2010')
+            ->and($validDate?->start_date)->toBe('2009-05')
+            ->and($validDate?->end_date)->toBe('2010-06');
+    });
+
+    test('does not store Accepted as a system date for JSON uploads', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'dates' => [
+                ['date' => '2024-01-15', 'dateType' => 'Accepted'],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('accepted-date.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+
+        $data = getJsonUploadData($response);
+        $resource = Resource::with('dates.dateType')->findOrFail($response->json('resourceId'));
+        $storedDateTypes = $resource->dates->pluck('dateType.slug')->all();
+
+        expect($data['dates'][0]['dateType'])->toBe('accepted')
+            ->and($storedDateTypes)->not->toContain('Accepted');
+    });
+
     test('extracts licenses', function () {
         $this->actingAs(User::factory()->create());
 

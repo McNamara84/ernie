@@ -502,7 +502,7 @@ class EditorDataTransformer
     /**
      * Transform resource dates to frontend format.
      *
-     * Excludes 'coverage', 'created', and 'updated' dates as they are handled separately.
+     * Excludes system-managed and coverage dates that are not editable in the Dates section.
      * Preserves full ISO 8601 datetime+timezone values for dates that include time components.
      *
      * @return array<int, array{dateType: string, dateMode: 'single'|'range', startDate: string, endDate: string}>
@@ -513,14 +513,14 @@ class EditorDataTransformer
             ->filter(function (ResourceDate $date): bool {
                 $slug = mb_strtolower($date->dateType->slug);
 
-                return ! in_array($slug, ['coverage', 'created', 'updated'], true);
+                return ! in_array($slug, ['coverage', 'accepted', 'issued', 'updated'], true);
             })
             ->map(function (ResourceDate $date): array {
                 $dateType = $date->dateType->slug;
                 $dateTypeSlug = Str::kebab(mb_strtolower($dateType));
                 $hasClosedRange = ($date->start_date ?? '') !== '' && ($date->end_date ?? '') !== '';
 
-                $dateMode = $hasClosedRange && in_array($dateTypeSlug, ['collected', 'valid', 'other'], true)
+                $dateMode = $hasClosedRange && in_array($dateTypeSlug, ['created', 'collected', 'valid', 'other'], true)
                     ? 'range'
                     : 'single';
 

@@ -105,12 +105,16 @@ class DateTypeSchemaorgExtraction
         foreach (self::SCHEMA_ORG_DATE_FIELDS as $field => $dateType) {
             $value = $data[$field] ?? null;
 
+            if (is_int($value)) {
+                $value = (string) $value;
+            }
+
             if (! is_string($value) || trim($value) === '') {
             continue;
             }
             $normalizedValue = DateTypeNormalizerService::normalize($value);
 
-            if ($normalizedValue === '') 
+            if ($normalizedValue === null) 
             {
                 continue;
             }

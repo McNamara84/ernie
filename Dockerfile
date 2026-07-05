@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y \
         libk5crypto3 \
         libkrb5-3 \
         libkrb5support0 \
+        libssh2-1t64 \
         libsystemd0 \
         libudev1 \
         linux-libc-dev \
