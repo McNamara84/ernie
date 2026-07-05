@@ -46,7 +46,7 @@ final class DateTypePlausibilityService
                 [
                     'suggestion_kind' => 'review',
                     'message' => sprintf(
-                        'Hint: %s (%s) occurs after %s (%s). Please check that the date types are assigned correctly.',
+                        '%s (%s) occurs after %s (%s). Please check that the date types are assigned correctly.',
                         $earlier,
                         $dates[$earlier],
                         $later,

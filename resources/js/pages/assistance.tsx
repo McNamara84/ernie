@@ -634,6 +634,7 @@ function DateTypeSuggestionCard({
     isProcessing: boolean;
 }) {
     const metadata = isRecord(suggestion.metadata) ? suggestion.metadata : null;
+    const isReview = metadata?.suggestion_kind === 'review';
     const collectedDatesCount = typeof metadata?.collected_dates_count === 'number' ? metadata.collected_dates_count : null;
     const geoLocationsCount = typeof metadata?.geo_locations_count === 'number' ? metadata.geo_locations_count : null;
     const evidence = typeof metadata?.evidence === 'string' ? metadata.evidence : null;
@@ -658,7 +659,9 @@ function DateTypeSuggestionCard({
                         )}
                     </div>
 
-                    <p className="text-sm font-medium">{String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType suggestion')}</p>
+                    <p className="text-sm font-medium">{isReview ? `Hint: ${String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType suggestion')}`
+                                                                 : String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType suggestion')}
+                    </p>
 
                     {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
 
@@ -667,6 +670,7 @@ function DateTypeSuggestionCard({
                     </p>
                 </div>
 
+            {!isReview && (
                 <div className="flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
@@ -677,6 +681,7 @@ function DateTypeSuggestionCard({
                         Accept
                     </Button>
                 </div>
+            )}
             </div>
         </div>
     );

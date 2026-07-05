@@ -27,7 +27,7 @@ final class DateTypeNormalizerService
             return $trimmed;
         }
 
-        if (preg_match('/^\d{4}-\d{2}$/', $trimmed, $matches)) 
+        if (preg_match('/^(\d{4})-(\d{2})$/', $trimmed, $matches)) 
         {
             $month = (int) $matches[2];
             if ($month >= 1 && $month <= 12)
@@ -50,6 +50,21 @@ final class DateTypeNormalizerService
             return null;
         }
 
+          if (substr_count($trimmed, '/') === 1)   
+        {
+            [$start, $end] = array_map('trim', explode('/', $trimmed));
+
+            $normalizedStart = self::normalize($start);
+            $normalizedEnd = self::normalize($end);
+
+            if ($normalizedStart === null || $normalizedEnd === null) {
+                return null;
+            }
+
+            return $normalizedStart.'/'.$normalizedEnd;
+        }
+
+
         if (preg_match('/^(\d{4})-(\d{2})-(\d{2})(.*)$/', $trimmed, $matches)) {
             if (! checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
                 return null;
@@ -66,20 +81,6 @@ final class DateTypeNormalizerService
             }
 
             return $trimmed;
-        }
-
-        if (substr_count($trimmed, '/') === 1)   
-        {
-            [$start, $end] = array_map('trim', explode('/', $trimmed));
-
-            $normalizedStart = self::normalize($start);
-            $normalizedEnd = self::normalize($end);
-
-            if ($normalizedStart === null || $normalizedEnd === null) {
-                return null;
-            }
-
-            return $normalizedStart.'/'.$normalizedEnd;
         }
 
         // d = Tag mit führender Null
