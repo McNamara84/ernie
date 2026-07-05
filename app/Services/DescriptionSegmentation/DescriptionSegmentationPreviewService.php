@@ -22,11 +22,11 @@ final readonly class DescriptionSegmentationPreviewService
      */
     public function buildForDescription(Description $description): ?array
     {
-        $sourceType = $description->relationLoaded('descriptionType')
-            ? $description->descriptionType->slug
-            : null;
+        $description->loadMissing('descriptionType');
 
-        if ($sourceType === null || ! $this->policy->isSourceTypeSupported($sourceType)) {
+        $sourceType = $description->descriptionType->slug;
+
+        if (! $this->policy->isSourceTypeSupported($sourceType)) {
             return null;
         }
 

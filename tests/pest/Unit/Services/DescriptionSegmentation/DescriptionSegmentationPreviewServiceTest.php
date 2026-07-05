@@ -114,6 +114,23 @@ it('builds a multi segment preview from structural description headings', functi
         ->and($segments[2]['value'])->toContain('station_processed_2020.nc');
 });
 
+it('loads description type relation for plain description models', function (): void {
+    $overview = descriptionSegmentationPreviewText('This legacy abstract describes the dataset purpose, study area, observation period, scientific context, and reuse scope for curators.', 14);
+    $methods = descriptionSegmentationPreviewText('Stations were installed, calibrated, sampled every minute, quality controlled, and processed with documented exclusion rules.', 8);
+    $description = descriptionSegmentationPreviewDescription($overview."\n\nMethods:\n".$methods);
+
+    /** @var Description $plainDescription */
+    $plainDescription = Description::query()->findOrFail($description->id);
+
+    expect($plainDescription->relationLoaded('descriptionType'))->toBeFalse();
+
+    $metadata = descriptionSegmentationPreviewMetadata($plainDescription);
+
+    expect($plainDescription->relationLoaded('descriptionType'))->toBeTrue()
+        ->and($metadata['current']['description_type'])->toBe('Abstract')
+        ->and($metadata['proposed']['target_types'])->toBe(['Methods']);
+});
+
 it('suppresses keyword-only text without structural evidence', function (): void {
     $description = descriptionSegmentationPreviewDescription(
         descriptionSegmentationPreviewText('This abstract mentions methods, software, formats, processing, stations, and sensor calibration inside normal prose without a labelled section boundary.', 45),

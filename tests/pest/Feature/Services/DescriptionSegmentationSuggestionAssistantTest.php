@@ -128,15 +128,21 @@ it('discovers and stores description segmentation suggestions with review metada
 it('does not eager load resource titles during discovery', function (): void {
     descriptionSegmentationAssistantSourceDescription();
     $assistant = app(Assistant::class);
-    $queries = [];
 
-    DB::listen(function ($query) use (&$queries): void {
-        $queries[] = $query->sql;
-    });
+    DB::flushQueryLog();
+    DB::enableQueryLog();
 
-    $assistant->runDiscovery(function (string $message): void {});
+    try {
+        $assistant->runDiscovery(function (string $message): void {});
+        $queries = DB::getQueryLog();
+    } finally {
+        DB::disableQueryLog();
+        DB::flushQueryLog();
+    }
 
-    $titleQueries = array_values(array_filter($queries, static function (string $sql): bool {
+    $titleQueries = array_values(array_filter($queries, static function (array $query): bool {
+        $sql = $query['query'];
+
         return (bool) preg_match('/\b(from|join)\s+[`"]?(titles|title_types)[`"]?/i', $sql);
     }));
 
