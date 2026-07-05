@@ -330,6 +330,34 @@ describe('UnifiedDropzone', () => {
             expect(screen.getByText('TEST001')).toBeInTheDocument();
             expect(screen.getByText('Duplicate IGSN')).toBeInTheDocument();
         });
+        it('shows the error modal for CSV upload failures with many row errors', async () => {
+            vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+                new Response(
+                    JSON.stringify({
+                        success: false,
+                        message: 'Multiple CSV rows failed',
+                        errors: [
+                            { row: 2, igsn: 'TEST001', message: 'Duplicate IGSN' },
+                            { row: 3, igsn: 'TEST002', message: 'Missing sample type' },
+                            { row: 4, igsn: 'TEST003', message: 'Invalid date' },
+                        ],
+                    }),
+                    {
+                        status: 422,
+                        headers: { 'Content-Type': 'application/json' },
+                    },
+                ),
+            );
+
+            render(<UnifiedDropzone onXmlUpload={mockOnXmlUpload} onJsonUpload={mockOnJsonUpload} />);
+            await userEvent.upload(screen.getByTestId('unified-file-input'), createFile('bad.csv', 'text/csv'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('dropzone-error-state')).toBeInTheDocument();
+            });
+
+            expect(screen.getByTestId('error-modal')).toBeInTheDocument();
+        });
         it('shows error when fetch rejects', async () => {
             vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 

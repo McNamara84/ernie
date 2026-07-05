@@ -349,42 +349,55 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
         }
     };
 
+    const errorModal = (
+        <UploadErrorModal
+            open={showErrorModal}
+            onClose={() => setShowErrorModal(false)}
+            filename={modalFilename}
+            message={modalMessage}
+            errors={modalErrors}
+            onRetry={resetState}
+        />
+    );
     // Render error state
     if (uploadState === 'error') {
         return (
-            <div data-testid="dropzone-error-state" className="flex w-full flex-col items-center gap-4">
-                <Alert variant="destructive" data-testid="dropzone-error-alert" className="max-w-2xl text-left">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>We couldn&apos;t import this file</AlertTitle>
-                    <AlertDescription>
-                        {selectedFile && <span className="font-medium">{selectedFile.name}: </span>}
-                        {error || csvResult?.message || 'An error occurred during upload.'}
-                    </AlertDescription>
-                </Alert>
+            <>
+                <div data-testid="dropzone-error-state" className="flex w-full flex-col items-center gap-4">
+                    <Alert variant="destructive" data-testid="dropzone-error-alert" className="max-w-2xl text-left">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>We couldn&apos;t import this file</AlertTitle>
+                        <AlertDescription>
+                            {selectedFile && <span className="font-medium">{selectedFile.name}: </span>}
+                            {error || csvResult?.message || 'An error occurred during upload.'}
+                        </AlertDescription>
+                    </Alert>
 
-                {/* Show CSV-specific errors */}
-                {lastUploadType === 'csv' && csvResult?.errors && csvResult.errors.length > 0 && (
-                    <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
-                        <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
-                        <ul className="space-y-1 text-sm">
-                            {normalizeErrors(csvResult.errors).map((err, index) => (
-                                <li key={index} className="flex items-start gap-2">
-                                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                                    <span>
-                                        {err.row && <strong>Row {err.row}: </strong>}
-                                        {err.identifier && <code className="mr-1 rounded bg-muted px-1">{err.identifier}</code>}
-                                        {err.message}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                    {/* Show CSV-specific errors */}
+                    {lastUploadType === 'csv' && csvResult?.errors && csvResult.errors.length > 0 && (
+                        <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
+                            <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
+                            <ul className="space-y-1 text-sm">
+                                {normalizeErrors(csvResult.errors).map((err, index) => (
+                                    <li key={index} className="flex items-start gap-2">
+                                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                        <span>
+                                            {err.row && <strong>Row {err.row}: </strong>}
+                                            {err.identifier && <code className="mr-1 rounded bg-muted px-1">{err.identifier}</code>}
+                                            {err.message}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
-                <Button onClick={resetState} variant="outline">
-                    Try Again
-                </Button>
-            </div>
+                    <Button onClick={resetState} variant="outline">
+                        Try Again
+                    </Button>
+                </div>
+                {errorModal}
+            </>
         );
     }
 
@@ -523,15 +536,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 </Button>
             </div>
 
-            {/* Error modal for complex errors */}
-            <UploadErrorModal
-                open={showErrorModal}
-                onClose={() => setShowErrorModal(false)}
-                filename={modalFilename}
-                message={modalMessage}
-                errors={modalErrors}
-                onRetry={resetState}
-            />
+            {errorModal}
         </>
     );
 }
