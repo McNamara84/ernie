@@ -13,7 +13,7 @@ final class DateTypeDiscoveryService
 {
     public const string TARGET_TYPE = 'date_type';
 
-    private const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
+    public const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
 
     // oder 100??
     private const int CHUNK_SIZE = 50;
@@ -262,4 +262,3 @@ final class DateTypeDiscoveryService
         };
     }
 }
-
