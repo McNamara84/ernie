@@ -59,6 +59,45 @@ it('registers the title language assistant via auto-discovery', function (): voi
     expect($registrar->has('title-language-suggestion'))->toBeTrue();
 });
 
+it('creates a title language suggestion through discovery with source verification metadata', function (): void {
+    $assistant = app(Assistant::class);
+
+    $resource = Resource::factory()->create();
+
+    $title = Title::factory()
+        ->for($resource)
+        ->create([
+            'language' => null,
+            'value' => 'Groundwater recharge analysis and hydrological modeling for regional climate studies',
+        ]);
+
+    $discovered = $assistant->runDiscovery(static function (): void {
+    });
+
+    $suggestion = AssistantSuggestion::query()
+        ->where('assistant_id', 'title-language-suggestion')
+        ->where('target_type', 'title')
+        ->where('target_id', $title->id)
+        ->first();
+
+    expect($discovered)->toBeGreaterThanOrEqual(1)
+        ->and($suggestion)->not->toBeNull();
+
+    if (! $suggestion instanceof AssistantSuggestion) {
+        return;
+    }
+
+    $metadata = is_array($suggestion->metadata) ? $suggestion->metadata : [];
+
+    expect($suggestion->resource_id)->toBe($resource->id)
+        ->and($suggestion->suggested_value)->toBeIn(['de', 'en', 'fr'])
+        ->and($metadata['proposed_language'] ?? null)->toBe($suggestion->suggested_value)
+        ->and($metadata['source_hash'] ?? null)->toBe(titleSuggestionSourceHash($title))
+        ->and($metadata['source_snapshot']['title_id'] ?? null)->toBe($title->id)
+        ->and($metadata['source_snapshot']['title_text'] ?? null)->toBe($title->value)
+        ->and($metadata['source_snapshot']['resource_id'] ?? null)->toBe($resource->id);
+});
+
 it('returns title language suggestions for the assistance page', function (): void {
     $user = User::factory()
         ->groupLeader()
