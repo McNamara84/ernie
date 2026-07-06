@@ -12,6 +12,8 @@ use Nitotm\Eld\LanguageDetector;
 
 class Assistant extends GenericTableAssistant
 {
+    private const TARGET_TYPE = 'title';
+
     private const SUPPORTED_LANGUAGES = ['de', 'en', 'fr'];
 
     private LanguageDetector $detector;
@@ -105,12 +107,21 @@ class Assistant extends GenericTableAssistant
      */
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
-        $title = Title::find($suggestion->target_id);
+        $validation = $this->validatedPayload($suggestion);
+
+        if ($validation['success'] === false) {
+            return $validation;
+        }
+
+        $title = Title::query()
+            ->whereKey($validation['payload']['target_id'])
+            ->where('resource_id', $validation['payload']['resource_id'])
+            ->first();
 
         if ($title === null) {
             return [
                 'success' => false,
-                'message' => 'Title record not found.',
+                'message' => 'The title for this suggestion no longer exists or no longer belongs to the expected resource.',
             ];
         }
 
@@ -124,14 +135,7 @@ class Assistant extends GenericTableAssistant
         }
 
         $currentLanguage = $this->currentLanguage($title);
-        $proposedLanguage = strtolower((string) $suggestion->suggested_value);
-
-        if (! in_array($proposedLanguage, self::SUPPORTED_LANGUAGES, true)) {
-            return [
-                'success' => false,
-                'message' => "Unsupported language '{$proposedLanguage}'. Only de, en and fr are supported.",
-            ];
-        }
+        $proposedLanguage = $validation['payload']['proposed_language'];
 
         if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
             return [
@@ -157,6 +161,68 @@ class Assistant extends GenericTableAssistant
         return [
             'success' => true,
             'message' => "Title language set to {$languageLabel}.",
+        ];
+    }
+
+    /**
+     * @return array{success: false, message: string}|array{success: true, payload: array{target_id: int, resource_id: int, proposed_language: string}}
+     */
+    private function validatedPayload(AssistantSuggestion $suggestion): array
+    {
+        if ($suggestion->target_type !== self::TARGET_TYPE) {
+            return [
+                'success' => false,
+                'message' => 'This title language suggestion targets an unsupported entity type.',
+            ];
+        }
+
+        $targetId = $this->positiveInt($suggestion->target_id);
+        $resourceId = $this->positiveInt($suggestion->resource_id);
+        $proposedLanguage = strtolower(trim((string) $suggestion->suggested_value));
+
+        if ($targetId === null || $resourceId === null) {
+            return [
+                'success' => false,
+                'message' => 'This title language suggestion does not contain a valid title and resource reference.',
+            ];
+        }
+
+        if (! in_array($proposedLanguage, self::SUPPORTED_LANGUAGES, true)) {
+            return [
+                'success' => false,
+                'message' => "Unsupported language '{$proposedLanguage}'. Only de, en and fr are supported.",
+            ];
+        }
+
+        $metadata = $this->metadata($suggestion);
+        $snapshot = is_array($metadata['source_snapshot'] ?? null) ? $metadata['source_snapshot'] : null;
+
+        if (is_array($snapshot)) {
+            $snapshotTitleId = $this->positiveInt($snapshot['title_id'] ?? null);
+            $snapshotResourceId = $this->positiveInt($snapshot['resource_id'] ?? null);
+
+            if ($snapshotTitleId !== null && $snapshotTitleId !== $targetId) {
+                return [
+                    'success' => false,
+                    'message' => 'This title language suggestion contains inconsistent title metadata. Please refresh the assistant list.',
+                ];
+            }
+
+            if ($snapshotResourceId !== null && $snapshotResourceId !== $resourceId) {
+                return [
+                    'success' => false,
+                    'message' => 'This title language suggestion contains inconsistent resource metadata. Please refresh the assistant list.',
+                ];
+            }
+        }
+
+        return [
+            'success' => true,
+            'payload' => [
+                'target_id' => $targetId,
+                'resource_id' => $resourceId,
+                'proposed_language' => $proposedLanguage,
+            ],
         ];
     }
 
@@ -264,6 +330,21 @@ class Assistant extends GenericTableAssistant
         }
 
         return strtolower((string) $language);
+    }
+
+    private function positiveInt(mixed $value): ?int
+    {
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            $intValue = (int) $value;
+
+            return $intValue > 0 ? $intValue : null;
+        }
+
+        return null;
     }
 
     private function sourceHash(Title $title): string
