@@ -74,7 +74,6 @@ RUN apt-get update && apt-get install -y \
     libfreetype6 \
     libfribidi0 \
     libgbm1 \
-    libgdk-pixbuf-2.0-0 \
     libgl1 \
     libgl1-mesa-dri \
     libglib2.0-0t64 \
@@ -82,14 +81,12 @@ RUN apt-get update && apt-get install -y \
     libglx-mesa0 \
     libglx0 \
     libgraphite2-3 \
-    libgtk-3-0 \
     libharfbuzz0b \
     libice6 \
     libllvm19 \
     libnspr4 \
     libnss3 \
     libpango-1.0-0 \
-    libpangocairo-1.0-0 \
     libpciaccess0 \
     libpixman-1-0 \
     libsensors-config \
@@ -123,7 +120,6 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxrender1 \
     libxshmfence1 \
-    libxss1 \
     libxt6t64 \
     libxxf86vm1 \
     libz3-4 \
