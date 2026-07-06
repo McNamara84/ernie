@@ -74,7 +74,8 @@ class RorAffiliationBulkAcceptanceService
      */
     public function acceptByToken(string $token): array
     {
-        $payload = Cache::pull($this->cacheKey($token));
+        $cacheKey = $this->cacheKey($token);
+        $payload = Cache::get($cacheKey);
 
         if (! is_array($payload) || ! $this->isValidPayload($payload)) {
             return [
@@ -166,6 +167,7 @@ class RorAffiliationBulkAcceptanceService
 
         $syncedDois = $this->syncResources(array_values(array_unique($acceptedResourceIds)));
         CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
+        Cache::forget($cacheKey);
 
         $message = $acceptedCount > 0
             ? "ROR-ID accepted for {$acceptedCount} further creator affiliation(s)."

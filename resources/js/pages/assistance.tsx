@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
@@ -1764,16 +1765,9 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         <Button variant="outline" disabled={isAcceptingRorBulkMatch} onClick={handleDeclineRorBulkMatch}>
                             Decline
                         </Button>
-                        <Button disabled={isAcceptingRorBulkMatch} onClick={handleAcceptRorBulkMatch}>
-                            {isAcceptingRorBulkMatch ? (
-                                <>
-                                    <Spinner size="sm" className="mr-2" />
-                                    Accepting...
-                                </>
-                            ) : (
-                                'Accept'
-                            )}
-                        </Button>
+                        <LoadingButton loading={isAcceptingRorBulkMatch} onClick={handleAcceptRorBulkMatch}>
+                            Accept
+                        </LoadingButton>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

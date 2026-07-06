@@ -8,6 +8,9 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
+use App\Services\DataCiteServiceInterface;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
 use App\Services\RorAffiliationBulkAcceptanceService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Support\Facades\Cache;
@@ -216,6 +219,29 @@ it('accepts all still-valid bulk matches and removes their suggestions', functio
         $matchA['suggestion']->id,
         $matchB['suggestion']->id,
     ])->count())->toBe(0);
+});
+
+it('keeps a valid bulk token when processing fails before completion', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
+    createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
+
+    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService
+    {
+        public function syncIfRegistered(Resource $resource): DataCiteSyncResult
+        {
+            throw new RuntimeException('sync exploded');
+        }
+    });
+
+    expect(fn () => app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken))
+        ->toThrow(RuntimeException::class, 'sync exploded');
+
+    expect(Cache::has('ror_affiliation_bulk_accept:'.$bulkToken))->toBeTrue();
+
+    app()->forgetInstance(DataCiteSyncService::class);
 });
 
 it('rejects expired or invalid bulk tokens without changing suggestions', function (): void {
