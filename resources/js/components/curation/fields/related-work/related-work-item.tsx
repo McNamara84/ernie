@@ -132,7 +132,7 @@ export default function RelatedWorkItem({
             >
                 {isRepositoryCuration && (
                     <div className="mb-3 rounded-md border border-cyan-200 bg-cyan-100/70 px-3 py-2 text-xs font-medium text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100">
-                        relatedIdentifier added via assistance tool
+                        Related identifier added via the assistance tool.
                     </div>
                 )}
                 <div className="flex items-start justify-between gap-4">

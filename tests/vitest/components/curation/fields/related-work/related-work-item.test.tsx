@@ -83,7 +83,7 @@ describe('RelatedWorkItem variants', () => {
             }),
         );
 
-        const note = screen.getByText('relatedIdentifier added via assistance tool');
+        const note = screen.getByText('Related identifier added via the assistance tool.');
 
         expect(note).toBeInTheDocument();
         expect(note).toHaveClass('text-cyan-900');
