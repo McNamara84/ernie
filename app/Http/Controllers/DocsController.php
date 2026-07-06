@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DataCiteModeResolverService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -36,10 +37,20 @@ class DocsController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
+        $dataCiteModeResolver = app(DataCiteModeResolverService::class);
+        $isTestMode = $dataCiteModeResolver->shouldUseTestMode($user);
 
         return Inertia::render('docs', [
             'userRole' => $user->role->value,
             'editorSettings' => $this->getEditorSettingsForDocs(),
+            'dataCite' => [
+                'currentMode' => $isTestMode ? 'test' : 'production',
+                'isTestModeForcedForUser' => $dataCiteModeResolver->isTestModeForcedForUser($user),
+                'testPrefixes' => array_values((array) config('datacite.test.prefixes', [])),
+                'productionPrefixes' => array_values((array) config('datacite.production.prefixes', [])),
+                'testEndpoint' => (string) config('datacite.test.endpoint', ''),
+                'productionEndpoint' => (string) config('datacite.production.endpoint', ''),
+            ],
         ]);
     }
 
