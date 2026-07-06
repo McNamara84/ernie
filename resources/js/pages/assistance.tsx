@@ -64,6 +64,14 @@ function resourceEditorUrl(resourceId: number): string {
     return editorRoute({ query: { resourceId } }).url;
 }
 
+function normalizedResourceHeaderValue(value: string | null | undefined): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function firstNonEmptyResourceHeaderValue(current: string, candidate: string): string {
+    return current === '' ? candidate : current;
+}
+
 function SuggestionCard({
     suggestion,
     onAccept,
@@ -1578,14 +1586,21 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         Record<number, { resourceId: number; doi: string; title: string; items: BaseSuggestionItem[] }>
                     >((groups, item) => {
                         const resourceId = item.resource_id;
+                        const itemDoi = normalizedResourceHeaderValue(item.resource_doi);
+                        const itemTitle = normalizedResourceHeaderValue(item.resource_title);
+
                         if (!groups[resourceId]) {
                             groups[resourceId] = {
                                 resourceId,
-                                doi: item.resource_doi ?? '',
-                                title: item.resource_title ?? 'Untitled',
+                                doi: itemDoi,
+                                title: itemTitle,
                                 items: [],
                             };
+                        } else {
+                            groups[resourceId].doi = firstNonEmptyResourceHeaderValue(groups[resourceId].doi, itemDoi);
+                            groups[resourceId].title = firstNonEmptyResourceHeaderValue(groups[resourceId].title, itemTitle);
                         }
+
                         groups[resourceId].items.push(item);
                         return groups;
                     }, {});
@@ -1619,7 +1634,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                 {Object.keys(grouped).length > 0 ? (
                                     <div className="space-y-6">
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
-                                            const resourceLabel = group.doi || `Resource #${group.resourceId}`;
+                                            const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
+                                            const resourceTitle = group.title === '' ? 'Untitled' : group.title;
 
                                             return (
                                                 <div key={resourceKey} className="space-y-3">
@@ -1631,7 +1647,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                                         >
                                                             {resourceLabel}
                                                         </Link>
-                                                        <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                                        <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
                                                         <Badge variant="secondary" className="ml-auto text-xs">
                                                             {group.items.length} suggestion(s)
                                                         </Badge>

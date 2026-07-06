@@ -492,11 +492,11 @@ describe('Assistance resource header links', () => {
         expect(screen.getByRole('link', { name: '10.5880/test.2026.042' })).toHaveAttribute('href', '/editor?resourceId=42');
     });
 
-    it('keeps the editor reachable when a suggestion has no DOI', () => {
+    it('keeps the editor reachable with fallback labels when a suggestion has no DOI or title', () => {
         const suggestion = makeSizeFormatSuggestion({
             resource_id: 99,
-            resource_doi: '',
-            resource_title: 'Draft resource without DOI',
+            resource_doi: undefined,
+            resource_title: undefined,
         });
 
         render(
@@ -510,22 +510,23 @@ describe('Assistance resource header links', () => {
 
         expect(link).toHaveAttribute('href', '/editor?resourceId=99');
         expect(link).toHaveAttribute('title', 'Open Resource #99 in editor');
+        expect(screen.getByText(/Untitled/)).toBeInTheDocument();
     });
 
-    it('groups repeated resource suggestions while preserving fallback labels', () => {
+    it('promotes the first non-empty resource DOI and title from later grouped suggestions', () => {
         const suggestions = [
             makeSizeFormatSuggestion({
                 id: 101,
                 resource_id: 101,
-                resource_doi: undefined,
-                resource_title: undefined,
-                suggested_label: 'First missing metadata suggestion',
+                resource_doi: '   ',
+                resource_title: '   ',
+                suggested_label: 'First blank metadata suggestion',
             }),
             makeSizeFormatSuggestion({
                 id: 102,
                 resource_id: 101,
-                resource_doi: '10.5880/ignored.2026.102',
-                resource_title: 'Ignored later title',
+                resource_doi: '  10.5880/promoted.2026.102  ',
+                resource_title: '  Promoted later title  ',
                 suggested_label: 'Second suggestion for same resource',
             }),
         ];
@@ -537,11 +538,47 @@ describe('Assistance resource header links', () => {
             />,
         );
 
-        expect(screen.getByRole('link', { name: 'Resource #101' })).toHaveAttribute('href', '/editor?resourceId=101');
-        expect(screen.getByText(/Untitled/)).toBeInTheDocument();
+        const link = screen.getByRole('link', { name: '10.5880/promoted.2026.102' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=101');
+        expect(link).toHaveAttribute('title', 'Open 10.5880/promoted.2026.102 in editor');
+        expect(screen.getByText(/Promoted later title/)).toBeInTheDocument();
         expect(screen.getByText('2 suggestion(s)')).toBeInTheDocument();
         expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(2);
-        expect(screen.queryByRole('link', { name: '10.5880/ignored.2026.102' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Resource #101' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the first non-empty resource DOI and title when later grouped suggestions conflict', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({
+                id: 201,
+                resource_id: 201,
+                resource_doi: '10.5880/original.2026.201',
+                resource_title: 'Original grouped title',
+                suggested_label: 'Original metadata suggestion',
+            }),
+            makeSizeFormatSuggestion({
+                id: 202,
+                resource_id: 201,
+                resource_doi: '10.5880/conflict.2026.201',
+                resource_title: 'Conflicting grouped title',
+                suggested_label: 'Conflicting metadata suggestion',
+            }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/original.2026.201' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=201');
+        expect(screen.getByText(/Original grouped title/)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: '10.5880/conflict.2026.201' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/Conflicting grouped title/)).not.toBeInTheDocument();
     });
 });
 
