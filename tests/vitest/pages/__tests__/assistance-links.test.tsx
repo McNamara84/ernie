@@ -1,6 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { router } from '@inertiajs/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+import { toast } from 'sonner';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -47,6 +49,8 @@ vi.mock('axios', () => {
 });
 
 const mockedAxiosPost = axios.post as Mock;
+const mockedRouterReload = router.reload as Mock;
+const mockedToastWarning = toast.warning as Mock;
 
 // ── Import component under test (after mocks) ───────────────────────
 
@@ -75,6 +79,8 @@ const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Sugges
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
+    mockedRouterReload.mockReset();
+    mockedToastWarning.mockReset();
 });
 
 function makeOrcidSuggestion(overrides: Partial<SuggestedOrcidItem> = {}): SuggestedOrcidItem {
@@ -1290,6 +1296,180 @@ describe('RorSuggestionCard – ROR link', () => {
 
         expect(screen.queryByRole('link', { name: 'https://ror.org/search' })).not.toBeInTheDocument();
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
+    });
+
+    it('reloads immediately after accepting a ROR suggestion without bulk matches', async () => {
+        const suggestion = makeRorSuggestion({ id: 954 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                message: 'ROR-ID accepted. No resources required DataCite sync.',
+                replaced_identifier: null,
+                synced_dois: [],
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/rors/954/accept');
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+
+    it('opens a bulk accept dialog after accepting a ROR affiliation suggestion with exact matches', async () => {
+        const suggestion = makeRorSuggestion({ id: 955 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'ROR-ID accepted. No resources required DataCite sync.',
+                    bulk_affiliation_match: {
+                        available: true,
+                        count: 2,
+                        bulk_token: 'bulk-token-955',
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ Potsdam',
+                        suggested_ror_id: 'https://ror.org/04t3en479',
+                    },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    accepted_count: 2,
+                    skipped_count: 0,
+                    synced_dois: [],
+                    message: 'ROR-ID accepted for 2 further creator affiliation(s).',
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/rors/955/accept');
+        });
+
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent(
+            'There are 2 further creators who match the resource you have just confirmed in the <creatorName> and <affiliation> elements. Would you like to accept the ROR suggestion for these as well?',
+        );
+        expect(mockedRouterReload).not.toHaveBeenCalled();
+
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: 'bulk-token-955',
+            });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+        });
+    });
+
+    it('warns and reloads when accepting bulk ROR matches fails with a server message', async () => {
+        const suggestion = makeRorSuggestion({ id: 957 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'ROR-ID accepted. No resources required DataCite sync.',
+                    bulk_affiliation_match: {
+                        available: true,
+                        count: 1,
+                        bulk_token: 'expired-bulk-token',
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ Potsdam',
+                        suggested_ror_id: 'https://ror.org/04t3en479',
+                    },
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    data: {
+                        message: 'Bulk ROR acceptance token is invalid or has expired.',
+                    },
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: 'expired-bulk-token',
+            });
+            expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+        });
+    });
+
+    it('declines the bulk ROR dialog without posting the token', async () => {
+        const suggestion = makeRorSuggestion({ id: 956 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                message: 'ROR-ID accepted. No resources required DataCite sync.',
+                bulk_affiliation_match: {
+                    available: true,
+                    count: 1,
+                    bulk_token: 'bulk-token-decline',
+                    creator_name: 'Doe, Jane',
+                    affiliation: 'GFZ Potsdam',
+                    suggested_ror_id: 'https://ror.org/04t3en479',
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenCalledTimes(1);
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
     });
 });
 

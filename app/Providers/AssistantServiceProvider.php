@@ -27,7 +27,7 @@ class AssistantServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(AssistantRegistrar::class, function () {
-            return new AssistantRegistrar();
+            return new AssistantRegistrar;
         });
     }
 
@@ -87,6 +87,12 @@ class AssistantServiceProvider extends ServiceProvider
                         ->name("assistance.check.{$id}.status")
                         ->defaults('assistantId', $id);
 
+                    if ($id === 'ror-suggestion') {
+                        Route::post("/{$prefix}/bulk-affiliation-accept", [AssistanceController::class, 'acceptRorAffiliationMatches'])
+                            ->name("assistance.{$id}.bulk-affiliation-accept")
+                            ->defaults('assistantId', $id);
+                    }
+
                     // Accept suggestion
                     Route::post("/{$prefix}/{suggestion}/accept", [AssistanceController::class, 'accept'])
                         ->where('suggestion', '[0-9]+')
@@ -121,7 +127,7 @@ class AssistantServiceProvider extends ServiceProvider
     private function cacheManifestPaths(): void
     {
         $basePath = base_path('modules/assistants');
-        $paths = is_dir($basePath) ? glob($basePath . '/*/manifest.json') : [];
+        $paths = is_dir($basePath) ? glob($basePath.'/*/manifest.json') : [];
         /** @var list<string> $paths */
         $paths = $paths !== false ? $paths : [];
 
@@ -134,7 +140,7 @@ class AssistantServiceProvider extends ServiceProvider
 
         $result = file_put_contents(
             $cachePath,
-            '<?php return ' . var_export($paths, true) . ';' . PHP_EOL,
+            '<?php return '.var_export($paths, true).';'.PHP_EOL,
         );
 
         if ($result === false) {
