@@ -39,7 +39,8 @@ class DateTypeSchemaorgExtraction
         }
 
         try {
-            $response = Http::timeout(10)
+            $response = Http::acceptJson()
+                ->timeout(10)
                 ->connectTimeout(5)
                 ->withoutRedirecting()
                 ->get($url);
@@ -59,9 +60,7 @@ class DateTypeSchemaorgExtraction
             return [$this->skip($url, 'unsupported_source_url')];
         }
 
-        return $this->extractSchemaorgDateSuggestions($data, $sourceUrl);
-
-
+        return $this->extractSchemaorgDateSuggestions($data, $sourceUrl, $url);
     }
 
     private function isHttpUrl(string $url): bool
@@ -98,7 +97,7 @@ class DateTypeSchemaorgExtraction
      * @param array<string, mixed> $data
      * @return array<int, array<string, mixed>>
      */
-    private function extractSchemaorgDateSuggestions (array $data, string $sourceUrl): array 
+    private function extractSchemaorgDateSuggestions (array $data, string $sourceUrl, string $url): array 
     {
         $suggestions = [];
 
@@ -125,6 +124,7 @@ class DateTypeSchemaorgExtraction
             'normalized_value' => $normalizedValue,
             'source_url' => $sourceUrl,
             'evidence_source' => 'schema.org',
+            'evidence_url' => $url,
             'schema_org_field' => $field,
             'confidence' => 'high',
             'is_ambiguous' => false,
