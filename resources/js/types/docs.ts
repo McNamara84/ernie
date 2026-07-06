@@ -59,6 +59,23 @@ export interface EditorSettings {
 }
 
 /**
+ * DataCite DOI registration settings exposed for role-aware documentation.
+ */
+export interface DataCiteDocsSettings {
+    /** Mode currently used for the signed-in user */
+    currentMode: 'test' | 'production';
+    /** Whether ERNIE forces test mode for this user regardless of global config */
+    isTestModeForcedForUser: boolean;
+    /** Configured DataCite test DOI prefixes */
+    testPrefixes: string[];
+    /** Configured DataCite production DOI prefixes */
+    productionPrefixes: string[];
+    /** DataCite test API endpoint */
+    testEndpoint: string;
+    /** DataCite production API endpoint */
+    productionEndpoint: string;
+}
+/**
  * Props passed to the documentation page from DocsController
  */
 export interface DocsPageProps {
@@ -66,6 +83,8 @@ export interface DocsPageProps {
     userRole: import('@/types').UserRole;
     /** Editor settings for dynamic content */
     editorSettings: EditorSettings;
+    /** DataCite settings for role-aware DOI documentation */
+    dataCite: DataCiteDocsSettings;
 }
 
 /**

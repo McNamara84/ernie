@@ -36,11 +36,12 @@ import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, UserRole } from '@/types';
-import type { DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
+import type { DataCiteDocsSettings, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
 
 interface DocsProps {
     userRole: UserRole;
     editorSettings: EditorSettings;
+    dataCite: DataCiteDocsSettings;
 }
 
 /**
@@ -55,8 +56,13 @@ const roleHierarchy: Record<UserRole, number> = {
 
 const CURRENT_DATACITE_METADATA_SCHEMA_VERSION = '4.7';
 const LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION = '4.6';
+const NOT_CONFIGURED_LABEL = 'Not configured';
 
-export default function Docs({ userRole, editorSettings }: DocsProps) {
+function formatConfiguredList(values: string[]): string {
+    return values.length > 0 ? values.join(', ') : NOT_CONFIGURED_LABEL;
+}
+
+export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) {
     const [activeTab, setActiveTab] = useState<DocsTabId>('getting-started');
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -159,7 +165,12 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Personal Settings</h3>
                         <p>
-                            Navigate to <code>/settings</code> to customize your ERNIE experience.
+                            Open the user menu from your avatar in the page header and choose <strong>Settings</strong>. This opens your personal
+                            profile settings at <code>/settings/profile</code>.
+                        </p>
+                        <p>
+                            Admins and Group Leaders also have an <strong>Editor Settings</strong> entry at <code>/settings</code>. That page controls
+                            ERNIE configuration and is separate from your personal settings.
                         </p>
 
                         <h4>Profile Settings</h4>
@@ -244,8 +255,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <h4>Creating New Users</h4>
                         <p>
-                            Navigate to <code>/users</code> and click <strong>"Create User"</strong>. Enter the new user's name and email. The system
-                            will:
+                            Navigate to <code>/users</code> and click <strong>"Add User"</strong>. Enter the new user's name and email in the dialog,
+                            then submit it with <strong>"Create User"</strong>. The system will:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -281,7 +292,9 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Beginner</h5>
-                                <p className="text-sm text-muted-foreground">Training curation with landing pages and DataCite test DOI registration; destructive actions remain restricted</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Training curation with landing pages and DataCite test DOI registration; destructive actions remain restricted
+                                </p>
                             </div>
                         </div>
 
@@ -595,8 +608,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 caches while preserving imported subject text
                             </li>
                             <li>
-                                <strong>Description Segmentation Suggestions</strong> - Reviews long legacy Abstract descriptions and proposes curator-approved
-                                splits into DataCite Methods, Technical Information, Table of Contents, or Series Information descriptions
+                                <strong>Description Segmentation Suggestions</strong> - Reviews long legacy Abstract descriptions and proposes
+                                curator-approved splits into DataCite Methods, Technical Information, Table of Contents, or Series Information
+                                descriptions
                             </li>
                         </ul>
 
@@ -634,8 +648,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p className="mt-2">
                                     Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract and every
                                     new Description segment. Accepting replaces only the reviewed source Abstract text and creates the listed Methods,
-                                    Technical Information, Table of Contents, or Series Information descriptions; stale suggestions are rejected if the
-                                    source Abstract changed after discovery.
+                                    Technical Information, Table of Contents, or Series Information descriptions; stale suggestions are rejected if
+                                    the source Abstract changed after discovery.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
@@ -979,65 +993,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
-                id: 'portal-search',
-                title: 'Data Portal Search',
-                icon: Globe,
-                minRole: 'beginner',
-                content: (
-                    <>
-                        <h3>Searching Published Records in the Portal</h3>
-                        <p>
-                            The public Data Portal at <code>/portal</code> lets you explore published datasets and physical samples with text,
-                            spatial, temporal, datacenter, and keyword filters. Every filter state is stored in the URL, so filtered views can be
-                            bookmarked and shared.
-                        </p>
-
-                        <h4>Free Keywords</h4>
-                        <p>
-                            The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as
-                            plain text during curation. Select one or more values to require exact matches on those free-form terms.
-                        </p>
-
-                        <h4>Thesaurus Keywords</h4>
-                        <p>
-                            Controlled vocabulary terms are now filtered separately in the <strong>Thesaurus Keywords</strong> section. ERNIE shows a
-                            dedicated tree for each thesaurus and hides unused branches automatically, so you only browse terms that are already used
-                            by published records.
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>Select a parent node to include matching descendant terms automatically</li>
-                            <li>Select multiple thesaurus nodes to combine them with AND logic</li>
-                            <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
-                        </ul>
-
-                        <h4>Other Portal Filters</h4>
-                        <p>
-                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
-                            filters. When the result set refreshes, the current results stay visible until the new response arrives.
-                        </p>
-
-                        <h4>Result Preview</h4>
-                        <p>
-                            Portal result rows stay compact for faster scanning. If a title is too long for the available row width, ERNIE truncates
-                            it responsively so author and year metadata stay visible.
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>Hover a result row with the mouse to open a metadata preview</li>
-                            <li>Tab to a result link to open the same preview from the keyboard</li>
-                            <li>The preview shows the full main title, the full creator list, and the abstract when one is available</li>
-                        </ul>
-                    </>
-                ),
-            },
-            {
-                id: 'titles-descriptions',
-                title: 'Titles & Descriptions',
+                id: 'titles',
+                title: 'Titles',
                 icon: Type,
                 minRole: 'beginner',
                 content: (
                     <>
                         <h3>Titles</h3>
-                        <p>Every resource requires at least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.</p>
+                        <p>
+                            Titles are edited in the <strong>Resource Information</strong> section of the Data Editor. Every resource requires at
+                            least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.
+                        </p>
 
                         <h4>Title Types</h4>
                         <div className="mt-2 space-y-2">
@@ -1062,38 +1028,37 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </>
                             )}
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'licenses',
+                title: 'Licenses',
+                icon: FileText,
+                minRole: 'beginner',
+                showIf: (settings) => settings.features.hasActiveLicenses,
+                content: (
+                    <>
+                        <h3>Assigning Licenses</h3>
+                        <p>Select appropriate licenses for your dataset from the SPDX license list.</p>
 
-                        <h3 className="mt-8">Descriptions</h3>
-                        <p>Provide detailed information about your dataset with different description types:</p>
-
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
-                                only: <code>&lt;p&gt;</code>, <code>&lt;br&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>,{' '}
-                                <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>, <code>&lt;a&gt;</code>,{' '}
-                                <code>&lt;sub&gt;</code>, <code>&lt;sup&gt;</code>, and <code>&lt;code&gt;</code>. ERNIE stores and shows this
-                                formatting on landing pages, but all exports and DataCite submissions remain plain text.
-                            </p>
-                        </div>
-
-                        <h4>Description Types</h4>
+                        <h4>Selecting a License</h4>
+                        <p>The license dropdown shows all active licenses. Common choices for research data include:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Abstract:</strong> Brief summary of the resource content
+                                <strong>CC-BY-4.0:</strong> Attribution required, commercial use allowed
                             </li>
                             <li>
-                                <strong>Methods:</strong> Methodology used to create or collect the data
+                                <strong>CC-BY-SA-4.0:</strong> Attribution + ShareAlike
                             </li>
                             <li>
-                                <strong>Technical Info:</strong> Technical details about data format, structure, or processing
-                            </li>
-                            <li>
-                                <strong>Table of Contents:</strong> Structure overview for complex datasets
-                            </li>
-                            <li>
-                                <strong>Other:</strong> Any additional descriptive information
+                                <strong>CC0-1.0:</strong> Public domain dedication
                             </li>
                         </ul>
+
+                        <p className="mt-4 text-sm text-muted-foreground">
+                            You can assign up to {editorSettings.limits.maxLicenses} license(s) per resource.
+                        </p>
                     </>
                 ),
             },
@@ -1131,6 +1096,47 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the separate
                             creator and Contact Person contributor records required for DataCite export.
                         </p>
+                    </>
+                ),
+            },
+            {
+                id: 'descriptions',
+                title: 'Descriptions',
+                icon: FileText,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Descriptions</h3>
+                        <p>Provide detailed information about your dataset with different description types:</p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
+                                only: <code>&lt;p&gt;</code>, <code>&lt;br&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>,{' '}
+                                <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>, <code>&lt;a&gt;</code>,{' '}
+                                <code>&lt;sub&gt;</code>, <code>&lt;sup&gt;</code>, and <code>&lt;code&gt;</code>. ERNIE stores and shows this
+                                formatting on landing pages, but all exports and DataCite submissions remain plain text.
+                            </p>
+                        </div>
+
+                        <h4>Description Types</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Abstract:</strong> Brief summary of the resource content
+                            </li>
+                            <li>
+                                <strong>Methods:</strong> Methodology used to create or collect the data
+                            </li>
+                            <li>
+                                <strong>Technical Info:</strong> Technical details about data format, structure, or processing
+                            </li>
+                            <li>
+                                <strong>Table of Contents:</strong> Structure overview for complex datasets
+                            </li>
+                            <li>
+                                <strong>Other:</strong> Any additional descriptive information
+                            </li>
+                        </ul>
                     </>
                 ),
             },
@@ -1334,43 +1340,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
-                id: 'funding-references',
-                title: 'Funding References',
-                icon: Coins,
-                minRole: 'beginner',
-                content: (
-                    <>
-                        <h3>Acknowledging Funding Sources</h3>
-                        <p>Document the funding sources that supported your research:</p>
-
-                        <h4>Required Information</h4>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <strong>Funder Name:</strong> Official name of the funding organization
-                            </li>
-                            <li>
-                                <strong>Funder Identifier:</strong> Crossref Funder ID or ROR ID (optional but recommended)
-                            </li>
-                            <li>
-                                <strong>Award Number:</strong> Grant or project number
-                            </li>
-                            <li>
-                                <strong>Award Title:</strong> Title of the funded project (optional)
-                            </li>
-                        </ul>
-
-                        <h4>Common Funders</h4>
-                        <p>Search for your funder by name – the system will suggest matching organizations with their official identifiers.</p>
-
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> Including funder information improves discoverability and helps funders track research outputs.
-                            </p>
-                        </div>
-                    </>
-                ),
-            },
-            {
                 id: 'related-identifiers',
                 title: 'Related Identifiers',
                 icon: Link2,
@@ -1509,33 +1478,100 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
-                id: 'licenses',
-                title: 'Licenses',
-                icon: FileText,
+                id: 'funding-references',
+                title: 'Funding References',
+                icon: Coins,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveLicenses,
                 content: (
                     <>
-                        <h3>Assigning Licenses</h3>
-                        <p>Select appropriate licenses for your dataset from the SPDX license list.</p>
+                        <h3>Acknowledging Funding Sources</h3>
+                        <p>
+                            Document the funding sources that supported your research. The documentation follows the same wording and order as the
+                            editor.
+                        </p>
 
-                        <h4>Selecting a License</h4>
-                        <p>The license dropdown shows all active licenses. Common choices for research data include:</p>
+                        <h4>Editor Fields</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>CC-BY-4.0:</strong> Attribution required, commercial use allowed
+                                <strong>Funder Name:</strong> Official name of the funding organization. Start typing to search matching ROR funders.
                             </li>
                             <li>
-                                <strong>CC-BY-SA-4.0:</strong> Attribution + ShareAlike
+                                <strong>Funder Identifier:</strong> ROR, Crossref Funder ID, ISNI, GRID, or Other identifier shown as a badge after a
+                                funder match is selected.
                             </li>
                             <li>
-                                <strong>CC0-1.0:</strong> Public domain dedication
+                                <strong>Show award details:</strong> Expands the optional award fields for grant-level metadata.
+                            </li>
+                            <li>
+                                <strong>Award/Grant Number:</strong> Grant, award, or project number.
+                            </li>
+                            <li>
+                                <strong>Award URI:</strong> URL for the award or project record.
+                            </li>
+                            <li>
+                                <strong>Award Title:</strong> Title of the funded project.
                             </li>
                         </ul>
 
-                        <p className="mt-4 text-sm text-muted-foreground">
-                            You can assign up to {editorSettings.limits.maxLicenses} license(s) per resource.
+                        <h4>Common Funders</h4>
+                        <p>Search for your funder by name - the system will suggest matching organizations with their official identifiers.</p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Tip:</strong> Including funder information improves discoverability and helps funders track research outputs.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'portal-search',
+                title: 'Data Portal Search',
+                icon: Globe,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Searching Published Records in the Portal</h3>
+                        <p>
+                            The public Data Portal at <code>/portal</code> lets you explore published datasets and physical samples with text,
+                            spatial, temporal, datacenter, and keyword filters. Every filter state is stored in the URL, so filtered views can be
+                            bookmarked and shared.
                         </p>
+
+                        <h4>Free Keywords</h4>
+                        <p>
+                            The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as
+                            plain text during curation. Select one or more values to require exact matches on those free-form terms.
+                        </p>
+
+                        <h4>Thesaurus Keywords</h4>
+                        <p>
+                            Controlled vocabulary terms are now filtered separately in the <strong>Thesaurus Keywords</strong> section. ERNIE shows a
+                            dedicated tree for each thesaurus and hides unused branches automatically, so you only browse terms that are already used
+                            by published records.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Select a parent node to include matching descendant terms automatically</li>
+                            <li>Select multiple thesaurus nodes to combine them with AND logic</li>
+                            <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
+                        </ul>
+
+                        <h4>Other Portal Filters</h4>
+                        <p>
+                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
+                            filters. When the result set refreshes, the current results stay visible until the new response arrives.
+                        </p>
+
+                        <h4>Result Preview</h4>
+                        <p>
+                            Portal result rows stay compact for faster scanning. If a title is too long for the available row width, ERNIE truncates
+                            it responsively so author and year metadata stay visible.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Hover a result row with the mouse to open a metadata preview</li>
+                            <li>Tab to a result link to open the same preview from the keyboard</li>
+                            <li>The preview shows the full main title, the full creator list, and the abstract when one is available</li>
+                        </ul>
                     </>
                 ),
             },
@@ -1757,7 +1793,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>Registering DOIs</h3>
-                        <p>Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but ERNIE forces their requests to the DataCite test API.</p>
+                        <p>
+                            Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but
+                            ERNIE forces their requests to the DataCite test API.
+                        </p>
 
                         <h4>DOI Duplicate Detection</h4>
                         <p>The system automatically validates DOIs when you enter them and when you save:</p>
@@ -1803,17 +1842,48 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
 
                         <h4>Test vs Production</h4>
+                        <p>
+                            DOI registration uses the DataCite mode resolved for your account. Current mode:{' '}
+                            <strong>{dataCite.currentMode === 'test' ? 'Test' : 'Production'}</strong>.
+                        </p>
+                        <p>
+                            A new DOI is minted by DataCite from the selected prefix plus a generated suffix. For example, selecting prefix{' '}
+                            <code>
+                                {dataCite.currentMode === 'test'
+                                    ? (dataCite.testPrefixes[0] ?? '10.xxxxx')
+                                    : (dataCite.productionPrefixes[0] ?? '10.xxxxx')}
+                            </code>{' '}
+                            produces a DOI in that prefix namespace.
+                        </p>
                         <div className="mt-2 space-y-2">
                             <div className="rounded-lg border bg-card p-4">
                                 <h5 className="font-semibold">Test Mode</h5>
-                                <p className="text-sm text-muted-foreground">For practice and Beginner training - DOIs are not publicly resolvable.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    For practice and Beginner training. Test DOI registrations are sent to{' '}
+                                    <code>{dataCite.testEndpoint || NOT_CONFIGURED_LABEL}</code>.
+                                </p>
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Test prefixes: <code>{formatConfiguredList(dataCite.testPrefixes)}</code>
+                                </p>
                             </div>
                             <div className="rounded-lg border bg-card p-4">
                                 <h5 className="font-semibold">Production Mode</h5>
-                                <p className="text-sm text-muted-foreground">For real publications – DOIs are permanent and public.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    For real publications. Production DOI registrations are sent to{' '}
+                                    <code>{dataCite.productionEndpoint || NOT_CONFIGURED_LABEL}</code> and create permanent public identifiers.
+                                </p>
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Production prefixes: <code>{formatConfiguredList(dataCite.productionPrefixes)}</code>
+                                </p>
                                 {userRole === 'beginner' && (
                                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-                                        <strong>Note:</strong> Beginners always register through the DataCite test API, even when production mode is enabled globally.
+                                        <strong>Note:</strong> Beginners always register through the DataCite test API, even when production mode is
+                                        enabled globally.
+                                    </p>
+                                )}
+                                {dataCite.isTestModeForcedForUser && (
+                                    <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                                        ERNIE is currently forcing test mode for your account because Beginner users cannot mint production DOIs.
                                     </p>
                                 )}
                             </div>
@@ -1911,11 +1981,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Bulk Register / Update DOI (all roles, Beginner test-only)</h4>
                         <p>
                             Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
-                            push selected resources to DataCite in one batch. Beginner users can run the same training action, but ERNIE always routes their requests to DataCite test mode. The bulk flow{' '}
-                            <strong>only updates resources that already have a DOI</strong>; the action is unavailable when the selection contains any
-                            DOI-less resource so you never accidentally mint a DOI without picking a prefix. To mint a new DOI, open the resource in
-                            the editor and use the single-resource register action there. Resources without a landing page or that are physical
-                            samples (IGSNs) are skipped and reported in the response toast.
+                            push selected resources to DataCite in one batch. Beginner users can run the same training action, but ERNIE always routes
+                            their requests to DataCite test mode. The bulk flow <strong>only updates resources that already have a DOI</strong>; the
+                            action is unavailable when the selection contains any DOI-less resource so you never accidentally mint a DOI without
+                            picking a prefix. To mint a new DOI, open the resource in the editor and use the single-resource register action there.
+                            Resources without a landing page or that are physical samples (IGSNs) are skipped and reported in the response toast.
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
 
@@ -2042,7 +2112,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
         ],
-        [userRole, editorSettings],
+        [userRole, editorSettings, dataCite],
     );
 
     // ===========================================
