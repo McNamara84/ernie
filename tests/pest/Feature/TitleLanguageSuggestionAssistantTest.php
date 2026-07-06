@@ -12,6 +12,16 @@ use Modules\Assistants\TitleSuggestion\Assistant;
 
 uses(RefreshDatabase::class);
 
+function titleSuggestionSourceHash(Title $title): string
+{
+    return hash('sha256', implode('|', [
+        (string) $title->id,
+        trim((string) $title->value),
+        (string) ($title->language ?? ''),
+        (string) $title->resource_id,
+    ]));
+}
+
 function createTitleLanguageSuggestion(Resource $resource, Title $title, array $overrides = [], array $metadataOverrides = []): AssistantSuggestion
 {
     return AssistantSuggestion::create(array_replace_recursive([
@@ -31,8 +41,11 @@ function createTitleLanguageSuggestion(Resource $resource, Title $title, array $
             'confidence_percent' => 95,
             'reason' => 'Detected from title text using ELD language detection. Only German, English and French suggestions are supported.',
             'is_stale' => false,
+            'source_hash' => titleSuggestionSourceHash($title),
             'source_snapshot' => [
                 'title_id' => $title->id,
+                'title_text' => $title->value,
+                'current_language' => $title->language,
                 'resource_id' => $resource->id,
             ],
         ], $metadataOverrides),
@@ -187,6 +200,48 @@ it('does not accept a title language suggestion with an unsupported language val
 
     expect($result['success'])->toBeFalse()
         ->and($result['message'])->toBe("Unsupported language 'es'. Only de, en and fr are supported.")
+        ->and($title->fresh()->language)->toBeNull()
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
+it('does not accept a title language suggestion without source verification metadata', function (): void {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $title = Title::factory()->for($resource)->create([
+        'language' => null,
+        'value' => 'Groundwater Recharge',
+    ]);
+
+    $suggestion = createTitleLanguageSuggestion($resource, $title, [], [
+        'source_hash' => null,
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toBe('This title language suggestion is missing source verification metadata. Please refresh the assistant list.')
+        ->and($title->fresh()->language)->toBeNull()
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
+});
+
+it('does not accept a stale title language suggestion after the title changed', function (): void {
+    $assistant = app(Assistant::class);
+    $resource = Resource::factory()->create();
+    $title = Title::factory()->for($resource)->create([
+        'language' => null,
+        'value' => 'Groundwater Recharge',
+    ]);
+
+    $suggestion = createTitleLanguageSuggestion($resource, $title);
+
+    $title->update([
+        'value' => 'Groundwater Recharge Updated',
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toBe('Suggestion is stale because the title data changed after discovery. Please run discovery again.')
         ->and($title->fresh()->language)->toBeNull()
         ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull();
 });

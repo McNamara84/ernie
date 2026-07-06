@@ -195,6 +195,15 @@ class Assistant extends GenericTableAssistant
         }
 
         $metadata = $this->metadata($suggestion);
+        $sourceHash = $metadata['source_hash'] ?? null;
+
+        if (! is_string($sourceHash) || trim($sourceHash) === '') {
+            return [
+                'success' => false,
+                'message' => 'This title language suggestion is missing source verification metadata. Please refresh the assistant list.',
+            ];
+        }
+
         $snapshot = is_array($metadata['source_snapshot'] ?? null) ? $metadata['source_snapshot'] : null;
 
         if (is_array($snapshot)) {
