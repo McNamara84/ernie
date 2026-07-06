@@ -451,6 +451,20 @@ function renderSizeFormatPage(suggestions: BaseSuggestionItem | BaseSuggestionIt
     return withProviders ? renderWithProviders(page) : render(page);
 }
 
+async function expectSizeFormatConfidenceTooltip(suggestion: BaseSuggestionItem, badgeLabel: string, expectedText: string) {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+    renderSizeFormatPage(suggestion);
+
+    const confidenceTrigger = screen.getByText(badgeLabel).closest('span[tabindex="0"]');
+
+    expect(confidenceTrigger).not.toBeNull();
+
+    await user.hover(confidenceTrigger as HTMLSpanElement);
+
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(expectedText);
+}
+
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('OrcidSuggestionCard – ORCID link', () => {
@@ -784,19 +798,123 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
                 },
             },
         });
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-        renderSizeFormatPage(suggestion, true);
-
-        const confidenceTrigger = screen.getByText('Medium confidence').closest('span[tabindex="0"]');
-
-        expect(confidenceTrigger).not.toBeNull();
-
-        await user.hover(confidenceTrigger as HTMLSpanElement);
-
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+        await expectSizeFormatConfidenceTooltip(
+            suggestion,
+            'Medium confidence',
             'Derived from the file name rather than direct server metadata. Please review before accepting.',
         );
+    });
+
+    it.each([
+        {
+            name: 'high confidence with complete directory listing',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: '2 MB',
+                suggested_label: 'SIZE: 2 MB',
+                target_type: 'size',
+                metadata: {
+                    probe_method: 'DIRECTORY_LISTING',
+                    confidence: 'high',
+                    evidence: {
+                        parsed_file_count: 3,
+                        total_file_count: 3,
+                    },
+                },
+            }),
+            badgeLabel: 'High confidence',
+            expectedText: 'Calculated from the complete download listing. All listed files were accounted for.',
+        },
+        {
+            name: 'high confidence with server metadata',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: '2 MB',
+                suggested_label: 'SIZE: 2 MB',
+                target_type: 'size',
+                metadata: {
+                    probe_method: 'CONTENT_LENGTH_HEADER',
+                    confidence: 'high',
+                },
+            }),
+            badgeLabel: 'High confidence',
+            expectedText: 'Derived from reliable server metadata for the linked file.',
+        },
+        {
+            name: 'medium confidence with ranged metadata',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: 'application/pdf',
+                suggested_label: 'FORMAT: application/pdf',
+                target_type: 'format',
+                metadata: {
+                    probe_method: 'RANGED_GET',
+                    confidence: 'medium',
+                },
+            }),
+            badgeLabel: 'Medium confidence',
+            expectedText: 'Derived from partial server metadata. Please review before accepting.',
+        },
+        {
+            name: 'medium confidence fallback',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: 'application/pdf',
+                suggested_label: 'FORMAT: application/pdf',
+                target_type: 'format',
+                metadata: {
+                    probe_method: 'HTTP_HEAD',
+                    confidence: 'medium',
+                },
+            }),
+            badgeLabel: 'Medium confidence',
+            expectedText: 'Derived from multiple indicators, but should still be reviewed.',
+        },
+        {
+            name: 'low confidence with incomplete directory listing',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: '2 MB',
+                suggested_label: 'SIZE: 2 MB',
+                target_type: 'size',
+                metadata: {
+                    probe_method: 'DIRECTORY_LISTING',
+                    confidence: 'low',
+                    evidence: {
+                        parsed_file_count: 2,
+                        total_file_count: 3,
+                    },
+                },
+            }),
+            badgeLabel: 'Low confidence',
+            expectedText: 'Calculated from incomplete download information. Please verify before accepting.',
+        },
+        {
+            name: 'low confidence with filename evidence',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: 'application/pdf',
+                suggested_label: 'FORMAT: application/pdf',
+                target_type: 'format',
+                metadata: {
+                    confidence: 'low',
+                    evidence: {
+                        filename: 'example.pdf',
+                    },
+                },
+            }),
+            badgeLabel: 'Low confidence',
+            expectedText: 'Derived from limited evidence such as the file name. Please verify before accepting.',
+        },
+        {
+            name: 'low confidence fallback',
+            suggestion: makeSizeFormatSuggestion({
+                suggested_value: 'application/pdf',
+                suggested_label: 'FORMAT: application/pdf',
+                target_type: 'format',
+                metadata: {
+                    confidence: 'low',
+                },
+            }),
+            badgeLabel: 'Low confidence',
+            expectedText: 'Derived from limited evidence. Please verify before accepting.',
+        },
+    ])('shows tooltip copy for $name', async ({ suggestion, badgeLabel, expectedText }) => {
+        await expectSizeFormatConfidenceTooltip(suggestion, badgeLabel, expectedText);
     });
 
     it('links the grouped resource DOI and title to the DOI resolver', () => {
