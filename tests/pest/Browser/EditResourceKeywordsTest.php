@@ -52,7 +52,7 @@ describe('Edit Resource with Keywords', function (): void {
 
         $this->actingAs($user);
 
-        visit("/editor?resourceId={$resource->id}")
+        visit("/resources/{$resource->id}/edit")
             ->assertNoSmoke();
     });
 
@@ -76,7 +76,7 @@ describe('Edit Resource with Keywords', function (): void {
 
         $this->actingAs($user);
 
-        visit("/editor?resourceId={$resource->id}")
+        visit("/resources/{$resource->id}/edit")
             ->assertNoSmoke()
             ->assertSee('EARTHQUAKES');
     });
@@ -99,7 +99,7 @@ describe('Edit Resource with Keywords', function (): void {
 
         $this->actingAs($user);
 
-        visit("/editor?resourceId={$resource->id}")
+        visit("/resources/{$resource->id}/edit")
             ->assertNoSmoke()
             ->assertSee('seismology');
     });
@@ -125,7 +125,7 @@ describe('Edit Resource with Keywords', function (): void {
 
         $this->actingAs($user);
 
-        visit("/editor?resourceId={$resource->id}")
+        visit("/resources/{$resource->id}/edit")
             ->assertNoSmoke()
             ->assertSee('Air pollution');
     });

@@ -124,10 +124,10 @@ describe('Landing Page Template Persistence (Regression PR #674)', function (): 
 
         $page = visit('/resources')->assertNoSmoke();
 
-        // Open the Setup Landing Page dialog via the current bulk-actions flow
-        // on the resources table.
-        $page->click("[data-testid='resources-row-checkbox-{$resource->id}']")
-            ->click("[data-testid='resources-action-setup-landing-page']")
+        // Open the Setup Landing Page dialog for this resource. The button is
+        // rendered with an aria-label containing "Setup landing page for
+        // resource" and a DOI/resource identifier.
+        $page->click('[aria-label^="Setup landing page for resource"]')
             ->assertSee('Setup Landing Page')
             // The Select trigger must display the custom template name, not
             // the "Default GFZ Data Services" fallback value.
