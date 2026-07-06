@@ -213,10 +213,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Manage landing pages (create and update; delete is gated separately)
         Gate::define('manage-landing-pages', function (User $user): bool {
-            return $user->role === UserRole::ADMIN
-                || $user->role === UserRole::GROUP_LEADER
-                || $user->role === UserRole::CURATOR
-                || $user->role === UserRole::BEGINNER;
+            return match ($user->role) {
+                UserRole::ADMIN,
+                UserRole::GROUP_LEADER,
+                UserRole::CURATOR,
+                UserRole::BEGINNER => true,
+            };
         });
 
         // Delete draft landing pages (published landing pages remain protected in the controller)
