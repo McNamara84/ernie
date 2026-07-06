@@ -27,11 +27,13 @@ it('normalizes related identifiers and keeps optional related-work fields only w
         ],
         'relatedIdentifiers' => [
             [
+                'id' => '42',
                 'identifier' => ' 10.5880/test.2026.001 ',
                 'identifierType' => ' DOI ',
                 'relationType' => ' Other ',
                 'relationTypeInformation' => '  Custom relationship  ',
                 'citationLabel' => '  Doe, J. (2026): Example citation.  ',
+                'source' => '  '.RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT.'  ',
             ],
             [
                 'identifier' => ' https://example.org/resource ',
@@ -53,11 +55,13 @@ it('normalizes related identifiers and keeps optional related-work fields only w
 
     expect($request->input('relatedIdentifiers'))->toBe([
         [
+            'id' => 42,
             'identifier' => '10.5880/test.2026.001',
             'identifierType' => 'DOI',
             'relationType' => 'Other',
             'relationTypeInformation' => 'Custom relationship',
             'citationLabel' => 'Doe, J. (2026): Example citation.',
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
         ],
         [
             'identifier' => 'https://example.org/resource',
@@ -129,7 +133,9 @@ it('keeps related-work citation label limits aligned between draft and store req
     expect($draftRequest->rules()['relatedIdentifiers.*.citationLabel'])
         ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
         ->and($storeRequest->rules()['relatedIdentifiers.*.citationLabel'])
-        ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS);
+        ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
+        ->and($draftRequest->rules())->toHaveKey('relatedIdentifiers.*.source')
+        ->and($storeRequest->rules())->toHaveKey('relatedIdentifiers.*.source');
 });
 
 /**

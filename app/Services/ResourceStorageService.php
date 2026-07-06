@@ -13,6 +13,7 @@ use App\Models\Institution;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
+use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -1527,9 +1528,14 @@ class ResourceStorageService
      */
     private function storeRelatedIdentifiers(Resource $resource, array $data, bool $isUpdate): void
     {
-        // Save related identifiers
+        $existingRelatedIdentifiersById = [];
+
         if ($isUpdate) {
-            $resource->relatedIdentifiers()->delete();
+            /** @var array<int, RelatedIdentifier> $existingRelatedIdentifiersById */
+            $existingRelatedIdentifiersById = $resource->relatedIdentifiers()
+                ->get()
+                ->keyBy('id')
+                ->all();
         }
 
         // Pre-fetch related identifier type and relation type IDs
@@ -1539,6 +1545,7 @@ class ResourceStorageService
         $relationTypeLookup = RelationType::pluck('id', 'slug')->all();
 
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? [];
+        $retainedRelatedIdentifierIds = [];
 
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             // Only save if identifier is not empty
@@ -1547,16 +1554,61 @@ class ResourceStorageService
                     ? trim($relatedIdentifier['citationLabel'])
                     : null;
 
-                $resource->relatedIdentifiers()->create([
+                $existingRelatedIdentifier = $this->existingRelatedIdentifierForUpdate($relatedIdentifier, $existingRelatedIdentifiersById);
+                $attributes = [
                     'identifier' => trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,
                     'citation_label' => $citationLabel,
+                    'source' => $this->preservedRelatedIdentifierSource($existingRelatedIdentifier),
                     'position' => $index,
-                ]);
+                ];
+
+                if ($existingRelatedIdentifier instanceof RelatedIdentifier) {
+                    $existingRelatedIdentifier->fill($attributes);
+                    $existingRelatedIdentifier->save();
+                    $retainedRelatedIdentifierIds[] = $existingRelatedIdentifier->id;
+
+                    continue;
+                }
+
+                $createdRelatedIdentifier = $resource->relatedIdentifiers()->create($attributes);
+                $retainedRelatedIdentifierIds[] = $createdRelatedIdentifier->id;
             }
         }
+
+        if ($isUpdate) {
+            $deleteQuery = $resource->relatedIdentifiers();
+
+            if ($retainedRelatedIdentifierIds !== []) {
+                $deleteQuery->whereNotIn('id', $retainedRelatedIdentifierIds);
+            }
+
+            $deleteQuery->delete();
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $relatedIdentifier
+     * @param  array<int, RelatedIdentifier>  $existingRelatedIdentifiersById
+     */
+    private function existingRelatedIdentifierForUpdate(array $relatedIdentifier, array $existingRelatedIdentifiersById): ?RelatedIdentifier
+    {
+        $id = $relatedIdentifier['id'] ?? null;
+
+        if (! is_numeric($id)) {
+            return null;
+        }
+
+        return $existingRelatedIdentifiersById[(int) $id] ?? null;
+    }
+
+    private function preservedRelatedIdentifierSource(?RelatedIdentifier $existingRelatedIdentifier): ?string
+    {
+        $source = $existingRelatedIdentifier?->source;
+
+        return $source === RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT ? $source : null;
     }
 
     /**

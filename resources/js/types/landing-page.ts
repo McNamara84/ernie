@@ -386,6 +386,10 @@ export interface LandingPageRelatedIdentifier {
     relation_type: string;
     /** Persisted citation label for display without runtime DOI lookups */
     citation_label?: string | null;
+    /** Local ERNIE provenance for repository-curated additions */
+    source?: 'relation_suggestion_assistant' | null;
+    /** True when ERNIE added the identifier through repository curation */
+    is_repository_curation?: boolean;
     /** General resource type (e.g., 'Dataset', 'Text') */
     resource_type_general?: string | null;
     /** Legacy: identifier value */

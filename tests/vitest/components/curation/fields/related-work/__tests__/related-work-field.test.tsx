@@ -249,9 +249,7 @@ describe('RelatedWorkField', () => {
 
     it('re-enables identifier auto-detection after the shared field is reset', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-        mockDetectIdentifierType
-            .mockReturnValueOnce('DOI')
-            .mockReturnValue('URL');
+        mockDetectIdentifierType.mockReturnValueOnce('DOI').mockReturnValue('URL');
 
         render(<RelatedWorkField relatedWorks={[]} onChange={onChange} />);
 
@@ -266,14 +264,7 @@ describe('RelatedWorkField', () => {
     it('initializes and resets add-form selections from active options when defaults are inactive', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-        render(
-            <RelatedWorkField
-                relatedWorks={[]}
-                onChange={onChange}
-                activeIdentifierTypes={['URL']}
-                activeRelationTypes={['References']}
-            />,
-        );
+        render(<RelatedWorkField relatedWorks={[]} onChange={onChange} activeIdentifierTypes={['URL']} activeRelationTypes={['References']} />);
 
         expect(screen.getByTestId('identifier-type')).toHaveTextContent('URL');
         expect(screen.getByTestId('relation-type')).toHaveTextContent('References');
@@ -504,6 +495,8 @@ describe('RelatedWorkField', () => {
                         citation_label: 'Old citation',
                         related_title: 'Resolved title for old DOI',
                         related_metadata: { publisher: 'GFZ' },
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
                         position: 0,
                     },
                 ]}
@@ -519,6 +512,8 @@ describe('RelatedWorkField', () => {
                 citation_label: null,
                 related_title: null,
                 related_metadata: null,
+                source: 'relation_suggestion_assistant',
+                is_repository_curation: true,
                 position: 0,
             }),
         ]);
@@ -536,6 +531,8 @@ describe('RelatedWorkField', () => {
                         citation_label: 'Old citation',
                         related_title: 'Resolved title for old DOI',
                         related_metadata: { publisher: 'GFZ' },
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
                         position: 0,
                     },
                 ]}
@@ -551,6 +548,8 @@ describe('RelatedWorkField', () => {
                 citation_label: null,
                 related_title: null,
                 related_metadata: null,
+                source: 'relation_suggestion_assistant',
+                is_repository_curation: true,
                 position: 0,
             }),
         ]);

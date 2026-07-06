@@ -1073,8 +1073,7 @@ export default function DataCiteForm({
     const updateOpenAccordionItems = useCallback(
         (
             nextItemsOrUpdater:
-                | readonly CurationAccordionItemValue[]
-                | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
+                readonly CurationAccordionItemValue[] | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
             options: { immediate?: boolean; persist?: boolean; persistHiddenItems?: boolean } = {},
         ) => {
             const nextItems = typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
@@ -1791,9 +1790,7 @@ export default function DataCiteForm({
 
             const next = [...prev];
             const updated: LicenseEntry =
-                mode === 'custom'
-                    ? { id: current.id, mode: 'custom', name: '', uri: '' }
-                    : { id: current.id, mode: 'catalog', license: '' };
+                mode === 'custom' ? { id: current.id, mode: 'custom', name: '', uri: '' } : { id: current.id, mode: 'catalog', license: '' };
 
             next[index] = updated;
 
@@ -2122,11 +2119,13 @@ export default function DataCiteForm({
                 description: string;
             }[];
             relatedIdentifiers: {
+                id?: number;
                 identifier: string;
                 identifierType: string;
                 relationType: string;
                 relationTypeInformation?: string;
                 citationLabel?: string;
+                source?: 'relation_suggestion_assistant';
             }[];
             fundingReferences: {
                 funderName: string;
@@ -2155,19 +2154,13 @@ export default function DataCiteForm({
                 titleType: entry.titleType,
                 language: entry.language ?? null,
             })),
-            licenses: licenseEntries
-                .filter(isCatalogLicensePayloadEntry)
-                .map((entry) => entry.license),
-            customLicenses: licenseEntries
-                .filter(isCustomLicensePayloadEntry)
-                .map((entry) => ({
-                    name: entry.name.trim(),
-                    uri: entry.uri.trim(),
-                    ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
-                })),
-            rawRights: licenseEntries
-                .filter(isRawRightsOnlyLicenseEntry)
-                .map(serializeRawRightsOnlyLicenseEntry),
+            licenses: licenseEntries.filter(isCatalogLicensePayloadEntry).map((entry) => entry.license),
+            customLicenses: licenseEntries.filter(isCustomLicensePayloadEntry).map((entry) => ({
+                name: entry.name.trim(),
+                uri: entry.uri.trim(),
+                ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
+            })),
+            rawRights: licenseEntries.filter(isRawRightsOnlyLicenseEntry).map(serializeRawRightsOnlyLicenseEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -2215,11 +2208,13 @@ export default function DataCiteForm({
                 description: coverage.description,
             })),
             relatedIdentifiers: relatedWorks.map((rw) => ({
+                ...(rw.id !== undefined ? { id: rw.id } : {}),
                 identifier: rw.identifier,
                 identifierType: rw.identifier_type,
                 relationType: rw.relation_type,
                 ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
                 ...(rw.citation_label ? { citationLabel: rw.citation_label } : {}),
+                ...(rw.source ? { source: rw.source } : {}),
             })),
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
@@ -2304,7 +2299,14 @@ export default function DataCiteForm({
     }, [buildPayload, resolvedResourceId]);
 
     const saveDraftSilently = useCallback(async () => {
-        if (!isDraftSaveable || dateValidationIssues.length > 0 || isSaving || isSavingDraft || isPreparingLandingPagePreview || draftAutosaveInFlightRef.current) {
+        if (
+            !isDraftSaveable ||
+            dateValidationIssues.length > 0 ||
+            isSaving ||
+            isSavingDraft ||
+            isPreparingLandingPagePreview ||
+            draftAutosaveInFlightRef.current
+        ) {
             return;
         }
 
@@ -2349,7 +2351,16 @@ export default function DataCiteForm({
         } finally {
             draftAutosaveInFlightRef.current = false;
         }
-    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isPreparingLandingPagePreview, isSaving, isSavingDraft, markDraftAutosaveSaved]);
+    }, [
+        buildPayload,
+        dateValidationIssues.length,
+        draftSaveUrl,
+        isDraftSaveable,
+        isPreparingLandingPagePreview,
+        isSaving,
+        isSavingDraft,
+        markDraftAutosaveSaved,
+    ]);
 
     useEffect(() => {
         const autosaveTimerId = window.setInterval(() => {
@@ -2666,7 +2677,10 @@ export default function DataCiteForm({
 
         if (dateValidationIssues.length > 0) {
             setHasAttemptedSubmit(true);
-            revealValidationErrors({ dates: dateValidationIssues }, 'Please resolve the date validation issues before opening the landing page preview.');
+            revealValidationErrors(
+                { dates: dateValidationIssues },
+                'Please resolve the date validation issues before opening the landing page preview.',
+            );
             setIsPreparingLandingPagePreview(false);
             return null;
         }
@@ -3140,7 +3154,8 @@ export default function DataCiteForm({
                     <AccordionContent>
                         <div className="space-y-4">
                             {licenseEntries.map((entry, index) => {
-                                const customLicensePayloadIndex = entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
+                                const customLicensePayloadIndex =
+                                    entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
 
                                 return (
                                     <LicenseField
@@ -3165,8 +3180,12 @@ export default function DataCiteForm({
                                         touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                         onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
                                         data-testid={`license-select-${index}`}
-                                        customNameTestId={customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined}
-                                        customUriTestId={customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined}
+                                        customNameTestId={
+                                            customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined
+                                        }
+                                        customUriTestId={
+                                            customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined
+                                        }
                                     />
                                 );
                             })}
@@ -3445,15 +3464,9 @@ export default function DataCiteForm({
                     <AccordionTrigger
                         data-testid="citations-accordion-trigger"
                         className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions(
-                            RELATED_ITEMS_SECTION_LABEL,
-                            RELATED_ITEMS_SECTION_HELP,
-                        )}
+                        actions={renderSectionActions(RELATED_ITEMS_SECTION_LABEL, RELATED_ITEMS_SECTION_HELP)}
                     >
-                        <AccordionSectionHeader
-                            label={RELATED_ITEMS_SECTION_LABEL}
-                            description={RELATED_ITEMS_SECTION_DESCRIPTION}
-                        />
+                        <AccordionSectionHeader label={RELATED_ITEMS_SECTION_LABEL} description={RELATED_ITEMS_SECTION_DESCRIPTION} />
                     </AccordionTrigger>
                     <AccordionContent data-testid="citations-accordion-content">
                         <CitationsField resourceId={resolvedResourceId} />
@@ -3518,13 +3531,13 @@ export default function DataCiteForm({
             >
                 <div
                     data-testid="editor-floating-actions-panel"
-                    className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 hover:opacity-100 focus-within:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"
+                    className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100 hover:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"
                 >
                     {renderEditorActions()}
                 </div>
                 {draftAutosaveMessage && (
                     <p
-                        className={`${draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'} max-w-[calc(100vw-1rem)] text-right opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 group-focus-within:opacity-100 lg:opacity-100 [@media(hover:none)]:opacity-100`}
+                        className={`${draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'} max-w-[calc(100vw-1rem)] text-right opacity-20 transition-opacity duration-200 ease-out group-focus-within:opacity-100 group-hover:opacity-100 lg:opacity-100 [@media(hover:none)]:opacity-100`}
                         data-testid="draft-autosave-status"
                         aria-live="polite"
                     >

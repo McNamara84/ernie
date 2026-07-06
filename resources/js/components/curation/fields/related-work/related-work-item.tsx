@@ -10,12 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-    formatRelationTypeLabel,
-    getAllRelationTypes,
-    MOST_USED_RELATION_TYPES,
-    RELATION_TYPE_DESCRIPTIONS,
-} from '@/lib/related-identifiers';
+import { isRepositoryCurationRelatedIdentifier } from '@/lib/related-identifier-provenance';
+import { formatRelationTypeLabel, getAllRelationTypes, MOST_USED_RELATION_TYPES, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
+import { cn } from '@/lib/utils';
 import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { identifierTypes } from '@/schemas/related-work.schema';
 import type { RelatedIdentifier, RelationType } from '@/types';
@@ -65,10 +62,9 @@ export default function RelatedWorkItem({
         : [...identifierTypes];
 
     const previewLinkIdentifierTypes = new Set(['DOI', 'URL', 'Handle']);
-    const linkUrl = previewLinkIdentifierTypes.has(item.identifier_type)
-        ? resolveIdentifierUrl(item.identifier, item.identifier_type)
-        : null;
+    const linkUrl = previewLinkIdentifierTypes.has(item.identifier_type) ? resolveIdentifierUrl(item.identifier, item.identifier_type) : null;
     const isClickable = linkUrl !== null;
+    const isRepositoryCuration = isRepositoryCurationRelatedIdentifier(item);
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -127,7 +123,18 @@ export default function RelatedWorkItem({
 
     return (
         <div ref={setNodeRef} style={style} role="listitem">
-            <Card className={`p-4 ${isDragging ? 'border-primary/50 shadow-lg' : ''}`}>
+            <Card
+                className={cn(
+                    'p-4',
+                    isRepositoryCuration && 'border-cyan-200 bg-cyan-50/70 dark:border-cyan-800 dark:bg-cyan-950/20',
+                    isDragging && 'border-primary/50 shadow-lg',
+                )}
+            >
+                {isRepositoryCuration && (
+                    <div className="mb-3 rounded-md border border-cyan-200 bg-cyan-100/70 px-3 py-2 text-xs font-medium text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-100">
+                        relatedIdentifier added via assistance tool
+                    </div>
+                )}
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex min-w-0 items-start gap-3">
                         <Button
@@ -153,7 +160,9 @@ export default function RelatedWorkItem({
                                 </Badge>
                                 <ValidationIcon />
                             </div>
-                            <p className="text-xs text-muted-foreground">Edit the identifier, relation type, and landing-page citation label in one place.</p>
+                            <p className="text-xs text-muted-foreground">
+                                Edit the identifier, relation type, and landing-page citation label in one place.
+                            </p>
                         </div>
                     </div>
 
@@ -205,7 +214,7 @@ export default function RelatedWorkItem({
                             onValueChange={(value) =>
                                 updateItem({
                                     relation_type: value,
-                                    relation_type_information: value === 'Other' ? item.relation_type_information ?? '' : null,
+                                    relation_type_information: value === 'Other' ? (item.relation_type_information ?? '') : null,
                                 })
                             }
                         >
