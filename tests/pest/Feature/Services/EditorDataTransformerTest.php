@@ -1576,6 +1576,7 @@ describe('transformRelatedIdentifiers', function (): void {
             'identifier_type_id' => $identifierType->id,
             'relation_type_id' => $relationType->id,
             'citation_label' => 'Doe, J. (2024): First item. GFZ.',
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
             'position' => 1,
         ]);
 
@@ -1588,7 +1589,10 @@ describe('transformRelatedIdentifiers', function (): void {
             ->and($result[1]['identifier'])->toBe('10.5880/test.2024.002')
             ->and($result[0]['identifier_type'])->toBe('DOI')
             ->and($result[0]['relation_type'])->toBe('Cites')
-            ->and($result[0]['citation_label'])->toBe('Doe, J. (2024): First item. GFZ.');
+            ->and($result[0]['citation_label'])->toBe('Doe, J. (2024): First item. GFZ.')
+            ->and($result[0]['source'])->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
+            ->and($result[0]['is_repository_curation'])->toBeTrue()
+            ->and($result[1]['is_repository_curation'])->toBeFalse();
     });
 });
 

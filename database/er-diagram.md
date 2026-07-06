@@ -369,6 +369,7 @@ erDiagram
         bigint relation_type_id FK
         varchar relation_type_information "nullable, DataCite 4.7"
         mediumtext citation_label "nullable"
+        varchar source "100, nullable"
         varchar related_metadata_scheme
         varchar scheme_uri
         varchar scheme_type
