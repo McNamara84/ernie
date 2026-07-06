@@ -511,6 +511,38 @@ describe('Assistance resource header links', () => {
         expect(link).toHaveAttribute('href', '/editor?resourceId=99');
         expect(link).toHaveAttribute('title', 'Open Resource #99 in editor');
     });
+
+    it('groups repeated resource suggestions while preserving fallback labels', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({
+                id: 101,
+                resource_id: 101,
+                resource_doi: undefined,
+                resource_title: undefined,
+                suggested_label: 'First missing metadata suggestion',
+            }),
+            makeSizeFormatSuggestion({
+                id: 102,
+                resource_id: 101,
+                resource_doi: '10.5880/ignored.2026.102',
+                resource_title: 'Ignored later title',
+                suggested_label: 'Second suggestion for same resource',
+            }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: 'Resource #101' })).toHaveAttribute('href', '/editor?resourceId=101');
+        expect(screen.getByText(/Untitled/)).toBeInTheDocument();
+        expect(screen.getByText('2 suggestion(s)')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(2);
+        expect(screen.queryByRole('link', { name: '10.5880/ignored.2026.102' })).not.toBeInTheDocument();
+    });
 });
 
 describe('OrcidSuggestionCard – ORCID link', () => {
