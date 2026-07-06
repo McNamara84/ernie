@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\Resource;
-use App\Services\DataCiteModeResolver;
+use App\Services\DataCiteModeResolverService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -37,7 +37,7 @@ class RegisterDoiRequest extends FormRequest
      */
     public function rules(): array
     {
-        $allowedPrefixes = app(DataCiteModeResolver::class)->allowedPrefixes($this->user());
+        $allowedPrefixes = app(DataCiteModeResolverService::class)->allowedPrefixes($this->user());
 
         $resource = $this->route('resource');
         $hasExistingDoi = $resource instanceof \App\Models\Resource && $resource->doi !== null && $resource->doi !== '';
@@ -59,7 +59,7 @@ class RegisterDoiRequest extends FormRequest
      */
     public function messages(): array
     {
-        $resolver = app(DataCiteModeResolver::class);
+        $resolver = app(DataCiteModeResolverService::class);
         $testMode = $resolver->shouldUseTestMode($this->user());
         $allowedPrefixes = $resolver->allowedPrefixes($this->user());
 

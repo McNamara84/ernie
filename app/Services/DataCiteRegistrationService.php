@@ -120,7 +120,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
     {
         /** @var User|null $user */
         $user = auth()->user();
-        $resolver = app(DataCiteModeResolver::class);
+        $resolver = app(DataCiteModeResolverService::class);
 
         if ($resolver->isTestModeForcedForUser($user)) {
             Log::info('Forcing DataCite test mode for beginner user (safety restriction)', [

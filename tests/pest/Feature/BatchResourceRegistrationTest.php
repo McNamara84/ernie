@@ -223,17 +223,35 @@ describe('BatchResourceRegistrationController@register', function () {
         $response->assertStatus(422);
     });
 
-    test('rejects batch registration for beginners', function () {
+    test('allows beginners to batch update resources in test mode', function () {
         $beginner = User::factory()->beginner()->create();
         $resource = Resource::factory()->create(['doi' => '10.83279/BEG-001']);
         LandingPage::factory()->create(['resource_id' => $resource->id]);
+
+        config(['datacite.test_mode' => false]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response([
+                'data' => [
+                    'id' => '10.83279/BEG-001',
+                    'type' => 'dois',
+                    'attributes' => ['doi' => '10.83279/BEG-001', 'state' => 'findable'],
+                ],
+            ], 200),
+        ]);
 
         $response = $this->actingAs($beginner)
             ->postJson('/resources/batch-register', [
                 'ids' => [$resource->id],
             ]);
 
-        $response->assertStatus(403);
+        $response->assertOk();
+        expect($response->json('success'))->toHaveCount(1)
+            ->and($response->json('failed'))->toHaveCount(0)
+            ->and($response->json('success.0.updated'))->toBeTrue();
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.test.datacite.org/dois/10.83279%2FBEG-001')
+            && $request->method() === 'PUT');
     });
 
     test('requires authentication', function () {

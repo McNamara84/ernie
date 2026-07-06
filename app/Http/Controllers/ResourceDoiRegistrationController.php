@@ -7,7 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
-use App\Services\DataCiteModeResolver;
+use App\Services\DataCiteModeResolverService;
 use App\Services\DataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceStorageService;
@@ -194,7 +194,7 @@ class ResourceDoiRegistrationController extends Controller
      */
     public function getDataCitePrefixes(Request $request): JsonResponse
     {
-        $resolver = app(DataCiteModeResolver::class);
+        $resolver = app(DataCiteModeResolverService::class);
 
         return (new DataCitePrefixResource([
             'test' => config('datacite.test.prefixes', []),
