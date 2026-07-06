@@ -8,6 +8,7 @@ use App\Models\AssistantSuggestion;
 use App\Models\Title;
 use App\Services\Assistance\GenericTableAssistant;
 use Closure;
+use Illuminate\Support\Facades\DB;
 use Nitotm\Eld\LanguageDetector;
 
 class Assistant extends GenericTableAssistant
@@ -113,55 +114,58 @@ class Assistant extends GenericTableAssistant
             return $validation;
         }
 
-        $title = Title::query()
-            ->whereKey($validation['payload']['target_id'])
-            ->where('resource_id', $validation['payload']['resource_id'])
-            ->first();
+        return DB::transaction(function () use ($suggestion, $validation): array {
+            $title = Title::query()
+                ->whereKey($validation['payload']['target_id'])
+                ->where('resource_id', $validation['payload']['resource_id'])
+                ->lockForUpdate()
+                ->first();
 
-        if ($title === null) {
-            return [
-                'success' => false,
-                'message' => 'The title for this suggestion no longer exists or no longer belongs to the expected resource.',
-            ];
-        }
+            if ($title === null) {
+                return [
+                    'success' => false,
+                    'message' => 'The title for this suggestion no longer exists or no longer belongs to the expected resource.',
+                ];
+            }
 
-        $metadata = $this->metadata($suggestion);
+            $metadata = $this->metadata($suggestion);
 
-        if ($this->isStale($title, $metadata)) {
-            return [
-                'success' => false,
-                'message' => 'Suggestion is stale because the title data changed after discovery. Please run discovery again.',
-            ];
-        }
+            if ($this->isStale($title, $metadata)) {
+                return [
+                    'success' => false,
+                    'message' => 'Suggestion is stale because the title data changed after discovery. Please run discovery again.',
+                ];
+            }
 
-        $currentLanguage = $this->currentLanguage($title);
-        $proposedLanguage = $validation['payload']['proposed_language'];
+            $currentLanguage = $this->currentLanguage($title);
+            $proposedLanguage = $validation['payload']['proposed_language'];
 
-        if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
-            return [
-                'success' => false,
-                'message' => "Title already has language '{$currentLanguage}'. It was not overwritten automatically.",
-            ];
-        }
+            if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
+                return [
+                    'success' => false,
+                    'message' => "Title already has language '{$currentLanguage}'. It was not overwritten automatically.",
+                ];
+            }
 
-        if ($currentLanguage === $proposedLanguage) {
+            if ($currentLanguage === $proposedLanguage) {
+                return [
+                    'success' => true,
+                    'message' => "Title language is already set to {$proposedLanguage}.",
+                ];
+            }
+
+            $title->language = $proposedLanguage;
+            $title->save();
+
+            $languageLabel = $metadata['proposed_language_label']
+                ?? $suggestion->suggested_label
+                ?? strtoupper($proposedLanguage);
+
             return [
                 'success' => true,
-                'message' => "Title language is already set to {$proposedLanguage}.",
+                'message' => "Title language set to {$languageLabel}.",
             ];
-        }
-
-        $title->language = $proposedLanguage;
-        $title->save();
-
-        $languageLabel = $metadata['proposed_language_label']
-            ?? $suggestion->suggested_label
-            ?? strtoupper($proposedLanguage);
-
-        return [
-            'success' => true,
-            'message' => "Title language set to {$languageLabel}.",
-        ];
+        });
     }
 
     /**
