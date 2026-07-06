@@ -37,6 +37,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                         email: 'test@example.com',
                         role: 'admin',
                         can_manage_users: true,
+                        can_register_doi: true,
                         can_register_production_doi: true,
                     },
                 },

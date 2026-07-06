@@ -22,8 +22,7 @@ use Inertia\Response;
  * before saving them. The preview data is stored in the session and
  * can be used to test different templates or FTP URLs.
  *
- * Authorization: Only users with Curator role or higher can create previews,
- * consistent with LandingPageController restrictions.
+ * Authorization: Users who can create landing pages can create previews,`r`n * consistent with LandingPageController restrictions.
  */
 class LandingPagePreviewController extends Controller
 {

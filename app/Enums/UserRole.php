@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Providers\AppServiceProvider;
+
 /**
  * User role enumeration
  *
@@ -11,9 +13,9 @@ namespace App\Enums;
  * - ADMIN: Full system access, can promote users to any role
  * - GROUP_LEADER: Can manage users but cannot promote to GROUP_LEADER or ADMIN
  * - CURATOR: Can register production DOIs and manage resources
- * - BEGINNER: Limited to test DOI registration only
+ * - BEGINNER: Training curation, forced to DataCite test DOI registration
  *
- * @see \App\Providers\AppServiceProvider for Gate definitions
+ * @see AppServiceProvider for Gate definitions
  */
 enum UserRole: string
 {

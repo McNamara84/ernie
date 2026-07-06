@@ -181,6 +181,16 @@ class AppServiceProvider extends ServiceProvider
                 || $user->role === UserRole::GROUP_LEADER;
         });
 
+        // Register DOIs in the effective DataCite mode (Beginners are restricted to test mode)
+        Gate::define('register-doi', function (User $user): bool {
+            return in_array($user->role, [
+                UserRole::ADMIN,
+                UserRole::GROUP_LEADER,
+                UserRole::CURATOR,
+                UserRole::BEGINNER,
+            ], true);
+        });
+
         // Register DOIs in production mode (Beginners are restricted to test mode)
         Gate::define('register-production-doi', function (User $user): bool {
             return $user->role !== UserRole::BEGINNER;
@@ -201,9 +211,16 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === UserRole::ADMIN;
         });
 
-        // Manage landing pages (create, update, delete)
-        // Beginners can only view landing pages, not manage them
+        // Manage landing pages (create and update; delete is gated separately)
         Gate::define('manage-landing-pages', function (User $user): bool {
+            return $user->role === UserRole::ADMIN
+                || $user->role === UserRole::GROUP_LEADER
+                || $user->role === UserRole::CURATOR
+                || $user->role === UserRole::BEGINNER;
+        });
+
+        // Delete draft landing pages (published landing pages remain protected in the controller)
+        Gate::define('delete-landing-pages', function (User $user): bool {
             return $user->role === UserRole::ADMIN
                 || $user->role === UserRole::GROUP_LEADER
                 || $user->role === UserRole::CURATOR;

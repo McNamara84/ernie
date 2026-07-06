@@ -281,7 +281,7 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Beginner</h5>
-                                <p className="text-sm text-muted-foreground">Limited curation, test DOI only (forced)</p>
+                                <p className="text-sm text-muted-foreground">Training curation with landing pages and DataCite test DOI registration; destructive actions remain restricted</p>
                             </div>
                         </div>
 
@@ -1543,13 +1543,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'landing-pages',
                 title: 'Landing Pages',
                 icon: Globe,
-                minRole: 'curator',
+                minRole: 'beginner',
                 content: (
                     <>
                         <h3>Creating Landing Pages</h3>
                         <p>
                             Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before DOI
-                            registration.
+                            registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow; deleting
+                            draft landing pages remains available only to Curators and above.
                         </p>
                         <p>
                             Controlled thesaurus keywords on GFZ-hosted landing pages keep their hierarchy. ERNIE shows a compact breadcrumb on the
@@ -1756,7 +1757,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>Registering DOIs</h3>
-                        <p>Once your landing page is public, you can register a DOI through DataCite.</p>
+                        <p>Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but ERNIE forces their requests to the DataCite test API.</p>
 
                         <h4>DOI Duplicate Detection</h4>
                         <p>The system automatically validates DOIs when you enter them and when you save:</p>
@@ -1805,14 +1806,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <div className="mt-2 space-y-2">
                             <div className="rounded-lg border bg-card p-4">
                                 <h5 className="font-semibold">Test Mode</h5>
-                                <p className="text-sm text-muted-foreground">For practice – DOIs are not publicly resolvable.</p>
+                                <p className="text-sm text-muted-foreground">For practice and Beginner training - DOIs are not publicly resolvable.</p>
                             </div>
                             <div className="rounded-lg border bg-card p-4">
                                 <h5 className="font-semibold">Production Mode</h5>
                                 <p className="text-sm text-muted-foreground">For real publications – DOIs are permanent and public.</p>
                                 {userRole === 'beginner' && (
                                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-                                        <strong>Note:</strong> Beginners can only register test DOIs.
+                                        <strong>Note:</strong> Beginners always register through the DataCite test API, even when production mode is enabled globally.
                                     </p>
                                 )}
                             </div>
@@ -1907,10 +1908,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             need schema-validated output.
                         </p>
 
-                        <h4>Bulk Register / Update DOI (Curator and above)</h4>
+                        <h4>Bulk Register / Update DOI (all roles, Beginner test-only)</h4>
                         <p>
                             Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
-                            push selected resources to DataCite in one batch. The bulk flow{' '}
+                            push selected resources to DataCite in one batch. Beginner users can run the same training action, but ERNIE always routes their requests to DataCite test mode. The bulk flow{' '}
                             <strong>only updates resources that already have a DOI</strong>; the action is unavailable when the selection contains any
                             DOI-less resource so you never accidentally mint a DOI without picking a prefix. To mint a new DOI, open the resource in
                             the editor and use the single-resource register action there. Resources without a landing page or that are physical
@@ -2206,6 +2207,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>Export individual IGSNs as DataCite JSON</li>
                             <li>Setup landing pages for IGSNs</li>
+                            <li>Register or update IGSNs at DataCite; Beginner users are forced to the test API</li>
                         </ul>
 
                         <h4>Bulk Selection</h4>

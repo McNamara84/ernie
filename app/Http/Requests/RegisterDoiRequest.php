@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Resource;
+use App\Services\DataCiteModeResolver;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Validation\Rule;
 
 /**
@@ -31,15 +33,11 @@ class RegisterDoiRequest extends FormRequest
      * metadata update and ignores the prefix entirely, so the modal is allowed
      * to submit without a selection.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        // Get allowed prefixes based on test mode
-        $testMode = (bool) Config::get('datacite.test_mode', true);
-        $allowedPrefixes = $testMode
-            ? Config::get('datacite.test.prefixes', [])
-            : Config::get('datacite.production.prefixes', []);
+        $allowedPrefixes = app(DataCiteModeResolver::class)->allowedPrefixes($this->user());
 
         $resource = $this->route('resource');
         $hasExistingDoi = $resource instanceof \App\Models\Resource && $resource->doi !== null && $resource->doi !== '';
@@ -61,10 +59,9 @@ class RegisterDoiRequest extends FormRequest
      */
     public function messages(): array
     {
-        $testMode = (bool) Config::get('datacite.test_mode', true);
-        $allowedPrefixes = $testMode
-            ? Config::get('datacite.test.prefixes', [])
-            : Config::get('datacite.production.prefixes', []);
+        $resolver = app(DataCiteModeResolver::class);
+        $testMode = $resolver->shouldUseTestMode($this->user());
+        $allowedPrefixes = $resolver->allowedPrefixes($this->user());
 
         $mode = $testMode ? 'test' : 'production';
         $prefixList = implode(', ', $allowedPrefixes);

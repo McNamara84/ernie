@@ -7,11 +7,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Resources\DataCitePrefixResource;
 use App\Models\Resource;
+use App\Services\DataCiteModeResolver;
 use App\Services\DataCiteRegistrationService;
 use App\Services\Orcid\OrcidPreflightValidator;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ResourceDoiRegistrationController extends Controller
@@ -190,12 +192,14 @@ class ResourceDoiRegistrationController extends Controller
     /**
      * Get available DataCite prefixes based on test mode configuration.
      */
-    public function getDataCitePrefixes(): JsonResponse
+    public function getDataCitePrefixes(Request $request): JsonResponse
     {
+        $resolver = app(DataCiteModeResolver::class);
+
         return (new DataCitePrefixResource([
             'test' => config('datacite.test.prefixes', []),
             'production' => config('datacite.production.prefixes', []),
-            'test_mode' => (bool) config('datacite.test_mode', true),
+            'test_mode' => $resolver->shouldUseTestMode($request->user()),
         ]))->response();
     }
 }

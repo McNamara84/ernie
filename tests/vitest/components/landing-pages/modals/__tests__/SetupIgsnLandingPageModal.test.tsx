@@ -10,6 +10,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SetupIgsnLandingPageModal from '@/components/landing-pages/modals/SetupIgsnLandingPageModal';
 import type { LandingPageConfig } from '@/types/landing-page';
 
+const mockUsePage = vi.hoisted(() =>
+    vi.fn(() => ({
+        props: { auth: { user: { can_delete_landing_pages: true } } },
+    })),
+);
+
 // Mock dependencies
 vi.mock('axios', () => {
     const get = vi.fn();
@@ -40,6 +46,7 @@ vi.mock('@inertiajs/react', () => ({
     router: {
         reload: vi.fn(),
     },
+    usePage: mockUsePage,
 }));
 
 vi.mock('sonner', () => ({
@@ -80,6 +87,9 @@ describe('SetupIgsnLandingPageModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockUsePage.mockReturnValue({
+            props: { auth: { user: { can_delete_landing_pages: true } } },
+        });
     });
 
     describe('Rendering', () => {
@@ -981,6 +991,27 @@ describe('SetupIgsnLandingPageModal', () => {
                     landing_page: {
                         ...mockExistingConfig,
                         status: 'published',
+                    },
+                },
+            });
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            expect(screen.queryByRole('button', { name: /Remove Preview/i })).not.toBeInTheDocument();
+        });
+        it('hides remove preview button without landing page delete permission', async () => {
+            mockUsePage.mockReturnValue({
+                props: { auth: { user: { can_delete_landing_pages: false } } },
+            });
+            mockedAxiosGet.mockResolvedValue({
+                data: {
+                    landing_page: {
+                        ...mockExistingConfig,
+                        status: 'draft',
                     },
                 },
             });

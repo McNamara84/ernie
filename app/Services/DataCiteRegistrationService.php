@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Resource;
+use App\Models\User;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
@@ -111,34 +113,24 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
      *
      * @return bool True if test mode should be used, false for production mode
      *
-     * @see \App\Enums\UserRole::canRegisterProductionDoi() - Role permission check
+     * @see UserRole::canRegisterProductionDoi() - Role permission check
      * @see config/datacite.php - Global test mode configuration
      */
     private function determineTestMode(): bool
     {
-        $globalTestMode = (bool) Config::get('datacite.test_mode', true);
-
-        // If global test mode is enabled, use test mode
-        if ($globalTestMode) {
-            return true;
-        }
-
-        // CRITICAL SAFETY CHECK: Force test mode for beginner users
-        // Beginners cannot register production DOIs even if global test mode is disabled
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = auth()->user();
+        $resolver = app(DataCiteModeResolver::class);
 
-        if ($user !== null && $user->isBeginner()) {
+        if ($resolver->isTestModeForcedForUser($user)) {
             Log::info('Forcing DataCite test mode for beginner user (safety restriction)', [
-                'user_id' => $user->id,
-                'user_role' => $user->role->value,
+                'user_id' => $user?->id,
+                'user_role' => $user?->role->value,
                 'reason' => 'Beginners are restricted to test DOIs only',
             ]);
-
-            return true;
         }
 
-        return false;
+        return $resolver->shouldUseTestMode($user);
     }
 
     /**
@@ -289,7 +281,7 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
         $prefix = $this->extractPrefix($resource->doi);
         if (! in_array($prefix, $this->prefixes, true)) {
             throw new \InvalidArgumentException(
-                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: " . implode(', ', $this->prefixes)
+                "IGSN prefix '{$prefix}' is not allowed. Allowed prefixes: ".implode(', ', $this->prefixes)
             );
         }
 

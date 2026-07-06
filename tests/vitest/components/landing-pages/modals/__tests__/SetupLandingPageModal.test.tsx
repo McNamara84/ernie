@@ -10,6 +10,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import type { LandingPageConfig, LandingPageDownloadUrlSuggestions } from '@/types/landing-page';
 
+const mockUsePage = vi.hoisted(() =>
+    vi.fn(() => ({
+        props: { auth: { user: { can_delete_landing_pages: true } } },
+    })),
+);
+
 // Mock dependencies
 vi.mock('axios', () => {
     const get = vi.fn();
@@ -44,6 +50,7 @@ vi.mock('@inertiajs/react', () => ({
     router: {
         reload: vi.fn(),
     },
+    usePage: mockUsePage,
 }));
 
 vi.mock('sonner', () => ({
@@ -115,6 +122,9 @@ describe('SetupLandingPageModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockUsePage.mockReturnValue({
+            props: { auth: { user: { can_delete_landing_pages: true } } },
+        });
         window.sessionStorage.clear();
     });
 
@@ -1178,6 +1188,26 @@ describe('SetupLandingPageModal', () => {
 
             // Verify no Depublish or Remove Preview button is shown for published config
             expect(screen.queryByRole('button', { name: /Depublish/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Remove Preview/i })).not.toBeInTheDocument();
+        });
+        it('does not show remove button without landing page delete permission', async () => {
+            mockUsePage.mockReturnValue({
+                props: { auth: { user: { can_delete_landing_pages: false } } },
+            });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: { ...mockExistingConfig, status: 'draft' } } });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
             expect(screen.queryByRole('button', { name: /Remove Preview/i })).not.toBeInTheDocument();
         });
 

@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { Copy, Eye, FlaskConical } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { User as AuthUser } from '@/types';
 import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageTemplateSummary } from '@/types/landing-page';
 
 interface IgsnResource {
@@ -46,6 +48,9 @@ interface SetupIgsnLandingPageModalProps {
  * - Uses FlaskConical icon instead of Globe
  */
 export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupIgsnLandingPageModalProps) {
+    const { auth } = usePage<{ auth: { user: AuthUser | null } }>().props;
+    const canDeleteLandingPages = auth.user?.can_delete_landing_pages ?? false;
+
     const initialTemplate = getPreferredIgsnTemplate(existingConfig?.template);
 
     const [template, setTemplate] = useState<string>(initialTemplate);
@@ -559,7 +564,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                     className="shrink-0 flex-wrap gap-2 border-t px-6 py-4"
                 >
                     {/* Only show Remove Preview for draft landing pages */}
-                    {currentConfig && currentConfig.status === 'draft' && (
+                    {canDeleteLandingPages && currentConfig && currentConfig.status === 'draft' && (
                         <Button type="button" variant="destructive" onClick={handleRemovePreview} disabled={isSaving} className="mr-auto">
                             Remove Preview
                         </Button>
