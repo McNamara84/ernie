@@ -736,9 +736,7 @@ class StoreDraftResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['citationLabel'])
                 : '';
 
-            $id = isset($relatedIdentifier['id']) && is_numeric($relatedIdentifier['id'])
-                ? (int) $relatedIdentifier['id']
-                : null;
+            $id = $this->normalizeRelatedIdentifierId($relatedIdentifier['id'] ?? null);
 
             $source = isset($relatedIdentifier['source']) && is_scalar($relatedIdentifier['source'])
                 ? trim((string) $relatedIdentifier['source'])
@@ -1176,6 +1174,19 @@ class StoreDraftResourceRequest extends FormRequest
         $normalized = app(DoiSuggestionService::class)->normalizeDoi($input);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function normalizeRelatedIdentifierId(mixed $id): mixed
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $validatedId = filter_var($id, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        return $validatedId === false ? $id : $validatedId;
     }
 
     private function normalizeString(mixed $value): ?string

@@ -1597,11 +1597,15 @@ class ResourceStorageService
     {
         $id = $relatedIdentifier['id'] ?? null;
 
-        if (! is_numeric($id)) {
+        $validatedId = filter_var($id, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        if ($validatedId === false) {
             return null;
         }
 
-        return $existingRelatedIdentifiersById[(int) $id] ?? null;
+        return $existingRelatedIdentifiersById[$validatedId] ?? null;
     }
 
     private function preservedRelatedIdentifierSource(?RelatedIdentifier $existingRelatedIdentifier): ?string

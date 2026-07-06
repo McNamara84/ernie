@@ -692,6 +692,28 @@ describe('ResourceStorageService', function () {
             ->and($relatedIdentifiers[2]->source)->toBeNull();
     });
 
+    it('does not coerce fractional related identifier ids when matching existing rows', function () {
+        $identifierType = IdentifierType::query()->where('slug', 'URL')->firstOrFail();
+        $relationType = RelationType::query()->where('slug', 'References')->firstOrFail();
+        $resource = Resource::factory()->create();
+
+        $relatedIdentifier = $resource->relatedIdentifiers()->create([
+            'identifier' => 'https://example.org/curated-original',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+            'position' => 0,
+        ]);
+
+        $method = new ReflectionMethod(ResourceStorageService::class, 'existingRelatedIdentifierForUpdate');
+        $method->setAccessible(true);
+
+        expect($method->invoke($this->service, ['id' => (string) $relatedIdentifier->id], [$relatedIdentifier->id => $relatedIdentifier]))
+            ->toBe($relatedIdentifier)
+            ->and($method->invoke($this->service, ['id' => $relatedIdentifier->id.'.9'], [$relatedIdentifier->id => $relatedIdentifier]))
+            ->toBeNull();
+    });
+
     it('coerces non-array related identifiers to an empty list before storage', function () {
         $resourceType = ResourceType::first();
 
