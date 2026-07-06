@@ -175,6 +175,25 @@ describe('Docs page', () => {
             }),
         ).toBeInTheDocument();
     });
+    it('documents exact-match bulk acceptance for ROR affiliation suggestions', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Suggested ROR-ID affiliation matches are exact.') &&
+                    text.includes('with the same exported creatorName, affiliation, and proposed ROR identifier') &&
+                    text.includes('creator name identifiers and affiliation labels stay unchanged.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
 
     it('hides assistance documentation for curators', () => {
         render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);

@@ -589,7 +589,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and funders via
-                                the ROR API v2
+                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR
+                                identifier to further pending creator affiliations with exactly matching <code>creatorName</code> and{' '}
+                                <code>affiliation</code> values.
                             </li>
                             <li>
                                 <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
@@ -638,6 +640,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier,
                                     provenance, confidence evidence, and conflict warnings. Accepting updates only the funding-reference identifier,
                                     identifier type, and scheme URI; funder names and award metadata are preserved.
+                                </p>
+                                <p className="mt-2">
+                                    Suggested ROR-ID affiliation matches are exact. If a creator-affiliation suggestion has further pending matches
+                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE
+                                    asks whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
+                                    creator name identifiers and affiliation labels stay unchanged.
                                 </p>
                                 <p className="mt-2">
                                     Subject Metadata Enrichment suggestions compare the stored Subject row with proposed DataCite fields such as
