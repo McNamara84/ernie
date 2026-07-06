@@ -19,6 +19,11 @@ import type {
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Link: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
     usePage: () => ({ props: {} }),
     router: { reload: vi.fn(), get: vi.fn() },
 }));
@@ -240,7 +245,9 @@ function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFun
         ...rest,
     };
 }
-function makeSubjectMetadataEnrichmentSuggestion(overrides: Partial<SuggestedSubjectMetadataEnrichmentItem> = {}): SuggestedSubjectMetadataEnrichmentItem {
+function makeSubjectMetadataEnrichmentSuggestion(
+    overrides: Partial<SuggestedSubjectMetadataEnrichmentItem> = {},
+): SuggestedSubjectMetadataEnrichmentItem {
     const metadata: SuggestedSubjectMetadataEnrichmentItem['metadata'] = {
         contract_version: '1.0',
         issue: 813,
@@ -439,6 +446,72 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
+
+describe('Assistance resource header links', () => {
+    it('renders the resource DOI as a visible editor link', () => {
+        const suggestion = makeSizeFormatSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2026.004' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=40');
+        expect(link).toHaveAttribute('title', 'Open 10.5880/test.2026.004 in editor');
+        expect(link).toHaveClass('text-primary', 'underline');
+    });
+
+    it('links each resource group to its own editor target', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({
+                id: 41,
+                resource_id: 41,
+                resource_doi: '10.5880/test.2026.041',
+                resource_title: 'First resource',
+            }),
+            makeSizeFormatSuggestion({
+                id: 42,
+                resource_id: 42,
+                resource_doi: '10.5880/test.2026.042',
+                resource_title: 'Second resource',
+            }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: '10.5880/test.2026.041' })).toHaveAttribute('href', '/editor?resourceId=41');
+        expect(screen.getByRole('link', { name: '10.5880/test.2026.042' })).toHaveAttribute('href', '/editor?resourceId=42');
+    });
+
+    it('keeps the editor reachable when a suggestion has no DOI', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            resource_id: 99,
+            resource_doi: '',
+            resource_title: 'Draft resource without DOI',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: 'Resource #99' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=99');
+        expect(link).toHaveAttribute('title', 'Open Resource #99 in editor');
+    });
+});
 
 describe('OrcidSuggestionCard – ORCID link', () => {
     it('renders the suggested ORCID as a clickable link', () => {
@@ -974,7 +1047,9 @@ describe('SubjectMetadataEnrichmentCard - DataCite Subject preview', () => {
         );
 
         expect(screen.getByText('Ambiguity: warning')).toBeInTheDocument();
-        expect(screen.getByText('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.')).toBeInTheDocument();
+        expect(
+            screen.getByText('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Vocabulary: EPOS MSL vocabulary')).toBeInTheDocument();
         expect(screen.getByText('Source: utrecht_msl_vocabulary')).toBeInTheDocument();
         expect(screen.getByText('File: msl-vocabulary.json')).toBeInTheDocument();
@@ -1185,7 +1260,9 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         const suggestion = makeDescriptionSegmentationSuggestion({ id: 916 });
         const user = userEvent.setup();
 
-        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Description segmentation applied.' } }).mockResolvedValueOnce({ data: {} });
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'Description segmentation applied.' } })
+            .mockResolvedValueOnce({ data: {} });
 
         render(
             <AssistancePage

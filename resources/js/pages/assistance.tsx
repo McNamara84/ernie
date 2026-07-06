@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
+import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AcceptResponse,
@@ -57,6 +58,10 @@ function isValidRorUrl(url: string): boolean {
     } catch {
         return false;
     }
+}
+
+function resourceEditorUrl(resourceId: number): string {
+    return editorRoute({ query: { resourceId } }).url;
 }
 
 function SuggestionCard({
@@ -601,10 +606,7 @@ function SubjectMetadataEnrichmentCard({
                                         {warningMessages.map((warning) => (
                                             <li key={warning}>{warning}</li>
                                         ))}
-                                        {warningMessages.length === 0 &&
-                                            warnings.map((warning) => (
-                                                <li key={warning}>{warning}</li>
-                                            ))}
+                                        {warningMessages.length === 0 && warnings.map((warning) => <li key={warning}>{warning}</li>)}
                                     </ul>
                                 </div>
                             </div>
@@ -1013,7 +1015,6 @@ function SizeFormatSuggestionCard({
 }
 // ── Per-section state ────────────────────────────────────────────────
 
-
 function DescriptionPreviewBlock({ title, value }: { title: string; value: string | null | undefined }) {
     const text = typeof value === 'string' && value.trim() !== '' ? value : null;
 
@@ -1021,7 +1022,7 @@ function DescriptionPreviewBlock({ title, value }: { title: string; value: strin
         <div className="min-w-0 rounded-md border bg-muted/20 p-3">
             <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
             {text ? (
-                <div className="max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">{text}</div>
+                <div className="max-h-56 overflow-auto text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">{text}</div>
             ) : (
                 <p className="text-xs text-muted-foreground">No text captured.</p>
             )}
@@ -1109,7 +1110,7 @@ function DescriptionSegmentationSuggestionCard({
                                                     </Badge>
                                                 )}
                                             </div>
-                                            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">
+                                            <div className="max-h-48 overflow-auto text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">
                                                 {metadataText(segment.value) ?? 'No text captured.'}
                                             </div>
                                             {(evidenceLabel || evidenceTypes.length > 0) && (
@@ -1573,21 +1574,21 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     if (!sectionData) return null;
 
                     // Group items by resource
-                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
-                        (groups, item) => {
-                            const resourceId = item.resource_id;
-                            if (!groups[resourceId]) {
-                                groups[resourceId] = {
-                                    doi: item.resource_doi ?? '',
-                                    title: item.resource_title ?? 'Untitled',
-                                    items: [],
-                                };
-                            }
-                            groups[resourceId].items.push(item);
-                            return groups;
-                        },
-                        {},
-                    );
+                    const grouped = sectionData.data.reduce<
+                        Record<number, { resourceId: number; doi: string; title: string; items: BaseSuggestionItem[] }>
+                    >((groups, item) => {
+                        const resourceId = item.resource_id;
+                        if (!groups[resourceId]) {
+                            groups[resourceId] = {
+                                resourceId,
+                                doi: item.resource_doi ?? '',
+                                title: item.resource_title ?? 'Untitled',
+                                items: [],
+                            };
+                        }
+                        groups[resourceId].items.push(item);
+                        return groups;
+                    }, {});
 
                     return (
                         <Card key={manifest.id}>
@@ -1617,24 +1618,34 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                             <CardContent>
                                 {Object.keys(grouped).length > 0 ? (
                                     <div className="space-y-6">
-                                        {Object.entries(grouped).map(([resourceId, group]) => (
-                                            <div key={resourceId} className="space-y-3">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                                    <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                                    <Badge variant="secondary" className="ml-auto text-xs">
-                                                        {group.items.length} suggestion(s)
-                                                    </Badge>
+                                        {Object.entries(grouped).map(([resourceKey, group]) => {
+                                            const resourceLabel = group.doi || `Resource #${group.resourceId}`;
+
+                                            return (
+                                                <div key={resourceKey} className="space-y-3">
+                                                    <div className="flex items-baseline gap-2">
+                                                        <Link
+                                                            href={resourceEditorUrl(group.resourceId)}
+                                                            className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                            title={`Open ${resourceLabel} in editor`}
+                                                        >
+                                                            {resourceLabel}
+                                                        </Link>
+                                                        <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                                        <Badge variant="secondary" className="ml-auto text-xs">
+                                                            {group.items.length} suggestion(s)
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="space-y-2 pl-4">
+                                                        {group.items.map((item) => (
+                                                            <div key={item.id as number}>
+                                                                {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2 pl-4">
-                                                    {group.items.map((item) => (
-                                                        <div key={item.id as number}>
-                                                            {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
