@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render as renderWithProviders } from '@tests/vitest/utils/render';
 
 import type {
     BaseSuggestionItem,
@@ -438,6 +439,18 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
     };
 }
 
+function renderSizeFormatPage(suggestions: BaseSuggestionItem | BaseSuggestionItem[], withProviders = true) {
+    const items = Array.isArray(suggestions) ? suggestions : [suggestions];
+    const page = (
+        <AssistancePage
+            sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(items) }}
+            manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+        />
+    );
+
+    return withProviders ? renderWithProviders(page) : render(page);
+}
+
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('OrcidSuggestionCard – ORCID link', () => {
@@ -649,12 +662,7 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
     it('highlights ZIP archive suggestions as review-sensitive download packages', () => {
         const suggestion = makeSizeFormatSuggestion();
 
-        render(
-            <AssistancePage
-                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
-            />,
-        );
+        renderSizeFormatPage(suggestion);
 
         expect(screen.getByText('ZIP Archive')).toHaveClass('bg-orange-600');
         expect(screen.getByText('Suggested format: ZIP archive (application/zip)')).toBeInTheDocument();
@@ -669,19 +677,14 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
             suggested_label: 'CSV file',
         });
 
-        render(
-            <AssistancePage
-                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
-            />,
-        );
+        renderSizeFormatPage(suggestion);
 
         expect(screen.getByText('File format')).toBeInTheDocument();
         expect(screen.getByText('Suggested format: CSV file (text/csv)')).toBeInTheDocument();
         expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
     });
 
-    it('renders source, confidence, friendly probe method and evidence metadata', () => {
+    it('keeps the source visible and places method, file counts, evidence, and discovered date inside Show details', async () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_value: '2 MB',
             suggested_label: 'SIZE: 2 MB',
@@ -691,29 +694,47 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
                 probe_method: 'DIRECTORY_LISTING',
                 confidence: 'high',
                 evidence: {
+                    filename: 'example.csv',
                     parsed_file_count: 2,
                     total_file_count: 3,
+                    content_type: 'text/csv',
+                    extension: 'csv',
                 },
             },
         });
+        const user = userEvent.setup();
 
-        render(
-            <AssistancePage
-                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
-            />,
-        );
+        renderSizeFormatPage(suggestion);
 
         expect(screen.getByText('File size')).toBeInTheDocument();
         expect(screen.getByText('Suggested size: 2 MB')).toBeInTheDocument();
         expect(screen.getByText('High confidence')).toBeInTheDocument();
-        expect(screen.getByText('Calculated from download page')).toBeInTheDocument();
-        expect(screen.queryByText('DIRECTORY_LISTING')).not.toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://datapub.gfz.de/download/example/');
-        expect(screen.getByText('Files counted: 2 of 3')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open download page' })).toHaveAttribute('href', 'https://datapub.gfz.de/download/example/');
+
+        const summary = screen.getByText('Show details');
+        const details = summary.closest('details');
+
+        expect(details).not.toBeNull();
+        expect(details).not.toHaveAttribute('open');
+
+        await user.click(summary);
+
+        expect(details).toHaveAttribute('open');
+        expect(within(details as HTMLDetailsElement).getByText('Method')).toBeInTheDocument();
+        expect(within(details as HTMLDetailsElement).getByText('File used')).toBeInTheDocument();
+        expect(within(details as HTMLDetailsElement).getByText('Files counted')).toBeInTheDocument();
+        expect(within(details as HTMLDetailsElement).getByText('Content type')).toBeInTheDocument();
+        expect(within(details as HTMLDetailsElement).getByText('Extension')).toBeInTheDocument();
+        expect(within(details as HTMLDetailsElement).getByText('Discovered')).toBeInTheDocument();
+        expect(details).toHaveTextContent('Calculated from download page');
+        expect(details).toHaveTextContent('example.csv');
+        expect(details).toHaveTextContent(/2\s+of\s+3/);
+        expect(details).toHaveTextContent('text/csv');
+        expect(details).toHaveTextContent('csv');
+        expect(details).toHaveTextContent(new Date(suggestion.discovered_at!).toLocaleDateString());
     });
 
-    it('renders filename-extension evidence without exposing internal probe constants', () => {
+    it('renders filename-based provenance inside Show details without exposing internal probe constants', async () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_value: 'application/pdf',
             suggested_label: 'FORMAT: application/pdf',
@@ -727,19 +748,69 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
                 },
             },
         });
+        const user = userEvent.setup();
 
-        render(
-            <AssistancePage
-                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
-            />,
-        );
+        renderSizeFormatPage(suggestion);
 
         expect(screen.getByText('Suggested format: PDF document (application/pdf)')).toBeInTheDocument();
         expect(screen.getByText('Medium confidence')).toBeInTheDocument();
-        expect(screen.getByText('Detected from file name')).toBeInTheDocument();
         expect(screen.queryByText('FILENAME_EXTENSION')).not.toBeInTheDocument();
-        expect(screen.getByText('Detected from file: example.pdf')).toBeInTheDocument();
+        expect(screen.queryByText('Detected from file: example.pdf')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open source file' })).toHaveAttribute('href', 'https://datapub.gfz.de/download/example.pdf');
+
+        const summary = screen.getByText('Show details');
+        const details = summary.closest('details');
+
+        expect(details).not.toBeNull();
+
+        await user.click(summary);
+
+        expect(within(details as HTMLDetailsElement).getByText('Method')).toBeInTheDocument();
+        expect(within(details as HTMLDetailsElement).getByText('File used')).toBeInTheDocument();
+        expect(details).toHaveTextContent('Detected from file name');
+        expect(details).toHaveTextContent('example.pdf');
+    });
+
+    it('shows a confidence explanation tooltip on hover', async () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_value: 'application/pdf',
+            suggested_label: 'FORMAT: application/pdf',
+            target_type: 'format',
+            metadata: {
+                probe_method: 'FILENAME_EXTENSION',
+                confidence: 'medium',
+                evidence: {
+                    filename: 'example.pdf',
+                },
+            },
+        });
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        renderSizeFormatPage(suggestion, true);
+
+        const confidenceTrigger = screen.getByText('Medium confidence').closest('span[tabindex="0"]');
+
+        expect(confidenceTrigger).not.toBeNull();
+
+        await user.hover(confidenceTrigger as HTMLSpanElement);
+
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Derived from the file name rather than direct server metadata. Please review before accepting.',
+        );
+    });
+
+    it('links the grouped resource DOI and title to the DOI resolver', () => {
+        const suggestion = makeSizeFormatSuggestion();
+
+        renderSizeFormatPage(suggestion);
+
+        const doiLink = screen.getByRole('link', { name: suggestion.resource_doi! });
+        const titleLink = screen.getByRole('link', { name: /size and format example resource/i });
+
+        expect(doiLink).toHaveAttribute('href', `https://doi.org/${suggestion.resource_doi}`);
+        expect(doiLink).toHaveAttribute('target', '_blank');
+        expect(doiLink).toHaveAttribute('rel', 'noreferrer');
+        expect(titleLink).toHaveAttribute('href', `https://doi.org/${suggestion.resource_doi}`);
     });
 
     it('posts accept and decline requests through the size-format route prefix', async () => {
@@ -748,12 +819,7 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
 
         mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Format applied.' } }).mockResolvedValueOnce({ data: {} });
 
-        render(
-            <AssistancePage
-                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
-            />,
-        );
+        renderSizeFormatPage(suggestion);
 
         await user.click(screen.getByRole('button', { name: 'Accept' }));
 
