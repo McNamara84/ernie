@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
@@ -142,11 +143,9 @@ class AssistanceController extends Controller
     /**
      * Accept further exact creator-affiliation matches for an accepted ROR suggestion.
      */
-    public function acceptRorAffiliationMatches(Request $request): JsonResponse
+    public function acceptRorAffiliationMatches(AcceptRorAffiliationMatchesRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'bulk_token' => ['required', 'string'],
-        ]);
+        $validated = $request->validated();
 
         $result = $this->rorDiscoveryService->acceptMatchingAffiliationRors((string) $validated['bulk_token']);
 
