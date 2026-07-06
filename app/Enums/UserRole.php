@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
-use App\Providers\AppServiceProvider;
-
 /**
  * User role enumeration
  *
@@ -15,7 +13,7 @@ use App\Providers\AppServiceProvider;
  * - CURATOR: Can register production DOIs and manage resources
  * - BEGINNER: Training curation, forced to DataCite test DOI registration
  *
- * @see AppServiceProvider for Gate definitions
+ * Gate definitions are registered by the application service provider.
  */
 enum UserRole: string
 {

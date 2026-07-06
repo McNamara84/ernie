@@ -40,7 +40,7 @@ class RegisterDoiRequest extends FormRequest
         $allowedPrefixes = app(DataCiteModeResolverService::class)->allowedPrefixes($this->user());
 
         $resource = $this->route('resource');
-        $hasExistingDoi = $resource instanceof \App\Models\Resource && $resource->doi !== null && $resource->doi !== '';
+        $hasExistingDoi = $resource instanceof Resource && $resource->doi !== null && $resource->doi !== '';
 
         return [
             'prefix' => [

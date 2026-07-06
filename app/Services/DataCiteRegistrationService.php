@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\UserRole;
 use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Http\Client\PendingRequest;
@@ -113,13 +112,12 @@ class DataCiteRegistrationService implements DataCiteServiceInterface
      *
      * @return bool True if test mode should be used, false for production mode
      *
-     * @see UserRole::canRegisterProductionDoi() - Role permission check
      * @see config/datacite.php - Global test mode configuration
      */
     private function determineTestMode(): bool
     {
-        /** @var User|null $user */
-        $user = auth()->user();
+        $authenticatedUser = auth()->user();
+        $user = $authenticatedUser instanceof User ? $authenticatedUser : null;
         $resolver = app(DataCiteModeResolverService::class);
 
         if ($resolver->isTestModeForcedForUser($user)) {
