@@ -165,6 +165,23 @@ function makeSizeFormatSuggestion(overrides: Partial<BaseSuggestionItem> = {}): 
     };
 }
 
+function makeGenericSuggestion(overrides: Partial<BaseSuggestionItem> = {}): BaseSuggestionItem {
+    return {
+        id: 88,
+        resource_id: 80,
+        resource_doi: '10.5880/test.2026.088',
+        resource_title: 'Generic suggestion example resource',
+        target_type: 'date_type',
+        target_id: 88,
+        suggested_value: '2024-07-01',
+        suggested_label: 'Suggestion',
+        similarity_score: null,
+        metadata: {},
+        discovered_at: '2026-07-05T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
 function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFunderRorItem> = {}): SuggestedCrossrefFunderRorItem {
     const metadata: SuggestedCrossrefFunderRorItem['metadata'] = {
         current: {
@@ -1212,5 +1229,49 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/description-segmentation/916/decline');
         });
+    });
+});
+
+describe('Generic assistance card- review hints', () => {
+    it('renders review hints without accept or decline actions', () => {
+        const suggestion = makeGenericSuggestion({
+            suggested_label:
+                'Created (2024-07-01) occurs after Submitted (2024-06-18). Please check whether the date values or date types are assigned correctly.',
+            metadata: {
+                suggestion_kind: 'review',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/^Hint: Created/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Decline' })).not.toBeInTheDocument();
+    });
+
+    it('keeps accept and decline actions for date type suggestions', () => {
+        const suggestion = makeGenericSuggestion({
+            suggested_label: 'CREATED: 2024-07-01',
+            suggested_value: '2024-07-01',
+            metadata: {
+                suggestion_kind: 'addition',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByText(/^Hint:/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });

@@ -1497,30 +1497,37 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         isProcessing={isProcessing}
                     />
                 );
-            default:
+            default: {
                 // Generic card for future student modules
+                const metadata = isRecord(item.metadata) ? item.metadata : null;
+                const isReview = metadata?.suggestion_kind === 'review';
                 return (
                     <div className="rounded-lg border bg-card p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1 space-y-1">
-                                <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
+                                <p className="text-sm font-medium">{isReview ? `Hint: ${String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}`
+                                                                             : String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                     Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
                                 </p>
                             </div>
-                            <div className="flex shrink-0 gap-2">
-                                <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
-                                    <X className="mr-1 h-4 w-4" />
-                                    Decline
-                                </Button>
-                                <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
-                                    <Check className="mr-1 h-4 w-4" />
-                                    Accept
-                                </Button>
-                            </div>
+                            {!isReview && (
+                                <div className="flex shrink-0 gap-2">
+                                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
+                                        <X className="mr-1 h-4 w-4" />
+                                        Decline
+                                    </Button>
+                                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
+                                        <Check className="mr-1 h-4 w-4" />
+                                        Accept
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
+            }
         }
     }
 
