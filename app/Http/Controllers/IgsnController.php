@@ -114,7 +114,7 @@ class IgsnController extends Controller
         // Check if current user is admin (only admins can delete IGSNs)
         $user = $request->user();
         $canDelete = $user !== null && $user->role === UserRole::ADMIN;
-        $canRegister = $user?->can('register-production-doi') ?? false;
+        $canRegister = $user?->can('register-doi') ?? false;
         $canImport = $user?->can('importFromDataCite', Resource::class) ?? false;
 
         return Inertia::render('igsns/index', [
@@ -329,8 +329,8 @@ class IgsnController extends Controller
      */
     public function registerAtDataCite(Request $request, Resource $resource): JsonResponse
     {
-        // Authorization: only users who can register production DOIs may register IGSNs
-        if (! $request->user()?->can('register-production-doi')) {
+        // Authorization: users with DOI registration access may register IGSNs; Beginner users are forced to DataCite test mode.
+        if (! $request->user()?->can('register-doi')) {
             abort(403, 'You are not authorized to register IGSNs.');
         }
 

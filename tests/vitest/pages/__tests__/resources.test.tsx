@@ -32,6 +32,7 @@ vi.mock('@inertiajs/react', () => ({
                     updated_at: '2024-01-01T00:00:00Z',
                     role: 'group_leader',
                     can_manage_landing_pages: true,
+                    can_register_doi: true,
                     can_register_production_doi: true,
                 },
             },

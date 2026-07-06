@@ -65,6 +65,7 @@ class HandleInertiaRequests extends Middleware
                     'role_label' => $request->user()->role->label(),
                     // Gate-based permissions (Issue #379)
                     'can_manage_users' => $request->user()->can('manage-users'),
+                    'can_register_doi' => $request->user()->can('register-doi'),
                     'can_register_production_doi' => $request->user()->can('register-production-doi'),
                     'can_delete_logs' => $request->user()->can('delete-logs'),
                     // Granular access permissions (Issue #379)
@@ -75,6 +76,7 @@ class HandleInertiaRequests extends Middleware
                     'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
                     // Landing page management permission (Issue #375)
                     'can_manage_landing_pages' => $request->user()->can('manage-landing-pages'),
+                    'can_delete_landing_pages' => $request->user()->can('delete-landing-pages'),
                     'can_manage_landing_page_templates' => $request->user()->can('manage-landing-page-templates'),
                     // Assistance page permission
                     'can_access_assistance' => $request->user()->can('access-assistance'),
