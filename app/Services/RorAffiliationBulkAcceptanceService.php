@@ -27,6 +27,8 @@ class RorAffiliationBulkAcceptanceService
 
     private const MATCHING_SUGGESTION_BATCH_SIZE = 500;
 
+    private const DEFAULT_MAX_BULK_MATCHES_PER_TOKEN = 1000;
+
     public function __construct(
         private readonly DataCitePartyMappingService $partyMapper,
         private readonly DataCiteSyncService $dataCiteSyncService,
@@ -45,9 +47,10 @@ class RorAffiliationBulkAcceptanceService
             return null;
         }
 
-        $matchingSuggestions = $this->matchingSuggestions($sourceContext, $acceptedSuggestion->id);
+        $maxBulkMatches = $this->maxBulkMatchesPerToken();
+        $matchingSuggestions = $this->matchingSuggestions($sourceContext, $acceptedSuggestion->id, $maxBulkMatches + 1);
 
-        if ($matchingSuggestions === []) {
+        if ($matchingSuggestions === [] || count($matchingSuggestions) > $maxBulkMatches) {
             return null;
         }
 
@@ -105,14 +108,10 @@ class RorAffiliationBulkAcceptanceService
         $acceptedCount = 0;
         $skippedCount = 0;
 
-        $suggestionIds = [];
-        foreach ($matches as $match) {
-            $suggestionIds[] = $match['suggestion_id'];
-        }
+        $matchChunks = array_chunk($matches, self::MATCHING_SUGGESTION_BATCH_SIZE);
 
         DB::transaction(function () use (
-            $matches,
-            $suggestionIds,
+            $matchChunks,
             $creatorName,
             $affiliation,
             $suggestedRorId,
@@ -121,62 +120,65 @@ class RorAffiliationBulkAcceptanceService
             &$acceptedCount,
             &$skippedCount,
         ): void {
-            $suggestions = SuggestedRor::whereIn('id', $suggestionIds)
-                ->where('entity_type', 'affiliation')
-                ->where('suggested_ror_id', $suggestedRorId)
-                ->get()
-                ->keyBy('id');
+            foreach ($matchChunks as $matchChunk) {
+                $suggestionIds = array_column($matchChunk, 'suggestion_id');
+                $suggestions = SuggestedRor::whereIn('id', $suggestionIds)
+                    ->where('entity_type', 'affiliation')
+                    ->where('suggested_ror_id', $suggestedRorId)
+                    ->get()
+                    ->keyBy('id');
 
-            foreach ($matches as $match) {
-                $suggestionId = $match['suggestion_id'];
-                $suggestion = $suggestions->get($suggestionId);
+                foreach ($matchChunk as $match) {
+                    $suggestionId = $match['suggestion_id'];
+                    $suggestion = $suggestions->get($suggestionId);
 
-                if (! $suggestion instanceof SuggestedRor) {
-                    if ($this->affiliationHasExpectedRor($match['affiliation_id'], $suggestedRorId)) {
-                        $alreadyAcceptedResourceIds[] = $match['resource_id'];
-                    } else {
-                        $skippedCount++;
+                    if (! $suggestion instanceof SuggestedRor) {
+                        if ($this->affiliationHasExpectedRor($match['affiliation_id'], $suggestedRorId)) {
+                            $alreadyAcceptedResourceIds[] = $match['resource_id'];
+                        } else {
+                            $skippedCount++;
+                        }
+
+                        continue;
                     }
 
-                    continue;
-                }
+                    $context = $this->contextForSuggestion($suggestion, lockAffiliation: true);
 
-                $context = $this->contextForSuggestion($suggestion, lockAffiliation: true);
+                    if ($context === null) {
+                        $this->deleteAffiliationSuggestions($suggestion->entity_id);
+                        $skippedCount++;
 
-                if ($context === null) {
-                    $this->deleteAffiliationSuggestions($suggestion->entity_id);
-                    $skippedCount++;
+                        continue;
+                    }
 
-                    continue;
-                }
+                    if ($context['already_has_ror']) {
+                        $this->deleteAffiliationSuggestions($context['affiliation_model']->id);
+                        $skippedCount++;
 
-                if ($context['already_has_ror']) {
+                        continue;
+                    }
+
+                    if (
+                        $context['creator_name'] !== $creatorName
+                        || $context['affiliation'] !== $affiliation
+                        || $context['suggested_ror_id'] !== $suggestedRorId
+                    ) {
+                        $skippedCount++;
+
+                        continue;
+                    }
+
+                    $context['affiliation_model']->update([
+                        'identifier' => $suggestedRorId,
+                        'identifier_scheme' => 'ROR',
+                        'scheme_uri' => 'https://ror.org/',
+                    ]);
+
                     $this->deleteAffiliationSuggestions($context['affiliation_model']->id);
-                    $skippedCount++;
 
-                    continue;
+                    $acceptedResourceIds[] = $context['resource_id'];
+                    $acceptedCount++;
                 }
-
-                if (
-                    $context['creator_name'] !== $creatorName
-                    || $context['affiliation'] !== $affiliation
-                    || $context['suggested_ror_id'] !== $suggestedRorId
-                ) {
-                    $skippedCount++;
-
-                    continue;
-                }
-
-                $context['affiliation_model']->update([
-                    'identifier' => $suggestedRorId,
-                    'identifier_scheme' => 'ROR',
-                    'scheme_uri' => 'https://ror.org/',
-                ]);
-
-                $this->deleteAffiliationSuggestions($context['affiliation_model']->id);
-
-                $acceptedResourceIds[] = $context['resource_id'];
-                $acceptedCount++;
             }
         });
 
@@ -203,7 +205,7 @@ class RorAffiliationBulkAcceptanceService
 
         $message = $acceptedCount > 0
             ? sprintf('ROR-ID accepted for %d further %s.', $acceptedCount, Str::plural('creator affiliation', $acceptedCount))
-            : $this->messageForRetrySync($alreadyAcceptedResourceIds);
+            : $this->messageForRetrySync($alreadyAcceptedResourceIds, $syncResult['synced_dois']);
 
         return [
             'success' => $acceptedCount > 0 || $alreadyAcceptedResourceIds !== [],
@@ -218,7 +220,7 @@ class RorAffiliationBulkAcceptanceService
      * @param  array{creator_name: string, affiliation: string, suggested_ror_id: string}  $sourceContext
      * @return array<int, array{suggestion_id: int, affiliation_id: int, resource_id: int}>
      */
-    private function matchingSuggestions(array $sourceContext, int $acceptedSuggestionId): array
+    private function matchingSuggestions(array $sourceContext, int $acceptedSuggestionId, int $limit): array
     {
         $matches = [];
 
@@ -227,7 +229,7 @@ class RorAffiliationBulkAcceptanceService
             ->where('entity_type', 'affiliation')
             ->where('suggested_ror_id', $sourceContext['suggested_ror_id'])
             ->where('id', '!=', $acceptedSuggestionId)
-            ->chunkById(self::MATCHING_SUGGESTION_BATCH_SIZE, function ($candidates) use (&$matches, $sourceContext): void {
+            ->chunkById(self::MATCHING_SUGGESTION_BATCH_SIZE, function ($candidates) use (&$matches, $sourceContext, $limit): bool {
                 $affiliationIds = $candidates->pluck('entity_id')
                     ->map(fn ($id): int => (int) $id)
                     ->unique()
@@ -235,7 +237,7 @@ class RorAffiliationBulkAcceptanceService
                     ->all();
 
                 if ($affiliationIds === []) {
-                    return;
+                    return true;
                 }
 
                 $affiliations = Affiliation::query()
@@ -252,7 +254,7 @@ class RorAffiliationBulkAcceptanceService
                     ->keyBy('id');
 
                 if ($affiliations->isEmpty()) {
-                    return;
+                    return true;
                 }
 
                 $creatorIds = $affiliations->pluck('affiliatable_id')
@@ -289,7 +291,13 @@ class RorAffiliationBulkAcceptanceService
                         'affiliation_id' => (int) $affiliation->id,
                         'resource_id' => (int) $creator->resource_id,
                     ];
+
+                    if (count($matches) >= $limit) {
+                        return false;
+                    }
                 }
+
+                return true;
             });
 
         return $matches;
@@ -421,11 +429,20 @@ class RorAffiliationBulkAcceptanceService
 
     /**
      * @param  array<int, int>  $alreadyAcceptedResourceIds
+     * @param  array<int, string>  $syncedDois
      */
-    private function messageForRetrySync(array $alreadyAcceptedResourceIds): string
+    private function messageForRetrySync(array $alreadyAcceptedResourceIds, array $syncedDois): string
     {
         if ($alreadyAcceptedResourceIds !== []) {
             $alreadyAcceptedCount = count(array_unique($alreadyAcceptedResourceIds));
+
+            if ($syncedDois === []) {
+                return sprintf(
+                    'ROR-ID acceptance was already applied for %d further %s. No resources required DataCite sync.',
+                    $alreadyAcceptedCount,
+                    Str::plural('creator affiliation', $alreadyAcceptedCount),
+                );
+            }
 
             return sprintf(
                 'ROR-ID acceptance was already applied for %d further %s. DataCite sync has been retried.',
@@ -435,6 +452,14 @@ class RorAffiliationBulkAcceptanceService
         }
 
         return 'No further matching creator affiliations could be accepted.';
+    }
+
+    private function maxBulkMatchesPerToken(): int
+    {
+        return max(
+            1,
+            (int) config('services.ror_affiliation_bulk_accept.max_matches', self::DEFAULT_MAX_BULK_MATCHES_PER_TOKEN),
+        );
     }
 
     /**

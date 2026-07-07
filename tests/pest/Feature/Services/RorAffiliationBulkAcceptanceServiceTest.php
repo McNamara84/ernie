@@ -15,6 +15,7 @@ use App\Services\RorAffiliationBulkAcceptanceService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 covers(RorAffiliationBulkAcceptanceService::class, RorDiscoveryService::class);
 
@@ -181,6 +182,18 @@ it('returns a bulk preview only for exact creator name and affiliation matches',
         ->and($source['person']->refresh()->name_identifier)->toBeNull();
 });
 
+it('does not cache a preview when exact matches exceed the bulk token limit', function (): void {
+    config(['services.ror_affiliation_bulk_accept.max_matches' => 1]);
+
+    $source = createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Tiny Limit Institute');
+    createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Tiny Limit Institute');
+    createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Tiny Limit Institute');
+
+    $result = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+
+    expect($result)->not->toHaveKey('bulk_affiliation_match');
+});
+
 it('builds bulk previews with batched candidate context queries', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Batch Institute');
 
@@ -259,6 +272,70 @@ it('accepts all still-valid bulk matches and removes their suggestions', functio
         $matchA['suggestion']->id,
         $matchB['suggestion']->id,
     ])->count())->toBe(0);
+});
+
+it('looks up cached bulk suggestions in chunks while accepting', function (): void {
+    $resource = Resource::factory()->create();
+    $now = now();
+    $rows = [];
+
+    for ($i = 1; $i <= 501; $i++) {
+        $rows[] = [
+            'resource_id' => $resource->id,
+            'entity_type' => 'affiliation',
+            'entity_id' => 1_000_000 + $i,
+            'entity_name' => 'Chunked Missing Affiliation',
+            'suggested_ror_id' => 'https://ror.org/04z8jg394',
+            'suggested_name' => 'GFZ German Research Centre for Geosciences',
+            'similarity_score' => 0.98,
+            'ror_aliases' => json_encode([]),
+            'existing_identifier' => null,
+            'existing_identifier_type' => null,
+            'discovered_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    SuggestedRor::insert($rows);
+    $suggestions = SuggestedRor::where('entity_name', 'Chunked Missing Affiliation')
+        ->orderBy('id')
+        ->get(['id', 'entity_id']);
+    $matches = $suggestions
+        ->map(fn (SuggestedRor $suggestion): array => [
+            'suggestion_id' => (int) $suggestion->id,
+            'affiliation_id' => (int) $suggestion->entity_id,
+            'resource_id' => (int) $resource->id,
+        ])
+        ->all();
+    $bulkToken = (string) Str::uuid();
+
+    Cache::put('ror_affiliation_bulk_accept:'.$bulkToken, [
+        'creator_name' => 'Missing, Chunked',
+        'affiliation' => 'Chunked Missing Affiliation',
+        'suggested_ror_id' => 'https://ror.org/04z8jg394',
+        'matches' => $matches,
+    ], now()->addMinutes(15));
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $result = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken);
+
+    $maxBindings = collect(DB::getQueryLog())
+        ->map(fn (array $query): int => count($query['bindings'] ?? []))
+        ->max();
+
+    DB::disableQueryLog();
+    DB::flushQueryLog();
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'accepted_count' => 0,
+        'skipped_count' => 501,
+    ])
+        ->and($maxBindings)->toBeLessThanOrEqual(502)
+        ->and(SuggestedRor::whereIn('id', $suggestions->pluck('id'))->count())->toBe(0);
 });
 
 it('removes all suggestions for a bulk match whose creator morph target is missing', function (): void {
@@ -428,6 +505,34 @@ it('keeps a valid bulk token and retries sync when DataCite returns a failed res
 
     app()->forgetInstance(DataCiteSyncService::class);
 });
+it('does not claim a DataCite retry when already accepted resources have no DOI', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Lamarr', 'Hedy', 'No DOI Retry Institute');
+    $match = createRorCreatorAffiliationSuggestion('Lamarr', 'Hedy', 'No DOI Retry Institute');
+    $match['resource']->update(['doi' => null]);
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
+
+    $match['affiliation']->update([
+        'identifier' => 'https://ror.org/04z8jg394',
+        'identifier_scheme' => 'ROR',
+        'scheme_uri' => 'https://ror.org/',
+    ]);
+    $match['suggestion']->delete();
+
+    $result = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken);
+
+    expect($result)->toMatchArray([
+        'success' => true,
+        'accepted_count' => 0,
+        'skipped_count' => 0,
+        'synced_dois' => [],
+    ])
+        ->and($result['message'])->toContain('No resources required DataCite sync')
+        ->and($result['message'])->not->toContain('retried')
+        ->and(Cache::has('ror_affiliation_bulk_accept:'.$bulkToken))->toBeFalse();
+});
+
 it('keeps a valid bulk token and retries sync after processing fails before completion', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
     $match = createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
