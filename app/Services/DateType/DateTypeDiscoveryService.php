@@ -86,7 +86,7 @@ final class DateTypeDiscoveryService
             }
         }
 
-        $reviewSuggestions = $this->plausibilityService->review($datesForReview);
+        $reviewSuggestions = $this->plausibilityService->review($datesForReview, $resource->doi,);
 
         // NEU, da coverageCorrectionDiscovery entfällt
         $suggestions = [
@@ -226,9 +226,14 @@ final class DateTypeDiscoveryService
             $suggestedLabel,
             null,
             [
+                'suggestion_kind' => 'correction',
+                'from_date_type' => 'Collected',
+                'target_date_type' => 'Coverage',
+                'confidence' => 'medium',
                 'source' => 'database',
                 'check' => 'collected_dates_vs_geolocations',
                 'resource_doi' => $resource->doi,
+                'source_url' => 'https://doi.org/'.$resource->doi,
                 'collected_dates_count' => $collectedDatesCount,
                 'geo_locations_count' => $geoLocationsCount,
                 'evidence' => 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',

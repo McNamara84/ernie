@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, RefreshCw, User, X, Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -1037,6 +1037,15 @@ function DateTypeSuggestionCard({
 
     const isReview = suggestionKind === 'review';
     const isAmbiguous = metadata?.is_ambiguous === true || isReview || confidence === 'low';
+    const evidenceUrl = typeof metadata?.evidence_url === 'string' ? metadata.evidence_url : null;
+    const reviewLabel = String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType review').replace(/^Hint:\s*/i, '');
+    const displayLabel = isReview ? reviewLabel : suggestionKind === 'correction'
+        ? String(suggestion.suggested_label ?? 'DateType correction')
+        : dateTypeDisplayLabel(
+              targetDateType,
+              String(suggestion.suggested_value ?? ''),
+              String(suggestion.suggested_label ?? 'DateType suggestion'),
+          );
 
     return (
         <div
@@ -1049,9 +1058,22 @@ function DateTypeSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                            DateType
-                        </Badge>
+                            {isReview ? (
+                                <Badge className="bg-orange-600 text-white">
+                                    <AlertTriangle className="mr-1 h-3 w-3" />
+                                    Hint
+                                </Badge>
+                            ) : suggestionKind === 'correction' ? (
+                                <Badge className="bg-black text-white">
+                                    <RefreshCw className="mr-1 h-3 w-3" />
+                                    Correction
+                                </Badge>
+                            ) : (
+                                <Badge className="bg-black text-white">
+                                    <Plus className="mr-1 h-3 w-3" />
+                                    Addition
+                                </Badge>
+                            )}
 
                         {targetDateType && (
                             <Badge variant="secondary" className="text-xs">
@@ -1066,8 +1088,7 @@ function DateTypeSuggestionCard({
                         )}
 
                         {isAmbiguous && (
-                            <Badge className="bg-orange-600 text-xs text-white">
-                                <AlertTriangle className="mr-1 h-3 w-3" />
+                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">
                                 Manual review
                             </Badge>
                         )}
@@ -1080,22 +1101,29 @@ function DateTypeSuggestionCard({
                     </div>
 
                     <p className="text-sm font-medium">
-                        {isReview
-                            ? `Hint: ${String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType review')}`
-                            : String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType suggestion')}
+                        {displayLabel}
                     </p>
 
                     {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
+                    {(sourceUrl || evidenceUrl || schemaOrgField) && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            {schemaOrgField && <span>schema.org field: {schemaOrgField}</span>}
+                            {sourceUrl && (
+                                <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="break-all underline hover:text-foreground">
+                                    Open source
+                                </a>
+                            )}
+                            {evidenceUrl && (
+                                <a href={evidenceUrl} target="_blank" rel="noopener noreferrer" className="break-all underline hover:text-foreground">
+                                    Open schema.org
+                                </a>
+                            )}
+                        </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                        Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        {schemaOrgField && <span>schema.org field: {schemaOrgField}</span>}
-                        {sourceUrl && (
-                            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="break-all underline hover:text-foreground">
-                                Open source
-                            </a>
-                        )}
-                        <span>Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}</span>
-                    </div>
+                    </p>
                 </div>
 
                 <div className="flex shrink-0 gap-2">
@@ -1114,6 +1142,14 @@ function DateTypeSuggestionCard({
             </div>
         </div>
     );
+}
+function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string,): string 
+{
+    if (typeof targetType !== 'string') {
+        return fallbackLabel;
+    }
+    const dateValue = value || fallbackLabel;
+    return `Suggestion for ${targetType}: ${dateValue}`;
 }
 // ── Per-section state ────────────────────────────────────────────────
 
@@ -1618,25 +1654,21 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     <div className="rounded-lg border bg-card p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1 space-y-1">
-                                <p className="text-sm font-medium">{isReview ? `Hint: ${String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}`
-                                                                             : String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}
-                                </p>
+                                <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
                                 <p className="text-xs text-muted-foreground">
                                     Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
                                 </p>
                             </div>
-                            {!isReview && (
-                                <div className="flex shrink-0 gap-2">
-                                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
-                                        <X className="mr-1 h-4 w-4" />
-                                        Decline
-                                    </Button>
-                                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
-                                        <Check className="mr-1 h-4 w-4" />
-                                        Accept
-                                    </Button>
-                                </div>
-                            )}
+                            <div className="flex shrink-0 gap-2">
+                                <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
+                                    <X className="mr-1 h-4 w-4" />
+                                    Decline
+                                </Button>
+                                <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
+                                    <Check className="mr-1 h-4 w-4" />
+                                    Accept
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 );

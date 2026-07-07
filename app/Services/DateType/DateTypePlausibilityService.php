@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\DateType; 
 
+
 final class DateTypePlausibilityService
 {
     /**
@@ -37,7 +38,7 @@ final class DateTypePlausibilityService
      * @param array<string, string> $dates
      * @return array<int, array<string, mixed>>
      */
-    public function review(array $dates): array
+    public function review(array $dates, ?string $resourceDoi = null) : array
     {
         $grouped = [];
         $presentTypes = array_keys($dates);
@@ -70,6 +71,7 @@ final class DateTypePlausibilityService
                 $earlier,
                 $dates[$earlier],
                 $conflicts,
+                $resourceDoi,
             );
 
         }
@@ -80,7 +82,7 @@ final class DateTypePlausibilityService
      * @param array<int, array{type: string, value: string}> $conflicts
      * @return array<string, mixed>
      */
-    private function warning(string $earlier, string $earlierValue, array $conflicts): array
+    private function warning(string $earlier, string $earlierValue, array $conflicts, ?string $resourceDoi = null,): array
     {
         $conflictText = implode(', ', array_map(
             fn (array $conflict): string => sprintf(
@@ -93,6 +95,7 @@ final class DateTypePlausibilityService
 
         return [
             'suggestion_kind' => 'review',
+            
             'message' => sprintf(
                 '%s (%s) occurs after %s. Please check whether the date values or date types are assigned correctly.',
                 $earlier,
@@ -101,6 +104,7 @@ final class DateTypePlausibilityService
             ),
             'confidence' => 'medium',
             'is_ambiguous' => true,
+            'source_url' => $resourceDoi ? 'https://doi.org/'.$resourceDoi : null,
         ];
     }
 }
