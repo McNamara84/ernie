@@ -78,7 +78,7 @@ const DESCRIPTION_SEGMENTATION_ROUTE_PREFIX = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Suggestions';
 const BULK_TOKEN_MATCH = '00000000-0000-4000-8000-000000000955';
 const BULK_TOKEN_SINGULAR = '00000000-0000-4000-8000-000000000958';
-const BULK_TOKEN_EXPIRED = '00000000-0000-4000-8000-000000000957';
+const BULK_TOKEN_RETRY = '00000000-0000-4000-8000-000000000957';
 const BULK_TOKEN_DECLINE = '00000000-0000-4000-8000-000000000956';
 
 beforeEach(() => {
@@ -1422,7 +1422,7 @@ describe('RorSuggestionCard – ROR link', () => {
             'There is 1 further creator affiliation with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for this affiliation as well?',
         );
     });
-    it('warns and reloads when accepting bulk ROR matches fails with a server message', async () => {
+    it('keeps the bulk ROR dialog open so a failed request can be retried', async () => {
         const suggestion = makeRorSuggestion({ id: 957 });
         const user = userEvent.setup();
 
@@ -1434,7 +1434,7 @@ describe('RorSuggestionCard – ROR link', () => {
                     bulk_affiliation_match: {
                         available: true,
                         count: 1,
-                        bulk_token: BULK_TOKEN_EXPIRED,
+                        bulk_token: BULK_TOKEN_RETRY,
                         creator_name: 'Doe, Jane',
                         affiliation: 'GFZ Potsdam',
                         suggested_ror_id: 'https://ror.org/04t3en479',
@@ -1445,8 +1445,17 @@ describe('RorSuggestionCard – ROR link', () => {
                 isAxiosError: true,
                 response: {
                     data: {
-                        message: 'Bulk ROR acceptance token is invalid or has expired.',
+                        message: 'DataCite sync failed. Please try again.',
                     },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    accepted_count: 0,
+                    skipped_count: 0,
+                    synced_dois: ['10.5880/test.2024.002'],
+                    message: 'ROR-ID acceptance was already applied for 1 further creator affiliation. DataCite sync has been retried.',
                 },
             });
 
@@ -1464,10 +1473,25 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
-                bulk_token: BULK_TOKEN_EXPIRED,
+                bulk_token: BULK_TOKEN_RETRY,
             });
-            expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
+            expect(mockedToastWarning).toHaveBeenCalledWith('DataCite sync failed. Please try again.');
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+        expect(mockedRouterReload).not.toHaveBeenCalled();
+
+        await waitFor(() => {
+            expect(within(dialog).getByRole('button', { name: 'Accept' })).not.toBeDisabled();
+        });
+
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(3, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: BULK_TOKEN_RETRY,
+            });
             expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
 

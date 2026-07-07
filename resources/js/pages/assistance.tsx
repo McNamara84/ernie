@@ -1457,6 +1457,9 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             } else {
                 toast.warning(data.message);
             }
+
+            setPendingRorBulkMatch(null);
+            reloadAssistanceSections();
         } catch (error) {
             if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
                 toast.warning(error.response.data.message);
@@ -1465,8 +1468,6 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             }
         } finally {
             setIsAcceptingRorBulkMatch(false);
-            setPendingRorBulkMatch(null);
-            reloadAssistanceSections();
         }
     }, [pendingRorBulkMatch, reloadAssistanceSections]);
 
