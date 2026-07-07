@@ -25,6 +25,8 @@ class RorAffiliationBulkAcceptanceService
 
     private const CACHE_TTL_MINUTES = 15;
 
+    private const MATCHING_SUGGESTION_BATCH_SIZE = 500;
+
     public function __construct(
         private readonly DataCitePartyMappingService $partyMapper,
         private readonly DataCiteSyncService $dataCiteSyncService,
@@ -207,29 +209,75 @@ class RorAffiliationBulkAcceptanceService
     {
         $matches = [];
 
-        $candidates = SuggestedRor::where('entity_type', 'affiliation')
+        SuggestedRor::query()
+            ->select(['id', 'entity_id'])
+            ->where('entity_type', 'affiliation')
             ->where('suggested_ror_id', $sourceContext['suggested_ror_id'])
             ->where('id', '!=', $acceptedSuggestionId)
-            ->get();
+            ->chunkById(self::MATCHING_SUGGESTION_BATCH_SIZE, function ($candidates) use (&$matches, $sourceContext): void {
+                $affiliationIds = $candidates->pluck('entity_id')
+                    ->map(fn ($id): int => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
 
-        foreach ($candidates as $candidate) {
-            $context = $this->contextForSuggestion($candidate);
+                if ($affiliationIds === []) {
+                    return;
+                }
 
-            if ($context === null || $context['already_has_ror']) {
-                continue;
-            }
+                $affiliations = Affiliation::query()
+                    ->whereIn('id', $affiliationIds)
+                    ->where('name', $sourceContext['affiliation'])
+                    ->where('affiliatable_type', ResourceCreator::class)
+                    ->where(function ($query): void {
+                        $query->where('identifier_scheme', '!=', 'ROR')
+                            ->orWhereNull('identifier_scheme')
+                            ->orWhereNull('identifier')
+                            ->orWhere('identifier', '');
+                    })
+                    ->get()
+                    ->keyBy('id');
 
-            if (
-                $context['creator_name'] === $sourceContext['creator_name']
-                && $context['affiliation'] === $sourceContext['affiliation']
-            ) {
-                $matches[] = [
-                    'suggestion_id' => (int) $candidate->id,
-                    'affiliation_id' => (int) $context['affiliation_model']->id,
-                    'resource_id' => (int) $context['resource_id'],
-                ];
-            }
-        }
+                if ($affiliations->isEmpty()) {
+                    return;
+                }
+
+                $creatorIds = $affiliations->pluck('affiliatable_id')
+                    ->map(fn ($id): int => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $creators = ResourceCreator::with('creatorable')
+                    ->whereIn('id', $creatorIds)
+                    ->whereIn('creatorable_type', [Person::class, Institution::class])
+                    ->get()
+                    ->keyBy('id');
+
+                foreach ($candidates as $candidate) {
+                    $affiliation = $affiliations->get($candidate->entity_id);
+
+                    if (! $affiliation instanceof Affiliation) {
+                        continue;
+                    }
+
+                    $creator = $creators->get($affiliation->affiliatable_id);
+
+                    if (! $creator instanceof ResourceCreator) {
+                        continue;
+                    }
+
+                    if ($this->creatorName($creator) !== $sourceContext['creator_name']) {
+                        continue;
+                    }
+
+                    $matches[] = [
+                        'suggestion_id' => (int) $candidate->id,
+                        'affiliation_id' => (int) $affiliation->id,
+                        'resource_id' => (int) $creator->resource_id,
+                    ];
+                }
+            });
 
         return $matches;
     }

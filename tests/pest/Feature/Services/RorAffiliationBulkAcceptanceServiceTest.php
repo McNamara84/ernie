@@ -14,6 +14,7 @@ use App\Services\DataCiteSyncService;
 use App\Services\RorAffiliationBulkAcceptanceService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 covers(RorAffiliationBulkAcceptanceService::class, RorDiscoveryService::class);
 
@@ -169,6 +170,34 @@ it('returns a bulk preview only for exact creator name and affiliation matches',
         ->and($source['person']->refresh()->name_identifier)->toBeNull();
 });
 
+it('builds bulk previews with batched candidate context queries', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Batch Institute');
+
+    for ($i = 0; $i < 8; $i++) {
+        createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Batch Institute');
+        createRorCreatorAffiliationSuggestion('Franklin', 'Rose', 'Batch Institute');
+        createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Other Institute');
+        createRorContributorAffiliationSuggestion('Franklin', 'Rosalind', 'Batch Institute');
+    }
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $preview = app(RorAffiliationBulkAcceptanceService::class)->createPreviewForAcceptedSuggestion($source['suggestion']);
+
+    $selectQueryCount = collect(DB::getQueryLog())
+        ->filter(fn (array $query): bool => str_starts_with(strtolower($query['query']), 'select'))
+        ->count();
+
+    DB::disableQueryLog();
+    DB::flushQueryLog();
+
+    expect($preview)->toMatchArray([
+        'available' => true,
+        'count' => 8,
+    ])
+        ->and($selectQueryCount)->toBeLessThanOrEqual(10);
+});
 it('uses exact exported institution creator names without changing creator identifiers', function (): void {
     $source = createRorInstitutionCreatorAffiliationSuggestion('GFZ Data Services', 'Shared Hosting Unit');
     $match = createRorInstitutionCreatorAffiliationSuggestion('GFZ Data Services', 'Shared Hosting Unit');
