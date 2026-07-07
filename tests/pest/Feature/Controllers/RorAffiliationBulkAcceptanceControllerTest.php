@@ -12,6 +12,7 @@ use App\Services\RorAffiliationBulkAcceptanceService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 
 covers(AssistanceController::class, RorAffiliationBulkAcceptanceService::class);
 
@@ -83,11 +84,20 @@ it('accepts matching affiliation rors from a valid bulk token through the route'
         ->and(SuggestedRor::find($match['suggestion']->id))->toBeNull();
 });
 
-it('returns a validation-style failure for expired or invalid bulk tokens', function (): void {
+it('rejects malformed bulk tokens before looking them up', function (): void {
     $user = User::factory()->admin()->create();
 
     $this->actingAs($user)
         ->postJson('/assistance/rors/bulk-affiliation-accept', ['bulk_token' => 'missing-token'])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['bulk_token']);
+});
+
+it('returns a bulk failure for expired valid uuid tokens', function (): void {
+    $user = User::factory()->admin()->create();
+
+    $this->actingAs($user)
+        ->postJson('/assistance/rors/bulk-affiliation-accept', ['bulk_token' => (string) Str::uuid()])
         ->assertStatus(422)
         ->assertJsonPath('success', false)
         ->assertJsonPath('accepted_count', 0);
@@ -97,6 +107,6 @@ it('requires assistance access for the bulk route', function (): void {
     $user = User::factory()->beginner()->create();
 
     $this->actingAs($user)
-        ->postJson('/assistance/rors/bulk-affiliation-accept', ['bulk_token' => 'missing-token'])
+        ->postJson('/assistance/rors/bulk-affiliation-accept', ['bulk_token' => (string) Str::uuid()])
         ->assertForbidden();
 });

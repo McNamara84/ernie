@@ -23,7 +23,7 @@ class AcceptRorAffiliationMatchesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'bulk_token' => ['required', 'string'],
+            'bulk_token' => ['required', 'string', 'uuid'],
         ];
     }
 }
