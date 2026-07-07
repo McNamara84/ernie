@@ -221,6 +221,74 @@ it('accepts all still-valid bulk matches and removes their suggestions', functio
     ])->count())->toBe(0);
 });
 
+it('removes all suggestions for a bulk match whose creator affiliation can no longer be resolved', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Lovelace', 'Ada', 'Analytical Engine Lab');
+    $match = createRorCreatorAffiliationSuggestion('Lovelace', 'Ada', 'Analytical Engine Lab');
+    $staleAlternative = SuggestedRor::create([
+        'resource_id' => $match['resource']->id,
+        'entity_type' => 'affiliation',
+        'entity_id' => $match['affiliation']->id,
+        'entity_name' => 'Analytical Engine Lab',
+        'suggested_ror_id' => 'https://ror.org/03yrm5c26',
+        'suggested_name' => 'Alternative Research Centre',
+        'similarity_score' => 0.74,
+        'ror_aliases' => [],
+        'existing_identifier' => null,
+        'existing_identifier_type' => null,
+        'discovered_at' => now(),
+    ]);
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $match['creator']->delete();
+
+    $bulkResult = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($singleResult['bulk_affiliation_match']['bulk_token']);
+
+    expect($bulkResult)->toMatchArray([
+        'success' => false,
+        'accepted_count' => 0,
+        'skipped_count' => 1,
+    ])
+        ->and(SuggestedRor::find($match['suggestion']->id))->toBeNull()
+        ->and(SuggestedRor::find($staleAlternative->id))->toBeNull()
+        ->and(SuggestedRor::where('entity_type', 'affiliation')->where('entity_id', $match['affiliation']->id)->count())->toBe(0);
+});
+
+it('removes all suggestions for a bulk match whose affiliation already has a ROR', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Hopper', 'Grace', 'Compiler Institute');
+    $match = createRorCreatorAffiliationSuggestion('Hopper', 'Grace', 'Compiler Institute');
+    $staleAlternative = SuggestedRor::create([
+        'resource_id' => $match['resource']->id,
+        'entity_type' => 'affiliation',
+        'entity_id' => $match['affiliation']->id,
+        'entity_name' => 'Compiler Institute',
+        'suggested_ror_id' => 'https://ror.org/03yrm5c26',
+        'suggested_name' => 'Alternative Research Centre',
+        'similarity_score' => 0.74,
+        'ror_aliases' => [],
+        'existing_identifier' => null,
+        'existing_identifier_type' => null,
+        'discovered_at' => now(),
+    ]);
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $match['affiliation']->update([
+        'identifier' => 'https://ror.org/03yrm5c26',
+        'identifier_scheme' => 'ROR',
+        'scheme_uri' => 'https://ror.org/',
+    ]);
+
+    $bulkResult = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($singleResult['bulk_affiliation_match']['bulk_token']);
+
+    expect($bulkResult)->toMatchArray([
+        'success' => false,
+        'accepted_count' => 0,
+        'skipped_count' => 1,
+    ])
+        ->and($match['affiliation']->refresh()->identifier)->toBe('https://ror.org/03yrm5c26')
+        ->and(SuggestedRor::find($match['suggestion']->id))->toBeNull()
+        ->and(SuggestedRor::find($staleAlternative->id))->toBeNull()
+        ->and(SuggestedRor::where('entity_type', 'affiliation')->where('entity_id', $match['affiliation']->id)->count())->toBe(0);
+});
 it('keeps a valid bulk token when processing fails before completion', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
     createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');

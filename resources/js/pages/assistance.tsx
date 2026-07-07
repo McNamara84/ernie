@@ -68,6 +68,15 @@ function resourceEditorUrl(resourceId: number): string {
     return editorRoute({ query: { resourceId } }).url;
 }
 
+function rorBulkMatchDialogDescription(count: number): string {
+    const isSingular = count === 1;
+    const noun = isSingular ? 'creator affiliation' : 'creator affiliations';
+    const verb = isSingular ? 'is' : 'are';
+    const target = isSingular ? 'this affiliation' : 'these affiliations';
+
+    return `There ${verb} ${count} further ${noun} with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for ${target} as well?`;
+}
+
 function normalizedResourceHeaderValue(value: string | null | undefined): string {
     return typeof value === 'string' ? value.trim() : '';
 }
@@ -1756,10 +1765,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 <DialogContent showCloseButton={!isAcceptingRorBulkMatch}>
                     <DialogHeader>
                         <DialogTitle>Accept matching ROR suggestions?</DialogTitle>
-                        <DialogDescription>
-                            There are {pendingRorBulkMatch?.count ?? 0} further creators who match the resource you have just confirmed in the
-                            &lt;creatorName&gt; and &lt;affiliation&gt; elements. Would you like to accept the ROR suggestion for these as well?
-                        </DialogDescription>
+                        <DialogDescription>{rorBulkMatchDialogDescription(pendingRorBulkMatch?.count ?? 0)}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="outline" disabled={isAcceptingRorBulkMatch} onClick={handleDeclineRorBulkMatch}>

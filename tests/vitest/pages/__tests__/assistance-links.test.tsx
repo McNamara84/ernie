@@ -1352,7 +1352,7 @@ describe('RorSuggestionCard – ROR link', () => {
                     accepted_count: 2,
                     skipped_count: 0,
                     synced_dois: [],
-                    message: 'ROR-ID accepted for 2 further creator affiliation(s).',
+                    message: 'ROR-ID accepted for 2 further creator affiliations.',
                 },
             });
 
@@ -1371,7 +1371,7 @@ describe('RorSuggestionCard – ROR link', () => {
 
         const dialog = await screen.findByRole('dialog');
         expect(dialog).toHaveTextContent(
-            'There are 2 further creators who match the resource you have just confirmed in the <creatorName> and <affiliation> elements. Would you like to accept the ROR suggestion for these as well?',
+            'There are 2 further creator affiliations with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for these affiliations as well?',
         );
         expect(mockedRouterReload).not.toHaveBeenCalled();
 
@@ -1385,6 +1385,39 @@ describe('RorSuggestionCard – ROR link', () => {
         });
     });
 
+    it('uses singular copy for one matching ROR creator affiliation', async () => {
+        const suggestion = makeRorSuggestion({ id: 958 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                message: 'ROR-ID accepted. No resources required DataCite sync.',
+                bulk_affiliation_match: {
+                    available: true,
+                    count: 1,
+                    bulk_token: 'bulk-token-singular',
+                    creator_name: 'Doe, Jane',
+                    affiliation: 'GFZ Potsdam',
+                    suggested_ror_id: 'https://ror.org/04t3en479',
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent(
+            'There is 1 further creator affiliation with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for this affiliation as well?',
+        );
+    });
     it('warns and reloads when accepting bulk ROR matches fails with a server message', async () => {
         const suggestion = makeRorSuggestion({ id: 957 });
         const user = userEvent.setup();

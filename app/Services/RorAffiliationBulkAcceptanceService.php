@@ -127,14 +127,14 @@ class RorAffiliationBulkAcceptanceService
                 $context = $this->contextForSuggestion($suggestion, lockAffiliation: true);
 
                 if ($context === null) {
-                    $suggestion->delete();
+                    $this->deleteAffiliationSuggestions($suggestion->entity_id);
                     $skippedCount++;
 
                     continue;
                 }
 
                 if ($context['already_has_ror']) {
-                    $suggestion->delete();
+                    $this->deleteAffiliationSuggestions($context['affiliation_model']->id);
                     $skippedCount++;
 
                     continue;
@@ -156,9 +156,7 @@ class RorAffiliationBulkAcceptanceService
                     'scheme_uri' => 'https://ror.org/',
                 ]);
 
-                SuggestedRor::where('entity_type', 'affiliation')
-                    ->where('entity_id', $context['affiliation_model']->id)
-                    ->delete();
+                $this->deleteAffiliationSuggestions($context['affiliation_model']->id);
 
                 $acceptedResourceIds[] = $context['resource_id'];
                 $acceptedCount++;
@@ -170,7 +168,7 @@ class RorAffiliationBulkAcceptanceService
         Cache::forget($cacheKey);
 
         $message = $acceptedCount > 0
-            ? "ROR-ID accepted for {$acceptedCount} further creator affiliation(s)."
+            ? sprintf('ROR-ID accepted for %d further %s.', $acceptedCount, Str::plural('creator affiliation', $acceptedCount))
             : 'No further matching creator affiliations could be accepted.';
 
         return [
@@ -291,6 +289,13 @@ class RorAffiliationBulkAcceptanceService
         }
 
         return $syncedDois;
+    }
+
+    private function deleteAffiliationSuggestions(int $affiliationId): void
+    {
+        SuggestedRor::where('entity_type', 'affiliation')
+            ->where('entity_id', $affiliationId)
+            ->delete();
     }
 
     /**
