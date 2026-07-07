@@ -39,8 +39,7 @@ final class DateTypePlausibilityService
      */
     public function review(array $dates): array
     {
-        $warnings = [];
-
+        $grouped = [];
         $presentTypes = array_keys($dates);
 
         foreach (self::DATE_VALUE_ORDER as [$earlier, $later]) {
@@ -56,27 +55,49 @@ final class DateTypePlausibilityService
             $valueOrderWrong = $dates[$earlier] > $dates[$later];
             
             if ($typeOrderWrong || $valueOrderWrong) {
-                $warnings[] = $this->warning(
-                    $earlier,
-                    $dates[$earlier],
-                    $later,
-                    $dates[$later],
-                );
+                $grouped[$earlier][] = [
+                    'type' => $later,
+                    'value' => $dates[$later],
+                ];
             }
+        }
+
+        $warnings = [];
+
+        foreach ($grouped as $earlier => $conflicts) 
+        {
+            $warnings[] = $this->warning(
+                $earlier,
+                $dates[$earlier],
+                $conflicts,
+            );
+
         }
         return $warnings;     
     }
 
-    private function warning(string $earlier, string $earlierValue, string $later, string $laterValue): array
+    /**
+     * @param array<int, array{type: string, value: string}> $conflicts
+     * @return array<string, mixed>
+     */
+    private function warning(string $earlier, string $earlierValue, array $conflicts): array
     {
+        $conflictText = implode(', ', array_map(
+            fn (array $conflict): string => sprintf(
+                '%s (%s)',
+                $conflict['type'],
+                $conflict['value'],
+            ),
+            $conflicts,
+        ));
+
         return [
             'suggestion_kind' => 'review',
             'message' => sprintf(
-                '%s (%s) occurs after %s (%s). Please check whether the date values or date types are assigned correctly.',
+                '%s (%s) occurs after %s. Please check whether the date values or date types are assigned correctly.',
                 $earlier,
                 $earlierValue,
-                $later,
-                $laterValue,
+                $conflictText,
             ),
             'confidence' => 'medium',
             'is_ambiguous' => true,
