@@ -169,6 +169,12 @@ class RorAffiliationBulkAcceptanceService
                         continue;
                     }
 
+                    if ($context['has_identifier']) {
+                        $skippedCount++;
+
+                        continue;
+                    }
+
                     $context['affiliation_model']->update([
                         'identifier' => $suggestedRorId,
                         'identifier_scheme' => 'ROR',
@@ -246,9 +252,7 @@ class RorAffiliationBulkAcceptanceService
                     ->where('name', $sourceContext['affiliation'])
                     ->where('affiliatable_type', ResourceCreator::class)
                     ->where(function ($query): void {
-                        $query->where('identifier_scheme', '!=', 'ROR')
-                            ->orWhereNull('identifier_scheme')
-                            ->orWhereNull('identifier')
+                        $query->whereNull('identifier')
                             ->orWhere('identifier', '');
                     })
                     ->get()
@@ -305,7 +309,7 @@ class RorAffiliationBulkAcceptanceService
     }
 
     /**
-     * @return array{creator_name: string, affiliation: string, suggested_ror_id: string, already_has_ror: bool, resource_id: int, affiliation_model: Affiliation}|null
+     * @return array{creator_name: string, affiliation: string, suggested_ror_id: string, already_has_ror: bool, has_identifier: bool, resource_id: int, affiliation_model: Affiliation}|null
      */
     private function contextForSuggestion(SuggestedRor $suggestion, bool $lockAffiliation = false): ?array
     {
@@ -342,8 +346,8 @@ class RorAffiliationBulkAcceptanceService
             'affiliation' => $affiliation->name,
             'suggested_ror_id' => $suggestion->suggested_ror_id,
             'already_has_ror' => $affiliation->identifier_scheme === 'ROR'
-                && $affiliation->identifier !== null
-                && $affiliation->identifier !== '',
+                && $this->affiliationHasIdentifier($affiliation),
+            'has_identifier' => $this->affiliationHasIdentifier($affiliation),
             'resource_id' => (int) $creator->resource_id,
             'affiliation_model' => $affiliation,
         ];
@@ -426,6 +430,11 @@ class RorAffiliationBulkAcceptanceService
             ->where('identifier_scheme', 'ROR')
             ->where('identifier', $suggestedRorId)
             ->exists();
+    }
+
+    private function affiliationHasIdentifier(Affiliation $affiliation): bool
+    {
+        return $affiliation->identifier !== null && $affiliation->identifier !== '';
     }
 
     /**

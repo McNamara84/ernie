@@ -194,6 +194,24 @@ it('does not cache a preview when exact matches exceed the bulk token limit', fu
     expect($result)->not->toHaveKey('bulk_affiliation_match');
 });
 
+it('excludes bulk preview candidates that already have a non-ROR identifier value', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Fleming', 'Alexander', 'Identifier Institute');
+    $match = createRorCreatorAffiliationSuggestion('Fleming', 'Alexander', 'Identifier Institute');
+
+    $match['affiliation']->update([
+        'identifier' => 'grid.12345.6',
+        'identifier_scheme' => 'GRID',
+        'scheme_uri' => 'https://www.grid.ac/',
+    ]);
+
+    $result = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+
+    expect($result)->not->toHaveKey('bulk_affiliation_match')
+        ->and($match['affiliation']->refresh()->identifier)->toBe('grid.12345.6')
+        ->and($match['affiliation']->identifier_scheme)->toBe('GRID')
+        ->and(SuggestedRor::find($match['suggestion']->id))->not->toBeNull();
+});
+
 it('builds bulk previews with batched candidate context queries', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Franklin', 'Rosalind', 'Batch Institute');
 
@@ -272,6 +290,31 @@ it('accepts all still-valid bulk matches and removes their suggestions', functio
         $matchA['suggestion']->id,
         $matchB['suggestion']->id,
     ])->count())->toBe(0);
+});
+
+it('skips and keeps bulk matches that gained a non-ROR identifier after preview', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Goodall', 'Jane', 'Late Identifier Institute');
+    $match = createRorCreatorAffiliationSuggestion('Goodall', 'Jane', 'Late Identifier Institute');
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
+
+    $match['affiliation']->update([
+        'identifier' => 'grid.65432.1',
+        'identifier_scheme' => 'GRID',
+        'scheme_uri' => 'https://www.grid.ac/',
+    ]);
+
+    $bulkResult = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken);
+
+    expect($bulkResult)->toMatchArray([
+        'success' => false,
+        'accepted_count' => 0,
+        'skipped_count' => 1,
+    ])
+        ->and($match['affiliation']->refresh()->identifier)->toBe('grid.65432.1')
+        ->and($match['affiliation']->identifier_scheme)->toBe('GRID')
+        ->and(SuggestedRor::find($match['suggestion']->id))->not->toBeNull();
 });
 
 it('looks up cached bulk suggestions in chunks while accepting', function (): void {
