@@ -79,6 +79,7 @@ const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Sugges
 const BULK_TOKEN_MATCH = '00000000-0000-4000-8000-000000000955';
 const BULK_TOKEN_SINGULAR = '00000000-0000-4000-8000-000000000958';
 const BULK_TOKEN_RETRY = '00000000-0000-4000-8000-000000000957';
+const BULK_TOKEN_EXPIRED = '00000000-0000-4000-8000-000000000959';
 const BULK_TOKEN_DECLINE = '00000000-0000-4000-8000-000000000956';
 
 beforeEach(() => {
@@ -1444,6 +1445,7 @@ describe('RorSuggestionCard – ROR link', () => {
             .mockRejectedValueOnce({
                 isAxiosError: true,
                 response: {
+                    status: 500,
                     data: {
                         message: 'DataCite sync failed. Please try again.',
                     },
@@ -1495,6 +1497,56 @@ describe('RorSuggestionCard – ROR link', () => {
         });
     });
 
+    it('closes and reloads the bulk ROR dialog for non-retryable 422 responses', async () => {
+        const suggestion = makeRorSuggestion({ id: 959 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'ROR-ID accepted. No resources required DataCite sync.',
+                    bulk_affiliation_match: {
+                        available: true,
+                        count: 1,
+                        bulk_token: BULK_TOKEN_EXPIRED,
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ Potsdam',
+                        suggested_ror_id: 'https://ror.org/04t3en479',
+                    },
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Bulk ROR acceptance token is invalid or has expired.',
+                    },
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: BULK_TOKEN_EXPIRED,
+            });
+            expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
     it('declines the bulk ROR dialog without posting the token', async () => {
         const suggestion = makeRorSuggestion({ id: 956 });
         const user = userEvent.setup();

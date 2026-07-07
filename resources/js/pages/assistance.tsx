@@ -1461,10 +1461,17 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             setPendingRorBulkMatch(null);
             reloadAssistanceSections();
         } catch (error) {
-            if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
+            const isAxiosBulkAcceptError = axios.isAxiosError(error);
+
+            if (isAxiosBulkAcceptError && typeof error.response?.data?.message === 'string') {
                 toast.warning(error.response.data.message);
             } else {
                 toast.error('Failed to accept matching ROR suggestions.');
+            }
+
+            if (isAxiosBulkAcceptError && error.response?.status === 422) {
+                setPendingRorBulkMatch(null);
+                reloadAssistanceSections();
             }
         } finally {
             setIsAcceptingRorBulkMatch(false);
