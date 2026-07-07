@@ -120,6 +120,10 @@
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
             },
             {
+                "title": "Assistance: Bulk ROR Affiliation Acceptance",
+                "description": "When an Admin or Group Leader accepts a ROR suggestion for a creator affiliation, ERNIE now detects further pending creator-affiliation suggestions with the same exported creatorName, affiliation label, and proposed ROR identifier. A confirmation dialog lets the reviewer apply that ROR identifier to all exact matches at once while preserving affiliation labels and creator name identifiers. If processing fails before completion, the confirmation can be retried."
+            },
+            {
                 "title": "Assistance: Crossref Funder ID to ROR Suggestions",
                 "description": "The Assistance page now includes a Crossref Funder ID to ROR assistant for funding references. It uses the locally generated ROR FundRef index to propose high-confidence ROR identifiers for funding references that currently use Crossref Funder IDs, shows provenance and exact-match evidence for review, and lets curators accept or decline each suggestion while preserving award metadata."
             },
