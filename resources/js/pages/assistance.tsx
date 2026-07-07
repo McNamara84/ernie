@@ -637,9 +637,20 @@ function DateTypeSuggestionCard({
     const collectedDatesCount = typeof metadata?.collected_dates_count === 'number' ? metadata.collected_dates_count : null;
     const geoLocationsCount = typeof metadata?.geo_locations_count === 'number' ? metadata.geo_locations_count : null;
     const evidence = typeof metadata?.evidence === 'string' ? metadata.evidence : null;
+    const confidence =
+    typeof metadata?.confidence === 'string'
+        ? metadata.confidence
+        : null;
+    const isAmbiguous = metadata?.is_ambiguous === true;
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div
+            className={
+                isAmbiguous
+                    ? "rounded-lg border-2 border-orange-500 bg-orange-50 p-4 shadow-sm transition-all hover:shadow-md dark:bg-orange-950/20"
+                    : "rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md"
+            }
+        >
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -661,6 +672,18 @@ function DateTypeSuggestionCard({
                     <p className="text-sm font-medium">{String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType suggestion')}</p>
 
                     {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
+
+                    {confidence && (
+                        <p className="text-xs text-muted-foreground">
+                            Confidence: {confidence}
+                        </p>
+                    )}
+
+                    {isAmbiguous && (
+                        <p className="text-xs text-destructive">
+                            This suggestion is ambiguous.
+                        </p>
+                    )}
 
                     <p className="text-xs text-muted-foreground">
                         Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '-'}
