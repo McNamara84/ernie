@@ -370,6 +370,12 @@ function RorSuggestionCard({
 
                     <div className="space-y-1">
                         <p className="text-sm font-medium text-foreground">{suggestion.entity_name}</p>
+                        {suggestion.person_name && (
+                            <p className="text-xs text-muted-foreground">
+                                <User className="mr-1 inline h-3 w-3" />
+                                Person: {suggestion.person_name}
+                            </p>
+                        )}
                         <p className="text-sm text-muted-foreground">&rarr; {suggestion.suggested_name}</p>
                         <p className="font-mono text-xs text-muted-foreground">
                             ROR:{' '}
