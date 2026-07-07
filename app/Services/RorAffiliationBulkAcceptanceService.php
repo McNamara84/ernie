@@ -55,7 +55,7 @@ class RorAffiliationBulkAcceptanceService
             'creator_name' => $sourceContext['creator_name'],
             'affiliation' => $sourceContext['affiliation'],
             'suggested_ror_id' => $sourceContext['suggested_ror_id'],
-            'suggestion_ids' => array_column($matchingSuggestions, 'suggestion_id'),
+            'matches' => $matchingSuggestions,
         ], now()->addMinutes(self::CACHE_TTL_MINUTES));
 
         return [
@@ -88,8 +88,8 @@ class RorAffiliationBulkAcceptanceService
             ];
         }
 
-        /** @var array<int, int> $suggestionIds */
-        $suggestionIds = $payload['suggestion_ids'];
+        /** @var array<int, array{suggestion_id: int, affiliation_id: int, resource_id: int}> $matches */
+        $matches = $payload['matches'];
         /** @var string $creatorName */
         $creatorName = $payload['creator_name'];
         /** @var string $affiliation */
@@ -98,15 +98,23 @@ class RorAffiliationBulkAcceptanceService
         $suggestedRorId = $payload['suggested_ror_id'];
 
         $acceptedResourceIds = [];
+        $alreadyAcceptedResourceIds = [];
         $acceptedCount = 0;
         $skippedCount = 0;
 
+        $suggestionIds = [];
+        foreach ($matches as $match) {
+            $suggestionIds[] = $match['suggestion_id'];
+        }
+
         DB::transaction(function () use (
+            $matches,
             $suggestionIds,
             $creatorName,
             $affiliation,
             $suggestedRorId,
             &$acceptedResourceIds,
+            &$alreadyAcceptedResourceIds,
             &$acceptedCount,
             &$skippedCount,
         ): void {
@@ -116,11 +124,16 @@ class RorAffiliationBulkAcceptanceService
                 ->get()
                 ->keyBy('id');
 
-            foreach ($suggestionIds as $suggestionId) {
+            foreach ($matches as $match) {
+                $suggestionId = $match['suggestion_id'];
                 $suggestion = $suggestions->get($suggestionId);
 
                 if (! $suggestion instanceof SuggestedRor) {
-                    $skippedCount++;
+                    if ($this->affiliationHasExpectedRor($match['affiliation_id'], $suggestedRorId)) {
+                        $alreadyAcceptedResourceIds[] = $match['resource_id'];
+                    } else {
+                        $skippedCount++;
+                    }
 
                     continue;
                 }
@@ -164,16 +177,21 @@ class RorAffiliationBulkAcceptanceService
             }
         });
 
-        $syncedDois = $this->syncResources(array_values(array_unique($acceptedResourceIds)));
+        $syncResourceIds = array_values(array_unique([
+            ...$acceptedResourceIds,
+            ...$alreadyAcceptedResourceIds,
+        ]));
+
+        $syncedDois = $this->syncResources($syncResourceIds);
         CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
         Cache::forget($cacheKey);
 
         $message = $acceptedCount > 0
             ? sprintf('ROR-ID accepted for %d further %s.', $acceptedCount, Str::plural('creator affiliation', $acceptedCount))
-            : 'No further matching creator affiliations could be accepted.';
+            : $this->messageForRetrySync($alreadyAcceptedResourceIds);
 
         return [
-            'success' => $acceptedCount > 0,
+            'success' => $acceptedCount > 0 || $alreadyAcceptedResourceIds !== [],
             'accepted_count' => $acceptedCount,
             'skipped_count' => $skippedCount,
             'synced_dois' => $syncedDois,
@@ -183,7 +201,7 @@ class RorAffiliationBulkAcceptanceService
 
     /**
      * @param  array{creator_name: string, affiliation: string, suggested_ror_id: string}  $sourceContext
-     * @return array<int, array{suggestion_id: int}>
+     * @return array<int, array{suggestion_id: int, affiliation_id: int, resource_id: int}>
      */
     private function matchingSuggestions(array $sourceContext, int $acceptedSuggestionId): array
     {
@@ -205,7 +223,11 @@ class RorAffiliationBulkAcceptanceService
                 $context['creator_name'] === $sourceContext['creator_name']
                 && $context['affiliation'] === $sourceContext['affiliation']
             ) {
-                $matches[] = ['suggestion_id' => $candidate->id];
+                $matches[] = [
+                    'suggestion_id' => (int) $candidate->id,
+                    'affiliation_id' => (int) $context['affiliation_model']->id,
+                    'resource_id' => (int) $context['resource_id'],
+                ];
             }
         }
 
@@ -252,7 +274,7 @@ class RorAffiliationBulkAcceptanceService
             'already_has_ror' => $affiliation->identifier_scheme === 'ROR'
                 && $affiliation->identifier !== null
                 && $affiliation->identifier !== '',
-            'resource_id' => $creator->resource_id,
+            'resource_id' => (int) $creator->resource_id,
             'affiliation_model' => $affiliation,
         ];
     }
@@ -306,8 +328,34 @@ class RorAffiliationBulkAcceptanceService
             ->delete();
     }
 
+    private function affiliationHasExpectedRor(int $affiliationId, string $suggestedRorId): bool
+    {
+        return Affiliation::whereKey($affiliationId)
+            ->where('identifier_scheme', 'ROR')
+            ->where('identifier', $suggestedRorId)
+            ->exists();
+    }
+
     /**
-     * @phpstan-assert-if-true array{creator_name: string, affiliation: string, suggested_ror_id: string, suggestion_ids: array<int, int>} $payload
+     * @param  array<int, int>  $alreadyAcceptedResourceIds
+     */
+    private function messageForRetrySync(array $alreadyAcceptedResourceIds): string
+    {
+        if ($alreadyAcceptedResourceIds !== []) {
+            $alreadyAcceptedCount = count(array_unique($alreadyAcceptedResourceIds));
+
+            return sprintf(
+                'ROR-ID acceptance was already applied for %d further %s. DataCite sync has been retried.',
+                $alreadyAcceptedCount,
+                Str::plural('creator affiliation', $alreadyAcceptedCount),
+            );
+        }
+
+        return 'No further matching creator affiliations could be accepted.';
+    }
+
+    /**
+     * @phpstan-assert-if-true array{creator_name: string, affiliation: string, suggested_ror_id: string, matches: array<int, array{suggestion_id: int, affiliation_id: int, resource_id: int}>} $payload
      */
     private function isValidPayload(mixed $payload): bool
     {
@@ -319,13 +367,18 @@ class RorAffiliationBulkAcceptanceService
             ! is_string($payload['creator_name'] ?? null)
             || ! is_string($payload['affiliation'] ?? null)
             || ! is_string($payload['suggested_ror_id'] ?? null)
-            || ! is_array($payload['suggestion_ids'] ?? null)
+            || ! is_array($payload['matches'] ?? null)
         ) {
             return false;
         }
 
-        foreach ($payload['suggestion_ids'] as $suggestionId) {
-            if (! is_int($suggestionId)) {
+        foreach ($payload['matches'] as $match) {
+            if (
+                ! is_array($match)
+                || ! is_int($match['suggestion_id'] ?? null)
+                || ! is_int($match['affiliation_id'] ?? null)
+                || ! is_int($match['resource_id'] ?? null)
+            ) {
                 return false;
             }
         }

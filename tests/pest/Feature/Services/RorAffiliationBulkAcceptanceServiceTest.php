@@ -323,9 +323,9 @@ it('removes all suggestions for a bulk match whose affiliation already has a ROR
         ->and(SuggestedRor::find($staleAlternative->id))->toBeNull()
         ->and(SuggestedRor::where('entity_type', 'affiliation')->where('entity_id', $match['affiliation']->id)->count())->toBe(0);
 });
-it('keeps a valid bulk token when processing fails before completion', function (): void {
+it('keeps a valid bulk token and retries sync after processing fails before completion', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
-    createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
+    $match = createRorCreatorAffiliationSuggestion('Noether', 'Emmy', 'Retry Institute');
 
     $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
     $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
@@ -341,7 +341,35 @@ it('keeps a valid bulk token when processing fails before completion', function 
     expect(fn () => app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken))
         ->toThrow(RuntimeException::class, 'sync exploded');
 
-    expect(Cache::has('ror_affiliation_bulk_accept:'.$bulkToken))->toBeTrue();
+    expect(Cache::has('ror_affiliation_bulk_accept:'.$bulkToken))->toBeTrue()
+        ->and($match['affiliation']->refresh()->identifier)->toBe('https://ror.org/04z8jg394')
+        ->and(SuggestedRor::find($match['suggestion']->id))->toBeNull();
+
+    $retrySyncService = new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService
+    {
+        /** @var array<int, int> */
+        public array $syncedResourceIds = [];
+
+        public function syncIfRegistered(Resource $resource): DataCiteSyncResult
+        {
+            $this->syncedResourceIds[] = (int) $resource->id;
+
+            return DataCiteSyncResult::succeeded((string) $resource->doi);
+        }
+    };
+
+    app()->instance(DataCiteSyncService::class, $retrySyncService);
+
+    $retryResult = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken);
+
+    expect($retryResult)->toMatchArray([
+        'success' => true,
+        'accepted_count' => 0,
+        'skipped_count' => 0,
+        'synced_dois' => [$match['resource']->doi],
+    ])
+        ->and($retrySyncService->syncedResourceIds)->toBe([$match['resource']->id])
+        ->and(Cache::has('ror_affiliation_bulk_accept:'.$bulkToken))->toBeFalse();
 
     app()->forgetInstance(DataCiteSyncService::class);
 });
