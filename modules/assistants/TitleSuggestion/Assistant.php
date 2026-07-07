@@ -375,11 +375,7 @@ class Assistant extends GenericTableAssistant
      */
     private function isStale(Title $title, array $metadata): bool
     {
-        $storedHash = $metadata['source_hash'] ?? null;
-
-        if (! is_string($storedHash) || $storedHash === '') {
-            return false;
-        }
+        $storedHash = (string) $metadata['source_hash'];
 
         return ! hash_equals($storedHash, $this->sourceHash($title));
     }

@@ -583,10 +583,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 proposes safe ROR replacements from the local ROR FundRef index
                             </li>
                             <li>
-                                <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
-                                using title-text detection and supporting language hints
+                                <strong>Suggested Title Languages</strong> – Suggests missing language values for title records when the title
+                                language is not set, using title-text detection and supporting language hints
+                            </li>
+                            <li>
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed license
-                                metadata before export 
+                                metadata before export
                             </li>
                             <li>
                                 <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose missing
