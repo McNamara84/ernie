@@ -148,8 +148,13 @@ class AssistanceController extends Controller
         $validated = $request->validated();
 
         $result = $this->rorDiscoveryService->acceptMatchingAffiliationRors((string) $validated['bulk_token']);
+        $statusCode = match (true) {
+            $result['success'] => 200,
+            $result['retryable'] ?? false => 500,
+            default => 422,
+        };
 
-        return response()->json($result, $result['success'] ? 200 : 422);
+        return response()->json($result, $statusCode);
     }
 
     /**

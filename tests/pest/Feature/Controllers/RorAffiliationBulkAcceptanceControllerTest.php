@@ -8,6 +8,9 @@ use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
+use App\Services\DataCiteServiceInterface;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
 use App\Services\RorAffiliationBulkAcceptanceService;
 use App\Services\RorDiscoveryService;
 use Illuminate\Support\Facades\Cache;
@@ -19,6 +22,17 @@ covers(AssistanceController::class, RorAffiliationBulkAcceptanceService::class);
 beforeEach(function (): void {
     Config::set('cache.default', 'array');
     Cache::flush();
+    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService
+    {
+        public function syncIfRegistered(Resource $resource): DataCiteSyncResult
+        {
+            if ($resource->doi === null || $resource->doi === '') {
+                return DataCiteSyncResult::notRequired();
+            }
+
+            return DataCiteSyncResult::succeeded((string) $resource->doi);
+        }
+    });
 });
 
 function createRorBulkRouteCreatorAffiliationSuggestion(
@@ -84,6 +98,34 @@ it('accepts matching affiliation rors from a valid bulk token through the route'
         ->and(SuggestedRor::find($match['suggestion']->id))->toBeNull();
 });
 
+it('returns a retryable server error and keeps the token when DataCite sync fails', function (): void {
+    $user = User::factory()->admin()->create();
+    $source = createRorBulkRouteCreatorAffiliationSuggestion('Bohr', 'Niels', 'Retry Route Institute');
+    $match = createRorBulkRouteCreatorAffiliationSuggestion('Bohr', 'Niels', 'Retry Route Institute');
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
+
+    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService
+    {
+        public function syncIfRegistered(Resource $resource): DataCiteSyncResult
+        {
+            return DataCiteSyncResult::failed((string) $resource->doi, 'DataCite unavailable');
+        }
+    });
+
+    $this->actingAs($user)
+        ->postJson('/assistance/rors/bulk-affiliation-accept', ['bulk_token' => $bulkToken])
+        ->assertStatus(500)
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('retryable', true)
+        ->assertJsonPath('accepted_count', 1);
+
+    expect(Cache::has('ror_affiliation_bulk_accept:'.$bulkToken))->toBeTrue()
+        ->and($match['affiliation']->refresh()->identifier)->toBe('https://ror.org/04z8jg394');
+
+    app()->forgetInstance(DataCiteSyncService::class);
+});
 it('rejects malformed bulk tokens before looking them up', function (): void {
     $user = User::factory()->admin()->create();
 

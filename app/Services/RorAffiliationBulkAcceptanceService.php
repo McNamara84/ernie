@@ -73,7 +73,7 @@ class RorAffiliationBulkAcceptanceService
     /**
      * Accept all still-valid exact matches captured by a preview token.
      *
-     * @return array{success: bool, accepted_count: int, skipped_count: int, synced_dois: array<int, string>, message: string}
+     * @return array{success: bool, accepted_count: int, skipped_count: int, synced_dois: array<int, string>, message: string, retryable?: bool}
      */
     public function acceptByToken(string $token): array
     {
@@ -92,6 +92,7 @@ class RorAffiliationBulkAcceptanceService
 
         /** @var array<int, array{suggestion_id: int, affiliation_id: int, resource_id: int}> $matches */
         $matches = $payload['matches'];
+        usort($matches, fn (array $a, array $b): int => [$a['affiliation_id'], $a['suggestion_id']] <=> [$b['affiliation_id'], $b['suggestion_id']]);
         /** @var string $creatorName */
         $creatorName = $payload['creator_name'];
         /** @var string $affiliation */
@@ -184,8 +185,20 @@ class RorAffiliationBulkAcceptanceService
             ...$alreadyAcceptedResourceIds,
         ]));
 
-        $syncedDois = $this->syncResources($syncResourceIds);
+        $syncResult = $this->syncResources($syncResourceIds);
         CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT->forget();
+
+        if ($syncResult['failed']) {
+            return [
+                'success' => false,
+                'accepted_count' => $acceptedCount,
+                'skipped_count' => $skippedCount,
+                'synced_dois' => $syncResult['synced_dois'],
+                'message' => $syncResult['message'],
+                'retryable' => true,
+            ];
+        }
+
         Cache::forget($cacheKey);
 
         $message = $acceptedCount > 0
@@ -196,7 +209,7 @@ class RorAffiliationBulkAcceptanceService
             'success' => $acceptedCount > 0 || $alreadyAcceptedResourceIds !== [],
             'accepted_count' => $acceptedCount,
             'skipped_count' => $skippedCount,
-            'synced_dois' => $syncedDois,
+            'synced_dois' => $syncResult['synced_dois'],
             'message' => $message,
         ];
     }
@@ -344,19 +357,25 @@ class RorAffiliationBulkAcceptanceService
 
     /**
      * @param  array<int, int>  $resourceIds
-     * @return array<int, string>
+     * @return array{synced_dois: array<int, string>, failed: bool, message: string}
      */
     private function syncResources(array $resourceIds): array
     {
         if ($resourceIds === []) {
-            return [];
+            return [
+                'synced_dois' => [],
+                'failed' => false,
+                'message' => '',
+            ];
         }
 
         $syncedDois = [];
+        $failureMessage = null;
 
         $resources = Resource::whereIn('id', $resourceIds)
             ->whereNotNull('doi')
             ->where('doi', '!=', '')
+            ->orderBy('id')
             ->get();
 
         foreach ($resources as $resource) {
@@ -364,9 +383,25 @@ class RorAffiliationBulkAcceptanceService
             if ($result->success && $resource->doi !== null) {
                 $syncedDois[] = $resource->doi;
             }
+
+            if ($result->hasFailed()) {
+                $failureMessage ??= $result->errorMessage;
+            }
         }
 
-        return $syncedDois;
+        if ($failureMessage !== null) {
+            return [
+                'synced_dois' => $syncedDois,
+                'failed' => true,
+                'message' => 'DataCite sync failed: '.$failureMessage.' Please try again.',
+            ];
+        }
+
+        return [
+            'synced_dois' => $syncedDois,
+            'failed' => false,
+            'message' => '',
+        ];
     }
 
     private function deleteAffiliationSuggestions(int $affiliationId): void

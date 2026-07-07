@@ -261,7 +261,7 @@ class RorDiscoveryService
     /**
      * Accept further creator-affiliation ROR matches captured by a preview token.
      *
-     * @return array{success: bool, accepted_count: int, skipped_count: int, synced_dois: array<int, string>, message: string}
+     * @return array{success: bool, accepted_count: int, skipped_count: int, synced_dois: array<int, string>, message: string, retryable?: bool}
      */
     public function acceptMatchingAffiliationRors(string $bulkToken): array
     {
