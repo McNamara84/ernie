@@ -440,6 +440,44 @@ it('removes all suggestions for a bulk match whose affiliation already has a ROR
         ->and(SuggestedRor::find($staleAlternative->id))->toBeNull()
         ->and(SuggestedRor::where('entity_type', 'affiliation')->where('entity_id', $match['affiliation']->id)->count())->toBe(0);
 });
+it('removes stale suggestions when a cached bulk suggestion is gone but the affiliation has the expected ROR', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('Keller', 'Helen', 'Resolved Institute');
+    $match = createRorCreatorAffiliationSuggestion('Keller', 'Helen', 'Resolved Institute');
+    $staleAlternative = SuggestedRor::create([
+        'resource_id' => $match['resource']->id,
+        'entity_type' => 'affiliation',
+        'entity_id' => $match['affiliation']->id,
+        'entity_name' => 'Resolved Institute',
+        'suggested_ror_id' => 'https://ror.org/03yrm5c26',
+        'suggested_name' => 'Alternative Research Centre',
+        'similarity_score' => 0.74,
+        'ror_aliases' => [],
+        'existing_identifier' => null,
+        'existing_identifier_type' => null,
+        'discovered_at' => now(),
+    ]);
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
+
+    $match['affiliation']->update([
+        'identifier' => 'https://ror.org/04z8jg394',
+        'identifier_scheme' => 'ROR',
+        'scheme_uri' => 'https://ror.org/',
+    ]);
+    $match['suggestion']->delete();
+
+    $bulkResult = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken);
+
+    expect($bulkResult)->toMatchArray([
+        'success' => true,
+        'accepted_count' => 0,
+        'skipped_count' => 0,
+    ])
+        ->and(SuggestedRor::find($staleAlternative->id))->toBeNull()
+        ->and(SuggestedRor::where('entity_type', 'affiliation')->where('entity_id', $match['affiliation']->id)->count())->toBe(0);
+});
+
 it('keeps a valid bulk token and retries sync when DataCite returns a failed result', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Meitner', 'Lise', 'Retryable Sync Institute');
     $match = createRorCreatorAffiliationSuggestion('Meitner', 'Lise', 'Retryable Sync Institute');

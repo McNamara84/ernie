@@ -134,6 +134,7 @@ class RorAffiliationBulkAcceptanceService
 
                     if (! $suggestion instanceof SuggestedRor) {
                         if ($this->affiliationHasExpectedRor($match['affiliation_id'], $suggestedRorId)) {
+                            $this->deleteAffiliationSuggestions($match['affiliation_id']);
                             $alreadyAcceptedResourceIds[] = $match['resource_id'];
                         } else {
                             $skippedCount++;
