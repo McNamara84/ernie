@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\Affiliation;
+use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -240,6 +241,9 @@ class RorAffiliationBulkAcceptanceService
         }
 
         $creatorName = $this->creatorName($creator);
+        if ($creatorName === null) {
+            return null;
+        }
 
         return [
             'creator_name' => $creatorName,
@@ -253,15 +257,19 @@ class RorAffiliationBulkAcceptanceService
         ];
     }
 
-    private function creatorName(ResourceCreator $creator): string
+    private function creatorName(ResourceCreator $creator): ?string
     {
-        $creatorable = $creator->creatorable;
+        $creatorable = $creator->getRelationValue('creatorable');
 
         if ($creatorable instanceof Person) {
             return $this->partyMapper->formatPersonName($creatorable);
         }
 
-        return $this->partyMapper->formatInstitutionName($creatorable);
+        if ($creatorable instanceof Institution) {
+            return $this->partyMapper->formatInstitutionName($creatorable);
+        }
+
+        return null;
     }
 
     /**

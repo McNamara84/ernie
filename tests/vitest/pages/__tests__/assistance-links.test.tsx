@@ -76,6 +76,10 @@ const SUBJECT_METADATA_ASSISTANT_NAME = 'Subject Metadata Enrichment';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_ID = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ROUTE_PREFIX = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Suggestions';
+const BULK_TOKEN_MATCH = '00000000-0000-4000-8000-000000000955';
+const BULK_TOKEN_SINGULAR = '00000000-0000-4000-8000-000000000958';
+const BULK_TOKEN_EXPIRED = '00000000-0000-4000-8000-000000000957';
+const BULK_TOKEN_DECLINE = '00000000-0000-4000-8000-000000000956';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
@@ -1339,7 +1343,7 @@ describe('RorSuggestionCard – ROR link', () => {
                     bulk_affiliation_match: {
                         available: true,
                         count: 2,
-                        bulk_token: 'bulk-token-955',
+                        bulk_token: BULK_TOKEN_MATCH,
                         creator_name: 'Doe, Jane',
                         affiliation: 'GFZ Potsdam',
                         suggested_ror_id: 'https://ror.org/04t3en479',
@@ -1379,7 +1383,7 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
-                bulk_token: 'bulk-token-955',
+                bulk_token: BULK_TOKEN_MATCH,
             });
             expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
         });
@@ -1396,7 +1400,7 @@ describe('RorSuggestionCard – ROR link', () => {
                 bulk_affiliation_match: {
                     available: true,
                     count: 1,
-                    bulk_token: 'bulk-token-singular',
+                    bulk_token: BULK_TOKEN_SINGULAR,
                     creator_name: 'Doe, Jane',
                     affiliation: 'GFZ Potsdam',
                     suggested_ror_id: 'https://ror.org/04t3en479',
@@ -1430,7 +1434,7 @@ describe('RorSuggestionCard – ROR link', () => {
                     bulk_affiliation_match: {
                         available: true,
                         count: 1,
-                        bulk_token: 'expired-bulk-token',
+                        bulk_token: BULK_TOKEN_EXPIRED,
                         creator_name: 'Doe, Jane',
                         affiliation: 'GFZ Potsdam',
                         suggested_ror_id: 'https://ror.org/04t3en479',
@@ -1460,7 +1464,7 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
-                bulk_token: 'expired-bulk-token',
+                bulk_token: BULK_TOKEN_EXPIRED,
             });
             expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
             expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
@@ -1478,7 +1482,7 @@ describe('RorSuggestionCard – ROR link', () => {
                 bulk_affiliation_match: {
                     available: true,
                     count: 1,
-                    bulk_token: 'bulk-token-decline',
+                    bulk_token: BULK_TOKEN_DECLINE,
                     creator_name: 'Doe, Jane',
                     affiliation: 'GFZ Potsdam',
                     suggested_ror_id: 'https://ror.org/04t3en479',
