@@ -292,6 +292,36 @@ it('accepts all still-valid bulk matches and removes their suggestions', functio
     ])->count())->toBe(0);
 });
 
+it('accepts bulk matches with batched candidate context queries', function (): void {
+    $source = createRorCreatorAffiliationSuggestion('McClintock', 'Barbara', 'Batch Accept Institute');
+
+    for ($i = 0; $i < 8; $i++) {
+        createRorCreatorAffiliationSuggestion('McClintock', 'Barbara', 'Batch Accept Institute');
+    }
+
+    $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
+    $bulkToken = $singleResult['bulk_affiliation_match']['bulk_token'];
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $bulkResult = app(RorDiscoveryService::class)->acceptMatchingAffiliationRors($bulkToken);
+
+    $selectQueryCount = collect(DB::getQueryLog())
+        ->filter(fn (array $query): bool => str_starts_with(strtolower($query['query']), 'select'))
+        ->count();
+
+    DB::disableQueryLog();
+    DB::flushQueryLog();
+
+    expect($bulkResult)->toMatchArray([
+        'success' => true,
+        'accepted_count' => 8,
+        'skipped_count' => 0,
+    ])
+        ->and($selectQueryCount)->toBeLessThanOrEqual(10);
+});
+
 it('skips and keeps bulk matches that gained a non-ROR identifier after preview', function (): void {
     $source = createRorCreatorAffiliationSuggestion('Goodall', 'Jane', 'Late Identifier Institute');
     $match = createRorCreatorAffiliationSuggestion('Goodall', 'Jane', 'Late Identifier Institute');

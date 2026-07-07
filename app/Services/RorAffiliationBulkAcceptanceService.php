@@ -128,6 +128,8 @@ class RorAffiliationBulkAcceptanceService
                     ->get()
                     ->keyBy('id');
 
+                $contexts = $this->contextsForSuggestions($suggestions->values(), lockAffiliations: true);
+
                 foreach ($matchChunk as $match) {
                     $suggestionId = $match['suggestion_id'];
                     $suggestion = $suggestions->get($suggestionId);
@@ -143,7 +145,7 @@ class RorAffiliationBulkAcceptanceService
                         continue;
                     }
 
-                    $context = $this->contextForSuggestion($suggestion, lockAffiliation: true);
+                    $context = $contexts[$suggestionId] ?? null;
 
                     if ($context === null) {
                         $this->deleteAffiliationSuggestions($suggestion->entity_id);
@@ -313,34 +315,100 @@ class RorAffiliationBulkAcceptanceService
      */
     private function contextForSuggestion(SuggestedRor $suggestion, bool $lockAffiliation = false): ?array
     {
-        if ($suggestion->entity_type !== 'affiliation') {
-            return null;
+        $contexts = $this->contextsForSuggestions([$suggestion], $lockAffiliation);
+
+        return $contexts[(int) $suggestion->id] ?? null;
+    }
+
+    /**
+     * @param  iterable<int, SuggestedRor>  $suggestions
+     * @return array<int, array{creator_name: string, affiliation: string, suggested_ror_id: string, already_has_ror: bool, has_identifier: bool, resource_id: int, affiliation_model: Affiliation}>
+     */
+    private function contextsForSuggestions(iterable $suggestions, bool $lockAffiliations = false): array
+    {
+        $suggestionList = [];
+        $affiliationIds = [];
+
+        foreach ($suggestions as $suggestion) {
+            if ($suggestion->entity_type !== 'affiliation') {
+                continue;
+            }
+
+            $suggestionId = (int) $suggestion->id;
+            $suggestionList[$suggestionId] = $suggestion;
+            $affiliationIds[] = (int) $suggestion->entity_id;
         }
 
-        $affiliationQuery = Affiliation::query();
+        if ($affiliationIds === []) {
+            return [];
+        }
 
-        if ($lockAffiliation) {
+        $affiliationQuery = Affiliation::query()
+            ->whereIn('id', array_values(array_unique($affiliationIds)))
+            ->orderBy('id');
+
+        if ($lockAffiliations) {
             $affiliationQuery->lockForUpdate();
         }
 
-        /** @var Affiliation|null $affiliation */
-        $affiliation = $affiliationQuery->find($suggestion->entity_id);
+        $affiliations = $affiliationQuery->get()->keyBy('id');
 
-        if (! $affiliation instanceof Affiliation || $affiliation->affiliatable_type !== ResourceCreator::class) {
-            return null;
+        if ($affiliations->isEmpty()) {
+            return [];
         }
 
-        $creator = ResourceCreator::with('creatorable')->find($affiliation->affiliatable_id);
-
-        if (! $creator instanceof ResourceCreator) {
-            return null;
+        $creatorIds = [];
+        foreach ($affiliations as $affiliation) {
+            if ($affiliation->affiliatable_type === ResourceCreator::class) {
+                $creatorIds[] = (int) $affiliation->affiliatable_id;
+            }
         }
 
-        $creatorName = $this->creatorName($creator);
-        if ($creatorName === null) {
-            return null;
+        if ($creatorIds === []) {
+            return [];
         }
 
+        $creators = ResourceCreator::with('creatorable')
+            ->whereIn('id', array_values(array_unique($creatorIds)))
+            ->orderBy('id')
+            ->get()
+            ->keyBy('id');
+        $contexts = [];
+
+        foreach ($suggestionList as $suggestionId => $suggestion) {
+            $affiliation = $affiliations->get($suggestion->entity_id);
+
+            if (! $affiliation instanceof Affiliation || $affiliation->affiliatable_type !== ResourceCreator::class) {
+                continue;
+            }
+
+            $creator = $creators->get($affiliation->affiliatable_id);
+
+            if (! $creator instanceof ResourceCreator) {
+                continue;
+            }
+
+            $creatorName = $this->creatorName($creator);
+            if ($creatorName === null) {
+                continue;
+            }
+
+            $contexts[$suggestionId] = $this->contextFromSuggestionModels(
+                $suggestion,
+                $affiliation,
+                $creatorName,
+                (int) $creator->resource_id,
+            );
+        }
+
+        return $contexts;
+    }
+
+    /**
+     * @return array{creator_name: string, affiliation: string, suggested_ror_id: string, already_has_ror: bool, has_identifier: bool, resource_id: int, affiliation_model: Affiliation}
+     */
+    private function contextFromSuggestionModels(SuggestedRor $suggestion, Affiliation $affiliation, string $creatorName, int $resourceId): array
+    {
         return [
             'creator_name' => $creatorName,
             'affiliation' => $affiliation->name,
@@ -348,7 +416,7 @@ class RorAffiliationBulkAcceptanceService
             'already_has_ror' => $affiliation->identifier_scheme === 'ROR'
                 && $this->affiliationHasIdentifier($affiliation),
             'has_identifier' => $this->affiliationHasIdentifier($affiliation),
-            'resource_id' => (int) $creator->resource_id,
+            'resource_id' => $resourceId,
             'affiliation_model' => $affiliation,
         ];
     }
