@@ -270,7 +270,7 @@ it ('does not follow schema.org redirects', function () {
     Http::assertNotSent(fn (Request $request): bool => $request->url() === 'https://redirect.org');
 });
 
-it ('skips schema.org request when loading takes longer than time out', function () {
+it ('skips schema.org request when loading takes longer than timeout', function () {
     Http::fake
     ([
         'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001' => function(){
