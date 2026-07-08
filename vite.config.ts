@@ -7,6 +7,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig(({ command }) => {
     const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
     const isDev = command === 'serve';
+    const wayfinderCommand = process.env.WAYFINDER_COMMAND ?? 'php artisan ernie:wayfinder-generate';
 
     return {
         devtools: isDev,
@@ -19,7 +20,7 @@ export default defineConfig(({ command }) => {
             react(),
             tailwindcss(),
             wayfinder({
-                command: 'php artisan ernie:wayfinder-generate',
+                command: wayfinderCommand,
                 formVariants: true,
             }),
         ],

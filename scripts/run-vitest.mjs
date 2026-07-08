@@ -3,6 +3,16 @@ import { fileURLToPath } from 'node:url';
 
 const webStorageFlag = '--no-experimental-webstorage';
 const ignoredStderrLines = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
+const dockerWayfinderCommand =
+    'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan ernie:wayfinder-generate';
+
+function canRun(command, args = ['--version']) {
+    const result = spawnSync(command, args, {
+        stdio: 'ignore',
+    });
+
+    return !result.error && result.status === 0;
+}
 
 function withWebStorageFlag(nodeOptions = '') {
     const options = nodeOptions.trim();
@@ -59,5 +69,9 @@ if (!process.execArgv.includes(webStorageFlag)) {
 }
 
 process.env.NODE_OPTIONS = withWebStorageFlag(process.env.NODE_OPTIONS);
+
+if (!process.env.WAYFINDER_COMMAND && !canRun('php')) {
+    process.env.WAYFINDER_COMMAND = dockerWayfinderCommand;
+}
 
 await import('../node_modules/vitest/vitest.mjs');
