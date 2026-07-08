@@ -205,7 +205,6 @@ it ('skips created and issued additions from not allowed hosts', function () {
         ]);
     
     Http::assertSentCount(1);
-
 });
 
 it ('ignores invalid or unsupported date values in schema.org', function () {
@@ -305,3 +304,67 @@ it ('skips missing responses as unreachable', function () {
 
     Http::assertSentCount(1);
 });
+
+it('skips schema.org source urls with unsupported protocols', function ()
+{
+     Http::fake
+    ([
+        'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001' => Http::response([
+            'url' => 'ftp://dataservices.gfz.de/example-dataset', 
+            'dateCreated' => '2016-07-03',
+        ], 200)
+    ]);
+
+    $service = app(DateTypeSchemaorgExtraction::class);
+    $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]['probe_method'])->toBe('SKIP')
+        ->and($result[0]['skip_reason'])->toBe('unsupported_source_url');
+    
+    Http::assertSentCount(1);
+});
+
+it('keeps created and issued suggestions separate when date values match', function (): void 
+{
+    Http::fake
+    ([
+        'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001' => Http::response([
+            'url' => 'https://dataservices.gfz-potsdam.de/example-dataset', 
+            'dateCreated' => '2016-07-03',
+            'datePublished' => '2016-07-03',
+        ], 200)
+    ]);
+
+    $service = app(DateTypeSchemaorgExtraction::class);
+    $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
+
+    expect($result)->toHaveCount(2)
+        ->and($result[0])->toMatchArray
+        ([
+            'suggestion_kind' => 'addition',
+            'target_date_type' => 'Created',
+            'normalized_value' => '2016-07-03',
+            'source_url' => 'https://dataservices.gfz-potsdam.de/example-dataset',
+            'evidence_source' => 'schema.org',
+            'evidence_url' => 'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001',
+            'schema_org_field' => 'dateCreated',
+            'confidence' => 'high',
+            'is_ambiguous' => false,
+        ])
+        ->and($result[1])->toMatchArray
+        ([
+            'suggestion_kind' => 'addition',
+            'target_date_type' => 'Issued',
+            'normalized_value' => '2016-07-03',
+            'source_url' => 'https://dataservices.gfz-potsdam.de/example-dataset',
+            'evidence_source' => 'schema.org',
+            'evidence_url' => 'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001',
+            'schema_org_field' => 'datePublished',
+            'confidence' => 'high',
+            'is_ambiguous' => false,           
+        ]);
+
+    Http::assertSentCount(1);
+});
+
