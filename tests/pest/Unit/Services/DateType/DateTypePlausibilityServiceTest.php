@@ -55,7 +55,8 @@ it ('returns grouped hints for implausible date value order', function ()
     ->and($warnings[4]['suggestion_kind'])->toBe('hint')
     ->and($warnings[4]['message'])->toBe('Issued (2014-07-03) occurs after Available (2013-07-04). Please check whether the date values or date types are assigned correctly.')
     ->and($warnings[4]['confidence'])->toBe('medium')
-    ->and($warnings[4]['is_ambiguous'])->toBeTrue();
+    ->and($warnings[4]['is_ambiguous'])->toBeTrue()
+    ->and($warnings[4]['source_url'])->toBeNull();
 
 });
 
@@ -158,4 +159,16 @@ it ('skips rules when only one side of a rule is present', function ()
     ]))->toBe([]);
 
 });
+
+it('adds source url when resource doi is provided', function () {
+    $warnings = $this->plausibilityService->review([
+        'Created' => '2023-02-22',
+        'Issued' => '2018',
+    ], '10.5880/test.001');
+
+    expect($warnings)->toHaveCount(1)
+        ->and($warnings[0]['source_url'])->toBe('https://doi.org/10.5880/test.001');
+
+});
+
 
