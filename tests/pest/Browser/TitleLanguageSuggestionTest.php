@@ -12,7 +12,17 @@ use Tests\TestCase;
 
 uses(RefreshDatabase::class)->group('title-language', 'browser');
 
-function createTitleLanguageSuggestion(
+function browserTitleSuggestionSourceHash(Title $title): string
+{
+    return hash('sha256', implode('|', [
+        (string) $title->id,
+        trim((string) $title->value),
+        (string) ($title->language ?? ''),
+        (string) $title->resource_id,
+    ]));
+}
+
+function createBrowserTitleLanguageSuggestion(
     Resource $resource,
     Title $title,
     string $language = 'en',
@@ -45,6 +55,13 @@ function createTitleLanguageSuggestion(
             'warning' => null,
             'has_overwrite_warning' => false,
             'is_stale' => false,
+            'source_hash' => browserTitleSuggestionSourceHash($title),
+            'source_snapshot' => [
+                'title_id' => $title->id,
+                'title_text' => $title->value,
+                'current_language' => $title->language,
+                'resource_id' => $resource->id,
+            ],
         ],
         'discovered_at' => now(),
     ]);
@@ -68,7 +85,7 @@ describe('Title Language Detection assistant', function (): void {
                 'value' => 'Groundwater Recharge',
             ]);
 
-        createTitleLanguageSuggestion($resource, $title);
+        createBrowserTitleLanguageSuggestion($resource, $title);
 
         $this->actingAs($user);
 
@@ -100,7 +117,7 @@ describe('Title Language Detection assistant', function (): void {
                 'value' => 'Groundwater Recharge',
             ]);
 
-        $suggestion = createTitleLanguageSuggestion($resource, $title);
+        $suggestion = createBrowserTitleLanguageSuggestion($resource, $title);
 
         $this->actingAs($user);
 
@@ -139,7 +156,7 @@ describe('Title Language Detection assistant', function (): void {
                 'value' => 'Groundwater Recharge',
             ]);
 
-        $suggestion = createTitleLanguageSuggestion($resource, $title);
+        $suggestion = createBrowserTitleLanguageSuggestion($resource, $title);
 
         $this->actingAs($user);
 

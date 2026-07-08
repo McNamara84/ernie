@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UploadErrorCode;
+use App\Exceptions\DuplicateUploadedResourceDoiException;
 use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
@@ -13,12 +14,15 @@ use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\UploadLogService;
+use App\Services\Uploads\UploadedResourceDraftService;
+use App\Support\DataCiteDateNormalizer;
 use App\Support\GcmdUriHelper;
 use App\Support\UploadError;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class UploadJsonController extends Controller
 {
@@ -80,6 +84,7 @@ class UploadJsonController extends Controller
         private readonly DataCiteJsonLdToJsonConverterService $jsonLdConverter,
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
+        private readonly UploadedResourceDraftService $uploadedResourceDraftService,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse
@@ -102,14 +107,14 @@ class UploadJsonController extends Controller
         } catch (\JsonException $e) {
             $error = UploadError::withMessage(
                 UploadErrorCode::JSON_PARSE_ERROR,
-                'The JSON file could not be parsed: ' . $e->getMessage()
+                'The JSON file could not be parsed: '.$e->getMessage()
             );
             $this->uploadLogService->logFailure('json', $filename, $error);
 
             return $this->errorResponse(
                 UploadErrorCode::JSON_PARSE_ERROR,
                 $filename,
-                'The JSON file could not be parsed: ' . $e->getMessage()
+                'The JSON file could not be parsed: '.$e->getMessage()
             );
         }
 
@@ -151,7 +156,7 @@ class UploadJsonController extends Controller
 
             $error = UploadError::withMessage(
                 UploadErrorCode::JSON_SCHEMA_VALIDATION_ERROR,
-                'Schema validation failed: ' . implode('; ', array_slice($errorMessages, 0, 5))
+                'Schema validation failed: '.implode('; ', array_slice($errorMessages, 0, 5))
             );
             $this->uploadLogService->logFailure('json', $filename, $error);
 
@@ -187,6 +192,7 @@ class UploadJsonController extends Controller
 
             $resourceType = $this->extractResourceType($attributes);
             $titles = $this->extractTitles($attributes['titles'] ?? []);
+            $rawRights = $this->extractRawRights($attributes['rightsList'] ?? []);
             $licenses = $this->extractLicenses($attributes['rightsList'] ?? []);
             $authors = $this->extractAuthors($attributes['creators'] ?? []);
 
@@ -230,10 +236,7 @@ class UploadJsonController extends Controller
             );
         }
 
-        // Store data in session
-        $sessionKey = 'json_upload_' . Str::random(32);
-
-        session()->put($sessionKey, [
+        $sessionPayload = [
             'doi' => $doi,
             'year' => $year,
             'version' => $version,
@@ -241,6 +244,7 @@ class UploadJsonController extends Controller
             'resourceType' => $resourceType !== null ? (string) $resourceType : null,
             'titles' => $titles,
             'licenses' => $licenses,
+            'rawRights' => $rawRights,
             'authors' => $authors,
             'contributors' => $contributors,
             'descriptions' => $descriptions,
@@ -254,11 +258,86 @@ class UploadJsonController extends Controller
             'gemetKeywords' => $gemetKeywords,
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
-        ]);
+        ];
+
+        try {
+            $resource = $this->uploadedResourceDraftService->storeFromPayload(
+                $sessionPayload,
+                $filename,
+                $request->user()?->id,
+            );
+        } catch (DuplicateUploadedResourceDoiException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::DUPLICATE_DOI,
+                'The uploaded DOI already exists on resource #'.$e->resourceId.'.'
+            );
+            $this->uploadLogService->logFailure('json', $filename, $error, [
+                'doi' => $e->doi,
+                'resource_id' => $e->resourceId,
+            ]);
+
+            return $this->duplicateDoiResponse($filename, $e->doi, $e->resourceId);
+        } catch (ValidationException $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::STORAGE_ERROR,
+                'The uploaded metadata could not be saved as a draft.'
+            );
+            $this->uploadLogService->logFailure('json', $filename, $error, [
+                'errors' => $e->errors(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::STORAGE_ERROR,
+                $filename,
+                'The uploaded metadata could not be saved as a draft.',
+            );
+        } catch (\Throwable $e) {
+            $error = UploadError::withMessage(
+                UploadErrorCode::STORAGE_ERROR,
+                'The uploaded metadata could not be saved as a draft.'
+            );
+            $this->uploadLogService->logFailure('json', $filename, $error, [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return $this->errorResponse(
+                UploadErrorCode::STORAGE_ERROR,
+                $filename,
+                'The uploaded metadata could not be saved as a draft.',
+                500,
+            );
+        }
+
+        // Keep a short-lived session fallback for older editor links and tests.
+        $sessionKey = 'json_upload_'.Str::random(32);
+        session()->put($sessionKey, $sessionPayload);
 
         return response()->json([
+            'success' => true,
+            'resourceId' => $resource->id,
             'sessionKey' => $sessionKey,
         ]);
+    }
+
+    private function duplicateDoiResponse(string $filename, string $doi, int $resourceId): JsonResponse
+    {
+        $message = 'The uploaded DOI already exists on resource #'.$resourceId.'.';
+
+        return response()->json([
+            'success' => false,
+            'message' => $message,
+            'filename' => $filename,
+            'error' => [
+                'category' => UploadErrorCode::DUPLICATE_DOI->category(),
+                'code' => UploadErrorCode::DUPLICATE_DOI->value,
+                'message' => $message,
+                'field' => 'doi',
+                'row' => null,
+                'identifier' => $doi,
+                'resourceId' => $resourceId,
+            ],
+        ], 409);
     }
 
     /**
@@ -282,7 +361,7 @@ class UploadJsonController extends Controller
                 Log::warning('JSON-LD conversion failed', ['error' => $e->getMessage()]);
 
                 throw new JsonLdConversionException(
-                    'Failed to convert JSON-LD to DataCite JSON: ' . $e->getMessage(),
+                    'Failed to convert JSON-LD to DataCite JSON: '.$e->getMessage(),
                     previous: $e,
                 );
             }
@@ -396,6 +475,51 @@ class UploadJsonController extends Controller
         }
 
         return $licenses;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rightsList
+     * @return array<int, array<string, string>>
+     */
+    private function extractRawRights(array $rightsList): array
+    {
+        $rawRights = [];
+
+        foreach ($rightsList as $rights) {
+            $statement = [
+                'rights' => $this->filledString($rights['rights'] ?? null),
+                'rightsUri' => $this->filledString($rights['rightsUri'] ?? $rights['rightsURI'] ?? null),
+                'rightsIdentifier' => $this->filledString($rights['rightsIdentifier'] ?? null),
+                'rightsIdentifierScheme' => $this->filledString($rights['rightsIdentifierScheme'] ?? null),
+                'schemeUri' => $this->filledString($rights['schemeUri'] ?? $rights['schemeURI'] ?? null),
+                'lang' => $this->filledString($rights['lang'] ?? $rights['language'] ?? null),
+            ];
+
+            $statement = array_filter(
+                $statement,
+                fn (?string $value): bool => $value !== null,
+            );
+
+            if ($statement === []) {
+                continue;
+            }
+
+            $statement['source'] = 'json-upload';
+            $rawRights[] = $statement;
+        }
+
+        return $rawRights;
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if ($value === null || is_array($value) || is_object($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     /**
@@ -628,7 +752,7 @@ class UploadJsonController extends Controller
 
         foreach ($geoLocations as $geo) {
             $coverage = [
-                'id' => 'coverage-' . $index,
+                'id' => 'coverage-'.$index,
                 'type' => 'point',
                 'latMin' => '',
                 'latMax' => '',
@@ -1241,7 +1365,7 @@ class UploadJsonController extends Controller
 
     private function buildNameKey(string $lastName, string $firstName): string
     {
-        return mb_strtolower(trim($lastName) . '|' . trim($firstName));
+        return mb_strtolower(trim($lastName).'|'.trim($firstName));
     }
 
     private function normalizeDateString(string $dateValue): string
@@ -1252,30 +1376,15 @@ class UploadJsonController extends Controller
             return '';
         }
 
-        // Strip time part
-        if (str_contains($dateValue, ' ')) {
-            $dateValue = explode(' ', $dateValue)[0];
-        }
-        if (str_contains($dateValue, 'T')) {
-            $dateValue = explode('T', $dateValue)[0];
+        $normalized = DataCiteDateNormalizer::normalize($dateValue);
+
+        if ($normalized !== null) {
+            return $normalized;
         }
 
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
-            return $dateValue;
-        }
-
-        if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
-            return $matches[1] . '-' . $matches[2] . '-01';
-        }
-
-        if (preg_match('/^\d{4}$/', $dateValue)) {
-            return $dateValue . '-01-01';
-        }
-
-        $timestamp = strtotime($dateValue);
-        if ($timestamp !== false) {
-            return date('Y-m-d', $timestamp);
-        }
+        Log::warning('Could not parse date value during JSON import', [
+            'value' => $dateValue,
+        ]);
 
         return '';
     }

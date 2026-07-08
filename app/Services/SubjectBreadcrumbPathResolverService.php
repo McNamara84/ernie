@@ -11,16 +11,48 @@ use Illuminate\Support\Facades\Storage;
 
 final class SubjectBreadcrumbPathResolverService
 {
-    /** @var array<string, array{file: string, fallback_scheme: string}> */
+    /** @var array<string, array{file: string, fallback_scheme: string, fallback_scheme_uri?: string, fallback_scheme_uri_config?: string}> */
     private const SOURCES = [
-        'Science Keywords' => ['file' => 'gcmd-science-keywords.json', 'fallback_scheme' => 'Science Keywords'],
-        'Platforms' => ['file' => 'gcmd-platforms.json', 'fallback_scheme' => 'Platforms'],
-        'Instruments' => ['file' => 'gcmd-instruments.json', 'fallback_scheme' => 'Instruments'],
-        'EPOS MSL vocabulary' => ['file' => 'msl-vocabulary.json', 'fallback_scheme' => 'EPOS MSL vocabulary'],
-        GemetVocabularyParser::SCHEME_TITLE => ['file' => 'gemet-thesaurus.json', 'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE],
-        PortalSubjectNormalizer::SCHEME_ICS_CHRONOSTRAT => ['file' => 'chronostrat-timescale.json', 'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ICS_CHRONOSTRAT],
-        PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS => ['file' => 'analytical-methods.json', 'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS],
-        'European Science Vocabulary (EuroSciVoc)' => ['file' => 'euroscivoc.json', 'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)'],
+        'Science Keywords' => [
+            'file' => 'gcmd-science-keywords.json',
+            'fallback_scheme' => 'Science Keywords',
+            'fallback_scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+        ],
+        'Platforms' => [
+            'file' => 'gcmd-platforms.json',
+            'fallback_scheme' => 'Platforms',
+            'fallback_scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms',
+        ],
+        'Instruments' => [
+            'file' => 'gcmd-instruments.json',
+            'fallback_scheme' => 'Instruments',
+            'fallback_scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments',
+        ],
+        'EPOS MSL vocabulary' => [
+            'file' => 'msl-vocabulary.json',
+            'fallback_scheme' => 'EPOS MSL vocabulary',
+            'fallback_scheme_uri' => 'https://epos-msl.uu.nl/voc',
+        ],
+        GemetVocabularyParser::SCHEME_TITLE => [
+            'file' => 'gemet-thesaurus.json',
+            'fallback_scheme' => GemetVocabularyParser::SCHEME_TITLE,
+            'fallback_scheme_uri' => 'http://www.eionet.europa.eu/gemet/concept/',
+        ],
+        PortalSubjectNormalizer::SCHEME_ICS_CHRONOSTRAT => [
+            'file' => 'chronostrat-timescale.json',
+            'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ICS_CHRONOSTRAT,
+            'fallback_scheme_uri' => 'http://resource.geosciml.org/vocabulary/timescale/gts2020',
+        ],
+        PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS => [
+            'file' => 'analytical-methods.json',
+            'fallback_scheme' => PortalSubjectNormalizer::SCHEME_ANALYTICAL_METHODS,
+            'fallback_scheme_uri' => 'https://w3id.org/geochem/1.0/analyticalmethod/method',
+        ],
+        'European Science Vocabulary (EuroSciVoc)' => [
+            'file' => 'euroscivoc.json',
+            'fallback_scheme' => 'European Science Vocabulary (EuroSciVoc)',
+            'fallback_scheme_uri_config' => 'euroscivoc.concept_scheme_uri',
+        ],
     ];
 
     /** @var array<string, array<string, string>> */
@@ -32,8 +64,17 @@ final class SubjectBreadcrumbPathResolverService
     /** @var array<string, array<string, string>> */
     private array $pathsByLeaf = [];
 
+    /** @var array<string, array<string, array{id: string, text: string, path: string, schemeURI: string|null}>> */
+    private array $nodesByPath = [];
+
+    /** @var array<string, array<string, array<string, array{id: string, text: string, path: string, schemeURI: string|null}>>> */
+    private array $nodesByLeafPath = [];
+
     /** @var array<string, array<string, true>> */
     private array $ambiguousLeafKeys = [];
+
+    /** @var array<string, array<string, true>> */
+    private array $ambiguousPathKeys = [];
 
     /** @var array<string, true> */
     private array $indexedSchemes = [];
@@ -68,6 +109,49 @@ final class SubjectBreadcrumbPathResolverService
         }
 
         return null;
+    }
+
+    /**
+     * Resolve a controlled keyword from a legacy DataCite subject that only
+     * carries a full breadcrumb path instead of a stable valueURI.
+     *
+     * @return array{id: string, text: string, path: string, scheme: string, schemeURI: string|null}|null
+     */
+    public function resolveKeywordFromPath(?string $subjectScheme, ?string $subjectValue): ?array
+    {
+        $normalizedScheme = PortalSubjectNormalizer::normalizeScheme($subjectScheme);
+        if ($normalizedScheme === null) {
+            return null;
+        }
+
+        $this->buildIndexesForScheme($normalizedScheme);
+
+        $pathKey = $this->normalizePathLookup($subjectValue, $normalizedScheme);
+        if ($pathKey === null || isset($this->ambiguousPathKeys[$normalizedScheme][$pathKey])) {
+            return null;
+        }
+
+        $node = $this->nodesByPath[$normalizedScheme][$pathKey]
+            ?? $this->resolveUniqueNodeFromLegacyPath($normalizedScheme, $subjectValue);
+
+        if ($node === null) {
+            return null;
+        }
+
+        return [
+            'id' => $node['id'],
+            'text' => $node['text'] !== '' ? $node['text'] : (SubjectBreadcrumbPath::leaf($node['path']) ?? ''),
+            'path' => $node['path'],
+            'scheme' => $normalizedScheme,
+            'schemeURI' => $node['schemeURI'] ?? $this->fallbackSchemeUri($normalizedScheme),
+        ];
+    }
+
+    public function resolveSchemeUri(?string $subjectScheme): ?string
+    {
+        $normalizedScheme = PortalSubjectNormalizer::normalizeScheme($subjectScheme);
+
+        return $normalizedScheme !== null ? $this->fallbackSchemeUri($normalizedScheme) : null;
     }
 
     private function buildIndexesForScheme(string $scheme): void
@@ -120,6 +204,30 @@ final class SubjectBreadcrumbPathResolverService
                 } elseif ($this->pathsByLeaf[$scheme][$leafKey] !== $currentPath) {
                     unset($this->pathsByLeaf[$scheme][$leafKey]);
                     $this->ambiguousLeafKeys[$scheme][$leafKey] = true;
+                }
+            }
+
+            if ($nodeId !== '') {
+                $schemeUri = $this->filledString($node['schemeURI'] ?? null) ?? $this->fallbackSchemeUri($scheme);
+                $resolvedNode = [
+                    'id' => $nodeId,
+                    'text' => $nodeText,
+                    'path' => $currentPath,
+                    'schemeURI' => $schemeUri,
+                ];
+
+                if ($leafKey !== null) {
+                    $this->nodesByLeafPath[$scheme][$leafKey][$nodeId.'|'.$currentPath] = $resolvedNode;
+                }
+            }
+
+            $pathKey = $this->normalizePathLookup($currentPath, $scheme);
+            if ($pathKey !== null && $nodeId !== '' && ! isset($this->ambiguousPathKeys[$scheme][$pathKey])) {
+                if (! isset($this->nodesByPath[$scheme][$pathKey])) {
+                    $this->nodesByPath[$scheme][$pathKey] = $resolvedNode;
+                } elseif ($this->nodesByPath[$scheme][$pathKey] !== $resolvedNode) {
+                    unset($this->nodesByPath[$scheme][$pathKey]);
+                    $this->ambiguousPathKeys[$scheme][$pathKey] = true;
                 }
             }
         }
@@ -194,6 +302,7 @@ final class SubjectBreadcrumbPathResolverService
             'id' => trim((string) ($node['id'] ?? '')),
             'text' => trim((string) ($node['text'] ?? '')),
             'notation' => isset($node['notation']) ? trim((string) $node['notation']) : '',
+            'schemeURI' => $this->filledString($node['schemeURI'] ?? $node['schemeUri'] ?? null) ?? '',
             'scheme' => PortalSubjectNormalizer::normalizeScheme((string) ($node['scheme'] ?? $fallbackScheme)) ?? $fallbackScheme,
             'children' => $children,
         ];
@@ -243,6 +352,142 @@ final class SubjectBreadcrumbPathResolverService
         $normalizedLeaf = trim($leaf);
 
         return $normalizedLeaf !== '' ? mb_strtolower($normalizedLeaf) : null;
+    }
+
+    private function normalizePathLookup(?string $path, ?string $scheme): ?string
+    {
+        $segments = SubjectBreadcrumbPath::segments($path);
+        if ($segments === []) {
+            return null;
+        }
+
+        if ($scheme !== null && $this->shouldDropLeadingSegment($segments[0], $scheme)) {
+            array_shift($segments);
+        }
+
+        if ($segments === []) {
+            return null;
+        }
+
+        $normalizedPath = SubjectBreadcrumbPath::normalize(
+            implode(PortalSubjectNormalizer::BREADCRUMB_SEPARATOR, $segments),
+        );
+
+        return $normalizedPath !== null ? mb_strtolower($normalizedPath) : null;
+    }
+
+    /**
+     * Some legacy DataCite subjects carry paths from older GCMD hierarchy
+     * versions. If current vocabularies inserted extra intermediate nodes, the
+     * legacy path can still be resolved as long as it identifies exactly one
+     * current node with the same ordered breadcrumb segments.
+     *
+     * @return array{id: string, text: string, path: string, schemeURI: string|null}|null
+     */
+    private function resolveUniqueNodeFromLegacyPath(string $scheme, ?string $path): ?array
+    {
+        $segments = $this->pathSegmentsForLookup($path, $scheme);
+        if (count($segments) < 2) {
+            return null;
+        }
+
+        $leafKey = $segments[array_key_last($segments)];
+        $candidates = $this->nodesByLeafPath[$scheme][$leafKey] ?? [];
+        if ($candidates === []) {
+            return null;
+        }
+
+        $matches = [];
+        foreach ($candidates as $candidateKey => $candidate) {
+            if ($this->isOrderedSubsequence(
+                $segments,
+                $this->pathSegmentsForLookup($candidate['path'], $scheme),
+            )) {
+                $matches[$candidateKey] = $candidate;
+            }
+        }
+
+        if (count($matches) !== 1) {
+            return null;
+        }
+
+        return array_values($matches)[0];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pathSegmentsForLookup(?string $path, ?string $scheme): array
+    {
+        $segments = SubjectBreadcrumbPath::segments($path);
+        if ($segments === []) {
+            return [];
+        }
+
+        if ($scheme !== null && $this->shouldDropLeadingSegment($segments[0], $scheme)) {
+            array_shift($segments);
+        }
+
+        return array_values(array_map(
+            static fn (string $segment): string => mb_strtolower(trim($segment)),
+            array_filter($segments, static fn (string $segment): bool => trim($segment) !== ''),
+        ));
+    }
+
+    /**
+     * @param  array<int, string>  $needles
+     * @param  array<int, string>  $haystack
+     */
+    private function isOrderedSubsequence(array $needles, array $haystack): bool
+    {
+        if ($needles === [] || count($needles) > count($haystack)) {
+            return false;
+        }
+
+        $needleIndex = 0;
+        $needleCount = count($needles);
+
+        foreach ($haystack as $segment) {
+            if ($segment !== $needles[$needleIndex]) {
+                continue;
+            }
+
+            $needleIndex++;
+            if ($needleIndex === $needleCount) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function fallbackSchemeUri(string $scheme): ?string
+    {
+        $source = self::SOURCES[$scheme] ?? null;
+        if ($source === null) {
+            return null;
+        }
+
+        $configKey = $source['fallback_scheme_uri_config'] ?? null;
+        if ($configKey !== null) {
+            $configuredSchemeUri = $this->filledString(config($configKey));
+            if ($configuredSchemeUri !== null) {
+                return $configuredSchemeUri;
+            }
+        }
+
+        return $source['fallback_scheme_uri'] ?? null;
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**

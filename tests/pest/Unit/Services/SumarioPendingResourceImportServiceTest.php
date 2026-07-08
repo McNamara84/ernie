@@ -33,7 +33,7 @@ describe('SumarioPendingResourceImportService', function () {
         Schema::connection('metaworks')->create('resource', function (Blueprint $table): void {
             $table->id();
             $table->string('publicstatus')->nullable();
-            $table->string('identifier')->nullable();
+            $table->string('identifier')->nullable()->collation('NOCASE');
             $table->integer('publicationyear')->nullable();
             $table->string('title')->nullable();
         });
@@ -154,6 +154,102 @@ describe('SumarioPendingResourceImportService', function () {
             ->and($resource->landingPage->ftp_url)->toBe('https://datapub.gfz.de/pending-one.zip');
     });
 
+    it('uses DOI pattern datacenters when importing mixed-case pending SUMARIO resources', function () {
+        Config::set('database.connections.legacy_metaworks', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+        DB::purge('legacy_metaworks');
+
+        Schema::connection('legacy_metaworks')->create('gipp_dataset', function (Blueprint $table): void {
+            $table->id();
+            $table->string('doi')->nullable()->collation('NOCASE');
+        });
+
+        Schema::connection('legacy_metaworks')->create('sddb_dataset', function (Blueprint $table): void {
+            $table->id();
+            $table->string('doi')->nullable()->collation('NOCASE');
+        });
+
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 57,
+            'publicstatus' => 'pending',
+            'identifier' => '10.5880/hA-ArboDat_AK1',
+            'publicationyear' => 2024,
+            'title' => 'ArboDat Pending Dataset',
+        ]);
+
+        $user = User::factory()->create();
+        Datacenter::query()->create([
+            'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
+        ]);
+        $arbodat = Datacenter::query()->create([
+            'name' => LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER,
+        ]);
+
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader
+            ->shouldReceive('loadForEditor')
+            ->once()
+            ->with(57)
+            ->andReturn([
+                'doi' => '10.5880/hA-ArboDat_AK1',
+                'year' => '2024',
+                'language' => 'en',
+                'titles' => [
+                    ['title' => 'ArboDat Pending Dataset', 'titleType' => 'main-title'],
+                ],
+                'initialRights' => [],
+                'authors' => [],
+                'contributors' => [],
+                'descriptions' => [],
+                'dates' => [],
+                'gcmdKeywords' => [],
+                'freeKeywords' => [],
+                'geoLocations' => [],
+                'relatedWorks' => [],
+                'fundingReferences' => [],
+                'mslLaboratories' => [],
+            ]);
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage
+            ->shouldReceive('store')
+            ->once()
+            ->andReturnUsing(function (array $payload, int $userId) use ($user, $arbodat): array {
+                expect($userId)->toBe($user->id)
+                    ->and($payload['doi'])->toBe('10.5880/ha-arbodat_ak1')
+                    ->and($payload['datacenters'])->toBe([$arbodat->id]);
+
+                return [
+                    Resource::factory()->create(['doi' => $payload['doi']]),
+                    false,
+                ];
+            });
+
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService
+            ->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/ha-arbodat_ak1')
+            ->andReturn(['files' => [], 'allPublic' => false]);
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: app(LegacyMetaworksDatacenterLookupService::class),
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $result = $service->importPendingByDoi('10.5880/hA-ArboDat_AK1', $user->id);
+
+        expect($result['status'])->toBe('imported');
+    });
+
     it('skips a pending SUMARIO resource when the DOI already exists in ERNIE', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 56,
@@ -174,5 +270,37 @@ describe('SumarioPendingResourceImportService', function () {
         $result = $service->importPendingByDoi('10.5880/pending.existing', 1);
 
         expect($result['status'])->toBe('skipped');
+    });
+
+    it('skips pending SUMARIO resources whose DOI contains test or delete', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => 58,
+            'publicstatus' => 'pending',
+            'identifier' => '10.5880/fidgeo.test.to.be.deleted',
+        ]);
+
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader->shouldNotReceive('loadForEditor');
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage->shouldNotReceive('store');
+
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService->shouldNotReceive('lookupFileEntries');
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: Mockery::mock(LegacyMetaworksDatacenterLookupService::class),
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $result = $service->importPendingByDoi('10.5880/fidgeo.test.to.be.deleted', 1);
+
+        expect($result['status'])->toBe('skipped')
+            ->and($result['doi'])->toBe('10.5880/fidgeo.test.to.be.deleted')
+            ->and(Resource::where('doi', '10.5880/fidgeo.test.to.be.deleted')->exists())->toBeFalse();
     });
 });

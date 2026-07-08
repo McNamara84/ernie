@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Resource;
 use App\Services\Editor\EditorDataTransformer;
 use App\Services\OldDatasetEditorLoader;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -30,7 +31,7 @@ class EditorController extends Controller
      * @var array<int, string>
      */
     private const UPLOAD_SESSION_REQUIRED_ARRAY_KEYS = [
-        'titles', 'licenses', 'authors', 'contributors', 'descriptions',
+        'titles', 'licenses', 'rawRights', 'authors', 'contributors', 'descriptions',
         'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'gemetKeywords',
         'coverages', 'relatedWorks', 'relatedItems', 'instruments', 'fundingReferences', 'mslLaboratories',
     ];
@@ -54,7 +55,7 @@ class EditorController extends Controller
      *
      * Determines data source from request parameters and renders editor.
      */
-    public function show(Request $request): Response|\Illuminate\Http\RedirectResponse
+    public function show(Request $request): Response|RedirectResponse
     {
         $xmlSessionKey = $request->query('xmlSession');
         $jsonSessionKey = $request->query('jsonSession');
@@ -90,7 +91,7 @@ class EditorController extends Controller
      *
      * @param  string  $sessionKey  Session key starting with 'xml_upload_'
      */
-    private function loadFromXmlSession(string $sessionKey): Response|\Illuminate\Http\RedirectResponse
+    private function loadFromXmlSession(string $sessionKey): Response|RedirectResponse
     {
         // Security: Validate session key starts with expected prefix
         if (! str_starts_with($sessionKey, 'xml_upload_')) {
@@ -129,6 +130,7 @@ class EditorController extends Controller
                 'resourceType' => $sessionData['resourceType'] ?? '',
                 'titles' => $sessionData['titles'] ?? [],
                 'initialLicenses' => $sessionData['licenses'] ?? [],
+                'initialRawRights' => $sessionData['rawRights'] ?? [],
                 'authors' => $sessionData['authors'] ?? [],
                 'contributors' => $sessionData['contributors'] ?? [],
                 'descriptions' => $sessionData['descriptions'] ?? [],
@@ -154,7 +156,7 @@ class EditorController extends Controller
      * @param  string  $prefix  Required prefix (e.g. 'json_upload_')
      * @param  string  $label  Human-readable format label for error messages
      */
-    private function loadFromUploadSession(string $sessionKey, string $prefix, string $label): Response|\Illuminate\Http\RedirectResponse
+    private function loadFromUploadSession(string $sessionKey, string $prefix, string $label): Response|RedirectResponse
     {
         if (! str_starts_with($sessionKey, $prefix)) {
             abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid session key format');
@@ -190,6 +192,7 @@ class EditorController extends Controller
                 'resourceType' => $sessionData['resourceType'] ?? '',
                 'titles' => $sessionData['titles'] ?? [],
                 'initialLicenses' => $sessionData['licenses'] ?? [],
+                'initialRawRights' => $sessionData['rawRights'] ?? [],
                 'authors' => $sessionData['authors'] ?? [],
                 'contributors' => $sessionData['contributors'] ?? [],
                 'descriptions' => $sessionData['descriptions'] ?? [],
@@ -213,7 +216,7 @@ class EditorController extends Controller
      *
      * @param  mixed  $oldDatasetId  Dataset ID (will be validated)
      */
-    private function loadFromOldDataset(mixed $oldDatasetId): Response|\Illuminate\Http\RedirectResponse
+    private function loadFromOldDataset(mixed $oldDatasetId): Response|RedirectResponse
     {
         // Validate oldDatasetId
         if (! is_numeric($oldDatasetId) || (int) $oldDatasetId <= 0) {
@@ -253,6 +256,7 @@ class EditorController extends Controller
                 'language',
                 'titles.titleType',
                 'rights',
+                'resourceRights.right',
                 'creators.creatorable',
                 'creators.affiliations',
                 'contributors.contributorable',
@@ -267,6 +271,7 @@ class EditorController extends Controller
                 'fundingReferences.funderIdentifierType',
                 'instruments',
                 'datacenters',
+                'landingPage.externalDomain',
             ])
             ->findOrFail($resourceId);
 
@@ -329,6 +334,7 @@ class EditorController extends Controller
                 'resourceId' => $request->query('resourceId'),
                 'titles' => $request->query('titles', []),
                 'initialLicenses' => $request->query('licenses', []),
+                'initialRawRights' => $request->query('rawRights', []),
                 'authors' => $request->query('authors', []),
                 'contributors' => $request->query('contributors', []),
                 'descriptions' => $request->query('descriptions', []),

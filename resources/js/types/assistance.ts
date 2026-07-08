@@ -50,6 +50,94 @@ export interface BaseSuggestionItem {
     [key: string]: unknown;
 }
 
+export interface SpdxRightsSuggestionMetadata {
+    current?: Record<string, string>;
+    proposed?: Record<string, string>;
+    source?: string;
+    source_url?: string;
+    evidence?: {
+        matched_from?: string | null;
+        reason?: string | null;
+    };
+}
+
+export interface SuggestedSpdxRightsItem extends BaseSuggestionItem {
+    target_type: 'resource_right';
+    target_id: number;
+    suggested_value: string;
+    suggested_label: string;
+    similarity_score: number | null;
+    metadata: SpdxRightsSuggestionMetadata | null;
+}
+
+export interface CrossrefFunderRorCurrentMetadata {
+    funding_reference_id?: number;
+    resource_id?: number;
+    funder_name?: string;
+    funder_identifier?: string;
+    funder_identifier_type?: string;
+    scheme_uri?: string;
+    normalized_crossref_funder_id?: string;
+    canonical_crossref_funder_identifier?: string;
+    award_number?: string | null;
+    award_uri?: string | null;
+    award_title?: string | null;
+}
+
+export interface CrossrefFunderRorProposedMetadata {
+    funder_identifier?: string;
+    funder_identifier_type?: string;
+    scheme_uri?: string;
+    ror_id?: string;
+    ror_display_name?: string;
+    ror_status?: string;
+    ror_types?: string[];
+    ror_record_last_modified?: string | null;
+    matched_external_id?: {
+        type?: string;
+        value?: string;
+        matched_in?: string;
+        preferred?: string | null;
+    };
+}
+
+export interface CrossrefFunderRorSuggestionMetadata {
+    current?: CrossrefFunderRorCurrentMetadata;
+    proposed?: CrossrefFunderRorProposedMetadata;
+    provenance?: {
+        source?: string;
+        source_file?: string;
+        source_retrieved_at?: string;
+        matching_strategy?: string;
+        source_generated_by?: string;
+        source_generated_from?: string;
+    };
+    confidence?: {
+        level?: string;
+        score?: number;
+        evidence?: string[];
+    };
+    ambiguity?: {
+        status?: string;
+        candidate_count?: number;
+        notes?: string[];
+        warnings?: string[];
+    };
+    acceptance?: {
+        updates?: Record<string, string>;
+        preserve?: string[];
+        preconditions?: string[];
+    };
+}
+
+export interface SuggestedCrossrefFunderRorItem extends BaseSuggestionItem {
+    target_type: 'funding_reference';
+    target_id: number;
+    suggested_value: string;
+    suggested_label: string;
+    similarity_score: number | null;
+    metadata: CrossrefFunderRorSuggestionMetadata | null;
+}
 export interface AssistancePageProps {
     sections: Record<string, PaginatedData<BaseSuggestionItem>>;
     manifests: AssistantManifest[];

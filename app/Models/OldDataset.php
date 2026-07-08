@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Legacy\LegacyCoverageGeometryParserService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Attributes\Connection;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @property int $id
@@ -32,7 +36,7 @@ use Illuminate\Database\Eloquent\Model;
 #[Table('resource')]
 class OldDataset extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     /**
@@ -183,7 +187,7 @@ class OldDataset extends Model
         // MySQL 5.7 compatible version using MIN(order) instead of ROW_NUMBER()
         // Using parameterized query for 'Creator' role to prevent SQL injection
         $query->leftJoin(
-            \Illuminate\Support\Facades\DB::raw('(
+            DB::raw('(
                 SELECT 
                     ra.resource_id,
                     ra.lastname as first_author_lastname,
@@ -278,7 +282,7 @@ class OldDataset extends Model
             'first_author.first_author_name',
         ])
             ->leftJoin(
-                \Illuminate\Support\Facades\DB::raw('(
+                DB::raw('(
                     SELECT t1.resource_id, t1.title
                     FROM title t1
                     INNER JOIN (
@@ -294,7 +298,7 @@ class OldDataset extends Model
 
         // Always join first author data for display
         $query->leftJoin(
-            \Illuminate\Support\Facades\DB::raw('(
+            DB::raw('(
                 SELECT 
                     ra.resource_id,
                     ra.lastname as first_author_lastname,
@@ -399,7 +403,7 @@ class OldDataset extends Model
      */
     public function getLicenses(): array
     {
-        $licenses = \Illuminate\Support\Facades\DB::connection($this->connection)
+        $licenses = DB::connection($this->connection)
             ->table('license')
             ->where('resource_id', $this->id)
             ->pluck('name')
@@ -409,8 +413,50 @@ class OldDataset extends Model
     }
 
     /**
+     * Get raw license statements from the legacy license table.
+     *
+     * Legacy installations are not always perfectly documented. Instead of
+     * assuming a fixed column list beyond `name`, this method reads complete
+     * rows and copies optional URI columns only when they exist on the result.
+     *
+     * @return array<int, array<string, string>>
+     */
+    public function getLicenseStatements(): array
+    {
+        $rows = DB::connection($this->connection)
+            ->table('license')
+            ->where('resource_id', $this->id)
+            ->get();
+
+        $statements = [];
+
+        foreach ($rows as $row) {
+            $name = isset($row->name) ? trim((string) $row->name) : '';
+
+            if ($name === '') {
+                continue;
+            }
+
+            $statement = [
+                'rights' => $name,
+                'rightsUri' => isset($row->url) && trim((string) $row->url) !== ''
+                    ? trim((string) $row->url)
+                    : null,
+                'source' => 'legacy-sumario',
+            ];
+
+            $statements[] = array_filter(
+                $statement,
+                fn (?string $value): bool => $value !== null,
+            );
+        }
+
+        return $statements;
+    }
+
+    /**
      * Normalize a name for fuzzy matching by removing punctuation and extra whitespace.
-     * Converts names like "Läuchli, Charlotte" to "lauchli charlotte" for comparison.
+     * Converts names like "Lauchli, Charlotte" to "lauchli charlotte" for comparison.
      * Removes diacritics, punctuation (commas, periods, hyphens), and normalizes whitespace.
      *
      * @param  string|null  $name  The name to normalize
@@ -425,7 +471,7 @@ class OldDataset extends Model
         // Convert to lowercase
         $normalized = mb_strtolower($name, 'UTF-8');
 
-        // Transliterate to ASCII (e.g., ä -> a, ü -> u)
+        // Transliterate to ASCII (e.g., umlaut variants -> plain ASCII)
         $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized) ?: $normalized;
 
         // Remove common punctuation (commas, periods, hyphens)
@@ -447,7 +493,7 @@ class OldDataset extends Model
      */
     public function getAuthors(): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all resourceagents for this resource that have the "Creator" role
         $resourceAgents = $db->table('resourceagent')
@@ -586,7 +632,7 @@ class OldDataset extends Model
                 }
 
                 // Strategy 3: Check if normalized names contain each other (partial match)
-                // This handles cases like "Läuchli, Charlotte" vs "Läuchli Charlotte"
+                // This handles cases like "Lauchli, Charlotte" vs "Lauchli Charlotte"
                 if (! $matched && $agentNormalizedWords && $contactInfo['normalizedWords']) {
                     if ($agentNormalizedWords === $contactInfo['normalizedWords']) {
                         $matched = true;
@@ -637,7 +683,7 @@ class OldDataset extends Model
      */
     public function getContributors(): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all resourceagents for this resource
         $allResourceAgents = $db->table('resourceagent')
@@ -723,10 +769,10 @@ class OldDataset extends Model
             $hasCommaSeparatedName = ! empty($agent->name) && str_contains($agent->name, ',');
 
             // Decision logic (in priority order):
-            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor → ALWAYS Institution
-            // 2. If name contains comma → Person (format: "Lastname, Firstname")
-            // 3. If has firstname OR lastname → Person
-            // 4. Default → Institution
+            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor -> ALWAYS Institution
+            // 2. If name contains comma -> Person (format: "Lastname, Firstname")
+            // 3. If has firstname OR lastname -> Person
+            // 4. Default -> Institution
 
             if ($hasInstitutionOnlyRole) {
                 $isPerson = false;
@@ -790,7 +836,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all resourceagents with labid identifier (case-insensitive)
         $labAgents = $db->table('resourceagent')
@@ -882,7 +928,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all descriptions for this resource
         $descriptions = $db->table('description')
@@ -905,7 +951,7 @@ class OldDataset extends Model
      * Note: This method is NOT named getDates() to avoid conflicts with Laravel's
      * internal getDates() method which is used for date attribute handling.
      *
-     * @return array<int, array{dateType: string, startDate: string, endDate: string}>
+     * @return array<int, array{dateType: string, dateMode: 'single'|'range', startDate: string, endDate: string}>
      */
     public function getResourceDates(): array
     {
@@ -913,7 +959,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all dates for this resource
         $dates = $db->table('date')
@@ -922,11 +968,20 @@ class OldDataset extends Model
             ->get();
 
         return $dates->map(function ($date) {
+            $dateType = strtolower($date->datetype);
+            $startDate = $date->start ?? '';
+            $endDate = $date->end ?? '';
+
+            $dateMode = $startDate !== '' && $endDate !== '' && in_array($dateType, ['created', 'collected', 'valid', 'other'], true)
+                ? 'range'
+                : 'single';
+
             return [
                 // Convert dateType to lowercase to match ERNIE's format (e.g., "Available" -> "available")
-                'dateType' => strtolower($date->datetype),
-                'startDate' => $date->start ?? '',
-                'endDate' => $date->end ?? '',
+                'dateType' => $dateType,
+                'dateMode' => $dateMode,
+                'startDate' => $startDate,
+                'endDate' => $dateMode === 'range' ? $endDate : '',
             ];
         })->toArray();
     }
@@ -937,12 +992,13 @@ class OldDataset extends Model
      *
      * The old database stores:
      * - Spatial data: minlat, maxlat, minlon, maxlon (as floats)
+     * - Optional line geometry: wkt (often a bare `lon lat lon lat ...` coordinate chain)
      * - Temporal data: start, end (as strings), dateformat (format pattern), startutc, endutc (as datetime)
      * - Description: text field
      *
      * This method converts to the new ERNIE format with separate date/time fields and timezone.
      *
-     * @return array<int, array{id: string, latMin: string, latMax: string, lonMin: string, lonMax: string, startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, description: string}>
+     * @return array<int, array<string, mixed>>
      */
     public function getCoverages(): array
     {
@@ -950,21 +1006,66 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
+        $geometryParser = app(LegacyCoverageGeometryParserService::class);
 
         // Get all coverage entries for this resource
         $coverages = $db->table('coverage')
             ->where('resource_id', $this->id)
             ->get();
 
-        return $coverages->map(function ($coverage, $index) {
+        return $coverages->map(function ($coverage, $index) use ($geometryParser) {
+            // Parse temporal data from the old format
+            $temporal = $this->parseTemporalCoverage(
+                $coverage->start,
+                $coverage->end,
+                $coverage->dateformat
+            );
+
+            $baseCoverage = [
+                // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
+                'id' => 'coverage-'.($index + 1),
+
+                // Temporal coverage (dates and times)
+                'startDate' => $temporal['startDate'],
+                'endDate' => $temporal['endDate'],
+                'startTime' => $temporal['startTime'],
+                'endTime' => $temporal['endTime'],
+                'timezone' => $temporal['timezone'],
+
+                // Description
+                'description' => $coverage->description ?? '',
+            ];
+
+            $rawWkt = isset($coverage->wkt) ? trim((string) $coverage->wkt) : '';
+
+            if ($rawWkt !== '') {
+                $linePoints = $geometryParser->parseLine($rawWkt);
+
+                if ($linePoints !== null) {
+                    return array_merge($baseCoverage, [
+                        'type' => 'line',
+                        'latMin' => '',
+                        'latMax' => '',
+                        'lonMin' => '',
+                        'lonMax' => '',
+                        'polygonPoints' => $linePoints,
+                    ]);
+                }
+
+                Log::warning('Legacy coverage WKT could not be parsed as a line', [
+                    'resource_id' => $this->id,
+                    'coverage_id' => $coverage->id ?? null,
+                ]);
+            }
+
             // Convert coordinates to strings with max 6 decimal places
             $latMin = $coverage->minlat !== null ? number_format((float) $coverage->minlat, 6, '.', '') : '';
             $lonMin = $coverage->minlon !== null ? number_format((float) $coverage->minlon, 6, '.', '') : '';
 
-            // Check if this is a point (min = max for both coordinates) or a rectangle
-            // In the old database, points were stored with identical min and max values
-            // In ERNIE, we represent points by leaving max coordinates empty for better UX and DataCite compliance
+            // Check if this is a point (min = max for both coordinates) or a rectangle.
+            // In the old database, points were stored with identical min and max values.
+            // In ERNIE, we represent points by leaving max coordinates empty for better UX and DataCite compliance.
             $isPoint = ($coverage->minlat === $coverage->maxlat && $coverage->minlon === $coverage->maxlon);
 
             if ($isPoint) {
@@ -979,18 +1080,8 @@ class OldDataset extends Model
                 $type = 'box';
             }
 
-            // Parse temporal data from the old format
-            $temporal = $this->parseTemporalCoverage(
-                $coverage->start,
-                $coverage->end,
-                $coverage->dateformat
-            );
-
-            return [
-                // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
-                'id' => 'coverage-'.($index + 1),
-
-                // Coverage type (point, box, or polygon - old DB only has point and box)
+            return array_merge($baseCoverage, [
+                // Coverage type (point, box, or line)
                 'type' => $type,
 
                 // Spatial coverage (coordinates)
@@ -998,17 +1089,7 @@ class OldDataset extends Model
                 'latMax' => $latMax,
                 'lonMin' => $lonMin,
                 'lonMax' => $lonMax,
-
-                // Temporal coverage (dates and times)
-                'startDate' => $temporal['startDate'],
-                'endDate' => $temporal['endDate'],
-                'startTime' => $temporal['startTime'],
-                'endTime' => $temporal['endTime'],
-                'timezone' => $temporal['timezone'],
-
-                // Description
-                'description' => $coverage->description ?? '',
-            ];
+            ]);
         })->toArray();
     }
 
@@ -1109,7 +1190,7 @@ class OldDataset extends Model
             return [];
         }
 
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         // Get all related identifiers for this resource
         // Note: old database doesn't have position field, so we use id for ordering
@@ -1136,7 +1217,7 @@ class OldDataset extends Model
      */
     public function getFundingReferences(): array
     {
-        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        $db = DB::connection($this->connection);
 
         $fundings = $db->table('funding')
             ->where('resource_id', $this->id)

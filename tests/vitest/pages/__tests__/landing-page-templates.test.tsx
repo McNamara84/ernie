@@ -158,6 +158,7 @@ const defaultTemplate: LandingPageTemplateConfig = {
     left_column_order: ['files', 'contact', 'model_description', 'related_work'],
     creator_display_limit: 50,
     contributor_display_limit: 50,
+    citation_author_display_limit: 50,
     created_by: null,
     creator: null,
     landing_pages_count: 5,
@@ -178,6 +179,7 @@ const customTemplate: LandingPageTemplateConfig = {
     left_column_order: ['contact', 'files', 'model_description', 'related_work'],
     creator_display_limit: 25,
     contributor_display_limit: 75,
+    citation_author_display_limit: 10,
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
     landing_pages_count: 2,
@@ -198,6 +200,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     left_column_order: ['files', 'contact', 'model_description', 'related_work'],
     creator_display_limit: 50,
     contributor_display_limit: 50,
+    citation_author_display_limit: 50,
     created_by: 1,
     creator: { id: 1, name: 'Admin User' },
     landing_pages_count: 0,
@@ -294,13 +297,15 @@ describe('LandingPageTemplatesPage', () => {
             expect(screen.getAllByText('Creators / Authors').length).toBeGreaterThanOrEqual(1);
         });
 
-        it('shows creator and contributor display limits on template cards', () => {
+        it('shows creator, contributor, and citation author display limits on template cards', () => {
             render(<LandingPageTemplatesPage />);
 
             expect(screen.getAllByText('Creators shown').length).toBeGreaterThanOrEqual(1);
             expect(screen.getAllByText('Contributors shown').length).toBeGreaterThanOrEqual(1);
+            expect(screen.getAllByText('Citation authors').length).toBeGreaterThanOrEqual(1);
             expect(screen.getByText('25')).toBeInTheDocument();
             expect(screen.getByText('75')).toBeInTheDocument();
+            expect(screen.getByText('10')).toBeInTheDocument();
         });
 
         it('shows Edit, Upload Logo, and Delete buttons for custom templates', () => {
@@ -476,6 +481,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(nameInput.value).toBe('Geophysics Template');
             expect((screen.getByLabelText('Creators shown initially') as HTMLInputElement).value).toBe('25');
             expect((screen.getByLabelText('Contributors shown initially') as HTMLInputElement).value).toBe('75');
+            expect((screen.getByLabelText('Citation authors before et al.') as HTMLInputElement).value).toBe('10');
         });
 
         it('saves template changes', async () => {
@@ -512,6 +518,8 @@ describe('LandingPageTemplatesPage', () => {
             await user.type(screen.getByLabelText('Creators shown initially'), '30');
             await user.clear(screen.getByLabelText('Contributors shown initially'));
             await user.type(screen.getByLabelText('Contributors shown initially'), '80');
+            await user.clear(screen.getByLabelText('Citation authors before et al.'));
+            await user.type(screen.getByLabelText('Citation authors before et al.'), '7');
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
             await waitFor(() => {
@@ -520,6 +528,7 @@ describe('LandingPageTemplatesPage', () => {
                     expect.objectContaining({
                         creator_display_limit: 30,
                         contributor_display_limit: 80,
+                        citation_author_display_limit: 7,
                     }),
                 );
             });
@@ -540,12 +549,15 @@ describe('LandingPageTemplatesPage', () => {
             await user.type(screen.getByLabelText('Creators shown initially'), '35');
             await user.clear(screen.getByLabelText('Contributors shown initially'));
             await user.type(screen.getByLabelText('Contributors shown initially'), '45');
+            await user.clear(screen.getByLabelText('Citation authors before et al.'));
+            await user.type(screen.getByLabelText('Citation authors before et al.'), '15');
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
             await waitFor(() => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith('/landing-pages/1', {
                     creator_display_limit: 35,
                     contributor_display_limit: 45,
+                    citation_author_display_limit: 15,
                 });
             });
         });
@@ -590,8 +602,12 @@ describe('LandingPageTemplatesPage', () => {
             const editButtons = screen.getAllByRole('button', { name: /Edit/i });
             await user.click(editButtons[0]);
 
-            expect(screen.getByText('Right Column (main content)')).toBeInTheDocument();
-            expect(screen.getByText('Left Column (sidebar)')).toBeInTheDocument();
+            const leftEditorTitle = screen.getByText('Left Column (sidebar)');
+            const rightEditorTitle = screen.getByText('Right Column (main content)');
+
+            expect(leftEditorTitle).toBeInTheDocument();
+            expect(rightEditorTitle).toBeInTheDocument();
+            expect(leftEditorTitle.compareDocumentPosition(rightEditorTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
             expect(screen.getByText(/Description modules render inside one shared metadata card/i)).toBeInTheDocument();
         });
 
@@ -626,7 +642,7 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(
                     '/landing-pages/5',
                     expect.objectContaining({
-                        left_column_order: ['contact', 'model_description', 'related_work', 'general', 'acquisition'],
+                        left_column_order: ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates'],
                     }),
                 );
             });

@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Models\Affiliation;
+use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\FunderIdentifierType;
+use App\Models\FundingReference;
 use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\Institution;
@@ -16,6 +19,7 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Models\ResourceRight;
 use App\Models\Right;
 use App\Models\Setting;
 use App\Models\Subject;
@@ -23,6 +27,10 @@ use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\Editor\EditorDataTransformer;
+use Database\Seeders\DateTypeSeeder;
+use Database\Seeders\DescriptionTypeSeeder;
+use Database\Seeders\ResourceTypeSeeder;
+use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -197,6 +205,90 @@ describe('transformLicenses', function (): void {
         $result = $this->transformer->transformLicenses($this->resource);
 
         expect($result)->toBeEmpty();
+    });
+    it('keeps custom catalog rights out of SPDX license identifiers', function (): void {
+        $spdxRight = Right::factory()->ccBy4()->create();
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+
+        ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $spdxRight->id,
+        ]);
+        ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $customRight->id,
+        ]);
+        $this->resource->load(['rights', 'resourceRights.right']);
+
+        expect($this->transformer->transformLicenses($this->resource))->toBe(['CC-BY-4.0']);
+    });
+});
+
+// =========================================================================
+// transformRawRights
+// =========================================================================
+
+describe('transformRawRights', function (): void {
+    it('returns cleaned imported rights statements for editor round-trips', function (): void {
+        ResourceRight::create([
+            'resource_id' => $this->resource->id,
+            'rights_text' => 'CC BY 4.0',
+            'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rights_identifier' => 'CC-BY-4.0',
+            'rights_identifier_scheme' => 'SPDX',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+            'language' => 'en',
+            'source' => 'xml-upload',
+        ]);
+        ResourceRight::create([
+            'resource_id' => $this->resource->id,
+            'rights_text' => null,
+            'rights_uri' => null,
+            'rights_identifier' => null,
+        ]);
+        $this->resource->load('resourceRights');
+
+        $result = $this->transformer->transformRawRights($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0])->toMatchArray([
+                'rights' => 'CC BY 4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'lang' => 'en',
+                'source' => 'xml-upload',
+            ])
+            ->and($result[0]['sourceResourceRightId'])->toBeInt();
+    });
+    it('returns linked custom catalog rights as editable raw rights rows', function (): void {
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+        $resourceRight = ResourceRight::query()->create([
+            'resource_id' => $this->resource->id,
+            'rights_id' => $customRight->id,
+        ]);
+        $this->resource->load('resourceRights.right');
+
+        $result = $this->transformer->transformRawRights($this->resource);
+
+        expect($result)->toBe([
+            [
+                'sourceResourceRightId' => $resourceRight->id,
+                'rights' => 'Community Data License',
+                'rightsUri' => 'https://example.test/licenses/community-data',
+            ],
+        ]);
     });
 });
 
@@ -599,6 +691,251 @@ describe('transformCreators', function (): void {
         expect($result['contributors'][0]['affiliations'])->toHaveCount(1)
             ->and($result['contributors'][0]['affiliations'][0]['value'])->toBe('MIT');
     });
+
+    it('loads creator contact fields onto the author row', function (): void {
+        $person = Person::factory()->create([
+            'given_name' => 'Jane',
+            'family_name' => 'Contact',
+        ]);
+
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'is_contact' => true,
+            'email' => 'jane.contact@example.org',
+            'website' => 'https://jane.example.org',
+        ]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'])->toHaveCount(1)
+            ->and($result['authors'][0]['isContact'])->toBeTrue()
+            ->and($result['authors'][0]['email'])->toBe('jane.contact@example.org')
+            ->and($result['authors'][0]['website'])->toBe('https://jane.example.org')
+            ->and($result['contributors'])->toBeEmpty();
+    });
+
+    it('merges a matching ContactPerson contributor into the author row for editor loading', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $person = Person::factory()->create([
+            'given_name' => 'Mira',
+            'family_name' => 'Merge',
+        ]);
+
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'is_contact' => false,
+        ]);
+        $contributor = ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 2,
+            'email' => 'mira.merge@example.org',
+            'website' => 'https://mira.example.org',
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'])->toHaveCount(1)
+            ->and($result['authors'][0]['isContact'])->toBeTrue()
+            ->and($result['authors'][0]['email'])->toBe('mira.merge@example.org')
+            ->and($result['authors'][0]['website'])->toBe('https://mira.example.org')
+            ->and($result['contributors'])->toBeEmpty();
+    });
+
+    it('keeps standalone ContactPerson contributors visible in the contributors section', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $author = Person::factory()->create([
+            'given_name' => 'Anna',
+            'family_name' => 'Author',
+        ]);
+        $contact = Person::factory()->create([
+            'given_name' => 'Chris',
+            'family_name' => 'Contact',
+        ]);
+
+        ResourceCreator::factory()->forPerson($author)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+        $contributor = ResourceContributor::factory()->forPerson($contact)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'email' => 'chris.contact@example.org',
+            'website' => 'https://chris.example.org',
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'][0]['isContact'])->toBeFalse()
+            ->and($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['type'])->toBe('person')
+            ->and($result['contributors'][0]['firstName'])->toBe('Chris')
+            ->and($result['contributors'][0]['roles'])->toBe(['Contact Person'])
+            ->and($result['contributors'][0]['email'])->toBe('chris.contact@example.org')
+            ->and($result['contributors'][0]['website'])->toBe('https://chris.example.org');
+    });
+
+    it('does not merge ContactPerson contributors through an empty ORCID identity key', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $author = Person::factory()->create([
+            'given_name' => 'Avery',
+            'family_name' => 'Author',
+            'name_identifier' => 'orcid.org/',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        $contact = Person::factory()->create([
+            'given_name' => 'Bailey',
+            'family_name' => 'Contact',
+            'name_identifier' => 'https://orcid.org/',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        ResourceCreator::factory()->forPerson($author)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+        $contributor = ResourceContributor::factory()->forPerson($contact)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'email' => 'bailey.contact@example.org',
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'])->toHaveCount(1)
+            ->and($result['authors'][0]['firstName'])->toBe('Avery')
+            ->and($result['authors'][0]['isContact'])->toBeFalse()
+            ->and($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['firstName'])->toBe('Bailey')
+            ->and($result['contributors'][0]['roles'])->toBe(['Contact Person'])
+            ->and($result['contributors'][0]['email'])->toBe('bailey.contact@example.org');
+    });
+
+    it('does not merge same-name ContactPerson contributors when valid ORCIDs differ', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $author = Person::factory()->create([
+            'given_name' => 'Morgan',
+            'family_name' => 'Shared',
+            'name_identifier' => 'https://orcid.org/0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+        $contact = Person::factory()->create([
+            'given_name' => 'Morgan',
+            'family_name' => 'Shared',
+            'name_identifier' => 'https://orcid.org/0000-0002-1694-233X',
+            'name_identifier_scheme' => 'ORCID',
+        ]);
+
+        ResourceCreator::factory()->forPerson($author)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+        $contributor = ResourceContributor::factory()->forPerson($contact)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'email' => 'morgan.contact@example.org',
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'])->toHaveCount(1)
+            ->and($result['authors'][0]['firstName'])->toBe('Morgan')
+            ->and($result['authors'][0]['isContact'])->toBeFalse()
+            ->and($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['firstName'])->toBe('Morgan')
+            ->and($result['contributors'][0]['roles'])->toBe(['Contact Person'])
+            ->and($result['contributors'][0]['email'])->toBe('morgan.contact@example.org');
+    });
+
+    it('merges only the ContactPerson role when a matching contributor has additional roles', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $collectorType = ContributorType::firstOrCreate(
+            ['slug' => 'DataCollector'],
+            ['name' => 'Data Collector', 'category' => 'person'],
+        );
+        $person = Person::factory()->create([
+            'given_name' => 'Dana',
+            'family_name' => 'Dual',
+        ]);
+
+        ResourceCreator::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+        $contributor = ResourceContributor::factory()->forPerson($person)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+            'email' => 'dana.dual@example.org',
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id, $collectorType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'][0]['isContact'])->toBeTrue()
+            ->and($result['authors'][0]['email'])->toBe('dana.dual@example.org')
+            ->and($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['firstName'])->toBe('Dana')
+            ->and($result['contributors'][0]['roles'])->toBe(['Data Collector'])
+            ->and($result['contributors'][0]['email'])->toBe('');
+    });
+
+    it('keeps institution ContactPerson contributors visible', function (): void {
+        $contactType = ContributorType::firstOrCreate(
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person', 'category' => 'person'],
+        );
+        $institution = Institution::factory()->create([
+            'name' => 'Contact Institute',
+        ]);
+
+        $contributor = ResourceContributor::factory()->forInstitution($institution)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+        $contributor->contributorTypes()->sync([$contactType->id]);
+
+        $this->resource->load(['creators.creatorable', 'creators.affiliations', 'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes']);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['authors'])->toBeEmpty()
+            ->and($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['type'])->toBe('institution')
+            ->and($result['contributors'][0]['institutionName'])->toBe('Contact Institute')
+            ->and($result['contributors'][0]['roles'])->toBe(['Contact Person']);
+    });
 });
 
 // =========================================================================
@@ -607,7 +944,7 @@ describe('transformCreators', function (): void {
 
 describe('transformDescriptions', function (): void {
     beforeEach(function (): void {
-        $this->seed(\Database\Seeders\DescriptionTypeSeeder::class);
+        $this->seed(DescriptionTypeSeeder::class);
     });
 
     it('correctly maps PascalCase slug Abstract to frontend format', function (): void {
@@ -726,12 +1063,32 @@ describe('transformDates', function (): void {
 
         expect($result)->toHaveCount(1)
             ->and($result[0]['dateType'])->toBe('Collected')
+            ->and($result[0]['dateMode'])->toBe('range')
             ->and($result[0]['startDate'])->toBe('2024-01-15')
             ->and($result[0]['endDate'])->toBe('2024-06-30');
     });
 
+    it('clears unsupported stored date range end dates in single mode for editor hydration', function (): void {
+        $dateType = DateType::factory()->create(['slug' => 'Available', 'name' => 'Available']);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2024-01-01',
+            'end_date' => '2024-12-31',
+        ]);
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['dateType'])->toBe('Available')
+            ->and($result[0]['dateMode'])->toBe('single')
+            ->and($result[0]['startDate'])->toBe('2024-01-01')
+            ->and($result[0]['endDate'])->toBe('');
+    });
+
     it('falls back to date_value for imported single dates', function (): void {
-        $dateType = DateType::factory()->create(['slug' => 'Issued', 'name' => 'Issued']);
+        $dateType = DateType::factory()->create(['slug' => 'Submitted', 'name' => 'Submitted']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
             'date_type_id' => $dateType->id,
@@ -744,13 +1101,14 @@ describe('transformDates', function (): void {
         $result = $this->transformer->transformDates($this->resource);
 
         expect($result)->toHaveCount(1)
-            ->and($result[0]['dateType'])->toBe('Issued')
+            ->and($result[0]['dateType'])->toBe('Submitted')
+            ->and($result[0]['dateMode'])->toBe('single')
             ->and($result[0]['startDate'])->toBe('2026-02-10')
             ->and($result[0]['endDate'])->toBe('');
     });
 
-    it('excludes coverage, created, and updated date types', function (): void {
-        foreach (['coverage', 'created', 'updated'] as $slug) {
+    it('excludes coverage, accepted, issued, and updated date types', function (): void {
+        foreach (['coverage', 'accepted', 'issued', 'updated'] as $slug) {
             $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
             ResourceDate::create([
                 'resource_id' => $this->resource->id,
@@ -765,8 +1123,8 @@ describe('transformDates', function (): void {
         expect($result)->toBeEmpty();
     });
 
-    it('excludes coverage, created, and updated even when only date_value is populated', function (): void {
-        foreach (['coverage', 'created', 'updated'] as $slug) {
+    it('excludes coverage, accepted, issued, and updated even when only date_value is populated', function (): void {
+        foreach (['coverage', 'accepted', 'issued', 'updated'] as $slug) {
             $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
             ResourceDate::create([
                 'resource_id' => $this->resource->id,
@@ -779,6 +1137,25 @@ describe('transformDates', function (): void {
         $result = $this->transformer->transformDates($this->resource);
 
         expect($result)->toBeEmpty();
+    });
+
+    it('transforms Created date periods for editor hydration', function (): void {
+        $dateType = DateType::factory()->create(['slug' => 'Created', 'name' => 'Created']);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2020-01-01',
+            'end_date' => '2020-12-31',
+        ]);
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['dateType'])->toBe('Created')
+            ->and($result[0]['dateMode'])->toBe('range')
+            ->and($result[0]['startDate'])->toBe('2020-01-01')
+            ->and($result[0]['endDate'])->toBe('2020-12-31');
     });
 
     it('preserves ISO 8601 datetime+timezone values', function (): void {
@@ -828,7 +1205,7 @@ describe('transformDates', function (): void {
     });
 
     it('returns empty string for null date values', function (): void {
-        $dateType = DateType::factory()->create(['slug' => 'Issued', 'name' => 'Issued']);
+        $dateType = DateType::factory()->create(['slug' => 'Submitted', 'name' => 'Submitted']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
             'date_type_id' => $dateType->id,
@@ -844,7 +1221,7 @@ describe('transformDates', function (): void {
     });
 
     it('returns empty string for unparseable date values', function (): void {
-        $dateType = DateType::factory()->create(['slug' => 'Accepted', 'name' => 'Accepted']);
+        $dateType = DateType::factory()->create(['slug' => 'Available', 'name' => 'Available']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
             'date_type_id' => $dateType->id,
@@ -858,10 +1235,10 @@ describe('transformDates', function (): void {
         expect($result[0]['startDate'])->toBe('');
     });
 
-    it('loads imported DataCite single dates into the editor payload', function (): void {
-        test()->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        test()->seed(\Database\Seeders\TitleTypeSeeder::class);
-        test()->seed(\Database\Seeders\DateTypeSeeder::class);
+    it('loads imported DataCite editable dates into the editor payload', function (): void {
+        test()->seed(ResourceTypeSeeder::class);
+        test()->seed(TitleTypeSeeder::class);
+        test()->seed(DateTypeSeeder::class);
 
         $user = User::factory()->create();
         $importTransformer = new DataCiteToResourceTransformer;
@@ -882,6 +1259,7 @@ describe('transformDates', function (): void {
                     ['date' => '2025-06-03', 'dateType' => 'Collected'],
                     ['date' => '2026-02-10', 'dateType' => 'Issued'],
                     ['date' => '2027-06', 'dateType' => 'Available'],
+                    ['date' => '2024-01-15', 'dateType' => 'Created'],
                 ],
             ],
         ], $user->id);
@@ -893,12 +1271,16 @@ describe('transformDates', function (): void {
         expect($resource->dates)->toHaveCount(4)
             ->and($result)->toHaveCount(3)
             ->and($result->keys()->all())->toContain('Collected')
-            ->and($result->keys()->all())->toContain('Issued')
+            ->and($result->keys()->all())->toContain('Created')
             ->and($result->keys()->all())->toContain('Available')
+            ->and($result->keys()->all())->not->toContain('Issued')
+            ->and($result['Collected']['dateMode'])->toBe('single')
             ->and($result['Collected']['startDate'])->toBe('2025-06-03')
             ->and($result['Collected']['endDate'])->toBe('')
-            ->and($result['Issued']['startDate'])->toBe('2026-02-10')
-            ->and($result['Available']['startDate'])->toBe('2027-06-01');
+            ->and($result['Created']['dateMode'])->toBe('single')
+            ->and($result['Created']['startDate'])->toBe('2024-01-15')
+            ->and($result['Available']['dateMode'])->toBe('single')
+            ->and($result['Available']['startDate'])->toBe('2027-06');
     });
 });
 
@@ -1055,7 +1437,7 @@ describe('transformGemetKeywords', function (): void {
             'value' => 'Environmental monitoring',
             'subject_scheme' => 'GEMET - GEneral Multilingual Environmental Thesaurus',
             'scheme_uri' => 'https://www.eionet.europa.eu/gemet/',
-            'value_uri' => 'https://www.eionet.europa.eu/gemet/concept/' . fake()->numberBetween(1000, 9999),
+            'value_uri' => 'https://www.eionet.europa.eu/gemet/concept/'.fake()->numberBetween(1000, 9999),
         ]);
         $this->resource->load('subjects');
 
@@ -1216,7 +1598,7 @@ describe('transformRelatedIdentifiers', function (): void {
 
 describe('transformFundingReferences', function (): void {
     it('transforms funding references sorted by position', function (): void {
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'DFG',
             'funder_identifier' => 'https://doi.org/10.13039/501100001659',
@@ -1225,7 +1607,7 @@ describe('transformFundingReferences', function (): void {
             'award_title' => 'Research Grant',
             'position' => 2,
         ]);
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'EU',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
@@ -1247,23 +1629,23 @@ describe('transformFundingReferences', function (): void {
     });
 
     it('returns funderIdentifierType name from relationship', function (): void {
-        $rorType = \App\Models\FunderIdentifierType::firstOrCreate(
+        $rorType = FunderIdentifierType::firstOrCreate(
             ['slug' => 'ROR'],
             ['name' => 'ROR', 'is_active' => true]
         );
-        $crossrefType = \App\Models\FunderIdentifierType::firstOrCreate(
+        $crossrefType = FunderIdentifierType::firstOrCreate(
             ['slug' => 'Crossref Funder ID'],
             ['name' => 'Crossref Funder ID', 'is_active' => true]
         );
 
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'DFG',
             'funder_identifier' => 'https://ror.org/018mejw64',
             'funder_identifier_type_id' => $rorType->id,
             'position' => 1,
         ]);
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'EU',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
@@ -1279,7 +1661,7 @@ describe('transformFundingReferences', function (): void {
     });
 
     it('returns empty string for funderIdentifierType when none is set', function (): void {
-        \App\Models\FundingReference::create([
+        FundingReference::create([
             'resource_id' => $this->resource->id,
             'funder_name' => 'Generic Funder',
             'funder_identifier' => null,

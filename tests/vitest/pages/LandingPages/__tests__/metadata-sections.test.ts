@@ -30,10 +30,7 @@ describe('metadata-sections helpers', () => {
             { id: 3, value: 'Ignored', description_type: null },
         ];
 
-        expect(filterDescriptionsBySection(descriptions, 'technical_info')).toEqual([
-            descriptions[0],
-            descriptions[1],
-        ]);
+        expect(filterDescriptionsBySection(descriptions, 'technical_info')).toEqual([descriptions[0], descriptions[1]]);
         expect(filterDescriptionsBySection(descriptions, 'methods')).toEqual([]);
     });
 
@@ -64,8 +61,8 @@ describe('section-catalog helpers', () => {
             'metadata_download',
             'location',
         ]);
-        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'contact', 'model_description', 'related_work']);
-        expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual(['general', 'acquisition', 'contact', 'model_description', 'related_work']);
+        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'dates', 'contact', 'model_description', 'related_work']);
+        expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual(['general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work']);
     });
 
     it('normalizes right column order and expands the legacy descriptions section', () => {
@@ -101,6 +98,7 @@ describe('section-catalog helpers', () => {
         expect(normalizeLeftColumnOrder(['contact', 'files', 'unknown'] as never, 'resource')).toEqual([
             'contact',
             'files',
+            'dates',
             'model_description',
             'related_work',
         ]);
@@ -108,6 +106,7 @@ describe('section-catalog helpers', () => {
             'contact',
             'general',
             'acquisition',
+            'dates',
             'model_description',
             'related_work',
         ]);

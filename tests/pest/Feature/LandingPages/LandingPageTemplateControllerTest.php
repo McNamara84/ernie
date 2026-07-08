@@ -173,13 +173,15 @@ describe('Clone', function (): void {
             ->and($template->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
             ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
             ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
-            ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
+            ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
     });
 
     it('copies display limits from the selected default template when cloning', function (): void {
         $this->defaultTemplate->update([
             'creator_display_limit' => 25,
             'contributor_display_limit' => 75,
+            'citation_author_display_limit' => 11,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -191,7 +193,8 @@ describe('Clone', function (): void {
 
         expect($template)->not->toBeNull()
             ->and($template?->creator_display_limit)->toBe(25)
-            ->and($template?->contributor_display_limit)->toBe(75);
+            ->and($template?->contributor_display_limit)->toBe(75)
+            ->and($template?->citation_author_display_limit)->toBe(11);
     });
 
     it('rejects duplicate names', function (): void {
@@ -350,7 +353,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = locationFirstRightColumnOrder();
-        $newLeftOrder = ['contact', 'files', 'related_work', 'model_description'];
+        $newLeftOrder = ['contact', 'files', 'dates', 'related_work', 'model_description'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -359,6 +362,7 @@ describe('Update', function (): void {
                 'left_column_order' => $newLeftOrder,
                 'creator_display_limit' => 40,
                 'contributor_display_limit' => 60,
+                'citation_author_display_limit' => 70,
             ]);
 
         $response->assertOk();
@@ -369,7 +373,8 @@ describe('Update', function (): void {
             ->and($template->right_column_order)->toBe($newRightOrder)
             ->and($template->left_column_order)->toBe($newLeftOrder)
             ->and($template->creator_display_limit)->toBe(40)
-            ->and($template->contributor_display_limit)->toBe(60);
+            ->and($template->contributor_display_limit)->toBe(60)
+            ->and($template->citation_author_display_limit)->toBe(70);
     });
 
     it('normalizes location to the end when it is submitted in the middle of the right column order', function (): void {
@@ -404,7 +409,7 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
             ->assertForbidden()
             ->assertJson([
-                'message' => 'Only creator and contributor display limits can be updated on default templates.',
+                'message' => 'Only creator, contributor, and citation author display limits can be updated on default templates.',
                 'error' => 'default_template_immutable',
             ]);
     });
@@ -414,15 +419,18 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", [
                 'creator_display_limit' => 35,
                 'contributor_display_limit' => 45,
+                'citation_author_display_limit' => 55,
             ])
             ->assertOk()
             ->assertJsonPath('template.creator_display_limit', 35)
-            ->assertJsonPath('template.contributor_display_limit', 45);
+            ->assertJsonPath('template.contributor_display_limit', 45)
+            ->assertJsonPath('template.citation_author_display_limit', 55);
 
         $fresh = $this->defaultTemplate->fresh();
 
         expect($fresh?->creator_display_limit)->toBe(35)
-            ->and($fresh?->contributor_display_limit)->toBe(45);
+            ->and($fresh?->contributor_display_limit)->toBe(45)
+            ->and($fresh?->citation_author_display_limit)->toBe(55);
     });
 
     it('rejects display limits outside the supported range', function (mixed $value): void {
@@ -432,8 +440,9 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$template->id}", [
                 'creator_display_limit' => $value,
                 'contributor_display_limit' => $value,
+                'citation_author_display_limit' => $value,
             ])
-            ->assertJsonValidationErrors(['creator_display_limit', 'contributor_display_limit']);
+            ->assertJsonValidationErrors(['creator_display_limit', 'contributor_display_limit', 'citation_author_display_limit']);
     })->with([0, -1, 501, 'abc', 10.5]);
 
     it('forgets affected cached public landing page render data after template updates', function (): void {
@@ -458,6 +467,7 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$template->id}", [
                 'creator_display_limit' => 45,
                 'contributor_display_limit' => 55,
+                'citation_author_display_limit' => 65,
             ])
             ->assertOk();
 
@@ -492,6 +502,7 @@ describe('Update', function (): void {
             'created_by' => $this->admin->id,
             'creator_display_limit' => 45,
             'contributor_display_limit' => 55,
+            'citation_author_display_limit' => 65,
         ]);
         $resource = Resource::factory()->create();
         $landingPage = LandingPage::factory()->published()->create([
@@ -506,6 +517,7 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$template->id}", [
                 'creator_display_limit' => 45,
                 'contributor_display_limit' => 55,
+                'citation_author_display_limit' => 65,
             ])
             ->assertOk();
 
@@ -774,6 +786,7 @@ describe('API List', function (): void {
                 'related_work',
                 'general',
                 'acquisition',
+                'dates',
             ]);
     });
 
@@ -840,12 +853,14 @@ describe('Model', function (): void {
         $this->defaultTemplate->update([
             'creator_display_limit' => 33,
             'contributor_display_limit' => 44,
+            'citation_author_display_limit' => 55,
         ]);
 
         $template = LandingPageTemplate::ensureDefaultTemplateExists();
 
         expect($template->creator_display_limit)->toBe(33)
-            ->and($template->contributor_display_limit)->toBe(44);
+            ->and($template->contributor_display_limit)->toBe(44)
+            ->and($template->citation_author_display_limit)->toBe(55);
     });
 
     it('returns null logo_url when no logo is set', function (): void {
@@ -1011,7 +1026,8 @@ describe('Factory', function (): void {
             ->and($template->right_column_order)->toBe(LandingPageTemplate::RIGHT_COLUMN_SECTIONS)
             ->and($template->left_column_order)->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
             ->and($template->creator_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
-            ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
+            ->and($template->contributor_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT)
+            ->and($template->citation_author_display_limit)->toBe(LandingPageTemplate::DEFAULT_DISPLAY_LIMIT);
     });
 
     it('creates an igsn template with igsn left-column defaults', function (): void {
@@ -1032,7 +1048,7 @@ describe('Factory', function (): void {
 
     it('creates a template with custom section order', function (): void {
         $rightOrder = locationFirstRightColumnOrder();
-        $leftOrder = ['contact', 'files', 'model_description', 'related_work'];
+        $leftOrder = ['contact', 'files', 'dates', 'model_description', 'related_work'];
 
         $template = LandingPageTemplate::factory()
             ->withSectionOrder($rightOrder, $leftOrder)
@@ -1171,7 +1187,7 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 4 required left column sections
+        // Only 2 of 5 required left column sections
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],

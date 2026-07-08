@@ -193,12 +193,17 @@ describe('IGSN Template Restriction on Creation', function () {
                 'template' => 'default_gfz_igsn',
                 'status' => 'draft',
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/sample.zip',
+                'downloads_unavailable' => true,
             ]);
 
         $response->assertCreated()
-            ->assertJsonPath('landing_page.ftp_url', null);
+            ->assertJsonPath('landing_page.ftp_url', null)
+            ->assertJsonPath('landing_page.downloads_unavailable', false);
 
-        expect(LandingPage::where('resource_id', $resource->id)->first()->ftp_url)->toBeNull();
+        $landingPage = LandingPage::where('resource_id', $resource->id)->first();
+
+        expect($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->downloads_unavailable)->toBeFalse();
     });
 });
 

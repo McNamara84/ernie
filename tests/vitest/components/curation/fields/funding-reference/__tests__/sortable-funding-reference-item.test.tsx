@@ -67,7 +67,11 @@ describe('SortableFundingReferenceItem', () => {
             </DndWrapper>,
         );
 
-        expect(screen.getByLabelText('Drag to reorder')).toBeInTheDocument();
+        const dragHandle = screen.getByRole('button', { name: 'Drag to reorder funding 1' });
+        expect(dragHandle).toBeInTheDocument();
+        expect(dragHandle).toHaveAttribute('data-variant', 'ghost');
+        expect(dragHandle).toHaveClass('cursor-grab');
+        expect(dragHandle).not.toHaveClass('bg-muted');
     });
 
     it('shows the funder identifier badge', () => {

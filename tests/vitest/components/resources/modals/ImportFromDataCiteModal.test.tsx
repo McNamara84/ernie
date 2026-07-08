@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
-import { afterEach, beforeEach, describe, expect, it, Mock,vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 
@@ -49,43 +49,33 @@ describe('ImportFromDataCiteModal', () => {
     });
 
     it('renders nothing when not open', () => {
-        const { container } = render(
-            <ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} />
-        );
+        const { container } = render(<ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} />);
 
         expect(container).toBeEmptyDOMElement();
     });
 
     it('renders modal with title when open', () => {
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByText('Import all old Resources')).toBeInTheDocument();
     });
 
     it('shows confirmation content in initial state', () => {
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByText('What will happen?')).toBeInTheDocument();
         expect(screen.getByText(/All DOIs registered with your GFZ DataCite credentials will be fetched/)).toBeInTheDocument();
-        expect(screen.getByText(/DOIs already in ERNIE will be skipped/)).toBeInTheDocument();
+        expect(screen.getByText(/DOIs already in ERNIE will not be overwritten/)).toBeInTheDocument();
     });
 
     it('shows start import button', () => {
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByRole('button', { name: /start import/i })).toBeInTheDocument();
     });
 
     it('shows cancel button', () => {
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
@@ -93,9 +83,7 @@ describe('ImportFromDataCiteModal', () => {
     it('calls onClose when cancel button is clicked', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         const cancelButton = screen.getByRole('button', { name: /cancel/i });
         await user.click(cancelButton);
@@ -109,9 +97,7 @@ describe('ImportFromDataCiteModal', () => {
         // Make the POST request hang
         (axios.post as Mock).mockImplementation(() => new Promise(() => {}));
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -140,9 +126,7 @@ describe('ImportFromDataCiteModal', () => {
             },
         });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -173,9 +157,7 @@ describe('ImportFromDataCiteModal', () => {
             },
         });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -205,13 +187,13 @@ describe('ImportFromDataCiteModal', () => {
             },
         });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText('Imported 2 resources.')).toBeInTheDocument();
+        expect(screen.queryByText(/updated 0 existing resources/i)).not.toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
         expect(mockOnClose).not.toHaveBeenCalled();
     });
@@ -236,22 +218,82 @@ describe('ImportFromDataCiteModal', () => {
             },
         });
 
-        const { rerender } = render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
-        );
+        const { rerender } = render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText('Imported 2 resources.')).toBeInTheDocument();
+        expect(screen.queryByText(/updated 0 existing resources/i)).not.toBeInTheDocument();
         expect(mockOnSuccess).toHaveBeenCalledOnce();
 
-        rerender(
-            <ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
-        );
+        rerender(<ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await waitFor(() => {
             expect(mockOnSuccess).toHaveBeenCalledTimes(1);
         });
+    });
+
+    it('calls onSuccess when existing resources were enriched without new imports', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-import-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 5,
+                processed: 5,
+                imported: 0,
+                skipped: 5,
+                failed: 0,
+                enriched: 2,
+                skipped_dois: ['10.5880/test.1'],
+                enriched_dois: ['10.5880/test.1', '10.5880/test.2'],
+                failed_dois: [],
+            },
+        });
+
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText(/Added legacy links to 2 existing resources/i)).toBeInTheDocument();
+        expect(mockOnSuccess).toHaveBeenCalledOnce();
+    });
+
+    it('renders a combined completion summary when resources are imported and legacy links are added', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'test-import-123', message: 'Import started' },
+        });
+
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 4,
+                processed: 4,
+                imported: 1,
+                skipped: 3,
+                failed: 0,
+                enriched: 2,
+                skipped_dois: ['10.5880/test.1'],
+                enriched_dois: ['10.5880/test.1', '10.5880/test.2'],
+                failed_dois: [],
+            },
+        });
+
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
+
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Import Complete')).toBeInTheDocument();
+        expect(screen.getByText(/Imported 1 resource and added legacy links to 2 existing resources/i)).toBeInTheDocument();
+        expect(mockOnSuccess).toHaveBeenCalledOnce();
     });
 
     it('does not call onSuccess when the import completed without new resources', async () => {
@@ -274,9 +316,7 @@ describe('ImportFromDataCiteModal', () => {
             },
         });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />,
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
@@ -292,9 +332,7 @@ describe('ImportFromDataCiteModal', () => {
             response: { status: 500, data: { message: 'Server error' } },
         });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -314,9 +352,7 @@ describe('ImportFromDataCiteModal', () => {
             response: { status: 403, data: {} },
         });
 
-        render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -328,9 +364,7 @@ describe('ImportFromDataCiteModal', () => {
     });
 
     it('resets state when modal closes', async () => {
-        const { rerender } = render(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        const { rerender } = render(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         // Start an import
         (axios.post as Mock).mockResolvedValue({
@@ -338,14 +372,10 @@ describe('ImportFromDataCiteModal', () => {
         });
 
         // Close modal
-        rerender(
-            <ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} />
-        );
+        rerender(<ImportFromDataCiteModal isOpen={false} onClose={mockOnClose} />);
 
         // Reopen modal
-        rerender(
-            <ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />
-        );
+        rerender(<ImportFromDataCiteModal isOpen={true} onClose={mockOnClose} />);
 
         // Should show confirmation state again
         expect(screen.getByText('What will happen?')).toBeInTheDocument();

@@ -31,15 +31,19 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
-use App\Models\Right;
 use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
-use Carbon\Carbon;
+use App\Services\Rights\ResourceRightsStorageService;
+use App\Services\Xml\Sections\RightsSectionParser;
+use App\Support\DataCiteDateNormalizer;
+use App\Support\OrcidNormalizer;
+use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Saloon\XmlWrangler\XmlReader;
 
 /**
  * Transforms DataCite API JSON responses into ERNIE Resource models.
@@ -54,6 +58,10 @@ class DataCiteToResourceTransformer
 
     public function __construct(
         private ?RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService = null,
+        private ?ResourceRightsStorageService $resourceRightsStorage = null,
+        private ?RorLookupService $rorLookupService = null,
+        private ?SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver = null,
+        private ?RightsSectionParser $xmlRightsParser = null,
     ) {}
 
     /**
@@ -135,6 +143,8 @@ class DataCiteToResourceTransformer
      */
     private function prepareAttributes(array $attributes): array
     {
+        $attributes = $this->preferOriginalXmlRights($attributes);
+
         $relatedIdentifiers = $attributes['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
@@ -184,6 +194,67 @@ class DataCiteToResourceTransformer
         $attributes['relatedIdentifiers'] = $relatedIdentifiers;
 
         return $attributes;
+    }
+
+    /**
+     * Prefer the embedded original DataCite XML rights over API-normalized rights.
+     *
+     * The `/resources` legacy import consumes the DataCite REST API. That API may
+     * expose SPDX-like fields in `attributes.rightsList` even when the deposited
+     * XML only contained a plain legacy rights statement. For import review, the
+     * embedded original XML is the source of truth; SPDX completion belongs to
+     * the assistant workflow.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function preferOriginalXmlRights(array $attributes): array
+    {
+        $xml = $this->decodedOriginalXml($attributes['xml'] ?? null);
+
+        if ($xml === null) {
+            return $attributes;
+        }
+
+        try {
+            $rightsList = ($this->xmlRightsParser ??= new RightsSectionParser)
+                ->parseRawRights(XmlReader::fromString($xml));
+        } catch (\Throwable $exception) {
+            Log::debug('Could not parse original DataCite XML rights during import; using API rightsList fallback.', [
+                'doi' => $attributes['doi'] ?? null,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return $attributes;
+        }
+
+        if ($rightsList === []) {
+            return $attributes;
+        }
+
+        $attributes['rightsList'] = array_map(
+            function (array $statement): array {
+                $statement['source'] = 'datacite-import';
+
+                return $statement;
+            },
+            $rightsList,
+        );
+
+        return $attributes;
+    }
+
+    private function decodedOriginalXml(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $value = trim($value);
+        $decoded = base64_decode($value, true);
+        $xml = $decoded === false ? $value : $decoded;
+
+        return str_contains($xml, '<') ? $xml : null;
     }
 
     private function citationLabelService(): RelatedIdentifierCitationLabelService
@@ -315,18 +386,11 @@ class DataCiteToResourceTransformer
      * In the database, all titles must reference a TitleType record, including MainTitle.
      *
      * @param  array<int, array<string, mixed>>  $titles
-     *
-     * @throws \RuntimeException If required TitleType records are missing from the database
      */
     private function transformTitles(array $titles, Resource $resource): void
     {
         // Pre-fetch MainTitle ID for titles without titleType attribute
-        $mainTitleId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle');
-        if ($mainTitleId === null) {
-            throw new \RuntimeException(
-                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
-            );
-        }
+        $mainTitleId = $this->resolveTitleTypeId('MainTitle', 'Main Title');
 
         foreach ($titles as $titleData) {
             $titleValue = $titleData['title'] ?? null;
@@ -346,12 +410,7 @@ class DataCiteToResourceTransformer
 
                 // Fall back to Other if specific type not found
                 if ($titleTypeId === null) {
-                    $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'Other');
-                }
-
-                // If still null, use MainTitle as last resort
-                if ($titleTypeId === null) {
-                    $titleTypeId = $mainTitleId;
+                    $titleTypeId = $this->resolveTitleTypeId('Other', 'Other');
                 }
             }
 
@@ -362,6 +421,28 @@ class DataCiteToResourceTransformer
                 'language' => $titleData['lang'] ?? null,
             ]);
         }
+    }
+
+    private function resolveTitleTypeId(string $slug, string $name): int
+    {
+        $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $slug);
+
+        if ($titleTypeId !== null) {
+            return $titleTypeId;
+        }
+
+        $titleType = TitleType::query()->firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $name,
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        );
+
+        unset($this->lookupCache[TitleType::class.':slug']);
+
+        return (int) $titleType->id;
     }
 
     /**
@@ -385,7 +466,9 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $nameType = $creatorData['nameType'] ?? $this->inferNameType($creatorData);
+            $declaredNameType = $this->normaliseNameType($creatorData['nameType'] ?? null);
+            $nameType = $this->resolveNameType($creatorData);
+            $this->logNameTypeOverride('creator', $resource, $position, $creatorData, $declaredNameType, $nameType);
 
             try {
                 if ($nameType === 'Organizational') {
@@ -442,7 +525,9 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $nameType = $contributorData['nameType'] ?? $this->inferNameType($contributorData);
+            $declaredNameType = $this->normaliseNameType($contributorData['nameType'] ?? null);
+            $nameType = $this->resolveNameType($contributorData);
+            $this->logNameTypeOverride('contributor', $resource, $position, $contributorData, $declaredNameType, $nameType);
 
             try {
                 if ($nameType === 'Organizational') {
@@ -597,11 +682,28 @@ class DataCiteToResourceTransformer
         $scheme = null;
         $schemeUri = null;
 
-        foreach ($data['nameIdentifiers'] ?? [] as $nameId) {
-            if (($nameId['nameIdentifierScheme'] ?? '') === 'ORCID') {
-                $orcid = $nameId['nameIdentifier'] ?? null;
+        $nameIdentifiers = $data['nameIdentifiers'] ?? [];
+
+        if (is_array($nameIdentifiers)) {
+            foreach ($nameIdentifiers as $nameId) {
+                if (
+                    ! is_array($nameId)
+                    || strtolower(trim((string) ($nameId['nameIdentifierScheme'] ?? ''))) !== 'orcid'
+                ) {
+                    continue;
+                }
+
+                $identifier = isset($nameId['nameIdentifier'])
+                    ? trim((string) $nameId['nameIdentifier'])
+                    : '';
+
+                if ($identifier === '' || ! OrcidNormalizer::isValid($identifier)) {
+                    continue;
+                }
+
+                $orcid = OrcidNormalizer::toUrl($identifier);
                 $scheme = 'ORCID';
-                $schemeUri = $nameId['schemeUri'] ?? 'https://orcid.org';
+                $schemeUri = 'https://orcid.org';
                 break;
             }
         }
@@ -670,54 +772,171 @@ class DataCiteToResourceTransformer
     }
 
     /**
-     * Infer nameType when DataCite doesn't provide it.
+     * Resolve the local party type from DataCite data.
      *
-     * A creator/contributor without familyName AND without givenName
-     * but WITH a 'name' field is likely an organization.
+     * Legacy DataCite records can mark institutions as Personal. Identifier
+     * schemes and organization-looking full names win over the raw nameType value.
      *
      * @param  array<string, mixed>  $data
      */
-    private function inferNameType(array $data): string
+    private function resolveNameType(array $data): string
     {
-        $hasFamilyName = isset($data['familyName']) && trim((string) $data['familyName']) !== '';
-        $hasGivenName = isset($data['givenName']) && trim((string) $data['givenName']) !== '';
+        $declaredNameType = $this->normaliseNameType($data['nameType'] ?? null);
 
-        if ($hasFamilyName || $hasGivenName) {
+        if ($this->hasNameIdentifierScheme($data, 'ROR')) {
+            return 'Organizational';
+        }
+
+        if ($this->hasNameIdentifierScheme($data, 'ORCID')) {
             return 'Personal';
         }
 
         $name = isset($data['name']) ? trim((string) $data['name']) : '';
 
         if ($name === '') {
-            return 'Personal';
+            return $this->hasStructuredPersonName($data) ? 'Personal' : ($declaredNameType ?? 'Personal');
         }
 
-        // Organization names often contain institutional keywords.
-        // Check for these BEFORE parsePersonName, which would split
-        // "Alfred Wegener Institute" into given="Alfred Wegener", family="Institute".
-        if ($this->looksLikeOrganization($name)) {
+        if ($this->looksLikeOrganization($name, false)) {
             return 'Organizational';
         }
 
-        // Try to parse the name — if parsing yields both a family AND a given
-        // name, this is likely a Personal creator (e.g. "Doe, John" or "John Doe").
-        // Names that only yield a family part (single word like "GEOMAR") default
-        // to Organizational. Comma+suffix names like "Smith, Jr." are treated as
-        // Personal via the comma-detection fallback below.
-        $parts = $this->parsePersonName($name);
-
-        if ($parts['given'] !== null && trim($parts['given']) !== '') {
+        if ($this->hasStructuredPersonName($data)) {
             return 'Personal';
         }
 
-        // If parsePersonName returned a family name but no given name,
-        // check if the original name contains a comma — this indicates
-        // a structured person name (e.g. "Smith, Jr.") rather than an org.
-        if ($parts['family'] !== null && str_contains($name, ',')) {
+        if ($declaredNameType === 'Organizational') {
+            return 'Organizational';
+        }
+
+        if ($this->looksLikePersonName($name)) {
             return 'Personal';
         }
 
-        return 'Organizational';
+        return $declaredNameType ?? 'Organizational';
+    }
+
+    private function normaliseNameType(mixed $nameType): ?string
+    {
+        if (! is_string($nameType)) {
+            return null;
+        }
+
+        return match (strtolower(trim($nameType))) {
+            'personal' => 'Personal',
+            'organizational' => 'Organizational',
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function hasStructuredPersonName(array $data): bool
+    {
+        return (isset($data['familyName']) && trim((string) $data['familyName']) !== '')
+            || (isset($data['givenName']) && trim((string) $data['givenName']) !== '');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function hasNameIdentifierScheme(array $data, string $expectedScheme): bool
+    {
+        $nameIdentifiers = $data['nameIdentifiers'] ?? [];
+
+        if (! is_array($nameIdentifiers)) {
+            return false;
+        }
+
+        foreach ($nameIdentifiers as $nameIdentifier) {
+            if (! is_array($nameIdentifier)) {
+                continue;
+            }
+
+            $scheme = isset($nameIdentifier['nameIdentifierScheme'])
+                ? strtolower(trim((string) $nameIdentifier['nameIdentifierScheme']))
+                : '';
+            $identifier = isset($nameIdentifier['nameIdentifier'])
+                ? strtolower(trim((string) $nameIdentifier['nameIdentifier']))
+                : '';
+
+            if ($identifier === '') {
+                continue;
+            }
+
+            if ($expectedScheme === 'ORCID') {
+                if ($scheme === 'orcid' || str_contains($identifier, 'orcid.org/')) {
+                    return OrcidNormalizer::isValid($identifier);
+                }
+
+                continue;
+            }
+
+            if ($expectedScheme === 'ROR') {
+                if ($this->canonicalRorIdentifier($identifier, $scheme) !== null) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if ($scheme === strtolower($expectedScheme)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function canonicalRorIdentifier(string $identifier, string $scheme): ?string
+    {
+        $identifier = trim($identifier);
+        $scheme = strtolower(trim($scheme));
+
+        if ($identifier === '') {
+            return null;
+        }
+
+        if ($scheme !== 'ror' && ! str_contains(strtolower($identifier), 'ror.org/')) {
+            return null;
+        }
+
+        return $this->rorLookupService()->canonicalise($identifier);
+    }
+
+    private function rorLookupService(): RorLookupService
+    {
+        return $this->rorLookupService ??= app(RorLookupService::class);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function logNameTypeOverride(
+        string $partyRole,
+        Resource $resource,
+        int $position,
+        array $data,
+        ?string $declaredNameType,
+        string $resolvedNameType,
+    ): void {
+        if ($declaredNameType === null || $declaredNameType === $resolvedNameType) {
+            return;
+        }
+
+        $persistedPosition = $position + 1;
+
+        Log::debug('Corrected DataCite party nameType during import', [
+            'resource_id' => $resource->id,
+            'doi' => $resource->doi,
+            'role' => $partyRole,
+            'position' => $persistedPosition,
+            'source_index' => $position,
+            'name' => $data['name'] ?? null,
+            'declared_name_type' => $declaredNameType,
+            'resolved_name_type' => $resolvedNameType,
+        ]);
     }
 
     /**
@@ -725,7 +944,7 @@ class DataCiteToResourceTransformer
      * Uses word-boundary matching to avoid substring false positives
      * (e.g. "inc" must not match inside "Vincenzo").
      */
-    private function looksLikeOrganization(string $name): bool
+    private function looksLikeOrganization(string $name, bool $includeWeakShapeSignals = true): bool
     {
         $orgKeywords = [
             'institute', 'institution', 'university', 'universität',
@@ -735,12 +954,56 @@ class DataCiteToResourceTransformer
             'department', 'ministry', 'bureau', 'authority',
             'association', 'society', 'academy', 'museum',
             'library', 'service', 'survey', 'observatory',
+            'government', 'administration', 'directorate',
+            'geoscience', 'geophysical', 'geological', 'geomagnetic',
+            'geoforschungszentrum', 'forschungszentrum',
+            'meteorological', 'seismology', 'earthquake', 'space',
+            'research', 'resources', 'branch', 'national', 'royal',
+            'intermagnet', 'secretariat',
+            'observatorio', 'institut', 'instituto', 'ecole', 'universidad',
             'gmbh', 'ltd', 'inc', 'e\.v\.', 'helmholtz',
         ];
 
         $pattern = '/\b('.implode('|', $orgKeywords).')\b/iu';
 
-        return (bool) preg_match($pattern, $name);
+        if ((bool) preg_match($pattern, $name)) {
+            return true;
+        }
+
+        if (preg_match('/^[A-Z0-9&.\- ]{3,}$/', $name) === 1) {
+            return true;
+        }
+
+        if (! str_contains($name, ',') && preg_match('/\([A-Za-z][A-Za-z .&-]{2,}\)\s*$/', $name) === 1) {
+            return true;
+        }
+
+        if (! $includeWeakShapeSignals) {
+            return false;
+        }
+
+        return $this->wordCount($name) >= 4
+            && preg_match('/(?:[\/&]|\b(?:of|for|and|de|del|du|des|der|la|le|fuer|et)\b)/iu', $name) === 1;
+    }
+
+    private function looksLikePersonName(string $name): bool
+    {
+        $parts = $this->parsePersonName($name);
+
+        if ($parts['given'] !== null && trim($parts['given']) !== '') {
+            return true;
+        }
+
+        return $parts['family'] !== null && str_contains($name, ',');
+    }
+
+    private function wordCount(string $name): int
+    {
+        if (preg_match_all('/[\p{L}\p{N}]+/u', $name, $matches) === false) {
+            return 0;
+        }
+
+        return count($matches[0]);
     }
 
     /**
@@ -772,11 +1035,30 @@ class DataCiteToResourceTransformer
         $scheme = null;
         $schemeUri = null;
 
-        foreach ($data['nameIdentifiers'] ?? [] as $nameId) {
-            if (($nameId['nameIdentifierScheme'] ?? '') === 'ROR') {
-                $ror = $nameId['nameIdentifier'] ?? null;
+        $nameIdentifiers = $data['nameIdentifiers'] ?? [];
+
+        if (is_array($nameIdentifiers)) {
+            foreach ($nameIdentifiers as $nameId) {
+                if (! is_array($nameId)) {
+                    continue;
+                }
+
+                $identifier = isset($nameId['nameIdentifier'])
+                    ? trim((string) $nameId['nameIdentifier'])
+                    : '';
+                $nameIdentifierScheme = isset($nameId['nameIdentifierScheme'])
+                    ? trim((string) $nameId['nameIdentifierScheme'])
+                    : '';
+
+                $canonicalRor = $this->canonicalRorIdentifier($identifier, $nameIdentifierScheme);
+
+                if ($canonicalRor === null) {
+                    continue;
+                }
+
+                $ror = $canonicalRor;
                 $scheme = 'ROR';
-                $schemeUri = $nameId['schemeUri'] ?? 'https://ror.org';
+                $schemeUri = 'https://ror.org';
                 break;
             }
         }
@@ -874,30 +1156,77 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
+            $rawSubjectValue = is_string($value) ? $value : null;
+            $subjectValue = $rawSubjectValue !== null ? (SubjectBreadcrumbPath::normalize($rawSubjectValue) ?? $value) : $value;
+            $subjectScheme = $subjectData['subjectScheme'] ?? null;
+            $schemeUri = $this->filledString($subjectData['schemeUri'] ?? null);
+            $valueUri = $this->filledString($subjectData['valueUri'] ?? null);
+            $classificationCode = $subjectData['classificationCode'] ?? null;
+            $breadcrumbPath = SubjectBreadcrumbPath::preferredPath(null, $rawSubjectValue);
+
+            if ($valueUri === null || $schemeUri === null) {
+                $resolvedKeyword = $this->subjectPathResolver()->resolveKeywordFromPath(
+                    is_string($subjectScheme) ? $subjectScheme : null,
+                    $rawSubjectValue,
+                );
+
+                if ($resolvedKeyword !== null) {
+                    $subjectScheme = $resolvedKeyword['scheme'];
+                    $schemeUri = $schemeUri ?? $resolvedKeyword['schemeURI'];
+                    $valueUri = $valueUri ?? $resolvedKeyword['id'];
+                    $breadcrumbPath = $resolvedKeyword['path'];
+                }
+            }
+
+            $breadcrumbPath = $breadcrumbPath ?? $this->subjectPathResolver()->resolve(
+                is_string($subjectScheme) ? $subjectScheme : null,
+                $valueUri,
+                is_string($classificationCode) || is_numeric($classificationCode) ? (string) $classificationCode : null,
+                $rawSubjectValue,
+            );
+
+            $schemeUri = $schemeUri ?? $this->subjectPathResolver()->resolveSchemeUri(
+                is_string($subjectScheme) ? $subjectScheme : null,
+            );
+
             Subject::create([
                 'resource_id' => $resource->id,
-                'value' => $value,
+                'value' => $subjectValue,
                 'language' => $subjectData['lang'] ?? 'en',
-                'subject_scheme' => $subjectData['subjectScheme'] ?? null,
-                'scheme_uri' => $subjectData['schemeUri'] ?? null,
-                'value_uri' => $subjectData['valueUri'] ?? null,
-                'classification_code' => $subjectData['classificationCode'] ?? null,
+                'subject_scheme' => $subjectScheme,
+                'scheme_uri' => $schemeUri,
+                'value_uri' => $valueUri,
+                'classification_code' => $classificationCode,
+                'breadcrumb_path' => $breadcrumbPath,
             ]);
         }
+    }
+
+    private function subjectPathResolver(): SubjectBreadcrumbPathResolverService
+    {
+        return $this->subjectBreadcrumbPathResolver ??= app(SubjectBreadcrumbPathResolverService::class);
+    }
+
+    private function filledString(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
     }
 
     /**
      * Transform dates from DataCite format.
      *
-     * Issue #371: If no 'Created' date is present in the DataCite response,
-     * a fallback 'Created' date with the current date is automatically added.
+     * Imported Created dates are preserved, but no fallback Created date is generated.
      *
      * @param  array<int, array<string, mixed>>  $dates
      */
     private function transformDates(array $dates, Resource $resource): void
     {
-        $hasCreatedDate = false;
-
         foreach ($dates as $dateData) {
             $date = $dateData['date'] ?? null;
 
@@ -909,11 +1238,6 @@ class DataCiteToResourceTransformer
             $dateTypeId = null;
             if ($dateType !== null) {
                 $dateTypeId = $this->getLookupId(DateType::class, 'slug', $dateType);
-
-                // Track if we have a 'Created' date
-                if (strtolower((string) $dateType) === 'created') {
-                    $hasCreatedDate = true;
-                }
             }
 
             // Skip if we couldn't resolve the date type (it's required)
@@ -921,13 +1245,14 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            // Parse the date - DataCite uses RKMS-ISO8601 which can be a range with /
+            // Parse the date without inventing missing precision. DataCite uses
+            // RKMS-ISO8601, where ranges are separated by /.
             $dateValue = null;
             $startDate = null;
             $endDate = null;
 
             if (str_contains($date, '/')) {
-                // Date range format: YYYY-MM-DD/YYYY-MM-DD or open-ended "YYYY-MM-DD/"
+                // Date range format: YYYY-MM-DD/YYYY-MM-DD, YYYY/YYYY, or open-ended "YYYY-MM-DD/"
                 // RKMS-ISO8601 allows open-ended ranges where end date is omitted.
                 //
                 // Parsing logic for "2020-01-01/":
@@ -938,25 +1263,28 @@ class DataCiteToResourceTransformer
                 // Malformed input handling:
                 // - "2020-01-01//" -> explode limit=2 yields ['2020-01-01', '/'], parseDate('/') returns null
                 // - "//" -> explode limit=2 yields ['', '/'], both parsed as null
-                // - Empty or only slashes result in null dates, which are handled gracefully below.
+                // - Empty or only slashes result in null dates and are skipped below.
                 //
                 // Note: isRange() returns true only for CLOSED ranges (both dates present).
                 // isOpenEndedRange() returns true when start_date is set but end_date is null.
                 // During export, open-ended ranges are exported as single dates because
                 // DataCite's schema doesn't support the trailing slash format.
                 $parts = explode('/', $date, 2);
-                $startDate = $this->parseDate($parts[0], false);
-                // Empty string after trailing slash results in null endDate (intentional)
-                // isEndDate=true ensures year-only formats like "2020" become "2020-12-31"
-                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1], true) : null;
+                $startDate = $this->parseDate($parts[0]);
+                // Empty string after trailing slash results in null endDate (intentional).
+                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1]) : null;
             } else {
-                // Single date (not a range): Always use isEndDate=false (start of period).
-                // This follows the DataCite convention where incomplete dates represent
-                // the earliest possible date (e.g., "2020" means "2020-01-01").
-                // The date type (Issued, Collected, etc.) does NOT influence this decision
-                // because DataCite metadata semantics treat all partial dates consistently
-                // as the start of the period they represent.
-                $dateValue = $this->parseDate($date, false);
+                // Single date (not a range): preserve the original precision.
+                $dateValue = $this->parseDate($date);
+            }
+
+            if ($dateValue === null && $startDate === null && $endDate === null) {
+                Log::warning('DataCite import: Skipping unsupported or invalid date value', [
+                    'date' => $date,
+                    'dateType' => $dateType,
+                ]);
+
+                continue;
             }
 
             ResourceDate::create([
@@ -967,23 +1295,6 @@ class DataCiteToResourceTransformer
                 'date_type_id' => $dateTypeId,
                 'date_information' => $dateData['dateInformation'] ?? null,
             ]);
-        }
-
-        // Issue #371: If no 'Created' date was imported, add current date as fallback
-        // This ensures every imported resource has a valid creation date
-        if (! $hasCreatedDate) {
-            $createdDateTypeId = $this->getLookupId(DateType::class, 'slug', 'Created');
-
-            if ($createdDateTypeId !== null) {
-                ResourceDate::create([
-                    'resource_id' => $resource->id,
-                    'date_value' => now()->format('Y-m-d'),
-                    'start_date' => null,
-                    'end_date' => null,
-                    'date_type_id' => $createdDateTypeId,
-                    'date_information' => null,
-                ]);
-            }
         }
     }
 
@@ -1008,20 +1319,21 @@ class DataCiteToResourceTransformer
                 // Filter out points with missing coordinates instead of coercing to 0
                 $validPoints = array_filter(
                     $polygon['polygonPoints'],
-                    fn (array $p): bool => isset($p['pointLongitude'], $p['pointLatitude']),
+                    fn (array $p): bool => $this->normaliseCoordinate($p['pointLongitude'] ?? null) !== null
+                        && $this->normaliseCoordinate($p['pointLatitude'] ?? null) !== null,
                 );
 
                 // Only store polygon if at least 3 valid points remain
                 if (count($validPoints) >= 3) {
                     $polygonPoints = array_values(array_map(fn (array $p): array => [
-                        'longitude' => (float) $p['pointLongitude'],
-                        'latitude' => (float) $p['pointLatitude'],
+                        'longitude' => $this->normaliseCoordinate($p['pointLongitude']),
+                        'latitude' => $this->normaliseCoordinate($p['pointLatitude']),
                     ], $validPoints));
                 }
 
                 if (isset($polygon['inPolygonPoint'])) {
-                    $inPolygonPointLon = $polygon['inPolygonPoint']['pointLongitude'] ?? null;
-                    $inPolygonPointLat = $polygon['inPolygonPoint']['pointLatitude'] ?? null;
+                    $inPolygonPointLon = $this->normaliseCoordinate($polygon['inPolygonPoint']['pointLongitude'] ?? null);
+                    $inPolygonPointLat = $this->normaliseCoordinate($polygon['inPolygonPoint']['pointLatitude'] ?? null);
                 }
             }
 
@@ -1039,17 +1351,34 @@ class DataCiteToResourceTransformer
                 'resource_id' => $resource->id,
                 'geo_type' => $geoType,
                 'place' => $geoData['geoLocationPlace'] ?? null,
-                'point_longitude' => $point['pointLongitude'] ?? null,
-                'point_latitude' => $point['pointLatitude'] ?? null,
-                'west_bound_longitude' => $box['westBoundLongitude'] ?? null,
-                'east_bound_longitude' => $box['eastBoundLongitude'] ?? null,
-                'south_bound_latitude' => $box['southBoundLatitude'] ?? null,
-                'north_bound_latitude' => $box['northBoundLatitude'] ?? null,
+                'point_longitude' => $this->normaliseCoordinate($point['pointLongitude'] ?? null),
+                'point_latitude' => $this->normaliseCoordinate($point['pointLatitude'] ?? null),
+                'west_bound_longitude' => $this->normaliseCoordinate($box['westBoundLongitude'] ?? null),
+                'east_bound_longitude' => $this->normaliseCoordinate($box['eastBoundLongitude'] ?? null),
+                'south_bound_latitude' => $this->normaliseCoordinate($box['southBoundLatitude'] ?? null),
+                'north_bound_latitude' => $this->normaliseCoordinate($box['northBoundLatitude'] ?? null),
                 'polygon_points' => $polygonPoints,
                 'in_polygon_point_longitude' => $inPolygonPointLon,
                 'in_polygon_point_latitude' => $inPolygonPointLat,
             ]);
         }
+    }
+
+    private function normaliseCoordinate(mixed $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+
+            if ($value === '') {
+                return null;
+            }
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
 
     /**
@@ -1320,29 +1649,12 @@ class DataCiteToResourceTransformer
      */
     private function transformRights(array $rightsList, Resource $resource): void
     {
-        foreach ($rightsList as $rightsData) {
-            $identifier = $rightsData['rightsIdentifier'] ?? null;
-
-            if ($identifier === null) {
-                // Try to find by name if no identifier
-                $name = $rightsData['rights'] ?? null;
-                if ($name !== null) {
-                    $right = Right::where('name', $name)->first();
-                    if ($right) {
-                        $resource->rights()->attach($right->id);
-                    }
-                }
-
-                continue;
-            }
-
-            // Find by SPDX identifier
-            $right = Right::where('identifier', $identifier)->first();
-
-            if ($right) {
-                $resource->rights()->attach($right->id);
-            }
-        }
+        // Store each incoming DataCite rights node as a resource_rights row. If
+        // the local catalog has an exact identifier/name/URI match the row is
+        // linked immediately; otherwise the raw statement remains unresolved so
+        // the SPDX assistant can offer a reviewer-visible suggestion later.
+        ($this->resourceRightsStorage ??= app(ResourceRightsStorageService::class))
+            ->persistImportedStatements($resource, $rightsList, 'datacite-import', $resource->language?->code);
     }
 
     /**
@@ -1534,85 +1846,15 @@ class DataCiteToResourceTransformer
     }
 
     /**
-     * Parse a date string into a format suitable for database storage.
+     * Parse a DataCite/RKMS-ISO8601 date string for database storage.
      *
-     * Handles various DataCite date formats like YYYY, YYYY-MM, YYYY-MM-DD.
-     * Validates that parsed dates are real calendar dates (e.g., rejects 2024-02-30).
-     *
-     * IMPORTANT: For year-only (YYYY) and year-month (YYYY-MM) formats, this method
-     * normalizes to full dates. For start dates, it uses the beginning of the period
-     * (YYYY-01-01 or YYYY-MM-01). For end dates, it uses the end of the period
-     * (YYYY-12-31 or YYYY-MM-{last day of month}).
-     *
-     * @param  string|null  $date  The date string to parse
-     * @param  bool  $isEndDate  Whether this is an end date (uses end of period instead of start)
-     * @return string|null The parsed date in YYYY-MM-DD format, or null if invalid
+     * The imported value's precision is preserved: `YYYY` stays `YYYY`,
+     * `YYYY-MM` stays `YYYY-MM`, and full dates stay full dates. Invalid
+     * calendar dates are rejected instead of being corrected to a different
+     * date.
      */
-    private function parseDate(?string $date, bool $isEndDate = false): ?string
+    private function parseDate(?string $date): ?string
     {
-        if ($date === null || $date === '') {
-            return null;
-        }
-
-        // Try to parse the date - DataCite allows various ISO 8601 formats
-        // Note: Using [0-9] instead of \d for strict ASCII digit matching
-        // as required by ISO 8601 standard (prevents matching Unicode digits)
-        $date = trim($date);
-
-        // Full date: YYYY-MM-DD
-        if (preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/', $date, $matches)) {
-            // Validate this is a real calendar date (e.g., reject 2024-02-30)
-            if (checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
-                return $date;
-            }
-            // Invalid calendar date - try Carbon as fallback, but log a warning
-            // as this may introduce data quality issues (e.g., 2024-02-30 -> 2024-03-01)
-            try {
-                $correctedDate = Carbon::parse($date)->format('Y-m-d');
-                Log::warning('DataCite import: Invalid calendar date corrected by Carbon', [
-                    'original' => $date,
-                    'corrected' => $correctedDate,
-                ]);
-
-                return $correctedDate;
-            } catch (\Exception) {
-                return null;
-            }
-        }
-
-        // Year and month: YYYY-MM
-        // For start dates: YYYY-MM-01 (first day of month)
-        // For end dates: YYYY-MM-{last day} (last day of month)
-        if (preg_match('/^([0-9]{4})-([0-9]{2})$/', $date, $matches)) {
-            // Validate month is valid (01-12)
-            $month = (int) $matches[2];
-            $year = (int) $matches[1];
-            if ($month >= 1 && $month <= 12) {
-                if ($isEndDate) {
-                    // Calculate last day of the month
-                    $lastDay = (new \DateTime("{$year}-{$month}-01"))->format('t');
-
-                    return sprintf('%04d-%02d-%s', $year, $month, $lastDay);
-                }
-
-                return $date.'-01';
-            }
-
-            return null;
-        }
-
-        // Year only: YYYY
-        // For start dates: YYYY-01-01 (January 1st)
-        // For end dates: YYYY-12-31 (December 31st)
-        if (preg_match('/^([0-9]{4})$/', $date)) {
-            return $isEndDate ? $date.'-12-31' : $date.'-01-01';
-        }
-
-        // Try to parse with Carbon for other formats
-        try {
-            return Carbon::parse($date)->format('Y-m-d');
-        } catch (\Exception) {
-            return null;
-        }
+        return DataCiteDateNormalizer::normalize($date, true);
     }
 }

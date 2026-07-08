@@ -44,4 +44,11 @@ describe('LegacyResourceLookupService', function () {
     it('returns false when the DOI does not exist in the legacy resource table', function () {
         expect($this->service->existsByDoi('10.5880/gfz.ojsj.2026.999'))->toBeFalse();
     });
+    it('matches DOI identifiers case-insensitively', function () {
+        DB::connection('metaworks')->table('resource')->insert([
+            'identifier' => '10.14470/RV968923',
+        ]);
+
+        expect($this->service->existsByDoi('10.14470/rv968923'))->toBeTrue();
+    });
 });

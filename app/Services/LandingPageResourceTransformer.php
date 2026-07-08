@@ -28,6 +28,7 @@ use App\Models\ResourceDate;
 use App\Models\Right;
 use App\Models\Subject;
 use App\Models\Title;
+use App\Services\Rights\CustomRightCatalogService;
 use App\Support\PortalSubjectNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use Illuminate\Database\Eloquent\Collection;
@@ -312,13 +313,14 @@ final class LandingPageResourceTransformer
             ])
             ->all();
 
-        // Transform rights to licenses with frontend-compatible field names
+        // Transform rights to licenses with frontend-compatible field names.
         $resourceData['licenses'] = $resource->rights
             ->map(static fn (Right $right): array => [
                 'id' => $right->id,
                 'name' => $right->name,
-                'spdx_id' => $right->identifier,
+                'spdx_id' => CustomRightCatalogService::isSpdxRight($right) ? $right->identifier : null,
                 'reference' => $right->uri,
+                'scheme_uri' => $right->scheme_uri,
             ])
             ->all();
 

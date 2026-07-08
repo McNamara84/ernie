@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Http\Requests\Batch\ExportResourcesRequest;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->user = User::factory()->curator()->create();
@@ -74,6 +76,39 @@ describe('BatchResourceExportController@export', function () {
             ]);
 
         $response->assertStatus(422);
+    });
+
+    test('normalizes duplicate ids before applying the maximum batch size', function () {
+        $resource = Resource::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->post('/resources/batch-export', [
+                'ids' => array_fill(0, ExportResourcesRequest::MAX_BATCH_SIZE + 1, (string) $resource->id),
+                'format' => 'datacite-json',
+            ]);
+
+        $response->assertOk();
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'ernie-test-zip-');
+        file_put_contents($zipPath, $response->streamedContent() ?: $response->getContent());
+
+        $zip = new ZipArchive;
+        $zip->open($zipPath);
+        expect($zip->numFiles)->toBe(1);
+        $zip->close();
+        @unlink($zipPath);
+    });
+
+    test('preserves malformed ids while deduplicating valid integer ids', function () {
+        $resource = Resource::factory()->create();
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/resources/batch-export', [
+                'ids' => [$resource->id, (string) $resource->id, "{$resource->id}.0"],
+                'format' => 'datacite-json',
+            ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['ids.1']);
     });
 
     test('returns a zip archive for the datacite-json format', function () {
@@ -203,7 +238,7 @@ describe('BatchResourceExportController@export', function () {
         $exporter->shouldReceive('export')
             ->andReturnUsing(function (Resource $resource) use ($bad) {
                 if ($resource->id === $bad->id) {
-                    throw new \RuntimeException('Synthetic export failure');
+                    throw new RuntimeException('Synthetic export failure');
                 }
 
                 return ['id' => 'ok', 'attributes' => []];

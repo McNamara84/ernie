@@ -6,15 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Resource\DestroyAllResourcesRequest;
 use App\Http\Requests\Resource\DestroyResourceRequest;
+use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Http\Requests\Resource\IndexResourcesRequest;
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Http\Resources\ResourceListItemResource;
-use App\Models\Institution;
-use App\Models\Person;
-use App\Models\Publisher;
 use App\Models\Resource;
 use App\Services\DataCiteSyncService;
+use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +31,7 @@ class ResourceController extends Controller
         private readonly ResourceQueryBuilder $queryBuilder,
         private readonly ResourceStorageService $storageService,
         private readonly DataCiteSyncService $syncService,
+        private readonly DeleteAllResourcesService $deleteAllResourcesService,
     ) {}
 
     /**
@@ -165,10 +165,10 @@ class ResourceController extends Controller
     }
 
     /**
-     * Delete a draft resource.
+     * Delete a resource that has not been published yet.
      *
-     * Authorization is enforced by DestroyResourceRequest::authorize() (delegates
-     * to ResourcePolicy::delete – curator / group leader / admin on draft resources only).
+     * Authorization is enforced by DestroyResourceRequest::authorize() and
+     * ResourcePolicy::delete() for admin, group leader, and curator users.
      */
     public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
@@ -176,7 +176,84 @@ class ResourceController extends Controller
 
         return redirect()
             ->route('resources')
-            ->with('success', 'Draft deleted successfully.');
+            ->with('success', 'Resource deleted successfully.');
+    }
+
+    /**
+     * Delete selected resources that have not been published yet.
+     *
+     * Every submitted resource is checked through ResourcePolicy::delete so
+     * batch deletion cannot bypass published-resource safeguards.
+     *
+     * @throws ValidationException
+     */
+    public function destroyBatch(DestroyResourcesRequest $request): RedirectResponse
+    {
+        /** @var array{ids: array<int, int>} $validated */
+        $validated = $request->validated();
+
+        /** @var array<int> $ids */
+        $ids = array_values(array_unique($validated['ids']));
+        sort($ids, SORT_NUMERIC);
+
+        DB::transaction(function () use ($ids, $request): void {
+            $resources = Resource::query()
+                ->with([
+                    'titles.titleType',
+                    'creators',
+                    'rights',
+                    'descriptions.descriptionType',
+                    'landingPage',
+                ])
+                ->whereIn('id', $ids)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($resources->count() !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'ids' => ['Some selected resources could not be found.'],
+                ]);
+            }
+
+            foreach ($ids as $id) {
+                $resource = $resources->get($id);
+
+                if (! $resource instanceof Resource) {
+                    throw ValidationException::withMessages([
+                        'ids' => ['Some selected resources could not be found.'],
+                    ]);
+                }
+
+                if (! ($request->user()?->can('delete', $resource) ?? false)) {
+                    $message = $resource->publicStatus() === 'published'
+                        ? 'Published resources cannot be deleted.'
+                        : 'You do not have permission to delete the selected resources.';
+
+                    throw ValidationException::withMessages([
+                        'ids' => [$message],
+                    ]);
+                }
+            }
+
+            foreach ($ids as $id) {
+                $resource = $resources->get($id);
+
+                if ($resource instanceof Resource) {
+                    $resource->delete();
+                }
+            }
+        });
+
+        $count = count($ids);
+        $message = $count === 1
+            ? 'Resource deleted successfully.'
+            : "{$count} resources deleted successfully.";
+
+        return redirect()
+            ->route('resources')
+            ->with('success', $message);
     }
 
     /**
@@ -192,30 +269,12 @@ class ResourceController extends Controller
      */
     public function destroyAll(DestroyAllResourcesRequest $request): RedirectResponse
     {
-        DB::transaction(function (): void {
-            // Delete in chunks so ResourceObserver fires per resource for cache invalidation.
-            // DB cascading FKs handle child tables.
-            Resource::query()->chunkById(100, function ($resources): void {
-                foreach ($resources as $resource) {
-                    $resource->delete();
-                }
-            });
-
-            // Clean up orphaned persons, institutions and publishers.
-            Person::whereDoesntHave('resourceCreators')
-                ->whereDoesntHave('resourceContributors')
-                ->delete();
-
-            Institution::whereDoesntHave('resourceCreators')
-                ->whereDoesntHave('resourceContributors')
-                ->delete();
-
-            Publisher::whereDoesntHave('resources')->delete();
-        });
+        $deletedResources = $this->deleteAllResourcesService->deleteAll();
 
         Log::info('All resources deleted by admin', [
             'user_id' => $request->user()?->id,
             'user_email' => $request->user()?->email,
+            'deleted_resources' => $deletedResources,
         ]);
 
         return redirect()

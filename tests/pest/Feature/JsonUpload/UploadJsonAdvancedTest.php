@@ -489,7 +489,7 @@ describe('JSON Upload - Contributor edge cases', function () {
 });
 
 describe('JSON Upload - Date normalization', function () {
-    test('normalizes year-only dates', function () {
+    test('preserves year-only date precision', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -503,10 +503,10 @@ describe('JSON Upload - Date normalization', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['dates'][0]['startDate'])->toBe('2025-01-01');
+        expect($data['dates'][0]['startDate'])->toBe('2025');
     });
 
-    test('normalizes year-month dates', function () {
+    test('preserves year-month date precision', function () {
         $this->actingAs(User::factory()->create());
 
         $json = dataCiteJson(minimalAttributes([
@@ -520,7 +520,7 @@ describe('JSON Upload - Date normalization', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['dates'][0]['startDate'])->toBe('2025-06-01');
+        expect($data['dates'][0]['startDate'])->toBe('2025-06');
     });
 
     test('strips time from datetime values', function () {
@@ -691,7 +691,16 @@ describe('JSON Upload - License and description edge cases', function () {
 
         $data = getJsonUploadData($response);
 
-        expect($data['licenses'])->toBe(['CC-BY-4.0']);
+        expect($data['licenses'])->toBe(['CC-BY-4.0'])
+            ->and($data['rawRights'])->toHaveCount(2)
+            ->and($data['rawRights'][0])->toMatchArray([
+                'rights' => 'Open Access',
+                'source' => 'json-upload',
+            ])
+            ->and($data['rawRights'][1])->toMatchArray([
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'source' => 'json-upload',
+            ]);
     });
 
     test('skips empty descriptions', function () {

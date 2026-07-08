@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
-import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/components/curation/datacite-form';
+import DataCiteForm, { type EditorLandingPageSummary, type InitialAuthor, type InitialContributor, type RawRightsInput } from '@/components/curation/datacite-form';
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -36,11 +36,13 @@ interface EditorProps {
     resourceType?: string;
     titles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
+    initialRawRights?: RawRightsInput[];
     resourceId?: string;
+    landingPage?: EditorLandingPageSummary | null;
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
-    dates?: { dateType: string; startDate: string; endDate: string }[];
+    dates?: { dateType: string; dateMode?: 'single' | 'range'; startDate: string; endDate: string }[];
     gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
     freeKeywords?: string[];
     gemetKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; classificationCode?: string }[];
@@ -67,7 +69,9 @@ export default function Editor({
     resourceType = '',
     titles = [],
     initialLicenses = [],
+    initialRawRights = [],
     resourceId,
+    landingPage = null,
     authors = [],
     contributors = [],
     descriptions = [],
@@ -270,7 +274,9 @@ export default function Editor({
                         initialResourceType={resourceType}
                         initialTitles={titles}
                         initialLicenses={initialLicenses}
+                        initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
+                        initialLandingPage={landingPage}
                         initialAuthors={authors}
                         initialContributors={contributors}
                         initialDescriptions={descriptions}

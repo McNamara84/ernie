@@ -3,16 +3,21 @@
 declare(strict_types=1);
 
 use App\Models\ContributorType;
+use App\Models\Institution;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\Spdx\SpdxRightsMatchInputProvider;
 use Database\Seeders\ContributorTypeSeeder;
+use Database\Seeders\DateTypeSeeder;
 use Database\Seeders\DescriptionTypeSeeder;
 use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\LanguageSeeder;
@@ -20,6 +25,7 @@ use Database\Seeders\PublisherSeeder;
 use Database\Seeders\RelationTypeSeeder;
 use Database\Seeders\ResourceTypeSeeder;
 use Database\Seeders\TitleTypeSeeder;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function (): void {
     // Ensure all required lookup tables are seeded
@@ -31,6 +37,140 @@ beforeEach(function (): void {
     test()->seed(LanguageSeeder::class);
     test()->seed(PublisherSeeder::class);
     test()->seed(RelationTypeSeeder::class);
+});
+
+describe('DataCiteToResourceTransformer - rights import', function (): void {
+    it('stores raw rights statements without immediately linking alias-only SPDX data', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/fidgeo.2017.003',
+                'publicationYear' => 2017,
+                'language' => 'en',
+                'titles' => [['title' => 'Raw rights import test']],
+                'creators' => [
+                    ['familyName' => 'Tester', 'givenName' => 'Rights', 'nameType' => 'Personal'],
+                ],
+                'rightsList' => [
+                    [
+                        'rights' => 'CC BY 4.0',
+                        'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->sole();
+
+        expect($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+            ->and($resourceRight->language)->toBe('en')
+            ->and($resourceRight->source)->toBe('datacite-import');
+    });
+
+    it('prefers embedded DataCite XML rights over API-normalized SPDX rights during legacy import', function (): void {
+        Right::create([
+            'identifier' => 'CC-BY-4.0',
+            'name' => 'Creative Commons Attribution 4.0 International',
+            'uri' => 'https://spdx.org/licenses/CC-BY-4.0.html',
+            'scheme_uri' => 'https://spdx.org/licenses/',
+        ]);
+
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $originalXml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <rightsList>
+    <rights rightsURI="http://creativecommons.org/licenses/by/4.0/">CC BY 4.0</rights>
+  </rightsList>
+</resource>
+XML;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/fidgeo.2026.052',
+                'publicationYear' => 2026,
+                'language' => 'en',
+                'titles' => [['title' => 'Original XML rights test']],
+                'creators' => [
+                    ['familyName' => 'Tester', 'givenName' => 'Rights', 'nameType' => 'Personal'],
+                ],
+                'rightsList' => [
+                    [
+                        'rights' => 'Creative Commons Attribution 4.0 International',
+                        'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/legalcode',
+                        'rightsIdentifier' => 'cc-by-4.0',
+                        'rightsIdentifierScheme' => 'SPDX',
+                        'schemeUri' => 'https://spdx.org/licenses/',
+                    ],
+                ],
+                'xml' => base64_encode($originalXml),
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->sole();
+
+        expect($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0/')
+            ->and($resourceRight->rights_identifier)->toBeNull()
+            ->and($resourceRight->rights_identifier_scheme)->toBeNull()
+            ->and($resourceRight->scheme_uri)->toBeNull()
+            ->and($resourceRight->source)->toBe('datacite-import');
+
+        $pendingInputs = (new SpdxRightsMatchInputProvider)
+            ->pendingInputs()
+            ->where('resourceId', $resource->id)
+            ->values();
+
+        expect($pendingInputs)->toHaveCount(1)
+            ->and($pendingInputs->first()->rightsText)->toBe('CC BY 4.0')
+            ->and($pendingInputs->first()->rightsIdentifier)->toBeNull();
+    });
+});
+
+describe('DataCiteToResourceTransformer - geo location normalization', function (): void {
+    it('normalizes empty geo box coordinates to null instead of writing empty strings', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/empty-geo-box.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Empty Geo Box Test']],
+                'creators' => [
+                    ['familyName' => 'Creator', 'givenName' => 'Casey', 'nameType' => 'Personal'],
+                ],
+                'geoLocations' => [
+                    [
+                        'geoLocationPlace' => 'Challa Lake, Kenya',
+                        'geoLocationBox' => [
+                            'westBoundLongitude' => '37.704000',
+                            'eastBoundLongitude' => '',
+                            'southBoundLatitude' => '-3.316760',
+                            'northBoundLatitude' => '   ',
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $geoLocation = $resource->geoLocations()->firstOrFail();
+
+        expect((string) $geoLocation->west_bound_longitude)->toBe('37.70400000')
+            ->and($geoLocation->east_bound_longitude)->toBeNull()
+            ->and((string) $geoLocation->south_bound_latitude)->toBe('-3.31676000')
+            ->and($geoLocation->north_bound_latitude)->toBeNull();
+    });
 });
 
 afterEach(function (): void {
@@ -183,6 +323,31 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($firstTitle->title_type_id)->toBe($mainTitleType->id);
         });
 
+        it('recreates the required MainTitle type when the lookup table is missing it', function (): void {
+            TitleType::query()->delete();
+
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/missing-main-title-type.2024.001',
+                    'titles' => [
+                        ['title' => 'Main Title From Missing Lookup'],
+                    ],
+                    'creators' => [
+                        ['familyName' => 'Test', 'givenName' => 'User', 'nameType' => 'Personal'],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $mainTitleType = TitleType::where('slug', 'MainTitle')->firstOrFail();
+
+            expect($mainTitleType->name)->toBe('Main Title')
+                ->and($resource->titles()->sole()->title_type_id)->toBe($mainTitleType->id);
+        });
+
         it('creates multiple titles with different types', function (): void {
             $user = User::factory()->create();
             $transformer = new DataCiteToResourceTransformer;
@@ -242,6 +407,116 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($person->given_name)->toBe('Albert')
                 ->and($person->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
                 ->and($person->name_identifier_scheme)->toBe('ORCID');
+        });
+
+        it('normalizes valid ORCID identifiers to canonical URLs', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/orcid-normalized.2024.001',
+                    'titles' => [['title' => 'ORCID Normalization Test']],
+                    'creators' => [
+                        [
+                            'familyName' => 'Curie',
+                            'givenName' => 'Marie',
+                            'nameType' => 'Personal',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => '0000-0002-1825-0097',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                    'schemeUri' => 'http://orcid.org',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $transformer->transform($doiData, $user->id);
+            $person = Person::where('family_name', 'Curie')->firstOrFail();
+
+            expect($person->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
+                ->and($person->name_identifier_scheme)->toBe('ORCID')
+                ->and($person->scheme_uri)->toBe('https://orcid.org');
+        });
+
+        it('normalizes protocol-less ORCID identifiers during import', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/orcid-protocol-less.2024.001',
+                    'titles' => [['title' => 'Protocol-less ORCID Test']],
+                    'creators' => [
+                        [
+                            'name' => 'Lovelace, Ada',
+                            'nameType' => 'Organizational',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => 'www.orcid.org/0000-0002-1825-0097',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $creator = $resource->creators()->firstOrFail();
+            $person = Person::findOrFail($creator->creatorable_id);
+
+            expect($creator->creatorable_type)->toBe(Person::class)
+                ->and($person->name_identifier)->toBe('https://orcid.org/0000-0002-1825-0097')
+                ->and($person->name_identifier_scheme)->toBe('ORCID');
+        });
+
+        it('ignores invalid ORCID identifiers during import', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer;
+
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/orcid-invalid.2024.001',
+                    'publicationYear' => 2024,
+                    'titles' => [['title' => 'Invalid ORCID Test']],
+                    'creators' => [
+                        [
+                            'name' => 'Doe, Jane',
+                            'nameType' => 'Personal',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => '0000-0002-1825-0000',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                ],
+                            ],
+                        ],
+                        [
+                            'name' => 'Royal Meteorological Institute (Belgium)',
+                            'nameType' => 'Personal',
+                            'nameIdentifiers' => [
+                                [
+                                    'nameIdentifier' => 'not-an-orcid',
+                                    'nameIdentifierScheme' => 'ORCID',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $creators = $resource->creators()->orderBy('position')->get();
+            $person = Person::findOrFail($creators[0]->creatorable_id);
+
+            expect($creators)->toHaveCount(2)
+                ->and($creators[0]->creatorable_type)->toBe(Person::class)
+                ->and($person->name_identifier)->toBeNull()
+                ->and($person->name_identifier_scheme)->toBeNull()
+                ->and($creators[1]->creatorable_type)->toBe(Institution::class);
         });
 
         it('creates organizational creators (institutions)', function (): void {
@@ -738,9 +1013,9 @@ describe('DataCiteToResourceTransformer', function (): void {
 describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', function (): void {
 
     beforeEach(function (): void {
-        test()->seed(\Database\Seeders\ResourceTypeSeeder::class);
-        test()->seed(\Database\Seeders\TitleTypeSeeder::class);
-        test()->seed(\Database\Seeders\DateTypeSeeder::class);
+        test()->seed(ResourceTypeSeeder::class);
+        test()->seed(TitleTypeSeeder::class);
+        test()->seed(DateTypeSeeder::class);
     });
 
     it('preserves imported Created date from DataCite response', function (): void {
@@ -772,10 +1047,9 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
             ->and($createdDate->date_value)->toBe('2022-06-15');
     });
 
-    it('adds fallback Created date with current date when not in DataCite response', function (): void {
+    it('does not add a Created date when it is missing from the DataCite response', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
-        $today = now()->format('Y-m-d');
 
         $doiData = [
             'attributes' => [
@@ -793,19 +1067,16 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
 
         $resource = $transformer->transform($doiData, $user->id);
 
-        // Find the 'Created' date
         $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
         })->first();
 
-        expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($today);
+        expect($createdDate)->toBeNull();
     });
 
-    it('adds fallback Created date when dates array is empty', function (): void {
+    it('does not add a Created date when the DataCite response has no dates', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
-        $today = now()->format('Y-m-d');
 
         $doiData = [
             'attributes' => [
@@ -815,19 +1086,16 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
                 'creators' => [
                     ['familyName' => 'Brown', 'givenName' => 'Bob', 'nameType' => 'Personal'],
                 ],
-                // No dates array at all
             ],
         ];
 
         $resource = $transformer->transform($doiData, $user->id);
 
-        // Find the 'Created' date
         $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
             $q->whereRaw('LOWER(slug) = ?', ['created']);
         })->first();
 
-        expect($createdDate)->not->toBeNull()
-            ->and($createdDate->date_value)->toBe($today);
+        expect($createdDate)->toBeNull();
     });
 
     it('does not duplicate Created date when already present', function (): void {
@@ -866,6 +1134,161 @@ describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', fu
         expect($createdDate->date_value)->toBe('2020-01-01');
     });
 
+    it('preserves partial single-date precision for every DataCite date type imported from the DataCite API', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $dateTypes = [
+            'Accepted',
+            'Available',
+            'Copyrighted',
+            'Collected',
+            'Coverage',
+            'Created',
+            'Issued',
+            'Submitted',
+            'Updated',
+            'Valid',
+            'Withdrawn',
+            'Other',
+        ];
+
+        $expectedDateValues = [];
+        $dates = [];
+        foreach ($dateTypes as $index => $dateType) {
+            $dateValue = $index % 2 === 0 ? '2009' : '2009-05';
+            $expectedDateValues[$dateType] = $dateValue;
+            $dates[] = ['date' => $dateValue, 'dateType' => $dateType];
+        }
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/imported-partial-dates',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Partial imported dates']],
+                'creators' => [
+                    ['familyName' => 'Partial', 'givenName' => 'Pat', 'nameType' => 'Personal'],
+                ],
+                'dates' => $dates,
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        foreach ($expectedDateValues as $dateType => $expectedDateValue) {
+            $storedDate = $resource->dates()->whereHas('dateType', function ($q) use ($dateType) {
+                $q->where('slug', $dateType);
+            })->first();
+
+            expect($storedDate)->not->toBeNull()
+                ->and($storedDate->date_value)->toBe($expectedDateValue)
+                ->and($storedDate->start_date)->toBeNull()
+                ->and($storedDate->end_date)->toBeNull();
+        }
+    });
+
+    it('preserves partial range precision for DataCite API dates', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/imported-partial-date-periods',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Partial imported periods']],
+                'creators' => [
+                    ['familyName' => 'Period', 'givenName' => 'Pat', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2009/2010', 'dateType' => 'Created'],
+                    ['date' => '2009-05/2010-06', 'dateType' => 'Collected'],
+                    ['date' => '2011/', 'dateType' => 'Valid'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        $createdDate = $resource->dates()->whereHas('dateType', fn ($q) => $q->where('slug', 'Created'))->first();
+        $collectedDate = $resource->dates()->whereHas('dateType', fn ($q) => $q->where('slug', 'Collected'))->first();
+        $validDate = $resource->dates()->whereHas('dateType', fn ($q) => $q->where('slug', 'Valid'))->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBeNull()
+            ->and($createdDate->start_date)->toBe('2009')
+            ->and($createdDate->end_date)->toBe('2010')
+            ->and($collectedDate)->not->toBeNull()
+            ->and($collectedDate->date_value)->toBeNull()
+            ->and($collectedDate->start_date)->toBe('2009-05')
+            ->and($collectedDate->end_date)->toBe('2010-06')
+            ->and($validDate)->not->toBeNull()
+            ->and($validDate->date_value)->toBeNull()
+            ->and($validDate->start_date)->toBe('2011')
+            ->and($validDate->end_date)->toBeNull();
+    });
+
+    it('imports Collected, Valid, and Other ranges from the DataCite API as stored periods', function (string $dateTypeSlug): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/imported-date-period.'.strtolower($dateTypeSlug),
+                'publicationYear' => 2024,
+                'titles' => [['title' => $dateTypeSlug.' imported period']],
+                'creators' => [
+                    ['familyName' => 'Period', 'givenName' => 'Pat', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2024-01-01/2024-12-31', 'dateType' => $dateTypeSlug],
+                    ['date' => '2024-02-01', 'dateType' => 'Created'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $periodDate = $resource->dates()->whereHas('dateType', function ($q) use ($dateTypeSlug) {
+            $q->whereRaw('LOWER(slug) = ?', [strtolower($dateTypeSlug)]);
+        })->first();
+
+        expect($periodDate)->not->toBeNull()
+            ->and($periodDate->date_value)->toBeNull()
+            ->and($periodDate->start_date)->toBe('2024-01-01')
+            ->and($periodDate->end_date)->toBe('2024-12-31');
+    })->with([
+        'Collected' => 'Collected',
+        'Valid' => 'Valid',
+        'Other' => 'Other',
+    ]);
+
+    it('imports Created ranges from the DataCite API as stored periods', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/imported-created-period',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Created imported period']],
+                'creators' => [
+                    ['familyName' => 'Period', 'givenName' => 'Pat', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2020-01-01/2020-12-31', 'dateType' => 'Created'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBeNull()
+            ->and($createdDate->start_date)->toBe('2020-01-01')
+            ->and($createdDate->end_date)->toBe('2020-12-31');
+    });
 });
 
 describe('DataCiteToResourceTransformer - nameType inference and null family_name handling', function (): void {
@@ -893,7 +1316,7 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
 
         $creator = $resource->creators()->first();
         expect($creator)->not->toBeNull()
-            ->and($creator->creatorable_type)->toBe(\App\Models\Institution::class);
+            ->and($creator->creatorable_type)->toBe(Institution::class);
     });
 
     it('infers Personal nameType for comma-separated name without nameType', function (): void {
@@ -1074,7 +1497,7 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
 
         $contributor = $resource->contributors()->first();
         expect($contributor)->not->toBeNull()
-            ->and($contributor->contributorable_type)->toBe(\App\Models\Institution::class);
+            ->and($contributor->contributorable_type)->toBe(Institution::class);
     });
 
     it('infers Personal for contributor with parseable name and no nameType', function (): void {
@@ -1153,7 +1576,7 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         expect($creators[0]->creatorable_type)->toBe(Person::class);
 
         // Creator 2: Organizational (explicit)
-        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+        expect($creators[1]->creatorable_type)->toBe(Institution::class);
 
         // Creator 3: Personal (inferred via parsePersonName from "Schmidt, Maria")
         expect($creators[2]->creatorable_type)->toBe(Person::class);
@@ -1317,13 +1740,381 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         $creators = $resource->creators()->orderBy('position')->get();
 
         // "Alfred Wegener Institute" → Organizational (keyword "institute")
-        expect($creators[0]->creatorable_type)->toBe(\App\Models\Institution::class);
+        expect($creators[0]->creatorable_type)->toBe(Institution::class);
 
         // "Helmholtz Centre Potsdam GFZ" → Organizational (keyword "helmholtz"/"centre" + 4 tokens)
-        expect($creators[1]->creatorable_type)->toBe(\App\Models\Institution::class);
+        expect($creators[1]->creatorable_type)->toBe(Institution::class);
 
         // "John Smith" → Personal (2 tokens, no org keyword)
         expect($creators[2]->creatorable_type)->toBe(Person::class);
+    });
+
+    it('corrects legacy institutional creators that DataCite marks as Personal', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/intermagnet-personal-orgs.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Intermagnet Personal Institution Test']],
+                'creators' => [
+                    [
+                        'name' => 'Bureau Central de Magnetisme Terrestre, BCMT (France)',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'Institute of Geology and Geophysics, Chinese Academy of Sciences (China)',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'John Smith',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(3)
+            ->and($creators[0]->creatorable_type)->toBe(Institution::class)
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class)
+            ->and($creators[2]->creatorable_type)->toBe(Person::class);
+    });
+
+    it('logs corrected nameType with persisted position and source index', function (): void {
+        Log::spy();
+
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/name-type-log-position.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'NameType Log Position Test']],
+                'creators' => [
+                    [
+                        'familyName' => 'Curator',
+                        'givenName' => 'Casey',
+                        'nameType' => 'Personal',
+                    ],
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        expect($resource->creators()->orderBy('position')->pluck('position')->all())->toBe([1, 2]);
+
+        Log::shouldHaveReceived('debug')
+            ->withArgs(fn (string $message, array $context): bool => $message === 'Corrected DataCite party nameType during import'
+                && $context['resource_id'] === $resource->id
+                && $context['doi'] === '10.5880/name-type-log-position.2024.001'
+                && $context['role'] === 'creator'
+                && $context['position'] === 2
+                && $context['source_index'] === 1
+                && $context['name'] === 'Royal Meteorological Institute (Belgium)'
+                && $context['declared_name_type'] === 'Personal'
+                && $context['resolved_name_type'] === 'Organizational')
+            ->once();
+    });
+
+    it('infers Intermagnet-style institutional creators when DataCite omits nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/intermagnet-missing-nametype.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Intermagnet Missing NameType Test']],
+                'creators' => [
+                    [
+                        'name' => 'INTERMAGNET',
+                    ],
+                    [
+                        'name' => 'Geoscience Australia (Australia)',
+                    ],
+                    [
+                        'name' => 'Jane Doe',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(3)
+            ->and($creators[0]->creatorable_type)->toBe(Institution::class)
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class)
+            ->and($creators[2]->creatorable_type)->toBe(Person::class);
+    });
+
+    it('lets structured person names override an incorrect Organizational nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/structured-person-overrides-org.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Structured Person Override Test']],
+                'creators' => [
+                    [
+                        'name' => 'Doe, Jane',
+                        'familyName' => 'Doe',
+                        'givenName' => 'Jane',
+                        'nameType' => 'Organizational',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creator = $resource->creators()->firstOrFail();
+        $person = Person::findOrFail($creator->creatorable_id);
+
+        expect($creator->creatorable_type)->toBe(Person::class)
+            ->and($person->family_name)->toBe('Doe')
+            ->and($person->given_name)->toBe('Jane');
+    });
+
+    it('uses name identifier schemes as strong person and institution signals', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/name-identifier-signals.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Name Identifier Signals Test']],
+                'creators' => [
+                    [
+                        'name' => 'Doe, Jane',
+                        'nameType' => 'Organizational',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'https://orcid.org/0000-0002-1825-0097',
+                                'nameIdentifierScheme' => 'ORCID',
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'https://ror.org/05q1p6x47',
+                                'nameIdentifierScheme' => 'ROR',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+        $institution = Institution::findOrFail($creators[1]->creatorable_id);
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Person::class)
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class)
+            ->and($institution->name_identifier)->toBe('https://ror.org/05q1p6x47')
+            ->and($institution->name_identifier_scheme)->toBe('ROR');
+    });
+
+    it('persists ROR identifiers detected from lowercase or missing schemes', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/ror-signal-persistence.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'ROR Signal Persistence Test']],
+                'creators' => [
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'http://ror.org/05Q1P6X47',
+                                'nameIdentifierScheme' => 'ror',
+                                'schemeUri' => 'http://ror.org',
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'GFZ German Research Centre for Geosciences',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'ror.org/04Z8JG394',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+        $firstInstitution = Institution::findOrFail($creators[0]->creatorable_id);
+        $secondInstitution = Institution::findOrFail($creators[1]->creatorable_id);
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Institution::class)
+            ->and($firstInstitution->name_identifier)->toBe('https://ror.org/05q1p6x47')
+            ->and($firstInstitution->name_identifier_scheme)->toBe('ROR')
+            ->and($firstInstitution->scheme_uri)->toBe('https://ror.org')
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class)
+            ->and($secondInstitution->name_identifier)->toBe('https://ror.org/04z8jg394')
+            ->and($secondInstitution->name_identifier_scheme)->toBe('ROR')
+            ->and($secondInstitution->scheme_uri)->toBe('https://ror.org');
+    });
+
+    it('ignores blank name identifiers when resolving creator types', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/blank-name-identifier-signals.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Blank Name Identifier Signals Test']],
+                'creators' => [
+                    [
+                        'name' => 'Doe, Jane',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => '   ',
+                                'nameIdentifierScheme' => 'ROR',
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => '',
+                                'nameIdentifierScheme' => 'ORCID',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Person::class)
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class);
+    });
+
+    it('applies the same institutional correction to contributors', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/contributor-personal-org-correction.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Contributor Institution Correction Test']],
+                'creators' => [
+                    ['familyName' => 'Creator', 'givenName' => 'Casey', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'Royal Meteorological Institute (Belgium)',
+                        'nameType' => 'Personal',
+                        'contributorType' => 'HostingInstitution',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $contributor = $resource->contributors()->firstOrFail();
+
+        expect($contributor->contributorable_type)->toBe(Institution::class);
+    });
+
+    it('treats structured contributor names as institutions when the full name is organizational', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/structured-contributor-org-correction.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Structured Contributor Organization Correction Test']],
+                'creators' => [
+                    ['familyName' => 'Creator', 'givenName' => 'Casey', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'secretariat, INTERMAGNET',
+                        'familyName' => 'secretariat',
+                        'givenName' => 'INTERMAGNET',
+                        'nameType' => 'Personal',
+                        'contributorType' => 'ContactPerson',
+                    ],
+                    [
+                        'name' => 'Deutsches GeoForschungsZentrum GFZ',
+                        'familyName' => 'GeoForschungsZentrum GFZ',
+                        'givenName' => 'Deutsches',
+                        'nameType' => 'Personal',
+                        'contributorType' => 'HostingInstitution',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $contributors = $resource->contributors()->orderBy('position')->get();
+
+        expect($contributors)->toHaveCount(2)
+            ->and($contributors[0]->contributorable_type)->toBe(Institution::class)
+            ->and($contributors[1]->contributorable_type)->toBe(Institution::class);
+    });
+
+    it('keeps structured person names with name particles as persons', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/structured-person-particles.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Structured Person Particles Test']],
+                'creators' => [
+                    [
+                        'name' => 'Rodrigo J. Abarca Del Rio',
+                        'familyName' => 'Abarca Del Rio',
+                        'givenName' => 'Rodrigo J.',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creator = $resource->creators()->firstOrFail();
+
+        expect($creator->creatorable_type)->toBe(Person::class);
     });
 
 });

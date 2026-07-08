@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\UpdatePidJob;
 use App\Models\PidSetting;
 use App\Services\Pid4instStatusService;
+use App\Services\RaidStatusService;
 use App\Services\RorStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +26,7 @@ class PidSettingsController extends Controller
     public function __construct(
         private readonly Pid4instStatusService $pid4instStatusService,
         private readonly RorStatusService $rorStatusService,
+        private readonly RaidStatusService $raidStatusService,
     ) {}
 
     /**
@@ -32,7 +34,7 @@ class PidSettingsController extends Controller
      *
      * POST /pid-settings/{type}/check
      *
-     * @param  string  $type  The PID type (pid4inst, ror)
+     * @param  string  $type  The PID type (pid4inst, ror, raid)
      */
     public function checkStatus(string $type): JsonResponse
     {
@@ -65,7 +67,7 @@ class PidSettingsController extends Controller
             ]);
         } catch (\RuntimeException $e) {
             return response()->json([
-                'error' => 'Failed to check remote status: ' . $e->getMessage(),
+                'error' => 'Failed to check remote status: '.$e->getMessage(),
             ], 503);
         }
     }
@@ -77,7 +79,7 @@ class PidSettingsController extends Controller
      *
      * Requires 'manage-thesauri' gate (Admin and Group Leader).
      *
-     * @param  string  $type  The PID type (pid4inst, ror)
+     * @param  string  $type  The PID type (pid4inst, ror, raid)
      */
     public function triggerUpdate(string $type): JsonResponse
     {
@@ -156,11 +158,12 @@ class PidSettingsController extends Controller
     /**
      * Resolve the appropriate status service for the given PID type.
      */
-    private function resolveStatusService(string $type): Pid4instStatusService|RorStatusService|null
+    private function resolveStatusService(string $type): Pid4instStatusService|RorStatusService|RaidStatusService|null
     {
         return match ($type) {
             PidSetting::TYPE_PID4INST => $this->pid4instStatusService,
             PidSetting::TYPE_ROR => $this->rorStatusService,
+            PidSetting::TYPE_RAID => $this->raidStatusService,
             default => null,
         };
     }

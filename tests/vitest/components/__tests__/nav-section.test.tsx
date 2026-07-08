@@ -271,6 +271,40 @@ describe('NavSection', () => {
         expect(screen.getByTestId('sidebar-badge')).toHaveTextContent('0');
     });
 
+    it('keeps primary badges readable when their navigation item is active or hovered', () => {
+        mockUsePage.mockReturnValue({ url: '/resources' });
+
+        const items: NavItem[] = [
+            {
+                title: 'Resources',
+                href: '/resources',
+                icon: Database,
+                badge: 12,
+                badgeTone: 'primary',
+            },
+        ];
+
+        render(<NavSection items={items} />);
+
+        const badge = screen.getByTestId('sidebar-badge');
+        expect(screen.getByRole('link', { name: /resources/i }).closest('[data-active]')).toHaveAttribute('data-active', 'true');
+        expect(badge).toHaveClass('bg-gfz-primary');
+        expect(badge).toHaveClass('text-gfz-primary-foreground');
+        expect(badge).toHaveClass('peer-data-[active=true]/menu-button:text-gfz-primary-foreground');
+        expect(badge).toHaveClass('peer-hover/menu-button:text-gfz-primary-foreground');
+    });
+
+    it('does not apply primary foreground overrides to default badges', () => {
+        const items: NavItem[] = [{ title: 'Dashboard', href: '/dashboard', icon: Home, badge: 3 }];
+
+        render(<NavSection items={items} />);
+
+        const badge = screen.getByTestId('sidebar-badge');
+        expect(badge).toHaveClass('bg-sidebar-accent/70');
+        expect(badge).toHaveClass('text-sidebar-accent-foreground');
+        expect(badge.className).not.toContain('text-gfz-primary-foreground');
+    });
+
     it('does not render a zero badge without explicit opt-in', () => {
         const items: NavItem[] = [{ title: 'Assistance', href: '/assistance', icon: Settings, badge: 0 }];
 

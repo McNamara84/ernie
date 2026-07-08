@@ -509,6 +509,42 @@ describe('Tracked Download URLs', function () {
             );
     });
 
+    test('published landing pages hide download payloads when downloads are unavailable', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->downloadsUnavailable()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'downloads-unavailable-test',
+                'ftp_url' => 'https://downloads.example.org/dataset.zip',
+            ]);
+
+        $landingPage->files()->create([
+            'url' => 'https://downloads.example.org/supplement.csv',
+            'position' => 0,
+        ]);
+        $landingPage->links()->create([
+            'url' => 'https://example.org/supporting-repository',
+            'label' => 'Supporting repository',
+            'position' => 0,
+        ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('landingPage.downloads_unavailable', true)
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.tracked_ftp_url', null)
+                ->where('landingPage.files', [])
+                ->where('landingPage.links', [])
+            );
+
+        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/dataset.zip')
+            ->and($landingPage->fresh()->files)->toHaveCount(1)
+            ->and($landingPage->fresh()->links)->toHaveCount(1);
+    });
+
     test('preview payloads do not expose tracked download URLs', function () {
         $landingPage = LandingPage::factory()
             ->published()
@@ -735,6 +771,7 @@ describe('Landing Page with Custom Template', function () {
             'logo_path' => 'landing-page-logos/test/custom-logo.png',
             'creator_display_limit' => 12,
             'contributor_display_limit' => 34,
+            'citation_author_display_limit' => 8,
         ]);
 
         $landingPage = LandingPage::factory()
@@ -758,6 +795,7 @@ describe('Landing Page with Custom Template', function () {
                 )
                 ->where('displayLimits.creators', 12)
                 ->where('displayLimits.contributors', 34)
+                ->where('displayLimits.citationAuthors', 8)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-logo.png'))
             );
     });
@@ -766,6 +804,7 @@ describe('Landing Page with Custom Template', function () {
         LandingPageTemplate::ensureDefaultTemplateExists()->update([
             'creator_display_limit' => 22,
             'contributor_display_limit' => 44,
+            'citation_author_display_limit' => 66,
         ]);
 
         $landingPage = LandingPage::factory()
@@ -787,6 +826,7 @@ describe('Landing Page with Custom Template', function () {
                 ->where('customLogoUrl', null)
                 ->where('displayLimits.creators', 22)
                 ->where('displayLimits.contributors', 44)
+                ->where('displayLimits.citationAuthors', 66)
             );
     });
 
@@ -802,6 +842,7 @@ describe('Landing Page with Custom Template', function () {
                 'is_default' => false,
                 'creator_display_limit' => 23,
                 'contributor_display_limit' => 43,
+                'citation_author_display_limit' => 63,
                 'updated_at' => $originalTimestamp,
             ]);
 
@@ -822,6 +863,7 @@ describe('Landing Page with Custom Template', function () {
                 ->component('LandingPages/default_gfz')
                 ->where('displayLimits.creators', 23)
                 ->where('displayLimits.contributors', 43)
+                ->where('displayLimits.citationAuthors', 63)
             );
 
         $freshDefaultTemplate = $defaultTemplate->fresh();
@@ -848,6 +890,7 @@ describe('Landing Page with Custom Template', function () {
             'logo_path' => 'landing-page-logos/test/igsn-logo.png',
             'creator_display_limit' => 21,
             'contributor_display_limit' => 31,
+            'citation_author_display_limit' => 41,
         ]);
         $domain = LandingPageDomain::factory()->withDomain('https://legacy.example.org/')->create();
 
@@ -888,6 +931,7 @@ describe('Landing Page with Custom Template', function () {
                 )
                 ->where('displayLimits.creators', 21)
                 ->where('displayLimits.contributors', 31)
+                ->where('displayLimits.citationAuthors', 41)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/igsn-logo.png'))
             );
     });
@@ -924,7 +968,7 @@ describe('Landing Page with Custom Template', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.landing_page_template_id', $template->id)
-                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition'])
+                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates'])
             );
     });
 

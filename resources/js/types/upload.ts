@@ -17,6 +17,8 @@ export type UploadErrorCategory = 'validation' | 'data' | 'server';
  * Structured upload error from the backend.
  */
 export interface UploadError {
+    /** Resource ID for duplicate-resource errors */
+    resourceId?: number | null;
     /** Error category for grouping and display */
     category: UploadErrorCategory;
     /** Machine-readable error code */
@@ -48,12 +50,14 @@ export interface UploadErrorResponse {
 
 /**
  * Success response from XML upload endpoint.
- * Note: Backend does not include 'success' field, only 'sessionKey'.
+ * New responses include a persisted draft resource ID; sessionKey remains as fallback.
  */
 export interface XmlUploadSuccessResponse {
     success?: true;
+    /** Persisted draft resource ID for editor navigation */
+    resourceId?: number | string | null;
     /** Session key for retrieving parsed XML data */
-    sessionKey: string;
+    sessionKey?: string | null;
 }
 
 /**
@@ -73,11 +77,14 @@ export interface CsvUploadSuccessResponse {
 
 /**
  * Success response from JSON upload endpoint.
- * Same structure as XML upload: contains session key for editor navigation.
+ * Same structure as XML upload: persisted draft ID plus session fallback.
  */
 export interface JsonUploadSuccessResponse {
+    success?: true;
+    /** Persisted draft resource ID for editor navigation */
+    resourceId?: number | string | null;
     /** Session key for retrieving parsed JSON data */
-    sessionKey: string;
+    sessionKey?: string | null;
 }
 
 /**
@@ -93,13 +100,13 @@ export function isUploadError(response: UploadResponse): response is UploadError
 }
 
 /**
- * Type guard to check if a session-based upload (XML or JSON) succeeded.
- * Both XML and JSON uploads return a sessionKey for editor navigation.
+ * Type guard to check if an XML or JSON metadata upload succeeded.
+ * New responses return resourceId; older responses may only include sessionKey.
  */
 export function isSessionUploadSuccess(
     response: UploadResponse,
 ): response is XmlUploadSuccessResponse | JsonUploadSuccessResponse {
-    return 'sessionKey' in response;
+    return !isUploadError(response) && ('resourceId' in response || 'sessionKey' in response);
 }
 
 /**

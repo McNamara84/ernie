@@ -19,7 +19,7 @@ let cached: CitationVocabularies | null = null;
 let inflight: Promise<CitationVocabularies> | null = null;
 
 /**
- * Loads the vocabularies required by the Citation Manager UI
+ * Loads the vocabularies required by the Related Item Manager UI
  * (`/related-items/vocabularies`) and caches them for the session.
  */
 export function useCitationVocabularies(): {

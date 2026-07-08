@@ -81,6 +81,11 @@ describe('Services', function () {
             'App\Services\Citations\CrossrefClient',
             'App\Services\Citations\CrossrefTypeMapper',
             'App\Services\Citations\DataCiteTypeMapper',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorFundrefIndexMappingSource',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorIdentifierNormalizer',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorMappingSource',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorMatchInput',
+            'App\Services\CrossrefFunderRor\CrossrefFunderRorMatchInputProvider',
             'App\Services\Xml\DataCiteXmlImportParser',
             'App\Services\Xml\DataCiteXmlImportResult',
             'App\Services\Xml\Sections\AuthorSectionParser',
@@ -96,6 +101,12 @@ describe('Services', function () {
             'App\Services\Xml\Sections\RelatedWorkAndInstrumentSectionParser',
             'App\Services\Xml\Sections\RightsSectionParser',
             'App\Services\Xml\Sections\TitleSectionParser',
+            'App\Services\Spdx\SpdxLicenseData',
+            'App\Services\Spdx\SpdxLicenseLookup',
+            'App\Services\Spdx\SpdxRightsMatcher',
+            'App\Services\Spdx\SpdxRightsMatchInput',
+            'App\Services\Spdx\SpdxRightsMatchInputProvider',
+            'App\Services\Spdx\SpdxRightsMatchResult',
         ]);
 
     arch('services are not extending controllers')
@@ -158,7 +169,7 @@ describe('No Debugging Code', function () {
         ->not->toUse(['dd', 'dump', 'ray']);
 });
 
-describe('Citation Manager', function () {
+describe('Related Item Manager', function () {
     // Keep HTTP access isolated to CrossrefClient. All other services in
     // App\Services\Citations must stay pure (no Guzzle, no Http facade,
     // no Http\Client\Factory) to remain trivially unit-testable.

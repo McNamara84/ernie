@@ -33,7 +33,7 @@ class DataCiteLinkedDataExporter
 
         // Add @id only if DOI is present
         if (isset($attributes['doi'])) {
-            $jsonLd['@id'] = 'https://doi.org/' . $attributes['doi'];
+            $jsonLd['@id'] = 'https://doi.org/'.$attributes['doi'];
         }
 
         // Identifier
@@ -104,6 +104,11 @@ class DataCiteLinkedDataExporter
         // Sizes
         if (! empty($attributes['sizes'])) {
             $jsonLd['sizes'] = $this->transformSizes($attributes['sizes']);
+        }
+
+        // Formats
+        if (! empty($attributes['formats'])) {
+            $jsonLd['formats'] = $this->transformFormats($attributes['formats']);
         }
 
         // Version
@@ -496,6 +501,17 @@ class DataCiteLinkedDataExporter
         $transformed = array_map(fn (string $size): array => ['value' => $size], $sizes);
 
         return ['size' => count($transformed) === 1 ? $transformed[0] : $transformed];
+    }
+
+    /**
+     * @param  list<string>  $formats
+     * @return array<string, mixed>
+     */
+    private function transformFormats(array $formats): array
+    {
+        $transformed = array_map(fn (string $format): array => ['value' => $format], $formats);
+
+        return ['format' => count($transformed) === 1 ? $transformed[0] : $transformed];
     }
 
     /**

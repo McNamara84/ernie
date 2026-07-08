@@ -121,9 +121,9 @@ export function CitationManagerModal({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>Citation Manager</DialogTitle>
+                    <DialogTitle>Related Item Manager</DialogTitle>
                     <DialogDescription>
-                        Manage DataCite Related Items for this resource.
+                        Manage DataCite related items for this resource.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -138,7 +138,7 @@ export function CitationManagerModal({
                         ) : items.length === 0 ? (
                             <EmptyState
                                 title="No related items yet"
-                                description="Add citations, references, or supplementary works."
+                                description="Add related resources with full metadata."
                             />
                         ) : (
                             items.map((item) => (

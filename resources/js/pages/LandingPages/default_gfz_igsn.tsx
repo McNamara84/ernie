@@ -6,6 +6,7 @@ import type { LandingPageConfig, LandingPageDisplayLimits, LandingPageResource, 
 import { AbstractSection } from './components/AbstractSection';
 import { AcquisitionSection } from './components/AcquisitionSection';
 import { ContactSection } from './components/ContactSection';
+import { DatesSection } from './components/DatesSection';
 import { GeneralSection } from './components/GeneralSection';
 import { LandingPageShell } from './components/LandingPageShell';
 import { LocationSection } from './components/LocationSection';
@@ -37,6 +38,7 @@ interface DefaultGfzIgsnTemplatePageProps {
 const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
     creators: 50,
     contributors: 50,
+    citationAuthors: 50,
 };
 
 /**
@@ -52,7 +54,7 @@ export default function DefaultGfzIgsnTemplate() {
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview);
+    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ?? IGSN_LEFT_COLUMN_SECTIONS;
@@ -107,6 +109,7 @@ export default function DefaultGfzIgsnTemplate() {
                     dates={resource.dates || []}
                 />
             ),
+            dates: <DatesSection key="dates" dates={resource.dates || []} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
             related_work: (
@@ -127,16 +130,9 @@ export default function DefaultGfzIgsnTemplate() {
             mainAriaLabel="Sample details"
             schemaOrgJsonLd={schemaOrgJsonLd}
             customLogoUrl={customLogoUrl}
-            hero={(
-                <ResourceHero
-                    resourceType="IGSN"
-                    status={status}
-                    mainTitle={mainTitle}
-                    subtitle={subtitle}
-                    citation={citation}
-                    useIgsnIcon={true}
-                />
-            )}
+            hero={
+                <ResourceHero resourceType="IGSN" status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} useIgsnIcon={true} />
+            }
             metadataSection={rightSectionRegistry.metadata}
             locationSection={rightSectionRegistry.location}
             renderLocationBeforeMetadata={renderLocationBeforeMetadata}

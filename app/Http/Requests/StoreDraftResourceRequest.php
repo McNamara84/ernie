@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
+use App\Rules\SafeUrl;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -17,11 +19,14 @@ use Illuminate\Validation\Validator;
 /**
  * Relaxed validation for saving draft resources (Issue #548).
  *
- * Only requires a Main Title. All other fields are optional but still
- * structurally validated when provided (e.g. valid email format, existing FKs).
+ * Only requires a Main Title. All other fields are optional. Complete related
+ * entries are structurally validated when provided, while incomplete draft-only
+ * author/contributor rows are ignored until they can be saved safely.
  */
 class StoreDraftResourceRequest extends FormRequest
 {
+    use ValidatesEditorDates;
+
     /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
@@ -62,6 +67,18 @@ class StoreDraftResourceRequest extends FormRequest
             // Licenses are optional for drafts
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
+            'customLicenses' => ['nullable', 'array'],
+            'customLicenses.*.name' => ['required', 'string', 'max:255'],
+            'customLicenses.*.uri' => ['required', 'string', new SafeUrl('[Licenses & Rights]'), 'max:512'],
+            'customLicenses.*.sourceResourceRightId' => ['nullable', 'integer', Rule::exists('resource_rights', 'id')],
+            'rawRights' => ['nullable', 'array'],
+            'rawRights.*.rights' => ['nullable', 'string'],
+            'rawRights.*.rightsUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.rightsIdentifier' => ['nullable', 'string', 'max:255'],
+            'rawRights.*.rightsIdentifierScheme' => ['nullable', 'string', 'max:100'],
+            'rawRights.*.schemeUri' => ['nullable', 'string', 'max:512'],
+            'rawRights.*.lang' => ['nullable', 'string', 'max:10'],
+            'rawRights.*.source' => ['nullable', 'string', 'max:100'],
             // Authors are optional for drafts
             'authors' => ['nullable', 'array'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
@@ -80,7 +97,7 @@ class StoreDraftResourceRequest extends FormRequest
             'contributors' => ['nullable', 'array'],
             'contributors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'contributors.*.position' => ['required', 'integer', 'min:0'],
-            'contributors.*.roles' => ['required', 'array', 'min:1'],
+            'contributors.*.roles' => ['nullable', 'array'],
             'contributors.*.roles.*' => ['required', 'string', 'max:255'],
             'contributors.*.orcid' => ['nullable', 'string', 'max:255'],
             'contributors.*.firstName' => ['nullable', 'string', 'max:255'],
@@ -106,12 +123,12 @@ class StoreDraftResourceRequest extends FormRequest
             'dates.*.dateType' => [
                 'required',
                 'string',
-                Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
+                Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
+            'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
-            'importedCreatedDate' => ['nullable', 'date'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
             'gcmdKeywords' => ['nullable', 'array'],
@@ -187,7 +204,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * Input normalization – reuses the same logic as StoreResourceRequest.
+     * Input normalization - reuses the same logic as StoreResourceRequest.
      */
     protected function prepareForValidation(): void
     {
@@ -243,8 +260,9 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
-        /** @var array<int, mixed> $rawLicenses */
-        $rawLicenses = $this->input('licenses', []);
+        /** @var mixed $rawLicensesInput */
+        $rawLicensesInput = $this->input('licenses', []);
+        $rawLicenses = is_array($rawLicensesInput) ? $rawLicensesInput : [];
 
         $licenses = [];
 
@@ -258,6 +276,14 @@ class StoreDraftResourceRequest extends FormRequest
             $licenses[] = $normalized;
         }
 
+        $normalizedLicenses = is_array($rawLicensesInput) || $rawLicensesInput === null
+            ? $licenses
+            : $rawLicensesInput;
+
+        /** @var mixed $rawRightsInput */
+        $rawRightsInput = $this->input('rawRights', []);
+        $rawRights = $this->normalizeRawRightsInput($rawRightsInput);
+
         /** @var array<int, array<string, mixed>|mixed> $rawAuthors */
         $rawAuthors = $this->input('authors', []);
 
@@ -269,7 +295,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             $typeCandidate = isset($author['type']) ? trim((string) $author['type']) : '';
-            $type = in_array($typeCandidate, ['person', 'institution'], true) ? $typeCandidate : 'person';
+            $type = $typeCandidate !== '' ? $typeCandidate : 'person';
 
             $affiliations = [];
             $seenAffiliations = [];
@@ -329,8 +355,18 @@ class StoreDraftResourceRequest extends FormRequest
                 }
             }
 
+            if (! in_array($type, ['person', 'institution'], true)) {
+                $authors[$index] = [
+                    'type' => $type,
+                    'affiliations' => $affiliations,
+                    'position' => (int) $index,
+                ];
+
+                continue;
+            }
+
             if ($type === 'institution') {
-                $authors[] = [
+                $authors[$index] = [
                     'type' => 'institution',
                     'institutionName' => $this->normalizeString($author['institutionName'] ?? null),
                     'rorId' => $this->normalizeString($author['rorId'] ?? null),
@@ -351,7 +387,7 @@ class StoreDraftResourceRequest extends FormRequest
                 $website = null;
             }
 
-            $authors[] = [
+            $authors[$index] = [
                 'type' => 'person',
                 'orcid' => $this->normalizeString($author['orcid'] ?? null),
                 'firstName' => $this->normalizeString($author['firstName'] ?? null),
@@ -364,6 +400,11 @@ class StoreDraftResourceRequest extends FormRequest
             ];
         }
 
+        $authors = array_filter(
+            $authors,
+            fn (array $author): bool => $this->shouldKeepDraftAuthor($author),
+        );
+
         /** @var array<int, array<string, mixed>|mixed> $rawContributors */
         $rawContributors = $this->input('contributors', []);
 
@@ -375,7 +416,7 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             $typeCandidate = isset($contributor['type']) ? trim((string) $contributor['type']) : '';
-            $type = in_array($typeCandidate, ['person', 'institution'], true) ? $typeCandidate : 'person';
+            $type = $typeCandidate !== '' ? $typeCandidate : 'person';
 
             $affiliations = [];
             $seenAffiliations = [];
@@ -436,20 +477,38 @@ class StoreDraftResourceRequest extends FormRequest
             }
 
             // Normalize roles
-            $roles = [];
-            $rawRoles = $contributor['roles'] ?? [];
+            $roles = null;
+            $rawRoles = $contributor['roles'] ?? null;
 
             if (is_array($rawRoles)) {
-                foreach ($rawRoles as $role) {
-                    $normalizedRole = trim((string) $role);
-                    if ($normalizedRole !== '') {
-                        $roles[] = $normalizedRole;
+                $roles = [];
+
+                foreach ($rawRoles as $roleIndex => $role) {
+                    if (! is_string($role)) {
+                        $roles[$roleIndex] = $role;
+
+                        continue;
                     }
+
+                    $roles[$roleIndex] = trim($role);
                 }
+            } elseif (array_key_exists('roles', $contributor)) {
+                $roles = $rawRoles;
+            }
+
+            if (! in_array($type, ['person', 'institution'], true)) {
+                $contributors[$index] = [
+                    'type' => $type,
+                    'roles' => $roles,
+                    'affiliations' => $affiliations,
+                    'position' => (int) $index,
+                ];
+
+                continue;
             }
 
             if ($type === 'institution') {
-                $contributors[] = [
+                $contributors[$index] = [
                     'type' => 'institution',
                     'institutionName' => $this->normalizeString($contributor['institutionName'] ?? null),
                     'identifier' => $this->normalizeString($contributor['identifier'] ?? null),
@@ -462,7 +521,7 @@ class StoreDraftResourceRequest extends FormRequest
                 continue;
             }
 
-            $contributors[] = [
+            $contributors[$index] = [
                 'type' => 'person',
                 'orcid' => $this->normalizeString($contributor['orcid'] ?? null),
                 'firstName' => $this->normalizeString($contributor['firstName'] ?? null),
@@ -474,6 +533,11 @@ class StoreDraftResourceRequest extends FormRequest
                 'position' => (int) $index,
             ];
         }
+
+        $contributors = array_filter(
+            $contributors,
+            fn (array $contributor): bool => $this->shouldKeepDraftContributor($contributor),
+        );
 
         // Normalize descriptions
         /** @var array<int, array<string, mixed>|mixed> $rawDescriptions */
@@ -528,6 +592,9 @@ class StoreDraftResourceRequest extends FormRequest
             $endDate = isset($date['endDate'])
                 ? trim((string) $date['endDate'])
                 : null;
+            $dateMode = isset($date['dateMode'])
+                ? Str::kebab(trim((string) $date['dateMode']))
+                : null;
             $dateInformation = isset($date['dateInformation'])
                 ? trim((string) $date['dateInformation'])
                 : null;
@@ -540,6 +607,7 @@ class StoreDraftResourceRequest extends FormRequest
 
             $dates[] = [
                 'dateType' => $normalizedType,
+                ...($dateMode !== null && $dateMode !== '' ? ['dateMode' => $dateMode] : []),
                 'startDate' => $startDate !== '' ? $startDate : null,
                 'endDate' => $endDate !== '' ? $endDate : null,
                 'dateInformation' => $dateInformation !== '' ? $dateInformation : null,
@@ -721,7 +789,8 @@ class StoreDraftResourceRequest extends FormRequest
             'version' => $this->filled('version') ? trim((string) $this->input('version')) : null,
             'language' => $this->filled('language') ? trim((string) $this->input('language')) : null,
             'titles' => $titles,
-            'licenses' => $licenses,
+            'licenses' => $normalizedLicenses,
+            'rawRights' => $rawRights,
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
             'contributors' => $contributors,
@@ -733,7 +802,122 @@ class StoreDraftResourceRequest extends FormRequest
             'fundingReferences' => $fundingReferences,
         ]);
 
+        if ($this->has('customLicenses')) {
+            $this->merge([
+                'customLicenses' => $this->normalizeCustomLicensesInput($this->input('customLicenses', [])),
+            ]);
+        }
+
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
+    }
+
+    /**
+     * Normalize raw DataCite rights input while keeping drafts lenient.
+     *
+     * Drafts do not require rights, but when an upload already supplied them we
+     * keep the same cleaned structure that StoreResourceRequest uses so a later
+     * final save can persist the statements without reparsing the upload.
+     *
+     * @return array<int, array<string, string>>|mixed
+     */
+    private function normalizeRawRightsInput(mixed $rawRightsInput): mixed
+    {
+        if (! is_array($rawRightsInput)) {
+            return $rawRightsInput;
+        }
+
+        $rawRights = [];
+
+        foreach ($rawRightsInput as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [
+                'rights' => $this->rightsStringValue($statement, ['rights', 'rights_text']),
+                'rightsUri' => $this->rightsStringValue($statement, ['rightsUri', 'rightsURI', 'rights_uri']),
+                'rightsIdentifier' => $this->rightsStringValue($statement, ['rightsIdentifier', 'rights_identifier']),
+                'rightsIdentifierScheme' => $this->rightsStringValue($statement, ['rightsIdentifierScheme', 'rights_identifier_scheme']),
+                'schemeUri' => $this->rightsStringValue($statement, ['schemeUri', 'schemeURI', 'scheme_uri']),
+                'lang' => $this->rightsStringValue($statement, ['lang', 'language']),
+                'source' => $this->rightsStringValue($statement, ['source']),
+            ];
+
+            $normalized = array_filter(
+                $normalized,
+                fn (?string $value): bool => $value !== null,
+            );
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>|mixed
+     */
+    private function normalizeCustomLicensesInput(mixed $customLicensesInput): mixed
+    {
+        if (! is_array($customLicensesInput)) {
+            return $customLicensesInput;
+        }
+
+        $customLicenses = [];
+
+        foreach ($customLicensesInput as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $normalized = [
+                'name' => $this->rightsStringValue($entry, ['name', 'rights', 'rights_text']),
+                'uri' => $this->rightsStringValue($entry, ['uri', 'rightsUri', 'rightsURI', 'rights_uri']),
+            ];
+
+            if (array_key_exists('sourceResourceRightId', $entry) || array_key_exists('source_resource_right_id', $entry)) {
+                $sourceId = $entry['sourceResourceRightId'] ?? $entry['source_resource_right_id'];
+                $normalized['sourceResourceRightId'] = is_numeric($sourceId) ? (int) $sourceId : $sourceId;
+            }
+
+            if ($normalized['name'] === null || $normalized['uri'] === null) {
+                continue;
+            }
+
+            $customLicenses[] = array_filter(
+                $normalized,
+                fn (mixed $value): bool => $value !== null,
+            );
+        }
+
+        return $customLicenses;
+    }
+
+    /**
+     * @param  array<string, mixed>  $statement
+     * @param  list<string>  $keys
+     */
+    private function rightsStringValue(array $statement, array $keys): ?string
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $statement)) {
+                continue;
+            }
+
+            $value = $statement[$key];
+
+            if ($value === null || is_array($value) || is_object($value)) {
+                return null;
+            }
+
+            $value = trim((string) $value);
+
+            return $value === '' ? null : $value;
+        }
+
+        return null;
     }
 
     /**
@@ -762,6 +946,11 @@ class StoreDraftResourceRequest extends FormRequest
             // Licenses & Rights
             'licenses.*.exists' => '[Licenses & Rights] License #:position is not a recognized license.',
             'licenses.*.distinct' => '[Licenses & Rights] License #:position is a duplicate.',
+            'customLicenses.*.name.required' => '[Licenses & Rights] Custom license #:position requires a name.',
+            'customLicenses.*.name.max' => '[Licenses & Rights] Custom license #:position name exceeds the maximum length of :max characters.',
+            'customLicenses.*.uri.required' => '[Licenses & Rights] Custom license #:position requires a license text URL.',
+            'customLicenses.*.uri.max' => '[Licenses & Rights] Custom license #:position URL exceeds the maximum length of :max characters.',
+            'customLicenses.*.sourceResourceRightId.exists' => '[Licenses & Rights] Custom license #:position cannot be linked to the imported rights statement.',
 
             // Authors
             'authors.*.type.required' => '[Authors] Author #:position must have a type (person or institution).',
@@ -772,8 +961,10 @@ class StoreDraftResourceRequest extends FormRequest
             // Contributors
             'contributors.*.type.required' => '[Contributors] Contributor #:position must have a type (person or institution).',
             'contributors.*.type.in' => '[Contributors] Contributor #:position has an invalid type.',
-            'contributors.*.roles.required' => '[Contributors] Contributor #:position must have at least one role.',
-            'contributors.*.roles.min' => '[Contributors] Contributor #:position must have at least one role.',
+            'contributors.*.roles.array' => '[Contributors] Contributor #:position roles must be a valid list.',
+            'contributors.*.roles.*.required' => '[Contributors] Contributor #:position has an empty role.',
+            'contributors.*.roles.*.string' => '[Contributors] Contributor #:position roles must contain only text values.',
+            'contributors.*.roles.*.max' => '[Contributors] Contributor #:position role exceeds the maximum length.',
             'contributors.*.email.email' => '[Contributors] Contributor #:position has an invalid email address.',
             'contributors.*.website.url' => '[Contributors] Contributor #:position has an invalid website URL.',
 
@@ -785,6 +976,7 @@ class StoreDraftResourceRequest extends FormRequest
             // Dates
             'dates.*.dateType.required' => '[Dates] Date #:position must have a type.',
             'dates.*.dateType.in' => '[Dates] Date #:position has an invalid type.',
+            'dates.*.dateMode.in' => '[Dates] Date #:position has an invalid date mode.',
             'dates.*.startDate.date' => '[Dates] Date #:position has an invalid start date.',
             'dates.*.endDate.date' => '[Dates] Date #:position has an invalid end date.',
 
@@ -830,7 +1022,19 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * After-validation hooks — structural checks with minimal mandatory field enforcement.
+     * Human-readable labels for rule messages that interpolate :attribute.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'customLicenses.*.uri' => 'Custom license #:position license text URL',
+        ];
+    }
+
+    /**
+     * After-validation hooks - structural checks with minimal mandatory field enforcement.
      *
      * Unlike StoreResourceRequest, this does NOT require:
      * - At least one Abstract description
@@ -841,13 +1045,16 @@ class StoreDraftResourceRequest extends FormRequest
      * - Main Title must exist (at least one)
      * - Person authors must have lastName if provided
      * - Contributors must have proper structure if provided
-     * - Polygon coverages must have at least 3 points
+     * - Polygon and line coverages must have the required minimum number of points
      *
      * @return array<int, callable(Validator): void>
      */
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                $this->validateEditorDates($validator);
+            },
             // Validate title type slugs against DB
             function (Validator $validator): void {
                 /** @var mixed $candidateTitles */
@@ -906,98 +1113,7 @@ class StoreDraftResourceRequest extends FormRequest
                     );
                 }
             },
-            // Validate person authors have lastName if provided, contact persons have email
-            function (Validator $validator): void {
-                /** @var mixed $candidateAuthors */
-                $candidateAuthors = $this->input('authors', []);
-
-                if (! is_array($candidateAuthors) || count($candidateAuthors) === 0) {
-                    // Authors are optional for drafts
-                    return;
-                }
-
-                foreach ($candidateAuthors as $index => $author) {
-                    if (! is_array($author)) {
-                        $validator->errors()->add(
-                            "authors.$index",
-                            '[Authors] Author #'.($index + 1).' must be a valid entry.',
-                        );
-
-                        continue;
-                    }
-
-                    $type = $author['type'] ?? 'person';
-
-                    if ($type === 'person') {
-                        if (empty($author['lastName'])) {
-                            $validator->errors()->add(
-                                "authors.$index.lastName",
-                                '[Authors] Author #'.($index + 1).' requires a last name.',
-                            );
-                        }
-
-                        $isContact = BooleanNormalizer::isTrue($author['isContact'] ?? false);
-                        $email = $author['email'] ?? null;
-
-                        if ($isContact && ($email === null || $email === '')) {
-                            $validator->errors()->add(
-                                "authors.$index.email",
-                                '[Authors] Author #'.($index + 1).' requires a contact email when marked as contact person.',
-                            );
-                        }
-
-                        continue;
-                    }
-
-                    if (empty($author['institutionName'])) {
-                        $validator->errors()->add(
-                            "authors.$index.institutionName",
-                            '[Authors] Author #'.($index + 1).' requires an institution name.',
-                        );
-                    }
-                }
-            },
-            // Validate contributor structure if provided
-            function (Validator $validator): void {
-                /** @var mixed $candidateContributors */
-                $candidateContributors = $this->input('contributors', []);
-
-                if (! is_array($candidateContributors)) {
-                    return;
-                }
-
-                foreach ($candidateContributors as $index => $contributor) {
-                    if (! is_array($contributor)) {
-                        $validator->errors()->add(
-                            "contributors.$index",
-                            '[Contributors] Contributor #'.($index + 1).' must be a valid entry.',
-                        );
-
-                        continue;
-                    }
-
-                    $type = $contributor['type'] ?? 'person';
-
-                    if ($type === 'person') {
-                        if (empty($contributor['lastName'])) {
-                            $validator->errors()->add(
-                                "contributors.$index.lastName",
-                                '[Contributors] Contributor #'.($index + 1).' requires a last name.',
-                            );
-                        }
-                    } else {
-                        if (empty($contributor['institutionName'])) {
-                            $validator->errors()->add(
-                                "contributors.$index.institutionName",
-                                '[Contributors] Contributor #'.($index + 1).' requires an institution name.',
-                            );
-                        }
-                    }
-
-                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
-                }
-            },
-            // Validate polygon coverages have at least 3 points
+            // Validate polygon and line coverages have the required minimum number of points
             function (Validator $validator): void {
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
@@ -1012,13 +1128,14 @@ class StoreDraftResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon') {
+                    if ($type === 'polygon' || $type === 'line') {
                         $polygonPoints = $coverage['polygonPoints'] ?? [];
+                        $minimumPoints = $type === 'polygon' ? 3 : 2;
 
-                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                        if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
                     }
@@ -1028,7 +1145,7 @@ class StoreDraftResourceRequest extends FormRequest
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase, or return null.
      */
     private function normalizeDoiInput(mixed $input): mixed
     {
@@ -1058,5 +1175,47 @@ class StoreDraftResourceRequest extends FormRequest
         }
 
         return null;
+    }
+
+    /**
+     * Keep invalid typed entries so validation can report them, but drop draft
+     * rows that cannot be represented by the current creator tables yet.
+     *
+     * @param  array<string, mixed>  $author
+     */
+    private function shouldKeepDraftAuthor(array $author): bool
+    {
+        $type = $author['type'] ?? null;
+
+        if ($type === 'person') {
+            return $this->normalizeString($author['lastName'] ?? null) !== null;
+        }
+
+        if ($type === 'institution') {
+            return $this->normalizeString($author['institutionName'] ?? null) !== null;
+        }
+
+        return true;
+    }
+
+    /**
+     * Keep invalid typed entries so validation can report them, but drop draft
+     * rows that cannot be represented by the current contributor tables yet.
+     *
+     * @param  array<string, mixed>  $contributor
+     */
+    private function shouldKeepDraftContributor(array $contributor): bool
+    {
+        $type = $contributor['type'] ?? null;
+
+        if ($type === 'person') {
+            return $this->normalizeString($contributor['lastName'] ?? null) !== null;
+        }
+
+        if ($type === 'institution') {
+            return $this->normalizeString($contributor['institutionName'] ?? null) !== null;
+        }
+
+        return true;
     }
 }

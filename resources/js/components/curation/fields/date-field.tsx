@@ -1,15 +1,16 @@
 import { format, parseISO } from 'date-fns';
 import { Minus, Plus } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { normalizeTimeForInput, TIMEZONE_OPTIONS } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 
+import { type DateMode, isDateRangeCapable } from '../utils/date-rules';
 import { SelectField } from './select-field';
 
 /**
@@ -32,6 +33,7 @@ interface DateFieldProps {
     startDate: string | null;
     endDate: string | null;
     dateType: string;
+    dateMode: DateMode;
     startTime: string | null;
     endTime: string | null;
     startTimezone: string | null;
@@ -45,6 +47,7 @@ interface DateFieldProps {
     onStartTimezoneChange: (value: string) => void;
     onEndTimezoneChange: (value: string) => void;
     onTypeChange: (value: string) => void;
+    onDateModeChange: (value: DateMode) => void;
     onAdd: () => void;
     onRemove: () => void;
     isFirst: boolean;
@@ -57,6 +60,7 @@ export function DateField({
     startDate,
     endDate,
     dateType,
+    dateMode,
     startTime,
     endTime,
     startTimezone,
@@ -70,52 +74,38 @@ export function DateField({
     onStartTimezoneChange,
     onEndTimezoneChange,
     onTypeChange,
+    onDateModeChange,
     onAdd,
     onRemove,
     isFirst,
     canAdd = true,
     className,
 }: DateFieldProps) {
-    // Only "valid" date type should have start and end dates (date range)
-    // All other types represent a single point in time
-    const isDateRange = dateType === 'valid';
+    const supportsDateRange = isDateRangeCapable(dateType);
+    const isDateRange = supportsDateRange && dateMode === 'range';
 
     // Check if any time/timezone is set to determine whether to show time fields
     const hasTimeInfo = Boolean(startTime || endTime || startTimezone || endTimezone);
+    const modeGridClass = supportsDateRange
+        ? isDateRange
+            ? 'md:grid-cols-[1fr_1fr_180px_180px_40px]'
+            : 'md:grid-cols-[1fr_180px_180px_40px]'
+        : 'md:grid-cols-[1fr_180px_40px]';
 
-    // Track previous dateType to detect actual transitions from 'valid' to non-'valid'
-    const prevDateTypeRef = useRef<string>(dateType);
-
-    // Clear endDate, endTime, and endTimezone when switching away from 'valid' date type to prevent stale data
-    useEffect(() => {
-        const prevDateType = prevDateTypeRef.current;
-
-        // Only clear endDate when transitioning FROM 'valid' TO a non-'valid' type
-        // This prevents race conditions and unnecessary calls when endDate is already empty
-        if (prevDateType === 'valid' && dateType !== 'valid') {
-            if (endDate) onEndDateChange('');
-            if (endTime) onEndTimeChange('');
-            if (endTimezone) onEndTimezoneChange('none');
+    const handleDateModeChange = (value: string) => {
+        if (value === 'single' || value === 'range') {
+            onDateModeChange(value);
         }
-
-        // Update the ref for the next render
-        prevDateTypeRef.current = dateType;
-    }, [dateType, endDate, endTime, endTimezone, onEndDateChange, onEndTimeChange, onEndTimezoneChange]);
+    };
 
     return (
         <div className={cn('space-y-3', className)}>
-            {/* Main row: Date(s) + DateType + Add/Remove button */}
-            <div
-                className={cn(
-                    'grid gap-4',
-                    isDateRange ? 'md:grid-cols-[1fr_1fr_180px_40px]' : 'md:grid-cols-[1fr_180px_40px]',
-                )}
-            >
+            {/* Main row: Date(s) + DateType + Date mode + Add/Remove button */}
+            <div className={cn('grid gap-4', modeGridClass)}>
                 <div className="space-y-2">
                     {isFirst && (
                         <Label htmlFor={`${id}-${isDateRange ? 'startDate' : 'date'}`}>
                             {isDateRange ? 'Start Date' : 'Date'}
-                            {dateType === 'created' && <span className="font-bold text-destructive"> *</span>}
                         </Label>
                     )}
                     {isPartialDate(startDate) ? (
@@ -145,7 +135,6 @@ export function DateField({
                             onChange={(date) => onStartDateChange(date ? format(date, 'yyyy-MM-dd') : '')}
                             placeholder="Select date"
                             dateFormat="yyyy-MM-dd"
-                            required={dateType === 'created'}
                         />
                     )}
                 </div>
@@ -195,6 +184,28 @@ export function DateField({
                     />
                     {dateTypeDescription && <p className="mt-1 text-xs text-muted-foreground">{dateTypeDescription}</p>}
                 </div>
+                {supportsDateRange && (
+                    <div className="space-y-2">
+                        {isFirst && <Label htmlFor={`${id}-dateMode`}>Date Mode</Label>}
+                        <ToggleGroup
+                            id={`${id}-dateMode`}
+                            type="single"
+                            variant="outline"
+                            size="sm"
+                            value={dateMode}
+                            onValueChange={handleDateModeChange}
+                            className="h-9 w-full"
+                            aria-label="Date mode"
+                        >
+                            <ToggleGroupItem value="single" className="h-9 flex-1 px-2 text-xs">
+                                Single date
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value="range" className="h-9 flex-1 px-2 text-xs">
+                                Period
+                            </ToggleGroupItem>
+                        </ToggleGroup>
+                    </div>
+                )}
                 <div className="flex items-end">
                     {isFirst ? (
                         <Button type="button" variant="outline" size="icon" aria-label="Add date" onClick={onAdd} disabled={!canAdd}>
@@ -210,7 +221,7 @@ export function DateField({
 
             {/* Time/Timezone row: shown when a full-precision date is set (not partial YYYY or YYYY-MM) */}
             {((startDate && !isPartialDate(startDate)) || (endDate && !isPartialDate(endDate)) || hasTimeInfo) && (
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 pl-4 border-l-2 border-muted">
+                <div className="grid grid-cols-1 gap-4 border-l-2 border-muted pl-4 md:grid-cols-[1fr_1fr]">
                     <div className="space-y-2">
                         <Label htmlFor={`${id}-startTime`} className="text-xs text-muted-foreground">
                             {isDateRange ? 'Start Time' : 'Time'} (optional)

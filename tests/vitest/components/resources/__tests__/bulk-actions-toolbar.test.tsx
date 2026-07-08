@@ -4,205 +4,200 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ResourcesBulkActionsToolbar } from '@/components/resources/bulk-actions-toolbar';
+import { type ResourcesActionKey, type ResourcesActionState, ResourcesBulkActionsToolbar } from '@/components/resources/bulk-actions-toolbar';
+
+const makeActions = (
+    overrides: Partial<Record<ResourcesActionKey, ResourcesActionState>> = {},
+): Record<ResourcesActionKey, ResourcesActionState> => ({
+    edit: { available: false, reason: 'Select one or more resources first.' },
+    'setup-landing-page': { available: false, reason: 'Select exactly one resource.' },
+    'manage-related-items': { available: false, reason: 'Select exactly one resource.' },
+    'export-datacite-json': { available: false, reason: 'Select one or more resources first.' },
+    'export-datacite-xml': { available: false, reason: 'Select one or more resources first.' },
+    'export-jsonld': { available: false, reason: 'Select one or more resources first.' },
+    'register-doi': { available: false, reason: 'Select exactly one resource.' },
+    'update-metadata': { available: false, reason: 'Select one or more resources first.' },
+    delete: { available: false, reason: 'Select one or more resources first.' },
+    ...overrides,
+});
+
+const openActionsMenu = async () => {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+};
+
+const clickQuickAction = async (testId: string) => {
+    await userEvent.click(screen.getByTestId(testId));
+};
 
 describe('ResourcesBulkActionsToolbar', () => {
     const baseProps = {
         selectedCount: 0,
-        onRegister: vi.fn(),
-        onExport: vi.fn(),
-        canRegister: true,
-        isRegistering: false,
-        isExporting: false,
+        actions: makeActions(),
+        onAction: vi.fn(),
+        onUnavailableAction: vi.fn(),
     };
 
     beforeEach(() => {
-        baseProps.onRegister = vi.fn();
-        baseProps.onExport = vi.fn();
+        baseProps.onAction = vi.fn();
+        baseProps.onUnavailableAction = vi.fn();
+        baseProps.actions = makeActions();
     });
 
-    describe('rendering', () => {
-        it('renders an instructional message when no rows are selected', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} />);
-            expect(screen.getByText(/Select rows to enable bulk actions/i)).toBeInTheDocument();
-        });
+    it('renders an instructional message and disables the action menu when no rows are selected', async () => {
+        render(<ResourcesBulkActionsToolbar {...baseProps} />);
 
-        it('renders singular "resource" for one selection', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
-            expect(screen.getByText('1 resource selected')).toBeInTheDocument();
-        });
+        const trigger = screen.getByTestId('resources-actions-menu-trigger');
+        expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
+        expect(trigger).toBeDisabled();
+        expect(trigger).toHaveAttribute('title', 'Select rows to enable resource actions');
 
-        it('renders plural "resources" for multiple selections', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={4} />);
-            expect(screen.getByText('4 resources selected')).toBeInTheDocument();
-        });
+        await userEvent.click(trigger);
+
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
-    describe('register button', () => {
-        it('is hidden when canRegister is false', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} canRegister={false} selectedCount={2} />);
-            expect(screen.queryByTestId('bulk-register-button')).not.toBeInTheDocument();
-        });
+    it('renders singular and plural selection copy', () => {
+        const { rerender } = render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
+        expect(screen.getByText('1 resource selected')).toBeInTheDocument();
 
-        it('is disabled when nothing is selected', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} />);
-            expect(screen.getByTestId('bulk-register-button')).toBeDisabled();
-        });
-
-        it('is enabled when at least one row is selected', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={2} />);
-            expect(screen.getByTestId('bulk-register-button')).toBeEnabled();
-        });
-
-        it('invokes onRegister on click', async () => {
-            const onRegister = vi.fn();
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={2}
-                    onRegister={onRegister}
-                />,
-            );
-
-            await userEvent.click(screen.getByTestId('bulk-register-button'));
-            expect(onRegister).toHaveBeenCalledTimes(1);
-        });
-
-        it('shows a loading indicator while registering and disables both action buttons', () => {
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={2}
-                    isRegistering
-                />,
-            );
-
-            expect(screen.getByText(/Registering/i)).toBeInTheDocument();
-            expect(screen.getByTestId('bulk-register-button')).toBeDisabled();
-            expect(screen.getByTestId('bulk-export-button')).toBeDisabled();
-        });
+        rerender(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={4} />);
+        expect(screen.getByText('4 resources selected')).toBeInTheDocument();
     });
 
-    describe('export dropdown', () => {
-        it('is disabled when nothing is selected', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} />);
-            expect(screen.getByTestId('bulk-export-button')).toBeDisabled();
-        });
+    it('renders the complete action surface in the action menu when actions are visible', async () => {
+        render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions()} />);
 
-        it('is enabled when rows are selected', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
-            expect(screen.getByTestId('bulk-export-button')).toBeEnabled();
-        });
+        await openActionsMenu();
 
-        it('invokes onExport with the chosen format', async () => {
-            const onExport = vi.fn();
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={2}
-                    onExport={onExport}
-                />,
-            );
-
-            await userEvent.click(screen.getByTestId('bulk-export-button'));
-            await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite XML/i }));
-
-            expect(onExport).toHaveBeenCalledTimes(1);
-            expect(onExport).toHaveBeenCalledWith('datacite-xml');
-        });
-
-        it('invokes onExport with datacite-json when the JSON option is chosen', async () => {
-            const onExport = vi.fn();
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={1}
-                    onExport={onExport}
-                />,
-            );
-
-            await userEvent.click(screen.getByTestId('bulk-export-button'));
-            await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON$/i }));
-
-            expect(onExport).toHaveBeenCalledTimes(1);
-            expect(onExport).toHaveBeenCalledWith('datacite-json');
-        });
-
-        it('invokes onExport with jsonld when the JSON-LD option is chosen', async () => {
-            const onExport = vi.fn();
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={1}
-                    onExport={onExport}
-                />,
-            );
-
-            await userEvent.click(screen.getByTestId('bulk-export-button'));
-            await userEvent.click(await screen.findByRole('menuitem', { name: /DataCite JSON-LD/i }));
-
-            expect(onExport).toHaveBeenCalledTimes(1);
-            expect(onExport).toHaveBeenCalledWith('jsonld');
-        });
-
-        it('exposes all three export formats', async () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
-            await userEvent.click(screen.getByTestId('bulk-export-button'));
-
-            expect(await screen.findByRole('menuitem', { name: /DataCite JSON$/i })).toBeInTheDocument();
-            expect(screen.getByRole('menuitem', { name: /DataCite XML/i })).toBeInTheDocument();
-            expect(screen.getByRole('menuitem', { name: /DataCite JSON-LD/i })).toBeInTheDocument();
-        });
-
-        it('shows a loading indicator while exporting and disables both action buttons', () => {
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={2}
-                    isExporting
-                />,
-            );
-
-            expect(screen.getByText(/Exporting/i)).toBeInTheDocument();
-            expect(screen.getByTestId('bulk-export-button')).toBeDisabled();
-            expect(screen.getByTestId('bulk-register-button')).toBeDisabled();
-        });
+        expect(screen.getByTestId('resources-action-edit')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-manage-related-items')).toHaveTextContent('Manage Related Items');
+        expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-export-datacite-xml')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-register-doi')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-update-metadata')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-setup-landing-page')).toHaveAttribute('data-variant', 'outline');
+        expect(screen.getByTestId('resources-action-update-metadata')).toHaveAttribute('data-variant', 'default');
+        expect(screen.getByTestId('resources-action-delete')).toHaveAttribute('data-variant', 'destructive');
     });
 
-    describe('register disabled reason', () => {
-        it('renders an inline hint and disables the register button when a reason is provided', () => {
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={3}
-                    registerDisabledReason="2 resources have no DOI yet."
-                />,
-            );
+    it('hides actions marked as not visible', async () => {
+        render(
+            <ResourcesBulkActionsToolbar
+                {...baseProps}
+                selectedCount={1}
+                actions={makeActions({
+                    'register-doi': { visible: false, available: false },
+                    'update-metadata': { visible: false, available: false },
+                    delete: { visible: false, available: false },
+                })}
+            />,
+        );
 
-            expect(screen.getByTestId('bulk-register-blocked-hint')).toHaveTextContent(
-                '2 resources have no DOI yet.',
-            );
-            expect(screen.getByTestId('bulk-register-button')).toBeDisabled();
-        });
+        await openActionsMenu();
 
-        it('wires aria-describedby so assistive tech can announce the reason', () => {
-            render(
-                <ResourcesBulkActionsToolbar
-                    {...baseProps}
-                    selectedCount={1}
-                    registerDisabledReason="Selection contains a DOI-less resource."
-                />,
-            );
+        expect(screen.queryByTestId('resources-action-register-doi')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('resources-action-update-metadata')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('resources-action-delete')).not.toBeInTheDocument();
+    });
 
-            const hint = screen.getByTestId('bulk-register-blocked-hint');
-            // The tooltip trigger wraps the button; aria-describedby must point to the hint id.
-            const wrapper = screen.getByTestId('bulk-register-button').parentElement;
-            expect(wrapper).toHaveAttribute('aria-describedby', hint.id);
-        });
+    it('invokes onAction for an available action', async () => {
+        const onAction = vi.fn();
 
-        it('does not render the hint when no reason is supplied', () => {
-            render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} />);
-            expect(screen.queryByTestId('bulk-register-blocked-hint')).not.toBeInTheDocument();
-        });
+        render(
+            <ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} onAction={onAction} />,
+        );
+
+        await clickQuickAction('resources-action-edit');
+
+        expect(onAction).toHaveBeenCalledTimes(1);
+        expect(onAction).toHaveBeenCalledWith('edit');
+    });
+
+    it('uses the action label as the title for available actions', async () => {
+        render(<ResourcesBulkActionsToolbar {...baseProps} selectedCount={1} actions={makeActions({ edit: { available: true } })} />);
+
+        const item = screen.getByTestId('resources-action-edit');
+        expect(item).toHaveAttribute('title', 'Edit');
+        expect(item).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('keeps unavailable actions selectable and reports their reason', async () => {
+        const onUnavailableAction = vi.fn();
+
+        render(
+            <ResourcesBulkActionsToolbar
+                {...baseProps}
+                selectedCount={2}
+                actions={makeActions({
+                    'setup-landing-page': {
+                        available: false,
+                        reason: 'This action can only be performed on a single record.',
+                    },
+                })}
+                onUnavailableAction={onUnavailableAction}
+            />,
+        );
+
+        const item = screen.getByTestId('resources-action-setup-landing-page');
+        expect(item).toHaveAttribute('data-unavailable', 'true');
+        expect(item).not.toHaveAttribute('aria-disabled');
+
+        await userEvent.click(item);
+
+        expect(onUnavailableAction).toHaveBeenCalledWith('This action can only be performed on a single record.');
+    });
+
+    it('uses a fallback message and title for unavailable actions without an explicit reason', async () => {
+        const onUnavailableAction = vi.fn();
+
+        render(
+            <ResourcesBulkActionsToolbar
+                {...baseProps}
+                selectedCount={1}
+                actions={makeActions({ 'export-jsonld': { available: false } })}
+                onUnavailableAction={onUnavailableAction}
+            />,
+        );
+
+        await openActionsMenu();
+
+        const item = screen.getByTestId('resources-action-export-jsonld');
+        expect(item).toHaveAttribute('data-unavailable', 'true');
+        expect(item).not.toHaveAttribute('aria-disabled');
+        expect(item).toHaveAttribute('title', 'This action is not available for the current selection.');
+
+        await userEvent.click(item);
+
+        expect(onUnavailableAction).toHaveBeenCalledWith('This action is not available for the current selection.');
+    });
+
+    it('disables an action while it is loading', async () => {
+        const onAction = vi.fn();
+        const onUnavailableAction = vi.fn();
+
+        render(
+            <ResourcesBulkActionsToolbar
+                {...baseProps}
+                selectedCount={2}
+                actions={makeActions({ 'export-datacite-xml': { available: true, loading: true } })}
+                onAction={onAction}
+                onUnavailableAction={onUnavailableAction}
+            />,
+        );
+
+        await openActionsMenu();
+
+        const item = screen.getByTestId('resources-action-export-datacite-xml');
+        expect(item).toHaveAttribute('aria-disabled', 'true');
+        expect(item).not.toHaveAttribute('data-unavailable');
+        expect(item).toHaveTextContent('Working...');
+
+        await userEvent.click(item);
+
+        expect(onAction).not.toHaveBeenCalled();
+        expect(onUnavailableAction).not.toHaveBeenCalled();
     });
 });

@@ -8,10 +8,13 @@ use App\Models\AssistantSuggestion;
 use App\Models\Title;
 use App\Services\Assistance\GenericTableAssistant;
 use Closure;
+use Illuminate\Support\Facades\DB;
 use Nitotm\Eld\LanguageDetector;
 
 class Assistant extends GenericTableAssistant
 {
+    private const TARGET_TYPE = 'title';
+
     private const SUPPORTED_LANGUAGES = ['de', 'en', 'fr'];
 
     private LanguageDetector $detector;
@@ -105,26 +108,88 @@ class Assistant extends GenericTableAssistant
      */
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
-        $title = Title::find($suggestion->target_id);
+        $validation = $this->validatedPayload($suggestion);
 
-        if ($title === null) {
+        if ($validation['success'] === false) {
+            return $validation;
+        }
+
+        return DB::transaction(function () use ($suggestion, $validation): array {
+            $title = Title::query()
+                ->whereKey($validation['payload']['target_id'])
+                ->where('resource_id', $validation['payload']['resource_id'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($title === null) {
+                return [
+                    'success' => false,
+                    'message' => 'The title for this suggestion no longer exists or no longer belongs to the expected resource.',
+                ];
+            }
+
+            $metadata = $this->metadata($suggestion);
+
+            if ($this->isStale($title, $metadata)) {
+                return [
+                    'success' => false,
+                    'message' => 'Suggestion is stale because the title data changed after discovery. Please run discovery again.',
+                ];
+            }
+
+            $currentLanguage = $this->currentLanguage($title);
+            $proposedLanguage = $validation['payload']['proposed_language'];
+
+            if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
+                return [
+                    'success' => false,
+                    'message' => "Title already has language '{$currentLanguage}'. It was not overwritten automatically.",
+                ];
+            }
+
+            if ($currentLanguage === $proposedLanguage) {
+                return [
+                    'success' => true,
+                    'message' => "Title language is already set to {$proposedLanguage}.",
+                ];
+            }
+
+            $title->language = $proposedLanguage;
+            $title->save();
+
+            $languageLabel = $metadata['proposed_language_label']
+                ?? $suggestion->suggested_label
+                ?? strtoupper($proposedLanguage);
+
+            return [
+                'success' => true,
+                'message' => "Title language set to {$languageLabel}.",
+            ];
+        });
+    }
+
+    /**
+     * @return array{success: false, message: string}|array{success: true, payload: array{target_id: int, resource_id: int, proposed_language: string}}
+     */
+    private function validatedPayload(AssistantSuggestion $suggestion): array
+    {
+        if ($suggestion->target_type !== self::TARGET_TYPE) {
             return [
                 'success' => false,
-                'message' => 'Title record not found.',
+                'message' => 'This title language suggestion targets an unsupported entity type.',
             ];
         }
 
-        $metadata = $this->metadata($suggestion);
+        $targetId = $this->positiveInt($suggestion->target_id);
+        $resourceId = $this->positiveInt($suggestion->resource_id);
+        $proposedLanguage = strtolower(trim((string) $suggestion->suggested_value));
 
-        if ($this->isStale($title, $metadata)) {
+        if ($targetId === null || $resourceId === null) {
             return [
                 'success' => false,
-                'message' => 'Suggestion is stale because the title data changed after discovery. Please run discovery again.',
+                'message' => 'This title language suggestion does not contain a valid title and resource reference.',
             ];
         }
-
-        $currentLanguage = $this->currentLanguage($title);
-        $proposedLanguage = strtolower((string) $suggestion->suggested_value);
 
         if (! in_array($proposedLanguage, self::SUPPORTED_LANGUAGES, true)) {
             return [
@@ -133,30 +198,44 @@ class Assistant extends GenericTableAssistant
             ];
         }
 
-        if ($currentLanguage !== null && $currentLanguage !== $proposedLanguage) {
+        $metadata = $this->metadata($suggestion);
+        $sourceHash = $metadata['source_hash'] ?? null;
+
+        if (! is_string($sourceHash) || trim($sourceHash) === '') {
             return [
                 'success' => false,
-                'message' => "Title already has language '{$currentLanguage}'. It was not overwritten automatically.",
+                'message' => 'This title language suggestion is missing source verification metadata. Please refresh the assistant list.',
             ];
         }
 
-        if ($currentLanguage === $proposedLanguage) {
-            return [
-                'success' => true,
-                'message' => "Title language is already set to {$proposedLanguage}.",
-            ];
+        $snapshot = is_array($metadata['source_snapshot'] ?? null) ? $metadata['source_snapshot'] : null;
+
+        if (is_array($snapshot)) {
+            $snapshotTitleId = $this->positiveInt($snapshot['title_id'] ?? null);
+            $snapshotResourceId = $this->positiveInt($snapshot['resource_id'] ?? null);
+
+            if ($snapshotTitleId !== null && $snapshotTitleId !== $targetId) {
+                return [
+                    'success' => false,
+                    'message' => 'This title language suggestion contains inconsistent title metadata. Please refresh the assistant list.',
+                ];
+            }
+
+            if ($snapshotResourceId !== null && $snapshotResourceId !== $resourceId) {
+                return [
+                    'success' => false,
+                    'message' => 'This title language suggestion contains inconsistent resource metadata. Please refresh the assistant list.',
+                ];
+            }
         }
-
-        $title->language = $proposedLanguage;
-        $title->save();
-
-        $languageLabel = $metadata['proposed_language_label']
-            ?? $suggestion->suggested_label
-            ?? strtoupper($proposedLanguage);
 
         return [
             'success' => true,
-            'message' => "Title language set to {$languageLabel}.",
+            'payload' => [
+                'target_id' => $targetId,
+                'resource_id' => $resourceId,
+                'proposed_language' => $proposedLanguage,
+            ],
         ];
     }
 
@@ -266,6 +345,21 @@ class Assistant extends GenericTableAssistant
         return strtolower((string) $language);
     }
 
+    private function positiveInt(mixed $value): ?int
+    {
+        if (is_int($value) && $value > 0) {
+            return $value;
+        }
+
+        if (is_string($value) && ctype_digit($value)) {
+            $intValue = (int) $value;
+
+            return $intValue > 0 ? $intValue : null;
+        }
+
+        return null;
+    }
+
     private function sourceHash(Title $title): string
     {
         return hash('sha256', implode('|', [
@@ -281,11 +375,7 @@ class Assistant extends GenericTableAssistant
      */
     private function isStale(Title $title, array $metadata): bool
     {
-        $storedHash = $metadata['source_hash'] ?? null;
-
-        if (! is_string($storedHash) || $storedHash === '') {
-            return false;
-        }
+        $storedHash = (string) $metadata['source_hash'];
 
         return ! hash_equals($storedHash, $this->sourceHash($title));
     }

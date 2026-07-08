@@ -17,16 +17,18 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
-use App\Models\Right;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Citations\RelatedItemStorageService;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use App\Services\Rights\CustomRightCatalogService;
+use App\Services\Rights\ResourceRightsStorageService;
+use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
-use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -48,6 +50,9 @@ class ResourceStorageService
         protected RorLookupService $rorLookupService,
         protected RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
         protected RelatedItemStorageService $relatedItemStorage,
+        protected ResourceRightsStorageService $resourceRightsStorage,
+        protected CustomRightCatalogService $customRightCatalog,
+        protected SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver,
     ) {}
 
     /**
@@ -57,6 +62,7 @@ class ResourceStorageService
      * @param  int|null  $userId  ID of the user performing the operation
      * @return array{0: Resource, 1: bool} Returns [$resource, $isUpdate]
      *
+     * @throws QueryException
      * @throws ValidationException
      */
     #[\NoDiscard('Stored resource and update flag must be used')]
@@ -156,7 +162,9 @@ class ResourceStorageService
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? null;
 
         if (! is_array($relatedIdentifiers)) {
-            return $data;
+            $data['relatedIdentifiers'] = [];
+
+            return $this->ensureAuthorContactPersonContributors($data);
         }
 
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
@@ -205,7 +213,180 @@ class ResourceStorageService
 
         $data['relatedIdentifiers'] = $relatedIdentifiers;
 
+        return $this->ensureAuthorContactPersonContributors($data);
+    }
+
+    /**
+     * Expand the editor's author-level CP flag back into the DataCite-compatible
+     * contributor representation required for storage and export.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function ensureAuthorContactPersonContributors(array $data): array
+    {
+        $authors = $data['authors'] ?? [];
+
+        if (! is_array($authors)) {
+            return $data;
+        }
+
+        $contributors = $data['contributors'] ?? [];
+
+        if (! is_array($contributors)) {
+            $contributors = [];
+        }
+
+        foreach ($authors as $author) {
+            if (! is_array($author) || ($author['type'] ?? 'person') !== 'person' || ! (bool) ($author['isContact'] ?? false)) {
+                continue;
+            }
+
+            $matchingContributorIndex = $this->matchingPersonContributorIndex($contributors, $author);
+
+            if ($matchingContributorIndex !== null) {
+                /** @var array<string, mixed> $contributor */
+                $contributor = $contributors[$matchingContributorIndex];
+                $contributor['roles'] = $this->rolesWithContactPerson($contributor['roles'] ?? []);
+                $contributor['email'] = $author['email'] ?? null;
+                $contributor['website'] = $author['website'] ?? null;
+                $contributors[$matchingContributorIndex] = $contributor;
+
+                continue;
+            }
+
+            $contributors[] = $this->authorContactContributorData($author, count($contributors));
+        }
+
+        $data['contributors'] = array_values($contributors);
+
         return $data;
+    }
+
+    /**
+     * @param  array<int, mixed>  $contributors
+     * @param  array<string, mixed>  $author
+     */
+    private function matchingPersonContributorIndex(array $contributors, array $author): ?int
+    {
+        $authorKeys = $this->personDataIdentityKeys($author);
+
+        if ($authorKeys === []) {
+            return null;
+        }
+
+        foreach ($contributors as $index => $contributor) {
+            if (! is_array($contributor) || ($contributor['type'] ?? 'person') !== 'person') {
+                continue;
+            }
+
+            if (array_intersect($authorKeys, $this->personDataIdentityKeys($contributor)) !== []) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $personData
+     * @return list<string>
+     */
+    private function personDataIdentityKeys(array $personData): array
+    {
+        $orcidIdentityKey = $this->personDataOrcidIdentityKey($personData);
+
+        if ($orcidIdentityKey !== null) {
+            return [$orcidIdentityKey];
+        }
+
+        $keys = [];
+        $firstName = $this->normalisePersonIdentityPart($personData['firstName'] ?? null);
+        $lastName = $this->normalisePersonIdentityPart($personData['lastName'] ?? null);
+
+        if ($firstName !== null && $lastName !== null) {
+            $keys[] = 'name:'.$lastName.'|'.$firstName;
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * @param  array<string, mixed>  $personData
+     */
+    private function personDataOrcidIdentityKey(array $personData): ?string
+    {
+        $orcid = $this->filledContactString($personData['orcid'] ?? null);
+
+        if ($orcid === null) {
+            return null;
+        }
+
+        $bareOrcid = OrcidNormalizer::extractBareId($orcid);
+
+        if ($bareOrcid === '' || ! OrcidNormalizer::isValidFormat($bareOrcid)) {
+            return null;
+        }
+
+        return 'orcid:'.strtolower($bareOrcid);
+    }
+
+    private function normalisePersonIdentityPart(mixed $value): ?string
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $normalised = mb_strtolower($value, 'UTF-8');
+        $normalised = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalised) ?: $normalised;
+        $normalised = preg_replace('/[^\p{L}\p{N}]+/u', ' ', $normalised) ?? '';
+        $normalised = preg_replace('/\s+/', ' ', $normalised) ?? '';
+
+        return trim($normalised);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function rolesWithContactPerson(mixed $roles): array
+    {
+        $roles = is_array($roles)
+            ? array_values(array_filter(
+                $roles,
+                fn (mixed $role): bool => is_string($role) && trim($role) !== '',
+            ))
+            : [];
+
+        if (! $this->hasContactPersonRole(['roles' => $roles])) {
+            $roles[] = 'ContactPerson';
+        }
+
+        return array_values(array_unique($roles));
+    }
+
+    /**
+     * @param  array<string, mixed>  $author
+     * @return array<string, mixed>
+     */
+    private function authorContactContributorData(array $author, int $position): array
+    {
+        return [
+            'type' => 'person',
+            'firstName' => $author['firstName'] ?? null,
+            'lastName' => $author['lastName'] ?? null,
+            'orcid' => $author['orcid'] ?? null,
+            'roles' => ['ContactPerson'],
+            'email' => $author['email'] ?? null,
+            'website' => $author['website'] ?? null,
+            'affiliations' => $author['affiliations'] ?? [],
+            'position' => $position,
+        ];
     }
 
     /**
@@ -214,50 +395,21 @@ class ResourceStorageService
     private function storeTitles(Resource $resource, array $data, bool $isUpdate): void
     {
         /**
-         * Collect all titleType values for lookup.
-         * prepareForValidation() maps incoming values to DB slugs where possible.
-         * All titles (including MainTitle) are stored with their TitleType ID.
-         *
-         * Note: In DataCite XML, MainTitle has no titleType attribute, but in the
-         * database we always store the reference to the TitleType record.
-         *
-         * @var array<int, string> $titleTypeInputValues
-         */
-        $titleTypeInputValues = [];
-
-        foreach ($data['titles'] as $titleData) {
-            $normalized = Str::kebab($titleData['titleType'] ?? '');
-
-            // Empty or 'main-title' defaults to MainTitle slug
-            if ($normalized === '' || $normalized === 'main-title') {
-                $titleTypeInputValues[] = 'MainTitle';
-            } else {
-                $titleTypeInputValues[] = (string) ($titleData['titleType'] ?? '');
-            }
-        }
-
-        $titleTypeInputValues = array_values(array_unique($titleTypeInputValues));
-
-        /**
          * Map normalized (kebab-case) slugs to DB title type IDs.
+         * Editor and legacy import payloads can provide values like "alternative-title",
+         * while the database stores DataCite slugs like "AlternativeTitle".
          *
          * @var array<string, int> $titleTypeMap
          */
         $titleTypeMap = TitleType::query()
-            ->whereIn('slug', $titleTypeInputValues)
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
             ->all();
 
         // Also add mapping for empty string and 'main-title' to MainTitle ID
         // Note: 'MainTitle' in kebab-case becomes 'main-title'
-        $mainTitleId = $titleTypeMap['main-title'] ?? null;
-        if ($mainTitleId === null) {
-            // MainTitle TitleType is required - throw specific error
-            throw new \RuntimeException(
-                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
-            );
-        }
+        $mainTitleId = $titleTypeMap['main-title'] ?? $this->ensureTitleType('MainTitle', 'Main Title');
+        $titleTypeMap['main-title'] = $mainTitleId;
         $titleTypeMap[''] = $mainTitleId;
 
         $resourceTitles = [];
@@ -287,30 +439,137 @@ class ResourceStorageService
         $resource->titles()->createMany($resourceTitles);
     }
 
+    private function ensureTitleType(string $slug, string $name): int
+    {
+        return (int) TitleType::query()->firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $name,
+                'is_active' => true,
+                'is_elmo_active' => true,
+            ],
+        )->id;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */
     private function syncLicenses(Resource $resource, array $data): void
     {
-        // Sync rights (pivot table) based on the validated license identifiers.
-        $licenseIdentifiers = $data['licenses'] ?? [];
+        $licenseIdentifiers = $this->licenseIdentifierList($data['licenses'] ?? []);
+        $sourceResourceRightLinks = [];
 
-        /**
-         * @var array<string, int> $rightsByIdentifier
-         */
-        $rightsByIdentifier = Right::query()
-            ->whereIn('identifier', $licenseIdentifiers)
-            ->pluck('id', 'identifier')
-            ->all();
+        foreach ($this->customLicenseList($data['customLicenses'] ?? []) as $customLicense) {
+            $right = $this->customRightCatalog->findOrCreate($customLicense['name'], $customLicense['uri']);
+            $licenseIdentifiers[] = $right->identifier;
 
-        $missingLicenses = array_values(array_diff($licenseIdentifiers, array_keys($rightsByIdentifier)));
-        if (count($missingLicenses) > 0) {
-            throw ValidationException::withMessages([
-                'licenses' => 'Some provided licenses are unknown: '.implode(', ', $missingLicenses),
-            ]);
+            if (isset($customLicense['sourceResourceRightId'])) {
+                $sourceResourceRightLinks[$customLicense['sourceResourceRightId']] = (int) $right->id;
+            }
         }
 
-        $resource->rights()->sync(array_values($rightsByIdentifier));
+        $this->resourceRightsStorage->syncEditorRights(
+            $resource,
+            array_values(array_unique($licenseIdentifiers)),
+            $this->rawRightsList($data['rawRights'] ?? []),
+            $resource->language?->code,
+            $sourceResourceRightLinks,
+            array_key_exists('customLicenses', $data),
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function licenseIdentifierList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $identifiers = [];
+
+        foreach ($value as $identifier) {
+            if (is_string($identifier)) {
+                $identifiers[] = $identifier;
+            }
+        }
+
+        return $identifiers;
+    }
+
+    /**
+     * @return list<array{name: string, uri: string, sourceResourceRightId?: int}>
+     */
+    private function customLicenseList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $customLicenses = [];
+
+        foreach ($value as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $name = isset($entry['name']) && (is_string($entry['name']) || is_numeric($entry['name']))
+                ? trim((string) $entry['name'])
+                : '';
+            $uri = isset($entry['uri']) && (is_string($entry['uri']) || is_numeric($entry['uri']))
+                ? trim((string) $entry['uri'])
+                : '';
+
+            if ($name === '' && $uri === '') {
+                continue;
+            }
+
+            $customLicense = [
+                'name' => $name,
+                'uri' => $uri,
+            ];
+
+            if (isset($entry['sourceResourceRightId']) && is_numeric($entry['sourceResourceRightId'])) {
+                $customLicense['sourceResourceRightId'] = (int) $entry['sourceResourceRightId'];
+            }
+
+            $customLicenses[] = $customLicense;
+        }
+
+        return $customLicenses;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function rawRightsList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rawRights = [];
+
+        foreach ($value as $statement) {
+            if (! is_array($statement)) {
+                continue;
+            }
+
+            $normalized = [];
+
+            foreach ($statement as $key => $item) {
+                if (is_string($key)) {
+                    $normalized[$key] = $item;
+                }
+            }
+
+            if ($normalized !== []) {
+                $rawRights[] = $normalized;
+            }
+        }
+
+        return $rawRights;
     }
 
     /**
@@ -753,104 +1012,211 @@ class ResourceStorageService
     }
 
     /**
+     * Ensure a one-time system-managed DataCite date exists.
+     *
+     * This helper is intentionally limited to Accepted and Issued dates, which
+     * are written once and then preserved. Updated is refreshed by storeDates()
+     * on resource updates because it has overwrite semantics.
+     */
+    public function ensureSystemDate(Resource $resource, string $dateTypeSlug, ?string $dateValue = null): void
+    {
+        $dateTypeKey = Str::kebab($dateTypeSlug);
+        $systemDateTypes = [
+            'accepted' => ['name' => 'Accepted', 'slug' => 'Accepted'],
+            'issued' => ['name' => 'Issued', 'slug' => 'Issued'],
+        ];
+
+        if (! array_key_exists($dateTypeKey, $systemDateTypes)) {
+            throw new \InvalidArgumentException('Only Accepted and Issued can be written as system dates.');
+        }
+
+        $dateType = DateType::query()
+            ->whereRaw('LOWER(slug) = ?', [$dateTypeKey])
+            ->first();
+
+        if (! $dateType instanceof DateType) {
+            try {
+                $dateType = DateType::query()->firstOrCreate(
+                    ['slug' => $systemDateTypes[$dateTypeKey]['slug']],
+                    [
+                        'name' => $systemDateTypes[$dateTypeKey]['name'],
+                        'is_active' => true,
+                    ],
+                );
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+
+                $dateType = DateType::query()
+                    ->whereRaw('LOWER(slug) = ?', [$dateTypeKey])
+                    ->first();
+
+                if (! $dateType instanceof DateType) {
+                    throw $exception;
+                }
+            }
+        }
+
+        DB::transaction(function () use ($resource, $dateType, $dateValue): void {
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->lockForUpdate()
+                ->findOrFail($resource->getKey());
+
+            if ($lockedResource->dates()->where('date_type_id', $dateType->id)->exists()) {
+                return;
+            }
+
+            $lockedResource->dates()->create([
+                'date_type_id' => $dateType->id,
+                'date_value' => $dateValue ?? now()->format('Y-m-d'),
+                'start_date' => null,
+                'end_date' => null,
+                'date_information' => null,
+            ]);
+        });
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $errorInfo = $exception->errorInfo ?? [];
+        $sqlState = isset($errorInfo[0]) ? (string) $errorInfo[0] : '';
+        $driverCode = isset($errorInfo[1]) ? (string) $errorInfo[1] : '';
+
+        return in_array($sqlState, ['23000', '23505'], true)
+            || in_array($driverCode, ['19', '1062'], true);
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function storeDates(Resource $resource, array $data, bool $isUpdate): void
     {
-        // Save dates
-        // Note: 'created' and 'updated' dates are auto-managed and should not be
-        // submitted by the frontend. They are handled separately below.
-
-        // Pre-fetch all date type IDs in a single query to avoid N+1 queries
-        // This lookup map is used for both system date types and user-provided dates
         /** @var array<string, int> $dateTypeLookup */
         $dateTypeLookup = DateType::query()
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (DateType $type): array => [Str::kebab($type->slug) => $type->id])
             ->all();
-        $createdDateTypeId = $dateTypeLookup['created'] ?? null;
-        $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
 
-        if ($isUpdate) {
-            // When updating, preserve 'created' date (never overwritten) and delete
-            // all other user-managed dates. The 'updated' date is handled separately below.
-            if ($createdDateTypeId !== null) {
+        $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
+        $hasSubmittedDates = array_key_exists('dates', $data);
+        $dates = $hasSubmittedDates && is_array($data['dates']) ? $data['dates'] : [];
+
+        if ($isUpdate && $hasSubmittedDates) {
+            $preservedDateTypeKeys = ['accepted', 'issued', 'coverage'];
+            $preservedDateTypeIds = array_values(array_filter(
+                array_map(fn (string $dateType): ?int => $dateTypeLookup[$dateType] ?? null, $preservedDateTypeKeys),
+                fn (?int $dateTypeId): bool => $dateTypeId !== null,
+            ));
+
+            if ($preservedDateTypeIds !== []) {
                 $resource->dates()
-                    ->where('date_type_id', '!=', $createdDateTypeId)
+                    ->whereNotIn('date_type_id', $preservedDateTypeIds)
                     ->delete();
             } else {
-                // If 'created' type doesn't exist, delete all dates
                 $resource->dates()->delete();
             }
         }
 
-        $dates = $data['dates'] ?? [];
-
-        foreach ($dates as $date) {
-            // Skip 'created' and 'updated' date types - these are auto-managed
-            if (in_array(Str::kebab((string) ($date['dateType'] ?? '')), ['created', 'updated'], true)) {
+        foreach ($dates as $index => $date) {
+            if (! is_array($date)) {
                 continue;
             }
 
-            // Use the pre-fetched lookup map instead of querying for each date
             $dateTypeKey = Str::kebab((string) ($date['dateType'] ?? ''));
+
+            if (in_array($dateTypeKey, ['accepted', 'issued', 'updated', 'coverage'], true)) {
+                continue;
+            }
+
             $dateTypeId = $dateTypeLookup[$dateTypeKey] ?? null;
 
             if ($dateTypeId === null) {
-                // Throw validation exception for unknown date type to prevent silent data loss
-                // This will rollback the transaction and return a proper validation error response
-                Log::warning('Unknown date type slug: '.$date['dateType']);
+                $submittedDateType = (string) ($date['dateType'] ?? '');
+                Log::warning('Unknown date type slug: '.$submittedDateType);
 
                 throw ValidationException::withMessages([
-                    'dates' => ["Unknown date type: {$date['dateType']}. Please select a valid date type."],
+                    'dates' => ["Unknown date type: {$submittedDateType}. Please select a valid date type."],
                 ]);
             }
 
-            // Date storage strategy:
-            // - When BOTH startDate AND endDate are provided: store as a date range
-            //   (date_value=null, start_date/end_date populated)
-            // - When only ONE date is provided: store as a single date
-            //   (date_value=the provided date, start_date/end_date=null)
-            // This allows the model to distinguish between point-in-time dates
-            // and date ranges while maintaining backward compatibility.
-            $hasRange = ($date['startDate'] ?? null) && ($date['endDate'] ?? null);
+            $startDate = isset($date['startDate']) ? trim((string) $date['startDate']) : null;
+            $startDate = $startDate !== '' ? $startDate : null;
+            $endDate = isset($date['endDate']) ? trim((string) $date['endDate']) : null;
+            $endDate = $endDate !== '' ? $endDate : null;
+            $mode = isset($date['dateMode']) ? Str::kebab(trim((string) $date['dateMode'])) : null;
+            $mode = $mode !== '' ? $mode : null;
+            $supportsPeriod = in_array($dateTypeKey, ['created', 'collected', 'valid', 'other'], true);
+
+            if ($mode !== null && ! in_array($mode, ['single', 'range'], true)) {
+                throw ValidationException::withMessages([
+                    "dates.$index.dateMode" => ['Date mode must be single or range.'],
+                ]);
+            }
+
+            if ($mode === 'single' && $endDate !== null) {
+                throw ValidationException::withMessages([
+                    "dates.$index.endDate" => ['Single-date mode must not include an end date.'],
+                ]);
+            }
+
+            if ($mode === 'range') {
+                $messages = [];
+
+                if (! $supportsPeriod) {
+                    $messages["dates.$index.dateMode"] = ['Only Created, Collected, Valid, and Other dates can be stored as periods.'];
+                }
+
+                if ($startDate === null) {
+                    $messages["dates.$index.startDate"] = ['Period mode requires a start date.'];
+                }
+
+                if ($endDate === null) {
+                    $messages["dates.$index.endDate"] = ['Period mode requires an end date.'];
+                }
+
+                if ($messages !== []) {
+                    throw ValidationException::withMessages($messages);
+                }
+            }
+
+            if ($mode === null && $endDate !== null) {
+                if ($startDate === null) {
+                    throw ValidationException::withMessages([
+                        "dates.$index.startDate" => ['Dates with an end date require a start date.'],
+                    ]);
+                }
+
+                if (! $supportsPeriod) {
+                    throw ValidationException::withMessages([
+                        "dates.$index.endDate" => ['Only Created, Collected, Valid, and Other dates can include an end date.'],
+                    ]);
+                }
+            }
+
+            if ($startDate === null && $endDate === null) {
+                continue;
+            }
+
+            $hasRange = ($mode === 'range' || ($mode === null && $endDate !== null))
+                && $startDate !== null
+                && $endDate !== null;
 
             $resource->dates()->create([
                 'date_type_id' => $dateTypeId,
-                'date_value' => $hasRange ? null : ($date['startDate'] ?? $date['endDate'] ?? null),
-                'start_date' => $hasRange ? $date['startDate'] : null,
-                'end_date' => $hasRange ? $date['endDate'] : null,
-                'date_information' => $date['dateInformation'] ?? null,
+                'date_value' => $hasRange ? null : $startDate,
+                'start_date' => $hasRange ? $startDate : null,
+                'end_date' => $hasRange ? $endDate : null,
+                'date_information' => $this->normalizeNullableString($date['dateInformation'] ?? null),
             ]);
         }
 
-        // Auto-manage 'created' date: Set only on new resources (not on updates)
-        // Issue #371: If an imported 'created' date is provided (from XML/DataCite import),
-        // use that date instead of the current date. This preserves the original creation
-        // date from external sources like ELMO.
-        if (! $isUpdate && $createdDateTypeId !== null) {
-            // Check if an imported created date was provided
-            $importedCreatedDate = $data['importedCreatedDate'] ?? null;
-
-            // Use imported date if available, otherwise use current date as fallback
-            $createdDateValue = $importedCreatedDate !== null && $importedCreatedDate !== ''
-                ? Carbon::parse($importedCreatedDate)->format('Y-m-d')
-                : now()->format('Y-m-d');
-
-            $resource->dates()->create([
-                'date_type_id' => $createdDateTypeId,
-                'date_value' => $createdDateValue,
-                'start_date' => null,
-                'end_date' => null,
-                'date_information' => null,
-            ]);
-        }
-
-        // Auto-manage 'updated' date: Update timestamp on every update operation.
-        // This reflects when the resource was last saved by a curator.
         if ($isUpdate && $updatedDateTypeId !== null) {
-            // Create new 'updated' date with current timestamp
-            // (any existing 'updated' entry was already deleted above)
+            $resource->dates()
+                ->where('date_type_id', $updatedDateTypeId)
+                ->delete();
+
             $resource->dates()->create([
                 'date_type_id' => $updatedDateTypeId,
                 'date_value' => now()->format('Y-m-d'),
@@ -859,6 +1225,17 @@ class ResourceStorageService
                 'date_information' => null,
             ]);
         }
+    }
+
+    private function normalizeNullableString(mixed $value): ?string
+    {
+        if ($value === null || (! is_scalar($value) && ! $value instanceof \Stringable)) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     /**
@@ -892,22 +1269,54 @@ class ResourceStorageService
         $controlledKeywordsData = [];
         foreach ($controlledKeywords as $keyword) {
             // Validate required fields (scheme is now the discriminator instead of vocabularyType)
-            if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
-                $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
-                $classificationCode = $rawCode !== '' ? $rawCode : null;
-                $valueUri = filter_var($keyword['id'], FILTER_VALIDATE_URL) ? $keyword['id'] : null;
-
-                $controlledKeywordsData[] = [
-                    'value' => $keyword['text'],
-                    'subject_scheme' => $keyword['scheme'],
-                    'scheme_uri' => $keyword['schemeURI'] ?? null,
-                    'value_uri' => $valueUri,
-                    'classification_code' => $classificationCode,
-                    'breadcrumb_path' => SubjectBreadcrumbPath::normalize(
-                        is_string($keyword['path'] ?? null) ? $keyword['path'] : null,
-                    ),
-                ];
+            if (empty($keyword['text']) || empty($keyword['scheme'])) {
+                continue;
             }
+
+            $keywordId = trim((string) ($keyword['id'] ?? ''));
+            $keywordText = trim((string) $keyword['text']);
+            $keywordText = SubjectBreadcrumbPath::normalize($keywordText) ?? $keywordText;
+            $keywordScheme = trim((string) $keyword['scheme']);
+            $keywordSchemeUri = is_string($keyword['schemeURI'] ?? null) ? trim((string) $keyword['schemeURI']) : null;
+            $keywordPath = is_string($keyword['path'] ?? null) ? $keyword['path'] : null;
+
+            if ($keywordId === '' || $keywordSchemeUri === null || $keywordSchemeUri === '') {
+                $resolvedKeyword = $this->subjectBreadcrumbPathResolver->resolveKeywordFromPath(
+                    $keywordScheme,
+                    $keywordPath ?? $keywordText,
+                );
+
+                if ($resolvedKeyword !== null) {
+                    $keywordId = $keywordId !== '' ? $keywordId : $resolvedKeyword['id'];
+                    $keywordText = $keywordText !== '' ? $keywordText : $resolvedKeyword['text'];
+                    $keywordScheme = $resolvedKeyword['scheme'];
+                    $keywordSchemeUri = $keywordSchemeUri !== null && $keywordSchemeUri !== ''
+                        ? $keywordSchemeUri
+                        : $resolvedKeyword['schemeURI'];
+                    $keywordPath = $resolvedKeyword['path'];
+                }
+            }
+
+            if ($keywordId === '' || $keywordText === '' || $keywordScheme === '') {
+                continue;
+            }
+
+            $keywordSchemeUri = $keywordSchemeUri !== null && $keywordSchemeUri !== ''
+                ? $keywordSchemeUri
+                : $this->subjectBreadcrumbPathResolver->resolveSchemeUri($keywordScheme);
+
+            $rawCode = array_key_exists('classificationCode', $keyword) ? trim((string) $keyword['classificationCode']) : '';
+            $classificationCode = $rawCode !== '' ? $rawCode : null;
+            $valueUri = filter_var($keywordId, FILTER_VALIDATE_URL) ? $keywordId : null;
+
+            $controlledKeywordsData[] = [
+                'value' => $keywordText,
+                'subject_scheme' => $keywordScheme,
+                'scheme_uri' => $keywordSchemeUri,
+                'value_uri' => $valueUri,
+                'classification_code' => $classificationCode,
+                'breadcrumb_path' => SubjectBreadcrumbPath::normalize($keywordPath),
+            ];
         }
 
         // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
@@ -1151,7 +1560,7 @@ class ResourceStorageService
     }
 
     /**
-     * Save inline <relatedItem> metadata (DataCite 4.7 Citation Manager).
+     * Save inline <relatedItem> metadata (DataCite 4.7 Related Item Manager).
      *
      * Resolves `relation_type_slug` → id and delegates persistence of the
      * full aggregate (item + titles + creators + contributors + affiliations)
@@ -1163,7 +1572,7 @@ class ResourceStorageService
     private function storeRelatedItems(Resource $resource, array $data, bool $isUpdate): void
     {
         // Citations are persisted via the dedicated /resources/{id}/related-items
-        // REST endpoints (Citation Manager). Only touch them here when the caller
+        // REST endpoints (Related Item Manager). Only touch them here when the caller
         // explicitly includes a `relatedItems` payload (e.g., XML import or full
         // resource replace). Otherwise leave existing related items untouched so
         // a regular editor save does not wipe them.

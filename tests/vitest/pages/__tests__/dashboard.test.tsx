@@ -74,6 +74,21 @@ vi.mock('@/routes/igsns', () => ({
     index: { url: () => '/igsns' },
 }));
 
+let csrfMeta: HTMLMetaElement | null = null;
+
+const appendCsrfMeta = (content = 'test-token') => {
+    removeCsrfMeta();
+    csrfMeta = document.createElement('meta');
+    csrfMeta.name = 'csrf-token';
+    csrfMeta.content = content;
+    document.head.appendChild(csrfMeta);
+};
+
+const removeCsrfMeta = () => {
+    csrfMeta?.remove();
+    csrfMeta = null;
+};
+
 describe('Dashboard', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({ 
@@ -87,9 +102,9 @@ describe('Dashboard', () => {
                 phpVersion: '8.4.12',
                 laravelVersion: '12.28.1',
                 draftCount: 2,
-                recentDrafts: [
-                    { id: 12, title: 'Arctic campaign dataset', updated_at: '2026-05-11T10:00:00Z' },
-                    { id: 15, title: 'Rock core collection', updated_at: null },
+                recentResources: [
+                    { id: 12, title: 'Arctic campaign dataset', updated_at: '2026-05-11T10:00:00Z', status: 'curation' },
+                    { id: 15, title: 'Rock core collection', updated_at: null, status: 'draft' },
                 ],
             } 
         });
@@ -149,15 +164,43 @@ describe('Dashboard', () => {
         expect(screen.getByText('0 institutions with sample records')).toBeInTheDocument();
     });
 
-    it('renders role-aware quick actions and recent drafts', () => {
+    it('renders role-aware quick actions and recent resources', () => {
         render(<Dashboard />);
 
         expect(screen.getByRole('link', { name: /create resource/i })).toHaveAttribute('href', '/editor');
-        expect(screen.getByRole('link', { name: /resume latest draft/i })).toHaveAttribute('href', '/editor?resourceId=12');
+        expect(screen.getByRole('link', { name: /resume latest resource/i })).toHaveAttribute('href', '/editor?resourceId=12');
         expect(screen.getByRole('link', { name: /review assistance/i })).toHaveAttribute('href', '/assistance');
         expect(screen.getByRole('link', { name: /adjust settings/i })).toHaveAttribute('href', '/settings');
         expect(screen.getByRole('link', { name: /arctic campaign dataset/i })).toHaveAttribute('href', '/editor?resourceId=12');
+        expect(screen.getByText('Curation')).toBeInTheDocument();
+        expect(screen.getByText('Draft')).toBeInTheDocument();
+        expect(screen.getByText('Resource available to resume')).toBeInTheDocument();
         expect(screen.getByText(/updated/i)).toBeInTheDocument();
+    });
+
+    it('renders review and published status labels while skipping unknown status labels', () => {
+        usePageMock.mockReturnValueOnce({
+            props: {
+                auth: { user: { name: 'Jane' } },
+                dataResourceCount: 17,
+                igsnCount: 5,
+                dataInstitutionCount: 3,
+                igsnInstitutionCount: 2,
+                draftCount: 2,
+                recentResources: [
+                    { id: 21, title: 'Review resource', updated_at: null, status: 'review' },
+                    { id: 22, title: 'Published resource', updated_at: null, status: 'published' },
+                    { id: 23, title: 'Resource without status', updated_at: null },
+                ],
+            },
+        });
+
+        render(<Dashboard />);
+
+        expect(screen.getByText('Review')).toBeInTheDocument();
+        expect(screen.getByText('Published')).toBeInTheDocument();
+        expect(screen.getByText('Resource without status')).toBeInTheDocument();
+        expect(screen.getAllByText('Resource available to resume')).toHaveLength(3);
     });
 
     it('keeps the page container overflow-safe and surfaces the import hub in the side column', () => {
@@ -181,7 +224,7 @@ describe('Dashboard', () => {
         expect(screen.queryByRole('link', { name: /upload metadata/i })).not.toBeInTheDocument();
     });
 
-    it('renders an actionable empty state when there are no drafts', () => {
+    it('renders an actionable empty state when there are no recent resources', () => {
         usePageMock.mockReturnValueOnce({
             props: {
                 auth: { user: { name: 'Jane' } },
@@ -190,13 +233,13 @@ describe('Dashboard', () => {
                 dataInstitutionCount: 3,
                 igsnInstitutionCount: 2,
                 draftCount: 0,
-                recentDrafts: [],
+                recentResources: [],
             },
         });
 
         render(<Dashboard />);
 
-        expect(screen.getByText('No drafts waiting')).toBeInTheDocument();
+        expect(screen.getByText('No recent resources')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /browse resources/i })).toHaveAttribute('href', '/resources');
     });
 
@@ -355,19 +398,21 @@ describe('Dashboard', () => {
 describe('handleXmlFiles', () => {
     beforeEach(() => {
         routerMock.get.mockReset();
-        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+        appendCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts xml file with csrf token and redirects to editor with session key', async () => {
+    it('posts xml file with csrf token and redirects to editor with resource id', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const sessionKey = 'xml_upload_test123';
+        const resourceId = 123;
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
                 {
                     ok: true,
                     json: async () => ({
+                        resourceId,
                         sessionKey,
                     }),
                 } as Response,
@@ -382,13 +427,13 @@ describe('handleXmlFiles', () => {
         expect(routerMock.get).toHaveBeenCalled();
         const [redirectUrl] = routerMock.get.mock.calls[0];
         expect(typeof redirectUrl).toBe('string');
-        expect(redirectUrl).toBe(`/editor?xmlSession=${sessionKey}`);
+        expect(redirectUrl).toBe(`/editor?resourceId=${resourceId}`);
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
-    it('falls back to the XSRF cookie when the meta token is unavailable', async () => {
-        document.head.innerHTML = '';
+    it('falls back to the XSRF cookie and legacy session redirect when the meta token is unavailable', async () => {
+        removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=cookie-token';
 
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
@@ -415,7 +460,7 @@ describe('handleXmlFiles', () => {
     });
 
     it('throws when csrf token is missing', async () => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi.spyOn(global, 'fetch');
 
@@ -452,7 +497,7 @@ describe('handleXmlFiles', () => {
     });
 
     afterEach(() => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
@@ -460,17 +505,19 @@ describe('handleXmlFiles', () => {
 describe('handleJsonFiles', () => {
     beforeEach(() => {
         routerMock.get.mockReset();
-        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+        appendCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts json file with csrf token and redirects to editor with session key', async () => {
+    it('posts json file with csrf token and redirects to editor with resource id', async () => {
         const file = new File(['{"title":"Test"}'], 'metadata.json', { type: 'application/json' });
         const sessionKey = 'json_upload_test123';
+        const resourceId = 456;
         const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
             {
                 ok: true,
                 json: async () => ({
+                    resourceId,
                     sessionKey,
                 }),
             } as Response,
@@ -482,15 +529,14 @@ describe('handleJsonFiles', () => {
         const [url, options] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-json');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalledWith(`/editor?jsonSession=${sessionKey}`);
+        expect(routerMock.get).toHaveBeenCalledWith(`/editor?resourceId=${resourceId}`);
 
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
     afterEach(() => {
-        document.head.innerHTML = '';
+        removeCsrfMeta();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
-

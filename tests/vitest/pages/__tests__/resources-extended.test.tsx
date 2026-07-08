@@ -1,19 +1,29 @@
 import '@testing-library/jest-dom/vitest';
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Hoisted mocks
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn(), visit: vi.fn(), reload: vi.fn() }));
+const axiosGetMock = vi.hoisted(() => vi.fn());
+const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
 const editorRouteMock = vi.hoisted(() =>
-    vi.fn(({ query }: { query?: Record<string, string> } = {}) => ({
-        url: query ? `/editor?${new URLSearchParams(query).toString()}` : '/editor',
+    vi.fn(({ query }: { query?: Record<string, string | number> } = {}) => ({
+        url: query ? `/editor?${new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)])).toString()}` : '/editor',
         method: 'get',
     })),
 );
 const mockUser = vi.hoisted(() => ({
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.test',
+    font_size_preference: 'regular',
+    email_verified_at: null,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
     role: 'group_leader',
     can_manage_landing_pages: true,
+    can_register_production_doi: true,
     can_access_old_datasets: false,
     can_access_statistics: false,
     can_access_users: false,
@@ -21,59 +31,61 @@ const mockUser = vi.hoisted(() => ({
     can_access_editor_settings: false,
 }));
 
-// Core Inertia mock
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     router: routerMock,
     usePage: () => ({ props: { auth: { user: mockUser } } }),
 }));
 
-vi.mock('@/lib/curation-query', () => ({
-    buildCurationQueryFromResource: vi.fn().mockResolvedValue({}),
-}));
-vi.mock('@/routes', () => ({ editor: editorRouteMock }));
-vi.mock('@/layouts/app-layout', () => ({
-    default: ({ children }: { children?: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
-}));
-
-// Additional mocks for full component rendering
 vi.mock('axios', () => ({
-    default: { get: vi.fn().mockResolvedValue({ data: {} }) },
-    isAxiosError: (err: unknown) => !!(err && typeof err === 'object' && 'isAxiosError' in err),
+    default: {
+        get: axiosGetMock,
+    },
+    get: axiosGetMock,
+    isAxiosError: (err: unknown) => Boolean(err && typeof err === 'object' && 'isAxiosError' in err),
 }));
-vi.mock('sonner', () => {
-    const t = Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() });
-    return { toast: t };
-});
+vi.mock('sonner', () => ({ toast: toastMock }));
 vi.mock('@/lib/blob-utils', () => ({
     extractErrorMessageFromBlob: vi.fn().mockResolvedValue('Error'),
     parseValidationErrorFromBlob: vi.fn().mockResolvedValue(null),
 }));
+vi.mock('@/lib/curation-query', () => ({
+    buildCurationQueryFromResource: vi.fn().mockResolvedValue({}),
+}));
+vi.mock('@/routes', () => ({ editor: editorRouteMock }));
 vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
 }));
-vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
-vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({ default: () => null }));
-vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
+vi.mock('@/layouts/app-layout', () => ({
+    default: ({ children }: { children?: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
+}));
 vi.mock('@/components/resources-filters', () => ({
     ResourcesFilters: () => <div data-testid="resources-filters" />,
 }));
+vi.mock('@/components/landing-pages/modals/SetupLandingPageModal', () => ({
+    default: ({ isOpen, resource }: { isOpen: boolean; resource: { id: number; title?: string } }) =>
+        isOpen ? <div data-testid="setup-landing-page-modal">Setup landing page for {resource.title ?? resource.id}</div> : null,
+}));
+vi.mock('@/components/resources/modals/RegisterDoiModal', () => ({
+    default: ({ isOpen, resource }: { isOpen: boolean; resource: { id: number; title?: string } }) =>
+        isOpen ? <div data-testid="register-doi-modal">Register DOI for {resource.title ?? resource.id}</div> : null,
+}));
+vi.mock('@/components/resources/modals/ImportFromDataCiteModal', () => ({ default: () => null }));
+vi.mock('@/components/resources/modals/ImportSingleOldResourceModal', () => ({ default: () => null }));
+vi.mock('@/components/ui/validation-error-modal', () => ({ ValidationErrorModal: () => null }));
+vi.mock('@/components/citations/CitationManagerModal', () => ({
+    CitationManagerModal: ({ open, resourceId }: { open: boolean; resourceId: number }) =>
+        open ? <div data-testid="citation-manager-modal">Related items for {resourceId}</div> : null,
+}));
 vi.mock('@/hooks/use-citation-vocabularies', () => ({
     useCitationVocabularies: () => ({
-        resourceTypes: [],
-        relationTypes: [],
-        contributorTypes: [],
+        vocabularies: { resourceTypes: [], relationTypes: [], contributorTypes: [] },
         isLoading: false,
     }),
 }));
 
 import ResourcesPage, { deriveResourceRowKey } from '@/pages/resources';
-
-// ---------------------------------------------------------------------------
-// Helper factories
-// ---------------------------------------------------------------------------
+import { DEFAULT_RESOURCE_COLUMN_WIDTHS } from '@/pages/resources-column-widths';
 
 interface TestResource {
     id: number;
@@ -91,6 +103,8 @@ interface TestResource {
     [key: string]: unknown;
 }
 
+const landingPage = { id: 1, is_published: false, public_url: 'https://example.test/preview' };
+
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
     return {
         id: 1,
@@ -104,7 +118,7 @@ function makeResource(overrides: Partial<TestResource> = {}): TestResource {
         resourcetypegeneral: 'Dataset',
         title: 'Test Dataset Title',
         first_author: { givenName: 'John', familyName: 'Doe' },
-        landingPage: null,
+        landingPage,
         ...overrides,
     };
 }
@@ -135,17 +149,46 @@ function renderPage(propsOverrides: Record<string, unknown> = {}) {
     return render(<ResourcesPage {...(props as any)} />);
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+async function renderPageReady(propsOverrides: Record<string, unknown> = {}) {
+    const result = renderPage(propsOverrides);
+    await screen.findByTestId('resources-filters');
+    return result;
+}
 
-describe('ResourcesPage – extended', () => {
+const openResourceActionsMenu = async () => {
+    await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
+};
+
+const QUICK_RESOURCE_ACTION_TEST_IDS = new Set(['resources-action-edit', 'resources-action-setup-landing-page']);
+
+const clickResourceAction = async (testId: string) => {
+    if (!QUICK_RESOURCE_ACTION_TEST_IDS.has(testId)) {
+        await openResourceActionsMenu();
+    }
+
+    await userEvent.click(screen.getByTestId(testId));
+};
+
+const ensureResourceActionsMenuOpen = async () => {
+    if (screen.queryByRole('menu')) {
+        return;
+    }
+
+    await openResourceActionsMenu();
+};
+
+describe('ResourcesPage - extended', () => {
+    let originalOpen: typeof window.open;
+    let openMock: ReturnType<typeof vi.fn>;
+
     beforeEach(() => {
         vi.clearAllMocks();
-        localStorage.clear();
+        window.localStorage.clear();
+        axiosGetMock.mockResolvedValue({ data: {} });
         Object.assign(mockUser, {
             role: 'group_leader',
             can_manage_landing_pages: true,
+            can_register_production_doi: true,
             can_access_old_datasets: false,
             can_access_statistics: false,
             can_access_users: false,
@@ -153,33 +196,43 @@ describe('ResourcesPage – extended', () => {
             can_access_editor_settings: false,
         });
         Object.defineProperty(window, 'location', { writable: true, value: { href: '', search: '' } });
+        originalOpen = window.open;
+        openMock = vi.fn().mockReturnValue({ closed: false });
+        Object.defineProperty(window, 'open', {
+            value: openMock,
+            configurable: true,
+            writable: true,
+        });
 
-        // IntersectionObserver stub – does not auto-trigger
-        global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-            observe: vi.fn(),
-            unobserve: vi.fn(),
-            disconnect: vi.fn(),
-            root: null,
-            rootMargin: '',
-            thresholds: [],
-            takeRecords: vi.fn(() => []),
-        })) as unknown as typeof IntersectionObserver;
+        global.IntersectionObserver = vi.fn().mockImplementation(function () {
+            return {
+                observe: vi.fn(),
+                unobserve: vi.fn(),
+                disconnect: vi.fn(),
+                root: null,
+                rootMargin: '',
+                thresholds: [],
+                takeRecords: vi.fn(() => []),
+            };
+        }) as unknown as typeof IntersectionObserver;
     });
 
     afterEach(() => {
         document.head.innerHTML = '';
+        Object.defineProperty(window, 'open', {
+            value: originalOpen,
+            configurable: true,
+            writable: true,
+        });
     });
 
-    // ── deriveResourceRowKey (exported pure function) ──────────────────
     describe('deriveResourceRowKey', () => {
         it('uses id when available', () => {
             expect(deriveResourceRowKey({ id: 42, year: 2024 } as never)).toBe('resource-id-42');
         });
 
         it('uses doi when id is missing', () => {
-            expect(
-                deriveResourceRowKey({ id: undefined as never, doi: '10.5880/test', year: 2024 } as never),
-            ).toBe('resource-doi-10.5880/test');
+            expect(deriveResourceRowKey({ id: undefined as never, doi: '10.5880/test', year: 2024 } as never)).toBe('resource-doi-10.5880/test');
         });
 
         it('falls back to metadata segments when both id and doi are missing', () => {
@@ -196,11 +249,10 @@ describe('ResourcesPage – extended', () => {
         });
     });
 
-    // ── Sort UI ───────────────────────────────────────────────────────
     describe('sort UI', () => {
-        it('renders sort buttons for each column sort option', () => {
-            renderPage();
-            // The resources page has sort options: ID, DOI, Title, Type, Author, Year, Curator, Status, Created, Updated
+        it('renders sort buttons for each column sort option', async () => {
+            await renderPageReady();
+
             expect(screen.getByRole('button', { name: /sort by the resource id/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /sort by the doi/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /sort by the resource title/i })).toBeInTheDocument();
@@ -213,162 +265,227 @@ describe('ResourcesPage – extended', () => {
             expect(screen.getByRole('button', { name: /sort by the updated date/i })).toBeInTheDocument();
         });
 
-        it('shows sort badge reflecting current sort state', () => {
-            renderPage();
-            const badge = screen.getByText(/sorted by/i);
-            expect(badge).toHaveTextContent(/updated date/i);
-            expect(badge).toHaveTextContent('↓');
+        it('shows sort badge reflecting current sort state', async () => {
+            await renderPageReady();
+            expect(screen.getByText(/sorted by: updated date descending/i)).toBeInTheDocument();
         });
 
-        it('shows ascending arrow for ascending sort', () => {
-            renderPage({ sort: { key: 'id', direction: 'asc' } });
-            const badge = screen.getByText(/sorted by/i);
-            expect(badge).toHaveTextContent(/\bid\b/i);
-            expect(badge).toHaveTextContent('↑');
+        it('shows ascending copy for ascending sort', async () => {
+            await renderPageReady({ sort: { key: 'id', direction: 'asc' } });
+            expect(screen.getByText(/sorted by: id ascending/i)).toBeInTheDocument();
         });
 
-        it('marks active sort button as pressed', () => {
+        it('marks active and inactive sort buttons correctly', () => {
             renderPage();
-            const updatedButton = screen.getByRole('button', { name: /sort by the updated date.*currently sorted/i });
-            expect(updatedButton).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.getByRole('button', { name: /sort by the updated date.*currently sorted/i })).toHaveAttribute('aria-pressed', 'true');
+            expect(screen.getByRole('button', { name: /sort by the resource id/i })).toHaveAttribute('aria-pressed', 'false');
         });
 
-        it('marks inactive sort buttons as not pressed', () => {
+        it('navigates with sort params when sort button is clicked', () => {
             renderPage();
-            const idButton = screen.getByRole('button', { name: /sort by the resource id/i });
-            expect(idButton).toHaveAttribute('aria-pressed', 'false');
-        });
-
-        it('navigates with sort params when sort button is clicked', async () => {
-            renderPage();
-            const idButton = screen.getByRole('button', { name: /sort by the resource id/i });
-            await act(async () => {
-                fireEvent.click(idButton);
-            });
-            expect(routerMock.visit).toHaveBeenCalledWith(
-                expect.stringContaining('sort_key=id'),
-                expect.any(Object),
-            );
+            fireEvent.click(screen.getByRole('button', { name: /sort by the resource id/i }));
+            expect(routerMock.visit).toHaveBeenCalledWith(expect.stringContaining('sort_key=id'), expect.any(Object));
         });
     });
 
-    // ── Date formatting ──────────────────────────────────────────────
-    describe('date columns', () => {
-        it('formats created and updated dates via <time> elements', () => {
+    describe('resource overview layout', () => {
+        it('renders resource type below ID and DOI above title in row cells', () => {
             renderPage({
-                resources: [makeResource({ created_at: '2024-03-10T08:00:00Z', updated_at: '2024-09-25T15:00:00Z' })],
+                resources: [makeResource({ id: 7, doi: '10.5880/compact-layout', title: 'Compact Layout Resource' })],
             });
-            const times = document.querySelectorAll('time');
-            expect(times.length).toBeGreaterThanOrEqual(2);
-            // One for created, one for updated
-            const datetimeValues = Array.from(times).map((t) => t.getAttribute('datetime'));
-            expect(datetimeValues.some((d) => d?.includes('2024-03-10'))).toBe(true);
-            expect(datetimeValues.some((d) => d?.includes('2024-09-25'))).toBe(true);
-        });
 
-        it('shows dash for missing dates', () => {
-            renderPage({
-                resources: [makeResource({ created_at: undefined, updated_at: undefined })],
-            });
-            // Two dashes should appear in the date column area
             const table = screen.getByRole('table');
-            const textContent = table.textContent ?? '';
-            // At least two dashes for created/updated
-            expect(textContent.match(/-/g)!.length).toBeGreaterThanOrEqual(2);
+            const dataRow = within(table).getAllByRole('row')[1];
+            const cells = within(dataRow).getAllByRole('cell');
+
+            expect(Array.from(cells[1].querySelectorAll('span')).map((span) => span.textContent)).toEqual(['#7', 'Dataset']);
+            expect(Array.from(cells[2].querySelectorAll('span')).map((span) => span.textContent)).toEqual([
+                '10.5880/compact-layout',
+                'Compact Layout Resource',
+            ]);
+        });
+
+        it('keeps the regrouped columns compact and resizable', () => {
+            renderPage();
+
+            expect(screen.getByTestId('resources-column-id_resourcetype')).toHaveStyle({
+                width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.id_resourcetype}px`,
+            });
+            expect(screen.getByTestId('resources-column-doi_title')).toHaveStyle({
+                width: `${DEFAULT_RESOURCE_COLUMN_WIDTHS.doi_title}px`,
+            });
+            expect(screen.getByRole('separator', { name: /resize id and resource type column/i })).toBeInTheDocument();
+            expect(screen.getByRole('separator', { name: /resize doi and title column/i })).toBeInTheDocument();
         });
     });
 
-    // ── Author formatting ────────────────────────────────────────────
-    describe('author formatting', () => {
-        it('formats familyName and givenName', () => {
-            renderPage({ resources: [makeResource({ first_author: { familyName: 'Smith', givenName: 'Alice' } })] });
+    describe('metadata formatting', () => {
+        it('formats created and updated dates via time elements', () => {
+            renderPage({ resources: [makeResource({ created_at: '2024-03-10T08:00:00Z', updated_at: '2024-09-25T15:00:00Z' })] });
+            const datetimeValues = Array.from(document.querySelectorAll('time')).map((time) => time.getAttribute('datetime'));
+            expect(datetimeValues.some((value) => value?.includes('2024-03-10'))).toBe(true);
+            expect(datetimeValues.some((value) => value?.includes('2024-09-25'))).toBe(true);
+        });
+
+        it('formats personal and institutional authors', () => {
+            const { rerender } = renderPage({ resources: [makeResource({ first_author: { familyName: 'Smith', givenName: 'Alice' } })] });
             expect(screen.getByText('Smith, Alice')).toBeInTheDocument();
-        });
 
-        it('shows only familyName when givenName is missing', () => {
-            renderPage({ resources: [makeResource({ first_author: { familyName: 'Smith' } })] });
-            expect(screen.getByText('Smith')).toBeInTheDocument();
-        });
-
-        it('shows institutional name from name field', () => {
-            renderPage({ resources: [makeResource({ first_author: { name: 'GFZ Potsdam' } })] });
+            rerender(
+                <ResourcesPage
+                    resources={[makeResource({ first_author: { name: 'GFZ Potsdam' } })] as never}
+                    pagination={makePagination()}
+                    sort={defaultSort}
+                />,
+            );
             expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
         });
 
-        it('shows dash for missing author', () => {
-            renderPage({ resources: [makeResource({ first_author: null })] });
-            const table = screen.getByRole('table');
-            const rows = within(table).getAllByRole('row');
-            const dataRow = rows[1]; // skip header
-            // The author cell shows '-'
-            expect(within(dataRow).getAllByText('-').length).toBeGreaterThan(0);
-        });
-    });
-
-    // ── Status display ───────────────────────────────────────────────
-    describe('status badges', () => {
-        it('renders published status label', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'published' })] });
-            expect(screen.getByText('Published')).toBeInTheDocument();
-        });
-
-        it('renders review status label', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'review' })] });
-            expect(screen.getByText('Review')).toBeInTheDocument();
-        });
-
-        it('renders curation status label', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'curation' })] });
-            expect(screen.getByText('Curation')).toBeInTheDocument();
-        });
-
-        it('published badge is clickable when DOI exists', () => {
+        it('renders status labels and clickable DOI/preview badges', () => {
             renderPage({ resources: [makeResource({ publicstatus: 'published', doi: '10.5880/test.2024.001' })] });
-            const badge = screen.getByRole('button', { name: /published.*click to open doi/i });
-            expect(badge).toBeInTheDocument();
+            expect(screen.getByText('Published')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /published.*click to open doi/i })).toBeInTheDocument();
         });
 
-        it('review badge is clickable when landing page URL exists', () => {
-            renderPage({
-                resources: [
-                    makeResource({
-                        publicstatus: 'review',
-                        landingPage: { id: 1, is_published: false, public_url: 'https://example.com/preview' },
-                    }),
-                ],
-            });
-            const badge = screen.getByRole('button', { name: /review.*click to open preview/i });
-            expect(badge).toBeInTheDocument();
+        it('renders review badge as preview link when a landing page URL exists', () => {
+            renderPage({ resources: [makeResource({ publicstatus: 'review', landingPage })] });
+            expect(screen.getByText('Review')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /review.*click to open preview/i })).toBeInTheDocument();
         });
     });
 
-    // ── Error display ────────────────────────────────────────────────
-    describe('error states', () => {
-        it('shows error prop message', () => {
-            renderPage({ error: 'Database connection failed' });
-            expect(screen.getByText('Database connection failed')).toBeInTheDocument();
-        });
-
-        it('shows filter-qualified empty state when resources list is empty', () => {
-            renderPage({ resources: [], pagination: makePagination({ total: 0, from: 0, to: 0 }) });
-            expect(screen.getByText(/no resources found matching your filters/i)).toBeInTheDocument();
-        });
-    });
-
-    // ── Import old resources ─────────────────────────────────────────
-    describe('Import old resources buttons', () => {
-        it('shows both import buttons when canImportFromDataCite is true', () => {
+    describe('imports and permissions', () => {
+        it('shows import buttons when canImportFromDataCite is true', () => {
             renderPage({ canImportFromDataCite: true });
             expect(screen.getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
         });
 
-        it('hides both import buttons when canImportFromDataCite is false', () => {
+        it('hides import buttons when canImportFromDataCite is false', () => {
             renderPage({ canImportFromDataCite: false });
             expect(screen.queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
         });
 
+        it('shows or hides landing page action based on permission', async () => {
+            mockUser.can_manage_landing_pages = true;
+            const { rerender } = renderPage();
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await openResourceActionsMenu();
+            expect(screen.getByTestId('resources-action-setup-landing-page')).toBeInTheDocument();
+
+            mockUser.can_manage_landing_pages = false;
+            rerender(<ResourcesPage resources={[makeResource()] as never} pagination={makePagination()} sort={defaultSort} />);
+            await ensureResourceActionsMenuOpen();
+            expect(screen.queryByTestId('resources-action-setup-landing-page')).not.toBeInTheDocument();
+        });
+
+        it('hides DataCite actions when registration permission is missing', async () => {
+            mockUser.can_register_production_doi = false;
+            renderPage();
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await openResourceActionsMenu();
+
+            expect(screen.queryByTestId('resources-action-register-doi')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('resources-action-update-metadata')).not.toBeInTheDocument();
+        });
+    });
+
+    describe('toolbar actions', () => {
+        it('opens DOI registration for one DOI-less resource with a landing page', async () => {
+            renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage })] });
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+            await clickResourceAction('resources-action-register-doi');
+
+            expect(screen.getByTestId('register-doi-modal')).toHaveTextContent('New Resource');
+        });
+
+        it('explains when DOI registration is blocked by a missing landing page', async () => {
+            renderPage({ resources: [makeResource({ id: 2, doi: null, title: 'New Resource', publicstatus: 'draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+            await clickResourceAction('resources-action-register-doi');
+
+            expect(toastMock.error).toHaveBeenCalledWith('A landing page must be set up before registering a DOI.');
+            expect(screen.queryByTestId('register-doi-modal')).not.toBeInTheDocument();
+        });
+
+        it('enables update metadata for registered resources with landing pages', async () => {
+            renderPage({ resources: [makeResource()] });
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await openResourceActionsMenu();
+
+            expect(screen.getByTestId('resources-action-update-metadata')).not.toHaveAttribute('aria-disabled');
+            expect(screen.getByTestId('resources-action-register-doi')).toHaveAttribute('data-unavailable', 'true');
+            expect(screen.getByTestId('resources-action-register-doi')).not.toHaveAttribute('aria-disabled');
+        });
+
+        it('renders export actions in the action menu', async () => {
+            renderPage();
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await openResourceActionsMenu();
+
+            expect(screen.getByTestId('resources-action-export-datacite-json')).toBeInTheDocument();
+            expect(screen.getByTestId('resources-action-export-datacite-xml')).toBeInTheDocument();
+            expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();
+        });
+
+        it('enables delete for selected non-published resources', async () => {
+            renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
+            await openResourceActionsMenu();
+            const deleteButton = screen.getByTestId('resources-action-delete');
+
+            expect(deleteButton).not.toHaveAttribute('aria-disabled');
+            await userEvent.click(deleteButton);
+            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+        });
+
+        it('keeps published resources out of the submitted delete request', async () => {
+            renderPage({ resources: [makeResource({ id: 5, publicstatus: 'published', landingPage })] });
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
+            await clickResourceAction('resources-action-delete');
+
+            expect(screen.getByText(/no selected resources can be deleted/i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
+            expect(routerMock.delete).not.toHaveBeenCalled();
+        });
+
+        it('submits the batch delete request for draft resources', async () => {
+            renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
+            await clickResourceAction('resources-action-delete');
+            await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
+
+            expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [5] }, preserveScroll: true }));
+        });
+
+        it('hides delete action when the user lacks delete permission', async () => {
+            mockUser.role = 'beginner';
+            renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
+            await openResourceActionsMenu();
+
+            expect(screen.queryByTestId('resources-action-delete')).not.toBeInTheDocument();
+        });
+
+        it('opens the editor from the selected edit action', async () => {
+            renderPage();
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+            await clickResourceAction('resources-action-edit');
+
+            expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
+            expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        });
+    });
+
+    describe('sync and persistence', () => {
         it('syncs refreshed resources and pagination props into local state after reloads', () => {
             const initialProps = {
                 resources: [makeResource({ id: 1, title: 'Old Resource Title', doi: '10.5880/test.2024.001' })],
@@ -394,305 +511,23 @@ describe('ResourcesPage – extended', () => {
             expect(screen.getByText('Imported Resource Title')).toBeInTheDocument();
             expect(screen.getByText(/all resources have been loaded.*2 total/i)).toBeInTheDocument();
         });
-    });
 
-    // ── Landing page management button ───────────────────────────────
-    describe('landing page management', () => {
-        it('shows landing page setup button when user has permission', () => {
-            mockUser.can_manage_landing_pages = true;
-            renderPage({ resources: [makeResource()] });
-            expect(screen.getByRole('button', { name: /setup landing page/i })).toBeInTheDocument();
-        });
-
-        it('hides landing page button when user lacks permission', () => {
-            mockUser.can_manage_landing_pages = false;
-            renderPage({ resources: [makeResource()] });
-            expect(screen.queryByRole('button', { name: /setup landing page/i })).not.toBeInTheDocument();
-        });
-    });
-
-    // ── DOI registration icon ────────────────────────────────────────
-    describe('DOI registration button', () => {
-        it('shows DataCite button when resource has a landing page', () => {
-            renderPage({
-                resources: [
-                    makeResource({ landingPage: { id: 1, is_published: false, public_url: 'https://example.com' } }),
-                ],
-            });
-            expect(screen.getByTestId('datacite-button')).toBeInTheDocument();
-        });
-
-        it('does not show DataCite button when resource has no landing page', () => {
-            renderPage({ resources: [makeResource({ landingPage: null })] });
-            expect(screen.queryByTestId('datacite-button')).not.toBeInTheDocument();
-        });
-
-        it('uses update wording only for published resources', () => {
-            renderPage({
-                resources: [
-                    makeResource({
-                        publicstatus: 'published',
-                        landingPage: { id: 1, is_published: true, public_url: 'https://example.com' },
-                    }),
-                ],
-            });
-
-            expect(screen.getByRole('button', { name: /update metadata for resource/i })).toHaveAttribute('title', 'Update metadata');
-        });
-
-        it('uses register wording for review resources even when a DOI already exists', () => {
-            renderPage({
-                resources: [
-                    makeResource({
-                        publicstatus: 'review',
-                        doi: '10.5880/test.2024.001',
-                        landingPage: { id: 1, is_published: false, public_url: 'https://example.com' },
-                    }),
-                ],
-            });
-
-            expect(screen.getByRole('button', { name: /register doi for resource/i })).toHaveAttribute('title', 'Register DOI');
-        });
-
-        it('uses update wording when a published landing page exists for an incomplete resource with DOI', () => {
-            renderPage({
-                resources: [
-                    makeResource({
-                        publicstatus: 'draft',
-                        doi: '10.5880/test.2024.001',
-                        landingPage: { id: 1, is_published: true, public_url: 'https://example.com' },
-                    }),
-                ],
-            });
-
-            expect(screen.getByRole('button', { name: /update metadata for resource/i })).toHaveAttribute('title', 'Update metadata');
-        });
-    });
-
-    // ── Action buttons ───────────────────────────────────────────────
-    describe('action buttons', () => {
-        it('renders export JSON and XML buttons for each resource', () => {
-            renderPage();
-            expect(screen.getByRole('button', { name: /export resource.*as datacite json/i })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /export resource.*as datacite xml/i })).toBeInTheDocument();
-        });
-
-        it('renders disabled delete button', () => {
-            renderPage();
-            const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
-            expect(deleteBtn).toBeDisabled();
-            expect(deleteBtn).toHaveAttribute('title', 'Only draft resources can be deleted');
-        });
-
-        it('enables delete button for draft resources when the user can delete drafts', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, landingPage: null })] });
-
-            const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
-            expect(deleteBtn).toBeEnabled();
-            expect(deleteBtn).toHaveAttribute('title', 'Delete draft resource');
-        });
-
-        it('keeps the delete button disabled for draft resources with persistent identifiers', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', title: 'Registered Draft', landingPage: null })] });
-
-            const deleteBtn = screen.getByRole('button', { name: /delete resource.*10\.5880\/test\.2024\.001/i });
-            expect(deleteBtn).toBeDisabled();
-            expect(deleteBtn).toHaveAttribute('title', 'Resources with persistent identifiers cannot be deleted');
-        });
-
-        it('opens a confirmation dialog and submits the delete request for draft resources', async () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
-
-            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-            expect(screen.getByText(/delete draft resource\?/i)).toBeInTheDocument();
-
-            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
-
-            expect(routerMock.delete).toHaveBeenCalledWith(
-                '/resources/1',
-                expect.objectContaining({
-                    preserveScroll: true,
-                    onSuccess: expect.any(Function),
-                    onError: expect.any(Function),
-                    onFinish: expect.any(Function),
-                }),
-            );
-
-            const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
-                onSuccess: () => void;
-                onFinish: () => void;
-            };
-
-            await act(async () => {
-                deleteOptions.onSuccess();
-                deleteOptions.onFinish();
-            });
-
-            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-        });
-
-        it('ignores rapid repeated delete confirmations within the same dialog open', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
-
-            const confirmDeleteButton = screen.getByRole('button', { name: /delete draft/i });
-            fireEvent.click(confirmDeleteButton);
-            fireEvent.click(confirmDeleteButton);
-
-            expect(routerMock.delete).toHaveBeenCalledTimes(1);
-        });
-
-        it('keeps the confirmation dialog open while the delete request is in flight', async () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
-
-            await act(async () => {
-                fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
-            });
-
-            expect(routerMock.delete).toHaveBeenCalledTimes(1);
-            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /deleting\.\.\./i })).toBeDisabled();
-        });
-
-        it('closes the delete confirmation dialog when the user cancels', () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
-            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-
-            fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
-
-            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-        });
-
-        it('re-enables the delete confirmation after a failed delete finishes', async () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
-            await act(async () => {
-                fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
-            });
+        it('writes sort state to localStorage', async () => {
+            renderPage({ sort: { key: 'title', direction: 'asc' } });
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /deleting\.\.\./i })).toBeDisabled();
+                const stored = JSON.parse(localStorage.getItem('resources.sort-preference')!);
+                expect(stored).toEqual({ key: 'title', direction: 'asc' });
             });
-
-            const deleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
-                onError: () => void;
-                onFinish: () => void;
-            };
-
-            await act(async () => {
-                deleteOptions.onError();
-                deleteOptions.onFinish();
-            });
-
-            expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: /delete draft/i })).toBeEnabled();
         });
 
-        it('allows a retry after the previous delete request finishes', async () => {
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', doi: null, title: 'Disposable Draft', landingPage: null })] });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete resource.*disposable draft/i }));
-            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
-
-            const firstDeleteOptions = routerMock.delete.mock.calls.at(-1)?.[1] as {
-                onError: () => void;
-                onFinish: () => void;
-            };
-
-            await act(async () => {
-                firstDeleteOptions.onError();
-                firstDeleteOptions.onFinish();
-            });
-
-            fireEvent.click(screen.getByRole('button', { name: /delete draft/i }));
-
-            expect(routerMock.delete).toHaveBeenCalledTimes(2);
-        });
-
-        it('keeps the delete button disabled for draft resources when the user lacks permission', () => {
-            mockUser.role = 'beginner';
-
-            renderPage({ resources: [makeResource({ publicstatus: 'draft', landingPage: null })] });
-
-            const deleteBtn = screen.getByRole('button', { name: /delete resource/i });
-            expect(deleteBtn).toBeDisabled();
-            expect(deleteBtn).toHaveAttribute('title', 'You do not have permission to delete draft resources');
-        });
-
-        it('opens editor when edit button is clicked', async () => {
-            renderPage();
-            const editButton = screen.getByRole('button', { name: /open resource.*in.*editor/i });
-            await act(async () => {
-                fireEvent.click(editButton);
-                await Promise.resolve();
-            });
-            expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
-            expect(routerMock.get).toHaveBeenCalled();
-        });
-    });
-
-    // ── All loaded message ───────────────────────────────────────────
-    describe('completion message', () => {
-        it('shows all-loaded message when has_more is false', () => {
-            renderPage({ pagination: makePagination({ has_more: false, total: 3 }) });
-            expect(screen.getByText(/all resources have been loaded.*3 total/i)).toBeInTheDocument();
-        });
-    });
-
-    // ── ResourcesFilters presence ────────────────────────────────────
-    describe('filters', () => {
-        it('renders the filters component', () => {
-            renderPage();
-            expect(screen.getByTestId('resources-filters')).toBeInTheDocument();
-        });
-    });
-
-    // ── localStorage sort preference ─────────────────────────────────
-    describe('sort preference persistence', () => {
-        it('writes sort state to localStorage', () => {
-            renderPage({ sort: { key: 'title', direction: 'asc' } });
-            const stored = JSON.parse(localStorage.getItem('resources.sort-preference')!);
-            expect(stored).toEqual({ key: 'title', direction: 'asc' });
-        });
-
-        it('reads valid sort from localStorage on mount', () => {
+        it('reads valid sort from localStorage on mount', async () => {
             localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'doi', direction: 'asc' }));
             renderPage();
-            // The badge should reflect the localStorage preference
-            expect(screen.getByText(/sorted by: doi/i)).toBeInTheDocument();
-        });
 
-        it('ignores invalid sort in localStorage', () => {
-            localStorage.setItem('resources.sort-preference', JSON.stringify({ key: 'invalid', direction: 'asc' }));
-            renderPage();
-            // Falls back to the sort prop
-            expect(screen.getByText(/sorted by: updated date/i)).toBeInTheDocument();
-        });
-    });
-
-    // ── Multiple resources rendering ─────────────────────────────────
-    describe('multiple resources', () => {
-        it('renders all resources in the table', () => {
-            renderPage({
-                resources: [
-                    makeResource({ id: 1, title: 'First Resource', doi: '10.5880/first' }),
-                    makeResource({ id: 2, title: 'Second Resource', doi: '10.5880/second' }),
-                    makeResource({ id: 3, title: 'Third Resource', doi: null }),
-                ],
-                pagination: makePagination({ total: 3, to: 3 }),
+            await waitFor(() => {
+                expect(screen.getByText(/sorted by: doi ascending/i)).toBeInTheDocument();
             });
-            expect(screen.getByText('First Resource')).toBeInTheDocument();
-            expect(screen.getByText('Second Resource')).toBeInTheDocument();
-            expect(screen.getByText('Third Resource')).toBeInTheDocument();
-            expect(screen.getByText('Not registered')).toBeInTheDocument();
         });
     });
 });

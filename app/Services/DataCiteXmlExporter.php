@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\ContributorType;
+use App\Models\IgsnMetadata;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\Right;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
+use App\Services\Rights\CustomRightCatalogService;
+use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use DOMDocument;
 use DOMElement;
@@ -32,6 +37,7 @@ use Illuminate\Support\Facades\Log;
 class DataCiteXmlExporter
 {
     use DataCiteExporterHelpers;
+
     /**
      * DataCite namespace constants
      */
@@ -50,7 +56,7 @@ class DataCiteXmlExporter
     /**
      * Export a Resource to DataCite XML format
      *
-    * @param  Resource  $resource  The resource to export
+     * @param  Resource  $resource  The resource to export
      * @return string The DataCite XML string
      */
     #[\NoDiscard('Exported XML string must be used')]
@@ -419,7 +425,7 @@ class DataCiteXmlExporter
      * Combines sample_type and material with a colon separator when both are available.
      * Returns "Physical Object" as fallback when neither is set.
      */
-    private function buildIgsnResourceType(\App\Models\IgsnMetadata $igsnMetadata): string
+    private function buildIgsnResourceType(IgsnMetadata $igsnMetadata): string
     {
         $parts = array_filter([
             $igsnMetadata->sample_type,
@@ -1098,13 +1104,24 @@ class DataCiteXmlExporter
         }
 
         $formats = $this->dom->createElement('formats');
+        $formatValues = [];
 
         foreach ($resource->formats as $format) {
-            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->value));
+            $value = SizeFormatFormatNormalizerService::normalize($format->value);
+
+            if ($value !== '') {
+                $formatValues[] = $value;
+            }
+        }
+
+        foreach (array_unique($formatValues) as $formatValue) {
+            $formatElement = $this->dom->createElement('format', htmlspecialchars($formatValue));
             $formats->appendChild($formatElement);
         }
 
-        $this->root->appendChild($formats);
+        if ($formats->hasChildNodes()) {
+            $this->root->appendChild($formats);
+        }
     }
 
     /**
@@ -1119,43 +1136,84 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Build rightsList element (optional)
+     * Build rightsList element (optional).
+     *
+     * DataCite XML should remain complete even before a curator accepts an SPDX
+     * suggestion. Therefore unresolved rows use raw imported fields, while
+     * accepted/linked rows use the shared catalog values.
      */
     private function buildRightsList(Resource $resource): void
     {
-        if ($resource->rights->isEmpty()) {
+        $resourceRights = $resource->resourceRights
+            ->sortBy('id')
+            ->values();
+
+        if ($resourceRights->isEmpty()) {
             return;
         }
 
         $rightsList = $this->dom->createElement('rightsList');
 
-        foreach ($resource->rights as $right) {
-            $rightsElement = $this->dom->createElement('rights', htmlspecialchars($right->name));
+        foreach ($resourceRights as $resourceRight) {
+            $right = $resourceRight->right;
 
-            if ($right->uri) {
-                $rightsElement->setAttribute('rightsURI', htmlspecialchars($right->uri));
+            if ($right instanceof Right) {
+                $rightsText = $right->name;
+                $rightsUri = $right->uri ?? $resourceRight->rights_uri;
+                $isSpdxRight = CustomRightCatalogService::isSpdxRight($right);
+                $rightsIdentifier = $isSpdxRight ? $right->identifier : null;
+                $identifierScheme = $isSpdxRight ? SpdxLicenseLookup::RIGHTS_IDENTIFIER_SCHEME : null;
+                $schemeUri = $isSpdxRight ? ($right->scheme_uri ?? $resourceRight->scheme_uri) : null;
+            } else {
+                $rightsText = $resourceRight->rights_text;
+                $rightsUri = $resourceRight->rights_uri;
+                $rightsIdentifier = $resourceRight->rights_identifier;
+                $identifierScheme = $resourceRight->rights_identifier_scheme;
+                $schemeUri = $resourceRight->scheme_uri;
             }
 
-            if ($right->identifier) {
-                $rightsElement->setAttribute('rightsIdentifier', htmlspecialchars($right->identifier));
-                $rightsElement->setAttribute('rightsIdentifierScheme', 'SPDX');
-                if ($right->scheme_uri) {
-                    $rightsElement->setAttribute('schemeURI', htmlspecialchars($right->scheme_uri));
+            $exportedRightsText = $rightsText;
+            if ($exportedRightsText === null || trim($exportedRightsText) === '') {
+                $exportedRightsText = $rightsIdentifier;
+            }
+
+            if ($exportedRightsText === null || trim($exportedRightsText) === '') {
+                continue;
+            }
+
+            $rightsElement = $this->dom->createElement('rights', htmlspecialchars($exportedRightsText));
+
+            if ($rightsUri !== null && trim($rightsUri) !== '') {
+                $rightsElement->setAttribute('rightsURI', htmlspecialchars($rightsUri));
+            }
+
+            if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
+                $rightsElement->setAttribute('rightsIdentifier', htmlspecialchars($rightsIdentifier));
+
+                if ($identifierScheme !== null && trim($identifierScheme) !== '') {
+                    $rightsElement->setAttribute('rightsIdentifierScheme', htmlspecialchars($identifierScheme));
+                }
+
+                if ($schemeUri !== null && trim($schemeUri) !== '') {
+                    $rightsElement->setAttribute('schemeURI', htmlspecialchars($schemeUri));
                 }
             }
 
-            if ($resource->language) {
+            $language = $resourceRight->language ?? $resource->language?->code;
+            if ($language !== null && trim($language) !== '') {
                 $rightsElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->code ?? 'en'
+                    $language
                 );
             }
 
             $rightsList->appendChild($rightsElement);
         }
 
-        $this->root->appendChild($rightsList);
+        if ($rightsList->hasChildNodes()) {
+            $this->root->appendChild($rightsList);
+        }
     }
 
     /**

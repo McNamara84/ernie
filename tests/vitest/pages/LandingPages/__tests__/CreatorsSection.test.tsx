@@ -43,13 +43,14 @@ describe('CreatorsSection', () => {
                 name: 'Doe, John',
                 given_name: 'John',
                 family_name: 'Doe',
-                name_identifier: '0000-0001-2345-6789',
+                name_identifier: 'orcid.org/0000-0001-2345-6789',
                 name_identifier_scheme: 'ORCID',
             },
         });
         render(<CreatorsSection creators={[creator]} />);
         const orcidLink = screen.getByLabelText('ORCID profile of Doe, John');
         expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0001-2345-6789');
+        expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
     });
 
     it('renders affiliation with ROR link', () => {
@@ -58,14 +59,88 @@ describe('CreatorsSection', () => {
                 {
                     id: 1,
                     name: 'GFZ Potsdam',
-                    affiliation_identifier: 'https://ror.org/04z8jg394',
+                    affiliation_identifier: ' www.ror.org/04z8jg394 ',
                     affiliation_identifier_scheme: 'ROR',
                 },
             ],
         });
         render(<CreatorsSection creators={[creator]} />);
         expect(screen.getByText('GFZ Potsdam')).toBeInTheDocument();
-        expect(screen.getByLabelText('ROR profile of GFZ Potsdam')).toBeInTheDocument();
+        const rorLink = screen.getByLabelText('ROR profile of GFZ Potsdam');
+        expect(rorLink).toBeInTheDocument();
+        expect(rorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
+    });
+
+    it('does not render ROR link for non-ROR absolute URL identifiers', () => {
+        const creator = mockCreator({
+            affiliations: [
+                {
+                    id: 1,
+                    name: 'Example Institute',
+                    affiliation_identifier: 'https://example.com/institution',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+                {
+                    id: 2,
+                    name: 'Invalid ROR Institute',
+                    affiliation_identifier: 'abc',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+            ],
+        });
+
+        render(<CreatorsSection creators={[creator]} />);
+
+        expect(screen.getByText('Example Institute')).toBeInTheDocument();
+        expect(screen.queryByLabelText('ROR profile of Example Institute')).not.toBeInTheDocument();
+        expect(screen.getByText('Invalid ROR Institute')).toBeInTheDocument();
+        expect(screen.queryByLabelText('ROR profile of Invalid ROR Institute')).not.toBeInTheDocument();
+    });
+
+    it('renders all creator affiliations in a prose list item', () => {
+        const creator = mockCreator({
+            creatorable: {
+                id: 2,
+                type: 'Person',
+                name: 'Falchi, Fabio',
+                given_name: 'Fabio',
+                family_name: 'Falchi',
+                name_identifier: '0000-0002-1111-2222',
+                name_identifier_scheme: 'ORCID',
+            },
+            affiliations: [
+                {
+                    id: 1,
+                    name: "ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso",
+                    affiliation_identifier: ' https://ror.org/01abcde23 ',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+                {
+                    id: 2,
+                    name: 'Light Pollution Science and Technology Institute, Thiene, Italy',
+                    affiliation_identifier: '04Z8JG394',
+                    affiliation_identifier_scheme: 'ROR',
+                },
+            ],
+        });
+
+        render(<CreatorsSection creators={[creator]} />);
+
+        const listItem = screen.getByRole('listitem');
+        expect(listItem).not.toHaveClass('flex');
+        expect(listItem).toHaveClass('leading-6');
+        expect(listItem).toHaveTextContent('Falchi, Fabio');
+        expect(screen.getByText("ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso")).toBeInTheDocument();
+        expect(screen.getByText('Light Pollution Science and Technology Institute, Thiene, Italy')).toBeInTheDocument();
+        const orcidLink = screen.getByLabelText('ORCID profile of Falchi, Fabio');
+        expect(orcidLink).toHaveAttribute('href', 'https://orcid.org/0000-0002-1111-2222');
+        expect(orcidLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
+        const firstRorLink = screen.getByLabelText("ROR profile of ISTIL - Istituto di Scienza e Tecnologia dell'Inquinamento Luminoso");
+        expect(firstRorLink).toHaveAttribute('href', 'https://ror.org/01abcde23');
+        expect(firstRorLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
+        const secondRorLink = screen.getByLabelText('ROR profile of Light Pollution Science and Technology Institute, Thiene, Italy');
+        expect(secondRorLink).toHaveAttribute('href', 'https://ror.org/04z8jg394');
+        expect(secondRorLink).toHaveClass('min-h-11', 'min-w-11', 'p-3');
     });
 
     it('renders institution name for non-person creators', () => {
@@ -106,18 +181,20 @@ describe('CreatorsSection', () => {
     });
 
     it('limits initially visible creators and shows the full list on request', () => {
-        const creators = Array.from({ length: 4 }, (_, i) => mockCreator({
-            id: i + 1,
-            creatorable: {
+        const creators = Array.from({ length: 4 }, (_, i) =>
+            mockCreator({
                 id: i + 1,
-                type: 'Person',
-                name: `Creator, ${i + 1}`,
-                given_name: `${i + 1}`,
-                family_name: 'Creator',
-                name_identifier: null,
-                name_identifier_scheme: null,
-            },
-        }));
+                creatorable: {
+                    id: i + 1,
+                    type: 'Person',
+                    name: `Creator, ${i + 1}`,
+                    given_name: `${i + 1}`,
+                    family_name: 'Creator',
+                    name_identifier: null,
+                    name_identifier_scheme: null,
+                },
+            }),
+        );
 
         render(<CreatorsSection creators={creators} displayLimit={2} />);
 
