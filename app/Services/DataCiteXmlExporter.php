@@ -286,9 +286,7 @@ class DataCiteXmlExporter
             }
 
             // Add language
-            
-                $lang = null;
-
+            $lang = null;
             if ($title->language) {
                 $lang = strtolower($title->language);
             } elseif ($resource->language) {
