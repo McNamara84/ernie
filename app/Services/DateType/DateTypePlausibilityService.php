@@ -37,7 +37,7 @@ final class DateTypePlausibilityService
      * @param array<string, string> $dates
      * @return array<int, array<string, mixed>>
      */
-    public function review(array $dates): array
+    public function hint(array $dates): array
     {
         $grouped = [];
         $presentTypes = array_keys($dates);
@@ -92,7 +92,7 @@ final class DateTypePlausibilityService
         ));
 
         return [
-            'suggestion_kind' => 'review',
+            'suggestion_kind' => 'hint',
             'message' => sprintf(
                 '%s (%s) occurs after %s. Please check whether the date values or date types are assigned correctly.',
                 $earlier,
