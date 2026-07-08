@@ -329,6 +329,7 @@ export interface SuggestedRorItem {
     suggested_name: string;
     similarity_score: number;
     ror_aliases: string[];
+    locations?: string[];
     existing_identifier: string | null;
     existing_identifier_type: string | null;
     discovered_at: string;

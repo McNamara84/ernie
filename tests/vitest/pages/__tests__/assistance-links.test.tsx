@@ -1291,6 +1291,78 @@ describe('RorSuggestionCard – ROR link', () => {
         expect(screen.queryByRole('link', { name: 'https://ror.org/search' })).not.toBeInTheDocument();
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
     });
+
+    it('renders the preferred label for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/GFZ German Research Centre for Geosciences/)).toBeInTheDocument();
+    });
+
+    it('renders all other names for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/Also known as:/)).toHaveTextContent('GFZ Potsdam, Helmholtz-Zentrum Potsdam');
+        expect(screen.getByText(/Helmholtz-Zentrum Potsdam/)).toBeInTheDocument();
+    });
+
+    it('renders the locations for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany', 'Telegrafenberg'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/Locations:/)).toBeInTheDocument();
+        expect(screen.getByText(/Potsdam, Germany/)).toBeInTheDocument();
+        expect(screen.getByText(/Telegrafenberg/)).toBeInTheDocument();
+    });
+
+    it('keeps the ROR link intact after rendering additional metadata', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: 'https://ror.org/04t3en479' });
+        expect(link).toBeInTheDocument();
+        expect(link).toHaveAttribute('href', 'https://ror.org/04t3en479');
+    });
+
+    it('renders preferred label, other names and locations together', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/GFZ German Research Centre for Geosciences/)).toBeInTheDocument();
+        expect(screen.getByText(/Also known as:/)).toHaveTextContent('GFZ Potsdam, Helmholtz-Zentrum Potsdam');
+        expect(screen.getByText(/Locations:/)).toHaveTextContent('Potsdam, Germany');
+    });
 });
 
 describe('DescriptionSegmentationSuggestionCard - description split preview', () => {

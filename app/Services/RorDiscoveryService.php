@@ -612,11 +612,16 @@ class RorDiscoveryService
                     'suggested_name' => $candidate['name'],
                     'similarity_score' => $best['similarity'],
                     'ror_aliases' => $candidate['aliases'],
+                    'locations' => $candidate['locations'],
                     'existing_identifier' => $entity['existing_identifier'],
                     'existing_identifier_type' => $entity['existing_identifier_type'],
                     'discovered_at' => now(),
                 ],
             );
+
+            if (! $suggestion->wasRecentlyCreated && $suggestion->locations === null && ! empty($candidate['locations'])) {
+                $suggestion->update(['locations' => $candidate['locations']]);
+            }
 
             if ($suggestion->wasRecentlyCreated) {
                 $newCount++;
@@ -629,7 +634,7 @@ class RorDiscoveryService
     /**
      * Search the ROR API v2 for organizations matching a name.
      *
-     * @return array<int, array{ror_id: string, name: string, names: array<int, string>, aliases: array<int, string>}>
+     * @return array<int, array{ror_id: string, name: string, names: array<int, string>, aliases: array<int, string>, locations: array<int, string>}>
      */
     private function searchRorApi(string $query): array
     {
@@ -675,6 +680,7 @@ class RorDiscoveryService
                     'name' => $primaryName,
                     'names' => $names,
                     'aliases' => array_slice($names, 1),
+                    'locations' => $this->extractRorLocations($item),
                 ];
             }
 
@@ -722,6 +728,70 @@ class RorDiscoveryService
         }
 
         return array_values(array_unique($names));
+    }
+
+    /**
+     * Extract location strings from a ROR API organization item.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<int, string>
+     */
+    private function extractRorLocations(array $item): array
+    {
+        if (! isset($item['addresses']) || ! is_array($item['addresses'])) {
+            return [];
+        }
+
+        $locations = [];
+
+        foreach ($item['addresses'] as $address) {
+            if (! is_array($address)) {
+                continue;
+            }
+
+            $lines = [];
+            if (isset($address['line']) && is_array($address['line'])) {
+                foreach ($address['line'] as $lineEntry) {
+                    if (is_string($lineEntry) && trim($lineEntry) !== '') {
+                        $lines[] = trim($lineEntry);
+                    }
+                }
+            }
+
+            $city = isset($address['city']) && is_string($address['city']) ? trim($address['city']) : '';
+            $state = isset($address['state']) && is_string($address['state']) ? trim($address['state']) : '';
+            $country = '';
+
+            if (isset($address['country'])) {
+                if (is_string($address['country'])) {
+                    $country = trim($address['country']);
+                } elseif (is_array($address['country'])) {
+                    $country = trim((string) ($address['country']['country_name'] ?? $address['country']['country_code'] ?? ''));
+                }
+            }
+
+            $parts = [...$lines];
+
+            if ($city !== '') {
+                $parts[] = $city;
+            }
+
+            if ($state !== '' && ! in_array($state, $parts, true)) {
+                $parts[] = $state;
+            }
+
+            if ($country !== '' && ! in_array($country, $parts, true)) {
+                $parts[] = $country;
+            }
+
+            $formatted = trim(implode(', ', array_filter($parts, static fn ($value) => $value !== '')));
+
+            if ($formatted !== '') {
+                $locations[] = $formatted;
+            }
+        }
+
+        return array_values(array_unique($locations));
     }
 
     /**

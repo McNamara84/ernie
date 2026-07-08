@@ -376,6 +376,9 @@ function RorSuggestionCard({
                         {suggestion.ror_aliases.length > 0 && (
                             <p className="text-xs text-muted-foreground">Also known as: {suggestion.ror_aliases.slice(0, 3).join(', ')}</p>
                         )}
+                        {suggestion.locations?.length ? (
+                            <p className="text-xs text-muted-foreground">Locations: {suggestion.locations.join(', ')}</p>
+                        ) : null}
                     </div>
 
                     {suggestion.existing_identifier && (
