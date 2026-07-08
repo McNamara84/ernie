@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Info, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
@@ -932,6 +933,89 @@ function targetTypeLabel(targetType: unknown, isZip: boolean): string {
     return String(targetType ?? 'Suggestion');
 }
 
+function sizeFormatEvidenceLabel(key: string): string {
+    const labels: Record<string, string> = {
+        content_length: 'Content length',
+        content_range: 'Content range',
+        content_type: 'Content type',
+        extension: 'Extension',
+        mime_type: 'MIME type',
+        range: 'Requested range',
+    };
+
+    return labels[key] ?? key.replaceAll('_', ' ').replace(/\b\w/g, (char: string) => char.toUpperCase());
+}
+
+function sizeFormatEvidenceDetails(evidence: Record<string, unknown> | null): Array<[string, string]> {
+    if (!evidence) return [];
+
+    return Object.entries(evidence)
+        .filter(([key]) => !['filename', 'parsed_file_count', 'total_file_count'].includes(key))
+        .map(([key, value]) => [sizeFormatEvidenceLabel(key), metadataStringValues(value).join(', ')] as [string, string])
+        .filter(([, value]) => value !== '');
+}
+
+function sizeFormatSourceLinkLabel(probeMethod: string | null): string {
+    if (probeMethod?.toUpperCase() === 'DIRECTORY_LISTING') {
+        return 'Open download page';
+    }
+
+    if (probeMethod) {
+        return 'Open source file';
+    }
+
+    return 'Open source';
+}
+
+function sizeFormatConfidenceExplanation(
+    confidence: string | null,
+    probeMethod: string | null,
+    evidence: Record<string, unknown> | null,
+): string | null {
+    const method = probeMethod?.toUpperCase() ?? null;
+    const parsedFileCount = typeof evidence?.parsed_file_count === 'number' ? evidence.parsed_file_count : null;
+    const totalFileCount = typeof evidence?.total_file_count === 'number' ? evidence.total_file_count : null;
+    const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
+
+    if (confidence === 'high') {
+        if (method === 'DIRECTORY_LISTING' && parsedFileCount !== null && totalFileCount !== null && parsedFileCount === totalFileCount) {
+            return 'Calculated from the complete download listing. All listed files were accounted for.';
+        }
+
+        if (method === 'CONTENT_LENGTH_HEADER' || method === 'CONTENT_TYPE_HEADER' || method === 'HTTP_HEAD') {
+            return 'Derived from reliable server metadata for the linked file.';
+        }
+
+        return 'Derived from reliable server metadata or complete download information.';
+    }
+
+    if (confidence === 'medium') {
+        if (method === 'FILENAME_EXTENSION' || method === 'FILENAME_EXTENSION_FALLBACK') {
+            return 'Derived from the file name rather than direct server metadata. Please review before accepting.';
+        }
+
+        if (method === 'RANGED_GET' || method === 'RANGED_GET_CONTENT_RANGE' || method === 'RANGED_GET_CONTENT_TYPE') {
+            return 'Derived from partial server metadata. Please review before accepting.';
+        }
+
+        return 'Derived from multiple indicators, but should still be reviewed.';
+    }
+
+    if (confidence === 'low') {
+        if (method === 'DIRECTORY_LISTING' && parsedFileCount !== null && totalFileCount !== null && parsedFileCount < totalFileCount) {
+            return 'Calculated from incomplete download information. Please verify before accepting.';
+        }
+
+        if (method === 'FILENAME_EXTENSION' || method === 'FILENAME_EXTENSION_FALLBACK' || filename !== null) {
+            return 'Derived from limited evidence such as the file name. Please verify before accepting.';
+        }
+
+        return 'Derived from limited evidence. Please verify before accepting.';
+    }
+
+    return confidence ? `${confidenceLabel(confidence) ?? 'Confidence'} is based on the available source evidence.` : null;
+}
+
 function SizeFormatSuggestionCard({
     suggestion,
     onAccept,
@@ -949,6 +1033,7 @@ function SizeFormatSuggestionCard({
     const displayLabel = sizeFormatDisplayLabel(suggestion.target_type, value, label);
     const metadata = isRecord(suggestion.metadata) ? suggestion.metadata : null;
     const evidence = isRecord(metadata?.evidence) ? metadata.evidence : null;
+    const evidenceText = metadataText(metadata?.evidence);
     const sourceUrl = typeof metadata?.source_url === 'string' ? metadata.source_url : null;
     const probeMethod = typeof metadata?.probe_method === 'string' ? metadata.probe_method : null;
     const confidence = typeof metadata?.confidence === 'string' ? metadata.confidence : null;
@@ -957,6 +1042,17 @@ function SizeFormatSuggestionCard({
     const parsedFileCount = typeof evidence?.parsed_file_count === 'number' ? evidence.parsed_file_count : null;
     const totalFileCount = typeof evidence?.total_file_count === 'number' ? evidence.total_file_count : null;
     const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
+    const evidenceDetails = sizeFormatEvidenceDetails(evidence);
+    const discoveredDate = suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : null;
+    const hasDetails =
+        displayProbeMethod !== null ||
+        filename !== null ||
+        parsedFileCount !== null ||
+        evidenceText !== null ||
+        evidenceDetails.length > 0 ||
+        discoveredDate !== null;
+    const sourceLinkLabel = sizeFormatSourceLinkLabel(probeMethod);
+    const confidenceExplanation = sizeFormatConfidenceExplanation(confidence, probeMethod, evidence);
 
     return (
         <div
@@ -966,48 +1062,91 @@ function SizeFormatSuggestionCard({
                     : 'rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md'
             }
         >
-            <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-3">
+            <div className="space-y-4">
+                <div className="min-w-0 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>{targetTypeLabel(suggestion.target_type, isZip)}</Badge>
-                        {displayConfidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{displayConfidence}</Badge>}
-                        {displayProbeMethod && (
-                            <Badge variant="secondary" className="text-xs">
-                                {displayProbeMethod}
-                            </Badge>
+                        {displayConfidence && confidenceExplanation && (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span tabIndex={0} className="inline-flex cursor-help">
+                                        <Badge className={`inline-flex items-center gap-1 text-xs ${confidenceBadgeColor(confidence)}`}>
+                                            <span>{displayConfidence}</span>
+                                            <Info className="h-3 w-3 shrink-0 opacity-80" aria-hidden="true" />
+                                        </Badge>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs text-left">
+                                    <p>{confidenceExplanation}</p>
+                                </TooltipContent>
+                            </Tooltip>
                         )}
                     </div>
 
-                    <p className="text-sm font-medium">{displayLabel}</p>
+                    <p className="text-base leading-snug font-semibold">{displayLabel}</p>
 
-                    {(sourceUrl || filename || parsedFileCount !== null) && (
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            {sourceUrl && (
-                                <a
-                                    href={sourceUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="max-w-full break-all underline hover:text-foreground"
-                                >
-                                    Open source
-                                </a>
-                            )}
-                            {filename && <span className="break-all">Detected from file: {filename}</span>}
-                            {parsedFileCount !== null && (
-                                <span>
-                                    Files counted: {parsedFileCount}
-                                    {totalFileCount !== null ? ` of ${totalFileCount}` : ''}
-                                </span>
-                            )}
+                    {sourceUrl && (
+                        <div className="rounded-md bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                            <a
+                                href={sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="max-w-full break-all underline hover:text-foreground"
+                            >
+                                {sourceLinkLabel}
+                            </a>
                         </div>
                     )}
 
-                    <p className="text-xs text-muted-foreground">
-                        Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
-                    </p>
+                    {hasDetails && (
+                        <details className="rounded-md border border-dashed bg-muted/10 px-3 py-2 text-sm">
+                            <summary className="cursor-pointer font-medium text-foreground">Show details</summary>
+                            <dl className="mt-3 space-y-2 text-xs text-muted-foreground">
+                                {displayProbeMethod && (
+                                    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+                                        <dt>Method</dt>
+                                        <dd className="text-foreground">{displayProbeMethod}</dd>
+                                    </div>
+                                )}
+                                {filename && (
+                                    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+                                        <dt>File used</dt>
+                                        <dd className="break-all text-foreground">{filename}</dd>
+                                    </div>
+                                )}
+                                {parsedFileCount !== null && (
+                                    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+                                        <dt>Files counted</dt>
+                                        <dd className="text-foreground">
+                                            {parsedFileCount}
+                                            {totalFileCount !== null ? ` of ${totalFileCount}` : ''}
+                                        </dd>
+                                    </div>
+                                )}
+                                {evidenceText && (
+                                    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+                                        <dt>Evidence</dt>
+                                        <dd className="text-foreground">{evidenceText}</dd>
+                                    </div>
+                                )}
+                                {evidenceDetails.map(([detailLabel, detailValue]) => (
+                                    <div key={detailLabel} className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+                                        <dt>{detailLabel}</dt>
+                                        <dd className="break-all text-foreground">{detailValue}</dd>
+                                    </div>
+                                ))}
+                                {discoveredDate && (
+                                    <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-2">
+                                        <dt>Discovered</dt>
+                                        <dd className="text-foreground">{discoveredDate}</dd>
+                                    </div>
+                                )}
+                            </dl>
+                        </details>
+                    )}
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 justify-end gap-2 border-t pt-3">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -1634,20 +1773,53 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                 {Object.keys(grouped).length > 0 ? (
                                     <div className="space-y-6">
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
+                                            const isSizeFormatGroup = manifest.id === 'size-format-suggestion';
+                                            const doiHref = isSizeFormatGroup && group.doi !== '' ? `https://doi.org/${group.doi}` : null;
                                             const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
                                             const resourceTitle = group.title === '' ? 'Untitled' : group.title;
 
                                             return (
                                                 <div key={resourceKey} className="space-y-3">
                                                     <div className="flex items-baseline gap-2">
-                                                        <Link
-                                                            href={resourceEditorUrl(group.resourceId)}
-                                                            className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                                            title={`Open ${resourceLabel} in editor`}
-                                                        >
-                                                            {resourceLabel}
-                                                        </Link>
-                                                        <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                        {isSizeFormatGroup ? (
+                                                            <>
+                                                                {doiHref ? (
+                                                                    <a
+                                                                        href={doiHref}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="rounded-sm font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                    >
+                                                                        {resourceLabel}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="font-mono text-sm font-semibold break-all text-primary">{resourceLabel}</span>
+                                                                )}
+                                                                {doiHref ? (
+                                                                    <a
+                                                                        href={doiHref}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="rounded-sm text-sm text-muted-foreground hover:underline hover:underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                    >
+                                                                        — {resourceTitle}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Link
+                                                                    href={resourceEditorUrl(group.resourceId)}
+                                                                    className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                                    title={`Open ${resourceLabel} in editor`}
+                                                                >
+                                                                    {resourceLabel}
+                                                                </Link>
+                                                                <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                            </>
+                                                        )}
                                                         <Badge variant="secondary" className="ml-auto text-xs">
                                                             {group.items.length} suggestion(s)
                                                         </Badge>
