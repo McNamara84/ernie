@@ -125,6 +125,7 @@ function makeRorSuggestion(overrides: Partial<SuggestedRorItem> = {}): Suggested
         existing_identifier_type: null,
         discovered_at: '2024-06-15T10:00:00+00:00',
         ...overrides,
+        person_name: overrides.person_name ?? null,
     };
 }
 
