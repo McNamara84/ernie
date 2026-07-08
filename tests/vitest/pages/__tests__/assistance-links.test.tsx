@@ -1242,7 +1242,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
             suggested_label:
                 'Hint: Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
             metadata: {
-                suggestion_kind: 'review',
+                suggestion_kind: 'hint',
                 confidence: 'medium',
                 is_ambiguous: true,
             },
