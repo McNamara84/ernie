@@ -1035,11 +1035,11 @@ function DateTypeSuggestionCard({
     const collectedDatesCount = typeof metadata?.collected_dates_count === 'number' ? metadata.collected_dates_count : null;
     const geoLocationsCount = typeof metadata?.geo_locations_count === 'number' ? metadata.geo_locations_count : null;
 
-    const isReview = suggestionKind === 'review';
-    const isAmbiguous = metadata?.is_ambiguous === true || isReview || confidence === 'low';
+    const isHint = suggestionKind === 'hint';
+    const isAmbiguous = metadata?.is_ambiguous === true || isHint || confidence === 'low';
     const evidenceUrl = typeof metadata?.evidence_url === 'string' ? metadata.evidence_url : null;
-    const reviewLabel = String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType review').replace(/^Hint:\s*/i, '');
-    const displayLabel = isReview ? reviewLabel : suggestionKind === 'correction'
+    const hintLabel = String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType hint').replace(/^Hint:\s*/i, '');
+    const displayLabel = isHint ? hintLabel : suggestionKind === 'correction'
         ? String(suggestion.suggested_label ?? 'DateType correction')
         : dateTypeDisplayLabel(
               targetDateType,
@@ -1058,7 +1058,7 @@ function DateTypeSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                            {isReview ? (
+                            {isHint ? (
                                 <Badge className="bg-orange-600 text-white">
                                     <AlertTriangle className="mr-1 h-3 w-3" />
                                     Hint
@@ -1089,7 +1089,7 @@ function DateTypeSuggestionCard({
 
                         {isAmbiguous && (
                             <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">
-                                Manual review
+                                Manual hint
                             </Badge>
                         )}
 
@@ -1129,10 +1129,10 @@ function DateTypeSuggestionCard({
                 <div className="flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
-                        {isReview ? 'Dismiss' : 'Decline'}
+                        {isHint ? 'Dismiss' : 'Decline'}
                     </Button>
 
-                    {!isReview && (
+                    {!isHint && (
                         <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
                             <Check className="mr-1 h-4 w-4" />
                             Accept
@@ -1649,7 +1649,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             default: {
                 // Generic card for future student modules
                 const metadata = isRecord(item.metadata) ? item.metadata : null;
-                const isReview = metadata?.suggestion_kind === 'review';
+                const isHint = metadata?.suggestion_kind === 'hint';
                 return (
                     <div className="rounded-lg border bg-card p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-4">
