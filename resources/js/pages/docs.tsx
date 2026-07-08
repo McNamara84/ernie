@@ -583,8 +583,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 proposes safe ROR replacements from the local ROR FundRef index
                             </li>
                             <li>
-                                <strong>Suggested Title Languages</strong> – Suggests missing language values for title records when the title
-                                language is not set, using title-text detection and supporting language hints
+                                <strong>Suggested Title Languages</strong> – Suggests missing language values for title records using title-text
+                                detection
                             </li>
                             <li>
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed license
@@ -610,7 +610,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Title language suggestions also show the title text, current language, proposed language, confidence, and evidence
                                     summary so you can verify how the recommendation was created.
                                 </p>
-                                <p className="mt-2"> 
+                                <p className="mt-2">
                                     SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
                                     Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
                                     unchanged and dismisses the suggestion.
@@ -629,18 +629,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to permanently
-                                    dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field
-                                    and removes the pending suggestion.
+                                    dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
+                                    removes the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Resource
-                                language and typed-title context are used only as supporting evidence. Short, formula-like, acronym-heavy, or
-                                mixed-language titles may be skipped when detection is unreliable. Existing title language values are never
-                                overwritten without curator review.
+                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Language values
+                                are suggested only for titles whose language field is empty. Short, formula-like, acronym-heavy, or mixed-language
+                                titles may be skipped when detection is unreliable. Existing title language values are left unchanged.
                             </p>
                         </div>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
