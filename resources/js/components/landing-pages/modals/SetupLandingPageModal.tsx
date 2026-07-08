@@ -2,6 +2,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,6 +28,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import type { User as AuthUser } from '@/types';
 import {
     getTemplateOptions,
     isIgsnLandingPageResourceType,
@@ -252,6 +254,9 @@ function SortableLinkItem({
 }
 
 export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig, openPreviewOnSuccess = false }: SetupLandingPageModalProps) {
+    const { auth } = usePage<{ auth: { user: AuthUser | null } }>().props;
+    const canDeleteLandingPages = auth.user?.can_delete_landing_pages ?? false;
+
     // PhysicalObject resources (IGSNs) default to the IGSN renderer; everything
     // else uses the standard `default_gfz` template.
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
@@ -1382,7 +1387,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 >
                     {/* Only show Remove Preview for draft landing pages.
                         Published landing pages cannot be removed because DOIs are persistent. */}
-                    {currentConfig && currentConfig.status === 'draft' && (
+                    {canDeleteLandingPages && currentConfig && currentConfig.status === 'draft' && (
                         <Button type="button" variant="destructive" onClick={handleRemovePreview} disabled={isSaving} className="mr-auto">
                             Remove Preview
                         </Button>

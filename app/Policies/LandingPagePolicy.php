@@ -11,23 +11,36 @@ use App\Models\User;
 /**
  * Policy for LandingPage model authorization.
  *
- * Landing page management is restricted to users with at least Curator role.
- * Beginners can view landing pages but cannot create, update, or delete them.
+ * Landing page setup is available to all ERNIE roles so Beginner users can
+ * complete the training workflow. Deletion remains restricted to curator-level
+ * roles and above.
  *
  * Role hierarchy for landing page management:
- * - ADMIN: Full access
- * - GROUP_LEADER: Full access
- * - CURATOR: Full access
- * - BEGINNER: View only (no create/update/delete)
+ * - ADMIN: Create, update, delete
+ * - GROUP_LEADER: Create, update, delete
+ * - CURATOR: Create, update, delete
+ * - BEGINNER: Create and update only
  */
 class LandingPagePolicy
 {
     /**
-     * Roles that are allowed to manage landing pages.
+     * Roles that are allowed to create and update landing pages.
      *
      * @var list<UserRole>
      */
-    private const MANAGEMENT_ROLES = [
+    private const CREATE_UPDATE_ROLES = [
+        UserRole::ADMIN,
+        UserRole::GROUP_LEADER,
+        UserRole::CURATOR,
+        UserRole::BEGINNER,
+    ];
+
+    /**
+     * Roles that are allowed to delete draft landing pages.
+     *
+     * @var list<UserRole>
+     */
+    private const DELETE_ROLES = [
         UserRole::ADMIN,
         UserRole::GROUP_LEADER,
         UserRole::CURATOR,
@@ -44,20 +57,20 @@ class LandingPagePolicy
 
     /**
      * Determine whether the user can create landing pages.
-     * Only Admin, Group Leader, and Curator roles can create landing pages.
+     * All ERNIE roles can create landing pages for the training workflow.
      */
     public function create(User $user): bool
     {
-        return in_array($user->role, self::MANAGEMENT_ROLES, true);
+        return in_array($user->role, self::CREATE_UPDATE_ROLES, true);
     }
 
     /**
      * Determine whether the user can update the landing page.
-     * Only Admin, Group Leader, and Curator roles can update landing pages.
+     * All ERNIE roles can update landing pages for the training workflow.
      */
     public function update(User $user, LandingPage $landingPage): bool
     {
-        return in_array($user->role, self::MANAGEMENT_ROLES, true);
+        return in_array($user->role, self::CREATE_UPDATE_ROLES, true);
     }
 
     /**
@@ -69,6 +82,6 @@ class LandingPagePolicy
      */
     public function delete(User $user, LandingPage $landingPage): bool
     {
-        return in_array($user->role, self::MANAGEMENT_ROLES, true);
+        return in_array($user->role, self::DELETE_ROLES, true);
     }
 }

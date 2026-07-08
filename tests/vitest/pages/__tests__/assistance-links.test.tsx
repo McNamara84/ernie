@@ -20,6 +20,11 @@ import type {
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Link: ({ children, href, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
     usePage: () => ({ props: {} }),
     router: { reload: vi.fn(), get: vi.fn() },
 }));
@@ -241,7 +246,9 @@ function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFun
         ...rest,
     };
 }
-function makeSubjectMetadataEnrichmentSuggestion(overrides: Partial<SuggestedSubjectMetadataEnrichmentItem> = {}): SuggestedSubjectMetadataEnrichmentItem {
+function makeSubjectMetadataEnrichmentSuggestion(
+    overrides: Partial<SuggestedSubjectMetadataEnrichmentItem> = {},
+): SuggestedSubjectMetadataEnrichmentItem {
     const metadata: SuggestedSubjectMetadataEnrichmentItem['metadata'] = {
         contract_version: '1.0',
         issue: 813,
@@ -466,6 +473,141 @@ async function expectSizeFormatConfidenceTooltip(suggestion: BaseSuggestionItem,
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
+
+describe('Assistance resource header links', () => {
+    it('renders the resource DOI as a visible editor link', () => {
+        const suggestion = makeSizeFormatSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/test.2026.004' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=40');
+        expect(link).toHaveAttribute('title', 'Open 10.5880/test.2026.004 in editor');
+        expect(link).toHaveClass('text-primary', 'underline');
+    });
+
+    it('links each resource group to its own editor target', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({
+                id: 41,
+                resource_id: 41,
+                resource_doi: '10.5880/test.2026.041',
+                resource_title: 'First resource',
+            }),
+            makeSizeFormatSuggestion({
+                id: 42,
+                resource_id: 42,
+                resource_doi: '10.5880/test.2026.042',
+                resource_title: 'Second resource',
+            }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: '10.5880/test.2026.041' })).toHaveAttribute('href', '/editor?resourceId=41');
+        expect(screen.getByRole('link', { name: '10.5880/test.2026.042' })).toHaveAttribute('href', '/editor?resourceId=42');
+    });
+
+    it('keeps the editor reachable with fallback labels when a suggestion has no DOI or title', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            resource_id: 99,
+            resource_doi: undefined,
+            resource_title: undefined,
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: 'Resource #99' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=99');
+        expect(link).toHaveAttribute('title', 'Open Resource #99 in editor');
+        expect(screen.getByText(/Untitled/)).toBeInTheDocument();
+    });
+
+    it('promotes the first non-empty resource DOI and title from later grouped suggestions', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({
+                id: 101,
+                resource_id: 101,
+                resource_doi: '   ',
+                resource_title: '   ',
+                suggested_label: 'First blank metadata suggestion',
+            }),
+            makeSizeFormatSuggestion({
+                id: 102,
+                resource_id: 101,
+                resource_doi: '  10.5880/promoted.2026.102  ',
+                resource_title: '  Promoted later title  ',
+                suggested_label: 'Second suggestion for same resource',
+            }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/promoted.2026.102' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=101');
+        expect(link).toHaveAttribute('title', 'Open 10.5880/promoted.2026.102 in editor');
+        expect(screen.getByText(/Promoted later title/)).toBeInTheDocument();
+        expect(screen.getByText('2 suggestion(s)')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(2);
+        expect(screen.queryByRole('link', { name: 'Resource #101' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the first non-empty resource DOI and title when later grouped suggestions conflict', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({
+                id: 201,
+                resource_id: 201,
+                resource_doi: '10.5880/original.2026.201',
+                resource_title: 'Original grouped title',
+                suggested_label: 'Original metadata suggestion',
+            }),
+            makeSizeFormatSuggestion({
+                id: 202,
+                resource_id: 201,
+                resource_doi: '10.5880/conflict.2026.201',
+                resource_title: 'Conflicting grouped title',
+                suggested_label: 'Conflicting metadata suggestion',
+            }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: '10.5880/original.2026.201' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=201');
+        expect(screen.getByText(/Original grouped title/)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: '10.5880/conflict.2026.201' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/Conflicting grouped title/)).not.toBeInTheDocument();
+    });
+});
 
 describe('OrcidSuggestionCard – ORCID link', () => {
     it('renders the suggested ORCID as a clickable link', () => {
@@ -1158,7 +1300,9 @@ describe('SubjectMetadataEnrichmentCard - DataCite Subject preview', () => {
         );
 
         expect(screen.getByText('Ambiguity: warning')).toBeInTheDocument();
-        expect(screen.getByText('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.')).toBeInTheDocument();
+        expect(
+            screen.getByText('This Free Keyword could be transferred into a Thesaurus Keyword if you accept this suggestion.'),
+        ).toBeInTheDocument();
         expect(screen.getByText('Vocabulary: EPOS MSL vocabulary')).toBeInTheDocument();
         expect(screen.getByText('Source: utrecht_msl_vocabulary')).toBeInTheDocument();
         expect(screen.getByText('File: msl-vocabulary.json')).toBeInTheDocument();
@@ -1369,7 +1513,9 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         const suggestion = makeDescriptionSegmentationSuggestion({ id: 916 });
         const user = userEvent.setup();
 
-        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Description segmentation applied.' } }).mockResolvedValueOnce({ data: {} });
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'Description segmentation applied.' } })
+            .mockResolvedValueOnce({ data: {} });
 
         render(
             <AssistancePage

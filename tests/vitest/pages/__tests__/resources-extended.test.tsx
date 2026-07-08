@@ -23,6 +23,7 @@ const mockUser = vi.hoisted(() => ({
     updated_at: '2024-01-01T00:00:00Z',
     role: 'group_leader',
     can_manage_landing_pages: true,
+    can_register_doi: true,
     can_register_production_doi: true,
     can_access_old_datasets: false,
     can_access_statistics: false,
@@ -188,6 +189,7 @@ describe('ResourcesPage - extended', () => {
         Object.assign(mockUser, {
             role: 'group_leader',
             can_manage_landing_pages: true,
+            can_register_doi: true,
             can_register_production_doi: true,
             can_access_old_datasets: false,
             can_access_statistics: false,
@@ -381,7 +383,7 @@ describe('ResourcesPage - extended', () => {
         });
 
         it('hides DataCite actions when registration permission is missing', async () => {
-            mockUser.can_register_production_doi = false;
+            mockUser.can_register_doi = false;
             renderPage();
             fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
             await openResourceActionsMenu();

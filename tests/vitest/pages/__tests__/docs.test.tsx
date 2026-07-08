@@ -357,7 +357,7 @@ describe('Docs page', () => {
         expect(screen.getByText('Importing from Old Datasets')).toBeInTheDocument();
     });
 
-    it('hides landing pages documentation for beginner', async () => {
+    it('shows landing pages documentation for beginner training', async () => {
         const user = userEvent.setup();
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
         // Switch to Datasets tab where Landing Pages lives
@@ -365,8 +365,9 @@ describe('Docs page', () => {
         await user.click(datasetsTab);
         // Verify tab switched by checking Datasets-only content is rendered
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
-        // Landing Pages requires curator role
-        expect(screen.queryByText('Creating Landing Pages')).not.toBeInTheDocument();
+        // Beginners can set up landing pages as part of the training workflow
+        expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+        expect(screen.getByText(/Beginner users can create, edit, preview, and publish landing pages/i)).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for curator', async () => {
@@ -454,6 +455,14 @@ describe('Docs page', () => {
 
         expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
         expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
+    });
+    it('documents beginner test-only bulk DOI actions', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Bulk Register / Update DOI (all roles, Beginner test-only)')).toBeInTheDocument();
+        expect(screen.getByText(/Beginner users can run the same training action/i)).toBeInTheDocument();
     });
 
     it('shows landing page templates for group leaders', async () => {
@@ -560,7 +569,7 @@ describe('Docs page', () => {
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText('Beginners can only register test DOIs.')).toBeInTheDocument();
+        expect(screen.getByText(/Beginners always register through the DataCite test API/i)).toBeInTheDocument();
     });
 
     it('documents the current schema version for IGSN exports', async () => {

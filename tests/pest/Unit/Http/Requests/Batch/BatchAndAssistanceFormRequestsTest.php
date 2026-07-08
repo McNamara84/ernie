@@ -55,7 +55,7 @@ it('DestroyIgsnsRequest authorizes only admins', function (): void {
     expect(Validator::make(['ids' => array_fill(0, 101, 1)], $rules)->fails())->toBeTrue();
 });
 
-it('RegisterResourcesRequest authorizes via register-production-doi gate', function (): void {
+it('RegisterResourcesRequest authorizes via register-doi gate', function (): void {
     $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
     $curator = User::factory()->create(['role' => UserRole::CURATOR]);
 
@@ -63,7 +63,7 @@ it('RegisterResourcesRequest authorizes via register-production-doi gate', funct
     expect($req->authorize())->toBeFalse();
 
     $req->setUserResolver(fn () => $beginner);
-    expect($req->authorize())->toBeFalse();
+    expect($req->authorize())->toBeTrue();
 
     $req->setUserResolver(fn () => $curator);
     expect($req->authorize())->toBeTrue();
@@ -74,7 +74,7 @@ it('RegisterResourcesRequest authorizes via register-production-doi gate', funct
     expect(Validator::make(['ids' => array_fill(0, 26, 1)], $rules)->fails())->toBeTrue();
 });
 
-it('RegisterIgsnsRequest authorizes via register-production-doi gate', function (): void {
+it('RegisterIgsnsRequest authorizes via register-doi gate', function (): void {
     $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
     $curator = User::factory()->create(['role' => UserRole::CURATOR]);
 
@@ -82,7 +82,7 @@ it('RegisterIgsnsRequest authorizes via register-production-doi gate', function 
     expect($req->authorize())->toBeFalse();
 
     $req->setUserResolver(fn () => $beginner);
-    expect($req->authorize())->toBeFalse();
+    expect($req->authorize())->toBeTrue();
 
     $req->setUserResolver(fn () => $curator);
     expect($req->authorize())->toBeTrue();

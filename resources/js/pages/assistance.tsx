@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Building2, Check, Info, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Spinner } from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
+import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AcceptResponse,
@@ -58,6 +59,18 @@ function isValidRorUrl(url: string): boolean {
     } catch {
         return false;
     }
+}
+
+function resourceEditorUrl(resourceId: number): string {
+    return editorRoute({ query: { resourceId } }).url;
+}
+
+function normalizedResourceHeaderValue(value: string | null | undefined): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function firstNonEmptyResourceHeaderValue(current: string, candidate: string): string {
+    return current === '' ? candidate : current;
 }
 
 function SuggestionCard({
@@ -1708,21 +1721,28 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     if (!sectionData) return null;
 
                     // Group items by resource
-                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
-                        (groups, item) => {
-                            const resourceId = item.resource_id;
-                            if (!groups[resourceId]) {
-                                groups[resourceId] = {
-                                    doi: item.resource_doi ?? '',
-                                    title: item.resource_title ?? 'Untitled',
-                                    items: [],
-                                };
-                            }
-                            groups[resourceId].items.push(item);
-                            return groups;
-                        },
-                        {},
-                    );
+                    const grouped = sectionData.data.reduce<
+                        Record<number, { resourceId: number; doi: string; title: string; items: BaseSuggestionItem[] }>
+                    >((groups, item) => {
+                        const resourceId = item.resource_id;
+                        const itemDoi = normalizedResourceHeaderValue(item.resource_doi);
+                        const itemTitle = normalizedResourceHeaderValue(item.resource_title);
+
+                        if (!groups[resourceId]) {
+                            groups[resourceId] = {
+                                resourceId,
+                                doi: itemDoi,
+                                title: itemTitle,
+                                items: [],
+                            };
+                        } else {
+                            groups[resourceId].doi = firstNonEmptyResourceHeaderValue(groups[resourceId].doi, itemDoi);
+                            groups[resourceId].title = firstNonEmptyResourceHeaderValue(groups[resourceId].title, itemTitle);
+                        }
+
+                        groups[resourceId].items.push(item);
+                        return groups;
+                    }, {});
 
                     return (
                         <Card key={manifest.id}>
@@ -1752,48 +1772,66 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                             <CardContent>
                                 {Object.keys(grouped).length > 0 ? (
                                     <div className="space-y-6">
-                                        {Object.entries(grouped).map(([resourceId, group]) => {
+                                        {Object.entries(grouped).map(([resourceKey, group]) => {
                                             const isSizeFormatGroup = manifest.id === 'size-format-suggestion';
-                                            const doiHref = isSizeFormatGroup && group.doi.trim() !== '' ? `https://doi.org/${group.doi.trim()}` : null;
+                                            const doiHref = isSizeFormatGroup && group.doi !== '' ? `https://doi.org/${group.doi}` : null;
+                                            const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
+                                            const resourceTitle = group.title === '' ? 'Untitled' : group.title;
 
                                             return (
-                                                <div key={resourceId} className="space-y-3">
-                                                    <div className={doiHref ? 'flex items-baseline gap-2 [&>span]:hidden' : 'flex items-baseline gap-2'}>
-                                                    {doiHref ? (
-                                                        <a
-                                                            href={doiHref}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="rounded-sm font-mono text-sm font-semibold text-primary hover:underline hover:underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                                        >
-                                                            {group.doi}
-                                                        </a>
-                                                    ) : (
-                                                        <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                                    )}
-                                                    <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                                    {doiHref ? (
-                                                        <a
-                                                            href={doiHref}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="rounded-sm text-sm text-muted-foreground hover:underline hover:underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                                        >
-                                                            — {group.title}
-                                                        </a>
-                                                    ) : null}
-                                                    <Badge variant="secondary" className="ml-auto text-xs">
-                                                        {group.items.length} suggestion(s)
-                                                    </Badge>
+                                                <div key={resourceKey} className="space-y-3">
+                                                    <div className="flex items-baseline gap-2">
+                                                        {isSizeFormatGroup ? (
+                                                            <>
+                                                                {doiHref ? (
+                                                                    <a
+                                                                        href={doiHref}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="rounded-sm font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                    >
+                                                                        {resourceLabel}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="font-mono text-sm font-semibold break-all text-primary">{resourceLabel}</span>
+                                                                )}
+                                                                {doiHref ? (
+                                                                    <a
+                                                                        href={doiHref}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="rounded-sm text-sm text-muted-foreground hover:underline hover:underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                                    >
+                                                                        — {resourceTitle}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Link
+                                                                    href={resourceEditorUrl(group.resourceId)}
+                                                                    className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                                    title={`Open ${resourceLabel} in editor`}
+                                                                >
+                                                                    {resourceLabel}
+                                                                </Link>
+                                                                <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                            </>
+                                                        )}
+                                                        <Badge variant="secondary" className="ml-auto text-xs">
+                                                            {group.items.length} suggestion(s)
+                                                        </Badge>
                                                     </div>
-                                                <div className="space-y-2 pl-4">
-                                                    {group.items.map((item) => (
-                                                        <div key={item.id as number}>
-                                                            {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
-                                                        </div>
-                                                    ))}
+                                                    <div className="space-y-2 pl-4">
+                                                        {group.items.map((item) => (
+                                                            <div key={item.id as number}>
+                                                                {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
                                             );
                                         })}
                                     </div>

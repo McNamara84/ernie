@@ -638,7 +638,7 @@ function ResourcesPage({
 }: ResourcesProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
-    const canRegisterDoi = auth.user?.can_register_production_doi ?? false;
+    const canRegisterDoi = auth.user?.can_register_doi ?? false;
     const canDeleteResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
