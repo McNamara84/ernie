@@ -593,19 +593,31 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Review suggestions">
                                 <p>
-                                    Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
-                                    score. Title language suggestions also show the title text, current language, proposed language, confidence,
-                                    and evidence summary so you can verify how the recommendation was created.
+                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
+                                score. Resource language suggestions show the proposed language, a confidence score, and the supporting
+                                evidence (an explicit language attribute on a title, description, or subject; a publisher-name heuristic;
+                                or automatic text detection). Title language suggestions also show the title text, current language,
+                                proposed language, confidence, and evidence summary so you can verify how the recommendation was created.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to
-                                    permanently dismiss that suggestion. For title language suggestions, accepting updates the selected title's
-                                    language field and removes the pending suggestion.
+                                permanently dismiss that suggestion. Accepting a resource language suggestion updates the resource's
+                                language field directly. For title language suggestions, accepting updates the selected title's
+                                language field and removes the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Resource language evidence:</strong> Suggested Resource Languages follow a documented precedence
+                                order across explicit language attributes on titles, descriptions, and subjects, publisher-name
+                                heuristics, and automatic text detection as a fallback. Multilingual, ambiguous, or low-text records
+                                (e.g. formulas, acronyms, or very short titles) are downgraded to low confidence or skipped entirely
+                                rather than forced into a single dominant language.
+                            </p>
+                        </div>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
