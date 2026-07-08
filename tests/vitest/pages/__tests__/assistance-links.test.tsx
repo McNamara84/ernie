@@ -1183,6 +1183,19 @@ describe('RorSuggestionCard – ROR link', () => {
         expect(link).toBeInTheDocument();
     });
 
+    it('renders the associated person name for affiliation suggestions', () => {
+        const suggestion = makeRorSuggestion({ person_name: 'Marie Curie' });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Person: Marie Curie')).toBeInTheDocument();
+    });
+
     it('links to the correct ROR profile URL', () => {
         const rorId = 'https://ror.org/02nr0ka47';
         const suggestion = makeRorSuggestion({ suggested_ror_id: rorId });
