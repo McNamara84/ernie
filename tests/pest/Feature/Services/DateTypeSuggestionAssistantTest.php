@@ -2,12 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Models\AssistantSuggestion;
 use App\Models\DateType;
 use App\Models\GeoLocation;
-use App\Models\Resource;
 use App\Models\ResourceDate;
+use App\Models\AssistantDismissed;
+use App\Models\AssistantSuggestion;
+use App\Models\Resource;
+use App\Models\User;
+use App\Services\Assistance\AssistantManifest;
 use App\Services\DateType\DateTypeDiscoveryService;
+use App\Services\DateType\DateTypePlausibilityService;
 use App\Services\DateType\DateTypeSchemaorgExtraction;
 use Modules\Assistants\DateTypeSuggestion\Assistant;
 

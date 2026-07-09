@@ -11,11 +11,12 @@ use Closure;
 
 final class DateTypeDiscoveryService
 {
+    public const string ASSISTANT_ID = 'date-type-suggestion';
+
     public const string TARGET_TYPE = 'date_type';
 
     public const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
 
-    // oder 100??
     private const int CHUNK_SIZE = 50;
 
     /** @var array<int, string> */
@@ -24,9 +25,18 @@ final class DateTypeDiscoveryService
     public function __construct(
         private readonly DateTypeSchemaorgExtraction $extractService,
         private readonly DateTypePlausibilityService $plausibilityService,
-        // private readonly DateTypeCoverageCorrectionDiscoveryService $coverageCorrectionDiscovery, :
-        // -> existiert gerade nicht, war eine Platzhalter-Datei: DateTypeCoverageCorrectionDiscoveryService
     ) {}
+
+    public static function targetTypeForDateType(string $dateType): string
+    {
+        return self::TARGET_TYPE.':'.$dateType;
+    }
+
+    public static function isDateTypeTargetType(string $targetType): bool
+    {
+        return $targetType === self::TARGET_TYPE
+            || str_starts_with($targetType, self::TARGET_TYPE.':');
+    }
 
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
@@ -52,8 +62,6 @@ final class DateTypeDiscoveryService
                 foreach ($resources as $resource) {
                     $processed++; 
                     $onProgress("Checking resource {$processed} of {$total}");
-                    // prüft die aktuelle Resource auf Suggestion
-                    // die zurückgegebene Anzahl der suggestion wird zur Gesamtzahl addiert
                     $count += $this->discoverForResource($assistantId, $resource, $storeSuggestion);
                     if ($this->storeMatchedCountSuggestion($resource, $storeSuggestion)) {
                         $count++;
@@ -75,24 +83,23 @@ final class DateTypeDiscoveryService
             ->with('dateType')
             ->get();
 
-        $datesForReview = [];
+        $datesForHint = [];
 
         foreach ($existingDates as $date) {
             $dateType = $date->dateType?->slug;
             $value = $date->date_value ?? $date->start_date;
 
             if ($dateType !== null && $value !== null) {
-                $datesForReview[$dateType] = $value;
+                $datesForHint[$dateType] = $value;
             }
         }
 
-        $reviewSuggestions = $this->plausibilityService->review($datesForReview);
+        $hintSuggestions = $this->plausibilityService->hint($datesForHint, $resource->doi);
 
-        // NEU, da coverageCorrectionDiscovery entfällt
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
-            ...$reviewSuggestions,
-             //  ...$this->coverageCorrectionDiscovery->discover($resource),
+            ...$hintSuggestions,
+
         ];
 
         $existingDateTypes = $resource->dates()
@@ -111,23 +118,24 @@ final class DateTypeDiscoveryService
                 continue;
             }
 
-            if (($suggestion['suggestion_kind'] ?? null) === 'review') {
-                $stored = $storeSuggestion(
-                    $resource->id,
-                    self::TARGET_TYPE,
-                    $resource->id,
-                    (string) $suggestion['message'],
-                    (string) $suggestion['message'],
-                    $this->confidenceToScore($suggestion['confidence'] ?? null),
-                    $suggestion,
-                );
+            if (($suggestion['suggestion_kind'] ?? null) === 'hint') 
+                {
+                    $stored = $storeSuggestion(
+                        $resource->id,
+                        self::TARGET_TYPE,
+                        $resource->id,
+                        (string) $suggestion['message'],
+                        (string) $suggestion['message'],
+                        $this->confidenceToScore($suggestion['confidence'] ?? null),
+                        $suggestion,
+                    );
 
-                if ($stored) {
-                    $storedCount++;
+                    if ($stored) {
+                        $storedCount++;
+                    }
+                    continue;
+
                 }
-
-                continue;
-            }
 
             $type = (string) ($suggestion['target_date_type'] ?? '');
 
@@ -152,7 +160,7 @@ final class DateTypeDiscoveryService
 
             $stored = $storeSuggestion(
                 $resource->id,
-                self::TARGET_TYPE,
+                self::targetTypeForDateType($type),
                 $resource->id,
                 $suggestedValue,
                 strtoupper($type).': '.$suggestedValue,
@@ -215,6 +223,10 @@ final class DateTypeDiscoveryService
             return false;
         }
 
+        if ($collectedDatesCount === 0 || $geoLocationsCount === 0) {
+            return false;
+        }
+
         $suggestedValue = "collected_dates:{$collectedDatesCount};geo_locations:{$geoLocationsCount}";
         $suggestedLabel = "Collected dates ({$collectedDatesCount}) match geolocations ({$geoLocationsCount})";
 
@@ -226,9 +238,14 @@ final class DateTypeDiscoveryService
             $suggestedLabel,
             null,
             [
+                'suggestion_kind' => 'correction',
+                'from_date_type' => 'Collected',
+                'target_date_type' => 'Coverage',
+                'confidence' => 'medium',
                 'source' => 'database',
                 'check' => 'collected_dates_vs_geolocations',
                 'resource_doi' => $resource->doi,
+                'source_url' => 'https://doi.org/'.$resource->doi,
                 'collected_dates_count' => $collectedDatesCount,
                 'geo_locations_count' => $geoLocationsCount,
                 'evidence' => 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
