@@ -76,6 +76,49 @@ it('does not discover a collected to coverage correction when collected date and
             ->exists())->toBeFalse();
 });
 
+it('discovers implausible date order as review hints', function (): void {
+    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction
+    {
+        #[Override]
+        public function loadAllowedSchemaorg(string $doi): array
+        {
+            return [];
+        }
+    });
+
+    $createdType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    $submittedType = DateType::create(['name' => 'Submitted', 'slug' => 'Submitted', 'is_active' => true]);
+    $resource = Resource::factory()->withDoi('10.5880/DATE-TYPE-HINT')->create();
+
+    ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $createdType->id,
+        'date_value' => '2024-07-01',
+    ]);
+    ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $submittedType->id,
+        'date_value' => '2024-06-18',
+    ]);
+    GeoLocation::factory()->withPoint(13.0, 52.0)->create(['resource_id' => $resource->id]);
+
+    $count = app(Assistant::class)->runDiscovery(fn (string $message): null => null);
+    $suggestion = AssistantSuggestion::where('assistant_id', 'date-type-suggestion')->sole();
+    $message = 'Created (2024-07-01) occurs after Submitted (2024-06-18). Please check whether the date values or date types are assigned correctly.';
+
+    expect($count)->toBe(1)
+        ->and($suggestion->resource_id)->toBe($resource->id)
+        ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::TARGET_TYPE)
+        ->and($suggestion->target_id)->toBe($resource->id)
+        ->and($suggestion->suggested_value)->toBe($message)
+        ->and($suggestion->suggested_label)->toBe($message)
+        ->and($suggestion->similarity_score)->toBe(0.65)
+        ->and($suggestion->metadata['suggestion_kind'])->toBe('review')
+        ->and($suggestion->metadata['message'])->toBe($message)
+        ->and($suggestion->metadata['confidence'])->toBe('medium')
+        ->and($suggestion->metadata['is_ambiguous'])->toBeTrue();
+});
+
 it('accepts a collected to coverage correction by updating only the suggested resource dates', function (): void {
     $assistant = app(Assistant::class);
     $collectedType = DateType::create(['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]);
