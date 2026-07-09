@@ -226,6 +226,30 @@ it('normalizes accepted date type suggestion values before storing them', functi
         ->and($date->date_value)->toBe('2024-03-15');
 });
 
+it('accepts a discovered date type addition with a date-type-specific target type', function (): void {
+    $assistant = app(Assistant::class);
+    $createdType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    $resource = Resource::factory()->create();
+    $suggestion = createDateTypeSuggestion(
+        assistant: $assistant,
+        resource: $resource,
+        suggestedValue: '2024-03-15',
+        metadata: ['target_date_type' => 'Created'],
+        targetType: DateTypeDiscoveryService::targetTypeForDateType('Created'),
+    );
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+    $date = ResourceDate::where('resource_id', $resource->id)->sole();
+
+    expect($result)->toMatchArray([
+        'success' => true,
+        'message' => "DateType 'Created' with value '2024-03-15' applied.",
+    ])
+        ->and(AssistantSuggestion::find($suggestion->id))->toBeNull()
+        ->and($date->date_type_id)->toBe($createdType->id)
+        ->and($date->date_value)->toBe('2024-03-15');
+});
+
 it('accepts a date type suggestion by creating a date range', function (): void {
     $assistant = app(Assistant::class);
     $validType = DateType::create(['name' => 'Valid', 'slug' => 'Valid', 'is_active' => true]);
