@@ -23,7 +23,10 @@ final class LanguageSuggestionAcceptanceService
             ];
         }
 
-        $language = Language::query()->where('code', $suggestion->suggested_value)->first();
+        $language = Language::query()
+            ->where('code', $suggestion->suggested_value)
+            ->first();
+
         if ($language === null) {
             return [
                 'success' => false,
@@ -32,6 +35,7 @@ final class LanguageSuggestionAcceptanceService
         }
 
         return DB::transaction(function () use ($suggestion, $language): array {
+
             $resource = Resource::query()
                 ->whereKey($suggestion->resource_id)
                 ->lockForUpdate()
@@ -44,7 +48,26 @@ final class LanguageSuggestionAcceptanceService
                 ];
             }
 
+            // <<< ADDED
+            // Reject stale suggestion if another language has already been assigned.
+            if (
+                $resource->language_id !== null &&
+                $resource->language_id !== $language->id
+            ) {
+                $suggestion->delete();
+
+                return [
+                    'success' => false,
+                    'message' => 'Suggestion is stale because the resource language has already changed.',
+                ];
+            }
+
+            // <<< CHANGED
             if ($resource->language_id === $language->id) {
+
+                // remove obsolete pending suggestion
+                $suggestion->delete(); // <<< ADDED
+
                 return [
                     'success' => true,
                     'message' => "Resource language is already set to {$language->name} ({$language->code}).",
@@ -53,6 +76,10 @@ final class LanguageSuggestionAcceptanceService
 
             $resource->language_id = $language->id;
             $resource->save();
+
+            // <<< ADDED
+            // Suggestion has been accepted -> remove it
+            $suggestion->delete();
 
             return [
                 'success' => true,
