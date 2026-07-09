@@ -23,7 +23,6 @@ return new class extends Migration
             $table->string('suggested_name', 512);
             $table->decimal('similarity_score', 5, 4)->default(0);
             $table->json('ror_aliases')->nullable();
-            $table->json('locations')->nullable();
             $table->string('existing_identifier', 512)->nullable();
             $table->string('existing_identifier_type', 100)->nullable();
             $table->timestamp('discovered_at');
