@@ -1089,7 +1089,7 @@ function DateTypeSuggestionCard({
 
                         {isAmbiguous && (
                             <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">
-                                Manual hint
+                                Manual Review
                             </Badge>
                         )}
 
