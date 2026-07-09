@@ -11,6 +11,8 @@ use Closure;
 
 final class DateTypeDiscoveryService
 {
+    public const string ASSISTANT_ID = 'date-type-suggestion';
+
     public const string TARGET_TYPE = 'date_type';
 
     public const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
@@ -81,7 +83,7 @@ final class DateTypeDiscoveryService
             }
         }
 
-        $hintSuggestions = $this->plausibilityService->review($datesForReview, $resource->doi,);
+        $hintSuggestions = $this->plausibilityService->hint($datesForHint, $resource->doi,);
 
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
@@ -206,6 +208,10 @@ final class DateTypeDiscoveryService
         $geoLocationsCount = (int) $resource->getAttribute('geo_locations_count');
 
         if ($collectedDatesCount !== $geoLocationsCount) {
+            return false;
+        }
+
+        if ($collectedDatesCount === 0 || $geoLocationsCount === 0) {
             return false;
         }
 

@@ -24,9 +24,9 @@ final class DateTypeAcceptanceService
             ];
         }
 
-        $dateValue = DateTypeNormalizerService::normalize($suggestion->suggested_value);
+        $dateValue = DateTypeNormalizerService::normalize( $suggestion->metadata['normalized_value'] ?? $suggestion->suggested_value);
 
-        if ($dateValue === '') {
+        if (! is_string($dateValue) || $dateValue === '') {
             return [
                 'success' => false,
                 'message' => 'Suggested date value is invalid.',
