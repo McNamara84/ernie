@@ -750,10 +750,11 @@ it('stores plausibility hint suggestions', function (): void {
 
     expect($count)->toBe(1)
         ->and($suggestion->target_id)->toBe($resource->id)
-        ->and($suggestion->suggested_value)->toContain('Created')
-        ->and($suggestion->suggested_value)->toContain('Collected')
+        ->and($suggestion->suggested_value)->toBe('Collected (2017-01-01) occurs after Created (2016-02-22). Please check whether the date values or date types are assigned correctly.')
         ->and($suggestion->suggested_label)->toBe($suggestion->suggested_value)
         ->and($suggestion->similarity_score)->toBe(0.65)
         ->and($suggestion->metadata['suggestion_kind'])->toBe('hint')
-        ->and($suggestion->metadata['confidence'])->toBe('medium');
+        ->and($suggestion->metadata['confidence'])->toBe('medium')
+        ->and($suggestion->metadata['is_ambiguous'])->toBeTrue()
+        ->and($suggestion->metadata['source_url'])->toBe('https://doi.org/10.5880/test.2026.816');
 });
