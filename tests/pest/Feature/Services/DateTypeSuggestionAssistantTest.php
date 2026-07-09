@@ -372,7 +372,7 @@ it('records declined date type suggestions and does not rediscover the same sugg
     $suggestion = AssistantSuggestion::query()
         ->where('assistant_id', $assistant->getId())
         ->where('resource_id', $resource->id)
-        ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+        ->where('target_type', DateTypeDiscoveryService::targetTypeForDateType('Created'))
         ->orderBy('suggested_label')
         ->sole();
 
@@ -426,7 +426,7 @@ it('discovers and stores a created suggestion from schema.org metadata', functio
         ->sole();
     
     expect($count)->toBe(1)
-        ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::TARGET_TYPE)
+        ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Created'))
         ->and($suggestion->target_id)->toBe($resource->id)
         ->and($suggestion->suggested_value)->toBe('2016-07-03')
         ->and($suggestion->suggested_label)->toBe('CREATED: 2016-07-03')
@@ -469,7 +469,7 @@ it('discovers and stores a issued suggestion from schema.org metadata', function
         ->sole();
     
     expect($count)->toBe(1)
-        ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::TARGET_TYPE)
+        ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Issued'))
         ->and($suggestion->target_id)->toBe($resource->id)
         ->and($suggestion->suggested_value)->toBe('2016-07-03')
         ->and($suggestion->suggested_label)->toBe('ISSUED: 2016-07-03')
@@ -519,12 +519,15 @@ it('discovers and stores created and issued suggestion from schema.org metadata'
     $suggestion = AssistantSuggestion::query()
         ->where('assistant_id', $assistant->getId())
         ->where('resource_id', $resource->id)
-        ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+        ->whereIn('target_type', [
+            DateTypeDiscoveryService::targetTypeForDateType('Created'),
+            DateTypeDiscoveryService::targetTypeForDateType('Issued'),
+        ])
         ->orderBy('suggested_label')
         ->get();
     
     expect($suggestion)->toHaveCount(2)
-        ->and($suggestion[0]->target_type)->toBe(DateTypeDiscoveryService::TARGET_TYPE)
+        ->and($suggestion[0]->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Created'))
         ->and($suggestion[0]->target_id)->toBe($resource->id)
         ->and($suggestion[0]->suggested_value)->toBe('2016-07-03')
         ->and($suggestion[0]->suggested_label)->toBe('CREATED: 2016-07-03')
@@ -532,9 +535,9 @@ it('discovers and stores created and issued suggestion from schema.org metadata'
         ->and($suggestion[0]->metadata['suggestion_kind'])->toBe('addition')
         ->and($suggestion[0]->metadata['target_date_type'])->toBe('Created')
         ->and($suggestion[0]->metadata['source_url'])->toBe('https://dataservices.gfz.de/test-dataset')
-        ->and($suggestion[1]->target_type)->toBe(DateTypeDiscoveryService::TARGET_TYPE)
+        ->and($suggestion[1]->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Issued'))
         ->and($suggestion[1]->target_id)->toBe($resource->id)
-        ->and($suggestion[1]->suggested_value)->toBe('2017-07-03')
+        ->and($suggestion[1]->suggested_value)->toBe('2016-07-03')
         ->and($suggestion[1]->suggested_label)->toBe('ISSUED: 2016-07-03')
         ->and($suggestion[1]->similarity_score)->toBe(0.95)
         ->and($suggestion[1]->metadata['suggestion_kind'])->toBe('addition')
@@ -611,7 +614,7 @@ it('does not discover created suggestions when Created already exists', function
         ->and(AssistantSuggestion::query()
             ->where('assistant_id', $assistant->getId())
             ->where('resource_id', $resource->id)
-            ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+            ->where('target_type', DateTypeDiscoveryService::targetTypeForDateType('Created'))
             ->exists())->toBeFalse();
 });
 
@@ -650,7 +653,7 @@ it('does not discover issued suggestions when Issued already exists', function (
         ->and(AssistantSuggestion::query()
             ->where('assistant_id', $assistant->getId())
             ->where('resource_id', $resource->id)
-            ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+            ->where('target_type', DateTypeDiscoveryService::targetTypeForDateType('Issued'))
             ->exists())->toBeFalse();
 });
 
