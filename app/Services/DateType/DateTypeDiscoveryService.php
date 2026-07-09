@@ -94,7 +94,7 @@ final class DateTypeDiscoveryService
             }
         }
 
-        $hintSuggestions = $this->plausibilityService->hint($datesForHint, $resource->doi,);
+        $hintSuggestions = $this->plausibilityService->hint($datesForHint, $resource->doi);
 
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
@@ -118,23 +118,24 @@ final class DateTypeDiscoveryService
                 continue;
             }
 
-            if (($suggestion['suggestion_kind'] ?? null) === 'hint') {
-                $stored = $storeSuggestion(
-                    $resource->id,
-                    self::TARGET_TYPE,
-                    $resource->id,
-                    (string) $suggestion['message'],
-                    (string) $suggestion['message'],
-                    $this->confidenceToScore($suggestion['confidence'] ?? null),
-                    $suggestion,
-                );
+            if (($suggestion['suggestion_kind'] ?? null) === 'hint') 
+                {
+                    $stored = $storeSuggestion(
+                        $resource->id,
+                        self::TARGET_TYPE,
+                        $resource->id,
+                        (string) $suggestion['message'],
+                        (string) $suggestion['message'],
+                        $this->confidenceToScore($suggestion['confidence'] ?? null),
+                        $suggestion,
+                    );
 
-                if ($stored) {
-                    $storedCount++;
+                    if ($stored) {
+                        $storedCount++;
+                    }
+                    continue;
+
                 }
-
-                continue;
-            }
 
             $type = (string) ($suggestion['target_date_type'] ?? '');
 
