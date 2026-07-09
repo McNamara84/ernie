@@ -589,11 +589,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and funders via
-                                the ROR API v2
+                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR
+                                identifier to further pending creator affiliations with exactly matching <code>creatorName</code> and{' '}
+                                <code>affiliation</code> values.
                             </li>
                             <li>
                                 <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
                                 proposes safe ROR replacements from the local ROR FundRef index
+                            </li>
+                            <li>
+                                <strong>Suggested Title Languages</strong> – Suggests missing language values for title records using title-text
+                                detection
                             </li>
                             <li>
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed license
@@ -623,7 +629,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Review suggestions">
-                                <p>Each suggestion shows the affected resource, the current value, and the proposed match with a confidence score.</p>
+                                <p>
+                                    Each suggestion shows the affected resource, the current value, and the proposed match with a confidence score.
+                                    Title language suggestions also show the title text, current language, proposed language, confidence, and evidence
+                                    summary so you can verify how the recommendation was created.
+                                </p>
                                 <p className="mt-2">
                                     SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
                                     Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
@@ -638,6 +648,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier,
                                     provenance, confidence evidence, and conflict warnings. Accepting updates only the funding-reference identifier,
                                     identifier type, and scheme URI; funder names and award metadata are preserved.
+                                </p>
+                                <p className="mt-2">
+                                    Suggested ROR-ID affiliation matches are exact. If a creator-affiliation suggestion has further pending matches
+                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE
+                                    asks whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
+                                    creator name identifiers and affiliation labels stay unchanged.
                                 </p>
                                 <p className="mt-2">
                                     Subject Metadata Enrichment suggestions compare the stored Subject row with proposed DataCite fields such as
@@ -655,11 +671,25 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to permanently
-                                    dismiss that suggestion.
+                                    dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
+                                    removes the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Language values
+                                are suggested only for titles whose language field is empty. Short, formula-like, acronym-heavy, or mixed-language
+                                titles may be skipped when detection is unreliable. Existing title language values are left unchanged.
+                            </p>
+                        </div>
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>DataCite XML export:</strong> Accepted title language suggestions are saved on the selected title and exported
+                                to DataCite XML as an <code>xml:lang</code> attribute when supported.
+                            </p>
+                        </div>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending suggestions

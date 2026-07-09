@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Batch\DestroyIgsnsRequest;
 use App\Http\Requests\Batch\ExportResourcesRequest;
@@ -12,10 +13,12 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
 covers(
+    AcceptRorAffiliationMatchesRequest::class,
     DeclineSuggestionRequest::class,
     DestroyIgsnsRequest::class,
     RegisterResourcesRequest::class,
@@ -23,6 +26,18 @@ covers(
     ExportResourcesRequest::class,
 );
 
+it('AcceptRorAffiliationMatchesRequest requires a uuid bulk token', function (): void {
+    $request = new AcceptRorAffiliationMatchesRequest;
+    expect($request->authorize())->toBeFalse();
+
+    $request->setUserResolver(fn () => User::factory()->create());
+    expect($request->authorize())->toBeTrue();
+
+    $rules = $request->rules();
+    expect(Validator::make([], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['bulk_token' => 'missing-token'], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['bulk_token' => (string) Str::uuid()], $rules)->fails())->toBeFalse();
+});
 it('DeclineSuggestionRequest authorizes only authenticated users', function (): void {
     $request = new DeclineSuggestionRequest;
     expect($request->authorize())->toBeFalse();

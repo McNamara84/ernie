@@ -75,6 +75,8 @@ describe('RelationDiscoveryService', function (): void {
         expect($result['success'])->toBeTrue()
             ->and($relatedIdentifier)->not->toBeNull()
             ->and($relatedIdentifier?->citation_label)->toBe('Doe, J. (2026): Suggested related work. GFZ.')
+            ->and($relatedIdentifier?->source)->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
+            ->and($relatedIdentifier?->isRepositoryCuration())->toBeTrue()
             ->and(SuggestedRelation::query()->find($suggestion->id))->toBeNull();
     });
 

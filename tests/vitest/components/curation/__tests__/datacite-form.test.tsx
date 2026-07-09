@@ -6448,11 +6448,14 @@ describe('DataCiteForm', () => {
                     initialDatacenters={[1]}
                     initialRelatedWorks={[
                         {
+                            id: 12,
                             identifier: '10.1234/example',
                             identifier_type: 'DOI',
                             relation_type: 'IsReferencedBy',
                             relation_type_information: null,
                             citation_label: 'Doe, J. (2024): Manual citation. Publisher.',
+                            source: 'relation_suggestion_assistant',
+                            is_repository_curation: true,
                         },
                     ]}
                     descriptionTypes={descriptionTypes}
@@ -6473,10 +6476,12 @@ describe('DataCiteForm', () => {
             const body = JSON.parse((saveCall![1] as RequestInit).body as string);
             expect(body.relatedIdentifiers).toEqual([
                 {
+                    id: 12,
                     identifier: '10.1234/example',
                     identifierType: 'DOI',
                     relationType: 'IsReferencedBy',
                     citationLabel: 'Doe, J. (2024): Manual citation. Publisher.',
+                    source: 'relation_suggestion_assistant',
                 },
             ]);
         });

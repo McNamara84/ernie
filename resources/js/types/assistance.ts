@@ -314,6 +314,24 @@ export interface AcceptResponse {
     datacite_synced?: boolean;
     synced_dois?: string[];
     replaced_identifier?: string | null;
+    bulk_affiliation_match?: RorAffiliationBulkMatch | null;
+    message: string;
+}
+
+export interface RorAffiliationBulkMatch {
+    available: boolean;
+    count: number;
+    bulk_token: string;
+    creator_name: string;
+    affiliation: string;
+    suggested_ror_id: string;
+}
+
+export interface BulkRorAffiliationAcceptResponse {
+    success: boolean;
+    accepted_count: number;
+    skipped_count: number;
+    synced_dois: string[];
     message: string;
 }
 

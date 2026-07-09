@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
@@ -16,8 +18,10 @@ import {
     type AssistancePageProps,
     type AssistantManifest,
     type BaseSuggestionItem,
+    type BulkRorAffiliationAcceptResponse,
     type CheckStatusResponse,
     type PaginatedData,
+    type RorAffiliationBulkMatch,
     type SuggestedCrossrefFunderRorItem,
     type SuggestedDescriptionSegmentationItem,
     type SuggestedOrcidItem,
@@ -62,6 +66,15 @@ function isValidRorUrl(url: string): boolean {
 
 function resourceEditorUrl(resourceId: number): string {
     return editorRoute({ query: { resourceId } }).url;
+}
+
+function rorBulkMatchDialogDescription(count: number): string {
+    const isSingular = count === 1;
+    const noun = isSingular ? 'creator affiliation' : 'creator affiliations';
+    const verb = isSingular ? 'is' : 'are';
+    const target = isSingular ? 'this affiliation' : 'these affiliations';
+
+    return `There ${verb} ${count} further ${noun} with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for ${target} as well?`;
 }
 
 function normalizedResourceHeaderValue(value: string | null | undefined): string {
@@ -1257,7 +1270,12 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
 
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
+    const [pendingRorBulkMatch, setPendingRorBulkMatch] = useState<RorAffiliationBulkMatch | null>(null);
+    const [isAcceptingRorBulkMatch, setIsAcceptingRorBulkMatch] = useState(false);
 
+    const reloadAssistanceSections = useCallback(() => {
+        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+    }, []);
     // ── Polling logic ────────────────────────────────────────────────
 
     const stopPolling = useCallback(
@@ -1303,7 +1321,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         } else {
                             toast.info(message);
                         }
-                        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                        reloadAssistanceSections();
                     } else if (status.status === 'failed') {
                         pollingRefs.current[id] = null;
                         patch(id, { isChecking: false, progress: '' });
@@ -1320,7 +1338,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
             pollingRefs.current[id] = setTimeout(pollStatus, 3000);
         },
-        [patch, pollingRefs],
+        [patch, pollingRefs, reloadAssistanceSections],
     );
 
     // ── Check one assistant ──────────────────────────────────────────
@@ -1410,15 +1428,65 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 } else {
                     toast.warning(data.message);
                 }
-                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+
+                const bulkMatch = data.bulk_affiliation_match;
+                if (data.success && manifest.id === 'ror-suggestion' && bulkMatch?.available === true && bulkMatch.count > 0) {
+                    setPendingRorBulkMatch(bulkMatch);
+                    return;
+                }
+
+                reloadAssistanceSections();
             } catch {
                 toast.error('Failed to accept suggestion.');
             } finally {
                 removeProcessingId(manifest.id, suggestionId);
             }
         },
-        [addProcessingId, removeProcessingId],
+        [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
+
+    const handleAcceptRorBulkMatch = useCallback(async () => {
+        if (pendingRorBulkMatch === null) return;
+
+        setIsAcceptingRorBulkMatch(true);
+
+        try {
+            const { data } = await axios.post<BulkRorAffiliationAcceptResponse>('/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: pendingRorBulkMatch.bulk_token,
+            });
+
+            if (data.success) {
+                toast.success(data.message);
+            } else {
+                toast.warning(data.message);
+            }
+
+            setPendingRorBulkMatch(null);
+            reloadAssistanceSections();
+        } catch (error) {
+            const isAxiosBulkAcceptError = axios.isAxiosError(error);
+
+            if (isAxiosBulkAcceptError && typeof error.response?.data?.message === 'string') {
+                toast.warning(error.response.data.message);
+            } else {
+                toast.error('Failed to accept matching ROR suggestions.');
+            }
+
+            if (isAxiosBulkAcceptError && error.response?.status === 422) {
+                setPendingRorBulkMatch(null);
+                reloadAssistanceSections();
+            }
+        } finally {
+            setIsAcceptingRorBulkMatch(false);
+        }
+    }, [pendingRorBulkMatch, reloadAssistanceSections]);
+
+    const handleDeclineRorBulkMatch = useCallback(() => {
+        if (isAcceptingRorBulkMatch) return;
+
+        setPendingRorBulkMatch(null);
+        reloadAssistanceSections();
+    }, [isAcceptingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDecline = useCallback(
         async (manifest: AssistantManifest, suggestionId: number) => {
@@ -1427,14 +1495,14 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             try {
                 await axios.post(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
                 toast.info('Suggestion declined.');
-                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                reloadAssistanceSections();
             } catch {
                 toast.error('Failed to decline suggestion.');
             } finally {
                 removeProcessingId(manifest.id, suggestionId);
             }
         },
-        [addProcessingId, removeProcessingId],
+        [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
 
     // ── Render helpers ───────────────────────────────────────────────
@@ -1698,6 +1766,28 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     );
                 })}
             </div>
+
+            <Dialog
+                open={pendingRorBulkMatch !== null}
+                onOpenChange={(open) => {
+                    if (!open) handleDeclineRorBulkMatch();
+                }}
+            >
+                <DialogContent showCloseButton={!isAcceptingRorBulkMatch}>
+                    <DialogHeader>
+                        <DialogTitle>Accept matching ROR suggestions?</DialogTitle>
+                        <DialogDescription>{rorBulkMatchDialogDescription(pendingRorBulkMatch?.count ?? 0)}</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" disabled={isAcceptingRorBulkMatch} onClick={handleDeclineRorBulkMatch}>
+                            Decline
+                        </Button>
+                        <LoadingButton loading={isAcceptingRorBulkMatch} onClick={handleAcceptRorBulkMatch}>
+                            Accept
+                        </LoadingButton>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

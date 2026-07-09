@@ -15,6 +15,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedRor;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,7 @@ class RorDiscoveryService
 
     public function __construct(
         private readonly DataCiteSyncService $dataCiteSyncService,
+        private readonly RorAffiliationBulkAcceptanceService $affiliationBulkAcceptanceService,
     ) {}
 
     /**
@@ -121,7 +123,7 @@ class RorDiscoveryService
      * Uses a database transaction with row-level locking to prevent race conditions
      * when multiple curators accept suggestions concurrently.
      *
-     * @return array{success: bool, synced_dois: array<int, string>, message: string, replaced_identifier: string|null}
+     * @return array{success: bool, synced_dois: array<int, string>, message: string, replaced_identifier: string|null, bulk_affiliation_match?: array{available: bool, count: int, bulk_token: string, creator_name: string, affiliation: string, suggested_ror_id: string}}
      */
     public function acceptRor(SuggestedRor $suggestion): array
     {
@@ -234,6 +236,7 @@ class RorDiscoveryService
 
         // Sync affected resources with DataCite (outside transaction)
         $syncedDois = $this->syncResourcesForEntity($suggestion);
+        $bulkAffiliationMatch = $this->affiliationBulkAcceptanceService->createPreviewForAcceptedSuggestion($suggestion);
         $this->invalidateAssistanceCache();
 
         $syncCount = count($syncedDois);
@@ -241,12 +244,28 @@ class RorDiscoveryService
             ? "ROR-ID accepted. {$syncCount} resource(s) synced with DataCite."
             : 'ROR-ID accepted. No resources required DataCite sync.';
 
-        return [
+        $response = [
             'success' => true,
             'synced_dois' => $syncedDois,
             'message' => $message,
             'replaced_identifier' => $replacedIdentifier,
         ];
+
+        if ($bulkAffiliationMatch !== null) {
+            $response['bulk_affiliation_match'] = $bulkAffiliationMatch;
+        }
+
+        return $response;
+    }
+
+    /**
+     * Accept further creator-affiliation ROR matches captured by a preview token.
+     *
+     * @return array{success: bool, accepted_count: int, skipped_count: int, synced_dois: array<int, string>, message: string, retryable?: bool}
+     */
+    public function acceptMatchingAffiliationRors(string $bulkToken): array
+    {
+        return $this->affiliationBulkAcceptanceService->acceptByToken($bulkToken);
     }
 
     /**
@@ -278,9 +297,9 @@ class RorDiscoveryService
     /**
      * Build the base affiliation query for entities without a ROR identifier.
      *
-     * @return \Illuminate\Database\Eloquent\Builder<Affiliation>
+     * @return Builder<Affiliation>
      */
-    private function buildAffiliationWithoutRorQuery(): \Illuminate\Database\Eloquent\Builder
+    private function buildAffiliationWithoutRorQuery(): Builder
     {
         return Affiliation::where(function ($q): void {
             $q->whereNull('identifier_scheme')
@@ -300,9 +319,9 @@ class RorDiscoveryService
     /**
      * Build the base institution query for entities without a ROR identifier.
      *
-     * @return \Illuminate\Database\Eloquent\Builder<Institution>
+     * @return Builder<Institution>
      */
-    private function buildInstitutionWithoutRorQuery(): \Illuminate\Database\Eloquent\Builder
+    private function buildInstitutionWithoutRorQuery(): Builder
     {
         return Institution::where(function ($q): void {
             $q->whereNull('name_identifier_scheme')
@@ -344,9 +363,9 @@ class RorDiscoveryService
     /**
      * Build the base funder query for entities without a ROR identifier.
      *
-     * @return \Illuminate\Database\Eloquent\Builder<FundingReference>
+     * @return Builder<FundingReference>
      */
-    private function buildFunderWithoutRorQuery(): \Illuminate\Database\Eloquent\Builder
+    private function buildFunderWithoutRorQuery(): Builder
     {
         $hasDoi = fn ($q) => $q->whereNotNull('doi')->where('doi', '!=', '');
         $rorTypeId = FunderIdentifierType::where('slug', 'ROR')->value('id');
@@ -470,7 +489,9 @@ class RorDiscoveryService
      *
      * @param  array<int, Affiliation>  $batch
      * @param  array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  &$pendingChunk
+     *
      * @param-out array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  $pendingChunk
+     *
      * @return \Generator<int, array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>>
      */
     private function resolveAffiliationBatch(array $batch, array &$pendingChunk): \Generator
@@ -519,9 +540,10 @@ class RorDiscoveryService
      * Resolve a batch of institutions into entity arrays, yielding full chunks immediately.
      *
      * @param  array<int, Institution>  $batch
-     * @param  \Closure  $hasDoi
      * @param  array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  &$pendingChunk
+     *
      * @param-out array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>  $pendingChunk
+     *
      * @return \Generator<int, array<int, array{entity_type: string, entity_id: int, entity_name: string, resource_id: int, existing_identifier: string|null, existing_identifier_type: string|null}>>
      */
     private function resolveInstitutionBatch(array $batch, \Closure $hasDoi, array &$pendingChunk): \Generator

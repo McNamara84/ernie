@@ -3,12 +3,14 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { isRepositoryCurationRelatedIdentifier } from '@/lib/related-identifier-provenance';
+import { cn } from '@/lib/utils';
 import type { LandingPageRelatedIdentifier, LandingPageRelatedItem, LandingPageResource } from '@/types/landing-page';
 
 import { normalizeDoiKey, resolveIdentifierUrl } from '../lib/resolveIdentifierUrl';
 import { LandingPageCard } from './LandingPageCard';
 
-const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then(m => ({ default: m.RelationBrowserModal })));
+const RelationBrowserModal = lazy(() => import('./RelationBrowserModal').then((m) => ({ default: m.RelationBrowserModal })));
 
 interface RelatedWorkSectionProps {
     relatedIdentifiers: LandingPageRelatedIdentifier[];
@@ -48,6 +50,31 @@ function getRelatedIdentifierLabel(relatedIdentifier: LandingPageRelatedIdentifi
 /** Number of renderable relations before collapsing on mobile */
 const COLLAPSE_THRESHOLD = 9;
 
+function groupRelatedIdentifiersByType(relations: LandingPageRelatedIdentifier[]): Record<string, LandingPageRelatedIdentifier[]> {
+    return relations.reduce(
+        (acc, rel) => {
+            if (!acc[rel.relation_type]) {
+                acc[rel.relation_type] = [];
+            }
+            acc[rel.relation_type].push(rel);
+            return acc;
+        },
+        {} as Record<string, LandingPageRelatedIdentifier[]>,
+    );
+}
+
+function hasResolvableIdentifier(rel: LandingPageRelatedIdentifier): boolean {
+    return resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null;
+}
+
+function getRelatedIdentifierLinkClassName(rel: LandingPageRelatedIdentifier): string {
+    return cn(
+        'group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50',
+        isRepositoryCurationRelatedIdentifier(rel) &&
+            'border-cyan-200 bg-cyan-50/70 text-cyan-950 hover:border-cyan-300 hover:bg-cyan-100/80 dark:border-cyan-800 dark:bg-cyan-950/20 dark:text-cyan-100 dark:hover:border-cyan-700 dark:hover:bg-cyan-950/40',
+    );
+}
+
 /**
  * Related Work Section
  *
@@ -69,24 +96,21 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
         });
     }, [relatedIdentifiers]);
 
-    // Group by RelationType
-    const groupedByType = useMemo(
-        () =>
-            filteredRelations.reduce(
-                (acc, rel) => {
-                    if (!acc[rel.relation_type]) {
-                        acc[rel.relation_type] = [];
-                    }
-                    acc[rel.relation_type].push(rel);
-                    return acc;
-                },
-                {} as Record<string, LandingPageRelatedIdentifier[]>,
-            ),
-        [filteredRelations],
-    );
+    const initialRelations = useMemo(() => filteredRelations.filter((rel) => !isRepositoryCurationRelatedIdentifier(rel)), [filteredRelations]);
+
+    const repositoryCurationRelations = useMemo(() => filteredRelations.filter(isRepositoryCurationRelatedIdentifier), [filteredRelations]);
+
+    const groupedByType = useMemo(() => groupRelatedIdentifiersByType(initialRelations), [initialRelations]);
+    const groupedRepositoryCurationByType = useMemo(() => groupRelatedIdentifiersByType(repositoryCurationRelations), [repositoryCurationRelations]);
 
     // Sort groups alphabetically
     const sortedTypes = useMemo(() => Object.keys(groupedByType).sort(), [groupedByType]);
+    const sortedRepositoryCurationTypes = useMemo(() => Object.keys(groupedRepositoryCurationByType).sort(), [groupedRepositoryCurationByType]);
+
+    const hasRenderableRepositoryCurationRelations = useMemo(
+        () => repositoryCurationRelations.some(hasResolvableIdentifier),
+        [repositoryCurationRelations],
+    );
 
     // Provide persisted citation texts for the relation browser.
     const citationTexts = useMemo(() => {
@@ -108,37 +132,37 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
 
     // Only render if at least one relation has a resolvable URL
     const renderableRelations = useMemo(
-        () => filteredRelations.filter(
-            (rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null,
-        ),
+        () => filteredRelations.filter((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null),
         [filteredRelations],
     );
 
     // IDs of items that should be hidden on mobile when collapsed (beyond threshold).
-    // Computed in the same order items are rendered: alphabetically by relation type group,
-    // then by item order within each group — so the first N visible items match what the user sees.
+    // Computed in rendered order: initial metadata groups first, then repository-curated groups.
     const hiddenItemIds = useMemo(() => {
         if (expanded) {
             return new Set<number>();
         }
 
-        // Build a flat list of renderable IDs in rendered order (grouped + sorted)
         const orderedIds: number[] = [];
-        for (const relationType of sortedTypes) {
-            const items = groupedByType[relationType];
-            for (const rel of items) {
-                if (resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null) {
-                    orderedIds.push(rel.id);
+        const appendRenderableIds = (relationTypes: string[], groups: Record<string, LandingPageRelatedIdentifier[]>) => {
+            for (const relationType of relationTypes) {
+                const items = groups[relationType];
+                for (const rel of items) {
+                    if (hasResolvableIdentifier(rel)) {
+                        orderedIds.push(rel.id);
+                    }
                 }
             }
-        }
+        };
+
+        appendRenderableIds(sortedTypes, groupedByType);
+        appendRenderableIds(sortedRepositoryCurationTypes, groupedRepositoryCurationByType);
 
         if (orderedIds.length <= COLLAPSE_THRESHOLD) {
             return new Set<number>();
         }
         return new Set(orderedIds.slice(COLLAPSE_THRESHOLD));
-    }, [sortedTypes, groupedByType, expanded]);
-
+    }, [sortedTypes, groupedByType, sortedRepositoryCurationTypes, groupedRepositoryCurationByType, expanded]);
     if (renderableRelations.length === 0 && relatedItems.length === 0) {
         return null;
     }
@@ -146,12 +170,11 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
     const shouldCollapse = renderableRelations.length > COLLAPSE_THRESHOLD;
 
     return (
-        <LandingPageCard
-            aria-labelledby="heading-related-work"
-            data-testid="related-works-section"
-        >
+        <LandingPageCard aria-labelledby="heading-related-work" data-testid="related-works-section">
             <div className="mb-4 flex items-center justify-between">
-                <h2 id="heading-related-work" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Related Work</h2>
+                <h2 id="heading-related-work" className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    Related Work
+                </h2>
                 <Button
                     variant="ghost"
                     size="icon-sm"
@@ -166,25 +189,18 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                 </Button>
             </div>
 
-            <div
-                id="related-work-list"
-                className="space-y-6"
-                data-testid="related-works-list"
-                aria-live="polite"
-            >
+            <div id="related-work-list" className="space-y-6" data-testid="related-works-list" aria-live="polite">
                 {sortedTypes.map((relationType) => {
                     // Skip groups where no item resolves to a valid URL
                     const items = groupedByType[relationType];
-                    const hasRenderableItems = items.some((rel) => resolveIdentifierUrl(rel.identifier, rel.identifier_type) !== null);
+                    const hasRenderableItems = items.some(hasResolvableIdentifier);
 
                     if (!hasRenderableItems) {
                         return null;
                     }
 
                     // If all renderable items in this group are hidden, hide the group heading on mobile too
-                    const allItemsHidden = items.every(
-                        (rel) => !resolveIdentifierUrl(rel.identifier, rel.identifier_type) || hiddenItemIds.has(rel.id),
-                    );
+                    const allItemsHidden = items.every((rel) => !hasResolvableIdentifier(rel) || hiddenItemIds.has(rel.id));
 
                     return (
                         <div key={relationType} className={allItemsHidden ? 'hidden md:block' : ''}>
@@ -205,9 +221,12 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                                                 href={url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50"
+                                                className={getRelatedIdentifierLinkClassName(rel)}
                                             >
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                                                <ExternalLink
+                                                    className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
+                                                    aria-hidden="true"
+                                                />
                                                 <span className="flex-1">{getRelatedIdentifierLabel(rel)}</span>
                                             </a>
                                         </li>
@@ -218,11 +237,65 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                     );
                 })}
 
+                {hasRenderableRepositoryCurationRelations && (
+                    <div data-testid="repository-curation-related-identifiers">
+                        <h3 className="mb-3 text-sm font-semibold text-cyan-900 dark:text-cyan-100">Added by repository curation</h3>
+                        <div className="space-y-4">
+                            {sortedRepositoryCurationTypes.map((relationType) => {
+                                const items = groupedRepositoryCurationByType[relationType];
+                                const hasRenderableItems = items.some(hasResolvableIdentifier);
+
+                                if (!hasRenderableItems) {
+                                    return null;
+                                }
+
+                                const allItemsHidden = items.every((rel) => !hasResolvableIdentifier(rel) || hiddenItemIds.has(rel.id));
+
+                                return (
+                                    <div key={`repository-curation-${relationType}`} className={allItemsHidden ? 'hidden md:block' : ''}>
+                                        <h4 className="mb-2 text-xs font-semibold text-cyan-800 uppercase dark:text-cyan-200">
+                                            {formatRelationType(relationType)}
+                                        </h4>
+                                        <ul className="space-y-2">
+                                            {items.map((rel) => {
+                                                const url = resolveIdentifierUrl(rel.identifier, rel.identifier_type);
+
+                                                if (!url) {
+                                                    return null;
+                                                }
+
+                                                const isHiddenOnMobile = hiddenItemIds.has(rel.id);
+
+                                                return (
+                                                    <li key={rel.id} className={isHiddenOnMobile ? 'collapsible-print-only hidden md:list-item' : ''}>
+                                                        <a
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className={getRelatedIdentifierLinkClassName(rel)}
+                                                        >
+                                                            <ExternalLink
+                                                                className="mt-0.5 h-4 w-4 shrink-0 text-cyan-500 transition-colors group-hover:text-cyan-700 dark:text-cyan-300 dark:group-hover:text-cyan-100"
+                                                                aria-hidden="true"
+                                                            />
+                                                            <span className="flex-1">{getRelatedIdentifierLabel(rel)}</span>
+                                                        </a>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 {relatedItems.length > 0 && (
                     <div data-testid="related-items-list">
                         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Citations
-                            <Badge variant="secondary" className="gap-1 text-[10px] font-normal uppercase tracking-wide">
+                            <Badge variant="secondary" className="gap-1 text-[10px] font-normal tracking-wide uppercase">
                                 <Quote className="h-3 w-3" aria-hidden="true" />
                                 Inline metadata
                             </Badge>
@@ -231,14 +304,12 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
                             {[...relatedItems]
                                 .sort((a, b) => a.position - b.position)
                                 .map((item) => {
-                                    const mainTitle =
-                                        item.titles.find((t) => t.title_type === 'MainTitle')?.title ?? item.titles[0]?.title ?? '';
+                                    const mainTitle = item.titles.find((t) => t.title_type === 'MainTitle')?.title ?? item.titles[0]?.title ?? '';
                                     // Only resolve when a type is set: defaulting to 'DOI'
                                     // would generate bogus doi.org links for URL/Handle/etc.
                                     // identifiers if a legacy record ever lacked a type.
-                                    const url = item.identifier && item.identifier_type
-                                        ? resolveIdentifierUrl(item.identifier, item.identifier_type)
-                                        : null;
+                                    const url =
+                                        item.identifier && item.identifier_type ? resolveIdentifierUrl(item.identifier, item.identifier_type) : null;
                                     const authorList = item.creators
                                         .map((c) => c.family_name || c.name)
                                         .filter(Boolean)
@@ -257,15 +328,19 @@ export function RelatedWorkSection({ relatedIdentifiers, relatedItems = [], reso
 
                                     const content = (
                                         <div className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-700/50">
-                                            <Quote className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                                            <Quote
+                                                className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
+                                                aria-hidden="true"
+                                            />
                                             <div className="flex-1">
                                                 <div className="font-medium">{mainTitle}</div>
-                                                {descriptor && (
-                                                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{descriptor}</div>
-                                                )}
+                                                {descriptor && <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{descriptor}</div>}
                                             </div>
                                             {url && (
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" aria-hidden="true" />
+                                                <ExternalLink
+                                                    className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300"
+                                                    aria-hidden="true"
+                                                />
                                             )}
                                         </div>
                                     );
