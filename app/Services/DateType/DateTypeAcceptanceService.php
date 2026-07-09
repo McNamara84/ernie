@@ -17,7 +17,7 @@ final class DateTypeAcceptanceService
             return $this->acceptCollectedCoverageCorrection($suggestion);
         }
 
-        if ($suggestion->target_type !== 'date_type') {
+        if (! DateTypeDiscoveryService::isDateTypeTargetType($suggestion->target_type)) {
             return [
                 'success' => false,
                 'message' => 'Unknown suggestion type.',

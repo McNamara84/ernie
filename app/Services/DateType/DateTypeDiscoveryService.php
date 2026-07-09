@@ -27,6 +27,17 @@ final class DateTypeDiscoveryService
         private readonly DateTypePlausibilityService $plausibilityService,
     ) {}
 
+    public static function targetTypeForDateType(string $dateType): string
+    {
+        return self::TARGET_TYPE.':'.$dateType;
+    }
+
+    public static function isDateTypeTargetType(string $targetType): bool
+    {
+        return $targetType === self::TARGET_TYPE
+            || str_starts_with($targetType, self::TARGET_TYPE.':');
+    }
+
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
      * @param  Closure(string): void  $onProgress
@@ -148,7 +159,7 @@ final class DateTypeDiscoveryService
 
             $stored = $storeSuggestion(
                 $resource->id,
-                self::TARGET_TYPE,
+                self::targetTypeForDateType($type),
                 $resource->id,
                 $suggestedValue,
                 strtoupper($type).': '.$suggestedValue,
