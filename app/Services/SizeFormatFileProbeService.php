@@ -969,7 +969,10 @@ class SizeFormatFileProbeService
             return $this->skip($sourceUrl, 'zip_unreadable');
         }
 
-        $formats = [];
+        /** @var array<string, int> $formatCounts */
+        $formatCounts = [];
+        /** @var array<string, array{filename: string, extension: string}> $formatFirstEntries */
+        $formatFirstEntries = [];
         $eligibleEntryCount = 0;
         $parsedSizeCount = 0;
         $skippedEntryCount = 0;
@@ -1011,6 +1014,11 @@ class SizeFormatFileProbeService
 
                 if ($entrySize >= 0) {
                     $uncompressedBytes += (float) $entrySize;
+
+                    if (! is_finite($uncompressedBytes)) {
+                        return $this->skip($sourceUrl, 'zip_uncompressed_size_overflow');
+                    }
+
                     $parsedSizeCount++;
                 } else {
                     $skippedEntryCount++;
@@ -1028,10 +1036,15 @@ class SizeFormatFileProbeService
                     continue;
                 }
 
-                $formats[$mimeType][] = [
-                    'filename' => $entryName,
-                    'extension' => $extension,
-                ];
+                if (! isset($formatCounts[$mimeType])) {
+                    $formatCounts[$mimeType] = 0;
+                    $formatFirstEntries[$mimeType] = [
+                        'filename' => $entryName,
+                        'extension' => $extension,
+                    ];
+                }
+
+                $formatCounts[$mimeType]++;
             }
         } finally {
             $zip->close();
@@ -1039,8 +1052,12 @@ class SizeFormatFileProbeService
 
         $suggestions = [];
 
-        foreach ($formats as $mimeType => $entries) {
-            $firstEntry = $entries[0];
+        foreach ($formatCounts as $mimeType => $entryCount) {
+            $firstEntry = $formatFirstEntries[$mimeType] ?? null;
+
+            if ($firstEntry === null) {
+                continue;
+            }
 
             $suggestions[] = [
                 'type' => 'format',
@@ -1052,7 +1069,7 @@ class SizeFormatFileProbeService
                     'filename' => $firstEntry['filename'],
                     'extension' => $firstEntry['extension'],
                     'mime_type' => $mimeType,
-                    'entry_count_for_format' => count($entries),
+                    'entry_count_for_format' => $entryCount,
                     'total_file_count' => $eligibleEntryCount,
                 ],
                 'confidence' => 'medium',
