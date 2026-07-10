@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\AssistantDismissed;
 use App\Models\AssistantSuggestion;
 use App\Models\Resource;
@@ -19,13 +20,13 @@ class TestGenericAssistant extends GenericTableAssistant
 
     private ?Closure $discoverCallback = null;
 
-    #[\Override]
+    #[Override]
     protected function getManifestPath(): string
     {
         return base_path('modules/assistants/RelationSuggestion/manifest.json');
     }
 
-    #[\Override]
+    #[Override]
     protected function discover(Closure $onProgress): int
     {
         if ($this->discoverCallback !== null) {
@@ -35,7 +36,7 @@ class TestGenericAssistant extends GenericTableAssistant
         return $this->discoverResult;
     }
 
-    #[\Override]
+    #[Override]
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
         return ['success' => true, 'message' => 'Applied test suggestion.'];
@@ -74,7 +75,7 @@ class TestGenericAssistant extends GenericTableAssistant
 describe('storeSuggestion', function () {
     it('stores a new suggestion', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         $stored = $assistant->storeSuggestion(
             resourceId: $resource->id,
@@ -93,7 +94,7 @@ describe('storeSuggestion', function () {
 
     it('skips duplicate suggestions', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         $first = $assistant->storeSuggestion(
             resourceId: $resource->id,
@@ -124,7 +125,7 @@ describe('storeSuggestion', function () {
 
     it('does not update existing suggestion when duplicate is stored', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         $assistant->storeSuggestion(
             resourceId: $resource->id,
@@ -157,7 +158,7 @@ describe('storeSuggestion', function () {
     it('skips previously dismissed suggestions', function () {
         $resource = Resource::factory()->create();
         $user = User::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         // Pre-dismiss the suggestion
         AssistantDismissed::create([
@@ -184,7 +185,7 @@ describe('storeSuggestion', function () {
 
     it('stores with metadata', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         $assistant->storeSuggestion(
             resourceId: $resource->id,
@@ -208,7 +209,7 @@ describe('storeSuggestion', function () {
 describe('countPending', function () {
     it('counts suggestions for this assistant only', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -241,7 +242,7 @@ describe('countPending', function () {
 describe('loadSuggestions', function () {
     it('returns paginated and transformed suggestions', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -310,7 +311,7 @@ describe('loadSuggestions', function () {
 describe('acceptSuggestion', function () {
     it('applies and deletes the accepted suggestion', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         $suggestion = AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -329,7 +330,7 @@ describe('acceptSuggestion', function () {
     });
 
     it('returns failure for non-existent suggestion', function () {
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
         $result = $assistant->acceptSuggestion(9999);
 
         expect($result['success'])->toBeFalse();
@@ -337,9 +338,9 @@ describe('acceptSuggestion', function () {
 
     it('invalidates total pending count cache', function () {
         $resource = Resource::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
-        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $cacheEnum = CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
         $cacheKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($cacheKey, 5, now()->addHour());
@@ -364,7 +365,7 @@ describe('declineSuggestion', function () {
     it('creates dismissed record and deletes suggestion', function () {
         $resource = Resource::factory()->create();
         $user = User::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
         $suggestion = AssistantSuggestion::create([
             'assistant_id' => $assistant->getId(),
@@ -394,9 +395,9 @@ describe('declineSuggestion', function () {
     it('invalidates total pending count cache', function () {
         $resource = Resource::factory()->create();
         $user = User::factory()->create();
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
 
-        $cacheEnum = \App\Enums\CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
+        $cacheEnum = CacheKey::ASSISTANCE_TOTAL_PENDING_COUNT;
         $cacheKey = $cacheEnum->key();
         $tags = $cacheEnum->tags();
         Cache::tags($tags)->put($cacheKey, 5, now()->addHour());
@@ -423,7 +424,7 @@ describe('declineSuggestion', function () {
 
 describe('runDiscovery', function () {
     it('delegates to discover() method', function () {
-        $assistant = new TestGenericAssistant();
+        $assistant = new TestGenericAssistant;
         $assistant->setDiscoverResult(7);
 
         $progressMessages = [];

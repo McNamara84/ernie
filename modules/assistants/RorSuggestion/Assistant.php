@@ -29,7 +29,7 @@ class Assistant extends AbstractAssistant
     #[\Override]
     protected function getManifestPath(): string
     {
-        return __DIR__ . '/manifest.json';
+        return __DIR__.'/manifest.json';
     }
 
     #[\Override]
