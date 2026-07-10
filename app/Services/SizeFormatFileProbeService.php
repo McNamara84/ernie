@@ -17,6 +17,8 @@ class SizeFormatFileProbeService
 
     private const MAX_ZIP_DOWNLOAD_BYTES = 1073741824;
 
+    private const MAX_ZIP_ENTRY_COUNT = 10000;
+
     private const ALLOWED_DOWNLOAD_HOSTS = [
         'datapub.gfz.de',
         'datapub.gfz-potsdam.de',
@@ -910,6 +912,7 @@ class SizeFormatFileProbeService
     {
         $response = Http::timeout(60)
             ->connectTimeout(5)
+            ->withoutRedirecting()
             ->withOptions([
                 'sink' => $temporaryPath,
                 'progress' => function (mixed $downloadTotal, mixed $downloadedBytes, mixed $uploadTotal = null, mixed $uploadedBytes = null): void {
@@ -955,6 +958,12 @@ class SizeFormatFileProbeService
         $skippedEntryCount = 0;
         $uncompressedBytes = 0.0;
         $rawEntryCount = $zip->numFiles;
+
+        if ($rawEntryCount > self::MAX_ZIP_ENTRY_COUNT) {
+            $zip->close();
+
+            return $this->skip($sourceUrl, 'zip_entry_count_exceeded');
+        }
 
         try {
             for ($index = 0; $index < $zip->numFiles; $index++) {

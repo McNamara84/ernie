@@ -11,16 +11,48 @@ covers(SizeFormatFileProbeService::class);
 function sizeFormatProbeZipData(array $files): string
 {
     $temporaryPath = tempnam(sys_get_temp_dir(), 'size-format-zip-test-');
-    $zip = new ZipArchive;
-    $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
-    foreach ($files as $filename => $contents) {
-        $zip->addFromString((string) $filename, (string) $contents);
+    if ($temporaryPath === false) {
+        throw new RuntimeException('Could not create temporary ZIP test file.');
     }
 
-    $zip->close();
-    $zipData = file_get_contents($temporaryPath);
-    unlink($temporaryPath);
+    $zip = new ZipArchive;
+    $openResult = $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+    if ($openResult !== true) {
+        @unlink($temporaryPath);
+
+        throw new RuntimeException('Could not open temporary ZIP test file. ZipArchive::open returned '.var_export($openResult, true).'.');
+    }
+
+    $zipClosed = false;
+    $zipData = false;
+
+    try {
+        foreach ($files as $filename => $contents) {
+            $added = $zip->addFromString((string) $filename, (string) $contents);
+
+            if ($added === false) {
+                throw new RuntimeException('Could not add ZIP test entry: '.(string) $filename);
+            }
+        }
+
+        $zipClosed = $zip->close();
+
+        if ($zipClosed === false) {
+            throw new RuntimeException('Could not finish ZIP test data.');
+        }
+
+        $zipData = file_get_contents($temporaryPath);
+    } finally {
+        if (! $zipClosed) {
+            @$zip->close();
+        }
+
+        if (is_file($temporaryPath)) {
+            @unlink($temporaryPath);
+        }
+    }
 
     if ($zipData === false) {
         throw new RuntimeException('Could not read generated ZIP test data.');
@@ -441,6 +473,78 @@ it('matches the Stepanov ZIP directory listing example from datapub', function (
         ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(15)
         ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
         ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(15);
+
+    Http::assertSentCount(2);
+});
+
+it('does not follow redirects while downloading ZIP contents', function () {
+    Http::fake(function (Request $request) {
+        if ($request->url() === 'https://datapub.gfz.de/download/redirect.zip' && $request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => '2048',
+            ]);
+        }
+
+        if ($request->url() === 'https://datapub.gfz.de/download/redirect.zip' && $request->method() === 'GET') {
+            return Http::response('', 302, [
+                'Location' => 'https://example.org/redirected.zip',
+            ]);
+        }
+
+        return Http::response(sizeFormatProbeZipData(['redirected/data.csv' => 'csv']), 200, [
+            'Content-Type' => 'application/zip',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/redirect.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ]);
+
+    Http::assertSentCount(2);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
+});
+
+it('falls back to ZIP container metadata when the entry count exceeds the inspection cap', function () {
+    $entryLimit = (int) (new ReflectionClass(SizeFormatFileProbeService::class))->getConstant('MAX_ZIP_ENTRY_COUNT');
+    $files = [];
+
+    for ($index = 0; $index <= $entryLimit; $index++) {
+        $files['entries/'.str_pad((string) $index, 5, '0', STR_PAD_LEFT).'.csv'] = '';
+    }
+
+    $zipData = sizeFormatProbeZipData($files);
+
+    Http::fake(function (Request $request) use ($zipData) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) strlen($zipData),
+            ]);
+        }
+
+        return Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/many-entries.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ])
+        ->and(array_column($result['suggestions'], 'inferred_value'))->not->toContain('text/csv');
 
     Http::assertSentCount(2);
 });
