@@ -155,6 +155,7 @@ class StoreDraftResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
             'relatedIdentifiers' => ['nullable', 'array'],
+            'relatedIdentifiers.*.id' => ['nullable', 'integer', 'min:1'],
             'relatedIdentifiers.*.identifier' => ['required', 'string', 'max:2183'],
             'relatedIdentifiers.*.identifierType' => [
                 'required',
@@ -180,6 +181,7 @@ class StoreDraftResourceRequest extends FormRequest
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
+            'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in([RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT])],
             'fundingReferences' => ['nullable', 'array', 'max:99'],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
@@ -734,12 +736,20 @@ class StoreDraftResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['citationLabel'])
                 : '';
 
+            $id = $this->normalizeRelatedIdentifierId($relatedIdentifier['id'] ?? null);
+
+            $source = isset($relatedIdentifier['source']) && is_scalar($relatedIdentifier['source'])
+                ? trim((string) $relatedIdentifier['source'])
+                : '';
+
             $relatedIdentifiers[] = [
+                ...($id !== null ? ['id' => $id] : []),
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
                 ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
+                ...($source !== '' ? ['source' => $source] : []),
             ];
         }
 
@@ -1164,6 +1174,19 @@ class StoreDraftResourceRequest extends FormRequest
         $normalized = app(DoiSuggestionService::class)->normalizeDoi($input);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function normalizeRelatedIdentifierId(mixed $id): mixed
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $validatedId = filter_var($id, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        return $validatedId === false ? $id : $validatedId;
     }
 
     private function normalizeString(mixed $value): ?string

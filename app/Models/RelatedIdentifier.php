@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $relation_type_id
  * @property string|null $relation_type_information
  * @property string|null $citation_label
+ * @property string|null $source
  * @property string|null $resource_type_general
  * @property int $position
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -31,7 +32,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/relatedidentifier/
  */
-#[Fillable(['resource_id', 'identifier', 'identifier_type_id', 'relation_type_id', 'relation_type_information', 'citation_label', 'resource_type_general', 'position'])]
+#[Fillable(['resource_id', 'identifier', 'identifier_type_id', 'relation_type_id', 'relation_type_information', 'citation_label', 'source', 'resource_type_general', 'position'])]
 class RelatedIdentifier extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -44,6 +45,8 @@ class RelatedIdentifier extends Model
      * under utf8mb4 multibyte storage.
      */
     public const MAX_CITATION_LABEL_CHARACTERS = 65535;
+
+    public const SOURCE_RELATION_SUGGESTION_ASSISTANT = 'relation_suggestion_assistant';
 
     protected $casts = [
         'position' => 'integer',
@@ -91,6 +94,11 @@ class RelatedIdentifier extends Model
         'IsCollectedBy' => 'Collects',
         'Other' => 'Other',
     ];
+
+    public function isRepositoryCuration(): bool
+    {
+        return $this->source === self::SOURCE_RELATION_SUGGESTION_ASSISTANT;
+    }
 
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo

@@ -78,6 +78,33 @@ describe('Related Work Schemas', () => {
             expect(result.success).toBe(true);
         });
 
+        it('accepts repository curation provenance fields', () => {
+            const result = relatedIdentifierSchema.safeParse({
+                id: 1,
+                identifier: '10.5880/test',
+                identifier_type: 'DOI',
+                relation_type: 'Cites',
+                source: 'relation_suggestion_assistant',
+                is_repository_curation: true,
+            });
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(result.data.source).toBe('relation_suggestion_assistant');
+                expect(result.data.is_repository_curation).toBe(true);
+            }
+        });
+
+        it('rejects unknown related identifier source values', () => {
+            const result = relatedIdentifierSchema.safeParse({
+                identifier: '10.5880/test',
+                identifier_type: 'DOI',
+                relation_type: 'Cites',
+                source: 'manual',
+            });
+
+            expect(result.success).toBe(false);
+        });
         it('accepts relation_type_information field', () => {
             const result = relatedIdentifierSchema.safeParse({
                 identifier: '10.5880/test',

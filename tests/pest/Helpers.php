@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Assert;
+
+require_once __DIR__.'/Helpers/ZipFixture.php';
 
 /**
  * Helper function to extract XML upload data from session-based response.
@@ -45,12 +48,12 @@ TestResponse::macro('assertSessionDataPath', function (string $path, mixed $expe
 
     foreach ($keys as $key) {
         if (! is_array($value) || ! array_key_exists($key, $value)) {
-            PHPUnit\Framework\Assert::fail("Path '{$path}' not found in session data");
+            Assert::fail("Path '{$path}' not found in session data");
         }
         $value = $value[$key];
     }
 
-    PHPUnit\Framework\Assert::assertSame($expected, $value, "Session data at '{$path}' does not match expected value");
+    Assert::assertSame($expected, $value, "Session data at '{$path}' does not match expected value");
 
     return $this;
 });
@@ -87,10 +90,10 @@ TestResponse::macro('assertSessionDataCount', function (int $expected, string $p
     $value = $this->sessionData($path);
 
     if (! is_array($value) && ! ($value instanceof Countable)) {
-        PHPUnit\Framework\Assert::fail("Value at '{$path}' is not countable");
+        Assert::fail("Value at '{$path}' is not countable");
     }
 
-    PHPUnit\Framework\Assert::assertCount($expected, $value, "Session data at '{$path}' does not have expected count");
+    Assert::assertCount($expected, $value, "Session data at '{$path}' does not have expected count");
 
     return $this;
 });
@@ -105,13 +108,13 @@ TestResponse::macro('assertSessionData', function (array $expected) {
     // Use PHPUnit's assertArraySubset equivalent
     foreach ($expected as $key => $value) {
         if (! array_key_exists($key, $data)) {
-            PHPUnit\Framework\Assert::fail("Key '{$key}' not found in session data");
+            Assert::fail("Key '{$key}' not found in session data");
         }
 
         if (is_array($value)) {
             assertArraySubset($value, $data[$key]);
         } else {
-            PHPUnit\Framework\Assert::assertSame($value, $data[$key], "Value at key '{$key}' does not match");
+            Assert::assertSame($value, $data[$key], "Value at key '{$key}' does not match");
         }
     }
 
@@ -124,20 +127,20 @@ TestResponse::macro('assertSessionData', function (array $expected) {
 function assertArraySubset(array $expected, mixed $actual, string $path = ''): void
 {
     if (! is_array($actual)) {
-        PHPUnit\Framework\Assert::fail("Expected array at '{$path}' but got ".gettype($actual));
+        Assert::fail("Expected array at '{$path}' but got ".gettype($actual));
     }
 
     foreach ($expected as $key => $value) {
         $currentPath = $path === '' ? (string) $key : "{$path}.{$key}";
 
         if (! array_key_exists($key, $actual)) {
-            PHPUnit\Framework\Assert::fail("Key '{$currentPath}' not found");
+            Assert::fail("Key '{$currentPath}' not found");
         }
 
         if (is_array($value)) {
             assertArraySubset($value, $actual[$key], $currentPath);
         } else {
-            PHPUnit\Framework\Assert::assertSame($value, $actual[$key], "Value at '{$currentPath}' does not match");
+            Assert::assertSame($value, $actual[$key], "Value at '{$currentPath}' does not match");
         }
     }
 }

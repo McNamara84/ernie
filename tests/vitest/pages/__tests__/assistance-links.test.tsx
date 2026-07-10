@@ -1,6 +1,8 @@
+import { router } from '@inertiajs/react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+import { toast } from 'sonner';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render as renderWithProviders } from '@tests/vitest/utils/render';
@@ -48,6 +50,8 @@ vi.mock('axios', () => {
 });
 
 const mockedAxiosPost = axios.post as Mock;
+const mockedRouterReload = router.reload as Mock;
+const mockedToastWarning = toast.warning as Mock;
 
 // ── Import component under test (after mocks) ───────────────────────
 
@@ -73,9 +77,16 @@ const SUBJECT_METADATA_ASSISTANT_NAME = 'Subject Metadata Enrichment';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_ID = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ROUTE_PREFIX = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Suggestions';
+const BULK_TOKEN_MATCH = '00000000-0000-4000-8000-000000000955';
+const BULK_TOKEN_SINGULAR = '00000000-0000-4000-8000-000000000958';
+const BULK_TOKEN_RETRY = '00000000-0000-4000-8000-000000000957';
+const BULK_TOKEN_EXPIRED = '00000000-0000-4000-8000-000000000959';
+const BULK_TOKEN_DECLINE = '00000000-0000-4000-8000-000000000956';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
+    mockedRouterReload.mockReset();
+    mockedToastWarning.mockReset();
 });
 
 function makeOrcidSuggestion(overrides: Partial<SuggestedOrcidItem> = {}): SuggestedOrcidItem {
@@ -475,24 +486,25 @@ async function expectSizeFormatConfidenceTooltip(suggestion: BaseSuggestionItem,
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('Assistance resource header links', () => {
-    it('renders the resource DOI as a visible editor link', () => {
-        const suggestion = makeSizeFormatSuggestion();
+    it('keeps non-Size-and-Format resource headers linked to the editor', () => {
+        const suggestion = makeRorSuggestion();
 
         render(
             <AssistancePage
-                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
-                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
             />,
         );
 
-        const link = screen.getByRole('link', { name: '10.5880/test.2026.004' });
+        const link = screen.getByRole('link', { name: suggestion.resource_doi! });
 
-        expect(link).toHaveAttribute('href', '/editor?resourceId=40');
-        expect(link).toHaveAttribute('title', 'Open 10.5880/test.2026.004 in editor');
+        expect(link).toHaveAttribute('href', '/editor?resourceId=20');
+        expect(link).toHaveAttribute('title', 'Open 10.5880/test.2024.002 in editor');
         expect(link).toHaveClass('text-primary', 'underline');
+        expect(screen.getByText(/another resource/i)).toBeInTheDocument();
     });
 
-    it('links each resource group to its own editor target', () => {
+    it('links each Size and Format resource group DOI to its own DOI resolver target', () => {
         const suggestions = [
             makeSizeFormatSuggestion({
                 id: 41,
@@ -515,11 +527,17 @@ describe('Assistance resource header links', () => {
             />,
         );
 
-        expect(screen.getByRole('link', { name: '10.5880/test.2026.041' })).toHaveAttribute('href', '/editor?resourceId=41');
-        expect(screen.getByRole('link', { name: '10.5880/test.2026.042' })).toHaveAttribute('href', '/editor?resourceId=42');
+        expect(screen.getByRole('link', { name: '10.5880/test.2026.041' })).toHaveAttribute(
+            'href',
+            'https://doi.org/10.5880/test.2026.041',
+        );
+        expect(screen.getByRole('link', { name: '10.5880/test.2026.042' })).toHaveAttribute(
+            'href',
+            'https://doi.org/10.5880/test.2026.042',
+        );
     });
 
-    it('keeps the editor reachable with fallback labels when a suggestion has no DOI or title', () => {
+    it('renders fallback Size and Format header text without a link when a suggestion has no DOI or title', () => {
         const suggestion = makeSizeFormatSuggestion({
             resource_id: 99,
             resource_doi: undefined,
@@ -533,10 +551,8 @@ describe('Assistance resource header links', () => {
             />,
         );
 
-        const link = screen.getByRole('link', { name: 'Resource #99' });
-
-        expect(link).toHaveAttribute('href', '/editor?resourceId=99');
-        expect(link).toHaveAttribute('title', 'Open Resource #99 in editor');
+        expect(screen.queryByRole('link', { name: 'Resource #99' })).not.toBeInTheDocument();
+        expect(screen.getByText('Resource #99')).toBeInTheDocument();
         expect(screen.getByText(/Untitled/)).toBeInTheDocument();
     });
 
@@ -565,10 +581,9 @@ describe('Assistance resource header links', () => {
             />,
         );
 
-        const link = screen.getByRole('link', { name: '10.5880/promoted.2026.102' });
+        const doiLink = screen.getByRole('link', { name: '10.5880/promoted.2026.102' });
 
-        expect(link).toHaveAttribute('href', '/editor?resourceId=101');
-        expect(link).toHaveAttribute('title', 'Open 10.5880/promoted.2026.102 in editor');
+        expect(doiLink).toHaveAttribute('href', 'https://doi.org/10.5880/promoted.2026.102');
         expect(screen.getByText(/Promoted later title/)).toBeInTheDocument();
         expect(screen.getByText('2 suggestion(s)')).toBeInTheDocument();
         expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(2);
@@ -602,7 +617,7 @@ describe('Assistance resource header links', () => {
 
         const link = screen.getByRole('link', { name: '10.5880/original.2026.201' });
 
-        expect(link).toHaveAttribute('href', '/editor?resourceId=201');
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.5880/original.2026.201');
         expect(screen.getByText(/Original grouped title/)).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: '10.5880/conflict.2026.201' })).not.toBeInTheDocument();
         expect(screen.queryByText(/Conflicting grouped title/)).not.toBeInTheDocument();
@@ -838,6 +853,46 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         expect(screen.getByText('File format')).toBeInTheDocument();
         expect(screen.getByText('Suggested format: CSV file (text/csv)')).toBeInTheDocument();
         expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
+    });
+
+    it('renders ZIP content listing suggestions as normal content formats instead of ZIP archive package suggestions', async () => {
+        const suggestion = makeSizeFormatSuggestion({
+            target_type: 'format',
+            suggested_value: 'text/csv',
+            suggested_label: 'FORMAT: text/csv',
+            metadata: {
+                source_url: 'https://datapub.gfz.de/download/archive.zip',
+                probe_method: 'ZIP_CONTENT_LISTING',
+                confidence: 'medium',
+                evidence: {
+                    filename: 'data/table.csv',
+                    archive_filename: 'archive.zip',
+                },
+            },
+        });
+
+        renderSizeFormatPage(suggestion);
+        const user = userEvent.setup();
+
+        expect(screen.getByText('File format')).toBeInTheDocument();
+        expect(screen.getByText('Suggested format: CSV file (text/csv)')).toBeInTheDocument();
+        expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open source file' })).toHaveAttribute(
+            'href',
+            'https://datapub.gfz.de/download/archive.zip',
+        );
+        expect(screen.queryByText('Detected from file: data/table.csv')).not.toBeInTheDocument();
+
+        const summary = screen.getByText('Show details');
+        const details = summary.closest('details');
+
+        expect(details).not.toBeNull();
+
+        await user.click(summary);
+
+        expect(details).toHaveAttribute('open');
+        expect(details).toHaveTextContent('Read from ZIP contents');
+        expect(within(details as HTMLDetailsElement).getByText('data/table.csv')).toBeInTheDocument();
     });
 
     it('keeps the source visible and places method, file counts, evidence, and discovered date inside Show details', async () => {
@@ -1474,6 +1529,288 @@ describe('RorSuggestionCard – ROR link', () => {
 
         expect(screen.queryByRole('link', { name: 'https://ror.org/search' })).not.toBeInTheDocument();
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
+    });
+
+    it('reloads immediately after accepting a ROR suggestion without bulk matches', async () => {
+        const suggestion = makeRorSuggestion({ id: 954 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                message: 'ROR-ID accepted. No resources required DataCite sync.',
+                replaced_identifier: null,
+                synced_dois: [],
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/rors/954/accept');
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+
+    it('opens a bulk accept dialog after accepting a ROR affiliation suggestion with exact matches', async () => {
+        const suggestion = makeRorSuggestion({ id: 955 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'ROR-ID accepted. No resources required DataCite sync.',
+                    bulk_affiliation_match: {
+                        available: true,
+                        count: 2,
+                        bulk_token: BULK_TOKEN_MATCH,
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ Potsdam',
+                        suggested_ror_id: 'https://ror.org/04t3en479',
+                    },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    accepted_count: 2,
+                    skipped_count: 0,
+                    synced_dois: [],
+                    message: 'ROR-ID accepted for 2 further creator affiliations.',
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/rors/955/accept');
+        });
+
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent(
+            'There are 2 further creator affiliations with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for these affiliations as well?',
+        );
+        expect(mockedRouterReload).not.toHaveBeenCalled();
+
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: BULK_TOKEN_MATCH,
+            });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+        });
+    });
+
+    it('uses singular copy for one matching ROR creator affiliation', async () => {
+        const suggestion = makeRorSuggestion({ id: 958 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                message: 'ROR-ID accepted. No resources required DataCite sync.',
+                bulk_affiliation_match: {
+                    available: true,
+                    count: 1,
+                    bulk_token: BULK_TOKEN_SINGULAR,
+                    creator_name: 'Doe, Jane',
+                    affiliation: 'GFZ Potsdam',
+                    suggested_ror_id: 'https://ror.org/04t3en479',
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent(
+            'There is 1 further creator affiliation with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for this affiliation as well?',
+        );
+    });
+    it('keeps the bulk ROR dialog open so a failed request can be retried', async () => {
+        const suggestion = makeRorSuggestion({ id: 957 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'ROR-ID accepted. No resources required DataCite sync.',
+                    bulk_affiliation_match: {
+                        available: true,
+                        count: 1,
+                        bulk_token: BULK_TOKEN_RETRY,
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ Potsdam',
+                        suggested_ror_id: 'https://ror.org/04t3en479',
+                    },
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 500,
+                    data: {
+                        message: 'DataCite sync failed. Please try again.',
+                    },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    accepted_count: 0,
+                    skipped_count: 0,
+                    synced_dois: ['10.5880/test.2024.002'],
+                    message: 'ROR-ID acceptance was already applied for 1 further creator affiliation. DataCite sync has been retried.',
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: BULK_TOKEN_RETRY,
+            });
+            expect(mockedToastWarning).toHaveBeenCalledWith('DataCite sync failed. Please try again.');
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+        expect(mockedRouterReload).not.toHaveBeenCalled();
+
+        await waitFor(() => {
+            expect(within(dialog).getByRole('button', { name: 'Accept' })).not.toBeDisabled();
+        });
+
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(3, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: BULK_TOKEN_RETRY,
+            });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+
+    it('closes and reloads the bulk ROR dialog for non-retryable 422 responses', async () => {
+        const suggestion = makeRorSuggestion({ id: 959 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost
+            .mockResolvedValueOnce({
+                data: {
+                    success: true,
+                    message: 'ROR-ID accepted. No resources required DataCite sync.',
+                    bulk_affiliation_match: {
+                        available: true,
+                        count: 1,
+                        bulk_token: BULK_TOKEN_EXPIRED,
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ Potsdam',
+                        suggested_ror_id: 'https://ror.org/04t3en479',
+                    },
+                },
+            })
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Bulk ROR acceptance token is invalid or has expired.',
+                    },
+                },
+            });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Accept' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: BULK_TOKEN_EXPIRED,
+            });
+            expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+    });
+    it('declines the bulk ROR dialog without posting the token', async () => {
+        const suggestion = makeRorSuggestion({ id: 956 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                message: 'ROR-ID accepted. No resources required DataCite sync.',
+                bulk_affiliation_match: {
+                    available: true,
+                    count: 1,
+                    bulk_token: BULK_TOKEN_DECLINE,
+                    creator_name: 'Doe, Jane',
+                    affiliation: 'GFZ Potsdam',
+                    suggested_ror_id: 'https://ror.org/04t3en479',
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenCalledTimes(1);
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
     });
 });
 

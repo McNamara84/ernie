@@ -30,7 +30,8 @@ final class SizeFormatSuggestionDiscoveryService
         $total = (clone $query)->count();
 
         $query
-            ->withExists(['formats', 'sizes'])
+            ->with(['formats:id,resource_id,value'])
+            ->withExists(['sizes'])
             ->orderBy('id')
             ->chunkById(self::CHUNK_SIZE, function ($resources) use (&$count, &$processed, $total, $assistantId, $storeSuggestion, $onProgress): void {
                 /** @var iterable<int, Resource> $resources */
@@ -52,19 +53,12 @@ final class SizeFormatSuggestionDiscoveryService
     {
         $storedCount = 0;
         $suggestions = $this->lookupSizeFormats($resource);
-        $hasFormats = (bool) $resource->getAttribute('formats_exists');
+        $hasMeaningfulFormats = $this->hasMeaningfulFormats($resource);
+        $hasZipFormat = $this->hasZipFormat($resource);
         $hasSizes = (bool) $resource->getAttribute('sizes_exists');
 
         foreach ($suggestions as $suggestion) {
             $type = (string) ($suggestion['type'] ?? '');
-
-            if ($type === 'format' && $hasFormats) {
-                continue;
-            }
-
-            if ($type === 'size' && $hasSizes) {
-                continue;
-            }
 
             if (! in_array($type, ['format', 'size'], true)) {
                 continue;
@@ -77,6 +71,22 @@ final class SizeFormatSuggestionDiscoveryService
             };
 
             if ($suggestedValue === '') {
+                continue;
+            }
+
+            if ($type === 'format') {
+                $normalizedSuggestedValue = SizeFormatFormatNormalizerService::normalize($suggestedValue);
+
+                if ($hasMeaningfulFormats) {
+                    continue;
+                }
+
+                if ($normalizedSuggestedValue === 'application/zip' && $hasZipFormat) {
+                    continue;
+                }
+            }
+
+            if ($type === 'size' && $hasSizes) {
                 continue;
             }
 
@@ -114,7 +124,13 @@ final class SizeFormatSuggestionDiscoveryService
             ->whereDoesntHave('resourceType', fn (Builder $query): Builder => $query->where('slug', 'physical-object'))
             ->where(function (Builder $query): void {
                 $query->whereDoesntHave('formats')
-                    ->orWhereDoesntHave('sizes');
+                    ->orWhereDoesntHave('sizes')
+                    ->orWhere(function (Builder $query): void {
+                        $query->whereHas('formats')
+                            ->whereDoesntHave('formats', fn (Builder $query): Builder => $query
+                                ->whereRaw('LOWER(TRIM(value)) NOT IN (?, ?, ?)', ['application/zip', 'zip', '.zip'])
+                                ->whereRaw("REPLACE(LOWER(TRIM(value)), ' ', '') NOT LIKE ?", ['application/zip;%']));
+                    });
             });
 
         return $query;
@@ -138,6 +154,12 @@ final class SizeFormatSuggestionDiscoveryService
 
     private function extractFormatSuggestionValue(array $suggestion): string
     {
+        $rawValue = trim((string) ($suggestion['inferred_value'] ?? ''));
+
+        if ($rawValue !== '') {
+            return $rawValue;
+        }
+
         $evidence = $suggestion['evidence'] ?? null;
         if (is_array($evidence) && isset($evidence['extension']) && is_string($evidence['extension']) && trim($evidence['extension']) !== '') {
             return trim($evidence['extension']);
@@ -147,20 +169,29 @@ final class SizeFormatSuggestionDiscoveryService
         $path = (string) parse_url($sourceUrl, PHP_URL_PATH);
         $filename = basename($path !== '' ? $path : $sourceUrl);
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if ($extension !== '') {
-            return $extension;
-        }
 
-        $rawValue = trim((string) ($suggestion['inferred_value'] ?? ''));
-        if ($rawValue === '') {
-            return '';
-        }
+        return $extension;
+    }
 
-        if (! str_contains($rawValue, '/')) {
-            return $rawValue;
-        }
+    private function hasMeaningfulFormats(Resource $resource): bool
+    {
+        return $resource->formats->contains(function ($format): bool {
+            $normalizedValue = $this->normalizedFormatValue($format->value ?? null);
 
-        return trim((string) array_reverse(explode('/', $rawValue))[0]);
+            return $normalizedValue !== '' && $normalizedValue !== 'application/zip';
+        });
+    }
+
+    private function hasZipFormat(Resource $resource): bool
+    {
+        return $resource->formats->contains(
+            fn ($format): bool => $this->normalizedFormatValue($format->value ?? null) === 'application/zip'
+        );
+    }
+
+    private function normalizedFormatValue(mixed $value): string
+    {
+        return is_string($value) ? SizeFormatFormatNormalizerService::normalize($value) : '';
     }
 
     private function confidenceToScore(mixed $confidence): ?float
