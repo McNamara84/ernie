@@ -163,12 +163,12 @@
     "lightningcss-linux-x64-gnu": "^1.32.0"
   },
   "allowScripts": {
-    "msw@2.14.6": true,
     "core-js-pure@3.49.0": true,
     "tree-sitter@0.21.1": true,
     "tree-sitter@0.22.4": true,
     "tree-sitter-json@0.24.8": true,
     "@tree-sitter-grammars/tree-sitter-yaml@0.7.1": true,
-    "@scarf/scarf@1.4.0": false
+    "@scarf/scarf@1.4.0": false,
+    "msw@2.15.0": true
   }
 }

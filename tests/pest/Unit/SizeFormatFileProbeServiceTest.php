@@ -6,7 +6,33 @@ use App\Services\SizeFormatFileProbeService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
+use function Tests\Helpers\sizeFormatZipFixtureData;
+
 covers(SizeFormatFileProbeService::class);
+
+function sizeFormatProbeStepanovZipFiles(): array
+{
+    $base = '2026-067_Stepanov-et-al_data';
+    $csvBase = $base.'/2026-067_Stepanov-et-al_data_csv';
+
+    return [
+        $base.'/2026-067_Stepanov-et-al_1_Re-Os-isotope-data-ingot.xlsx' => str_repeat('x', 24000),
+        $base.'/2026-067_Stepanov-et-al_2_Re-Os-isotope-data-powder.xlsx' => str_repeat('x', 22000),
+        $base.'/2026-067_Stepanov-et-al_3_Re-Os-isotope-data-reference-material.xlsx' => str_repeat('x', 21000),
+        $base.'/2026-067_Stepanov-et-al_4_Major-elements.xlsx' => str_repeat('x', 20500),
+        $base.'/2026-067_Stepanov-et-al_5_Trace-elements.xlsx' => str_repeat('x', 19500),
+        $base.'/2026-067_Stepanov-et-al_6_Rhenium-Osmium.xlsx' => str_repeat('x', 18000),
+        $base.'/2026-067_Stepanov-et-al_7_Sample-list.xlsx' => str_repeat('x', 17000),
+        $base.'/2026-067_Stepanov-et-al_8_Metadata.xlsx' => str_repeat('x', 16000),
+        $base.'/2026-067_Stepanov-et-al_9_Readme.xlsx' => str_repeat('x', 15000),
+        $csvBase.'/2026-067_Stepanov-et-al_1_Re-Os-isotope-data-ingot.csv' => str_repeat('c', 30000),
+        $csvBase.'/2026-067_Stepanov-et-al_2_Re-Os-isotope-data-powder.csv' => str_repeat('c', 29000),
+        $csvBase.'/2026-067_Stepanov-et-al_3_Re-Os-isotope-data-reference-material.csv' => str_repeat('c', 28500),
+        $csvBase.'/2026-067_Stepanov-et-al_4_Major-elements.csv' => str_repeat('c', 28000),
+        $csvBase.'/2026-067_Stepanov-et-al_5_Trace-elements.csv' => str_repeat('c', 27500),
+        $csvBase.'/2026-067_Stepanov-et-al_6_Rhenium-Osmium.csv' => str_repeat('c', 27055),
+    ];
+}
 
 it('explores nested directories and creates one total size suggestion', function () {
     Http::fake([
@@ -15,7 +41,7 @@ it('explores nested directories and creates one total size suggestion', function
             <a href="nested/">nested/</a>
             HTML),
         'https://datapub.gfz.de/download/dataset/nested/' => Http::response(<<<'HTML'
-            <a href="child.zip">child.zip</a> 2026-06-14 10:01 512K
+            <a href="child.txt">child.txt</a> 2026-06-14 10:01 512K
             <a href="deeper/">deeper/</a>
             <a href="../">Parent Directory</a>
             HTML),
@@ -207,7 +233,7 @@ it('keeps Apache listing files with unknown size for format and confidence evide
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
             <a href="known.csv">known.csv</a> 2026-06-14 10:00 1M
-            <a href="unknown.zip">unknown.zip</a> 2026-06-14 10:01 -
+            <a href="unknown.dat">unknown.dat</a> 2026-06-14 10:01 -
             HTML),
     ]);
 
@@ -227,7 +253,7 @@ it('keeps Apache listing files with unknown size for format and confidence evide
 
     expect($formatSuggestions)
         ->toHaveCount(2)
-        ->and($formatSuggestions[1]['evidence']['filename'])->toBe('unknown.zip')
+        ->and($formatSuggestions[1]['evidence']['filename'])->toBe('unknown.dat')
         ->and($sizeSuggestions)->toHaveCount(1)
         ->and($sizeSuggestions[0]['confidence'])->toBe('low')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)
@@ -261,6 +287,397 @@ it('infers high confidence size and format suggestions from HEAD headers', funct
         ]);
 });
 
+it('reads direct ZIP contents for contained formats and uncompressed size', function () {
+    $zipData = sizeFormatZipFixtureData([
+        'data/table.csv' => str_repeat('c', 1024),
+        'docs/manual.pdf' => str_repeat('p', 2048),
+        'docs/data-description.pdf' => str_repeat('x', 4096),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/archive.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive.zip');
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['probe_method'])->toBe('ZIP_CONTENT_LISTING')
+        ->and(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+            'text/csv',
+            'application/pdf',
+        ])
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0])->toMatchArray([
+            'inferred_value' => '3 KB',
+            'probe_method' => 'ZIP_CONTENT_LISTING',
+            'confidence' => 'high',
+        ])
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['raw_entry_count'])->toBe(3)
+        ->and($sizeSuggestions[0]['evidence']['skipped_entry_count'])->toBe(1);
+
+    Http::assertSentCount(2);
+});
+
+it('counts ZIP directory entries as skipped evidence', function () {
+    $zipData = sizeFormatZipFixtureData([
+        'data/' => null,
+        'data/table.csv' => 'csv',
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/archive-with-dir.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive-with-dir.zip');
+
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['evidence']['raw_entry_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['skipped_entry_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1);
+
+    Http::assertSentCount(2);
+});
+
+it('uses ZIP contents from directory listings for formats and aggregate size', function () {
+    $zipData = sizeFormatZipFixtureData([
+        'inside/data.csv' => str_repeat('c', 2048),
+        'inside/plot.pdf' => str_repeat('p', 3072),
+        'inside/data-description.txt' => str_repeat('x', 1024),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="readme.txt">readme.txt</a> 2026-06-14 10:00 1K
+            <a href="archive.zip">archive.zip</a> 2026-06-14 10:01 4K
+            HTML),
+        'https://datapub.gfz.de/download/dataset/archive.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+        'text/plain',
+        'text/csv',
+        'application/pdf',
+    ])
+        ->and(array_column($formatSuggestions, 'inferred_value'))->not->toContain('application/zip')
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('6 KB')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(3)
+        ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(2);
+
+    Http::assertSentCount(2);
+});
+
+it('limits ZIP content inspections per directory listing', function () {
+    $inspectionLimit = (int) (new ReflectionClass(SizeFormatFileProbeService::class))->getConstant('MAX_DIRECTORY_ZIP_INSPECTIONS');
+    $links = [];
+
+    for ($index = 0; $index <= $inspectionLimit; $index++) {
+        $links[] = sprintf('<a href="archive-%02d.zip">archive-%02d.zip</a> 2026-06-14 10:%02d 1K', $index, $index, $index);
+    }
+
+    $zipData = sizeFormatZipFixtureData([
+        'inside/data.csv' => 'csv',
+    ]);
+
+    Http::fake(function (Request $request) use ($links, $zipData) {
+        if ($request->url() === 'https://datapub.gfz.de/download/dataset/') {
+            return Http::response(implode("\n", $links));
+        }
+
+        return Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    $inspectedFiles = array_values(array_filter(
+        $result['raw_evidence']['files'],
+        fn (array $file): bool => array_key_exists('zip_probe_result', $file),
+    ));
+
+    expect($result['raw_evidence']['files'])->toHaveCount($inspectionLimit + 1)
+        ->and($inspectedFiles)->toHaveCount($inspectionLimit)
+        ->and($result['raw_evidence']['files'][$inspectionLimit])->not->toHaveKey('zip_probe_result');
+
+    Http::assertSentCount(1 + $inspectionLimit);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), sprintf('archive-%02d.zip', $inspectionLimit)));
+});
+
+it('does not inspect ZIP links from disallowed hosts in directory listings', function () {
+    Http::fake([
+        'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="https://example.org/archive.zip">archive.zip</a> 2026-06-14 10:01 4K
+            HTML),
+        'https://example.org/archive.zip' => Http::response(sizeFormatZipFixtureData([
+            'inside/data.csv' => 'csv',
+        ]), 200, [
+            'Content-Type' => 'application/zip',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    expect($result['raw_evidence']['files'])->toHaveCount(1)
+        ->and($result['raw_evidence']['files'][0]['file_url'])->toBe('https://example.org/archive.zip')
+        ->and($result['raw_evidence']['files'][0])->not->toHaveKey('zip_probe_result')
+        ->and(array_column($result['suggestions'], 'inferred_value'))->toContain('application/zip')
+        ->and(array_column($result['suggestions'], 'inferred_value'))->not->toContain('text/csv');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
+});
+
+it('matches the Stepanov ZIP directory listing example from datapub', function () {
+    $url = 'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.067-KJhgvb/';
+    $zipUrl = $url.'2026-067_Stepanov-et-al_data.zip';
+    $zipData = sizeFormatZipFixtureData(sizeFormatProbeStepanovZipFiles());
+
+    Http::fake([
+        $url => Http::response(<<<'HTML'
+            <a href="2026-067_Stepanov-et-al_data.zip">2026-067_Stepanov-et-al_data.zip</a> 2026-07-10 09:11 272K
+            HTML),
+        $zipUrl => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing($url);
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $formatsByValue = collect($formatSuggestions)->keyBy('inferred_value');
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['raw_evidence']['files'])->toHaveCount(1)
+        ->and($result['raw_evidence']['files'][0]['filename'])->toBe('2026-067_Stepanov-et-al_data.zip')
+        ->and(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/csv',
+        ])
+        ->and($formatsByValue['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']['evidence']['entry_count_for_format'])->toBe(9)
+        ->and($formatsByValue['text/csv']['evidence']['entry_count_for_format'])->toBe(6)
+        ->and($formatsByValue['text/csv']['evidence']['total_file_count'])->toBe(15)
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('335.01 KB')
+        ->and($sizeSuggestions[0]['confidence'])->toBe('high')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(15)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(15)
+        ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(15);
+
+    Http::assertSentCount(2);
+});
+
+it('does not follow redirects while downloading ZIP contents', function () {
+    Http::fake(function (Request $request) {
+        if ($request->url() === 'https://datapub.gfz.de/download/redirect.zip' && $request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => '2048',
+            ]);
+        }
+
+        if ($request->url() === 'https://datapub.gfz.de/download/redirect.zip' && $request->method() === 'GET') {
+            return Http::response('', 302, [
+                'Location' => 'https://example.org/redirected.zip',
+            ]);
+        }
+
+        return Http::response(sizeFormatZipFixtureData(['redirected/data.csv' => 'csv']), 200, [
+            'Content-Type' => 'application/zip',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/redirect.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ]);
+
+    Http::assertSentCount(2);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
+});
+
+it('falls back to ZIP container metadata when the entry count exceeds the inspection cap', function () {
+    $entryLimit = (int) (new ReflectionClass(SizeFormatFileProbeService::class))->getConstant('MAX_ZIP_ENTRY_COUNT');
+    $files = [];
+
+    for ($index = 0; $index <= $entryLimit; $index++) {
+        $files['entries/'.str_pad((string) $index, 5, '0', STR_PAD_LEFT).'.csv'] = '';
+    }
+
+    $zipData = sizeFormatZipFixtureData($files);
+
+    Http::fake(function (Request $request) use ($zipData) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) strlen($zipData),
+            ]);
+        }
+
+        return Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/many-entries.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ])
+        ->and(array_column($result['suggestions'], 'inferred_value'))->not->toContain('text/csv');
+
+    Http::assertSentCount(2);
+});
+
+it('falls back to ZIP container metadata when direct ZIP inspection exceeds the size limit', function () {
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) (1024 * 1024 * 1024 + 1),
+            ]);
+        }
+
+        return Http::response(sizeFormatZipFixtureData(['data.csv' => 'csv']), 200, [
+            'Content-Type' => 'application/zip',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/huge.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ]);
+
+    Http::assertSentCount(1);
+});
+
+it('falls back to ZIP container metadata when direct ZIP inspection cannot read the archive', function () {
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => '12',
+            ]);
+        }
+
+        return Http::response('not-a-zip', 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => '12',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/broken.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ]);
+
+    Http::assertSentCount(2);
+});
+
+it('does not recursively inspect nested ZIP entries', function () {
+    $nestedZipData = sizeFormatZipFixtureData([
+        'nested/data.json' => '{"ok":true}',
+    ]);
+    $zipData = sizeFormatZipFixtureData([
+        'outer/data.csv' => 'csv',
+        'outer/nested.zip' => $nestedZipData,
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/nested.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/nested.zip');
+
+    $formatValues = array_column(array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    )), 'inferred_value');
+
+    expect($formatValues)->toEqualCanonicalizing([
+        'text/csv',
+        'application/zip',
+    ])
+        ->and($formatValues)->not->toContain('application/json');
+});
+
 it('falls back to ranged GET metadata when HEAD has no usable headers', function () {
     Http::fake(function (Request $request) {
         if ($request->method() === 'HEAD') {
@@ -282,7 +699,7 @@ it('falls back to ranged GET metadata when HEAD has no usable headers', function
             'type' => 'format',
             'inferred_value' => 'application/zip',
             'probe_method' => 'RANGED_GET_CONTENT_TYPE',
-            'confidence' => 'medium',
+            'confidence' => 'low',
         ])
         ->and($result['suggestions'][1])->toMatchArray([
             'type' => 'size',
@@ -363,7 +780,7 @@ it('reuses the preflight HEAD response for extensionless direct downloads', func
         }
 
         return Http::response('', 200, [
-            'Content-Type' => 'application/zip',
+            'Content-Type' => 'application/pdf',
             'Content-Length' => '4096',
         ]);
     });

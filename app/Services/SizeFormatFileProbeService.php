@@ -15,6 +15,12 @@ class SizeFormatFileProbeService
 
     private const MAX_DIRECTORY_COUNT = 100;
 
+    private const MAX_DIRECTORY_ZIP_INSPECTIONS = 5;
+
+    private const MAX_ZIP_DOWNLOAD_BYTES = 1073741824;
+
+    private const MAX_ZIP_ENTRY_COUNT = 10000;
+
     private const ALLOWED_DOWNLOAD_HOSTS = [
         'datapub.gfz.de',
         'datapub.gfz-potsdam.de',
@@ -246,6 +252,7 @@ class SizeFormatFileProbeService
             }
 
             $files = $this->deduplicateFiles($files);
+            $files = $this->inspectDirectoryZipFiles($files);
 
             if (empty($files)) {
                 return $this->skip($url, 'no_files_found');
@@ -294,6 +301,15 @@ class SizeFormatFileProbeService
                 ->head($fileUrl);
 
             $headResult = $this->buildHeadMetadataResult($fileUrl, $response);
+            $contentLength = $this->contentLengthToBytes($response->header('Content-Length'));
+
+            if ($this->isZipCandidate($fileUrl, $response->header('Content-Type'))) {
+                $zipResult = $this->inspectZipDownload($fileUrl, $contentLength, $this->filenameFromUrl($fileUrl));
+
+                if (($zipResult['probe_method'] ?? null) !== 'SKIP') {
+                    return $zipResult;
+                }
+            }
 
             if ($headResult !== null) {
                 return $headResult;
@@ -337,11 +353,44 @@ class SizeFormatFileProbeService
             $sourceUrl = $probeResult['source_url'] ?? null;
             $files = $probeResult['raw_evidence']['files'] ?? [];
 
-            $directoryFiles = [];
+            $totalBytes = 0.0;
+            $parsedSizeCount = 0;
+            $totalFileCount = 0;
+            $zipArchiveCount = 0;
+            $zipEntryCount = 0;
 
             foreach ($files as $file) {
                 $fileUrl = $file['file_url'] ?? $sourceUrl;
                 $format = $file['format'] ?? null;
+                $zipProbeResult = is_array($file) && is_array($file['zip_probe_result'] ?? null)
+                    ? $file['zip_probe_result']
+                    : null;
+
+                if ($zipProbeResult !== null && ! empty($zipProbeResult['suggestions'])) {
+                    $zipArchiveCount++;
+
+                    foreach ($zipProbeResult['suggestions'] as $suggestion) {
+                        if (($suggestion['type'] ?? null) === 'format') {
+                            $suggestions[] = $suggestion;
+                        }
+
+                        if (($suggestion['type'] ?? null) !== 'size') {
+                            continue;
+                        }
+
+                        $evidence = is_array($suggestion['evidence'] ?? null) ? $suggestion['evidence'] : [];
+                        $uncompressedBytes = $evidence['uncompressed_bytes'] ?? null;
+
+                        if (is_numeric($uncompressedBytes)) {
+                            $totalBytes += (float) $uncompressedBytes;
+                            $parsedSizeCount += (int) ($evidence['parsed_file_count'] ?? 0);
+                            $totalFileCount += (int) ($evidence['total_file_count'] ?? 0);
+                            $zipEntryCount += (int) ($evidence['total_file_count'] ?? 0);
+                        }
+                    }
+
+                    continue;
+                }
 
                 if ($format !== null && $format !== '') {
                     $mimeType = $this->mimeTypeFromExtension((string) $format);
@@ -360,15 +409,11 @@ class SizeFormatFileProbeService
                     ];
                 }
 
-                if (is_array($file)) {
-                    $directoryFiles[] = $file;
+                if (! is_array($file)) {
+                    continue;
                 }
-            }
 
-            $totalBytes = 0.0;
-            $parsedSizeCount = 0;
-
-            foreach ($directoryFiles as $file) {
+                $totalFileCount++;
                 $bytes = $this->displayedSizeToBytes((string) ($file['file-size'] ?? ''));
 
                 if ($bytes === null) {
@@ -387,9 +432,11 @@ class SizeFormatFileProbeService
                     'probe_method' => 'DIRECTORY_LISTING',
                     'evidence' => [
                         'parsed_file_count' => $parsedSizeCount,
-                        'total_file_count' => count($directoryFiles),
+                        'total_file_count' => $totalFileCount,
+                        'zip_archive_count' => $zipArchiveCount,
+                        'zip_entry_count' => $zipEntryCount,
                     ],
-                    'confidence' => $parsedSizeCount === count($directoryFiles) ? 'high' : 'low',
+                    'confidence' => $parsedSizeCount === $totalFileCount ? 'high' : 'low',
                 ];
             }
         }
@@ -429,6 +476,8 @@ class SizeFormatFileProbeService
             $suggestions = [];
 
             if (trim((string) $contentType) !== '') {
+                $normalizedContentType = $this->normalizedContentType($contentType);
+
                 $suggestions[] = [
                     'type' => 'format',
                     'inferred_value' => trim(explode(';', $contentType)[0]),
@@ -438,7 +487,7 @@ class SizeFormatFileProbeService
                         'content_type' => $contentType,
                         'range' => 'bytes=0-1023',
                     ],
-                    'confidence' => 'medium',
+                    'confidence' => $normalizedContentType === 'application/zip' ? 'low' : 'medium',
                 ];
             }
 
@@ -777,6 +826,299 @@ class SizeFormatFileProbeService
         return array_values($uniqueFiles);
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $files
+     * @return array<int, array<string, mixed>>
+     */
+    private function inspectDirectoryZipFiles(array $files): array
+    {
+        $inspectedZipCount = 0;
+
+        foreach ($files as $index => $file) {
+            $fileUrl = (string) ($file['file_url'] ?? '');
+
+            if ($fileUrl === '') {
+                continue;
+            }
+
+            $filename = (string) ($file['filename'] ?? $this->filenameFromUrl($fileUrl));
+            $extension = is_string($file['format'] ?? null) ? (string) $file['format'] : null;
+
+            if (! $this->isZipCandidate($fileUrl, null, $extension)) {
+                continue;
+            }
+
+            if (! $this->isAllowedDownloadUrl($fileUrl)) {
+                continue;
+            }
+
+            if ($inspectedZipCount >= self::MAX_DIRECTORY_ZIP_INSPECTIONS) {
+                continue;
+            }
+
+            $inspectedZipCount++;
+            $knownSizeBytes = $this->displayedSizeToBytes((string) ($file['file-size'] ?? ''));
+            $zipResult = $this->inspectZipDownload($fileUrl, $knownSizeBytes, $filename);
+
+            if (($zipResult['probe_method'] ?? null) === 'SKIP' || empty($zipResult['suggestions'])) {
+                continue;
+            }
+
+            $files[$index]['zip_probe_result'] = $zipResult;
+        }
+
+        return $files;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function inspectZipDownload(string $zipUrl, int|float|null $knownSizeBytes = null, ?string $archiveFilename = null): array
+    {
+        if (! $this->isAllowedDownloadUrl($zipUrl)) {
+            return $this->skip($zipUrl, 'unsupported_source_url');
+        }
+
+        if (! class_exists(\ZipArchive::class)) {
+            return $this->skip($zipUrl, 'zip_extension_unavailable');
+        }
+
+        if ($knownSizeBytes !== null && $knownSizeBytes > self::MAX_ZIP_DOWNLOAD_BYTES) {
+            return $this->skip($zipUrl, 'zip_download_too_large');
+        }
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'ernie-zip-');
+
+        if ($temporaryPath === false) {
+            return $this->skip($zipUrl, 'zip_temporary_file_failed');
+        }
+
+        try {
+            $response = $this->downloadZipToTemporaryFile($zipUrl, $temporaryPath);
+
+            if (! $response->successful()) {
+                return $this->skip($zipUrl, 'zip_download_unreachable');
+            }
+
+            if ($this->localFileSize($temporaryPath) > self::MAX_ZIP_DOWNLOAD_BYTES) {
+                return $this->skip($zipUrl, 'zip_download_too_large');
+            }
+
+            return $this->inspectZipFile(
+                zipPath: $temporaryPath,
+                sourceUrl: $zipUrl,
+                archiveFilename: $archiveFilename ?: $this->filenameFromUrl($zipUrl),
+                httpStatus: $response->status(),
+            );
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'zip_download_size_limit_exceeded') {
+                return $this->skip($zipUrl, 'zip_download_too_large');
+            }
+
+            return $this->skip($zipUrl, 'zip_download_exception', $e->getMessage());
+        } catch (\Throwable $e) {
+            return $this->skip($zipUrl, 'zip_download_exception', $e->getMessage());
+        } finally {
+            if (is_file($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
+        }
+    }
+
+    private function downloadZipToTemporaryFile(string $zipUrl, string $temporaryPath): Response
+    {
+        $response = Http::timeout(60)
+            ->connectTimeout(5)
+            ->withoutRedirecting()
+            ->withOptions([
+                'sink' => $temporaryPath,
+                'progress' => function (mixed $downloadTotal, mixed $downloadedBytes, mixed $uploadTotal = null, mixed $uploadedBytes = null): void {
+                    if ((float) $downloadedBytes > self::MAX_ZIP_DOWNLOAD_BYTES) {
+                        throw new \RuntimeException('zip_download_size_limit_exceeded');
+                    }
+                },
+            ])
+            ->get($zipUrl);
+
+        if ($this->localFileSize($temporaryPath) === 0) {
+            $body = $response->body();
+
+            if ($body !== '') {
+                $bodyBytes = strlen($body);
+
+                if ($bodyBytes > self::MAX_ZIP_DOWNLOAD_BYTES) {
+                    throw new \RuntimeException('zip_download_size_limit_exceeded');
+                }
+
+                file_put_contents($temporaryPath, $body);
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function inspectZipFile(string $zipPath, string $sourceUrl, string $archiveFilename, int $httpStatus): array
+    {
+        $zip = new \ZipArchive;
+        $openResult = $zip->open($zipPath);
+
+        if ($openResult !== true) {
+            return $this->skip($sourceUrl, 'zip_unreadable');
+        }
+
+        /** @var array<string, int> $formatCounts */
+        $formatCounts = [];
+        /** @var array<string, array{filename: string, extension: string}> $formatFirstEntries */
+        $formatFirstEntries = [];
+        $eligibleEntryCount = 0;
+        $parsedSizeCount = 0;
+        $skippedEntryCount = 0;
+        $uncompressedBytes = 0.0;
+        $rawEntryCount = $zip->numFiles;
+
+        if ($rawEntryCount > self::MAX_ZIP_ENTRY_COUNT) {
+            $zip->close();
+
+            return $this->skip($sourceUrl, 'zip_entry_count_exceeded');
+        }
+
+        try {
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $stat = $zip->statIndex($index);
+
+                if ($stat === false) {
+                    $skippedEntryCount++;
+
+                    continue;
+                }
+
+                $entryName = str_replace('\\', '/', $stat['name']);
+
+                if ($entryName === '' || str_ends_with($entryName, '/')) {
+                    $skippedEntryCount++;
+
+                    continue;
+                }
+
+                $entryFilename = basename($entryName);
+
+                if ($this->isDataDescriptionFile($entryFilename)) {
+                    $skippedEntryCount++;
+
+                    continue;
+                }
+
+                $eligibleEntryCount++;
+                $entrySize = $stat['size'];
+
+                if ($entrySize >= 0) {
+                    $uncompressedBytes += (float) $entrySize;
+
+                    if (! is_finite($uncompressedBytes)) {
+                        return $this->skip($sourceUrl, 'zip_uncompressed_size_overflow');
+                    }
+
+                    $parsedSizeCount++;
+                }
+
+                $extension = $this->extractFileMetadata($entryFilename);
+
+                if ($extension === null) {
+                    continue;
+                }
+
+                $mimeType = $this->mimeTypeFromExtension($extension);
+
+                if ($mimeType === '') {
+                    continue;
+                }
+
+                if (! isset($formatCounts[$mimeType])) {
+                    $formatCounts[$mimeType] = 0;
+                    $formatFirstEntries[$mimeType] = [
+                        'filename' => $entryName,
+                        'extension' => $extension,
+                    ];
+                }
+
+                $formatCounts[$mimeType]++;
+            }
+        } finally {
+            $zip->close();
+        }
+
+        $suggestions = [];
+
+        foreach ($formatCounts as $mimeType => $entryCount) {
+            $firstEntry = $formatFirstEntries[$mimeType] ?? null;
+
+            if ($firstEntry === null) {
+                continue;
+            }
+
+            $suggestions[] = [
+                'type' => 'format',
+                'inferred_value' => $mimeType,
+                'source_url' => $sourceUrl,
+                'probe_method' => 'ZIP_CONTENT_LISTING',
+                'evidence' => [
+                    'archive_filename' => $archiveFilename,
+                    'filename' => $firstEntry['filename'],
+                    'extension' => $firstEntry['extension'],
+                    'mime_type' => $mimeType,
+                    'entry_count_for_format' => $entryCount,
+                    'total_file_count' => $eligibleEntryCount,
+                ],
+                'confidence' => 'medium',
+            ];
+        }
+
+        if ($parsedSizeCount > 0) {
+            $suggestions[] = [
+                'type' => 'size',
+                'inferred_value' => $this->formatBytes($uncompressedBytes),
+                'source_url' => $sourceUrl,
+                'probe_method' => 'ZIP_CONTENT_LISTING',
+                'evidence' => [
+                    'archive_filename' => $archiveFilename,
+                    'parsed_file_count' => $parsedSizeCount,
+                    'total_file_count' => $eligibleEntryCount,
+                    'raw_entry_count' => $rawEntryCount,
+                    'skipped_entry_count' => $skippedEntryCount,
+                    'uncompressed_bytes' => $uncompressedBytes,
+                ],
+                'confidence' => $parsedSizeCount === $eligibleEntryCount ? 'high' : 'low',
+            ];
+        }
+
+        if (empty($suggestions)) {
+            return $this->skip($sourceUrl, 'zip_no_eligible_entries');
+        }
+
+        return [
+            'source_url' => $sourceUrl,
+            'probe_method' => 'ZIP_CONTENT_LISTING',
+            'http_status' => $httpStatus,
+            'raw_evidence' => [
+                'archive_filename' => $archiveFilename,
+                'entry_count' => $eligibleEntryCount,
+                'raw_entry_count' => $rawEntryCount,
+                'skipped_entry_count' => $skippedEntryCount,
+            ],
+            'suggestions' => $suggestions,
+        ];
+    }
+
+    private function localFileSize(string $path): int
+    {
+        $size = @filesize($path);
+
+        return is_int($size) ? $size : 0;
+    }
+
     private function filenameFromUrl(string $url): string
     {
         $path = parse_url($url, PHP_URL_PATH);
@@ -951,6 +1293,39 @@ class SizeFormatFileProbeService
         return ! in_array($normalized, ['text/html', 'application/xhtml+xml'], true);
     }
 
+    private function isZipCandidate(string $url, ?string $contentType = null, ?string $extension = null): bool
+    {
+        if ($this->normalizedContentType($contentType) === 'application/zip') {
+            return true;
+        }
+
+        if ($extension !== null && $this->mimeTypeFromExtension($extension) === 'application/zip') {
+            return true;
+        }
+
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+
+        return strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'zip';
+    }
+
+    private function normalizedContentType(?string $contentType): string
+    {
+        $normalized = trim(explode(';', (string) $contentType)[0]);
+
+        return $normalized === '' ? '' : SizeFormatFormatNormalizerService::normalize($normalized);
+    }
+
+    private function contentLengthToBytes(?string $contentLength): ?int
+    {
+        $contentLength = trim((string) $contentLength);
+
+        if ($contentLength === '' || ! ctype_digit($contentLength)) {
+            return null;
+        }
+
+        return (int) $contentLength;
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -965,6 +1340,8 @@ class SizeFormatFileProbeService
         $suggestions = [];
 
         if (trim((string) $contentType) !== '') {
+            $normalizedContentType = $this->normalizedContentType($contentType);
+
             $suggestions[] = [
                 'type' => 'format',
                 'inferred_value' => trim(explode(';', $contentType)[0]),
@@ -973,7 +1350,7 @@ class SizeFormatFileProbeService
                 'evidence' => [
                     'content_type' => $contentType,
                 ],
-                'confidence' => 'high',
+                'confidence' => $normalizedContentType === 'application/zip' ? 'low' : 'high',
             ];
         }
 

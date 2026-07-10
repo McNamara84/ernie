@@ -286,7 +286,7 @@ it('explores nested directories and creates one total size suggestion', function
             <a href="nested/">nested/</a>
             HTML),
         'https://datapub.gfz.de/download/dataset/nested/' => Http::response(<<<'HTML'
-            <a href="child.zip">child.zip</a> 2026-06-14 10:01 512K
+            <a href="child.txt">child.txt</a> 2026-06-14 10:01 512K
             <a href="deeper/">deeper/</a>
             <a href="../">Parent Directory</a>
             HTML),

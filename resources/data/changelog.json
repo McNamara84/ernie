@@ -146,6 +146,10 @@
         ],
         "improvements": [
             {
+                "title": "ZIP Content Size and Format Suggestions",
+                "description": "The Size and Format Suggestions assistant now inspects approved ZIP downloads and directory listings to propose contained file formats and uncompressed sizes instead of only the ZIP container format. ZIP inspection stays bounded by host allowlists, redirect handling, per-file size limits, entry-count limits, and a per-directory ZIP inspection cap so discovery remains predictable."
+            },
+            {
                 "title": "Always-Available Data Editor Actions",
                 "description": "The Data Editor now keeps Save Draft, Show LP Preview, and Save & Validate anchored in the bottom-right corner so curators can use them from any point in the form. On smaller pointer-based screens the action group fades back until the cursor moves near it or a button receives focus, while touch devices keep the compact buttons visible."
             },
