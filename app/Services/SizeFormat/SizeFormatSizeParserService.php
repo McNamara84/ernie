@@ -32,7 +32,7 @@ final class SizeFormatSizeParserService
         if (preg_match('/^(\d+(?:\.\d+)?)(?:\s+|(?=[^\d.\s]))(.+)$/', $value, $matches) === 1 && $this->looksLikeSizeUnit($matches[2])) {
             return [
                 'numeric_value' => $matches[1],
-                'unit' => trim($matches[2]),
+                'unit' => $this->normalizeUnit(trim($matches[2])),
                 'type' => null,
             ];
         }
@@ -58,4 +58,20 @@ final class SizeFormatSizeParserService
 
         return str_word_count($candidate) <= 3;
     }
+
+    private function normalizeUnit(string $unit): string
+    {
+        $candidate = strtoupper(trim($unit));
+
+        return match ($candidate) {
+            'KB', 'K' => 'K',
+            'MB', 'M' => 'M',
+            'GB', 'G' => 'G',
+            'TB', 'T' => 'T',
+            'PB', 'P' => 'P',
+            'B' => 'B',
+            default => trim($unit),
+        };
+    }
+
 }

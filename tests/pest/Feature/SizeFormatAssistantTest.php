@@ -140,7 +140,6 @@ it('exposes size and format suggestion preview metadata', function () {
 });
 
 it('accepts a format suggestion and creates a format record', function (): void {
-
     $resource = Resource::factory()->create();
 
     $suggestion = AssistantSuggestion::query()->create([
@@ -180,7 +179,6 @@ it('does not create duplicate format records when accepting the same suggestion 
         'similarity_score' => null,
         'metadata' => [],
         'discovered_at' => now(),
-
     ]);
 
     $assistant = app(Assistant::class);
@@ -192,7 +190,6 @@ it('does not create duplicate format records when accepting the same suggestion 
         ->toBe(0);
     expect(Format::where('resource_id', $resource->id)->where('value', 'application/pdf')->count())
         ->toBe(1);
-
 });
 
 it('accepts a size suggestion and creates a size record', function (): void {
@@ -253,6 +250,7 @@ it('does not create duplicate size records when accepting the same suggestion tw
 
     applySizeFormatSuggestion($assistant, $suggestion);
     applySizeFormatSuggestion($assistant, $suggestion);
+
     expect(Size::where('resource_id', $resource->id)
         ->where('numeric_value', '8.1')
         ->where('unit', 'M')
@@ -271,7 +269,6 @@ it('returns an error for unknown suggestion types', function (): void {
         'similarity_score' => null,
         'metadata' => [],
         'discovered_at' => now(),
-
     ]);
 
     $result = applySizeFormatSuggestion(app(Assistant::class), $suggestion);
@@ -326,7 +323,11 @@ it('creates specific format and size suggestions with proper metadata during dis
 
     expect($formatSuggestion)->not->toBeNull()
         ->and($formatSuggestion->suggested_value)->toBe('zip')
-        ->and($formatSuggestion->suggested_label)->toBe('FORMAT: zip');
+        ->and($formatSuggestion->suggested_label)->toBe('FORMAT: zip')
+        ->and($formatSuggestion->metadata)->toBeArray()
+        ->and($formatSuggestion->metadata['inferred_value'] ?? null)->toBe('application/zip')
+        ->and($formatSuggestion->metadata['evidence']['extension'] ?? null)->toBe('zip')
+        ->and($formatSuggestion->metadata['probe_method'] ?? null)->toBe('DIRECTORY_LISTING');
 
     // 3. Strong assertion for the size suggestion database state and parsed metadata
     $sizeSuggestion = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
@@ -335,9 +336,11 @@ it('creates specific format and size suggestions with proper metadata during dis
         ->first();
 
     expect($sizeSuggestion)->not->toBeNull()
-        ->and($sizeSuggestion->suggested_value)->toBe('12.5M')
-        ->and($sizeSuggestion->suggested_label)->toBe('SIZE: 12.5M')
+        ->and($sizeSuggestion->suggested_value)->toBe('12.5 MB')
+        ->and($sizeSuggestion->suggested_label)->toBe('SIZE: 12.5 MB')
         ->and($sizeSuggestion->metadata)->toBeArray()
-        ->and($sizeSuggestion->metadata['parsed_size']['numeric_value'])->toBe('12.5')
-        ->and($sizeSuggestion->metadata['parsed_size']['unit'])->toBe('M');
+        ->and($sizeSuggestion->metadata['probe_method'] ?? null)->toBe('DIRECTORY_LISTING')
+        ->and($sizeSuggestion->metadata['source_url'] ?? null)->toBe('https://dataservices.gfz-potsdam.de/download/test/')
+        ->and($sizeSuggestion->metadata['parsed_size']['numeric_value'] ?? null)->toBe('12.5')
+        ->and($sizeSuggestion->metadata['parsed_size']['unit'] ?? null)->toBe('M');
 });

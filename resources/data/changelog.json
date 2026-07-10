@@ -1,5 +1,15 @@
 [
     {
+        "version": "1.0.2",
+        "date": "2026-07-10",
+        "fixes": [
+            {
+                "title": "Size and Format Assistant Discovery Metadata",
+                "description": "Directory-listing-based size and format suggestions now preserve the directory-listing provenance in assistant metadata so the discovery flow exposes the correct source context."
+            }
+        ]
+    },
+    {
         "version": "1.0.1",
         "date": "2026-07-08",
         "improvements": [

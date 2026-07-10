@@ -16,7 +16,7 @@ it('parses valid decimal size values with units', function () {
     ])
         ->and($service->parse('512 MB'))->toMatchArray([
             'numeric_value' => '512',
-            'unit' => 'MB',
+            'unit' => 'M',
             'type' => null,
         ]);
 });
