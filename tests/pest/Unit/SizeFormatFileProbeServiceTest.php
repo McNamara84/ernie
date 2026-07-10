@@ -10,6 +10,10 @@ covers(SizeFormatFileProbeService::class);
 
 function sizeFormatProbeZipData(array $files): string
 {
+    if (! class_exists(ZipArchive::class)) {
+        test()->markTestSkipped('The ext-zip PHP extension is required to generate ZIP test fixtures.');
+    }
+
     $temporaryPath = tempnam(sys_get_temp_dir(), 'size-format-zip-test-');
 
     if ($temporaryPath === false) {

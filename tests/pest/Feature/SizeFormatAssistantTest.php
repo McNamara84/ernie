@@ -22,6 +22,10 @@ function applySizeFormatSuggestion(Assistant $assistant, AssistantSuggestion $su
 
 function sizeFormatAssistantZipData(array $files): string
 {
+    if (! class_exists(ZipArchive::class)) {
+        test()->markTestSkipped('The ext-zip PHP extension is required to generate ZIP test fixtures.');
+    }
+
     $temporaryPath = tempnam(sys_get_temp_dir(), 'size-format-assistant-zip-test-');
 
     if ($temporaryPath === false) {
