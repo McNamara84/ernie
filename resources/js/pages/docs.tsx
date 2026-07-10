@@ -615,7 +615,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 order across explicit language attributes on titles, descriptions, and subjects, publisher-name
                                 heuristics, and automatic text detection as a fallback. Multilingual, ambiguous, or low-text records
                                 (e.g. formulas, acronyms, or very short titles) are downgraded to low confidence or skipped entirely
-                                rather than forced into a single dominant language.
+                                rather than forced into a single dominant language. If a resource&apos;s language changes before a
+                                suggestion is reviewed, ERNIE detects the outdated state and safely dismisses the stale suggestion
+                                instead of overwriting the newer value.
                             </p>
                         </div>
 
