@@ -11,6 +11,8 @@ use Closure;
 
 final class DateTypeDiscoveryService
 {
+    public const string ASSISTANT_ID = 'date-type-suggestion';
+
     public const string TARGET_TYPE = 'date_type';
 
     public const string GEOLOCATION_COUNT_TARGET_TYPE = 'resource_date_geolocation_count';
@@ -24,6 +26,17 @@ final class DateTypeDiscoveryService
         private readonly DateTypeSchemaorgExtraction $extractService,
         private readonly DateTypePlausibilityService $plausibilityService,
     ) {}
+
+    public static function targetTypeForDateType(string $dateType): string
+    {
+        return self::TARGET_TYPE.':'.$dateType;
+    }
+
+    public static function isDateTypeTargetType(string $targetType): bool
+    {
+        return $targetType === self::TARGET_TYPE
+            || str_starts_with($targetType, self::TARGET_TYPE.':');
+    }
 
     /**
      * @param  Closure(int, string, int, string, string, float|null, array<string, mixed>|null): bool  $storeSuggestion
@@ -81,7 +94,7 @@ final class DateTypeDiscoveryService
             }
         }
 
-        $hintSuggestions = $this->plausibilityService->review($datesForReview, $resource->doi,);
+        $hintSuggestions = $this->plausibilityService->hint($datesForHint, $resource->doi);
 
         $suggestions = [
             ...$this->lookupSchemaorgDates($resource),
@@ -105,23 +118,24 @@ final class DateTypeDiscoveryService
                 continue;
             }
 
-            if (($suggestion['suggestion_kind'] ?? null) === 'hint') {
-                $stored = $storeSuggestion(
-                    $resource->id,
-                    self::TARGET_TYPE,
-                    $resource->id,
-                    (string) $suggestion['message'],
-                    (string) $suggestion['message'],
-                    $this->confidenceToScore($suggestion['confidence'] ?? null),
-                    $suggestion,
-                );
+            if (($suggestion['suggestion_kind'] ?? null) === 'hint') 
+                {
+                    $stored = $storeSuggestion(
+                        $resource->id,
+                        self::TARGET_TYPE,
+                        $resource->id,
+                        (string) $suggestion['message'],
+                        (string) $suggestion['message'],
+                        $this->confidenceToScore($suggestion['confidence'] ?? null),
+                        $suggestion,
+                    );
 
-                if ($stored) {
-                    $storedCount++;
+                    if ($stored) {
+                        $storedCount++;
+                    }
+                    continue;
+
                 }
-
-                continue;
-            }
 
             $type = (string) ($suggestion['target_date_type'] ?? '');
 
@@ -146,7 +160,7 @@ final class DateTypeDiscoveryService
 
             $stored = $storeSuggestion(
                 $resource->id,
-                self::TARGET_TYPE,
+                self::targetTypeForDateType($type),
                 $resource->id,
                 $suggestedValue,
                 strtoupper($type).': '.$suggestedValue,
@@ -206,6 +220,10 @@ final class DateTypeDiscoveryService
         $geoLocationsCount = (int) $resource->getAttribute('geo_locations_count');
 
         if ($collectedDatesCount !== $geoLocationsCount) {
+            return false;
+        }
+
+        if ($collectedDatesCount === 0 || $geoLocationsCount === 0) {
             return false;
         }
 

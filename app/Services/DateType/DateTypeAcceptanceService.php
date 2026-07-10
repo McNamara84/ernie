@@ -17,16 +17,16 @@ final class DateTypeAcceptanceService
             return $this->acceptCollectedCoverageCorrection($suggestion);
         }
 
-        if ($suggestion->target_type !== 'date_type') {
+        if (! DateTypeDiscoveryService::isDateTypeTargetType($suggestion->target_type)) {
             return [
                 'success' => false,
                 'message' => 'Unknown suggestion type.',
             ];
         }
 
-        $dateValue = DateTypeNormalizerService::normalize($suggestion->suggested_value);
+        $dateValue = DateTypeNormalizerService::normalize( $suggestion->metadata['normalized_value'] ?? $suggestion->suggested_value);
 
-        if ($dateValue === '') {
+        if (! is_string($dateValue) || $dateValue === '') {
             return [
                 'success' => false,
                 'message' => 'Suggested date value is invalid.',

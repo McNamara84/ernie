@@ -161,7 +161,7 @@ it ('skips rules when only one side of a rule is present', function ()
 });
 
 it('adds source url when resource doi is provided', function () {
-    $warnings = $this->plausibilityService->review([
+    $warnings = $this->plausibilityService->hint([
         'Created' => '2023-02-22',
         'Issued' => '2018',
     ], '10.5880/test.001');
