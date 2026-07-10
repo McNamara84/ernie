@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Services\DateType\DateTypeSchemaorgExtraction;
+use App\Services\DateType\DateTypeSchemaorgExtractionService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
-covers(DateTypeSchemaorgExtraction::class);
+covers(DateTypeSchemaorgExtractionService::class);
 
 it ('extracts created and issued additions from allowed GFZ Potsdam hosts', function () {
     Http::fake
@@ -19,7 +19,7 @@ it ('extracts created and issued additions from allowed GFZ Potsdam hosts', func
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(2)
@@ -60,7 +60,7 @@ it ('extracts created addition from allowed GFZ Potsdam hosts', function () {
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -89,7 +89,7 @@ it ('accepts integer dateCreated values from allowed GFZ Potsdam hosts', functio
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -119,7 +119,7 @@ it ('extracts created and issued additions from allowed GFZ hosts', function () 
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(2)
@@ -160,7 +160,7 @@ it ('extracts issued addition from allowed GFZ hosts', function () {
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -190,7 +190,7 @@ it ('skips created and issued additions from not allowed hosts', function () {
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -217,7 +217,7 @@ it ('ignores invalid or unsupported date values in schema.org', function () {
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toBe([]);
@@ -235,7 +235,7 @@ it ('skips created and issued additions when url field in schema.org is not a st
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -260,7 +260,7 @@ it ('does not follow schema.org redirects', function () {
         ]),
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result[0]['probe_method'])->toBe('SKIP')
@@ -278,7 +278,7 @@ it ('skips schema.org request when loading takes longer than timeout', function 
         },
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -295,7 +295,7 @@ it ('skips missing responses as unreachable', function () {
         'https://data.crosscite.org/application/vnd.schemaorg.ld+json/105880.test.2026.001' => Http::response([], 404),
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -315,7 +315,7 @@ it('skips schema.org source urls with unsupported protocols', function ()
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(1)
@@ -336,7 +336,7 @@ it('keeps created and issued suggestions separate when date values match', funct
         ], 200)
     ]);
 
-    $service = app(DateTypeSchemaorgExtraction::class);
+    $service = app(DateTypeSchemaorgExtractionService::class);
     $result = $service->loadAllowedSchemaorg('105880.test.2026.001');
 
     expect($result)->toHaveCount(2)

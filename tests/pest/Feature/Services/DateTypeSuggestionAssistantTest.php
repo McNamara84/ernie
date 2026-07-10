@@ -11,7 +11,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\Assistance\AssistantManifest;
 use App\Services\DateType\DateTypeDiscoveryService;
-use App\Services\DateType\DateTypeSchemaorgExtraction;
+use App\Services\DateType\DateTypeSchemaorgExtractionService;
 use Modules\Assistants\DateTypeSuggestion\Assistant;
 
 function createCollectedCoverageSuggestion(Assistant $assistant, Resource $resource): AssistantSuggestion
@@ -81,7 +81,7 @@ it('parses and autoloads the date type assistant manifest', function (): void {
 });
 
 it('does not discover a collected to coverage correction when collected date and geolocation counts differ', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -110,7 +110,7 @@ it('does not discover a collected to coverage correction when collected date and
 });
 
 it('discovers implausible date order as review hints', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -409,7 +409,7 @@ it('keeps collected to coverage corrections pending when the Coverage DateType i
 
 it('records declined date type suggestions and does not rediscover the same suggestion', function () 
 {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction 
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -461,7 +461,7 @@ it('records declined date type suggestions and does not rediscover the same sugg
 });
 
 it('discovers and stores a created suggestion from schema.org metadata', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -504,7 +504,7 @@ it('discovers and stores a created suggestion from schema.org metadata', functio
 });
 
 it('discovers and stores a issued suggestion from schema.org metadata', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -547,7 +547,7 @@ it('discovers and stores a issued suggestion from schema.org metadata', function
 });
 
 it('discovers and stores created and issued suggestion from schema.org metadata', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -613,7 +613,7 @@ it('discovers and stores created and issued suggestion from schema.org metadata'
 
 it('does not store schema.org skip results during discovery', function (): void 
 {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction 
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -647,7 +647,7 @@ it('does not store schema.org skip results during discovery', function (): void
 
 it('does not discover created suggestions when Created already exists', function (): void 
 {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction 
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -686,7 +686,7 @@ it('does not discover created suggestions when Created already exists', function
 
 it('does not discover issued suggestions when Issued already exists', function (): void 
 {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction 
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -723,8 +723,10 @@ it('does not discover issued suggestions when Issued already exists', function (
             ->exists())->toBeFalse();
 });
 
-it('discovers collected to coverage correction when collected date and geolocation counts match', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction {
+it('discovers collected to coverage correction when collected date and geolocation counts match', function (): void 
+{
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+    {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -764,7 +766,8 @@ it('discovers collected to coverage correction when collected date and geolocati
 });
 
 it('stores plausibility hint suggestions', function (): void {
-    app()->instance(DateTypeSchemaorgExtraction::class, new class extends DateTypeSchemaorgExtraction {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+    {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {

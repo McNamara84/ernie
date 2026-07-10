@@ -6,7 +6,7 @@ namespace App\Services\DateType;
 
 use App\Models\Resource;
 use Illuminate\Database\Eloquent\Builder;
-use App\Services\DateType\DateTypeSchemaorgExtraction;
+use App\Services\DateType\DateTypeSchemaorgExtractionService;
 use Closure;
 
 final class DateTypeDiscoveryService
@@ -23,7 +23,7 @@ final class DateTypeDiscoveryService
     private const array COLLECTED_DATE_TYPES = ['Collected', 'collected'];
 
     public function __construct(
-        private readonly DateTypeSchemaorgExtraction $extractService,
+        private readonly DateTypeSchemaorgExtractionService $extractService,
         private readonly DateTypePlausibilityService $plausibilityService,
     ) {}
 

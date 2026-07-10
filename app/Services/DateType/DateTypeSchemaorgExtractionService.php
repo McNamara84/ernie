@@ -7,7 +7,7 @@ namespace App\Services\DateType;
 
 use Illuminate\Support\Facades\Http; 
 
-class DateTypeSchemaorgExtraction
+class DateTypeSchemaorgExtractionService
 {
     private const SCHEMA_ORG_BASE_URL = 'https://data.crosscite.org/application/vnd.schemaorg.ld+json/';
 
