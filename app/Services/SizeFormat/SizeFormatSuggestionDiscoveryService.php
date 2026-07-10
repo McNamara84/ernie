@@ -123,7 +123,8 @@ final class SizeFormatSuggestionDiscoveryService
                     ->orWhere(function (Builder $query): void {
                         $query->whereHas('formats')
                             ->whereDoesntHave('formats', fn (Builder $query): Builder => $query
-                                ->whereRaw('LOWER(TRIM(value)) NOT IN (?, ?, ?)', ['application/zip', 'zip', '.zip']));
+                                ->whereRaw('LOWER(TRIM(value)) NOT IN (?, ?, ?)', ['application/zip', 'zip', '.zip'])
+                                ->whereRaw("REPLACE(LOWER(TRIM(value)), ' ', '') NOT LIKE ?", ['application/zip;%']));
                     });
             });
 

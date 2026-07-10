@@ -250,6 +250,34 @@ it('discovers content formats when the only existing format is application zip',
         ->and($formatValues)->toEqual(['text/csv']);
 });
 
+it('discovers content formats when the only existing format is application zip with MIME parameters', function (): void {
+    $doi = '10.1234/ZIP.ONLY.PARAMETERIZED';
+    $resource = Resource::factory()->create(['doi' => $doi]);
+    Format::create([
+        'resource_id' => $resource->id,
+        'value' => 'application/zip; charset=utf-8',
+    ]);
+    Size::create([
+        'resource_id' => $resource->id,
+        'numeric_value' => '1',
+        'unit' => 'KB',
+    ]);
+
+    fakeSizeFormatZipDiscovery($doi, [
+        'data/table.csv' => str_repeat('c', 1024),
+    ]);
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    $formatValues = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('target_type', 'format')
+        ->pluck('suggested_value')
+        ->all();
+
+    expect($count)->toBe(1)
+        ->and($formatValues)->toEqual(['text/csv']);
+});
+
 it('keeps existing non-ZIP formats as the format discovery stop condition', function (): void {
     $doi = '10.1234/NONZIP.EXISTING';
     $resource = Resource::factory()->create(['doi' => $doi]);

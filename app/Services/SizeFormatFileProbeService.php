@@ -15,6 +15,8 @@ class SizeFormatFileProbeService
 
     private const MAX_DIRECTORY_COUNT = 100;
 
+    private const MAX_DIRECTORY_ZIP_INSPECTIONS = 5;
+
     private const MAX_ZIP_DOWNLOAD_BYTES = 1073741824;
 
     private const MAX_ZIP_ENTRY_COUNT = 10000;
@@ -830,6 +832,8 @@ class SizeFormatFileProbeService
      */
     private function inspectDirectoryZipFiles(array $files): array
     {
+        $inspectedZipCount = 0;
+
         foreach ($files as $index => $file) {
             $fileUrl = (string) ($file['file_url'] ?? '');
 
@@ -844,6 +848,15 @@ class SizeFormatFileProbeService
                 continue;
             }
 
+            if (! $this->isAllowedDownloadUrl($fileUrl)) {
+                continue;
+            }
+
+            if ($inspectedZipCount >= self::MAX_DIRECTORY_ZIP_INSPECTIONS) {
+                continue;
+            }
+
+            $inspectedZipCount++;
             $knownSizeBytes = $this->displayedSizeToBytes((string) ($file['file-size'] ?? ''));
             $zipResult = $this->inspectZipDownload($fileUrl, $knownSizeBytes, $filename);
 

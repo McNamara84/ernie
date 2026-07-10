@@ -429,6 +429,45 @@ it('uses ZIP contents from directory listings for formats and aggregate size', f
     Http::assertSentCount(2);
 });
 
+it('limits ZIP content inspections per directory listing', function () {
+    $inspectionLimit = (int) (new ReflectionClass(SizeFormatFileProbeService::class))->getConstant('MAX_DIRECTORY_ZIP_INSPECTIONS');
+    $links = [];
+
+    for ($index = 0; $index <= $inspectionLimit; $index++) {
+        $links[] = sprintf('<a href="archive-%02d.zip">archive-%02d.zip</a> 2026-06-14 10:%02d 1K', $index, $index, $index);
+    }
+
+    $zipData = sizeFormatProbeZipData([
+        'inside/data.csv' => 'csv',
+    ]);
+
+    Http::fake(function (Request $request) use ($links, $zipData) {
+        if ($request->url() === 'https://datapub.gfz.de/download/dataset/') {
+            return Http::response(implode("\n", $links));
+        }
+
+        return Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    $inspectedFiles = array_values(array_filter(
+        $result['raw_evidence']['files'],
+        fn (array $file): bool => array_key_exists('zip_probe_result', $file),
+    ));
+
+    expect($result['raw_evidence']['files'])->toHaveCount($inspectionLimit + 1)
+        ->and($inspectedFiles)->toHaveCount($inspectionLimit)
+        ->and($result['raw_evidence']['files'][$inspectionLimit])->not->toHaveKey('zip_probe_result');
+
+    Http::assertSentCount(1 + $inspectionLimit);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), sprintf('archive-%02d.zip', $inspectionLimit)));
+});
+
 it('does not inspect ZIP links from disallowed hosts in directory listings', function () {
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
