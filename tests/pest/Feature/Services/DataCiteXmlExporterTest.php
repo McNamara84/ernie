@@ -445,6 +445,35 @@ describe('DataCiteXmlExporter - Titles', function () {
             ->and($xml)->toContain('Translated Title')
             ->and($xml)->toContain('Fallback Title');
     });
+
+    test('does not add xml:lang when title and resource languages are missing', function () {
+        $resource = Resource::factory()->create([
+            'language_id' => null,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Title without Language',
+            'title_type_id' => $mainTitleType->id,
+            'language' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleElements = $dom->getElementsByTagName('title');
+
+        expect($titleElements->length)->toBe(1)
+            ->and($titleElements->item(0)?->hasAttribute('xml:lang'))->toBeFalse()
+            ->and($xml)->toContain('Title without Language');
+    });
 });
 
 describe('DataCiteXmlExporter - Descriptions', function () {

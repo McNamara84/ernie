@@ -285,7 +285,7 @@ class DataCiteXmlExporter
                 $titleElement->setAttribute('titleType', $slug);
             }
 
-            // Add language
+            // Fallback order: Title.language, Resource.language, then English for IGSN exports.
             $lang = null;
             if ($title->language) {
                 $lang = strtolower($title->language);
