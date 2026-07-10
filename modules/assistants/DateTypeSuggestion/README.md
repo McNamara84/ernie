@@ -24,6 +24,9 @@ To clean up corrupt legacy records (`Altbestand`), the assistant includes a **Pl
 * **Issued vs. Created:** If a record's `Date Issued` predates its `Date Created`, a swap suggestion is triggered.
 * **Submitted vs. Created:** If a record's `Date Submitted` predates its `Date Created`, a swap suggestion is triggered.
 
+### Chronological Order Reliability
+Plausibility warnings are strictly based on a true chronological comparison of the actual date values rather than the arbitrary order of rows returned by the database. This ensures accurate and reliable chronology checks, eliminating false warnings that previously occurred due to unordered database relations (e.g., preventing false alerts when a valid pair like `['Issued' => '2024-02-01', 'Created' => '2024-01-01']` is fetched).
+
 ### Local Testing & Data Verification
 The chronological plausibility rules are validated using a custom DataCite migration loop script. Curators can test the pipeline using the following production reference DOIs extracted from the legacy dataset:
 * `110.1594/GFZ.TR32.2`
@@ -44,6 +47,9 @@ The chronological plausibility rules are validated using a custom DataCite migra
 ---
 
 ## 4. Technical Parsing & Implementation Notes
+
+### Asynchronous Discovery Pipeline
+To prevent locking the web request thread, the discovery flow operates completely outside the synchronous controller cycle. The platform relies on the inherited asynchronous dispatch architecture from `GenericTableAssistant` (or explicitly triggers `DiscoverAssistantSuggestionsJob::dispatch()`). This ensures the controller can immediately return a job ID without waiting for the entire discovery engine to run.
 
 ### Type-Resilient Scraper (Integer vs. String)
 The metadata extraction layer uses defensive parsing to resolve irregular schemas in `schema.org` source files. The pipeline safely processes the `datePublished` property whether it arrives as an expected ISO string (e.g., `"2024"`) or a raw numerical integer (e.g., `2024`), which is critical for specialized cross-agency nodes (e.g., fidgeo DOIs `10.5880/fidgeo.2026.047` and `10.5880/fidgeo.2024.014`).
