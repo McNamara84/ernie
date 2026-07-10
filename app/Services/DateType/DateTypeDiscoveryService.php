@@ -86,10 +86,10 @@ final class DateTypeDiscoveryService
         $datesForHint = [];
 
         foreach ($existingDates as $date) {
-            $dateType = $date->dateType?->slug;
+            $dateType = $date->dateType->slug;
             $value = $date->date_value ?? $date->start_date;
 
-            if ($dateType !== null && $value !== null) {
+            if ($value !== null) {
                 $datesForHint[$dateType] = $value;
             }
         }
