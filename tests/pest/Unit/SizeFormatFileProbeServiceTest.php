@@ -29,6 +29,30 @@ function sizeFormatProbeZipData(array $files): string
     return $zipData;
 }
 
+function sizeFormatProbeStepanovZipFiles(): array
+{
+    $base = '2026-067_Stepanov-et-al_data';
+    $csvBase = $base.'/2026-067_Stepanov-et-al_data_csv';
+
+    return [
+        $base.'/2026-067_Stepanov-et-al_1_Re-Os-isotope-data-ingot.xlsx' => str_repeat('x', 24000),
+        $base.'/2026-067_Stepanov-et-al_2_Re-Os-isotope-data-powder.xlsx' => str_repeat('x', 22000),
+        $base.'/2026-067_Stepanov-et-al_3_Re-Os-isotope-data-reference-material.xlsx' => str_repeat('x', 21000),
+        $base.'/2026-067_Stepanov-et-al_4_Major-elements.xlsx' => str_repeat('x', 20500),
+        $base.'/2026-067_Stepanov-et-al_5_Trace-elements.xlsx' => str_repeat('x', 19500),
+        $base.'/2026-067_Stepanov-et-al_6_Rhenium-Osmium.xlsx' => str_repeat('x', 18000),
+        $base.'/2026-067_Stepanov-et-al_7_Sample-list.xlsx' => str_repeat('x', 17000),
+        $base.'/2026-067_Stepanov-et-al_8_Metadata.xlsx' => str_repeat('x', 16000),
+        $base.'/2026-067_Stepanov-et-al_9_Readme.xlsx' => str_repeat('x', 15000),
+        $csvBase.'/2026-067_Stepanov-et-al_1_Re-Os-isotope-data-ingot.csv' => str_repeat('c', 30000),
+        $csvBase.'/2026-067_Stepanov-et-al_2_Re-Os-isotope-data-powder.csv' => str_repeat('c', 29000),
+        $csvBase.'/2026-067_Stepanov-et-al_3_Re-Os-isotope-data-reference-material.csv' => str_repeat('c', 28500),
+        $csvBase.'/2026-067_Stepanov-et-al_4_Major-elements.csv' => str_repeat('c', 28000),
+        $csvBase.'/2026-067_Stepanov-et-al_5_Trace-elements.csv' => str_repeat('c', 27500),
+        $csvBase.'/2026-067_Stepanov-et-al_6_Rhenium-Osmium.csv' => str_repeat('c', 27055),
+    ];
+}
+
 it('explores nested directories and creates one total size suggestion', function () {
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
@@ -369,6 +393,54 @@ it('uses ZIP contents from directory listings for formats and aggregate size', f
         ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(3)
         ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
         ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(2);
+
+    Http::assertSentCount(2);
+});
+
+it('matches the Stepanov ZIP directory listing example from datapub', function () {
+    $url = 'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.067-KJhgvb/';
+    $zipUrl = $url.'2026-067_Stepanov-et-al_data.zip';
+    $zipData = sizeFormatProbeZipData(sizeFormatProbeStepanovZipFiles());
+
+    Http::fake([
+        $url => Http::response(<<<'HTML'
+            <a href="2026-067_Stepanov-et-al_data.zip">2026-067_Stepanov-et-al_data.zip</a> 2026-07-10 09:11 272K
+            HTML),
+        $zipUrl => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing($url);
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $formatsByValue = collect($formatSuggestions)->keyBy('inferred_value');
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['raw_evidence']['files'])->toHaveCount(1)
+        ->and($result['raw_evidence']['files'][0]['filename'])->toBe('2026-067_Stepanov-et-al_data.zip')
+        ->and(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/csv',
+        ])
+        ->and($formatsByValue['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']['evidence']['entry_count_for_format'])->toBe(9)
+        ->and($formatsByValue['text/csv']['evidence']['entry_count_for_format'])->toBe(6)
+        ->and($formatsByValue['text/csv']['evidence']['total_file_count'])->toBe(15)
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('335.01 KB')
+        ->and($sizeSuggestions[0]['confidence'])->toBe('high')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(15)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(15)
+        ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(15);
 
     Http::assertSentCount(2);
 });
