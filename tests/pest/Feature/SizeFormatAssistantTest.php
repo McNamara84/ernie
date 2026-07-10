@@ -23,16 +23,48 @@ function applySizeFormatSuggestion(Assistant $assistant, AssistantSuggestion $su
 function sizeFormatAssistantZipData(array $files): string
 {
     $temporaryPath = tempnam(sys_get_temp_dir(), 'size-format-assistant-zip-test-');
-    $zip = new ZipArchive;
-    $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
-    foreach ($files as $filename => $contents) {
-        $zip->addFromString((string) $filename, (string) $contents);
+    if ($temporaryPath === false) {
+        throw new RuntimeException('Could not create temporary ZIP test file.');
     }
 
-    $zip->close();
-    $zipData = file_get_contents($temporaryPath);
-    unlink($temporaryPath);
+    $zip = new ZipArchive;
+    $openResult = $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+    if ($openResult !== true) {
+        @unlink($temporaryPath);
+
+        throw new RuntimeException('Could not open temporary ZIP test file. ZipArchive::open returned '.var_export($openResult, true).'.');
+    }
+
+    $zipClosed = false;
+    $zipData = false;
+
+    try {
+        foreach ($files as $filename => $contents) {
+            $added = $zip->addFromString((string) $filename, (string) $contents);
+
+            if ($added === false) {
+                throw new RuntimeException('Could not add ZIP test entry: '.(string) $filename);
+            }
+        }
+
+        $zipClosed = $zip->close();
+
+        if ($zipClosed === false) {
+            throw new RuntimeException('Could not finish ZIP test data.');
+        }
+
+        $zipData = file_get_contents($temporaryPath);
+    } finally {
+        if (! $zipClosed) {
+            @$zip->close();
+        }
+
+        if (is_file($temporaryPath)) {
+            @unlink($temporaryPath);
+        }
+    }
 
     if ($zipData === false) {
         throw new RuntimeException('Could not read generated ZIP test data.');

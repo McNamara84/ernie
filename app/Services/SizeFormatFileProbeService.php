@@ -862,6 +862,10 @@ class SizeFormatFileProbeService
      */
     private function inspectZipDownload(string $zipUrl, int|float|null $knownSizeBytes = null, ?string $archiveFilename = null): array
     {
+        if (! $this->isAllowedDownloadUrl($zipUrl)) {
+            return $this->skip($zipUrl, 'unsupported_source_url');
+        }
+
         if (! class_exists(\ZipArchive::class)) {
             return $this->skip($zipUrl, 'zip_extension_unavailable');
         }

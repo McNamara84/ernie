@@ -429,6 +429,31 @@ it('uses ZIP contents from directory listings for formats and aggregate size', f
     Http::assertSentCount(2);
 });
 
+it('does not inspect ZIP links from disallowed hosts in directory listings', function () {
+    Http::fake([
+        'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="https://example.org/archive.zip">archive.zip</a> 2026-06-14 10:01 4K
+            HTML),
+        'https://example.org/archive.zip' => Http::response(sizeFormatProbeZipData([
+            'inside/data.csv' => 'csv',
+        ]), 200, [
+            'Content-Type' => 'application/zip',
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    expect($result['raw_evidence']['files'])->toHaveCount(1)
+        ->and($result['raw_evidence']['files'][0]['file_url'])->toBe('https://example.org/archive.zip')
+        ->and($result['raw_evidence']['files'][0])->not->toHaveKey('zip_probe_result')
+        ->and(array_column($result['suggestions'], 'inferred_value'))->toContain('application/zip')
+        ->and(array_column($result['suggestions'], 'inferred_value'))->not->toContain('text/csv');
+
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'example.org'));
+});
+
 it('matches the Stepanov ZIP directory listing example from datapub', function () {
     $url = 'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.067-KJhgvb/';
     $zipUrl = $url.'2026-067_Stepanov-et-al_data.zip';
