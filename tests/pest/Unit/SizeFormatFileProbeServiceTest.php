@@ -8,6 +8,27 @@ use Illuminate\Support\Facades\Http;
 
 covers(SizeFormatFileProbeService::class);
 
+function sizeFormatProbeZipData(array $files): string
+{
+    $temporaryPath = tempnam(sys_get_temp_dir(), 'size-format-zip-test-');
+    $zip = new ZipArchive;
+    $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+    foreach ($files as $filename => $contents) {
+        $zip->addFromString((string) $filename, (string) $contents);
+    }
+
+    $zip->close();
+    $zipData = file_get_contents($temporaryPath);
+    unlink($temporaryPath);
+
+    if ($zipData === false) {
+        throw new RuntimeException('Could not read generated ZIP test data.');
+    }
+
+    return $zipData;
+}
+
 it('explores nested directories and creates one total size suggestion', function () {
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
@@ -15,7 +36,7 @@ it('explores nested directories and creates one total size suggestion', function
             <a href="nested/">nested/</a>
             HTML),
         'https://datapub.gfz.de/download/dataset/nested/' => Http::response(<<<'HTML'
-            <a href="child.zip">child.zip</a> 2026-06-14 10:01 512K
+            <a href="child.txt">child.txt</a> 2026-06-14 10:01 512K
             <a href="deeper/">deeper/</a>
             <a href="../">Parent Directory</a>
             HTML),
@@ -207,7 +228,7 @@ it('keeps Apache listing files with unknown size for format and confidence evide
     Http::fake([
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
             <a href="known.csv">known.csv</a> 2026-06-14 10:00 1M
-            <a href="unknown.zip">unknown.zip</a> 2026-06-14 10:01 -
+            <a href="unknown.dat">unknown.dat</a> 2026-06-14 10:01 -
             HTML),
     ]);
 
@@ -227,7 +248,7 @@ it('keeps Apache listing files with unknown size for format and confidence evide
 
     expect($formatSuggestions)
         ->toHaveCount(2)
-        ->and($formatSuggestions[1]['evidence']['filename'])->toBe('unknown.zip')
+        ->and($formatSuggestions[1]['evidence']['filename'])->toBe('unknown.dat')
         ->and($sizeSuggestions)->toHaveCount(1)
         ->and($sizeSuggestions[0]['confidence'])->toBe('low')
         ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1)
@@ -261,6 +282,183 @@ it('infers high confidence size and format suggestions from HEAD headers', funct
         ]);
 });
 
+it('reads direct ZIP contents for contained formats and uncompressed size', function () {
+    $zipData = sizeFormatProbeZipData([
+        'data/table.csv' => str_repeat('c', 1024),
+        'docs/manual.pdf' => str_repeat('p', 2048),
+        'docs/data-description.pdf' => str_repeat('x', 4096),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/archive.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive.zip');
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($result['probe_method'])->toBe('ZIP_CONTENT_LISTING')
+        ->and(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+            'text/csv',
+            'application/pdf',
+        ])
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0])->toMatchArray([
+            'inferred_value' => '3 KB',
+            'probe_method' => 'ZIP_CONTENT_LISTING',
+            'confidence' => 'high',
+        ])
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['raw_entry_count'])->toBe(3)
+        ->and($sizeSuggestions[0]['evidence']['skipped_entry_count'])->toBe(1);
+
+    Http::assertSentCount(2);
+});
+
+it('uses ZIP contents from directory listings for formats and aggregate size', function () {
+    $zipData = sizeFormatProbeZipData([
+        'inside/data.csv' => str_repeat('c', 2048),
+        'inside/plot.pdf' => str_repeat('p', 3072),
+        'inside/data-description.txt' => str_repeat('x', 1024),
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
+            <a href="readme.txt">readme.txt</a> 2026-06-14 10:00 1K
+            <a href="archive.zip">archive.zip</a> 2026-06-14 10:01 4K
+            HTML),
+        'https://datapub.gfz.de/download/dataset/archive.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->probeDirectoryListing('https://datapub.gfz.de/download/dataset/');
+
+    $formatSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    ));
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect(array_column($formatSuggestions, 'inferred_value'))->toEqualCanonicalizing([
+        'text/plain',
+        'text/csv',
+        'application/pdf',
+    ])
+        ->and(array_column($formatSuggestions, 'inferred_value'))->not->toContain('application/zip')
+        ->and($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['inferred_value'])->toBe('6 KB')
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(3)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(3)
+        ->and($sizeSuggestions[0]['evidence']['zip_archive_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['zip_entry_count'])->toBe(2);
+
+    Http::assertSentCount(2);
+});
+
+it('falls back to ZIP container metadata when direct ZIP inspection exceeds the size limit', function () {
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) (1024 * 1024 * 1024 + 1),
+            ]);
+        }
+
+        return Http::response(sizeFormatProbeZipData(['data.csv' => 'csv']), 200, [
+            'Content-Type' => 'application/zip',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/huge.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ]);
+
+    Http::assertSentCount(1);
+});
+
+it('falls back to ZIP container metadata when direct ZIP inspection cannot read the archive', function () {
+    Http::fake(function (Request $request) {
+        if ($request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => '12',
+            ]);
+        }
+
+        return Http::response('not-a-zip', 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => '12',
+        ]);
+    });
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/broken.zip');
+
+    expect($result['probe_method'])->toBe('HTTP_HEAD')
+        ->and($result['suggestions'][0])->toMatchArray([
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'confidence' => 'low',
+        ]);
+
+    Http::assertSentCount(2);
+});
+
+it('does not recursively inspect nested ZIP entries', function () {
+    $nestedZipData = sizeFormatProbeZipData([
+        'nested/data.json' => '{"ok":true}',
+    ]);
+    $zipData = sizeFormatProbeZipData([
+        'outer/data.csv' => 'csv',
+        'outer/nested.zip' => $nestedZipData,
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/nested.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/nested.zip');
+
+    $formatValues = array_column(array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'format',
+    )), 'inferred_value');
+
+    expect($formatValues)->toEqualCanonicalizing([
+        'text/csv',
+        'application/zip',
+    ])
+        ->and($formatValues)->not->toContain('application/json');
+});
+
 it('falls back to ranged GET metadata when HEAD has no usable headers', function () {
     Http::fake(function (Request $request) {
         if ($request->method() === 'HEAD') {
@@ -282,7 +480,7 @@ it('falls back to ranged GET metadata when HEAD has no usable headers', function
             'type' => 'format',
             'inferred_value' => 'application/zip',
             'probe_method' => 'RANGED_GET_CONTENT_TYPE',
-            'confidence' => 'medium',
+            'confidence' => 'low',
         ])
         ->and($result['suggestions'][1])->toMatchArray([
             'type' => 'size',
@@ -363,7 +561,7 @@ it('reuses the preflight HEAD response for extensionless direct downloads', func
         }
 
         return Http::response('', 200, [
-            'Content-Type' => 'application/zip',
+            'Content-Type' => 'application/pdf',
             'Content-Length' => '4096',
         ]);
     });

@@ -865,6 +865,7 @@ function probeMethodLabel(probeMethod: string | null, targetType: unknown): stri
         RANGED_GET: 'Checked partial file response',
         RANGED_GET_CONTENT_RANGE: 'Read from partial file size',
         RANGED_GET_CONTENT_TYPE: 'Read from partial file type',
+        ZIP_CONTENT_LISTING: 'Read from ZIP contents',
     };
 
     return labels[method] ?? method.toLowerCase().replaceAll('_', ' ');

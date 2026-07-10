@@ -834,6 +834,36 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
     });
 
+    it('renders ZIP content listing suggestions as normal content formats', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            target_type: 'format',
+            suggested_value: 'text/csv',
+            suggested_label: 'FORMAT: text/csv',
+            metadata: {
+                source_url: 'https://datapub.gfz.de/download/archive.zip',
+                probe_method: 'ZIP_CONTENT_LISTING',
+                confidence: 'medium',
+                evidence: {
+                    filename: 'data/table.csv',
+                    archive_filename: 'archive.zip',
+                },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByText('File format')).toBeInTheDocument();
+        expect(screen.getByText('Suggested format: CSV file (text/csv)')).toBeInTheDocument();
+        expect(screen.getByText('Read from ZIP contents')).toBeInTheDocument();
+        expect(screen.queryByText('ZIP Archive')).not.toBeInTheDocument();
+        expect(screen.getByText('Detected from file: data/table.csv')).toBeInTheDocument();
+    });
+
     it('renders source, confidence, friendly probe method and evidence metadata', () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_value: '2 MB',
