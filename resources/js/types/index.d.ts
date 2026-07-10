@@ -79,6 +79,7 @@ export interface User {
     is_active?: boolean;
     // Gate-based permissions
     can_manage_users?: boolean;
+    can_register_doi?: boolean;
     can_register_production_doi?: boolean;
     can_delete_logs?: boolean;
     // Granular access permissions (Issue #379)
@@ -89,6 +90,7 @@ export interface User {
     can_access_editor_settings?: boolean;
     // Landing page management permission (Issue #375)
     can_manage_landing_pages?: boolean;
+    can_delete_landing_pages?: boolean;
     can_manage_landing_page_templates?: boolean;
     // Assistance page permission
     can_access_assistance?: boolean;
@@ -181,6 +183,8 @@ export interface RelatedIdentifier {
     relation_type: string;
     relation_type_information?: string | null;
     citation_label?: string | null;
+    source?: 'relation_suggestion_assistant' | null;
+    is_repository_curation?: boolean;
     position?: number;
     related_title?: string | null;
     related_metadata?: Record<string, unknown> | null;

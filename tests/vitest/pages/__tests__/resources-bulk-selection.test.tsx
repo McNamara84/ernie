@@ -45,6 +45,7 @@ vi.mock('@inertiajs/react', () => ({
                     updated_at: '2024-01-01T00:00:00Z',
                     role: 'group_leader',
                     can_manage_landing_pages: true,
+                    can_register_doi: true,
                     can_register_production_doi: true,
                 },
             },
@@ -349,6 +350,29 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
         expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('allows long blocked editor tab labels to wrap inside the fallback dialog', async () => {
+        openMock.mockReturnValueOnce(null);
+        const longTitle =
+            'A very long resource title with enough descriptive metadata to exceed the dialog width and aSuperLongUnbrokenSegmentThatStillNeedsToStayInsideTheFallbackLink';
+
+        render(<ResourcesPage {...buildProps([buildResource({ id: 9470, doi: '10.9999/long-title', title: longTitle })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-9470'));
+        await userEvent.click(screen.getByTestId('resources-action-edit'));
+
+        const fallbackLink = screen.getByRole('link', { name: new RegExp(longTitle) });
+        const label = within(fallbackLink).getByText(longTitle);
+
+        expect(fallbackLink).toHaveClass('h-auto');
+        expect(fallbackLink).toHaveClass('min-h-9');
+        expect(fallbackLink).toHaveClass('items-start');
+        expect(fallbackLink).toHaveClass('whitespace-normal');
+        expect(fallbackLink).not.toHaveClass('whitespace-nowrap');
+        expect(label).toHaveClass('whitespace-normal');
+        expect(label).toHaveClass('wrap-break-word');
+        expect(label).not.toHaveClass('truncate');
     });
 
     it('shows fallback editor links when a row editor tab is blocked', async () => {

@@ -7,6 +7,7 @@ use App\Models\DescriptionType;
 use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\LandingPage;
+use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceInstrument;
@@ -599,6 +600,118 @@ describe('ResourceStorageService', function () {
 
         expect($related->citation_label)->toBe('Manual citation label')
             ->and($related->relation_type_information)->toBeNull();
+    });
+
+    it('preserves assistant provenance for existing related identifiers when updating a resource', function () {
+        $resourceType = ResourceType::first();
+        $identifierType = IdentifierType::query()->where('slug', 'URL')->firstOrFail();
+        $relationType = RelationType::query()->where('slug', 'References')->firstOrFail();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+        ]);
+
+        $assistantRelatedIdentifier = $resource->relatedIdentifiers()->create([
+            'identifier' => 'https://example.org/curated-original',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+            'position' => 0,
+        ]);
+
+        $manualRelatedIdentifier = $resource->relatedIdentifiers()->create([
+            'identifier' => 'https://example.org/manual-original',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'position' => 1,
+        ]);
+
+        $data = [
+            'resourceId' => $resource->id,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Updated Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Updated abstract.',
+                ],
+            ],
+            'relatedIdentifiers' => [
+                [
+                    'id' => $assistantRelatedIdentifier->id,
+                    'identifier' => 'https://example.org/curated-edited',
+                    'identifierType' => 'URL',
+                    'relationType' => 'References',
+                    'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+                ],
+                [
+                    'id' => $manualRelatedIdentifier->id,
+                    'identifier' => 'https://example.org/manual-edited',
+                    'identifierType' => 'URL',
+                    'relationType' => 'References',
+                    'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+                ],
+                [
+                    'identifier' => 'https://example.org/new-manual',
+                    'identifierType' => 'URL',
+                    'relationType' => 'References',
+                    'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+                ],
+            ],
+        ];
+
+        [$updatedResource] = $this->service->store($data, $this->user->id);
+
+        $relatedIdentifiers = $updatedResource->fresh()
+            ->relatedIdentifiers()
+            ->orderBy('position')
+            ->get();
+
+        expect($relatedIdentifiers)->toHaveCount(3)
+            ->and($relatedIdentifiers[0]->id)->toBe($assistantRelatedIdentifier->id)
+            ->and($relatedIdentifiers[0]->identifier)->toBe('https://example.org/curated-edited')
+            ->and($relatedIdentifiers[0]->source)->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
+            ->and($relatedIdentifiers[1]->id)->toBe($manualRelatedIdentifier->id)
+            ->and($relatedIdentifiers[1]->identifier)->toBe('https://example.org/manual-edited')
+            ->and($relatedIdentifiers[1]->source)->toBeNull()
+            ->and($relatedIdentifiers[2]->identifier)->toBe('https://example.org/new-manual')
+            ->and($relatedIdentifiers[2]->source)->toBeNull();
+    });
+
+    it('does not coerce fractional related identifier ids when matching existing rows', function () {
+        $identifierType = IdentifierType::query()->where('slug', 'URL')->firstOrFail();
+        $relationType = RelationType::query()->where('slug', 'References')->firstOrFail();
+        $resource = Resource::factory()->create();
+
+        $relatedIdentifier = $resource->relatedIdentifiers()->create([
+            'identifier' => 'https://example.org/curated-original',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+            'position' => 0,
+        ]);
+
+        $method = new ReflectionMethod(ResourceStorageService::class, 'existingRelatedIdentifierForUpdate');
+        $method->setAccessible(true);
+
+        expect($method->invoke($this->service, ['id' => (string) $relatedIdentifier->id], [$relatedIdentifier->id => $relatedIdentifier]))
+            ->toBe($relatedIdentifier)
+            ->and($method->invoke($this->service, ['id' => $relatedIdentifier->id.'.9'], [$relatedIdentifier->id => $relatedIdentifier]))
+            ->toBeNull();
     });
 
     it('coerces non-array related identifiers to an empty list before storage', function () {

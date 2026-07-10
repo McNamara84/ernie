@@ -6,14 +6,15 @@ use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
+use App\Policies\LandingPagePolicy;
 
 /**
  * Policy Tests for Landing Page Management Authorization
  *
- * Tests the LandingPagePolicy which allows ADMIN, GROUP_LEADER, and CURATOR roles
- * to manage landing pages, while BEGINNER users are denied access.
+ * Tests the LandingPagePolicy which allows all roles to create and update
+ * landing pages, while deleting draft landing pages stays curator-level.
  *
- * @see App\Policies\LandingPagePolicy
+ * @see LandingPagePolicy
  * @see Issue #375 - Enable subsequent modification of the landing page template
  */
 uses()->group('landing-pages', 'authorization');
@@ -91,8 +92,8 @@ describe('Landing Page Authorization for Curators and Above', function () {
     });
 });
 
-describe('Landing Page Authorization Denied for Beginners', function () {
-    test('beginner cannot create a landing page', function () {
+describe('Landing Page Training Authorization for Beginners', function () {
+    test('beginner can create a landing page', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
         $resource = Resource::factory()->create();
 
@@ -102,10 +103,10 @@ describe('Landing Page Authorization Denied for Beginners', function () {
                 'is_published' => false,
             ]);
 
-        $response->assertForbidden();
+        $response->assertCreated();
     });
 
-    test('beginner cannot update a landing page', function () {
+    test('beginner can update a landing page', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
         $resource = Resource::factory()->create();
         LandingPage::factory()->create([
@@ -119,7 +120,7 @@ describe('Landing Page Authorization Denied for Beginners', function () {
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated',
             ]);
 
-        $response->assertForbidden();
+        $response->assertOk();
     });
 
     test('beginner cannot delete a landing page', function () {
@@ -162,11 +163,27 @@ describe('Landing Page Gate Check', function () {
         expect($user->can('manage-landing-pages'))->toBeTrue();
     });
 
-    test('manage-landing-pages gate returns false for beginners', function () {
+    test('manage-landing-pages gate returns true for beginners', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
 
         $this->actingAs($user);
 
-        expect($user->can('manage-landing-pages'))->toBeFalse();
+        expect($user->can('manage-landing-pages'))->toBeTrue();
+    });
+
+    test('delete-landing-pages gate stays false for beginners', function () {
+        $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+
+        $this->actingAs($user);
+
+        expect($user->can('delete-landing-pages'))->toBeFalse();
+    });
+
+    test('delete-landing-pages gate returns true for curators', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
+
+        $this->actingAs($user);
+
+        expect($user->can('delete-landing-pages'))->toBeTrue();
     });
 });

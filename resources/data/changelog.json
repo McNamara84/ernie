@@ -44,6 +44,10 @@
                 "description": "A new Related Item Manager allows curators to add detailed inline metadata for related works directly to a resource, using DataCite Metadata Schema 4.7 relatedItem. A new Quote icon on the /resources page opens a modal to create, edit, reorder, and delete related items per resource. Each related item captures full bibliographic metadata: resource type, relation type, titles (with MainTitle/Subtitle/TranslatedTitle/AlternativeTitle), creators and contributors with ORCID/ROR affiliations, publication year, volume, issue, pages, publisher, edition, identifier (DOI, ISBN, URL, etc.). DOIs can be auto-filled via a Crossref lookup (30 requests/minute), and related items can be previewed as APA or IEEE citations with one-click copy. Related items are included in DataCite XML, JSON, JSON-LD, and Schema.org exports; imported from DataCite JSON; parsed from XML uploads; and displayed on the public landing page next to plain related identifiers with an 'Inline metadata' badge. Administrators can inspect and curate related items via the curation form's new Related Items accordion."
             },
             {
+                "title": "Repository-Curated Related Identifiers",
+                "description": "Related identifiers accepted through the Relation Suggestions assistance tool now keep their repository-curation provenance. The Data Editor highlights these entries with a clear assistance-tool note, while landing pages display them in a separate 'Added by repository curation' section below the initially supplied related identifiers."
+            },
+            {
                 "title": "Password Visibility Toggle on Reset Password Page",
                 "description": "The 'Reset password' page now shows an eye icon inside both the password and confirm-password fields. Clicking the icon toggles the entered value between hidden and plain text, helping users verify their new password before submission and avoid typos. The icon clearly indicates the current state (eye = hidden, eye-with-slash = visible), is fully keyboard accessible, and carries distinct screen-reader labels for the two fields. Toggling visibility does not affect how the password is transmitted or stored."
             },
@@ -114,6 +118,10 @@
             {
                 "title": "Assistance: Suggested ROR-IDs Discovery",
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
+            },
+            {
+                "title": "Assistance: Bulk ROR Affiliation Acceptance",
+                "description": "When an Admin or Group Leader accepts a ROR suggestion for a creator affiliation, ERNIE now detects further pending creator-affiliation suggestions with the same exported creatorName, affiliation label, and proposed ROR identifier. A confirmation dialog lets the reviewer apply that ROR identifier to all exact matches at once while preserving affiliation labels and creator name identifiers. If processing fails before completion, the confirmation can be retried."
             },
             {
                 "title": "Assistance: Crossref Funder ID to ROR Suggestions",

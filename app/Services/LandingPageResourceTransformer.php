@@ -97,6 +97,8 @@ final class LandingPageResourceTransformer
                     'identifier_type' => $identifierType !== null ? $identifierType->slug : null,
                     'relation_type' => $relationType !== null ? $relationType->slug : null,
                     'citation_label' => $relatedId->citation_label,
+                    'source' => $relatedId->source,
+                    'is_repository_curation' => $relatedId->isRepositoryCuration(),
                     'position' => $relatedId->position,
                 ];
             })

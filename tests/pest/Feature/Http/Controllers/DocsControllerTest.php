@@ -51,6 +51,48 @@ it('passes editor settings to the frontend', function () {
     );
 });
 
+it('passes datacite settings to the frontend', function () {
+    config([
+        'datacite.test_mode' => false,
+        'datacite.test.prefixes' => ['10.83279'],
+        'datacite.production.prefixes' => ['10.5880'],
+        'datacite.test.endpoint' => 'https://api.test.example.org',
+        'datacite.production.endpoint' => 'https://api.example.org',
+    ]);
+
+    $user = User::factory()->curator()->create();
+
+    $response = $this->actingAs($user)->get('/docs');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('dataCite.currentMode', 'production')
+        ->where('dataCite.isTestModeForcedForUser', false)
+        ->where('dataCite.testPrefixes', ['10.83279'])
+        ->where('dataCite.productionPrefixes', ['10.5880'])
+        ->where('dataCite.testEndpoint', 'https://api.test.example.org')
+        ->where('dataCite.productionEndpoint', 'https://api.example.org')
+    );
+});
+
+it('documents beginner users as forced to datacite test mode when global production mode is enabled', function () {
+    config([
+        'datacite.test_mode' => false,
+        'datacite.test.prefixes' => ['10.83279'],
+        'datacite.production.prefixes' => ['10.5880'],
+    ]);
+
+    $user = User::factory()->beginner()->create();
+
+    $response = $this->actingAs($user)->get('/docs');
+
+    $response->assertInertia(fn ($page) => $page
+        ->where('dataCite.currentMode', 'test')
+        ->where('dataCite.isTestModeForcedForUser', true)
+        ->where('dataCite.testPrefixes', ['10.83279'])
+        ->where('dataCite.productionPrefixes', ['10.5880'])
+    );
+});
+
 it('includes thesauri settings', function () {
     ThesaurusSetting::create([
         'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,

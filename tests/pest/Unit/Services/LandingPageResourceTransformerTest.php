@@ -402,6 +402,7 @@ test('transforms related identifier slugs and citation label for landing pages',
         'id' => 1,
         'identifier' => '10.1234/example',
         'citation_label' => 'Doe, J. (2026): Example. GFZ.',
+        'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
         'position' => 1,
     ]);
     $related->setRelation('identifierType', $identifierType);
@@ -424,6 +425,8 @@ test('transforms related identifier slugs and citation label for landing pages',
         'identifier_type' => 'DOI',
         'relation_type' => 'IsSupplementTo',
         'citation_label' => 'Doe, J. (2026): Example. GFZ.',
+        'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
+        'is_repository_curation' => true,
     ]);
 });
 

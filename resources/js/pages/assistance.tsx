@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Building2, Check, RefreshCw, User, X, Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -7,16 +7,21 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
+import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AcceptResponse,
     type AssistancePageProps,
     type AssistantManifest,
     type BaseSuggestionItem,
+    type BulkRorAffiliationAcceptResponse,
     type CheckStatusResponse,
     type PaginatedData,
+    type RorAffiliationBulkMatch,
     type SuggestedCrossrefFunderRorItem,
     type SuggestedDescriptionSegmentationItem,
     type SuggestedOrcidItem,
@@ -57,6 +62,27 @@ function isValidRorUrl(url: string): boolean {
     } catch {
         return false;
     }
+}
+
+function resourceEditorUrl(resourceId: number): string {
+    return editorRoute({ query: { resourceId } }).url;
+}
+
+function rorBulkMatchDialogDescription(count: number): string {
+    const isSingular = count === 1;
+    const noun = isSingular ? 'creator affiliation' : 'creator affiliations';
+    const verb = isSingular ? 'is' : 'are';
+    const target = isSingular ? 'this affiliation' : 'these affiliations';
+
+    return `There ${verb} ${count} further ${noun} with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for ${target} as well?`;
+}
+
+function normalizedResourceHeaderValue(value: string | null | undefined): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function firstNonEmptyResourceHeaderValue(current: string, candidate: string): string {
+    return current === '' ? candidate : current;
 }
 
 function SuggestionCard({
@@ -601,10 +627,7 @@ function SubjectMetadataEnrichmentCard({
                                         {warningMessages.map((warning) => (
                                             <li key={warning}>{warning}</li>
                                         ))}
-                                        {warningMessages.length === 0 &&
-                                            warnings.map((warning) => (
-                                                <li key={warning}>{warning}</li>
-                                            ))}
+                                        {warningMessages.length === 0 && warnings.map((warning) => <li key={warning}>{warning}</li>)}
                                     </ul>
                                 </div>
                             </div>
@@ -1153,7 +1176,6 @@ function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel:
 }
 // ── Per-section state ────────────────────────────────────────────────
 
-
 function DescriptionPreviewBlock({ title, value }: { title: string; value: string | null | undefined }) {
     const text = typeof value === 'string' && value.trim() !== '' ? value : null;
 
@@ -1161,7 +1183,7 @@ function DescriptionPreviewBlock({ title, value }: { title: string; value: strin
         <div className="min-w-0 rounded-md border bg-muted/20 p-3">
             <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
             {text ? (
-                <div className="max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">{text}</div>
+                <div className="max-h-56 overflow-auto text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">{text}</div>
             ) : (
                 <p className="text-xs text-muted-foreground">No text captured.</p>
             )}
@@ -1249,7 +1271,7 @@ function DescriptionSegmentationSuggestionCard({
                                                     </Badge>
                                                 )}
                                             </div>
-                                            <div className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground">
+                                            <div className="max-h-48 overflow-auto text-xs leading-relaxed break-words whitespace-pre-wrap text-foreground">
                                                 {metadataText(segment.value) ?? 'No text captured.'}
                                             </div>
                                             {(evidenceLabel || evidenceTypes.length > 0) && (
@@ -1385,7 +1407,12 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
 
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
+    const [pendingRorBulkMatch, setPendingRorBulkMatch] = useState<RorAffiliationBulkMatch | null>(null);
+    const [isAcceptingRorBulkMatch, setIsAcceptingRorBulkMatch] = useState(false);
 
+    const reloadAssistanceSections = useCallback(() => {
+        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+    }, []);
     // ── Polling logic ────────────────────────────────────────────────
 
     const stopPolling = useCallback(
@@ -1431,7 +1458,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         } else {
                             toast.info(message);
                         }
-                        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                        reloadAssistanceSections();
                     } else if (status.status === 'failed') {
                         pollingRefs.current[id] = null;
                         patch(id, { isChecking: false, progress: '' });
@@ -1448,7 +1475,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
             pollingRefs.current[id] = setTimeout(pollStatus, 3000);
         },
-        [patch, pollingRefs],
+        [patch, pollingRefs, reloadAssistanceSections],
     );
 
     // ── Check one assistant ──────────────────────────────────────────
@@ -1538,15 +1565,65 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 } else {
                     toast.warning(data.message);
                 }
-                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+
+                const bulkMatch = data.bulk_affiliation_match;
+                if (data.success && manifest.id === 'ror-suggestion' && bulkMatch?.available === true && bulkMatch.count > 0) {
+                    setPendingRorBulkMatch(bulkMatch);
+                    return;
+                }
+
+                reloadAssistanceSections();
             } catch {
                 toast.error('Failed to accept suggestion.');
             } finally {
                 removeProcessingId(manifest.id, suggestionId);
             }
         },
-        [addProcessingId, removeProcessingId],
+        [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
+
+    const handleAcceptRorBulkMatch = useCallback(async () => {
+        if (pendingRorBulkMatch === null) return;
+
+        setIsAcceptingRorBulkMatch(true);
+
+        try {
+            const { data } = await axios.post<BulkRorAffiliationAcceptResponse>('/assistance/rors/bulk-affiliation-accept', {
+                bulk_token: pendingRorBulkMatch.bulk_token,
+            });
+
+            if (data.success) {
+                toast.success(data.message);
+            } else {
+                toast.warning(data.message);
+            }
+
+            setPendingRorBulkMatch(null);
+            reloadAssistanceSections();
+        } catch (error) {
+            const isAxiosBulkAcceptError = axios.isAxiosError(error);
+
+            if (isAxiosBulkAcceptError && typeof error.response?.data?.message === 'string') {
+                toast.warning(error.response.data.message);
+            } else {
+                toast.error('Failed to accept matching ROR suggestions.');
+            }
+
+            if (isAxiosBulkAcceptError && error.response?.status === 422) {
+                setPendingRorBulkMatch(null);
+                reloadAssistanceSections();
+            }
+        } finally {
+            setIsAcceptingRorBulkMatch(false);
+        }
+    }, [pendingRorBulkMatch, reloadAssistanceSections]);
+
+    const handleDeclineRorBulkMatch = useCallback(() => {
+        if (isAcceptingRorBulkMatch) return;
+
+        setPendingRorBulkMatch(null);
+        reloadAssistanceSections();
+    }, [isAcceptingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDecline = useCallback(
         async (manifest: AssistantManifest, suggestionId: number) => {
@@ -1555,14 +1632,14 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             try {
                 await axios.post(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
                 toast.info('Suggestion declined.');
-                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+                reloadAssistanceSections();
             } catch {
                 toast.error('Failed to decline suggestion.');
             } finally {
                 removeProcessingId(manifest.id, suggestionId);
             }
         },
-        [addProcessingId, removeProcessingId],
+        [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
 
     // ── Render helpers ───────────────────────────────────────────────
@@ -1725,21 +1802,28 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     if (!sectionData) return null;
 
                     // Group items by resource
-                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
-                        (groups, item) => {
-                            const resourceId = item.resource_id;
-                            if (!groups[resourceId]) {
-                                groups[resourceId] = {
-                                    doi: item.resource_doi ?? '',
-                                    title: item.resource_title ?? 'Untitled',
-                                    items: [],
-                                };
-                            }
-                            groups[resourceId].items.push(item);
-                            return groups;
-                        },
-                        {},
-                    );
+                    const grouped = sectionData.data.reduce<
+                        Record<number, { resourceId: number; doi: string; title: string; items: BaseSuggestionItem[] }>
+                    >((groups, item) => {
+                        const resourceId = item.resource_id;
+                        const itemDoi = normalizedResourceHeaderValue(item.resource_doi);
+                        const itemTitle = normalizedResourceHeaderValue(item.resource_title);
+
+                        if (!groups[resourceId]) {
+                            groups[resourceId] = {
+                                resourceId,
+                                doi: itemDoi,
+                                title: itemTitle,
+                                items: [],
+                            };
+                        } else {
+                            groups[resourceId].doi = firstNonEmptyResourceHeaderValue(groups[resourceId].doi, itemDoi);
+                            groups[resourceId].title = firstNonEmptyResourceHeaderValue(groups[resourceId].title, itemTitle);
+                        }
+
+                        groups[resourceId].items.push(item);
+                        return groups;
+                    }, {});
 
                     return (
                         <Card key={manifest.id}>
@@ -1769,24 +1853,35 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                             <CardContent>
                                 {Object.keys(grouped).length > 0 ? (
                                     <div className="space-y-6">
-                                        {Object.entries(grouped).map(([resourceId, group]) => (
-                                            <div key={resourceId} className="space-y-3">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                                    <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                                    <Badge variant="secondary" className="ml-auto text-xs">
-                                                        {group.items.length} suggestion(s)
-                                                    </Badge>
+                                        {Object.entries(grouped).map(([resourceKey, group]) => {
+                                            const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
+                                            const resourceTitle = group.title === '' ? 'Untitled' : group.title;
+
+                                            return (
+                                                <div key={resourceKey} className="space-y-3">
+                                                    <div className="flex items-baseline gap-2">
+                                                        <Link
+                                                            href={resourceEditorUrl(group.resourceId)}
+                                                            className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                            title={`Open ${resourceLabel} in editor`}
+                                                        >
+                                                            {resourceLabel}
+                                                        </Link>
+                                                        <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                        <Badge variant="secondary" className="ml-auto text-xs">
+                                                            {group.items.length} suggestion(s)
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="space-y-2 pl-4">
+                                                        {group.items.map((item) => (
+                                                            <div key={item.id as number}>
+                                                                {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2 pl-4">
-                                                    {group.items.map((item) => (
-                                                        <div key={item.id as number}>
-                                                            {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -1820,6 +1915,28 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     );
                 })}
             </div>
+
+            <Dialog
+                open={pendingRorBulkMatch !== null}
+                onOpenChange={(open) => {
+                    if (!open) handleDeclineRorBulkMatch();
+                }}
+            >
+                <DialogContent showCloseButton={!isAcceptingRorBulkMatch}>
+                    <DialogHeader>
+                        <DialogTitle>Accept matching ROR suggestions?</DialogTitle>
+                        <DialogDescription>{rorBulkMatchDialogDescription(pendingRorBulkMatch?.count ?? 0)}</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" disabled={isAcceptingRorBulkMatch} onClick={handleDeclineRorBulkMatch}>
+                            Decline
+                        </Button>
+                        <LoadingButton loading={isAcceptingRorBulkMatch} onClick={handleAcceptRorBulkMatch}>
+                            Accept
+                        </LoadingButton>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

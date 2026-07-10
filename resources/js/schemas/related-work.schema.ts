@@ -112,6 +112,8 @@ export const relatedIdentifierSchema = z.object({
     relation_type: relationTypeSchema,
     relation_type_information: z.string().max(255).optional().nullable(),
     citation_label: z.string().optional().nullable(),
+    source: z.literal('relation_suggestion_assistant').optional().nullable(),
+    is_repository_curation: z.boolean().optional(),
     position: z.number().optional(),
     related_title: z.string().optional().nullable(),
     related_metadata: z.record(z.string(), z.unknown()).optional().nullable(),

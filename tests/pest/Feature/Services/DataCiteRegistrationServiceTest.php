@@ -1,11 +1,14 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\DataCiteRegistrationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config([
@@ -163,7 +166,7 @@ test('updateMetadata sends put request to correct endpoint', function () {
 test('updateMetadata throws exception when resource has no doi', function () {
     $service = app(DataCiteRegistrationService::class);
     expect(fn () => $service->updateMetadata($this->resource))
-        ->toThrow(\Exception::class, 'must have a DOI');
+        ->toThrow(Exception::class, 'must have a DOI');
 });
 
 test('registerDoi retries on network failure', function () {
@@ -217,6 +220,38 @@ test('registerDoi uses production credentials when test mode is disabled', funct
             && $request->header('Authorization')[0] === 'Basic '.base64_encode('PROD.USER:prod-password');
     });
 });
+test('registerDoi forces test credentials for beginner users when test mode is disabled', function () {
+    $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+    $this->actingAs($beginner);
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.83279/beginner-test',
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => '10.83279/beginner-test',
+                    'state' => 'findable',
+                ],
+            ],
+        ], 201),
+    ]);
+
+    config([
+        'datacite.test_mode' => false,
+    ]);
+
+    $service = app(DataCiteRegistrationService::class);
+    $result = $service->registerDoi($this->resource, '10.83279');
+
+    expect($result)->toBeArray()
+        ->and($service->isTestMode())->toBeTrue();
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), 'api.test.datacite.org')
+            && $request->header('Authorization')[0] === 'Basic '.base64_encode('TEST.USER:test-password');
+    });
+});
 
 test('registerDoi handles datacite error responses', function () {
     Http::fake([
@@ -233,7 +268,7 @@ test('registerDoi handles datacite error responses', function () {
 
     $service = app(DataCiteRegistrationService::class);
     expect(fn () => $service->registerDoi($this->resource, '10.83279'))
-        ->toThrow(\Exception::class);
+        ->toThrow(Exception::class);
 });
 
 test('updateMetadata handles datacite error responses', function () {
@@ -253,5 +288,5 @@ test('updateMetadata handles datacite error responses', function () {
 
     $service = app(DataCiteRegistrationService::class);
     expect(fn () => $service->updateMetadata($this->resource))
-        ->toThrow(\Exception::class);
+        ->toThrow(Exception::class);
 });

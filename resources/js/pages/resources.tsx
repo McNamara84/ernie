@@ -638,7 +638,7 @@ function ResourcesPage({
 }: ResourcesProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
-    const canRegisterDoi = auth.user?.can_register_production_doi ?? false;
+    const canRegisterDoi = auth.user?.can_register_doi ?? false;
     const canDeleteResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
@@ -2177,9 +2177,14 @@ function ResourcesPage({
                     </DialogHeader>
                     <div className="space-y-2">
                         {blockedEditorTabs.map((tab) => (
-                            <Button key={tab.id} asChild variant="outline" className="w-full justify-between gap-2">
+                            <Button
+                                key={tab.id}
+                                asChild
+                                variant="outline"
+                                className="h-auto min-h-9 w-full items-start justify-between gap-2 py-2 text-left whitespace-normal"
+                            >
                                 <a href={tab.url} target="_blank" rel="noopener noreferrer">
-                                    <span className="truncate">{tab.label}</span>
+                                    <span className="min-w-0 flex-1 text-left wrap-break-word whitespace-normal">{tab.label}</span>
                                     <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
                                 </a>
                             </Button>
