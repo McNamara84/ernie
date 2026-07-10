@@ -70,7 +70,12 @@ final class SizeFormatSuggestionDiscoveryService
                 continue;
             }
 
-            $suggestedValue = (string) ($suggestion['inferred_value'] ?? '');
+            $suggestedValue = match ($type) {
+                'format' => $this->extractFormatSuggestionValue($suggestion),
+                'size' => (string) ($suggestion['inferred_value'] ?? ''),
+                default => '',
+            };
+
             if ($suggestedValue === '') {
                 continue;
             }
@@ -129,6 +134,33 @@ final class SizeFormatSuggestionDiscoveryService
         $results = $this->probeService->extractAndProbe('https://doi.org/'.$doi);
 
         return $this->probeService->buildSuggestions($results);
+    }
+
+    private function extractFormatSuggestionValue(array $suggestion): string
+    {
+        $evidence = $suggestion['evidence'] ?? null;
+        if (is_array($evidence) && isset($evidence['extension']) && is_string($evidence['extension']) && trim($evidence['extension']) !== '') {
+            return trim($evidence['extension']);
+        }
+
+        $sourceUrl = (string) ($suggestion['source_url'] ?? '');
+        $path = (string) parse_url($sourceUrl, PHP_URL_PATH);
+        $filename = basename($path !== '' ? $path : $sourceUrl);
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if ($extension !== '') {
+            return $extension;
+        }
+
+        $rawValue = trim((string) ($suggestion['inferred_value'] ?? ''));
+        if ($rawValue === '') {
+            return '';
+        }
+
+        if (! str_contains($rawValue, '/')) {
+            return $rawValue;
+        }
+
+        return trim((string) array_reverse(explode('/', $rawValue))[0]);
     }
 
     private function confidenceToScore(mixed $confidence): ?float

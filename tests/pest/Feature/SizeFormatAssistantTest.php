@@ -140,7 +140,6 @@ it('exposes size and format suggestion preview metadata', function () {
 });
 
 it('accepts a format suggestion and creates a format record', function (): void {
-
     $resource = Resource::factory()->create();
 
     $suggestion = AssistantSuggestion::query()->create([
@@ -180,7 +179,6 @@ it('does not create duplicate format records when accepting the same suggestion 
         'similarity_score' => null,
         'metadata' => [],
         'discovered_at' => now(),
-
     ]);
 
     $assistant = app(Assistant::class);
@@ -192,7 +190,6 @@ it('does not create duplicate format records when accepting the same suggestion 
         ->toBe(0);
     expect(Format::where('resource_id', $resource->id)->where('value', 'application/pdf')->count())
         ->toBe(1);
-
 });
 
 it('accepts a size suggestion and creates a size record', function (): void {
@@ -253,6 +250,7 @@ it('does not create duplicate size records when accepting the same suggestion tw
 
     applySizeFormatSuggestion($assistant, $suggestion);
     applySizeFormatSuggestion($assistant, $suggestion);
+
     expect(Size::where('resource_id', $resource->id)
         ->where('numeric_value', '8.1')
         ->where('unit', 'M')
@@ -271,10 +269,78 @@ it('returns an error for unknown suggestion types', function (): void {
         'similarity_score' => null,
         'metadata' => [],
         'discovered_at' => now(),
-
     ]);
 
     $result = applySizeFormatSuggestion(app(Assistant::class), $suggestion);
     expect($result['success'])->toBeFalse()
         ->and($result['message'])->toBe('Unknown suggestion type.');
+});
+
+it('creates specific format and size suggestions with proper metadata during discovery', function (): void {
+    // Fake the external HTTP network calls for discovery probing
+    Http::fake(function (\Illuminate\Http\Client\Request $request) {
+        $url = $request->url();
+
+        if ($url === 'https://doi.org/10.1234/size-format-test') {
+            return Http::response('', 302, [
+                'Location' => 'https://dataservices.gfz-potsdam.de/landing-size-format-test',
+            ]);
+        }
+
+        if ($url === 'https://dataservices.gfz-potsdam.de/landing-size-format-test') {
+            return Http::response(<<<'HTML'
+                <html>
+                    <body>
+                        <a class="piwik_download" href="/download/test/">Download data</a>
+                    </body>
+                </html>
+                HTML, 200, ['Content-Type' => 'text/html']);
+        }
+
+        if ($url === 'https://dataservices.gfz-potsdam.de/download/test/') {
+            return Http::response(<<<'HTML'
+                <a href="test.zip">test.zip</a> 2026-06-14 10:00 12.5M
+                HTML, 200, ['Content-Type' => 'text/html']);
+        }
+
+        return Http::response('', 404);
+    });
+
+    // Create a pristine resource that triggers the discovery engine
+    $resource = Resource::factory()->create(['doi' => '10.1234/size-format-test']);
+
+    // Run the assistant's discovery method
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    // 1. Assert overall discovery count contains both size and format
+    expect($count)->toBe(2);
+
+    // 2. Strong assertion for the format suggestion database state
+    $formatSuggestion = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('resource_id', $resource->id)
+        ->where('target_type', 'format')
+        ->first();
+
+    expect($formatSuggestion)->not->toBeNull()
+        ->and($formatSuggestion->suggested_value)->toBe('zip')
+        ->and($formatSuggestion->suggested_label)->toBe('FORMAT: zip')
+        ->and($formatSuggestion->metadata)->toBeArray()
+        ->and($formatSuggestion->metadata['inferred_value'] ?? null)->toBe('application/zip')
+        ->and($formatSuggestion->metadata['evidence']['extension'] ?? null)->toBe('zip')
+        ->and($formatSuggestion->metadata['probe_method'] ?? null)->toBe('DIRECTORY_LISTING');
+
+    // 3. Strong assertion for the size suggestion database state and parsed metadata
+    $sizeSuggestion = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('resource_id', $resource->id)
+        ->where('target_type', 'size')
+        ->first();
+
+    expect($sizeSuggestion)->not->toBeNull()
+        ->and($sizeSuggestion->suggested_value)->toBe('12.5 MB')
+        ->and($sizeSuggestion->suggested_label)->toBe('SIZE: 12.5 MB')
+        ->and($sizeSuggestion->metadata)->toBeArray()
+        ->and($sizeSuggestion->metadata['probe_method'] ?? null)->toBe('DIRECTORY_LISTING')
+        ->and($sizeSuggestion->metadata['source_url'] ?? null)->toBe('https://dataservices.gfz-potsdam.de/download/test/')
+        ->and($sizeSuggestion->metadata['parsed_size']['numeric_value'] ?? null)->toBe('12.5')
+        ->and($sizeSuggestion->metadata['parsed_size']['unit'] ?? null)->toBe('M');
 });

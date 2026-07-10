@@ -345,12 +345,15 @@ class SizeFormatFileProbeService
 
                 if ($format !== null && $format !== '') {
                     $mimeType = $this->mimeTypeFromExtension((string) $format);
+                    $probeMethod = (($probeResult['probe_method'] ?? null) === 'DIRECTORY_LISTING')
+                        ? 'DIRECTORY_LISTING'
+                        : 'FILENAME_EXTENSION';
 
                     $suggestions[] = [
                         'type' => 'format',
                         'inferred_value' => $mimeType,
                         'source_url' => $fileUrl,
-                        'probe_method' => 'FILENAME_EXTENSION',
+                        'probe_method' => $probeMethod,
                         'evidence' => [
                             'filename' => $file['filename'] ?? null,
                             'extension' => $format,
