@@ -149,10 +149,11 @@ final class SizeFormatSuggestionDiscoveryService
 
     private function hasMeaningfulFormats(Resource $resource): bool
     {
-        return $resource->formats->contains(
-            fn ($format): bool => $this->normalizedFormatValue($format->value ?? null) !== ''
-                && $this->normalizedFormatValue($format->value ?? null) !== 'application/zip'
-        );
+        return $resource->formats->contains(function ($format): bool {
+            $normalizedValue = $this->normalizedFormatValue($format->value ?? null);
+
+            return $normalizedValue !== '' && $normalizedValue !== 'application/zip';
+        });
     }
 
     private function hasZipFormat(Resource $resource): bool

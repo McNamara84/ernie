@@ -6,64 +6,9 @@ use App\Services\SizeFormatFileProbeService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
+use function Tests\Helpers\sizeFormatZipFixtureData;
+
 covers(SizeFormatFileProbeService::class);
-
-function sizeFormatProbeZipData(array $files): string
-{
-    if (! class_exists(ZipArchive::class)) {
-        test()->markTestSkipped('The ext-zip PHP extension is required to generate ZIP test fixtures.');
-    }
-
-    $temporaryPath = tempnam(sys_get_temp_dir(), 'size-format-zip-test-');
-
-    if ($temporaryPath === false) {
-        throw new RuntimeException('Could not create temporary ZIP test file.');
-    }
-
-    $zip = new ZipArchive;
-    $openResult = $zip->open($temporaryPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-
-    if ($openResult !== true) {
-        @unlink($temporaryPath);
-
-        throw new RuntimeException('Could not open temporary ZIP test file. ZipArchive::open returned '.var_export($openResult, true).'.');
-    }
-
-    $zipClosed = false;
-    $zipData = false;
-
-    try {
-        foreach ($files as $filename => $contents) {
-            $added = $zip->addFromString((string) $filename, (string) $contents);
-
-            if ($added === false) {
-                throw new RuntimeException('Could not add ZIP test entry: '.(string) $filename);
-            }
-        }
-
-        $zipClosed = $zip->close();
-
-        if ($zipClosed === false) {
-            throw new RuntimeException('Could not finish ZIP test data.');
-        }
-
-        $zipData = file_get_contents($temporaryPath);
-    } finally {
-        if (! $zipClosed) {
-            @$zip->close();
-        }
-
-        if (is_file($temporaryPath)) {
-            @unlink($temporaryPath);
-        }
-    }
-
-    if ($zipData === false) {
-        throw new RuntimeException('Could not read generated ZIP test data.');
-    }
-
-    return $zipData;
-}
 
 function sizeFormatProbeStepanovZipFiles(): array
 {
@@ -343,7 +288,7 @@ it('infers high confidence size and format suggestions from HEAD headers', funct
 });
 
 it('reads direct ZIP contents for contained formats and uncompressed size', function () {
-    $zipData = sizeFormatProbeZipData([
+    $zipData = sizeFormatZipFixtureData([
         'data/table.csv' => str_repeat('c', 1024),
         'docs/manual.pdf' => str_repeat('p', 2048),
         'docs/data-description.pdf' => str_repeat('x', 4096),
@@ -387,8 +332,38 @@ it('reads direct ZIP contents for contained formats and uncompressed size', func
     Http::assertSentCount(2);
 });
 
+it('counts ZIP directory entries as skipped evidence', function () {
+    $zipData = sizeFormatZipFixtureData([
+        'data/' => null,
+        'data/table.csv' => 'csv',
+    ]);
+
+    Http::fake([
+        'https://datapub.gfz.de/download/archive-with-dir.zip' => Http::response($zipData, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => (string) strlen($zipData),
+        ]),
+    ]);
+
+    $service = app(SizeFormatFileProbeService::class);
+    $result = $service->inferMetadataFromFileUrl('https://datapub.gfz.de/download/archive-with-dir.zip');
+
+    $sizeSuggestions = array_values(array_filter(
+        $result['suggestions'],
+        fn (array $suggestion): bool => $suggestion['type'] === 'size',
+    ));
+
+    expect($sizeSuggestions)->toHaveCount(1)
+        ->and($sizeSuggestions[0]['evidence']['raw_entry_count'])->toBe(2)
+        ->and($sizeSuggestions[0]['evidence']['skipped_entry_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['total_file_count'])->toBe(1)
+        ->and($sizeSuggestions[0]['evidence']['parsed_file_count'])->toBe(1);
+
+    Http::assertSentCount(2);
+});
+
 it('uses ZIP contents from directory listings for formats and aggregate size', function () {
-    $zipData = sizeFormatProbeZipData([
+    $zipData = sizeFormatZipFixtureData([
         'inside/data.csv' => str_repeat('c', 2048),
         'inside/plot.pdf' => str_repeat('p', 3072),
         'inside/data-description.txt' => str_repeat('x', 1024),
@@ -441,7 +416,7 @@ it('limits ZIP content inspections per directory listing', function () {
         $links[] = sprintf('<a href="archive-%02d.zip">archive-%02d.zip</a> 2026-06-14 10:%02d 1K', $index, $index, $index);
     }
 
-    $zipData = sizeFormatProbeZipData([
+    $zipData = sizeFormatZipFixtureData([
         'inside/data.csv' => 'csv',
     ]);
 
@@ -477,7 +452,7 @@ it('does not inspect ZIP links from disallowed hosts in directory listings', fun
         'https://datapub.gfz.de/download/dataset/' => Http::response(<<<'HTML'
             <a href="https://example.org/archive.zip">archive.zip</a> 2026-06-14 10:01 4K
             HTML),
-        'https://example.org/archive.zip' => Http::response(sizeFormatProbeZipData([
+        'https://example.org/archive.zip' => Http::response(sizeFormatZipFixtureData([
             'inside/data.csv' => 'csv',
         ]), 200, [
             'Content-Type' => 'application/zip',
@@ -500,7 +475,7 @@ it('does not inspect ZIP links from disallowed hosts in directory listings', fun
 it('matches the Stepanov ZIP directory listing example from datapub', function () {
     $url = 'https://datapub.gfz.de/download/10.5880.FIDGEO.2026.067-KJhgvb/';
     $zipUrl = $url.'2026-067_Stepanov-et-al_data.zip';
-    $zipData = sizeFormatProbeZipData(sizeFormatProbeStepanovZipFiles());
+    $zipData = sizeFormatZipFixtureData(sizeFormatProbeStepanovZipFiles());
 
     Http::fake([
         $url => Http::response(<<<'HTML'
@@ -560,7 +535,7 @@ it('does not follow redirects while downloading ZIP contents', function () {
             ]);
         }
 
-        return Http::response(sizeFormatProbeZipData(['redirected/data.csv' => 'csv']), 200, [
+        return Http::response(sizeFormatZipFixtureData(['redirected/data.csv' => 'csv']), 200, [
             'Content-Type' => 'application/zip',
         ]);
     });
@@ -587,7 +562,7 @@ it('falls back to ZIP container metadata when the entry count exceeds the inspec
         $files['entries/'.str_pad((string) $index, 5, '0', STR_PAD_LEFT).'.csv'] = '';
     }
 
-    $zipData = sizeFormatProbeZipData($files);
+    $zipData = sizeFormatZipFixtureData($files);
 
     Http::fake(function (Request $request) use ($zipData) {
         if ($request->method() === 'HEAD') {
@@ -626,7 +601,7 @@ it('falls back to ZIP container metadata when direct ZIP inspection exceeds the 
             ]);
         }
 
-        return Http::response(sizeFormatProbeZipData(['data.csv' => 'csv']), 200, [
+        return Http::response(sizeFormatZipFixtureData(['data.csv' => 'csv']), 200, [
             'Content-Type' => 'application/zip',
         ]);
     });
@@ -673,10 +648,10 @@ it('falls back to ZIP container metadata when direct ZIP inspection cannot read 
 });
 
 it('does not recursively inspect nested ZIP entries', function () {
-    $nestedZipData = sizeFormatProbeZipData([
+    $nestedZipData = sizeFormatZipFixtureData([
         'nested/data.json' => '{"ok":true}',
     ]);
-    $zipData = sizeFormatProbeZipData([
+    $zipData = sizeFormatZipFixtureData([
         'outer/data.csv' => 'csv',
         'outer/nested.zip' => $nestedZipData,
     ]);

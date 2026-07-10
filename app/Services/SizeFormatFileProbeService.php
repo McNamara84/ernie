@@ -998,6 +998,8 @@ class SizeFormatFileProbeService
                 $entryName = str_replace('\\', '/', $stat['name']);
 
                 if ($entryName === '' || str_ends_with($entryName, '/')) {
+                    $skippedEntryCount++;
+
                     continue;
                 }
 
@@ -1020,8 +1022,6 @@ class SizeFormatFileProbeService
                     }
 
                     $parsedSizeCount++;
-                } else {
-                    $skippedEntryCount++;
                 }
 
                 $extension = $this->extractFileMetadata($entryFilename);
