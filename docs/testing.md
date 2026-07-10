@@ -98,7 +98,19 @@ npm run docker:dev:backend:d
 npm run test:run
 ```
 
-The Vitest wrapper falls back to the app container for Wayfinder route generation when host Artisan cannot start. You can override this with `WAYFINDER_COMMAND` for custom setups.
+The Vitest wrapper checks whether the host can run `php artisan ernie:wayfinder-generate` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output.
+
+If that host check fails, the wrapper prints the failing command, the exit reason, and any captured output before falling back to the app container for Wayfinder route generation. Keep the Docker backend stack running for that fallback path:
+
+```bash
+npm run docker:dev:backend:d
+```
+
+`WAYFINDER_COMMAND` is the supported escape hatch for custom setups, for example:
+
+```bash
+WAYFINDER_COMMAND="php artisan ernie:wayfinder-generate" npm run test:run
+```
 
 Why frontend validation stays on the host:
 
