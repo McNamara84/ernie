@@ -30,8 +30,7 @@ The assistant evaluates evidence in the following order.
 4. Publisher default language
 5. Automatic language detection
 
-Higher-priority evidence always outweighs lower-priority evidence.
-
+Higher-priority evidence forms the primary basis for the suggested language. Lower-priority evidence does not override higher-priority evidence but may increase or decrease the confidence score when it agrees or conflicts. 
 Example:
 
 Title = English
