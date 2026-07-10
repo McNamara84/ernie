@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, RefreshCw, User, X, Plus } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Plus,RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -1723,10 +1723,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         isProcessing={isProcessing}
                     />
                 );
-            default: {
+            default: 
                 // Generic card for future student modules
-                const metadata = isRecord(item.metadata) ? item.metadata : null;
-                const isHint = metadata?.suggestion_kind === 'hint';
                 return (
                     <div className="rounded-lg border bg-card p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-4">
@@ -1749,7 +1747,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         </div>
                     </div>
                 );
-            }
+            
         }
     }
 
