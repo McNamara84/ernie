@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Modules\Assistants\DateTypeSuggestion;
 
-use App\Jobs\DiscoverAssistantSuggestionsJob;
 use App\Models\AssistantSuggestion;
 use App\Services\Assistance\GenericTableAssistant;
 use App\Services\DateType\DateTypeAcceptanceService;
@@ -57,13 +56,6 @@ final class Assistant extends GenericTableAssistant
             onProgress: $onProgress,
         );
     }
-
-    #[\Override]
-    public function dispatchDiscovery(string $jobId, string $lockOwner): void
-    {
-        DiscoverAssistantSuggestionsJob::dispatchSync($this->getId(), $jobId, $lockOwner, $this->getLockKey());
-    }
-
     
     /**
      * Apply the suggestion when a curator clicks "Accept".

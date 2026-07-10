@@ -41,21 +41,15 @@ final class DateTypePlausibilityService
     public function hint(array $dates, ?string $resourceDoi = null) : array
     {
         $grouped = [];
-        $presentTypes = array_keys($dates);
 
         foreach (self::DATE_VALUE_ORDER as [$earlier, $later]) {
             if (! isset($dates[$earlier], $dates[$later])) {
                 continue;
             }
 
-            $earlierPosition = array_search($earlier, $presentTypes, true);
-            $laterPosition = array_search($later, $presentTypes, true);
-            $typeOrderWrong = $earlierPosition !== false
-                && $laterPosition !== false
-                && $earlierPosition > $laterPosition;
             $valueOrderWrong = $dates[$earlier] > $dates[$later];
             
-            if ($typeOrderWrong || $valueOrderWrong) {
+            if ($valueOrderWrong) {
                 $grouped[$earlier][] = [
                     'type' => $later,
                     'value' => $dates[$later],

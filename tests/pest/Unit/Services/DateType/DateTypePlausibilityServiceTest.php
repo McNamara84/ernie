@@ -24,6 +24,7 @@ it ('returns no hints for plausible date type order', function ()
     expect($warnings)->toBe([]);
 });
 
+
 it ('returns grouped hints for implausible date value order', function () 
 {
     $warnings = $this->plausibilityService->hint
@@ -60,7 +61,7 @@ it ('returns grouped hints for implausible date value order', function ()
 
 });
 
-it ('returns grouped hints for implausible date type order', function () 
+it ('does not treat array order as chronological date order', function () 
 {
     $warnings = $this->plausibilityService->hint
     ([
@@ -71,31 +72,11 @@ it ('returns grouped hints for implausible date type order', function ()
         'Created' => '2018-07-03',
         'Collected' => '2018-07-03', 
     ]);
-    expect($warnings)->toHaveCount(5)
-    ->and($warnings[0]['suggestion_kind'])->toBe('hint')
-    ->and($warnings[0]['message'])->toBe('Collected (2018-07-03) occurs after Created (2018-07-03), Submitted (2018-07-03), Accepted (2018-07-03), Issued (2018-07-03), Available (2018-07-03). Please check whether the date values or date types are assigned correctly.')
-    ->and($warnings[0]['confidence'])->toBe('medium')
-    ->and($warnings[0]['is_ambiguous'])->toBeTrue()
-    ->and($warnings[1]['suggestion_kind'])->toBe('hint')
-    ->and($warnings[1]['message'])->toBe('Created (2018-07-03) occurs after Submitted (2018-07-03), Accepted (2018-07-03), Issued (2018-07-03), Available (2018-07-03). Please check whether the date values or date types are assigned correctly.')
-    ->and($warnings[1]['confidence'])->toBe('medium')
-    ->and($warnings[1]['is_ambiguous'])->toBeTrue()
-    ->and($warnings[2]['suggestion_kind'])->toBe('hint')
-    ->and($warnings[2]['message'])->toBe('Submitted (2018-07-03) occurs after Accepted (2018-07-03), Issued (2018-07-03), Available (2018-07-03). Please check whether the date values or date types are assigned correctly.')
-    ->and($warnings[2]['confidence'])->toBe('medium')
-    ->and($warnings[2]['is_ambiguous'])->toBeTrue()
-    ->and($warnings[3]['suggestion_kind'])->toBe('hint')
-    ->and($warnings[3]['message'])->toBe('Accepted (2018-07-03) occurs after Issued (2018-07-03), Available (2018-07-03). Please check whether the date values or date types are assigned correctly.')
-    ->and($warnings[3]['confidence'])->toBe('medium')
-    ->and($warnings[3]['is_ambiguous'])->toBeTrue()
-    ->and($warnings[4]['suggestion_kind'])->toBe('hint')
-    ->and($warnings[4]['message'])->toBe('Issued (2018-07-03) occurs after Available (2018-07-03). Please check whether the date values or date types are assigned correctly.')
-    ->and($warnings[4]['confidence'])->toBe('medium')
-    ->and($warnings[4]['is_ambiguous'])->toBeTrue();
+    expect($warnings)->toBe([]);
 
 });
 
-it('returns only one hint when date type and date value order are both implausible', function () {
+it('returns one hint when an earlier date type has a later value', function () {
 
     $warnings = $this->plausibilityService->hint([
         'Created' => '2017-07-03',
