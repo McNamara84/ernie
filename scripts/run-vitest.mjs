@@ -70,7 +70,7 @@ if (!process.execArgv.includes(webStorageFlag)) {
 
 process.env.NODE_OPTIONS = withWebStorageFlag(process.env.NODE_OPTIONS);
 
-if (!process.env.WAYFINDER_COMMAND && !canRun('php')) {
+if (!process.env.WAYFINDER_COMMAND && !canRun('php', ['artisan', '--version'])) {
     process.env.WAYFINDER_COMMAND = dockerWayfinderCommand;
 }
 

@@ -91,14 +91,14 @@ npm run types
 npm run test:run
 ```
 
-If your host does not provide a local `php` binary, start the Docker backend stack before Vitest:
+If your host cannot start Laravel Artisan locally, start the Docker backend stack before Vitest:
 
 ```bash
 npm run docker:dev:backend:d
 npm run test:run
 ```
 
-The Vitest wrapper falls back to the app container for Wayfinder route generation when local `php` is unavailable. You can override this with `WAYFINDER_COMMAND` for custom setups.
+The Vitest wrapper falls back to the app container for Wayfinder route generation when host Artisan cannot start. You can override this with `WAYFINDER_COMMAND` for custom setups.
 
 Why frontend validation stays on the host:
 
