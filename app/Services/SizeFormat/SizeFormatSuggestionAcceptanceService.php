@@ -59,11 +59,12 @@ final class SizeFormatSuggestionAcceptanceService
             $parsedSize = is_array($storedParsedSize)
                 ? $storedParsedSize
                 : $this->sizeParser->parse($suggestion->suggested_value);
+            $normalizedUnit = $this->normalizePersistedSizeUnit($parsedSize['unit'] ?? null, $suggestion->suggested_value);
 
             $size = Size::firstOrCreate([
                 'resource_id' => $suggestion->resource_id,
                 'numeric_value' => $parsedSize['numeric_value'] ?? null,
-                'unit' => $parsedSize['unit'] ?? null,
+                'unit' => $normalizedUnit,
                 'type' => $parsedSize['type'] ?? null,
             ]);
 
@@ -77,5 +78,30 @@ final class SizeFormatSuggestionAcceptanceService
             'success' => false,
             'message' => 'Unknown suggestion type.',
         ];
+    }
+
+    private function normalizePersistedSizeUnit(mixed $unit, string $suggestedValue): ?string
+    {
+        if (! is_string($unit)) {
+            return null;
+        }
+
+        $normalizedUnit = strtoupper(trim($unit));
+
+        if ($normalizedUnit === '') {
+            return null;
+        }
+
+        $compactSuggestedValue = strtoupper(str_replace(' ', '', trim($suggestedValue)));
+
+        return match ($normalizedUnit) {
+            'K' => str_contains($compactSuggestedValue, 'KB') ? 'KB' : 'K',
+            'M' => str_contains($compactSuggestedValue, 'MB') ? 'MB' : 'M',
+            'G' => str_contains($compactSuggestedValue, 'GB') ? 'GB' : 'G',
+            'T' => str_contains($compactSuggestedValue, 'TB') ? 'TB' : 'T',
+            'P' => str_contains($compactSuggestedValue, 'PB') ? 'PB' : 'P',
+            'B', 'KB', 'MB', 'GB', 'TB', 'PB' => $normalizedUnit,
+            default => trim($unit),
+        };
     }
 }

@@ -67,7 +67,6 @@ final class SizeFormatSuggestionDiscoveryService
             $suggestedValue = match ($type) {
                 'format' => $this->extractFormatSuggestionValue($suggestion),
                 'size' => (string) ($suggestion['inferred_value'] ?? ''),
-                default => '',
             };
 
             if ($suggestedValue === '') {
@@ -152,14 +151,30 @@ final class SizeFormatSuggestionDiscoveryService
         return $this->probeService->buildSuggestions($results);
     }
 
+    /**
+     * @param  array<string, mixed>  $suggestion
+     */
     private function extractFormatSuggestionValue(array $suggestion): string
     {
         $rawValue = trim((string) ($suggestion['inferred_value'] ?? ''));
+        $extensionValue = $this->extractFormatSuggestionExtension($suggestion);
 
-        if ($rawValue !== '') {
+        if ($rawValue !== '' && SizeFormatFormatNormalizerService::normalize($rawValue) !== 'application/zip') {
             return $rawValue;
         }
 
+        if ($extensionValue !== '') {
+            return $extensionValue;
+        }
+
+        return $rawValue;
+    }
+
+    /**
+     * @param  array<string, mixed>  $suggestion
+     */
+    private function extractFormatSuggestionExtension(array $suggestion): string
+    {
         $evidence = $suggestion['evidence'] ?? null;
         if (is_array($evidence) && isset($evidence['extension']) && is_string($evidence['extension']) && trim($evidence['extension']) !== '') {
             return trim($evidence['extension']);
@@ -168,9 +183,8 @@ final class SizeFormatSuggestionDiscoveryService
         $sourceUrl = (string) ($suggestion['source_url'] ?? '');
         $path = (string) parse_url($sourceUrl, PHP_URL_PATH);
         $filename = basename($path !== '' ? $path : $sourceUrl);
-        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-        return $extension;
+        
+        return strtolower(pathinfo($filename, PATHINFO_EXTENSION));
     }
 
     private function hasMeaningfulFormats(Resource $resource): bool
