@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Models\Resource;
+use App\Services\SizeFormat\SizeFormatSizeParserService;
+use App\Services\SizeFormat\SizeFormatSuggestionDiscoveryService;
 use App\Services\SizeFormatFileProbeService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -326,4 +329,72 @@ it('does not explore directories outside the original download tree', function (
         fn (Request $request): bool => str_contains($request->url(), 'example.org')
             || str_contains($request->url(), '/download/other/'),
     );
+});
+
+it('uses the filename probe method for non-directory listing format suggestions', function (): void {
+    $service = new SizeFormatFileProbeService;
+
+    $suggestions = $service->buildSuggestions([
+        [
+            'source_url' => 'https://datapub.gfz.de/download/archive.csv',
+            'probe_method' => 'HTTP_HEAD',
+            'raw_evidence' => [
+                'files' => [
+                    [
+                        'filename' => 'archive.csv',
+                        'format' => 'csv',
+                        'file_url' => 'https://datapub.gfz.de/download/archive.csv',
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    expect($suggestions)->toHaveCount(1)
+        ->and($suggestions[0]['type'])->toBe('format')
+        ->and($suggestions[0]['probe_method'])->toBe('FILENAME_EXTENSION');
+});
+
+it('stores discovered size and format suggestions while respecting existing metadata', function (): void {
+    $resource = Resource::factory()->create();
+    $resource->setAttribute('formats_exists', false);
+    $resource->setAttribute('sizes_exists', false);
+
+    $probeService = \Mockery::mock(SizeFormatFileProbeService::class);
+    $probeService->shouldReceive('extractAndProbe')->andReturn([
+        ['source_url' => 'https://datapub.gfz.de/download/fixture/'],
+    ]);
+    $probeService->shouldReceive('buildSuggestions')->andReturn([
+        [
+            'type' => 'format',
+            'inferred_value' => 'application/zip',
+            'source_url' => 'https://datapub.gfz.de/download/fixture/file.zip',
+            'probe_method' => 'DIRECTORY_LISTING',
+            'evidence' => ['extension' => 'zip'],
+            'confidence' => 'medium',
+        ],
+        [
+            'type' => 'size',
+            'inferred_value' => '2M',
+            'source_url' => 'https://datapub.gfz.de/download/fixture/',
+            'probe_method' => 'DIRECTORY_LISTING',
+            'evidence' => ['parsed_file_count' => 1, 'total_file_count' => 1],
+            'confidence' => 'high',
+        ],
+    ]);
+
+    $service = new SizeFormatSuggestionDiscoveryService($probeService, new SizeFormatSizeParserService);
+    $stored = [];
+
+    $method = new ReflectionMethod($service, 'discoverForResource');
+    $method->invoke($service, 'size-format-suggestion', $resource, function (int $resourceId, string $targetType, int $targetId, string $suggestedValue, string $suggestedLabel, ?float $similarityScore, ?array $metadata) use (&$stored): bool {
+        $stored[] = compact('resourceId', 'targetType', 'targetId', 'suggestedValue', 'suggestedLabel', 'similarityScore', 'metadata');
+
+        return true;
+    });
+
+    $sizeSuggestion = collect($stored)->firstWhere('targetType', 'size');
+
+    expect($sizeSuggestion)->not->toBeNull()
+        ->and($sizeSuggestion['metadata']['parsed_size']['unit'])->toBe('M');
 });
