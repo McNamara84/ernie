@@ -1,13 +1,15 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -55,17 +57,56 @@ function isValidRorUrl(url: string): boolean {
         return false;
     }
 }
+/**
+ * Creates a unique key for a selected suggestion.
+ *
+ * Suggestion IDs may overlap between different assistants.
+ * Combining the assistant ID and suggestion ID keeps every
+ * selected suggestion unique.
+ */
+function suggestionSelectionKey(
+    assistantId: string,
+    suggestionId: number,
+): string {
+    return `${assistantId}:${suggestionId}`;
+}
+
+type ReviewTab = 'by-assistant' | 'all-assistants';
+
+type SelectedSuggestion = {
+    assistantId: string;
+    suggestionId: number;
+};
+
+type AggregatedSuggestion = BaseSuggestionItem & {
+    assistantId: string;
+    assistantName: string;
+};
+
+type AggregatedResourceGroup = {
+    resourceKey: string;
+    resourceId: number;
+    doi: string;
+    title: string;
+    suggestions: AggregatedSuggestion[];
+};
 
 function SuggestionCard({
     suggestion,
     onAccept,
     onDecline,
     isProcessing,
+    showActions = true,
 }: {
     suggestion: SuggestedRelationItem;
     onAccept: (id: number) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    /**
+     * Hides the individual Accept and Decline buttons when
+     * actions are displayed at DOI/resource level.
+     */
+    showActions?: boolean;
 }) {
     return (
         <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
@@ -93,16 +134,18 @@ function SuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
-                </div>
+                {showActions && (
+                    <div className="flex shrink-0 gap-2">
+                        <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                            <X className="mr-1 h-4 w-4" />
+                            Decline
+                        </Button>
+                        <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                            <Check className="mr-1 h-4 w-4" />
+                            Accept
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -113,11 +156,13 @@ function OrcidSuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    showActions = true,
 }: {
     suggestion: SuggestedOrcidItem;
     onAccept: (id: number) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    showActions?: boolean;
 }) {
     const percent = Math.round(suggestion.similarity_score * 100);
     const candidateName = [suggestion.candidate_first_name, suggestion.candidate_last_name].filter(Boolean).join(' ');
@@ -172,16 +217,18 @@ function OrcidSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
-                </div>
+                {showActions && (
+                    <div className="flex shrink-0 gap-2">
+                        <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                            <X className="mr-1 h-4 w-4" />
+                            Decline
+                        </Button>
+                        <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                            <Check className="mr-1 h-4 w-4" />
+                            Accept
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -256,11 +303,13 @@ function SpdxRightsSuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    showActions = true,
 }: {
     suggestion: SuggestedSpdxRightsItem;
     onAccept: (id: number) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    showActions?: boolean;
 }) {
     const metadata = suggestion.metadata ?? null;
     const percent = suggestion.similarity_score !== null ? Math.round(suggestion.similarity_score * 100) : null;
@@ -308,14 +357,18 @@ function SpdxRightsSuggestionCard({
                 </div>
 
                 <div className="flex shrink-0 gap-2 self-start">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
+                    {showActions && (
+                        <>
+                            <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                                <X className="mr-1 h-4 w-4" />
+                                Decline
+                            </Button>
+                            <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                                <Check className="mr-1 h-4 w-4" />
+                                Accept
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
@@ -327,12 +380,14 @@ function RorSuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    showActions = true,
 }: {
     suggestion: SuggestedRorItem;
     onAccept: (id: number) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
-}) {
+    showActions?: boolean;
+}): import("react").JSX.Element {
     const percent = Math.round(suggestion.similarity_score * 100);
 
     return (
@@ -391,16 +446,18 @@ function RorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
-                </div>
+                {showActions && (
+                    <div className="flex shrink-0 gap-2">
+                        <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                            <X className="mr-1 h-4 w-4" />
+                            Decline
+                        </Button>
+                        <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                            <Check className="mr-1 h-4 w-4" />
+                            Accept
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -539,11 +596,13 @@ function SizeFormatSuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    showActions = true,
 }: {
     suggestion: BaseSuggestionItem;
     onAccept: (id: number) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    showActions?: boolean;
 }) {
     const value = String(suggestion.suggested_value ?? '');
     const label = String(suggestion.suggested_label ?? value);
@@ -606,16 +665,18 @@ function SizeFormatSuggestionCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
-                </div>
+                {showActions && (
+                    <div className="flex shrink-0 gap-2">
+                        <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                            <X className="mr-1 h-4 w-4" />
+                            Decline
+                        </Button>
+                        <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                            <Check className="mr-1 h-4 w-4" />
+                            Accept
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -700,8 +761,46 @@ function useSectionState(manifests: AssistantManifest[]) {
 
 export default function AssistancePage({ sections, manifests }: AssistancePageProps) {
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
+    const [activeTab, setActiveTab] = useState<ReviewTab>('by-assistant');
+    const [selectedSuggestionsByResource, setSelectedSuggestionsByResource] = useState<Record<string, SelectedSuggestion[]>>({});
 
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
+    const manifestLookup = useMemo(() => new Map(manifests.map((manifest) => [manifest.id, manifest])), [manifests]);
+
+    const aggregatedGroups = useMemo<AggregatedResourceGroup[]>(() => {
+        const groups = new Map<string, AggregatedResourceGroup>();
+
+        Object.entries(sections).forEach(([assistantId, sectionData]) => {
+            const manifest = manifestLookup.get(assistantId);
+            const sectionItems = sectionData?.data ?? [];
+
+            sectionItems.forEach((item) => {
+                const resourceKey = item.resource_doi ? `doi:${item.resource_doi}` : `resource:${item.resource_id ?? 'unknown'}`;
+                const existingGroup = groups.get(resourceKey);
+
+                if (!existingGroup) {
+                    groups.set(resourceKey, {
+                        resourceKey,
+                        resourceId: item.resource_id ?? 0,
+                        doi: item.resource_doi ?? '',
+                        title: item.resource_title ?? 'Untitled',
+                        suggestions: [],
+                    });
+                }
+
+                const group = groups.get(resourceKey);
+                if (group) {
+                    group.suggestions.push({
+                        ...item,
+                        assistantId,
+                        assistantName: manifest?.name ?? assistantId,
+                    });
+                }
+            });
+        });
+
+        return Array.from(groups.values()).sort((left, right) => left.doi.localeCompare(right.doi));
+    }, [manifestLookup, sections]);
 
     // ── Polling logic ────────────────────────────────────────────────
 
@@ -883,9 +982,97 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         [addProcessingId, removeProcessingId],
     );
 
+    const handleBulkActionForGroup = useCallback(
+        async (
+            group: AggregatedResourceGroup,
+            action: 'accept' | 'decline',
+            selections: SelectedSuggestion[] | undefined = undefined,
+        ) => {
+            const chosenSuggestions = selections ?? selectedSuggestionsByResource[group.resourceKey] ?? [];
+
+            if (chosenSuggestions.length === 0) {
+                toast.warning('Please select at least one suggestion.');
+                return;
+            }
+
+            try {
+                const endpoint = action === 'accept'
+                    ? '/assistance/suggestions/accept-selected'
+                    : '/assistance/suggestions/decline-selected';
+                const { data } = await axios.post(endpoint, {
+                    suggestions: chosenSuggestions,
+                });
+
+                if (action === 'accept') {
+                    const acceptedCount = Number(data.acceptedCount ?? chosenSuggestions.length);
+                    toast.success(
+                        `Successfully accepted ${acceptedCount} suggestion(s) for resource ${group.doi || group.title}.`,
+                    );
+                } else {
+                    const declinedCount = Number(data.declinedCount ?? chosenSuggestions.length);
+                    toast.info(
+                        `Successfully declined ${declinedCount} suggestion(s) for resource ${group.doi || group.title}.`,
+                    );
+                }
+
+                setSelectedSuggestionsByResource((current) => {
+                    const next = { ...current };
+                    delete next[group.resourceKey];
+                    return next;
+                });
+
+                router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            } catch {
+                toast.error(`Failed to ${action} suggestions.`);
+            }
+        },
+        [selectedSuggestionsByResource],
+    );
+
+    const toggleSuggestionSelection = useCallback((resourceKey: string, suggestion: SelectedSuggestion) => {
+        setSelectedSuggestionsByResource((current) => {
+            const existing = current[resourceKey] ?? [];
+            const alreadySelected = existing.some(
+                (item) => item.assistantId === suggestion.assistantId && item.suggestionId === suggestion.suggestionId,
+            );
+
+            return {
+                ...current,
+                [resourceKey]: alreadySelected
+                    ? existing.filter(
+                        (item) => !(item.assistantId === suggestion.assistantId && item.suggestionId === suggestion.suggestionId),
+                    )
+                    : [...existing, suggestion],
+            };
+        });
+    }, []);
+
+    const toggleGroupSelection = useCallback((group: AggregatedResourceGroup) => {
+        setSelectedSuggestionsByResource((current) => {
+            const existing = current[group.resourceKey] ?? [];
+            const nextSelections = group.suggestions.map((suggestion) => ({
+                assistantId: suggestion.assistantId,
+                suggestionId: suggestion.id,
+            }));
+            const isFullySelected = nextSelections.every((suggestion) => existing.some(
+                (item) => item.assistantId === suggestion.assistantId && item.suggestionId === suggestion.suggestionId,
+            ));
+
+            return {
+                ...current,
+                [group.resourceKey]: isFullySelected ? [] : nextSelections,
+            };
+        });
+    }, []);
+
     // ── Render helpers ───────────────────────────────────────────────
 
-    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
+    function renderCard(
+        manifest: AssistantManifest,
+        item: BaseSuggestionItem,
+        isProcessing: boolean,
+        showActions = true,
+    ): import("react").JSX.Element {
         const onAccept = (id: number) => handleAccept(manifest, id);
         const onDecline = (id: number) => handleDecline(manifest, id);
 
@@ -897,8 +1084,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
+                        showActions={showActions}
                     />
                 );
+
             case 'orcid-suggestion':
                 return (
                     <OrcidSuggestionCard
@@ -906,8 +1095,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
+                        showActions={showActions}
                     />
                 );
+
             case 'ror-suggestion':
                 return (
                     <RorSuggestionCard
@@ -915,8 +1106,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
+                        showActions={showActions}
                     />
                 );
+
             case 'size-format-suggestion':
                 return (
                     <SizeFormatSuggestionCard
@@ -924,8 +1117,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
+                        showActions={showActions}
                     />
                 );
+
             case 'spdx-license-suggestion':
                 return (
                     <SpdxRightsSuggestionCard
@@ -933,29 +1128,54 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
+                        showActions={showActions}
                     />
                 );
+
             default:
                 // Generic card for future student modules
                 return (
                     <div className="rounded-lg border bg-card p-4 shadow-sm">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1 space-y-1">
-                                <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
+                                <p className="text-sm font-medium">
+                                    {String(
+                                        item.suggested_label ??
+                                        item.suggested_value ??
+                                        'Suggestion',
+                                    )}
+                                </p>
+
                                 <p className="text-xs text-muted-foreground">
-                                    Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
+                                    Discovered:{' '}
+                                    {item.discovered_at
+                                        ? new Date(item.discovered_at).toLocaleDateString()
+                                        : '—'}
                                 </p>
                             </div>
-                            <div className="flex shrink-0 gap-2">
-                                <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
-                                    <X className="mr-1 h-4 w-4" />
-                                    Decline
-                                </Button>
-                                <Button size="sm" disabled={isProcessing} onClick={() => onAccept(item.id)}>
-                                    <Check className="mr-1 h-4 w-4" />
-                                    Accept
-                                </Button>
-                            </div>
+
+                            {showActions && (
+                                <div className="flex shrink-0 gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isProcessing}
+                                        onClick={() => onDecline(item.id)}
+                                    >
+                                        <X className="mr-1 h-4 w-4" />
+                                        Decline
+                                    </Button>
+
+                                    <Button
+                                        size="sm"
+                                        disabled={isProcessing}
+                                        onClick={() => onAccept(item.id)}
+                                    >
+                                        <Check className="mr-1 h-4 w-4" />
+                                        Accept
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -1000,113 +1220,220 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     );
                 })}
 
-                {/* Section cards — one per assistant, ordered by sortOrder */}
-                {manifests.map((manifest) => {
-                    const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
-                    const state = states[manifest.id];
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ReviewTab)}>
+                    <TabsList>
+                        <TabsTrigger value="by-assistant">By assistant</TabsTrigger>
+                        <TabsTrigger value="all-assistants">All assistants</TabsTrigger>
+                    </TabsList>
 
-                    if (!sectionData) return null;
+                    <TabsContent value="by-assistant" className="space-y-6 pt-4">
+                        {manifests.map((manifest) => {
+                            const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
+                            const state = states[manifest.id];
 
-                    // Group items by resource
-                    const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
-                        (groups, item) => {
-                            const resourceId = item.resource_id;
-                            if (!groups[resourceId]) {
-                                groups[resourceId] = {
-                                    doi: item.resource_doi ?? '',
-                                    title: item.resource_title ?? 'Untitled',
-                                    items: [],
-                                };
-                            }
-                            groups[resourceId].items.push(item);
-                            return groups;
-                        },
-                        {},
-                    );
+                            if (!sectionData) return null;
 
-                    return (
-                        <Card key={manifest.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                                <div className="space-y-1.5">
-                                    <CardTitle>{manifest.name}</CardTitle>
-                                    <CardDescription>
-                                        {sectionData.total > 0
-                                            ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
-                                            : manifest.emptyState.description}
-                                    </CardDescription>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleCheck(manifest)}
-                                    disabled={state?.isChecking ?? false}
-                                >
-                                    {state?.isChecking ? (
-                                        <>
-                                            <Spinner size="sm" className="mr-2" />
-                                            Checking...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check
-                                        </>
-                                    )}
-                                </Button>
-                            </CardHeader>
-                            <CardContent>
-                                {Object.keys(grouped).length > 0 ? (
-                                    <div className="space-y-6">
-                                        {Object.entries(grouped).map(([resourceId, group]) => (
-                                            <div key={resourceId} className="space-y-3">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                                    <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                                    <Badge variant="secondary" className="ml-auto text-xs">
-                                                        {group.items.length} suggestion(s)
-                                                    </Badge>
-                                                </div>
-                                                <div className="space-y-2 pl-4">
-                                                    {group.items.map((item) => (
-                                                        <div key={item.id as number}>
-                                                            {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                            const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
+                                (groups, item) => {
+                                    const resourceId = item.resource_id;
+                                    if (!groups[resourceId]) {
+                                        groups[resourceId] = {
+                                            doi: item.resource_doi ?? '',
+                                            title: item.resource_title ?? 'Untitled',
+                                            items: [],
+                                        };
+                                    }
+                                    groups[resourceId].items.push(item);
+                                    return groups;
+                                },
+                                {},
+                            );
+
+                            return (
+                                <Card key={manifest.id}>
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                                        <div className="space-y-1.5">
+                                            <CardTitle>{manifest.name}</CardTitle>
+                                            <CardDescription>
+                                                {sectionData.total > 0
+                                                    ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
+                                                    : manifest.emptyState.description}
+                                            </CardDescription>
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleCheck(manifest)}
+                                            disabled={state?.isChecking ?? false}
+                                        >
+                                            {state?.isChecking ? (
+                                                <>
+                                                    <Spinner size="sm" className="mr-2" />
+                                                    Checking...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                                    Check
+                                                </>
+                                            )}
+                                        </Button>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {Object.keys(grouped).length > 0 ? (
+                                            <div className="space-y-6">
+                                                {Object.entries(grouped).map(([resourceId, group]) => (
+                                                    <div key={resourceId} className="space-y-3">
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
+                                                            <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                                            <Badge variant="secondary" className="ml-auto text-xs">
+                                                                {group.items.length} suggestion(s)
+                                                            </Badge>
                                                         </div>
+                                                        <div className="space-y-2 pl-4">
+                                                            {group.items.map((item) => (
+                                                                <div key={item.id as number}>
+                                                                    {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                                <div className="text-4xl">&#10003;</div>
+                                                <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
+                                                <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
+                                            </div>
+                                        )}
+
+                                        {sectionData.last_page > 1 && (
+                                            <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Showing {sectionData.from ?? 0}–{sectionData.to ?? 0} of {sectionData.total}
+                                                </p>
+                                                <div className="flex gap-1">
+                                                    {sectionData.links.map((link, index) => (
+                                                        <Button
+                                                            key={link.url ?? `${manifest.id}-${link.label}-${index}`}
+                                                            variant={link.active ? 'default' : 'outline'}
+                                                            size="sm"
+                                                            disabled={!link.url}
+                                                            onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                                        />
                                                     ))}
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                                        <div className="text-4xl">&#10003;</div>
-                                        <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
-                                        <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
-                                    </div>
-                                )}
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </TabsContent>
 
-                                {sectionData.last_page > 1 && (
-                                    <div className="mt-6 flex items-center justify-between border-t pt-4">
-                                        <p className="text-sm text-muted-foreground">
-                                            Showing {sectionData.from ?? 0}–{sectionData.to ?? 0} of {sectionData.total}
-                                        </p>
-                                        <div className="flex gap-1">
-                                            {sectionData.links.map((link, index) => (
+                    <TabsContent value="all-assistants" className="space-y-4 pt-4">
+                        {aggregatedGroups.length > 0 ? (
+                            aggregatedGroups.map((group) => {
+                                const selectedSuggestions = selectedSuggestionsByResource[group.resourceKey] ?? [];
+                                const selectedCount = selectedSuggestions.length;
+                                const isFullySelected = group.suggestions.length > 0 && selectedCount === group.suggestions.length;
+
+                                return (
+                                    <Card key={group.resourceKey}>
+                                        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="space-y-1.5">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
+                                                    <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                                </div>
+                                                <CardDescription>
+                                                    {group.suggestions.length} pending suggestion(s) across {new Set(group.suggestions.map((item) => item.assistantId)).size} assistant(s).
+                                                </CardDescription>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
                                                 <Button
-                                                    key={link.url ?? `${manifest.id}-${link.label}-${index}`}
-                                                    variant={link.active ? 'default' : 'outline'}
+                                                    variant="outline"
                                                     size="sm"
-                                                    disabled={!link.url}
-                                                    onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
-                                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                                    onClick={() => handleBulkActionForGroup(group, 'decline')}
+                                                    disabled={selectedCount === 0}
+                                                >
+                                                    Decline Selected
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleBulkActionForGroup(group, 'accept')}
+                                                    disabled={selectedCount === 0}
+                                                >
+                                                    Accept Selected
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => handleBulkActionForGroup(group, 'accept', group.suggestions.map((suggestion) => ({
+                                                        assistantId: suggestion.assistantId,
+                                                        suggestionId: suggestion.id,
+                                                    })))}
+                                                >
+                                                    Accept All
+                                                </Button>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+                                                <Checkbox
+                                                    checked={isFullySelected}
+                                                    onCheckedChange={() => toggleGroupSelection(group)}
                                                 />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                                                <span>
+                                                    {selectedCount > 0
+                                                        ? `${selectedCount} of ${group.suggestions.length} selected`
+                                                        : 'Select suggestions to review together'}
+                                                </span>
+                                            </div>
+                                            {group.suggestions.map((suggestion) => {
+                                                const manifest = manifestLookup.get(suggestion.assistantId);
+                                                const isSelected = selectedSuggestions.some(
+                                                    (item) => item.assistantId === suggestion.assistantId && item.suggestionId === suggestion.id,
+                                                );
+
+                                                return (
+                                                    <div key={`${suggestion.assistantId}:${suggestion.id}`} className="flex gap-3">
+                                                        <div className="pt-2">
+                                                            <Checkbox
+                                                                checked={isSelected}
+                                                                onCheckedChange={() => toggleSuggestionSelection(group.resourceKey, {
+                                                                    assistantId: suggestion.assistantId,
+                                                                    suggestionId: suggestion.id,
+                                                                })}
+                                                            />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            {manifest ? renderCard(manifest, suggestion, false, false) : (
+                                                                <div className="rounded-lg border bg-card p-4 shadow-sm">
+                                                                    <p className="text-sm font-medium">{suggestion.assistantName}</p>
+                                                                    <p className="text-xs text-muted-foreground">{suggestion.resource_title}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })
+                        ) : (
+                            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
+                                <div className="text-4xl">&#10003;</div>
+                                <p className="mt-2 text-lg font-medium">No suggestions yet</p>
+                                <p className="text-sm text-muted-foreground">Run a check to discover suggestions from all assistants.</p>
+                            </div>
+                        )}
+                    </TabsContent>
+                </Tabs>
             </div>
         </AppLayout>
     );
