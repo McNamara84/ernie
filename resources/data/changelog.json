@@ -1,5 +1,21 @@
 [
     {
+        "version": "1.0.1",
+        "date": "2026-07-11",
+        "features": [
+            {
+                "title": "Aggregated Assistance Review",
+                "description": "The Assistance page now includes an 'All assistants' tab that groups pending suggestions by resource so curators can review, select, and apply multiple changes across assistants in one workflow."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Bulk suggestion actions",
+                "description": "Curators can accept or decline selected suggestions for a resource, or accept every pending suggestion for that resource from the new aggregated tab."
+            }
+        ]
+    },
+    {
         "version": "1.0.0",
         "date": "2026-06-26",
         "features": [
