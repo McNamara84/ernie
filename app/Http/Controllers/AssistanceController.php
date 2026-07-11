@@ -158,6 +158,73 @@ class AssistanceController extends Controller
     }
 
     /**
+     * Accept multiple suggestions across assistants for the aggregated workflow.
+     */
+    public function acceptSelected(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'suggestions' => ['required', 'array', 'min:1'],
+            'suggestions.*.assistantId' => ['required', 'string'],
+            'suggestions.*.suggestionId' => ['required', 'integer'],
+        ]);
+
+        $accepted = [];
+
+        foreach ($data['suggestions'] as $item) {
+            $assistant = $this->registrar->get((string) $item['assistantId']);
+
+            if ($assistant === null) {
+                continue;
+            }
+
+            $accepted[] = [
+                'assistantId' => $item['assistantId'],
+                'suggestionId' => $item['suggestionId'],
+                'result' => $assistant->acceptSuggestion((int) $item['suggestionId']),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'acceptedCount' => count($accepted),
+            'accepted' => $accepted,
+        ]);
+    }
+
+    /**
+     * Decline multiple suggestions across assistants for the aggregated workflow.
+     */
+    public function declineSelected(DeclineSuggestionRequest $request): JsonResponse
+    {
+        $data = $request->validate([
+            'suggestions' => ['required', 'array', 'min:1'],
+            'suggestions.*.assistantId' => ['required', 'string'],
+            'suggestions.*.suggestionId' => ['required', 'integer'],
+        ]);
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $declinedCount = 0;
+
+        foreach ($data['suggestions'] as $item) {
+            $assistant = $this->registrar->get((string) $item['assistantId']);
+
+            if ($assistant === null) {
+                continue;
+            }
+
+            $assistant->declineSuggestion((int) $item['suggestionId'], $user, $request->input('reason'));
+            $declinedCount++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'declinedCount' => $declinedCount,
+        ]);
+    }
+
+    /**
      * Start discovery for ALL registered assistants simultaneously.
      */
     public function checkAll(): JsonResponse
