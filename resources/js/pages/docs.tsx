@@ -614,6 +614,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     unchanged and dismisses the suggestion.
                                 </p>
                                 <p className="mt-2">
+                                    The new <strong>All assistants</strong> tab groups pending suggestions by resource so curators can select individual
+                                    suggestions and apply bulk accept or decline actions for a DOI in one place.
+                                </p>
+                                <p className="mt-2">
                                     Size and format suggestions show the detected value, source URL, probe method, and confidence level. Size values
                                     use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
                                     a suggestion when a resource has multiple download locations.
