@@ -97,7 +97,7 @@ function SuggestionCard({
     isProcessing: boolean;
 }) {
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -150,7 +150,7 @@ function OrcidSuggestionCard({
     const candidateName = [suggestion.candidate_first_name, suggestion.candidate_last_name].filter(Boolean).join(' ');
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -285,7 +285,7 @@ function SpdxRightsSuggestionCard({
     const percent = suggestion.similarity_score !== null ? Math.round(suggestion.similarity_score * 100) : null;
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -357,7 +357,7 @@ function RorSuggestionCard({
     const percent = Math.round(suggestion.similarity_score * 100);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -569,7 +569,7 @@ function SubjectMetadataEnrichmentCard({
     const updateFields = subjectUpdateFields(proposed?.updates);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -736,7 +736,7 @@ function CrossrefFunderRorSuggestionCard({
     const ambiguityStatus = metadataText(ambiguity?.status);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -973,13 +973,7 @@ function SizeFormatSuggestionCard({
     const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
 
     return (
-        <div
-            className={
-                isZip
-                    ? 'rounded-lg border-2 border-orange-500 bg-orange-50 p-4 shadow-sm transition-all hover:shadow-md dark:bg-orange-950/20'
-                    : 'rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md'
-            }
-        >
+        <div className={isZip ? 'border-l-4 border-orange-500 bg-orange-50 p-2 sm:p-3 dark:bg-orange-950/20' : 'bg-card p-2 sm:p-3'}>
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1078,7 +1072,7 @@ function DescriptionSegmentationSuggestionCard({
     const preconditions = metadataList(metadata?.acceptance?.preconditions);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1578,7 +1572,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             default:
                 // Generic card for future student modules
                 return (
-                    <div className="rounded-lg border bg-card p-4 shadow-sm">
+                    <div className="bg-card p-2 sm:p-3">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1 space-y-1">
                                 <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
@@ -1689,46 +1683,69 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />
-                                            Checking...
+                                            Checking {manifest.name}...
                                         </>
                                     ) : (
                                         <>
                                             <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check
+                                            Check {manifest.name}
                                         </>
                                     )}
                                 </Button>
                             </CardHeader>
                             <CardContent>
                                 {Object.keys(grouped).length > 0 ? (
-                                    <div className="space-y-6">
+                                    <div className="space-y-4">
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
                                             const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
                                             const resourceTitle = group.title === '' ? 'Untitled' : group.title;
 
                                             return (
-                                                <div key={resourceKey} className="space-y-3">
-                                                    <div className="flex items-baseline gap-2">
-                                                        <Link
-                                                            href={resourceEditorUrl(group.resourceId)}
-                                                            className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                                            title={`Open ${resourceLabel} in editor`}
-                                                        >
-                                                            {resourceLabel}
-                                                        </Link>
-                                                        <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
-                                                        <Badge variant="secondary" className="ml-auto text-xs">
+                                                <Card key={resourceKey} data-testid={`resource-card-${manifest.id}-${group.resourceId}`}>
+                                                    <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
+                                                        <div className="min-w-0 space-y-1">
+                                                            <CardTitle className="text-base">
+                                                                <Link
+                                                                    href={resourceEditorUrl(group.resourceId)}
+                                                                    className="font-mono break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                                    title={`Open ${resourceLabel} in editor`}
+                                                                >
+                                                                    {resourceLabel}
+                                                                </Link>
+                                                            </CardTitle>
+                                                            <CardDescription>{resourceTitle}</CardDescription>
+                                                        </div>
+                                                        <Badge variant="secondary" className="shrink-0 text-xs">
                                                             {group.items.length} suggestion(s)
                                                         </Badge>
-                                                    </div>
-                                                    <div className="space-y-2 pl-4">
-                                                        {group.items.map((item) => (
-                                                            <div key={item.id as number}>
-                                                                {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                    </CardHeader>
+                                                    <CardContent className="p-0">
+                                                        <div
+                                                            role="table"
+                                                            aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
+                                                            className="divide-y"
+                                                        >
+                                                            <div
+                                                                role="row"
+                                                                className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase"
+                                                            >
+                                                                <span role="columnheader">Suggestion</span>
+                                                                <span role="columnheader">Actions</span>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                            {group.items.map((item) => (
+                                                                <div role="row" key={item.id as number} className="p-2 sm:p-3">
+                                                                    <div role="cell">
+                                                                        {renderCard(
+                                                                            manifest,
+                                                                            item,
+                                                                            state?.processingIds.has(item.id as number) ?? false,
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
                                             );
                                         })}
                                     </div>
