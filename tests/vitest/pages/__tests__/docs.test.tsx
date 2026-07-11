@@ -317,6 +317,33 @@ describe('Docs page', () => {
                 return text.includes('Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab.');
             }),
         ).toBeInTheDocument();
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Whenever exactly one resource is being opened') && text.includes('shows a warning');
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('When multiple resources are selected') &&
+                    text.includes('fallback dialog with direct links for only the blocked resources')
+                );
+            }),
+        ).toBeInTheDocument();
     });
 
     it('hides controlled keywords section when all vocabulary families are disabled', async () => {
