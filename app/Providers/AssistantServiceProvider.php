@@ -71,6 +71,12 @@ class AssistantServiceProvider extends ServiceProvider
                 Route::post('/check-all', [AssistanceController::class, 'checkAll'])
                     ->name('assistance.check-all');
 
+                Route::post('/suggestions/accept-selected', [AssistanceController::class, 'acceptSelected'])
+                    ->name('assistance.suggestions.accept-selected');
+
+                Route::post('/suggestions/decline-selected', [AssistanceController::class, 'declineSelected'])
+                    ->name('assistance.suggestions.decline-selected');
+
                 // Dynamic routes for each registered assistant
                 foreach ($registrar->getAll() as $assistant) {
                     $prefix = $assistant->getManifest()->routePrefix;
