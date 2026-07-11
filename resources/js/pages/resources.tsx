@@ -36,6 +36,7 @@ import { type ValidationError, ValidationErrorModal } from '@/components/ui/vali
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { openDetachedTab } from '@/lib/detached-tab';
 import { cn } from '@/lib/utils';
 import {
     areResourceColumnWidthsDefault,
@@ -1324,7 +1325,7 @@ function ResourcesPage({
         }
 
         const url = editorRoute({ query: { resourceId: resource.id } }).url;
-        const opened = window.open(url, '_blank', 'noopener,noreferrer');
+        const opened = openDetachedTab(url);
 
         if (opened !== null) {
             return null;
@@ -1337,8 +1338,13 @@ function ResourcesPage({
         };
     }, []);
 
-    const warnAboutBlockedEditorTabs = useCallback((blockedTabs: BlockedEditorTab[]) => {
+    const warnAboutBlockedEditorTabs = useCallback((blockedTabs: BlockedEditorTab[], attemptedTabCount: number) => {
         if (blockedTabs.length === 0) {
+            return;
+        }
+
+        if (attemptedTabCount === 1) {
+            toast.warning('Your browser blocked the editor tab. Please allow pop-ups for ERNIE and try again.');
             return;
         }
 
@@ -1353,13 +1359,13 @@ function ResourcesPage({
         }
 
         const blockedTabs = selectedResources.map(openResourceEditorTab).filter((tab): tab is BlockedEditorTab => tab !== null);
-        warnAboutBlockedEditorTabs(blockedTabs);
+        warnAboutBlockedEditorTabs(blockedTabs, selectedResources.length);
     }, [openResourceEditorTab, selectedResources, warnAboutBlockedEditorTabs]);
 
     const handleResourceRowActivation = useCallback(
         (resource: Resource) => {
             const blockedTab = openResourceEditorTab(resource);
-            warnAboutBlockedEditorTabs(blockedTab ? [blockedTab] : []);
+            warnAboutBlockedEditorTabs(blockedTab ? [blockedTab] : [], 1);
         },
         [openResourceEditorTab, warnAboutBlockedEditorTabs],
     );
