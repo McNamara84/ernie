@@ -58,6 +58,23 @@ async function expectEditorPopup(context: BrowserContext, resourcesPage: Page, o
 // Verifies resources page is accessible.
 
 test.describe('Resources Management', () => {
+  test.beforeEach(async ({ page, browserName }) => {
+    if (browserName !== 'webkit') {
+      return;
+    }
+
+    try {
+      await page.goto('/login', { waitUntil: 'domcontentloaded' });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes('SSL connect error')) {
+        throw error;
+      }
+
+      // The local Traefik certificate can fail WebKit's first TLS handshake.
+      // A subsequent navigation in the same context still has to succeed.
+    }
+  });
+
   test('resources page requires authentication', async ({ page }) => {
     // Try to access resources without login
     await page.goto('/resources');
