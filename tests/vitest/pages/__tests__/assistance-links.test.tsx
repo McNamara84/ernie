@@ -183,6 +183,86 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 
 // ── Tests ────────────────────────────────────────────────────────────
 
+describe('All Assistants review workflow', () => {
+    it('shows the All assistants tab and groups suggestions by resource', () => {
+        const orcid = makeOrcidSuggestion({ id: 11, resource_id: 101, resource_doi: '10.1234/example', resource_title: 'Example resource' });
+        const relation = {
+            id: 12,
+            resource_id: 101,
+            resource_doi: '10.1234/example',
+            resource_title: 'Example resource',
+            identifier: '10.2345/related',
+            identifier_type: 'DOI',
+            identifier_type_name: 'DOI',
+            relation_type: 'isReferencedBy',
+            relation_type_name: 'IsReferencedBy',
+            source: 'scholexplorer' as const,
+            source_title: 'Related work',
+            source_type: 'Dataset',
+            source_publisher: 'GFZ',
+            source_publication_date: '2024-01-01',
+            discovered_at: '2024-06-15T10:00:00+00:00',
+        };
+
+        render(
+            <AssistancePage
+                sections={{
+                    'orcid-suggestion': paginated([orcid]),
+                    'relation-suggestion': paginated([relation as unknown as BaseSuggestionItem]),
+                }}
+                manifests={[
+                    makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions'),
+                    makeManifest('relation-suggestion', 'relations', 'Suggested Relations'),
+                ]}
+            />,
+        );
+
+        expect(screen.getByRole('tab', { name: 'All assistants' })).toBeInTheDocument();
+        userEvent.setup().click(screen.getByRole('tab', { name: 'All assistants' }));
+
+        expect(screen.getAllByText('10.1234/example').length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/Example resource/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/pending suggestion/i).length).toBeGreaterThan(0);
+    });
+
+    it('accepts only the selected suggestions in the All assistants tab', async () => {
+        const user = userEvent.setup();
+        const orcid = makeOrcidSuggestion({ id: 21, resource_id: 202, resource_doi: '10.1234/selected', resource_title: 'Selected resource' });
+        const spdx = makeSpdxRightsSuggestion({ id: 22, resource_id: 202, resource_doi: '10.1234/selected', resource_title: 'Selected resource' });
+
+        mockedAxiosPost.mockResolvedValue({ data: { success: true, acceptedCount: 1, accepted: [] } });
+
+        render(
+            <AssistancePage
+                sections={{
+                    'orcid-suggestion': paginated([orcid]),
+                    'spdx-license-suggestion': paginated([spdx]),
+                }}
+                manifests={[
+                    makeManifest('orcid-suggestion', 'orcids', 'ORCID Suggestions'),
+                    makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME),
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'All assistants' }));
+        const checkboxes = screen.getAllByRole('checkbox');
+        await user.click(checkboxes[1]);
+        await user.click(screen.getByRole('button', { name: 'Accept Selected' }));
+
+        await waitFor(() => {
+            expect(mockedAxiosPost).toHaveBeenCalledWith('/assistance/suggestions/accept-selected', {
+                suggestions: [
+                    {
+                        assistantId: 'orcid-suggestion',
+                        suggestionId: 21,
+                    },
+                ],
+            });
+        });
+    });
+});
+
 describe('OrcidSuggestionCard – ORCID link', () => {
     it('renders the suggested ORCID as a clickable link', () => {
         const suggestion = makeOrcidSuggestion();
