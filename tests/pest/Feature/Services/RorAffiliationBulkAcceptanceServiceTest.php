@@ -21,8 +21,7 @@ covers(RorAffiliationBulkAcceptanceService::class, RorDiscoveryService::class);
 
 beforeEach(function (): void {
     Cache::flush();
-    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService
-    {
+    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService{
         public function syncIfRegistered(Resource $resource): DataCiteSyncResult
         {
             if ($resource->doi === null || $resource->doi === '') {
@@ -66,6 +65,7 @@ function createRorCreatorAffiliationSuggestion(
         'suggested_name' => 'GFZ German Research Centre for Geosciences',
         'similarity_score' => 0.98,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
@@ -107,6 +107,7 @@ function createRorInstitutionCreatorAffiliationSuggestion(
         'suggested_name' => 'GFZ German Research Centre for Geosciences',
         'similarity_score' => 0.98,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
@@ -147,6 +148,7 @@ function createRorContributorAffiliationSuggestion(
         'suggested_name' => 'GFZ German Research Centre for Geosciences',
         'similarity_score' => 0.98,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
@@ -362,6 +364,7 @@ it('looks up cached bulk suggestions in chunks while accepting', function (): vo
             'suggested_name' => 'GFZ German Research Centre for Geosciences',
             'similarity_score' => 0.98,
             'ror_aliases' => json_encode([]),
+            'locations' => json_encode([]),
             'existing_identifier' => null,
             'existing_identifier_type' => null,
             'discovered_at' => $now,
@@ -423,6 +426,7 @@ it('removes all suggestions for a bulk match whose creator morph target is missi
         'suggested_name' => 'Alternative Research Centre',
         'similarity_score' => 0.74,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
@@ -455,10 +459,12 @@ it('removes all suggestions for a bulk match whose creator morph target is unexp
         'suggested_name' => 'Alternative Research Centre',
         'similarity_score' => 0.74,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
     ]);
+
 
     $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
     $match['creator']->update([
@@ -489,6 +495,7 @@ it('removes all suggestions for a bulk match whose affiliation already has a ROR
         'suggested_name' => 'Alternative Research Centre',
         'similarity_score' => 0.74,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
@@ -525,6 +532,7 @@ it('removes stale suggestions when a cached bulk suggestion is gone but the affi
         'suggested_name' => 'Alternative Research Centre',
         'similarity_score' => 0.74,
         'ror_aliases' => [],
+        'locations' => [],
         'existing_identifier' => null,
         'existing_identifier_type' => null,
         'discovered_at' => now(),
