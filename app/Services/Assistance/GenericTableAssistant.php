@@ -39,7 +39,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
      * Call $onProgress('message') to report progress to the job queue.
      *
      * @param  Closure(string): void  $onProgress  Call this to report progress messages
-     * @return int  Number of new suggestions stored
+     * @return int Number of new suggestions stored
      */
     abstract protected function discover(Closure $onProgress): int;
 
@@ -61,8 +61,11 @@ abstract class GenericTableAssistant extends AbstractAssistant
         /** @var LengthAwarePaginator<int, Model> */
         return AssistantSuggestion::where('assistant_id', $this->getId())
             ->with('resource')
-            ->orderByDesc('discovered_at')
-            ->paginate($perPage, ['*'], $this->getId() . '_page');
+            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
+            ->select('assistant_suggestions.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('assistant_suggestions.discovered_at')
+            ->paginate($perPage, ['*'], $this->getId().'_page');
     }
 
     #[\Override]
@@ -138,7 +141,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
      * Run the discovery process. Called by the generic job.
      *
      * @param  Closure(string): void  $onProgress
-     * @return int  Number of new suggestions found
+     * @return int Number of new suggestions found
      */
     public function runDiscovery(Closure $onProgress): int
     {
@@ -158,7 +161,7 @@ abstract class GenericTableAssistant extends AbstractAssistant
      * @param  string  $suggestedLabel  Human-readable label for the suggestion
      * @param  float|null  $similarityScore  Match confidence (0.0 to 1.0), or null
      * @param  array<string, mixed>|null  $metadata  Extra assistant-specific data
-     * @return bool  True if stored, false if skipped (duplicate or dismissed)
+     * @return bool True if stored, false if skipped (duplicate or dismissed)
      */
     protected function storeSuggestion(
         int $resourceId,
