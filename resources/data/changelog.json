@@ -155,7 +155,7 @@
             },
             {
                 "title": "Faster Resource Editing from the Resources Table",
-                "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE reuses the existing fallback dialog if the browser blocks the editor tab."
+                "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE shows a warning if the browser blocks the single editor tab."
             },
             {
                 "title": "Resizable Resources Table Columns",

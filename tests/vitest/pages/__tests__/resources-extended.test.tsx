@@ -13,6 +13,7 @@ const editorRouteMock = vi.hoisted(() =>
         method: 'get',
     })),
 );
+const openDetachedTabMock = vi.hoisted(() => vi.fn());
 const mockUser = vi.hoisted(() => ({
     id: 1,
     name: 'Test User',
@@ -54,6 +55,7 @@ vi.mock('@/lib/curation-query', () => ({
     buildCurationQueryFromResource: vi.fn().mockResolvedValue({}),
 }));
 vi.mock('@/routes', () => ({ editor: editorRouteMock }));
+vi.mock('@/lib/detached-tab', () => ({ openDetachedTab: openDetachedTabMock }));
 vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
 }));
@@ -184,6 +186,7 @@ describe('ResourcesPage - extended', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        openDetachedTabMock.mockReturnValue({} as Window);
         window.localStorage.clear();
         axiosGetMock.mockResolvedValue({ data: {} });
         Object.assign(mockUser, {
@@ -483,7 +486,9 @@ describe('ResourcesPage - extended', () => {
             await clickResourceAction('resources-action-edit');
 
             expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
-            expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+            expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
+            expect(toastMock.warning).not.toHaveBeenCalled();
+            expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
         });
     });
 
