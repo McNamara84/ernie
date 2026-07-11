@@ -98,7 +98,7 @@ npm run docker:dev:backend:d
 npm run test:run
 ```
 
-The Vitest wrapper checks whether the host can run `php artisan ernie:wayfinder-generate` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output.
+The Vitest wrapper checks whether the host can run `php artisan ernie:wayfinder-generate --with-form` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output. It also has a timeout, so a hanging host Artisan process falls back to Docker instead of blocking Vitest startup.
 
 If that host check fails, the wrapper prints the failing command, the exit reason, and any captured output before falling back to the app container for Wayfinder route generation. Keep the Docker backend stack running for that fallback path:
 

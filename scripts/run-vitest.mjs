@@ -6,11 +6,16 @@ import { fileURLToPath } from 'node:url';
 
 const webStorageFlag = '--no-experimental-webstorage';
 const ignoredStderrLines = new Set(['Could not parse CSS stylesheet', 'Not implemented: navigation to another Document']);
-const hostWayfinderCommand = 'php artisan ernie:wayfinder-generate';
+const hostWayfinderCommand = 'php artisan ernie:wayfinder-generate --with-form';
+const hostWayfinderProbeTimeoutMs = 10_000;
 const dockerWayfinderCommand =
     'docker compose --env-file .env.docker -f docker-compose.dev.yml exec -T app php artisan ernie:wayfinder-generate';
 
 function commandFailureReason(result) {
+    if (result.error?.code === 'ETIMEDOUT') {
+        return `timed out after ${hostWayfinderProbeTimeoutMs}ms`;
+    }
+
     if (result.error) {
         return result.error.message;
     }
@@ -50,9 +55,10 @@ function canRunHostWayfinder() {
     const outputPath = mkdtempSync(join(tmpdir(), 'ernie-wayfinder-'));
 
     try {
-        const result = spawnSync('php', ['artisan', 'ernie:wayfinder-generate', `--path=${outputPath}`], {
+        const result = spawnSync('php', ['artisan', 'ernie:wayfinder-generate', '--with-form', `--path=${outputPath}`], {
             encoding: 'utf8',
             maxBuffer: 10 * 1024 * 1024,
+            timeout: hostWayfinderProbeTimeoutMs,
         });
 
         if (!result.error && result.status === 0) {
