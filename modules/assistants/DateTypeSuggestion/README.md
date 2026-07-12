@@ -1,59 +1,54 @@
 # Date Type Normalization & Plausibility Assistant Documentation
 
-This documentation covers the user workflows, parsing rules, safety guards, and chronological checks implemented for the **Date Type Normalization Assistant** in Ernie, reflecting the v1.0 milestone features.
+This documentation describes the functionality of the Date Type Normalization and Completion Assistant in Ernie, including its discovery workflows and plausibility checks.
 
 ---
 
 ## 1. Overview
-The Date Type Normalization Assistant scans research data records to fix incorrect temporal metadata labels, discover missing registration milestones, and flag logical chronological errors within legacy database imports. Every automated suggestion goes through a manual review flow where curators preview changes before final acceptance.
+The Date Type Normalization and Completion Assistant helps curators identify missing, incorrect, or implausible DataCite date metadata. It suggests corrections for misused date types (e.g. `Collected` to `Coverage`), discovers missing `Created` and `Issued` dates from external metadata sources (schema.org) and generates review hints for implausible chronological relationships between date types. All suggestions require manual review before they are applied.
 
 ---
 
 ## 2. Core Curation Workflows
 
 ### Collected vs. Coverage Correction
-The assistant identifies records where the `Collected` date type is incorrectly used for broad geospatial or thematic observation periods instead of literal field collection intervals. In these scenarios, it proposes changing the label to `Coverage`.
+The assistant checks resources that contain `Collected` date entries and geolocations. If the number of `Collected` dates matches the number of geolocations and both counts are greater than zero, it creates a suggestion to change the resource's current `Collected` date entries to `Coverage`.
+
+Before the correction is applied, the assistant verifies that the relevant date and geolocation counts have not changed since discovery. If the current state no longer matches the discovered state, the suggestion is treated as stale and is not applied.
 
 ### Missing Created & Issued Discovery
-The assistant checks local records against external footprints to find missing metadata milestones. It automatically proposes adding missing `Created` (creation date) or `Issued` (publication date) fields when valid evidence exists.
+The assistant checks whether a resource already contains `Created` or `Issued` date types. Missing values are looked up in available schema.org metadata.
+
+The extraction supports both ISO date strings and numeric year values to handle different schema.org representations.
+
+A suggestion is created only when:
+
+- the corresponding date type is missing
+- the extracted target date type is supported,
+- a non-empty normalized date value is available
+
+Accepted suggestions are normalized again before storage. They are not applied if the resource already contains the proposed date type or if the value or target type is invalid.
+
+### Plausibility Checks
+The assistant checks existing date values against the expected chronological order:
+
+`Collected → Created → Submitted → Accepted → Issued → Available`
+
+If a value belonging to an earlier date type occurs after a value belonging to a later date type, the assistant creates a review hint. Plausibility hints do not modify metadata automatically.
+
+The plausibility check supports:
+
+- single date values
+- multiple values of the same date type
+- and date ranges
+
+For ranges, the end of the earlier value is compared with the start of the later value. Date values are normalized before comparison, and the order in which database rows are returned does not affect the result.
 
 ---
 
-## 3. Plausibility & Chronological Swap Checks (v1.0)
-To clean up corrupt legacy records (`Altbestand`), the assistant includes a **Plausibility Check Service** that detects impossible chronological combinations and automatically suggests a field swap (`Tausch`):
-* **Issued vs. Created:** If a record's `Date Issued` predates its `Date Created`, a swap suggestion is triggered.
-* **Submitted vs. Created:** If a record's `Date Submitted` predates its `Date Created`, a swap suggestion is triggered.
+## 3. Technical Parsing & Implementation Notes
 
-### Chronological Order Reliability
-Plausibility warnings are strictly based on a true chronological comparison of the actual date values rather than the arbitrary order of rows returned by the database. This ensures accurate and reliable chronology checks, eliminating false warnings that previously occurred due to unordered database relations (e.g., preventing false alerts when a valid pair like `['Issued' => '2024-02-01', 'Created' => '2024-01-01']` is fetched).
 
-### Local Testing & Data Verification
-The chronological plausibility rules are validated using a custom DataCite migration loop script. Curators can test the pipeline using the following production reference DOIs extracted from the legacy dataset:
-* `110.1594/GFZ.TR32.2`
-* `10.14470/8I254008`
-* `10.14470/7T7561754109`
-* `10.14470/6I800592`
-* `10.14470/4U7568470291`
-* `10.14470/K47560642124`
-* `10.14470/1P035555`
-* `10.14470/1N134371`
-* `10.14470/7I253999`
-* `10.14470/2O097102`
-* `10.14470/0E165378`
-* `10.14470/L9180569`
-* `10.5880/GFZ.GFYB.2025.003`
-* `10.5880/ICGEM.2025.001`
+### Schema.org Date Extraction
+The assistant extracts `Created` and `Issued` dates from schema.org metadata. The extraction supports both ISO date strings and numeric year values to handle different schema.org representations.
 
----
-
-## 4. Technical Parsing & Implementation Notes
-
-### Asynchronous Discovery Pipeline
-To prevent locking the web request thread, the discovery flow operates completely outside the synchronous controller cycle. The platform relies on the inherited asynchronous dispatch architecture from `GenericTableAssistant` (or explicitly triggers `DiscoverAssistantSuggestionsJob::dispatch()`). This ensures the controller can immediately return a job ID without waiting for the entire discovery engine to run.
-
-### Type-Resilient Scraper (Integer vs. String)
-The metadata extraction layer uses defensive parsing to resolve irregular schemas in `schema.org` source files. The pipeline safely processes the `datePublished` property whether it arrives as an expected ISO string (e.g., `"2024"`) or a raw numerical integer (e.g., `2024`), which is critical for specialized cross-agency nodes (e.g., fidgeo DOIs `10.5880/fidgeo.2026.047` and `10.5880/fidgeo.2024.014`).
-
-### Safety Guards & Accept Flow
-* **Duplicate Guard:** Prevents database pollution by throwing a hard block if a suggested type/value combination already exists on the target resource.
-* **Placeholder Alert:** Flags legacy fallback dates ending systematically in generic `-01-01` values, warning the curator to verify data integrity before final validation.
