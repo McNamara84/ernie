@@ -17,6 +17,7 @@ use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
+use App\Support\LanguageTag;
 use DOMDocument;
 use DOMElement;
 use Illuminate\Support\Facades\Log;
@@ -285,15 +286,10 @@ class DataCiteXmlExporter
                 $titleElement->setAttribute('titleType', $slug);
             }
 
-            // Fallback order: Title.language, Resource.language, then English for IGSN exports.
-            $lang = null;
-            if ($title->language) {
-                $lang = strtolower($title->language);
-            } elseif ($resource->language) {
-                $lang = $resource->language->code ?? 'en';
-            } elseif ($resource->igsnMetadata) {
-                $lang = 'en';
-            }
+            // Fallback order: valid Title.language, Resource.language, then English for IGSN exports.
+            $lang = LanguageTag::validOrNull($title->language)
+                ?? LanguageTag::validOrNull($resource->language?->code)
+                ?? ($resource->igsnMetadata ? 'en' : null);
 
             if ($lang !== null) {
                 $titleElement->setAttributeNS(

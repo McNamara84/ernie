@@ -437,13 +437,49 @@ describe('DataCiteXmlExporter - Titles', function () {
         $dom = new DOMDocument;
         $dom->loadXML($xml);
 
-        $titleElements = $dom->getElementsByTagName('title');
+        $titleLanguagesByText = [];
+        foreach ($dom->getElementsByTagName('title') as $titleElement) {
+            $titleLanguagesByText[$titleElement->textContent] = $titleElement->getAttribute('xml:lang');
+        }
 
-        expect($titleElements->length)->toBe(2)
-            ->and($titleElements->item(0)?->getAttribute('xml:lang'))->toBe('fr')
-            ->and($titleElements->item(1)?->getAttribute('xml:lang'))->toBe('de')
+        expect($titleLanguagesByText)->toHaveCount(2)
+            ->and($titleLanguagesByText['Translated Title'])->toBe('fr')
+            ->and($titleLanguagesByText['Fallback Title'])->toBe('de')
             ->and($xml)->toContain('Translated Title')
             ->and($xml)->toContain('Fallback Title');
+    });
+
+    test('ignores invalid title language values and falls back to resource language', function () {
+        $german = Language::firstOrCreate(
+            ['code' => 'de'],
+            ['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'language_id' => $german->id,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Legacy Invalid Language Title',
+            'title_type_id' => $mainTitleType->id,
+            'language' => 'not valid',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleElements = $dom->getElementsByTagName('title');
+
+        expect($titleElements->length)->toBe(1)
+            ->and($titleElements->item(0)?->getAttribute('xml:lang'))->toBe('de');
     });
 
     test('does not add xml:lang when title and resource languages are missing', function () {
