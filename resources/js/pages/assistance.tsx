@@ -57,19 +57,6 @@ function isValidRorUrl(url: string): boolean {
         return false;
     }
 }
-/**
- * Creates a unique key for a selected suggestion.
- *
- * Suggestion IDs may overlap between different assistants.
- * Combining the assistant ID and suggestion ID keeps every
- * selected suggestion unique.
- */
-function suggestionSelectionKey(
-    assistantId: string,
-    suggestionId: number,
-): string {
-    return `${assistantId}:${suggestionId}`;
-}
 
 type ReviewTab = 'by-assistant' | 'all-assistants';
 
