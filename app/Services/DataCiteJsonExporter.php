@@ -23,6 +23,7 @@ use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use App\Support\OrcidNormalizer;
 use App\Support\LanguageTag;
+use App\Models\Language;
 
 /**
  * Service for exporting Resource data to DataCite JSON format (v4.7)
@@ -198,10 +199,9 @@ class DataCiteJsonExporter
             $lang = LanguageTag::validOrNull($title->language)
             ?? LanguageTag::validOrNull($resource->language?->code)
             ?? ($resource->igsnMetadata ? 'en' : null);
-            
-            if ($lang !== null) {
-                $titleData['lang'] = $lang;
-            }
+        if ($lang !== null) {
+            $titleData['lang'] = $lang;
+        }
 
             $titles[] = $titleData;
         }

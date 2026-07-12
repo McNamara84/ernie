@@ -18,6 +18,7 @@ use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Models\Language;
 use App\Services\DataCiteJsonExporter;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Support\Facades\DB;
@@ -198,7 +199,6 @@ describe('DataCiteJsonExporter - Creators', function () {
         expect($creators[0])->toHaveKey('name', 'GFZ Potsdam')
             ->and($creators[0])->toHaveKey('nameType', 'Organizational');
     });
-
     test('returns fallback creator when no creators exist', function () {
         $resource = Resource::factory()->create();
 
