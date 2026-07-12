@@ -1714,3 +1714,52 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         });
     });
 });
+describe('Generic fallback suggestion card', () => {
+    it('shows suggested_label when present', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: 'Custom label',
+            suggested_value: 'custom-value',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('Custom label')).toBeInTheDocument();
+    });
+
+    it('falls back to suggested_value when suggested_label is missing', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: undefined,
+            suggested_value: 'fallback-value',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('fallback-value')).toBeInTheDocument();
+    });
+
+    it('falls back to "Suggestion" when both label and value are missing', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: undefined,
+            suggested_value: undefined,
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('Suggestion', { selector: 'p' })).toBeInTheDocument();
+    });
+});
