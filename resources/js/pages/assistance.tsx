@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
     type AcceptResponse,
@@ -83,11 +84,6 @@ type AggregatedResourceGroup = {
     title: string;
     suggestions: AggregatedSuggestion[];
 };
-
-function resourceEditorUrl(resourceId: number): string {
-    return editorRoute({ query: { resourceId } }).url;
-}
-
 function rorBulkMatchDialogDescription(count: number): string {
     const isSingular = count === 1;
     const noun = isSingular ? 'creator affiliation' : 'creator affiliations';
@@ -97,13 +93,6 @@ function rorBulkMatchDialogDescription(count: number): string {
     return `There ${verb} ${count} further ${noun} with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for ${target} as well?`;
 }
 
-function normalizedResourceHeaderValue(value: string | null | undefined): string {
-    return typeof value === 'string' ? value.trim() : '';
-}
-
-function firstNonEmptyResourceHeaderValue(current: string, candidate: string): string {
-    return current === '' ? candidate : current;
-}
 
 function SuggestionCard({
     suggestion,
@@ -1109,11 +1098,13 @@ function DescriptionSegmentationSuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    showActions = true,
 }: {
     suggestion: SuggestedDescriptionSegmentationItem;
     onAccept: (id: number) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    showActions?: boolean;
 }) {
     const metadata = suggestion.metadata;
     const current = metadata?.current;
@@ -1215,27 +1206,29 @@ function DescriptionSegmentationSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={isProcessing}
-                        data-testid={`description-segmentation-decline-${suggestion.id}`}
-                        onClick={() => onDecline(suggestion.id)}
-                    >
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button
-                        size="sm"
-                        disabled={isProcessing}
-                        data-testid={`description-segmentation-accept-${suggestion.id}`}
-                        onClick={() => onAccept(suggestion.id)}
-                    >
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
-                </div>
+                    {showActions && (
+                        <div className="flex shrink-0 gap-2 self-start">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isProcessing}
+                                data-testid={`description-segmentation-decline-${suggestion.id}`}
+                                onClick={() => onDecline(suggestion.id)}
+                            >
+                                <X className="mr-1 h-4 w-4" />
+                                Decline
+                            </Button>
+                            <Button
+                                size="sm"
+                                disabled={isProcessing}
+                                data-testid={`description-segmentation-accept-${suggestion.id}`}
+                                onClick={() => onAccept(suggestion.id)}
+                            >
+                                <Check className="mr-1 h-4 w-4" />
+                                Accept
+                            </Button>
+                        </div>
+                    )}
             </div>
         </div>
     );
@@ -1318,6 +1311,9 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
     const [activeTab, setActiveTab] = useState<ReviewTab>('by-assistant');
     const [selectedSuggestionsByResource, setSelectedSuggestionsByResource] = useState<Record<string, SelectedSuggestion[]>>({});
+    // ROR bulk-match modal state
+    const [pendingRorBulkMatch, setPendingRorBulkMatch] = useState<RorAffiliationBulkMatch | null>(null);
+    const [isAcceptingRorBulkMatch, setIsAcceptingRorBulkMatch] = useState<boolean>(false);
 
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
     const manifestLookup = useMemo(() => new Map(manifests.map((manifest) => [manifest.id, manifest])), [manifests]);
