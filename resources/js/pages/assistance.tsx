@@ -1857,16 +1857,32 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                             if (!sectionData) return null;
 
+                            const normalizeResourceValue = (value: string | undefined | null): string => {
+                                const trimmedValue = value?.trim() ?? '';
+                                return trimmedValue;
+                            };
+
                             const grouped = sectionData.data.reduce<Record<number, { doi: string; title: string; items: BaseSuggestionItem[] }>>(
                                 (groups, item) => {
                                     const resourceId = item.resource_id;
+                                    const normalizedDoi = normalizeResourceValue(item.resource_doi);
+                                    const normalizedTitle = normalizeResourceValue(item.resource_title);
+
                                     if (!groups[resourceId]) {
                                         groups[resourceId] = {
-                                            doi: item.resource_doi ?? '',
-                                            title: item.resource_title ?? 'Untitled',
+                                            doi: normalizedDoi,
+                                            title: normalizedTitle || 'Untitled',
                                             items: [],
                                         };
+                                    } else {
+                                        if (!groups[resourceId].doi.trim() && normalizedDoi) {
+                                            groups[resourceId].doi = normalizedDoi;
+                                        }
+                                        if ((groups[resourceId].title === 'Untitled' || !groups[resourceId].title.trim()) && normalizedTitle) {
+                                            groups[resourceId].title = normalizedTitle;
+                                        }
                                     }
+
                                     groups[resourceId].items.push(item);
                                     return groups;
                                 },
@@ -1906,24 +1922,37 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                     <CardContent>
                                         {Object.keys(grouped).length > 0 ? (
                                             <div className="space-y-6">
-                                                {Object.entries(grouped).map(([resourceId, group]) => (
-                                                    <div key={resourceId} className="space-y-3">
-                                                        <div className="flex items-baseline gap-2">
-                                                            <span className="font-mono text-sm font-semibold text-primary">{group.doi}</span>
-                                                            <span className="text-sm text-muted-foreground">— {group.title}</span>
-                                                            <Badge variant="secondary" className="ml-auto text-xs">
-                                                                {group.items.length} suggestion(s)
-                                                            </Badge>
+                                                {Object.entries(grouped).map(([resourceId, group]) => {
+                                                    const cleanedDoi = group.doi.trim();
+                                                    const linkLabel = cleanedDoi || `Resource #${resourceId}`;
+                                                    const linkTitle = cleanedDoi
+                                                        ? `Open ${cleanedDoi} in editor`
+                                                        : `Open ${linkLabel} in editor`;
+                                                    return (
+                                                        <div key={resourceId} className="space-y-3">
+                                                            <div className="flex items-baseline gap-2">
+                                                                <a
+                                                                    href={`/editor?resourceId=${resourceId}`}
+                                                                    title={linkTitle}
+                                                                    className="font-mono text-sm font-semibold text-primary underline hover:text-primary/80"
+                                                                >
+                                                                    {linkLabel}
+                                                                </a>
+                                                                <span className="text-sm text-muted-foreground">— {group.title}</span>
+                                                                <Badge variant="secondary" className="ml-auto text-xs">
+                                                                    {group.items.length} suggestion(s)
+                                                                </Badge>
+                                                            </div>
+                                                            <div className="space-y-2 pl-4">
+                                                                {group.items.map((item) => (
+                                                                    <div key={item.id as number}>
+                                                                        {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                        <div className="space-y-2 pl-4">
-                                                            {group.items.map((item) => (
-                                                                <div key={item.id as number}>
-                                                                    {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         ) : (
                                             <div className="flex flex-col items-center justify-center py-12 text-center">
