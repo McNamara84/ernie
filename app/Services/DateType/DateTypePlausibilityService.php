@@ -35,41 +35,75 @@ final class DateTypePlausibilityService
     ];
     
     /**
-     * @param array<string, string> $dates
+     * @param array<string, array<int, string>> $dates
      * @return array<int, array<string, mixed>>
      */
     public function hint(array $dates, ?string $resourceDoi = null) : array
     {
         $grouped = [];
 
-        foreach (self::DATE_VALUE_ORDER as [$earlier, $later]) {
-            if (! isset($dates[$earlier], $dates[$later])) {
+        foreach (self::DATE_VALUE_ORDER as [$earlier, $later]) 
+        {
+            $earlierValues = $dates[$earlier] ?? [];
+            $laterValues = $dates[$later] ?? [];
+
+            if ($earlierValues === [] || $laterValues === []) 
+            {
                 continue;
             }
 
-            $valueOrderWrong = $dates[$earlier] > $dates[$later];
-            
-            if ($valueOrderWrong) {
-                $grouped[$earlier][] = [
-                    'type' => $later,
-                    'value' => $dates[$later],
-                ];
+            foreach ($earlierValues as $earlierValue) 
+            {
+                foreach ($laterValues as $laterValue) 
+                {
+                    if (! $this->isAfter($earlierValue, $laterValue)) 
+                        {
+                            continue;
+                    }
+
+                    $grouped[$earlier][$earlierValue][] = 
+                    [
+                        'type' => $later,
+                        'value' => $laterValue,
+                    ];
+                }
+
             }
         }
 
         $warnings = [];
 
-        foreach ($grouped as $earlier => $conflicts) 
+        foreach ($grouped as $earlier => $values) 
         {
-            $warnings[] = $this->warning(
-                $earlier,
-                $dates[$earlier],
-                $conflicts,
-                $resourceDoi,
-            );
+            foreach ($values as $earlierValue => $conflicts) 
+            {
+                $warnings[] = $this->warning
+                (
+                    $earlier, 
+                    $earlierValue,
+                    $conflicts,
+                    $resourceDoi,
+                );
+            }
 
         }
         return $warnings;     
+    }
+
+    private function isAfter (string $earlierValue, string $laterValue): bool
+    {
+        $normalizedEarlier = DateTypeNormalizerService::normalize($earlierValue);
+        $normalizedLater = DateTypeNormalizerService::normalize($laterValue);
+
+        if ($normalizedEarlier === null || $normalizedLater === null) 
+        {
+            return false;
+        }
+
+        $earlierEnd = str_contains($normalizedEarlier, '/') ? explode ('/', $normalizedEarlier, 2)[1] : $normalizedEarlier;
+        $laterStart = str_contains($normalizedLater, '/') ? explode ('/', $normalizedLater, 2)[0] : $normalizedLater;
+
+        return $earlierEnd > $laterStart;
     }
 
     /**
@@ -79,7 +113,7 @@ final class DateTypePlausibilityService
     private function warning(string $earlier, string $earlierValue, array $conflicts, ?string $resourceDoi = null,): array
     {
         $conflictText = implode(', ', array_map(
-            fn (array $conflict): string => sprintf(
+            static fn (array $conflict): string => sprintf(
                 '%s (%s)',
                 $conflict['type'],
                 $conflict['value'],

@@ -87,10 +87,17 @@ final class DateTypeDiscoveryService
 
         foreach ($existingDates as $date) {
             $dateType = $date->dateType->slug;
-            $value = $date->date_value ?? $date->start_date;
+
+            if ($date->start_date !== null && $date->end_date !== null) 
+            {
+                $value = $date->start_date.'/'.$date->end_date;
+            } else 
+            {
+                $value = $date->date_value ?? $date->start_date;
+            }
 
             if ($value !== null) {
-                $datesForHint[$dateType] = $value;
+                $datesForHint[$dateType][] = $value;
             }
         }
 

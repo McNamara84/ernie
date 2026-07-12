@@ -895,3 +895,62 @@ it('stores plausibility hint suggestions', function (): void {
         ->and($suggestion->metadata['is_ambiguous'])->toBeTrue()
         ->and($suggestion->metadata['source_url'])->toBe('https://doi.org/10.5880/test.2026.816');
 });
+
+it('stores multiple plausibility hint suggestions for the same date type', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+    {
+        #[Override]
+        public function loadAllowedSchemaorg(string $doi): array
+        {
+            return [];
+        }
+    });
+
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/pik.2023.001',
+    ]);
+
+    createDate($resource, 'Collected', '2015-01-01');
+    createDate($resource, 'Collected', '2017-01-01');
+    ResourceDate::create
+    ([
+        'resource_id' => $resource->id,
+        'date_type_id' => dateType('Collected')->id,
+        'date_value' => null,
+        'start_date' => '2018-01-01',
+        'end_date' => '2019-01-01',
+    ]);
+    createDate($resource, 'Created', '2016-02-22');
+
+    $assistant = app(Assistant::class);
+
+    $count = $assistant->runDiscovery(function (string $message): void {});
+
+    $suggestion = AssistantSuggestion::query()
+        ->where('assistant_id', $assistant->getId())
+        ->where('resource_id', $resource->id)
+        ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+        ->where('suggested_value', 'like', '%occurs after%')
+        ->orderBy('suggested_value')
+        ->get();
+
+    expect($count)->toBe(2)
+        ->and($suggestion)->toHaveCount(2)
+        ->and($suggestion[0]->target_id)->toBe($resource->id)
+        ->and($suggestion[0]->suggested_value)->toBe('Collected (2017-01-01) occurs after Created (2016-02-22). Please check whether the date values or date types are assigned correctly.')
+        ->and($suggestion[0]->suggested_label)->toBe($suggestion[0]->suggested_value)
+        ->and($suggestion[0]->similarity_score)->toBe(0.65)
+        ->and($suggestion[0]->metadata['suggestion_kind'])->toBe('hint')
+        ->and($suggestion[0]->metadata['confidence'])->toBe('medium')
+        ->and($suggestion[0]->metadata['is_ambiguous'])->toBeTrue()
+        ->and($suggestion[0]->metadata['source_url'])->toBe('https://doi.org/10.5880/pik.2023.001')
+        ->and($suggestion[1]->target_id)->toBe($resource->id)
+        ->and($suggestion[1]->suggested_value)->toBe('Collected (2018-01-01/2019-01-01) occurs after Created (2016-02-22). Please check whether the date values or date types are assigned correctly.')
+        ->and($suggestion[1]->suggested_label)->toBe($suggestion[1]->suggested_value)
+        ->and($suggestion[1]->similarity_score)->toBe(0.65)
+        ->and($suggestion[1]->metadata['suggestion_kind'])->toBe('hint')
+        ->and($suggestion[1]->metadata['confidence'])->toBe('medium')
+        ->and($suggestion[1]->metadata['is_ambiguous'])->toBeTrue()
+        ->and($suggestion[1]->metadata['source_url'])->toBe('https://doi.org/10.5880/pik.2023.001');
+});
+
