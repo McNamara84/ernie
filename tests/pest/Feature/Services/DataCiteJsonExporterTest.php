@@ -199,6 +199,7 @@ describe('DataCiteJsonExporter - Creators', function () {
         expect($creators[0])->toHaveKey('name', 'GFZ Potsdam')
             ->and($creators[0])->toHaveKey('nameType', 'Organizational');
     });
+
     test('returns fallback creator when no creators exist', function () {
         $resource = Resource::factory()->create();
 
@@ -624,7 +625,6 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
 
 use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
-use App\Models\Language;
 use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
