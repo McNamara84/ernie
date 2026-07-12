@@ -1233,7 +1233,7 @@ export default function OldDatasets({
                                                     dataset.identifier ?? dataset.title ?? (dataset.id !== undefined ? `#${dataset.id}` : 'entry');
                                                 return (
                                                     <TableRow
-                                                        key={deriveDatasetRowKey(dataset)}
+                                                        key={`${deriveDatasetRowKey(dataset)}-${index}`}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastDatasetElementRef : null}
                                                     >
