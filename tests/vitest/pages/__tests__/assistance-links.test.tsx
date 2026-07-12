@@ -125,6 +125,7 @@ function makeRorSuggestion(overrides: Partial<SuggestedRorItem> = {}): Suggested
         existing_identifier_type: null,
         discovered_at: '2024-06-15T10:00:00+00:00',
         ...overrides,
+        person_name: overrides.person_name ?? null,
     };
 }
 
@@ -1210,6 +1211,19 @@ describe('RorSuggestionCard – ROR link', () => {
 
         const link = screen.getByRole('link', { name: 'https://ror.org/04t3en479' });
         expect(link).toBeInTheDocument();
+    });
+
+    it('renders the associated person name for affiliation suggestions', () => {
+        const suggestion = makeRorSuggestion({ person_name: 'Marie Curie' });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Person: Marie Curie')).toBeInTheDocument();
     });
 
     it('links to the correct ROR profile URL', () => {
