@@ -606,7 +606,11 @@ export default function OldDatasets({
         const loadFilterOptions = async () => {
             try {
                 const response = await axios.get('/old-datasets/filter-options');
-                setFilterOptions(response.data);
+                const data = response?.data;
+                if (!data) {
+                    throw new Error('Empty response for filter options');
+                }
+                setFilterOptions(data);
             } catch (err) {
                 if (import.meta.env.DEV) {
                     console.error('Failed to load filter options:', err);
@@ -674,15 +678,22 @@ export default function OldDatasets({
                     return;
                 }
 
-                if (response.data.datasets) {
-                    setDatasets((prev) => (replace ? response.data.datasets : [...prev, ...response.data.datasets]));
+                const data = response?.data;
+                if (!data) {
+                    console.error('Empty response from /old-datasets/load-more');
+                    setLoadingError('Failed to load more datasets. Please try again.');
+                    return;
                 }
 
-                if (response.data.pagination) {
-                    setPagination(response.data.pagination);
+                if (data.datasets) {
+                    setDatasets((prev) => (replace ? data.datasets : [...prev, ...data.datasets]));
                 }
 
-                const responseSort = response.data.sort as SortState | undefined;
+                if (data.pagination) {
+                    setPagination(data.pagination);
+                }
+
+                const responseSort = data.sort as SortState | undefined;
                 if (responseSort && isSortState(responseSort)) {
                     setActiveSortState(responseSort);
                 } else {
