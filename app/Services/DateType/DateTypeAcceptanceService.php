@@ -52,6 +52,21 @@ final class DateTypeAcceptanceService
             ];
         }
 
+        $dateTypeAlreadyExists = ResourceDate::query()
+            ->where('resource_id', $suggestion->resource_id)
+            ->whereHas('dateType', fn ($query) => $query->whereIn('slug', array_unique([
+                $targetDateType,
+                strtolower($targetDateType),
+            ])))
+            ->exists();
+
+        if ($dateTypeAlreadyExists) {
+            return [
+                'success' => false,
+                'message' => "This suggestion is stale because the resource already has a '{$targetDateType}' date.",
+            ];
+        }
+
         if (str_contains($dateValue, '/')) {
             [$startDate, $endDate] = explode('/', $dateValue, 2);
 
@@ -95,17 +110,47 @@ final class DateTypeAcceptanceService
             ];
         }
 
-        $updatedCount = ResourceDate::query()
+        $dates = ResourceDate::query()
             ->where('resource_id', $suggestion->resource_id)
             ->whereHas('dateType', fn ($query) => $query->where('slug', 'Collected'))
-            ->update(['date_type_id' => $coverageDateTypeId]);
+            ->get();
 
-        if ($updatedCount === 0) {
+        if ($dates->isEmpty()) {
             return [
                 'success' => false,
                 'message' => 'No Collected date entries were found for this resource.',
             ];
         }
+
+        $metadata = $suggestion->metadata ?? [];
+        $expectedCollectedCount = filter_var($metadata['collected_dates_count'] ?? null, FILTER_VALIDATE_INT);
+        $expectedGeoLocationCount = filter_var($metadata['geo_locations_count'] ?? null, FILTER_VALIDATE_INT);
+
+        if ($expectedCollectedCount === false || $expectedGeoLocationCount === false) {
+            preg_match('/^collected_dates:(\d+);geo_locations:(\d+)$/', $suggestion->suggested_value, $matches);
+            $expectedCollectedCount = isset($matches[1]) ? (int) $matches[1] : null;
+            $expectedGeoLocationCount = isset($matches[2]) ? (int) $matches[2] : null;
+        }
+
+        $currentCollectedCount = $dates->count();
+        $currentGeoLocationCount = $suggestion->resource()->first()?->geoLocations()->count();
+
+        if ($expectedCollectedCount === null
+            || $expectedGeoLocationCount === null
+            || $currentCollectedCount !== $expectedCollectedCount
+            || $currentGeoLocationCount !== $expectedGeoLocationCount
+            || $currentCollectedCount !== $currentGeoLocationCount) {
+            return [
+                'success' => false,
+                'message' => 'This suggestion is stale because the Collected date or geolocation counts changed.',
+            ];
+        }
+
+        $dates->each(fn (ResourceDate $date) => $date->update([
+            'date_type_id' => $coverageDateTypeId,
+        ]));
+
+        $updatedCount = $dates->count();
 
         return [
             'success' => true,

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Assistance\AssistantManifest;
 use App\Services\DateType\DateTypeDiscoveryService;
 use App\Services\DateType\DateTypeSchemaorgExtractionService;
+use Illuminate\Support\Facades\DB;
 use Modules\Assistants\DateTypeSuggestion\Assistant;
 
 function createCollectedCoverageSuggestion(Assistant $assistant, Resource $resource): AssistantSuggestion
@@ -177,8 +178,12 @@ it('accepts a collected to coverage correction by updating only the suggested re
         'date_type_id' => $collectedType->id,
         'date_value' => '2021-01-01',
     ]);
+    GeoLocation::factory()->withPoint(13.0, 52.0)->create(['resource_id' => $resource->id]);
+    GeoLocation::factory()->withPoint(14.0, 53.0)->create(['resource_id' => $resource->id]);
 
     $suggestion = createCollectedCoverageSuggestion($assistant, $resource);
+    $staleUpdatedAt = now()->subDay();
+    DB::table('resources')->where('id', $resource->id)->update(['updated_at' => $staleUpdatedAt]);
 
     $result = $assistant->acceptSuggestion($suggestion->id);
     $firstCollectedDate->refresh();
@@ -199,7 +204,46 @@ it('accepts a collected to coverage correction by updating only the suggested re
         ->and($secondCollectedDate->start_date)->toBe('2020-01-01')
         ->and($secondCollectedDate->end_date)->toBe('2020-12-31')
         ->and($secondCollectedDate->date_information)->toBe('Collection interval from import.')
-        ->and($unrelatedCollectedDate->fresh()->date_type_id)->toBe($collectedType->id);
+        ->and($unrelatedCollectedDate->fresh()->date_type_id)->toBe($collectedType->id)
+        ->and($resource->fresh()->updated_at->greaterThan($staleUpdatedAt))->toBeTrue();
+});
+
+it('keeps a stale collected to coverage correction pending when the counts changed', function (): void {
+    $assistant = app(Assistant::class);
+    $collectedType = DateType::create(['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]);
+    DateType::create(['name' => 'Coverage', 'slug' => 'Coverage', 'is_active' => true]);
+    $resource = Resource::factory()->create();
+    $originalDate = ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $collectedType->id,
+        'date_value' => '2020-01-01',
+    ]);
+    GeoLocation::factory()->withPoint(13.0, 52.0)->create(['resource_id' => $resource->id]);
+    $suggestion = AssistantSuggestion::create([
+        'assistant_id' => $assistant->getId(),
+        'resource_id' => $resource->id,
+        'target_type' => DateTypeDiscoveryService::GEOLOCATION_COUNT_TARGET_TYPE,
+        'target_id' => $resource->id,
+        'suggested_value' => 'collected_dates:1;geo_locations:1',
+        'suggested_label' => 'Collected dates (1) match geolocations (1)',
+        'metadata' => ['collected_dates_count' => 1, 'geo_locations_count' => 1],
+        'discovered_at' => now(),
+    ]);
+    $newDate = ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $collectedType->id,
+        'date_value' => '2021-01-01',
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'message' => 'This suggestion is stale because the Collected date or geolocation counts changed.',
+    ])
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and($originalDate->fresh()->date_type_id)->toBe($collectedType->id)
+        ->and($newDate->fresh()->date_type_id)->toBe($collectedType->id);
 });
 
 it('keeps a collected to coverage correction pending when no collected dates exist', function (): void {
@@ -233,6 +277,8 @@ it('accepts a date type suggestion by creating a single date and deleting the su
     $suggestion = createDateTypeSuggestion($assistant, $resource, '2024-03-15', [
         'target_date_type' => 'Created',
     ]);
+    $staleUpdatedAt = now()->subDay();
+    DB::table('resources')->where('id', $resource->id)->update(['updated_at' => $staleUpdatedAt]);
 
     $result = $assistant->acceptSuggestion($suggestion->id);
     $date = ResourceDate::where('resource_id', $resource->id)->sole();
@@ -245,7 +291,8 @@ it('accepts a date type suggestion by creating a single date and deleting the su
         ->and($date->date_type_id)->toBe($createdType->id)
         ->and($date->date_value)->toBe('2024-03-15')
         ->and($date->start_date)->toBeNull()
-        ->and($date->end_date)->toBeNull();
+        ->and($date->end_date)->toBeNull()
+        ->and($resource->fresh()->updated_at->greaterThan($staleUpdatedAt))->toBeTrue();
 });
 
 it('normalizes accepted date type suggestion values before storing them', function (): void {
@@ -266,6 +313,30 @@ it('normalizes accepted date type suggestion values before storing them', functi
         ->and(AssistantSuggestion::find($suggestion->id))->toBeNull()
         ->and($date->date_type_id)->toBe($createdType->id)
         ->and($date->date_value)->toBe('2024-03-15');
+});
+
+it('keeps a stale date type suggestion pending when that date type was added after discovery', function (): void {
+    $assistant = app(Assistant::class);
+    $createdType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
+    $resource = Resource::factory()->create();
+    $suggestion = createDateTypeSuggestion($assistant, $resource, '2024-03-15', [
+        'target_date_type' => 'Created',
+    ]);
+    $currentDate = ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $createdType->id,
+        'date_value' => '2024-04-01',
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'message' => "This suggestion is stale because the resource already has a 'Created' date.",
+    ])
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and(ResourceDate::where('resource_id', $resource->id)->count())->toBe(1)
+        ->and($currentDate->fresh()->date_value)->toBe('2024-04-01');
 });
 
 it('accepts a discovered date type addition with a date-type-specific target type', function (): void {
@@ -385,6 +456,27 @@ it('keeps date type suggestions pending when the suggested date value is invalid
         ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
         ->and(ResourceDate::where('resource_id', $resource->id)->exists())->toBeFalse();
 });
+
+it('keeps reversed date range suggestions pending without writing dates', function (string $suggestedValue): void {
+    $assistant = app(Assistant::class);
+    DateType::create(['name' => 'Valid', 'slug' => 'Valid', 'is_active' => true]);
+    $resource = Resource::factory()->create();
+    $suggestion = createDateTypeSuggestion($assistant, $resource, $suggestedValue, [
+        'target_date_type' => 'Valid',
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'message' => 'Suggested date value is invalid.',
+    ])
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and(ResourceDate::where('resource_id', $resource->id)->exists())->toBeFalse();
+})->with([
+    'reversed years' => '2025/2024',
+    'reversed full dates' => '2025-12-31/2025-01-01',
+]);
 
 it('keeps collected to coverage corrections pending when the Coverage DateType is missing', function (): void {
     $assistant = app(Assistant::class);

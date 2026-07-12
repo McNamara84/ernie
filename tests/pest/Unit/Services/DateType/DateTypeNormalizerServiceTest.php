@@ -43,6 +43,13 @@ it('normalizes complete date ranges', function () {
         ->and(DateTypeNormalizerService::normalize('2010-01-22T12:30:00Z/2016-07-04T15:30:00Z'))->toBe('2010-01-22T12:30:00Z/2016-07-04T15:30:00Z');
 });
 
+it('rejects reversed date ranges', function (string $value) {
+    expect(DateTypeNormalizerService::normalize($value))->toBeNull();
+})->with([
+    'reversed years' => '2025/2024',
+    'reversed full dates' => '2025-12-31/2025-01-01',
+]);
+
 it('rejects invalid or unsupported date values', function () {
     expect(DateTypeNormalizerService::normalize(null))->toBeNull()
         ->and(DateTypeNormalizerService::normalize(''))->toBeNull()
@@ -61,4 +68,3 @@ it('rejects invalid or unsupported date values', function () {
         ->and(DateTypeNormalizerService::normalize('/2'))->toBeNull()
         ->and(DateTypeNormalizerService::normalize('Before 2016-12-12'))->toBeNull();
 });
-

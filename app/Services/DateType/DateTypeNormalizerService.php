@@ -61,6 +61,13 @@ final class DateTypeNormalizerService
                 return null;
             }
 
+            // Normalized DataCite dates are ordered from their most significant
+            // component (year) to their least significant component, so a lexical
+            // comparison also covers year-only and year-month ranges.
+            if ($normalizedStart > $normalizedEnd) {
+                return null;
+            }
+
             return $normalizedStart.'/'.$normalizedEnd;
         }
 
