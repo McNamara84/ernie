@@ -18,11 +18,12 @@ export function getLandingPageTemplateData(
     resource: LandingPageResource,
     landingPage: LandingPageConfig | null,
     isPreview: boolean,
+    citationAuthorLimit?: number,
 ) {
     return {
         status: getLandingPageStatus(isPreview, landingPage),
         mainTitle: getLandingPageMainTitle(resource),
         subtitle: getLandingPageSubtitle(resource),
-        citation: buildCitation(resource),
+        citation: buildCitation(resource, { creatorLimit: citationAuthorLimit }),
     };
 }

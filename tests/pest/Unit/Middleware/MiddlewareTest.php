@@ -185,6 +185,7 @@ describe('HandleInertiaRequests', function () {
             'role',
             'role_label',
             'can_manage_users',
+            'can_register_doi',
             'can_register_production_doi',
             'can_delete_logs',
             'can_access_logs',
@@ -193,6 +194,7 @@ describe('HandleInertiaRequests', function () {
             'can_access_users',
             'can_access_editor_settings',
             'can_manage_landing_pages',
+            'can_delete_landing_pages',
         ]);
     });
 

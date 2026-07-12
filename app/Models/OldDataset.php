@@ -972,7 +972,7 @@ class OldDataset extends Model
             $startDate = $date->start ?? '';
             $endDate = $date->end ?? '';
 
-            $dateMode = $startDate !== '' && $endDate !== '' && in_array($dateType, ['collected', 'valid', 'other'], true)
+            $dateMode = $startDate !== '' && $endDate !== '' && in_array($dateType, ['created', 'collected', 'valid', 'other'], true)
                 ? 'range'
                 : 'single';
 

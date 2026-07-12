@@ -1,7 +1,7 @@
 // organize-imports-ignore
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical, RotateCcw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, GripVertical, RotateCcw } from 'lucide-react';
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -29,12 +29,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import { useCitationVocabularies } from '@/hooks/use-citation-vocabularies';
 import AppLayout from '@/layouts/app-layout';
 import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
+import { openDetachedTab } from '@/lib/detached-tab';
 import { cn } from '@/lib/utils';
 import {
     areResourceColumnWidthsDefault,
@@ -135,7 +137,7 @@ const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> =
 };
 
 const getDefaultBatchDeleteErrorMessage = (selectedCount: number): string =>
-    selectedCount === 1 ? 'Failed to delete draft resource.' : 'Failed to delete draft resources.';
+    selectedCount === 1 ? 'Failed to delete resource.' : 'Failed to delete resources.';
 
 const normalizeValidationMessage = (value: unknown): string | null => {
     if (typeof value === 'string' && value.trim() !== '') {
@@ -168,11 +170,84 @@ const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefi
     return normalizeValidationMessage(Object.values(errors)[0]) ?? fallbackMessage;
 };
 type ResourceExportAction = Extract<ResourcesActionKey, 'export-datacite-json' | 'export-datacite-xml' | 'export-jsonld'>;
+type ResourceDeleteStatus = 'draft' | 'curation' | 'review' | 'published';
+type DeletableResourceDeleteStatus = Exclude<ResourceDeleteStatus, 'published'>;
+
+interface BlockedEditorTab {
+    id: number;
+    label: string;
+    url: string;
+}
 
 const BATCH_EXPORT_FORMAT_BY_ACTION: Record<ResourceExportAction, 'datacite-json' | 'datacite-xml' | 'jsonld'> = {
     'export-datacite-json': 'datacite-json',
     'export-datacite-xml': 'datacite-xml',
     'export-jsonld': 'jsonld',
+};
+
+const DELETABLE_DELETE_STATUSES: DeletableResourceDeleteStatus[] = ['draft', 'curation', 'review'];
+const DELETE_STATUS_LABELS: Record<ResourceDeleteStatus, string> = {
+    draft: 'draft',
+    curation: 'curation',
+    review: 'preview',
+    published: 'published',
+};
+const DELETE_STATUS_DESCRIPTIONS: Record<DeletableResourceDeleteStatus, string> = {
+    draft: 'Draft resources will be removed from ERNIE.',
+    curation: 'Curation resources will be removed from ERNIE.',
+    review: 'Preview pages for these resources will also be deleted.',
+};
+
+const createDefaultDeleteStatusSelection = (): Record<DeletableResourceDeleteStatus, boolean> => ({
+    draft: true,
+    curation: true,
+    review: true,
+});
+
+const normalizeDeleteStatus = (resource: Resource): ResourceDeleteStatus => {
+    if (resource.publicstatus === 'published') {
+        return 'published';
+    }
+
+    if (resource.publicstatus === 'review') {
+        return 'review';
+    }
+
+    if (resource.publicstatus === 'curation') {
+        return 'curation';
+    }
+
+    return 'draft';
+};
+
+const formatDeleteStatusCount = (status: ResourceDeleteStatus, count: number): string =>
+    `${count} ${DELETE_STATUS_LABELS[status]} ${count === 1 ? 'resource' : 'resources'}`;
+
+const getResourceActionLabel = (resource: Resource): string => resource.title ?? resource.doi ?? `Resource #${resource.id}`;
+
+const RESOURCE_ROW_INTERACTIVE_SELECTOR = [
+    'a',
+    'button',
+    'input',
+    'select',
+    'textarea',
+    '[role="button"]',
+    '[role="checkbox"]',
+    '[role="menuitem"]',
+    '[data-resource-row-action]',
+].join(',');
+
+const shouldIgnoreResourceRowActivation = (event: ReactMouseEvent<HTMLTableRowElement> | ReactKeyboardEvent<HTMLTableRowElement>): boolean => {
+    const eventTarget = event.target;
+    const target = eventTarget instanceof Element ? eventTarget : eventTarget instanceof Text ? eventTarget.parentElement : null;
+
+    if (target === null) {
+        return false;
+    }
+
+    const interactiveElement = target.closest(RESOURCE_ROW_INTERACTIVE_SELECTOR);
+
+    return interactiveElement !== null && event.currentTarget.contains(interactiveElement);
 };
 
 const getFilenameFromContentDisposition = (contentDisposition: string | undefined, fallback: string): string => {
@@ -453,6 +528,7 @@ function ColumnResizeHandle({ columnKey, width, disabled, onResize }: ColumnResi
             tabIndex={disabled ? -1 : 0}
             title={`Resize ${label} column`}
             data-testid={`resources-column-resize-${columnKey}`}
+            data-resource-row-action="true"
             onPointerDown={handlePointerDown}
             onKeyDown={handleKeyDown}
         >
@@ -563,8 +639,8 @@ function ResourcesPage({
 }: ResourcesProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
-    const canRegisterDoi = auth.user?.can_register_production_doi ?? false;
-    const canDeleteDraftResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
+    const canRegisterDoi = auth.user?.can_register_doi ?? false;
+    const canDeleteResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -980,6 +1056,9 @@ function ResourcesPage({
     const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeletingResource, setIsDeletingResource] = useState(false);
+    const [selectedDeleteStatuses, setSelectedDeleteStatuses] =
+        useState<Record<DeletableResourceDeleteStatus, boolean>>(createDefaultDeleteStatusSelection);
+    const [blockedEditorTabs, setBlockedEditorTabs] = useState<BlockedEditorTab[]>([]);
     const isDeletingResourceRef = useRef(false);
     const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
 
@@ -987,33 +1066,41 @@ function ResourcesPage({
         return typeof resource.doi === 'string' && resource.doi.trim().length > 0;
     }, []);
 
-    const getDeleteUnavailableReason = useCallback(
-        (resource: Resource): string | null => {
-            if (!canDeleteDraftResources) {
-                return 'You do not have permission to delete draft resources.';
-            }
+    const selectedDeleteGroups = useMemo((): Record<ResourceDeleteStatus, Resource[]> => {
+        const groups: Record<ResourceDeleteStatus, Resource[]> = {
+            draft: [],
+            curation: [],
+            review: [],
+            published: [],
+        };
 
-            if (resource.publicstatus !== 'draft') {
-                return 'Only draft resources can be deleted.';
-            }
+        selectedResources.forEach((resource) => {
+            groups[normalizeDeleteStatus(resource)].push(resource);
+        });
 
-            if (hasPersistentIdentifier(resource)) {
-                return 'Resources with persistent identifiers cannot be deleted.';
-            }
+        return groups;
+    }, [selectedResources]);
 
-            if (resource.landingPage) {
-                return 'Resources with landing pages cannot be deleted from this list. Remove the landing page first.';
-            }
-
-            return null;
-        },
-        [canDeleteDraftResources, hasPersistentIdentifier],
+    const selectedDeletableDeleteResourceIds = useMemo(
+        () =>
+            DELETABLE_DELETE_STATUSES.flatMap((status) =>
+                selectedDeleteStatuses[status] ? selectedDeleteGroups[status].map((resource) => resource.id) : [],
+            ),
+        [selectedDeleteGroups, selectedDeleteStatuses],
     );
+    const selectedDeletableDeleteCount = selectedDeletableDeleteResourceIds.length;
+    const publishedDeleteCount = selectedDeleteGroups.published.length;
+    const hasPreviewDeleteSelection = selectedDeleteStatuses.review && selectedDeleteGroups.review.length > 0;
+    const hasAnyDeletableDeleteSelection = selectedDeletableDeleteCount > 0;
 
-    const canDeleteResource = useCallback(
-        (resource: Resource): boolean => getDeleteUnavailableReason(resource) === null,
-        [getDeleteUnavailableReason],
-    );
+    const handleOpenDeleteDialog = useCallback(() => {
+        setSelectedDeleteStatuses({
+            draft: selectedDeleteGroups.draft.length > 0,
+            curation: selectedDeleteGroups.curation.length > 0,
+            review: selectedDeleteGroups.review.length > 0,
+        });
+        setIsDeleteDialogOpen(true);
+    }, [selectedDeleteGroups]);
 
     const handleUpdateMetadataDialogOpenChange = useCallback(
         (open: boolean) => {
@@ -1046,33 +1133,24 @@ function ResourcesPage({
         (event: ReactMouseEvent<HTMLButtonElement>) => {
             event.preventDefault();
 
-            if (isDeletingResourceRef.current || selectedResourceIds.length === 0) {
+            if (isDeletingResourceRef.current || selectedDeletableDeleteResourceIds.length === 0) {
                 return;
             }
 
-            const blockedResource = selectedResources.find((resource) => !canDeleteResource(resource));
-            if (blockedResource) {
-                toast.error(getDeleteUnavailableReason(blockedResource) ?? 'The selected resources cannot be deleted.');
-                return;
-            }
-
+            const deleteCount = selectedDeletableDeleteResourceIds.length;
             isDeletingResourceRef.current = true;
             setIsDeletingResource(true);
 
             router.delete('/resources/batch', {
-                data: { ids: selectedResourceIds },
+                data: { ids: selectedDeletableDeleteResourceIds },
                 preserveScroll: true,
                 onSuccess: () => {
                     setSelectedIds(new Set());
                     setIsDeleteDialogOpen(false);
-                    toast.success(
-                        selectedResourceIds.length === 1
-                            ? 'Draft deleted successfully.'
-                            : `${selectedResourceIds.length} drafts deleted successfully.`,
-                    );
+                    toast.success(deleteCount === 1 ? 'Resource deleted successfully.' : `${deleteCount} resources deleted successfully.`);
                 },
                 onError: (errors) => {
-                    toast.error(resolveBatchDeleteErrorMessage(errors, getDefaultBatchDeleteErrorMessage(selectedResourceIds.length)));
+                    toast.error(resolveBatchDeleteErrorMessage(errors, getDefaultBatchDeleteErrorMessage(deleteCount)));
                 },
                 onFinish: () => {
                     isDeletingResourceRef.current = false;
@@ -1080,7 +1158,7 @@ function ResourcesPage({
                 },
             });
         },
-        [canDeleteResource, getDeleteUnavailableReason, selectedResourceIds, selectedResources],
+        [selectedDeletableDeleteResourceIds],
     );
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -1240,25 +1318,82 @@ function ResourcesPage({
             toast.error(errorMessage);
         }
     }, []);
+
+    const openResourceEditorTab = useCallback((resource: Resource): BlockedEditorTab | null => {
+        if (typeof resource.id !== 'number') {
+            return null;
+        }
+
+        const url = editorRoute({ query: { resourceId: resource.id } }).url;
+        const opened = openDetachedTab(url);
+
+        if (opened !== null) {
+            return null;
+        }
+
+        return {
+            id: resource.id,
+            label: getResourceActionLabel(resource),
+            url,
+        };
+    }, []);
+
+    const warnAboutBlockedEditorTabs = useCallback((blockedTabs: BlockedEditorTab[], attemptedTabCount: number) => {
+        if (blockedTabs.length === 0) {
+            return;
+        }
+
+        if (attemptedTabCount === 1) {
+            toast.warning('Your browser blocked the editor tab. Please allow pop-ups for ERNIE and try again.');
+            return;
+        }
+
+        setBlockedEditorTabs(blockedTabs);
+        toast.warning('Your browser blocked one or more editor tabs. Use the fallback links to continue editing.');
+    }, []);
+
     const handleEditSelectedResources = useCallback(() => {
         if (selectedResources.length === 0) {
             toast.error('Select one or more resources first.');
             return;
         }
 
-        let blockedPopups = 0;
-        selectedResources.forEach((resource) => {
-            const url = editorRoute({ query: { resourceId: resource.id } }).url;
-            const opened = window.open(url, '_blank', 'noopener,noreferrer');
-            if (opened === null) {
-                blockedPopups += 1;
-            }
-        });
+        const blockedTabs = selectedResources.map(openResourceEditorTab).filter((tab): tab is BlockedEditorTab => tab !== null);
+        warnAboutBlockedEditorTabs(blockedTabs, selectedResources.length);
+    }, [openResourceEditorTab, selectedResources, warnAboutBlockedEditorTabs]);
 
-        if (blockedPopups > 0) {
-            toast.warning('Your browser blocked one or more editor tabs. Please allow pop-ups for ERNIE and try again.');
-        }
-    }, [selectedResources]);
+    const handleResourceRowActivation = useCallback(
+        (resource: Resource) => {
+            const blockedTab = openResourceEditorTab(resource);
+            warnAboutBlockedEditorTabs(blockedTab ? [blockedTab] : [], 1);
+        },
+        [openResourceEditorTab, warnAboutBlockedEditorTabs],
+    );
+
+    const handleResourceRowClick = useCallback(
+        (resource: Resource, event: ReactMouseEvent<HTMLTableRowElement>) => {
+            if (shouldIgnoreResourceRowActivation(event)) {
+                return;
+            }
+
+            handleResourceRowActivation(resource);
+        },
+        [handleResourceRowActivation],
+    );
+
+    const handleResourceRowKeyDown = useCallback(
+        (resource: Resource, event: ReactKeyboardEvent<HTMLTableRowElement>) => {
+            const isActivationKey = event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar';
+
+            if (!isActivationKey || shouldIgnoreResourceRowActivation(event)) {
+                return;
+            }
+
+            event.preventDefault();
+            handleResourceRowActivation(resource);
+        },
+        [handleResourceRowActivation],
+    );
 
     const handleBatchExportSelectedResources = useCallback(
         async (action: ResourceExportAction) => {
@@ -1319,7 +1454,6 @@ function ResourcesPage({
 
     const selectedWithoutLandingPageCount = selectedResources.filter((resource) => !resource.landingPage).length;
     const selectedWithoutDoiCount = selectedResources.filter((resource) => !hasPersistentIdentifier(resource)).length;
-    const firstDeleteBlockedResource = selectedResources.find((resource) => !canDeleteResource(resource));
 
     const noSelectionReason = 'Select one or more resources first.';
     const singleRecordReason = 'This action can only be performed on a single record.';
@@ -1386,14 +1520,9 @@ function ResourcesPage({
             loading: isBulkRegistering,
         },
         delete: {
-            visible: canDeleteDraftResources,
-            available: selectedCount > 0 && firstDeleteBlockedResource === undefined,
-            reason:
-                selectedCount === 0
-                    ? noSelectionReason
-                    : firstDeleteBlockedResource
-                      ? (getDeleteUnavailableReason(firstDeleteBlockedResource) ?? 'The selected resources cannot be deleted.')
-                      : undefined,
+            visible: canDeleteResources,
+            available: selectedCount > 0,
+            reason: selectedCount === 0 ? noSelectionReason : undefined,
             loading: isDeletingResource,
         },
     };
@@ -1432,11 +1561,18 @@ function ResourcesPage({
                     setIsUpdateMetadataDialogOpen(true);
                     break;
                 case 'delete':
-                    setIsDeleteDialogOpen(true);
+                    handleOpenDeleteDialog();
                     break;
             }
         },
-        [handleEditSelectedResources, handleExportSelectedResources, handleRegisterDoi, handleSetupLandingPage, singleSelectedResource],
+        [
+            handleEditSelectedResources,
+            handleExportSelectedResources,
+            handleOpenDeleteDialog,
+            handleRegisterDoi,
+            handleSetupLandingPage,
+            singleSelectedResource,
+        ],
     );
 
     const handleColumnResize = useCallback((columnKey: ResourceColumnKey, width: number, options: ColumnResizeOptions = {}) => {
@@ -1649,6 +1785,7 @@ function ResourcesPage({
                             }
                             aria-label={ariaLabel}
                             title={ariaLabel}
+                            data-resource-row-action={isClickable ? 'true' : undefined}
                         >
                             <span className="truncate">{statusLabel}</span>
                         </span>
@@ -1935,15 +2072,25 @@ function ResourcesPage({
                                             {loading && sortedResources.length === 0 && <LoadingSkeleton />}
                                             {sortedResources.map((resource, index) => {
                                                 const isLast = index === sortedResources.length - 1;
+                                                const hasEditableResource = typeof resource.id === 'number';
                                                 const resourceLabel =
-                                                    resource.doi ?? resource.title ?? (resource.id !== undefined ? `#${resource.id}` : 'entry');
+                                                    resource.doi ?? resource.title ?? (hasEditableResource ? `#${resource.id}` : 'entry');
+
                                                 return (
                                                     <TableRow
                                                         key={deriveResourceRowKey(resource)}
-                                                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        className={cn(
+                                                            'hover:bg-gray-50 dark:hover:bg-gray-800',
+                                                            hasEditableResource &&
+                                                                'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
+                                                        )}
                                                         ref={isLast ? lastResourceElementRef : null}
-                                                        data-state={
-                                                            resource.id !== undefined && selectedIds.has(resource.id) ? 'selected' : undefined
+                                                        data-state={hasEditableResource && selectedIds.has(resource.id) ? 'selected' : undefined}
+                                                        tabIndex={hasEditableResource ? 0 : undefined}
+                                                        aria-label={hasEditableResource ? `Open resource ${resourceLabel} in editor` : undefined}
+                                                        onClick={hasEditableResource ? (event) => handleResourceRowClick(resource, event) : undefined}
+                                                        onKeyDown={
+                                                            hasEditableResource ? (event) => handleResourceRowKeyDown(resource, event) : undefined
                                                         }
                                                     >
                                                         <TableCell className="w-12 min-w-12 align-middle">
@@ -2019,6 +2166,43 @@ function ResourcesPage({
                 onSuccess={handleImportSuccess}
             />
 
+            <Dialog
+                open={blockedEditorTabs.length > 0}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setBlockedEditorTabs([]);
+                    }
+                }}
+            >
+                <DialogContent data-testid="blocked-editor-tabs-dialog">
+                    <DialogHeader>
+                        <DialogTitle>Open blocked editor tabs</DialogTitle>
+                        <DialogDescription>
+                            Your browser blocked one or more editor tabs. Open the resources below, or allow pop-ups for ERNIE and try again.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        {blockedEditorTabs.map((tab) => (
+                            <Button
+                                key={tab.id}
+                                asChild
+                                variant="outline"
+                                className="h-auto min-h-9 w-full items-start justify-between gap-2 py-2 text-left whitespace-normal"
+                            >
+                                <a href={tab.url} target="_blank" rel="noopener noreferrer">
+                                    <span className="min-w-0 flex-1 text-left wrap-break-word whitespace-normal">{tab.label}</span>
+                                    <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
+                                </a>
+                            </Button>
+                        ))}
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button">Done</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <AlertDialog open={isUpdateMetadataDialogOpen} onOpenChange={handleUpdateMetadataDialogOpenChange}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -2037,18 +2221,88 @@ function ResourcesPage({
             </AlertDialog>
 
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
-                <AlertDialogContent>
+                <AlertDialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete {selectedCount === 1 ? 'draft resource' : 'draft resources'}?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently remove {selectedCount} {selectedCount === 1 ? 'draft resource' : 'draft resources'} from ERNIE. Only
-                            draft resources without a DOI and without a landing page can be deleted.
-                        </AlertDialogDescription>
+                        <AlertDialogTitle>Delete selected resources?</AlertDialogTitle>
+                        <AlertDialogDescription>Choose which selected resource groups should be permanently removed.</AlertDialogDescription>
                     </AlertDialogHeader>
+
+                    <div className="space-y-4 text-sm" data-testid="resources-delete-confirmation-groups">
+                        {publishedDeleteCount > 0 && (
+                            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-destructive">
+                                You have selected {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'} for deletion. Of these,{' '}
+                                {publishedDeleteCount} {publishedDeleteCount === 1 ? 'resource cannot' : 'resources cannot'} be deleted because{' '}
+                                {publishedDeleteCount === 1 ? 'it is' : 'they are'} already registered.
+                            </div>
+                        )}
+
+                        {hasPreviewDeleteSelection && (
+                            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+                                If you confirm deletion for preview resources, their preview pages will be deleted. Please ensure users are informed
+                                that these links will no longer be available.
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            {DELETABLE_DELETE_STATUSES.map((status) => {
+                                const count = selectedDeleteGroups[status].length;
+
+                                if (count === 0) {
+                                    return null;
+                                }
+
+                                const checkboxId = `resources-delete-group-${status}`;
+
+                                return (
+                                    <div key={status} className="rounded-md border p-3" data-testid={`resources-delete-group-${status}`}>
+                                        <div className="flex items-start gap-3">
+                                            <Checkbox
+                                                id={checkboxId}
+                                                checked={selectedDeleteStatuses[status]}
+                                                onCheckedChange={(value) =>
+                                                    setSelectedDeleteStatuses((current) => ({ ...current, [status]: value === true }))
+                                                }
+                                                disabled={isDeletingResource}
+                                                data-testid={`resources-delete-group-${status}-checkbox`}
+                                            />
+                                            <label htmlFor={checkboxId} className="grid gap-1 leading-none">
+                                                <span className="font-medium">Delete {formatDeleteStatusCount(status, count)}</span>
+                                                <span className="text-muted-foreground">{DELETE_STATUS_DESCRIPTIONS[status]}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {publishedDeleteCount > 0 && (
+                                <div className="rounded-md border border-muted bg-muted/40 p-3" data-testid="resources-delete-group-published">
+                                    <p className="font-medium">{formatDeleteStatusCount('published', publishedDeleteCount)} cannot be deleted.</p>
+                                    <p className="mt-1 text-muted-foreground">Published resources are already registered and must remain in ERNIE.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {!hasAnyDeletableDeleteSelection && <p className="text-muted-foreground">No selected resources can be deleted.</p>}
+
+                        {hasAnyDeletableDeleteSelection && (
+                            <p className="text-muted-foreground">
+                                This action cannot be undone. If you wish to back up the data, download and save it as an XML file before deleting it.
+                            </p>
+                        )}
+                    </div>
+
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeletingResource}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction variant="destructive" onClick={handleConfirmDelete} disabled={isDeletingResource}>
-                            {isDeletingResource ? 'Deleting...' : `Delete ${selectedCount === 1 ? 'Draft' : 'Drafts'}`}
+                        <AlertDialogAction
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                            disabled={isDeletingResource || selectedDeletableDeleteCount === 0}
+                        >
+                            {isDeletingResource
+                                ? 'Deleting...'
+                                : selectedDeletableDeleteCount === 1
+                                  ? 'Delete Resource'
+                                  : `Delete ${selectedDeletableDeleteCount} Resources`}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

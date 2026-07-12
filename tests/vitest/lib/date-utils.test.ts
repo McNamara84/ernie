@@ -60,6 +60,13 @@ describe('parseDateTime', () => {
         expect(result.timezone).toBe('Z');
     });
 
+    it('parses space-separated datetime with Z timezone', () => {
+        const result = parseDateTime('2022-10-06 09:35:20Z');
+        expect(result.date).toBe('2022-10-06');
+        expect(result.time).toBe('09:35:20');
+        expect(result.timezone).toBe('Z');
+    });
+
     it('parses datetime without timezone', () => {
         const result = parseDateTime('2022-10-06T14:30');
         expect(result.date).toBe('2022-10-06');

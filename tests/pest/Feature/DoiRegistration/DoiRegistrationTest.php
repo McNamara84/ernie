@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
@@ -23,7 +24,7 @@ beforeEach(function () {
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
     ]);
 
-    $this->user = User::factory()->create();
+    $this->user = User::factory()->create(['role' => UserRole::CURATOR]);
     $this->resource = Resource::factory()->create([
         'doi' => null, // Explicitly set DOI to null for registration tests
         'created_by_user_id' => $this->user->id,
@@ -121,7 +122,13 @@ test('doi registration succeeds with valid data for new doi', function () {
 
     // Verify DOI was saved to database
     $this->resource->refresh();
-    expect($this->resource->doi)->toBe('10.83279/test-12345');
+    $issuedDate = $this->resource->dates()->whereHas('dateType', function ($q) {
+        $q->whereRaw('LOWER(slug) = ?', ['issued']);
+    })->first();
+
+    expect($this->resource->doi)->toBe('10.83279/test-12345')
+        ->and($issuedDate)->not->toBeNull()
+        ->and($issuedDate->date_value)->toBe($issuedDate->created_at->toDateString());
 });
 
 test('doi registration updates metadata for existing doi', function () {
@@ -158,7 +165,12 @@ test('doi registration updates metadata for existing doi', function () {
         'success' => true,
         'updated' => true,
     ]);
-    expect($response->json('message'))->toContain('metadata updated');
+    $issuedDate = $this->resource->dates()->whereHas('dateType', function ($q) {
+        $q->whereRaw('LOWER(slug) = ?', ['issued']);
+    })->first();
+
+    expect($response->json('message'))->toContain('metadata updated')
+        ->and($issuedDate)->toBeNull();
 });
 
 test('doi registration allows metadata update without a prefix', function () {
@@ -260,6 +272,67 @@ test('datacite prefixes endpoint returns correct prefixes in production mode', f
         'test' => ['10.83279', '10.83186', '10.83114'],
         'production' => ['10.5880', '10.26026', '10.14470'],
         'test_mode' => false,
+    ]);
+});
+test('datacite prefixes endpoint forces test mode for beginners when global production mode is enabled', function () {
+    $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+    actingAs($beginner);
+
+    config([
+        'datacite.test_mode' => false,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
+
+    $response = $this->get('/api/datacite/prefixes');
+
+    $response->assertOk();
+    $response->assertJson([
+        'test' => ['10.83279', '10.83186', '10.83114'],
+        'production' => ['10.5880', '10.26026', '10.14470'],
+        'test_mode' => true,
+    ]);
+});
+
+test('beginner doi registration uses test prefixes even when global production mode is enabled', function () {
+    $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+    actingAs($beginner);
+
+    config(['datacite.test_mode' => false]);
+
+    LandingPage::factory()->create([
+        'resource_id' => $this->resource->id,
+        'is_published' => false,
+    ]);
+
+    $productionPrefixResponse = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+        'prefix' => '10.5880',
+    ]);
+
+    $productionPrefixResponse->assertSessionHasErrors('prefix');
+
+    Http::fake([
+        '*datacite.org/*' => Http::response([
+            'data' => [
+                'id' => '10.83279/beginner-training',
+                'type' => 'dois',
+                'attributes' => [
+                    'doi' => '10.83279/beginner-training',
+                    'state' => 'findable',
+                ],
+            ],
+        ], 201),
+    ]);
+
+    $testPrefixResponse = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
+        'prefix' => '10.83279',
+    ]);
+
+    $testPrefixResponse->assertOk();
+    $testPrefixResponse->assertJson([
+        'success' => true,
+        'mode' => 'test',
+        'doi' => '10.83279/beginner-training',
     ]);
 });
 

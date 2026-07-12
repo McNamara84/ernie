@@ -15,6 +15,9 @@ it('returns changelog data grouped by release', function () {
         ])
         ->assertJsonFragment([
             'title' => 'Dashboard overview',
+        ])
+        ->assertJsonFragment([
+            'title' => 'Assistance: Description Segmentation Suggestions',
         ]);
 });
 

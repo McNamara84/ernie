@@ -115,15 +115,12 @@ class StoreResourceRequest extends FormRequest
             'dates.*.dateType' => [
                 'required',
                 'string',
-                Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
+                Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
-            // Imported 'created' date from XML/DataCite import (Issue #371)
-            // If provided, this date is used instead of the current date for new resources
-            'importedCreatedDate' => ['nullable', 'date'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
             'gcmdKeywords' => ['nullable', 'array'],
@@ -150,6 +147,7 @@ class StoreResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
             'relatedIdentifiers' => ['nullable', 'array'],
+            'relatedIdentifiers.*.id' => ['nullable', 'integer', 'min:1'],
             'relatedIdentifiers.*.identifier' => ['required', 'string', 'max:2183'],
             'relatedIdentifiers.*.identifierType' => [
                 'required',
@@ -175,6 +173,7 @@ class StoreResourceRequest extends FormRequest
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
+            'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in([RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT])],
 
             // Related Item Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
@@ -799,12 +798,20 @@ class StoreResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['citationLabel'])
                 : '';
 
+            $id = $this->normalizeRelatedIdentifierId($relatedIdentifier['id'] ?? null);
+
+            $source = isset($relatedIdentifier['source']) && is_scalar($relatedIdentifier['source'])
+                ? trim((string) $relatedIdentifier['source'])
+                : '';
+
             $relatedIdentifiers[] = [
+                ...($id !== null ? ['id' => $id] : []),
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
                 ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
+                ...($source !== '' ? ['source' => $source] : []),
             ];
         }
 
@@ -1449,6 +1456,19 @@ class StoreResourceRequest extends FormRequest
                 }
             },
         ];
+    }
+
+    private function normalizeRelatedIdentifierId(mixed $id): mixed
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $validatedId = filter_var($id, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        return $validatedId === false ? $id : $validatedId;
     }
 
     private function normalizeString(mixed $value): ?string

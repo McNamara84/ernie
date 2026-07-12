@@ -1,6 +1,6 @@
 import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, Save } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronsDown, ChevronsUp, Circle, Eye, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -14,6 +14,8 @@ import {
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
+import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
+import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -28,6 +30,7 @@ import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-util
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
 import type { CurationAccordionItemValue, InstrumentSelection, MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
+import type { LandingPageConfig } from '@/types/landing-page';
 import type { SelectedKeyword, VocabularyKeyword } from '@/types/vocabulary';
 import { getVocabularyTypeFromScheme } from '@/types/vocabulary';
 import {
@@ -64,6 +67,7 @@ import {
     type DataCiteFormData,
     type DataCiteFormProps,
     type DateEntry,
+    type EditorLandingPageSummary,
     type LicenseEntry,
     MAIN_TITLE_SLUG,
     type RawRightsInput,
@@ -86,7 +90,7 @@ import {
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
 // Re-export types for backward compatibility with existing imports
-export type { DataCiteFormProps, InitialAuthor, InitialContributor, RawRightsInput } from './types/datacite-form-types';
+export type { DataCiteFormProps, EditorLandingPageSummary, InitialAuthor, InitialContributor, RawRightsInput } from './types/datacite-form-types';
 
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
@@ -103,6 +107,53 @@ type DraftSaveResponse = {
     message?: string;
     resource?: { id: number };
 };
+
+type LandingPagePreviewTarget = {
+    status?: LandingPageConfig['status'];
+    public_url?: string | null;
+    preview_url?: string | null;
+    external_url?: string | null;
+};
+
+type LandingPagePreviewSetupResource = {
+    id: number;
+    doi?: string | null;
+    title?: string;
+    resourcetypegeneral?: string;
+};
+
+function normalizeLandingPagePreviewTarget(url?: string | null): string | null {
+    const trimmedUrl = url?.trim();
+
+    return trimmedUrl || null;
+}
+
+function getLandingPagePreviewTarget(landingPage: LandingPagePreviewTarget): string | null {
+    if (landingPage.status === 'draft') {
+        return normalizeLandingPagePreviewTarget(landingPage.preview_url);
+    }
+
+    return normalizeLandingPagePreviewTarget(landingPage.public_url) ?? normalizeLandingPagePreviewTarget(landingPage.external_url);
+}
+
+function getLandingPagePreviewMissingUrlMessage(landingPage: LandingPagePreviewTarget): string {
+    if (landingPage.status === 'draft') {
+        return 'Unable to open landing page preview. The preview URL is missing.';
+    }
+
+    return 'Unable to open landing page. The public or external URL is missing.';
+}
+
+function toEditorLandingPageSummary(landingPage: LandingPageConfig): EditorLandingPageSummary {
+    return {
+        id: landingPage.id,
+        is_published: landingPage.status === 'published',
+        status: landingPage.status,
+        public_url: landingPage.public_url,
+        preview_url: landingPage.preview_url,
+        external_url: landingPage.external_url,
+    };
+}
 
 function normalizeAccordionItems(
     items: readonly string[],
@@ -192,6 +243,7 @@ export default function DataCiteForm({
     initialLicenses = [],
     initialRawRights = [],
     initialResourceId,
+    initialLandingPage = null,
     initialAuthors = [],
     initialContributors = [],
     initialDescriptions = [],
@@ -215,7 +267,7 @@ export default function DataCiteForm({
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
 
-    // Date types shown in the Dates section. Created/Updated are automatic;
+    // Date types shown in the Dates section. Accepted/Issued/Updated are system-managed;
     // Coverage is edited exclusively in Spatial and Temporal Coverage.
     const MAX_DATES = dateTypes.filter((dt) => isEditableDateType(dt.slug)).length;
 
@@ -381,16 +433,6 @@ export default function DataCiteForm({
         }
         return [];
     });
-    // Extract imported 'created' date from initial data (for XML/DataCite imports)
-    // This date should be preserved and sent to the backend instead of using today's date
-    const importedCreatedDate = useMemo(() => {
-        if (initialDates && initialDates.length > 0) {
-            const createdDate = initialDates.find((date) => date.dateType.toLowerCase() === 'created');
-            return createdDate?.startDate || null;
-        }
-        return null;
-    }, [initialDates]);
-
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
             return initialDates
@@ -419,7 +461,7 @@ export default function DataCiteForm({
                     };
                 });
         }
-        // Start with empty dates array - 'created' and 'updated' are auto-managed
+        // Start with an empty Dates section when no editable imported dates exist.
         return [];
     });
 
@@ -1031,8 +1073,7 @@ export default function DataCiteForm({
     const updateOpenAccordionItems = useCallback(
         (
             nextItemsOrUpdater:
-                | readonly CurationAccordionItemValue[]
-                | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
+                readonly CurationAccordionItemValue[] | ((currentItems: CurationAccordionItemValue[]) => readonly CurationAccordionItemValue[]),
             options: { immediate?: boolean; persist?: boolean; persistHiddenItems?: boolean } = {},
         ) => {
             const nextItems = typeof nextItemsOrUpdater === 'function' ? nextItemsOrUpdater(openAccordionItemsRef.current) : nextItemsOrUpdater;
@@ -1268,7 +1309,6 @@ export default function DataCiteForm({
     }, [authors]);
 
     // Date validation issues (general validation for user-entered dates)
-    // Note: 'Created' and 'Updated' dates are now auto-managed by the backend
     const dateValidationIssues = useMemo(() => {
         const issues: string[] = [];
 
@@ -1570,7 +1610,7 @@ export default function DataCiteForm({
     }, [spatialTemporalCoverages]);
 
     const datesStatus = useMemo(() => {
-        // Dates section is now optional since 'Created' and 'Updated' are auto-managed
+        // Dates are optional because DataCite does not require a user-entered editor date.
         const hasAnyDate = dates.some((date) => hasValidDateValue(date));
 
         if (!hasAnyDate) {
@@ -1750,9 +1790,7 @@ export default function DataCiteForm({
 
             const next = [...prev];
             const updated: LicenseEntry =
-                mode === 'custom'
-                    ? { id: current.id, mode: 'custom', name: '', uri: '' }
-                    : { id: current.id, mode: 'catalog', license: '' };
+                mode === 'custom' ? { id: current.id, mode: 'custom', name: '', uri: '' } : { id: current.id, mode: 'catalog', license: '' };
 
             next[index] = updated;
 
@@ -1895,9 +1933,49 @@ export default function DataCiteForm({
         return Number.isFinite(parsed) ? parsed : null;
     });
 
+    const [landingPageForPreview, setLandingPageForPreview] = useState<EditorLandingPageSummary | null>(initialLandingPage);
+    const [isPreparingLandingPagePreview, setIsPreparingLandingPagePreview] = useState(false);
+    const [pendingLandingPageSetupResource, setPendingLandingPageSetupResource] = useState<LandingPagePreviewSetupResource | null>(null);
+    const [isLandingPageSetupOpen, setIsLandingPageSetupOpen] = useState(false);
+
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
     const resourcesUrl = useMemo(() => resources.url(), []);
+    const mainTitleForLandingPage = useMemo(() => {
+        return titles.find((title) => title.titleType === MAIN_TITLE_SLUG)?.title.trim() || titles[0]?.title.trim() || undefined;
+    }, [titles]);
+    const selectedResourceTypeName = useMemo(() => {
+        return resourceTypes.find((type) => String(type.id) === form.resourceType)?.name;
+    }, [form.resourceType, resourceTypes]);
+    const buildLandingPageSetupResource = useCallback(
+        (resourceId: number): LandingPagePreviewSetupResource => ({
+            id: resourceId,
+            doi: form.doi?.trim() || null,
+            title: mainTitleForLandingPage,
+            resourcetypegeneral: selectedResourceTypeName,
+        }),
+        [form.doi, mainTitleForLandingPage, selectedResourceTypeName],
+    );
+    const openLandingPagePreview = useCallback((landingPage: LandingPagePreviewTarget, preopenedWindow?: Window | null) => {
+        const previewTarget = getLandingPagePreviewTarget(landingPage);
+
+        if (!previewTarget) {
+            preopenedWindow?.close();
+            toast.error(getLandingPagePreviewMissingUrlMessage(landingPage));
+            return;
+        }
+
+        if (preopenedWindow) {
+            preopenedWindow.location.href = previewTarget;
+            return;
+        }
+
+        const openedWindow = window.open(previewTarget, '_blank', 'noopener,noreferrer');
+
+        if (!openedWindow) {
+            toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+        }
+    }, []);
     const draftAutosaveMessage = useMemo(() => {
         if (draftAutosaveStatus === 'idle') {
             return null;
@@ -2016,7 +2094,7 @@ export default function DataCiteForm({
                 affiliation_ror: string | null;
             }[];
             descriptions: { descriptionType: string; description: string; language?: string | null }[];
-            dates: { dateType: string; startDate: string | null; endDate: string | null }[];
+            dates: { dateType: string; dateMode: DateMode; startDate: string | null; endDate: string | null }[];
             freeKeywords: string[];
             gcmdKeywords: {
                 id: string;
@@ -2041,11 +2119,13 @@ export default function DataCiteForm({
                 description: string;
             }[];
             relatedIdentifiers: {
+                id?: number;
                 identifier: string;
                 identifierType: string;
                 relationType: string;
                 relationTypeInformation?: string;
                 citationLabel?: string;
+                source?: 'relation_suggestion_assistant';
             }[];
             fundingReferences: {
                 funderName: string;
@@ -2061,7 +2141,6 @@ export default function DataCiteForm({
                 name: string;
             }[];
             datacenters: number[];
-            importedCreatedDate: string | null;
             resourceId?: number;
             rawRights: DataCiteFormProps['initialRawRights'];
         } = {
@@ -2075,19 +2154,13 @@ export default function DataCiteForm({
                 titleType: entry.titleType,
                 language: entry.language ?? null,
             })),
-            licenses: licenseEntries
-                .filter(isCatalogLicensePayloadEntry)
-                .map((entry) => entry.license),
-            customLicenses: licenseEntries
-                .filter(isCustomLicensePayloadEntry)
-                .map((entry) => ({
-                    name: entry.name.trim(),
-                    uri: entry.uri.trim(),
-                    ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
-                })),
-            rawRights: licenseEntries
-                .filter(isRawRightsOnlyLicenseEntry)
-                .map(serializeRawRightsOnlyLicenseEntry),
+            licenses: licenseEntries.filter(isCatalogLicensePayloadEntry).map((entry) => entry.license),
+            customLicenses: licenseEntries.filter(isCustomLicensePayloadEntry).map((entry) => ({
+                name: entry.name.trim(),
+                uri: entry.uri.trim(),
+                ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
+            })),
+            rawRights: licenseEntries.filter(isRawRightsOnlyLicenseEntry).map(serializeRawRightsOnlyLicenseEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -2135,11 +2208,13 @@ export default function DataCiteForm({
                 description: coverage.description,
             })),
             relatedIdentifiers: relatedWorks.map((rw) => ({
+                ...(rw.id !== undefined ? { id: rw.id } : {}),
                 identifier: rw.identifier,
                 identifierType: rw.identifier_type,
                 relationType: rw.relation_type,
                 ...(rw.relation_type_information ? { relationTypeInformation: rw.relation_type_information } : {}),
                 ...(rw.citation_label ? { citationLabel: rw.citation_label } : {}),
+                ...(rw.source ? { source: rw.source } : {}),
             })),
             // Pass-through for XML-imported inline citations; the backend
             // persists these on first save, after which the REST-based
@@ -2159,7 +2234,6 @@ export default function DataCiteForm({
                 name: inst.name,
             })),
             datacenters: selectedDatacenters,
-            importedCreatedDate,
         };
 
         if (resolvedResourceId !== null) {
@@ -2180,7 +2254,6 @@ export default function DataCiteForm({
         freeKeywords,
         fundingReferences,
         gcmdKeywords,
-        importedCreatedDate,
         initialRelatedItems,
         instruments,
         licenseEntries,
@@ -2226,7 +2299,14 @@ export default function DataCiteForm({
     }, [buildPayload, resolvedResourceId]);
 
     const saveDraftSilently = useCallback(async () => {
-        if (!isDraftSaveable || dateValidationIssues.length > 0 || isSaving || isSavingDraft || draftAutosaveInFlightRef.current) {
+        if (
+            !isDraftSaveable ||
+            dateValidationIssues.length > 0 ||
+            isSaving ||
+            isSavingDraft ||
+            isPreparingLandingPagePreview ||
+            draftAutosaveInFlightRef.current
+        ) {
             return;
         }
 
@@ -2271,7 +2351,16 @@ export default function DataCiteForm({
         } finally {
             draftAutosaveInFlightRef.current = false;
         }
-    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isSaving, isSavingDraft, markDraftAutosaveSaved]);
+    }, [
+        buildPayload,
+        dateValidationIssues.length,
+        draftSaveUrl,
+        isDraftSaveable,
+        isPreparingLandingPagePreview,
+        isSaving,
+        isSavingDraft,
+        markDraftAutosaveSaved,
+    ]);
 
     useEffect(() => {
         const autosaveTimerId = window.setInterval(() => {
@@ -2578,6 +2667,138 @@ export default function DataCiteForm({
         }
     };
 
+    const saveDraftForLandingPagePreview = useCallback(async (): Promise<{ resourceId: number } | null> => {
+        if (!isDraftSaveable) return null;
+
+        setIsPreparingLandingPagePreview(true);
+        setErrorMessage(null);
+        setMappedValidationErrors([]);
+        clearBackendErrors();
+
+        if (dateValidationIssues.length > 0) {
+            setHasAttemptedSubmit(true);
+            revealValidationErrors(
+                { dates: dateValidationIssues },
+                'Please resolve the date validation issues before opening the landing page preview.',
+            );
+            setIsPreparingLandingPagePreview(false);
+            return null;
+        }
+
+        const payload = buildPayload();
+
+        try {
+            const response = await axios.post(draftSaveUrl, payload, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+            });
+
+            const data = response.data as DraftSaveResponse | null;
+            const savedResourceId = data?.resource?.id ?? resolvedResourceId;
+
+            if (!savedResourceId) {
+                setErrorMessage('Unable to open landing page preview because the draft resource ID is missing.');
+                return null;
+            }
+
+            setResolvedResourceId(savedResourceId);
+            updateDraftAutosaveSignature(payload, savedResourceId);
+            setHasAttemptedSubmit(false);
+
+            return { resourceId: savedResourceId };
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const response = error.response;
+
+                if (response?.status === 419) {
+                    setErrorMessage('Your session has expired. Please refresh the page and try again.');
+                    return null;
+                }
+
+                if (response) {
+                    const defaultError = 'Unable to save draft before opening the landing page preview.';
+                    const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
+
+                    if (parsed?.errors) {
+                        applyBackendValidationErrors(parsed.errors, parsed.message, defaultError);
+                    } else {
+                        setErrorMessage(parsed?.message || defaultError);
+                    }
+
+                    return null;
+                }
+            }
+
+            console.error('Failed to save draft before opening landing page preview', error);
+            setErrorMessage('A network error prevented saving the draft before opening the landing page preview. Please try again.');
+            return null;
+        } finally {
+            setIsPreparingLandingPagePreview(false);
+        }
+    }, [
+        applyBackendValidationErrors,
+        buildPayload,
+        clearBackendErrors,
+        dateValidationIssues,
+        draftSaveUrl,
+        isDraftSaveable,
+        resolvedResourceId,
+        revealValidationErrors,
+        updateDraftAutosaveSignature,
+    ]);
+
+    const handleShowLandingPagePreview = useCallback(async () => {
+        let preopenedPreviewWindow: Window | null = null;
+
+        if (landingPageForPreview) {
+            preopenedPreviewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!preopenedPreviewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+        }
+
+        const result = await saveDraftForLandingPagePreview();
+
+        if (!result) {
+            preopenedPreviewWindow?.close();
+            return;
+        }
+
+        if (landingPageForPreview) {
+            openLandingPagePreview(landingPageForPreview, preopenedPreviewWindow);
+            return;
+        }
+
+        setPendingLandingPageSetupResource(buildLandingPageSetupResource(result.resourceId));
+        setIsLandingPageSetupOpen(true);
+    }, [buildLandingPageSetupResource, landingPageForPreview, openLandingPagePreview, saveDraftForLandingPagePreview]);
+
+    const handleCloseLandingPageSetup = useCallback(() => {
+        setIsLandingPageSetupOpen(false);
+        setPendingLandingPageSetupResource(null);
+    }, []);
+
+    const handleLandingPageSetupSuccess = useCallback(
+        (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => {
+            if (landingPage) {
+                const summary = toEditorLandingPageSummary(landingPage);
+                setLandingPageForPreview(summary);
+                openLandingPagePreview(summary, preopenedPreviewWindow);
+            } else {
+                preopenedPreviewWindow?.close();
+                setLandingPageForPreview(null);
+            }
+
+            setIsLandingPageSetupOpen(false);
+            setPendingLandingPageSetupResource(null);
+        },
+        [openLandingPagePreview],
+    );
+
     // ===================================================================
     // Status Badge Rendering Helper
     // ===================================================================
@@ -2637,6 +2858,90 @@ export default function DataCiteForm({
         </>
     );
 
+    const editorActionButtonClassName = 'h-8 px-3 text-xs sm:h-9 sm:px-4 sm:text-sm';
+    const isEditorActionInFlight = isSaving || isSavingDraft || isPreparingLandingPagePreview;
+    const showSaveDraftDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showLandingPagePreviewDisabledTooltip = !isDraftSaveable && !isEditorActionInFlight;
+    const showSaveValidateDisabledTooltip = hasLegacyKeywords && !isEditorActionInFlight;
+
+    const renderEditorActions = () => (
+        <>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={showSaveDraftDisabledTooltip ? 0 : undefined}>
+                        {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                            Drafts are partial saves; legacy keyword replacement is only
+                            required for full validation (Save & Validate). */}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={editorActionButtonClassName}
+                            data-testid="save-draft-button"
+                            disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                            aria-busy={isSavingDraft}
+                            onClick={handleSaveDraft}
+                        >
+                            <Save className="mr-2 h-4 w-4" />
+                            {isSavingDraft ? 'Saving...' : 'Save Draft'}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                {showSaveDraftDisabledTooltip && (
+                    <TooltipContent side="top" align="end" className="max-w-sm">
+                        <p className="text-sm">Enter a Main Title to save as draft.</p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={showLandingPagePreviewDisabledTooltip ? 0 : undefined}>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={editorActionButtonClassName}
+                            data-testid="show-lp-preview-button"
+                            disabled={!isDraftSaveable || isSavingDraft || isSaving || isPreparingLandingPagePreview}
+                            aria-busy={isPreparingLandingPagePreview}
+                            onClick={() => void handleShowLandingPagePreview()}
+                        >
+                            <Eye className="mr-2 h-4 w-4" />
+                            {isPreparingLandingPagePreview ? 'Preparing...' : 'Show LP Preview'}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                {showLandingPagePreviewDisabledTooltip && (
+                    <TooltipContent side="top" align="end" className="max-w-sm">
+                        <p className="text-sm">Enter a Main Title to preview the landing page.</p>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <span tabIndex={showSaveValidateDisabledTooltip ? 0 : undefined}>
+                        <Button
+                            type="submit"
+                            className={editorActionButtonClassName}
+                            data-testid="save-resource-button"
+                            disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
+                            aria-busy={isSaving}
+                            aria-disabled={isSaving || isSavingDraft || isPreparingLandingPagePreview || hasLegacyKeywords}
+                        >
+                            {isSaving ? 'Saving...' : 'Save & Validate'}
+                        </Button>
+                    </span>
+                </TooltipTrigger>
+                {showSaveValidateDisabledTooltip && (
+                    <TooltipContent side="top" align="end" className="max-w-sm">
+                        <div className="space-y-2">
+                            <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
+                            <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
+                        </div>
+                    </TooltipContent>
+                )}
+            </Tooltip>
+        </>
+    );
+
     // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
         if (errorMessage && mappedValidationErrors.length === 0) {
@@ -2663,7 +2968,7 @@ export default function DataCiteForm({
     );
 
     return (
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-6 pb-36 sm:pb-28 lg:pb-24">
             {mappedValidationErrors.length > 0 ? (
                 <ClickableValidationAlert
                     ref={errorRef}
@@ -2849,7 +3154,8 @@ export default function DataCiteForm({
                     <AccordionContent>
                         <div className="space-y-4">
                             {licenseEntries.map((entry, index) => {
-                                const customLicensePayloadIndex = entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
+                                const customLicensePayloadIndex =
+                                    entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
 
                                 return (
                                     <LicenseField
@@ -2874,8 +3180,12 @@ export default function DataCiteForm({
                                         touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                         onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
                                         data-testid={`license-select-${index}`}
-                                        customNameTestId={customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined}
-                                        customUriTestId={customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined}
+                                        customNameTestId={
+                                            customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined
+                                        }
+                                        customUriTestId={
+                                            customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined
+                                        }
                                     />
                                 );
                             })}
@@ -3154,15 +3464,9 @@ export default function DataCiteForm({
                     <AccordionTrigger
                         data-testid="citations-accordion-trigger"
                         className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions(
-                            RELATED_ITEMS_SECTION_LABEL,
-                            RELATED_ITEMS_SECTION_HELP,
-                        )}
+                        actions={renderSectionActions(RELATED_ITEMS_SECTION_LABEL, RELATED_ITEMS_SECTION_HELP)}
                     >
-                        <AccordionSectionHeader
-                            label={RELATED_ITEMS_SECTION_LABEL}
-                            description={RELATED_ITEMS_SECTION_DESCRIPTION}
-                        />
+                        <AccordionSectionHeader label={RELATED_ITEMS_SECTION_LABEL} description={RELATED_ITEMS_SECTION_DESCRIPTION} />
                     </AccordionTrigger>
                     <AccordionContent data-testid="citations-accordion-content">
                         <CitationsField resourceId={resolvedResourceId} />
@@ -3221,60 +3525,19 @@ export default function DataCiteForm({
                         : []
                 }
             />
-            <div className="flex flex-col items-end gap-2">
-                <div className="flex justify-end gap-3">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
-                                    Drafts are partial saves; legacy keyword replacement is only
-                                    required for full validation (Save & Validate). */}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    data-testid="save-draft-button"
-                                    disabled={!isDraftSaveable || isSavingDraft || isSaving}
-                                    aria-busy={isSavingDraft}
-                                    onClick={handleSaveDraft}
-                                >
-                                    <Save className="mr-2 h-4 w-4" />
-                                    {isSavingDraft ? 'Saving...' : 'Save Draft'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {!isDraftSaveable && !isSavingDraft && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <p className="text-sm">Enter a Main Title to save as draft.</p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span tabIndex={0}>
-                                <Button
-                                    type="submit"
-                                    data-testid="save-resource-button"
-                                    disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                                    aria-busy={isSaving}
-                                    aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                                >
-                                    {isSaving ? 'Saving...' : 'Save & Validate'}
-                                </Button>
-                            </span>
-                        </TooltipTrigger>
-                        {hasLegacyKeywords && !isSaving && (
-                            <TooltipContent side="top" align="end" className="max-w-sm">
-                                <div className="space-y-2">
-                                    <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
-                                    <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                                </div>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
+            <div
+                data-testid="editor-floating-actions"
+                className="group fixed right-2 bottom-2 z-40 flex max-w-[calc(100vw-1rem)] flex-col items-end gap-2 p-2 sm:right-4 sm:bottom-4 sm:max-w-[calc(100vw-2rem)] lg:right-6 lg:bottom-6 lg:p-0"
+            >
+                <div
+                    data-testid="editor-floating-actions-panel"
+                    className="flex max-w-full flex-wrap justify-end gap-2 opacity-20 transition-opacity duration-200 ease-out group-hover:opacity-100 focus-within:opacity-100 hover:opacity-100 sm:gap-3 lg:opacity-100 [@media(hover:none)]:opacity-100"
+                >
+                    {renderEditorActions()}
                 </div>
                 {draftAutosaveMessage && (
                     <p
-                        className={draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}
+                        className={`${draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'} max-w-[calc(100vw-1rem)] text-right opacity-20 transition-opacity duration-200 ease-out group-focus-within:opacity-100 group-hover:opacity-100 lg:opacity-100 [@media(hover:none)]:opacity-100`}
                         data-testid="draft-autosave-status"
                         aria-live="polite"
                     >
@@ -3282,6 +3545,15 @@ export default function DataCiteForm({
                     </p>
                 )}
             </div>
+            {pendingLandingPageSetupResource && (
+                <SetupLandingPageModal
+                    resource={pendingLandingPageSetupResource}
+                    isOpen={isLandingPageSetupOpen}
+                    onClose={handleCloseLandingPageSetup}
+                    onSuccess={handleLandingPageSetupSuccess}
+                    openPreviewOnSuccess={true}
+                />
+            )}
             {/* DOI Conflict Modal */}
             {conflictData && (
                 <DoiConflictModal

@@ -115,18 +115,20 @@ describe('RelatedWorkSection', () => {
                         scheme_type: null,
                         position: 1,
                         titles: [{ id: 1, title: 'Cited Paper Title', title_type: 'MainTitle', language: 'en' }],
-                        creators: [{
-                            id: 1,
-                            name_type: 'Personal',
-                            name: 'Doe, Jane',
-                            given_name: 'Jane',
-                            family_name: 'Doe',
-                            name_identifier: null,
-                            name_identifier_scheme: null,
-                            scheme_uri: null,
-                            position: 1,
-                            affiliations: [],
-                        }],
+                        creators: [
+                            {
+                                id: 1,
+                                name_type: 'Personal',
+                                name: 'Doe, Jane',
+                                given_name: 'Jane',
+                                family_name: 'Doe',
+                                name_identifier: null,
+                                name_identifier_scheme: null,
+                                scheme_uri: null,
+                                position: 1,
+                                affiliations: [],
+                            },
+                        ],
                         contributors: [],
                     },
                 ]}
@@ -159,7 +161,12 @@ describe('RelatedWorkSection', () => {
                 resource={mockResource}
                 relatedIdentifiers={[
                     makeRelatedIdentifier({ id: 1, relation_type: 'IsSupplementTo', citation_label: 'Hidden first supplement' }),
-                    makeRelatedIdentifier({ id: 2, relation_type: 'IsSupplementTo', identifier: '10.5880/second', citation_label: 'Visible supplement' }),
+                    makeRelatedIdentifier({
+                        id: 2,
+                        relation_type: 'IsSupplementTo',
+                        identifier: '10.5880/second',
+                        citation_label: 'Visible supplement',
+                    }),
                 ]}
             />,
         );
@@ -187,6 +194,39 @@ describe('RelatedWorkSection', () => {
         expect(headings).toEqual(['Cites', 'Is Documented By', 'References']);
     });
 
+    it('renders repository curation related identifiers below initial metadata', () => {
+        render(
+            <RelatedWorkSection
+                resource={mockResource}
+                relatedIdentifiers={[
+                    makeRelatedIdentifier({
+                        id: 1,
+                        relation_type: 'References',
+                        citation_label: 'Initial citation',
+                    }),
+                    makeRelatedIdentifier({
+                        id: 2,
+                        relation_type: 'Cites',
+                        identifier: '10.5880/curated',
+                        citation_label: 'Curated citation',
+                        source: 'relation_suggestion_assistant',
+                        is_repository_curation: true,
+                    }),
+                ]}
+            />,
+        );
+
+        const listText = screen.getByTestId('related-works-list').textContent ?? '';
+        const initialIndex = listText.indexOf('Initial citation');
+        const curationHeadingIndex = listText.indexOf('Added by repository curation');
+        const curatedIndex = listText.indexOf('Curated citation');
+
+        expect(initialIndex).toBeGreaterThanOrEqual(0);
+        expect(curationHeadingIndex).toBeGreaterThan(initialIndex);
+        expect(curatedIndex).toBeGreaterThan(curationHeadingIndex);
+        expect(screen.getByTestId('repository-curation-related-identifiers')).toHaveTextContent('Added by repository curation');
+        expect(screen.getByRole('link', { name: /Curated citation/i })).toHaveClass('bg-cyan-50/70');
+    });
     it('renders persisted citation labels for DOI links and synchronous DOI fallbacks when missing', () => {
         render(
             <RelatedWorkSection
@@ -226,7 +266,12 @@ describe('RelatedWorkSection', () => {
                 resource={mockResource}
                 relatedIdentifiers={[
                     makeRelatedIdentifier({ id: 1, relation_type: 'IsDocumentedBy', citation_label: 'DOI Citation' }),
-                    makeRelatedIdentifier({ id: 2, relation_type: 'IsDocumentedBy', identifier_type: 'URL', identifier: 'https://docs.example.com/manual' }),
+                    makeRelatedIdentifier({
+                        id: 2,
+                        relation_type: 'IsDocumentedBy',
+                        identifier_type: 'URL',
+                        identifier: 'https://docs.example.com/manual',
+                    }),
                 ]}
             />,
         );
