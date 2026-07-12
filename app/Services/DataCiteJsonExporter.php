@@ -22,6 +22,7 @@ use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
 use App\Support\OrcidNormalizer;
+use App\Support\LanguageTag;
 
 /**
  * Service for exporting Resource data to DataCite JSON format (v4.7)
@@ -194,12 +195,12 @@ class DataCiteJsonExporter
                 $titleData['titleType'] = $this->convertTitleType($slug);
             }
 
-            // Add language if available
-            if ($resource->language) {
-                $titleData['lang'] = $resource->language->code ?? 'en';
-            } elseif ($resource->igsnMetadata) {
-                // IGSN resources default to English since IGSN CSV doesn't include language
-                $titleData['lang'] = 'en';
+            $lang = LanguageTag::validOrNull($title->language)
+            ?? LanguageTag::validOrNull($resource->language?->code)
+            ?? ($resource->igsnMetadata ? 'en' : null);
+            
+            if ($lang !== null) {
+                $titleData['lang'] = $lang;
             }
 
             $titles[] = $titleData;
