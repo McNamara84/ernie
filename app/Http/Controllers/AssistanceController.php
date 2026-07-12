@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
+use App\Http\Requests\Assistance\SelectedSuggestionsRequest;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Http\JsonResponse;
@@ -160,17 +161,11 @@ class AssistanceController extends Controller
     /**
      * Accept multiple suggestions across assistants for the aggregated workflow.
      */
-    public function acceptSelected(Request $request): JsonResponse
+    public function acceptSelected(SelectedSuggestionsRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'suggestions' => ['required', 'array', 'min:1'],
-            'suggestions.*.assistantId' => ['required', 'string'],
-            'suggestions.*.suggestionId' => ['required', 'integer'],
-        ]);
-
         $accepted = [];
 
-        foreach ($data['suggestions'] as $item) {
+        foreach ($request->input('suggestions', []) as $item) {
             $assistant = $this->registrar->get((string) $item['assistantId']);
 
             if ($assistant === null) {
@@ -194,20 +189,15 @@ class AssistanceController extends Controller
     /**
      * Decline multiple suggestions across assistants for the aggregated workflow.
      */
-    public function declineSelected(DeclineSuggestionRequest $request): JsonResponse
+    public function declineSelected(SelectedSuggestionsRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'suggestions' => ['required', 'array', 'min:1'],
-            'suggestions.*.assistantId' => ['required', 'string'],
-            'suggestions.*.suggestionId' => ['required', 'integer'],
-        ]);
 
         /** @var User $user */
         $user = $request->user();
 
         $declinedCount = 0;
 
-        foreach ($data['suggestions'] as $item) {
+        foreach ($request->input('suggestions', []) as $item) {
             $assistant = $this->registrar->get((string) $item['assistantId']);
 
             if ($assistant === null) {
