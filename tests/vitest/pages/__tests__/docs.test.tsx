@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
 import type { UserRole } from '@/types';
-import type { EditorSettings } from '@/types/docs';
+import type { DataCiteDocsSettings, EditorSettings } from '@/types/docs';
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -65,6 +65,14 @@ const defaultEditorSettings: EditorSettings = {
     },
 };
 
+const defaultDataCite: DataCiteDocsSettings = {
+    currentMode: 'test',
+    isTestModeForcedForUser: false,
+    testPrefixes: ['10.83279', '10.83186', '10.83114'],
+    productionPrefixes: ['10.5880', '10.1594', '10.14470'],
+    testEndpoint: 'https://api.test.datacite.org',
+    productionEndpoint: 'https://api.datacite.org',
+};
 type EditorSettingsOverrides = {
     thesauri?: Partial<EditorSettings['thesauri']>;
     features?: Partial<EditorSettings['features']>;
@@ -86,10 +94,14 @@ const createEditorSettings = (overrides: EditorSettingsOverrides = {}): EditorSe
     },
 });
 
-const renderDocsPage = (userRole: UserRole, editorSettings: EditorSettings = defaultEditorSettings) => {
+const renderDocsPage = (
+    userRole: UserRole,
+    editorSettings: EditorSettings = defaultEditorSettings,
+    dataCite: DataCiteDocsSettings = defaultDataCite,
+) => {
     const user = userEvent.setup();
 
-    render(<Docs userRole={userRole} editorSettings={editorSettings} />);
+    render(<Docs userRole={userRole} editorSettings={editorSettings} dataCite={dataCite} />);
 
     return { user };
 };
@@ -108,31 +120,31 @@ const openPhysicalSamplesTab = async (user: ReturnType<typeof userEvent.setup>) 
 
 describe('Docs page', () => {
     it('renders documentation for beginner role', () => {
-        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Check for sections visible in Getting Started tab (default)
         expect(screen.getAllByText('Welcome').length).toBeGreaterThan(0);
         expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
     });
 
     it('hides user management section for beginners', () => {
-        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // User Management should not be visible for beginners
         expect(screen.queryByText('Managing Users')).not.toBeInTheDocument();
     });
 
     it('shows user management for group_leader', () => {
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getAllByText('User Management').length).toBeGreaterThan(0);
     });
 
     it('hides system administration for group_leader', () => {
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // System Administration requires admin role
         expect(screen.queryByText('php artisan add-user')).not.toBeInTheDocument();
     });
 
     it('shows all sections for admin', () => {
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getAllByText('Welcome').length).toBeGreaterThan(0);
         expect(screen.getAllByText('User Management').length).toBeGreaterThan(0);
         expect(screen.getAllByText('System Administration').length).toBeGreaterThan(0);
@@ -140,17 +152,56 @@ describe('Docs page', () => {
     });
 
     it('shows assistance documentation for group leaders', () => {
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getByText('Metadata Enrichment Assistance')).toBeInTheDocument();
     });
 
+    it('documents description segmentation suggestions for group leaders', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Description Segmentation Suggestions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract') &&
+                    text.includes('stale suggestions are rejected if the source Abstract changed after discovery.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+    it('documents exact-match bulk acceptance for ROR affiliation suggestions', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('Suggested ROR-ID affiliation matches are exact.') &&
+                    text.includes('with the same exported creatorName, affiliation, and proposed ROR identifier') &&
+                    text.includes('creator name identifiers and affiliation labels stay unchanged.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('hides assistance documentation for curators', () => {
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.queryByText('Metadata Enrichment Assistance')).not.toBeInTheDocument();
     });
 
     it('mentions the assessment FAIR sidebar summary for administrators', () => {
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(
             screen.getByText((_, element) => {
@@ -166,7 +217,7 @@ describe('Docs page', () => {
     });
 
     it('documents the admin and group leader workspace switcher', () => {
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(
             screen.getByText((_, element) => {
@@ -182,7 +233,7 @@ describe('Docs page', () => {
     });
 
     it('describes the current authenticated header navigation behavior', () => {
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(
             screen.getByText((_, element) => {
@@ -192,36 +243,53 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu.');
+                return text.includes(
+                    'The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu.',
+                );
             }),
         ).toBeInTheDocument();
     });
 
     it('displays beginner role indicator in header', () => {
-        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // The header shows the user's role (may appear multiple times)
         expect(screen.getAllByText('beginner').length).toBeGreaterThan(0);
     });
 
     it('does not show beginner notice for curator role', () => {
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Curator role should be shown (may appear multiple times)
         expect(screen.getAllByText('curator').length).toBeGreaterThan(0);
     });
 
     it('links to API documentation', () => {
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         const link = screen.getByText('View API Documentation');
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
     it('mentions the OpenAPI 3.2 API documentation', () => {
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         expect(screen.getByText(/OpenAPI 3\.2 specifications/i)).toBeInTheDocument();
         expect(screen.getByText(/validated with Redocly/i)).toBeInTheDocument();
     });
 
+    it('documents personal settings through the user menu and route-specific settings pages', () => {
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText(/Open the user menu from your avatar/i)).toBeInTheDocument();
+        expect(screen.getAllByText('/settings/profile').length).toBeGreaterThan(0);
+        expect(screen.getByText('/settings/password')).toBeInTheDocument();
+        expect(screen.getByText('/settings/appearance')).toBeInTheDocument();
+    });
+
+    it('documents the current Add User entry point and Create User submit action', () => {
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('"Add User"')).toBeInTheDocument();
+        expect(screen.getByText('"Create User"')).toBeInTheDocument();
+    });
     it('documents the current metadata schema and legacy ELMO envelope format', async () => {
         const { user } = renderDocsPage('beginner');
 
@@ -231,6 +299,51 @@ describe('Docs page', () => {
 
         expect(screen.getByText(/legacy DataCite 4\.6 \+ ISO envelope format/i)).toBeInTheDocument();
         expect(screen.getByText(/DataCite Metadata Schema 4\.7/i)).toBeInTheDocument();
+    });
+
+    it('documents opening resources from the resources table row', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab.');
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Whenever exactly one resource is being opened') && text.includes('shows a warning');
+            }),
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('When multiple resources are selected') &&
+                    text.includes('fallback dialog with direct links for only the blocked resources')
+                );
+            }),
+        ).toBeInTheDocument();
     });
 
     it('hides controlled keywords section when all vocabulary families are disabled', async () => {
@@ -285,20 +398,20 @@ describe('Docs page', () => {
     });
 
     it('shows editor settings for group_leader', () => {
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // 'Editor Configuration' is the unique h3 inside the Editor Settings section
         expect(screen.getByText('Editor Configuration')).toBeInTheDocument();
     });
 
     it('hides editor settings for curator', () => {
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Editor Configuration is the h3 inside the Editor Settings section
         expect(screen.queryByText('Editor Configuration')).not.toBeInTheDocument();
     });
 
     it('hides legacy import for curator', async () => {
         const user = userEvent.setup();
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Switch to Datasets tab where Legacy Import lives
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
@@ -310,7 +423,7 @@ describe('Docs page', () => {
 
     it('shows legacy import for admin', async () => {
         const user = userEvent.setup();
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Switch to Datasets tab
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
@@ -319,27 +432,113 @@ describe('Docs page', () => {
         expect(screen.getByText('Importing from Old Datasets')).toBeInTheDocument();
     });
 
-    it('hides landing pages documentation for beginner', async () => {
+    it('shows landing pages documentation for beginner training', async () => {
         const user = userEvent.setup();
-        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Switch to Datasets tab where Landing Pages lives
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched by checking Datasets-only content is rendered
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
-        // Landing Pages requires curator role
-        expect(screen.queryByText('Creating Landing Pages')).not.toBeInTheDocument();
+        // Beginners can set up landing pages as part of the training workflow
+        expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+        expect(screen.getByText(/Beginner users can create, edit, preview, and publish landing pages/i)).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for curator', async () => {
         const user = userEvent.setup();
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         // Switch to Datasets tab
         const datasetsTab = screen.getByRole('tab', { name: /Datasets/i });
         await user.click(datasetsTab);
         // Verify tab switched and curator sees Landing Pages
         expect(screen.getByText('Uploading DataCite Files')).toBeInTheDocument();
         expect(screen.getByText('Creating Landing Pages')).toBeInTheDocument();
+    });
+
+    it('documents the landing page preview action in the Data Editor', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getAllByText('Show LP Preview').length).toBeGreaterThan(0);
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('The action bar stays available while you move through the form.') &&
+                    text.includes('on touch screens it remains visible and compact.')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes(
+                        'From the Data Editor, click Show LP Preview in the bottom-right action bar next to Save Draft and Save & Validate',
+                    ) && text.includes('automatically opens the preview after you create it.')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('documents resource quick actions and grouped delete behavior for curators', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Edit and Set up landing page appear as quick actions directly in the selection toolbar.');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Delete Selected Resources (Curator and above)')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Published resources are listed as protected and are never sent to the delete endpoint.');
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('hides resource delete documentation for beginners', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
+    });
+    it('documents beginner test-only bulk DOI actions', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Bulk Register / Update DOI (all roles, Beginner test-only)')).toBeInTheDocument();
+        expect(screen.getByText(/Beginner users can run the same training action/i)).toBeInTheDocument();
     });
 
     it('shows landing page templates for group leaders', async () => {
@@ -369,7 +568,9 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Related items appear in the Related Work section under the Citations heading, labelled with an Inline metadata badge.');
+                return text.includes(
+                    'Related items appear in the Related Work section under the Citations heading, labelled with an Inline metadata badge.',
+                );
             }),
         ).toBeInTheDocument();
     });
@@ -424,7 +625,7 @@ describe('Docs page', () => {
 
     it('documents the update metadata DOI action label in the ORCID pre-flight section', async () => {
         const user = userEvent.setup();
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 
         await user.click(screen.getByRole('tab', { name: /Datasets/i }));
 
@@ -446,7 +647,68 @@ describe('Docs page', () => {
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText('Beginners can only register test DOIs.')).toBeInTheDocument();
+        expect(screen.getByText(/Beginners always register through the DataCite test API/i)).toBeInTheDocument();
+    });
+
+    it('documents DataCite mode, endpoints, prefixes, and the beginner forced-test state', async () => {
+        const { user } = renderDocsPage('beginner', defaultEditorSettings, {
+            ...defaultDataCite,
+            isTestModeForcedForUser: true,
+        });
+
+        await openDatasetsTab(user);
+
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Current mode: Test.');
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('https://api.test.datacite.org')).toBeInTheDocument();
+        expect(screen.getByText('10.83279, 10.83186, 10.83114')).toBeInTheDocument();
+        expect(screen.getByText('https://api.datacite.org')).toBeInTheDocument();
+        expect(screen.getByText('10.5880, 10.1594, 10.14470')).toBeInTheDocument();
+        expect(screen.getByText(/ERNIE is currently forcing test mode for your account/i)).toBeInTheDocument();
+    });
+
+    it('documents the current funding reference editor fields', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Funder Name:')).toBeInTheDocument();
+        expect(screen.getByText('Funder Identifier:')).toBeInTheDocument();
+        expect(screen.getByText('Show award details:')).toBeInTheDocument();
+        expect(screen.getByText('Award/Grant Number:')).toBeInTheDocument();
+        expect(screen.getByText('Award URI:')).toBeInTheDocument();
+        expect(screen.getByText('Award Title:')).toBeInTheDocument();
+    });
+
+    it('keeps dataset field documentation close to the editor accordion order', async () => {
+        const { user } = renderDocsPage('beginner');
+
+        await openDatasetsTab(user);
+
+        const titles = screen.getByRole('heading', { name: 'Titles', level: 3 });
+        const licenses = screen.getByRole('heading', { name: 'Assigning Licenses', level: 3 });
+        const authors = screen.getByRole('heading', { name: 'Managing Authors & Contributors', level: 3 });
+        const descriptions = screen.getByRole('heading', { name: 'Descriptions', level: 3 });
+        const relatedIdentifiers = screen.getByRole('heading', { name: 'Linking Related Resources', level: 3 });
+        const relatedItems = screen.getByRole('heading', { name: /Related Items/i, level: 3 });
+        const funding = screen.getByRole('heading', { name: 'Acknowledging Funding Sources', level: 3 });
+        const portal = screen.getByRole('heading', { name: 'Searching Published Records in the Portal', level: 3 });
+
+        expect(titles.compareDocumentPosition(licenses) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(licenses.compareDocumentPosition(authors) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(authors.compareDocumentPosition(descriptions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(relatedIdentifiers.compareDocumentPosition(relatedItems) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(relatedItems.compareDocumentPosition(funding) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(funding.compareDocumentPosition(portal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('documents the current schema version for IGSN exports', async () => {
@@ -470,14 +732,14 @@ describe('Docs page', () => {
     });
 
     it('shows thesaurus update actions for admin in editor settings', () => {
-        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();
         expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
         expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();
     });
 
     it('shows thesaurus update actions for group_leader in editor settings', () => {
-        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="group_leader" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(screen.getByText('Check for updates by comparing local vs. remote counts')).toBeInTheDocument();
         expect(screen.getByText('Trigger vocabulary updates with one click')).toBeInTheDocument();
         expect(screen.getByText('Trigger background downloads of the full vocabulary data')).toBeInTheDocument();

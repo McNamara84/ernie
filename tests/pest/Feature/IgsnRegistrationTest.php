@@ -7,9 +7,11 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 beforeEach(function () {
     config([
@@ -125,7 +127,7 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(\InvalidArgumentException::class, 'invalid format');
+            ->toThrow(InvalidArgumentException::class, 'invalid format');
     });
 
     test('rejects IGSN with invalid prefix', function () {
@@ -135,7 +137,7 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(\InvalidArgumentException::class, "IGSN prefix '10.99999' is not allowed");
+            ->toThrow(InvalidArgumentException::class, "IGSN prefix '10.99999' is not allowed");
     });
 
     test('requires a landing page before registering', function () {
@@ -145,7 +147,7 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(\RuntimeException::class, 'must have a landing page');
+            ->toThrow(RuntimeException::class, 'must have a landing page');
     });
 
     test('requires an IGSN (doi) to register', function () {
@@ -155,7 +157,7 @@ describe('DataCiteRegistrationService::registerIgsn', function () {
         $service = app(DataCiteRegistrationService::class);
 
         expect(fn () => $service->registerIgsn($resource))
-            ->toThrow(\RuntimeException::class, 'must have an IGSN');
+            ->toThrow(RuntimeException::class, 'must have an IGSN');
     });
 });
 
@@ -313,15 +315,39 @@ describe('IgsnController@registerAtDataCite', function () {
         $response->assertStatus(404);
     });
 
-    test('rejects registration for beginners', function () {
+    test('allows beginners to register IGSNs in test mode', function () {
         $beginner = User::factory()->beginner()->create();
         $resource = createIgsnWithMetadata();
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
+        config(['datacite.test_mode' => false]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response([
+                'data' => [
+                    'id' => '10.83279/IGSN-TEST-001',
+                    'type' => 'dois',
+                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
+                ],
+            ], 201),
+        ]);
+
         $response = $this->actingAs($beginner)
             ->postJson("/igsns/{$resource->id}/register");
 
-        $response->assertStatus(403);
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'doi' => '10.83279/IGSN-TEST-001',
+                'mode' => 'test',
+                'updated' => false,
+            ]);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.test.datacite.org/dois')
+            && $request->method() === 'POST');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
     });
 });
 
@@ -337,7 +363,7 @@ describe('BatchIgsnRegistrationController@register', function () {
         LandingPage::factory()->create(['resource_id' => $resource2->id]);
 
         Http::fake([
-            '*datacite.org/*' => function (\Illuminate\Http\Client\Request $request) {
+            '*datacite.org/*' => function (Request $request) {
                 $payload = $request->data();
                 $doi = $payload['data']['attributes']['doi'] ?? 'unknown';
 
@@ -488,15 +514,36 @@ describe('BatchIgsnRegistrationController@register', function () {
         expect($resource2->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_ERROR);
     });
 
-    test('rejects batch registration for beginners', function () {
+    test('allows beginners to batch register IGSNs in test mode', function () {
         $beginner = User::factory()->beginner()->create();
         $resource = createIgsnWithMetadata();
         LandingPage::factory()->create(['resource_id' => $resource->id]);
 
+        config(['datacite.test_mode' => false]);
+
+        Http::fake([
+            '*datacite.org/*' => Http::response([
+                'data' => [
+                    'id' => '10.83279/IGSN-TEST-001',
+                    'type' => 'dois',
+                    'attributes' => ['doi' => '10.83279/IGSN-TEST-001', 'state' => 'findable'],
+                ],
+            ], 201),
+        ]);
+
         $response = $this->actingAs($beginner)
             ->postJson('/igsns/batch-register', ['ids' => [$resource->id]]);
 
-        $response->assertStatus(403);
+        $response->assertOk();
+        expect($response->json('success'))->toHaveCount(1)
+            ->and($response->json('failed'))->toHaveCount(0)
+            ->and($response->json('success.0.updated'))->toBeFalse();
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'api.test.datacite.org/dois')
+            && $request->method() === 'POST');
+
+        $resource->refresh();
+        expect($resource->igsnMetadata->upload_status)->toBe(IgsnMetadata::STATUS_REGISTERED);
     });
 });
 

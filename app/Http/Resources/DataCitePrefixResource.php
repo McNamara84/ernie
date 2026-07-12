@@ -13,7 +13,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Output shape:
  *  - test: list<string>
  *  - production: list<string>
- *  - test_mode: bool
+ *  - test_mode: bool (effective mode for the current user)
  */
 final class DataCitePrefixResource extends JsonResource
 {

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Assistance\SelectedSuggestionsRequest;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\RorDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +27,7 @@ class AssistanceController extends Controller
 {
     public function __construct(
         private readonly AssistantRegistrar $registrar,
+        private readonly RorDiscoveryService $rorDiscoveryService,
     ) {}
 
     /**
@@ -136,6 +139,23 @@ class AssistanceController extends Controller
         $result = $assistant->acceptSuggestion($suggestion);
 
         return response()->json($result);
+    }
+
+    /**
+     * Accept further exact creator-affiliation matches for an accepted ROR suggestion.
+     */
+    public function acceptRorAffiliationMatches(AcceptRorAffiliationMatchesRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $result = $this->rorDiscoveryService->acceptMatchingAffiliationRors((string) $validated['bulk_token']);
+        $statusCode = match (true) {
+            $result['success'] => 200,
+            $result['retryable'] ?? false => 500,
+            default => 422,
+        };
+
+        return response()->json($result, $statusCode);
     }
 
     /**

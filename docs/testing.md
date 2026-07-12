@@ -91,6 +91,27 @@ npm run types
 npm run test:run
 ```
 
+If your host cannot start Laravel Artisan locally, start the Docker backend stack before Vitest:
+
+```bash
+npm run docker:dev:backend:d
+npm run test:run
+```
+
+The Vitest wrapper checks whether the host can run `php artisan ernie:wayfinder-generate --with-form` before starting Vitest. The check writes to a temporary directory, so it does not touch the committed Wayfinder output. It also has a timeout, so a hanging host Artisan process falls back to Docker instead of blocking Vitest startup.
+
+If that host check fails, the wrapper prints the failing command, the exit reason, and any captured output before falling back to the app container for Wayfinder route generation. Keep the Docker backend stack running for that fallback path:
+
+```bash
+npm run docker:dev:backend:d
+```
+
+`WAYFINDER_COMMAND` is the supported escape hatch for custom setups, for example:
+
+```bash
+WAYFINDER_COMMAND="php artisan ernie:wayfinder-generate" npm run test:run
+```
+
 Why frontend validation stays on the host:
 
 - Host-side Node feedback is faster than spawning short-lived container commands.

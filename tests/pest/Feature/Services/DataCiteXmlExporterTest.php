@@ -952,6 +952,7 @@ describe('DataCiteXmlExporter - Dates', function () {
             ->and($xml)->toContain('dateType="'.$dateTypeName.'"')
             ->and($xml)->toContain('2023-01-01/2023-12-31</date>');
     })->with([
+        'Created' => ['Created', 'Created'],
         'Collected' => ['Collected', 'Collected'],
         'Valid' => ['Valid', 'Valid'],
         'Other' => ['Other', 'Other'],
@@ -1031,6 +1032,33 @@ describe('DataCiteXmlExporter - Sizes & Formats', function () {
             ->and($xml)->toContain('<format>text/csv</format>')
             ->and($xml)->toContain('<format>application/zip</format>')
             ->and($xml)->not->toContain('<format>zip</format>');
+    });
+
+    test('exports accepted Stepanov ZIP content size and formats', function () {
+        $resource = Resource::factory()->create();
+
+        Size::create([
+            'resource_id' => $resource->id,
+            'numeric_value' => '335.01',
+            'unit' => 'KB',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'text/csv',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<sizes>')
+            ->and($xml)->toContain('<size>335.01 KB</size>')
+            ->and($xml)->toContain('<formats>')
+            ->and($xml)->toContain('<format>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</format>')
+            ->and($xml)->toContain('<format>text/csv</format>')
+            ->and($xml)->not->toContain('<format>application/zip</format>');
     });
 
     test('skips sizes and formats when none exist', function () {

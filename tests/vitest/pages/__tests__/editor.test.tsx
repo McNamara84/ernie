@@ -254,6 +254,31 @@ describe('Editor page', () => {
         );
     });
 
+    it('passes landing page summary to DataCiteForm when provided', async () => {
+        const landingPage = {
+            id: 1,
+            is_published: false,
+            status: 'draft' as const,
+            public_url: 'https://example.test/draft-resource',
+            preview_url: 'https://example.test/draft-resource?preview=token',
+            external_url: null,
+        };
+
+        render(
+            <Editor
+                maxTitles={99}
+                maxLicenses={99}
+                googleMapsApiKey="test-api-key"
+                landingPage={landingPage}
+            />,
+        );
+
+        await waitFor(() =>
+            expect(renderForm).toHaveBeenCalledWith(
+                expect.objectContaining({ initialLandingPage: landingPage }),
+            ),
+        );
+    });
     it('passes initial licenses to DataCiteForm when provided', async () => {
         const initialLicenses = ['MIT'];
         render(

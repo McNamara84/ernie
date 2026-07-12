@@ -13,11 +13,55 @@ use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Support\Facades\Http;
 use Modules\Assistants\SizeFormatSuggestion\Assistant;
 
+use function Tests\Helpers\sizeFormatZipFixtureData;
+
 function applySizeFormatSuggestion(Assistant $assistant, AssistantSuggestion $suggestion): array
 {
     $method = new ReflectionMethod($assistant, 'applyAccepted');
 
     return $method->invoke($assistant, $suggestion);
+}
+
+function fakeSizeFormatZipDiscovery(string $doi, array $zipFiles): void
+{
+    $zipData = sizeFormatZipFixtureData($zipFiles);
+    $downloadUrl = 'https://dataservices.gfz-potsdam.de/download/archive.zip';
+
+    Http::fake(function ($request) use ($doi, $zipData, $downloadUrl) {
+        $url = $request->url();
+
+        if ($url === 'https://doi.org/'.$doi) {
+            return Http::response('', 302, [
+                'Location' => 'https://dataservices.gfz-potsdam.de/landing-zip',
+            ]);
+        }
+
+        if ($url === 'https://dataservices.gfz-potsdam.de/landing-zip') {
+            return Http::response(<<<'HTML'
+                <html>
+                    <body>
+                        <a class="piwik_download" href="/download/archive.zip">Download data</a>
+                    </body>
+                </html>
+                HTML);
+        }
+
+        if ($url === $downloadUrl && $request->method() === 'HEAD') {
+            return Http::response('', 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) strlen($zipData),
+            ]);
+        }
+
+        if ($url === $downloadUrl) {
+            return Http::response($zipData, 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) strlen($zipData),
+            ]);
+        }
+
+        return Http::response('', 404);
+    });
 }
 
 it('registers via auto-discovery', function (): void {
@@ -101,6 +145,107 @@ it('keeps multiple discovered size suggestions for the same resource', function 
     expect($sizeSuggestions)->toEqualCanonicalizing(['1 MB', '2 MB']);
 });
 
+it('discovers ZIP-contained formats and uncompressed size suggestions', function (): void {
+    $doi = '10.1234/ZIP.CONTENT';
+    Resource::factory()->create(['doi' => $doi]);
+
+    fakeSizeFormatZipDiscovery($doi, [
+        'data/table.csv' => str_repeat('c', 1024),
+        'docs/manual.pdf' => str_repeat('p', 2048),
+    ]);
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    $formatValues = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('target_type', 'format')
+        ->pluck('suggested_value')
+        ->all();
+    $sizeValues = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('target_type', 'size')
+        ->pluck('suggested_value')
+        ->all();
+
+    expect($count)->toBe(3)
+        ->and($formatValues)->toEqualCanonicalizing(['text/csv', 'application/pdf'])
+        ->and($formatValues)->not->toContain('application/zip')
+        ->and($sizeValues)->toEqual(['3 KB']);
+});
+
+it('discovers content formats when the only existing format is application zip', function (): void {
+    $doi = '10.1234/ZIP.ONLY.EXISTING';
+    $resource = Resource::factory()->create(['doi' => $doi]);
+    Format::create([
+        'resource_id' => $resource->id,
+        'value' => 'application/zip',
+    ]);
+    Size::create([
+        'resource_id' => $resource->id,
+        'numeric_value' => '1',
+        'unit' => 'KB',
+    ]);
+
+    fakeSizeFormatZipDiscovery($doi, [
+        'data/table.csv' => str_repeat('c', 1024),
+    ]);
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    $formatValues = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('target_type', 'format')
+        ->pluck('suggested_value')
+        ->all();
+
+    expect($count)->toBe(1)
+        ->and($formatValues)->toEqual(['text/csv']);
+});
+
+it('discovers content formats when the only existing format is application zip with MIME parameters', function (): void {
+    $doi = '10.1234/ZIP.ONLY.PARAMETERIZED';
+    $resource = Resource::factory()->create(['doi' => $doi]);
+    Format::create([
+        'resource_id' => $resource->id,
+        'value' => 'application/zip; charset=utf-8',
+    ]);
+    Size::create([
+        'resource_id' => $resource->id,
+        'numeric_value' => '1',
+        'unit' => 'KB',
+    ]);
+
+    fakeSizeFormatZipDiscovery($doi, [
+        'data/table.csv' => str_repeat('c', 1024),
+    ]);
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    $formatValues = AssistantSuggestion::where('assistant_id', 'size-format-suggestion')
+        ->where('target_type', 'format')
+        ->pluck('suggested_value')
+        ->all();
+
+    expect($count)->toBe(1)
+        ->and($formatValues)->toEqual(['text/csv']);
+});
+
+it('keeps existing non-ZIP formats as the format discovery stop condition', function (): void {
+    $doi = '10.1234/NONZIP.EXISTING';
+    $resource = Resource::factory()->create(['doi' => $doi]);
+    Format::create([
+        'resource_id' => $resource->id,
+        'value' => 'text/plain',
+    ]);
+
+    fakeSizeFormatZipDiscovery($doi, [
+        'data/table.csv' => str_repeat('c', 1024),
+    ]);
+
+    $count = app(Assistant::class)->runDiscovery(fn (): null => null);
+
+    expect($count)->toBe(1)
+        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->where('target_type', 'format')->count())->toBe(0)
+        ->and(AssistantSuggestion::where('assistant_id', 'size-format-suggestion')->where('target_type', 'size')->value('suggested_value'))->toBe('1 KB');
+});
+
 it('exposes size and format suggestion preview metadata', function () {
     $user = User::factory()->create(['role' => 'admin']);
     $resource = Resource::factory()->create(['doi' => '10.5880/TEST.SIZEFORMAT']);
@@ -165,6 +310,38 @@ it('accepts a format suggestion and creates a format record', function (): void 
 
     expect($result['success'])->toBeTrue()
         ->and(Format::where('resource_id', $resource->id)->where('value', 'application/pdf')->exists())->toBeTrue();
+});
+
+it('removes an existing ZIP container format when accepting a ZIP-content format suggestion', function (): void {
+    $resource = Resource::factory()->create();
+    Format::create([
+        'resource_id' => $resource->id,
+        'value' => 'application/zip',
+    ]);
+
+    $suggestion = AssistantSuggestion::query()->create([
+        'assistant_id' => 'size-format-suggestion',
+        'resource_id' => $resource->id,
+        'target_type' => 'format',
+        'target_id' => $resource->id,
+        'suggested_value' => 'text/csv',
+        'suggested_label' => 'FORMAT: text/csv',
+        'similarity_score' => null,
+        'metadata' => [
+            'type' => 'format',
+            'inferred_value' => 'text/csv',
+            'source_url' => 'https://datapub.gfz.de/download/archive.zip',
+            'probe_method' => 'ZIP_CONTENT_LISTING',
+            'confidence' => 'medium',
+        ],
+        'discovered_at' => now(),
+    ]);
+
+    $result = applySizeFormatSuggestion(app(Assistant::class), $suggestion);
+
+    expect($result['success'])->toBeTrue()
+        ->and(Format::where('resource_id', $resource->id)->where('value', 'text/csv')->exists())->toBeTrue()
+        ->and(Format::where('resource_id', $resource->id)->where('value', 'application/zip')->exists())->toBeFalse();
 });
 
 it('does not create duplicate format records when accepting the same suggestion twice', function (): void {

@@ -1544,7 +1544,7 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
 });
 
 describe('DataCiteJsonExporter - Date periods', function () {
-    test('exports Collected, Valid, and Other periods as RKMS-ISO8601 interval strings that validate against DataCite JSON schema', function (string $dateTypeSlug, string $dateTypeName) {
+    test('exports Created, Collected, Valid, and Other periods as RKMS-ISO8601 interval strings that validate against DataCite JSON schema', function (string $dateTypeSlug, string $dateTypeName) {
         $resource = Resource::factory()->create([
             'doi' => '10.5880/date-period.'.strtolower($dateTypeName),
             'publication_year' => 2026,
@@ -1579,6 +1579,7 @@ describe('DataCiteJsonExporter - Date periods', function () {
 
         expect((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
     })->with([
+        'Created' => ['Created', 'Created'],
         'Collected' => ['Collected', 'Collected'],
         'Valid' => ['Valid', 'Valid'],
         'Other' => ['Other', 'Other'],

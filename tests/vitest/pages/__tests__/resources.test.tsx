@@ -15,6 +15,7 @@ const editorRouteMock = vi.hoisted(() =>
         method: 'get',
     })),
 );
+const openDetachedTabMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -32,6 +33,7 @@ vi.mock('@inertiajs/react', () => ({
                     updated_at: '2024-01-01T00:00:00Z',
                     role: 'group_leader',
                     can_manage_landing_pages: true,
+                    can_register_doi: true,
                     can_register_production_doi: true,
                 },
             },
@@ -52,6 +54,7 @@ vi.mock('@/lib/curation-query', () => ({
 vi.mock('@/routes', () => ({
     editor: editorRouteMock,
 }));
+vi.mock('@/lib/detached-tab', () => ({ openDetachedTab: openDetachedTabMock }));
 
 vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
@@ -81,14 +84,21 @@ const openResourceActionsMenu = async () => {
     await userEvent.click(screen.getByTestId('resources-actions-menu-trigger'));
 };
 
+const QUICK_RESOURCE_ACTION_TEST_IDS = new Set(['resources-action-edit', 'resources-action-setup-landing-page']);
+
 const clickResourceAction = async (testId: string) => {
-    await openResourceActionsMenu();
+    if (!QUICK_RESOURCE_ACTION_TEST_IDS.has(testId)) {
+        await openResourceActionsMenu();
+    }
+
     await userEvent.click(screen.getByTestId(testId));
 };
 
 describe('ResourcesPage', () => {
     let originalOpen: typeof window.open;
+    let originalClipboardDescriptor: PropertyDescriptor | undefined;
     let openMock: ReturnType<typeof vi.fn>;
+    let clipboardWriteTextMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         routerMock.get.mockClear();
@@ -100,10 +110,19 @@ describe('ResourcesPage', () => {
         buildCurationQueryFromResourceMock.mockReset();
         buildCurationQueryFromResourceMock.mockResolvedValue({});
         editorRouteMock.mockClear();
+        openDetachedTabMock.mockReset();
+        openDetachedTabMock.mockReturnValue({} as Window);
         originalOpen = window.open;
+        originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
         openMock = vi.fn().mockReturnValue({ closed: false });
+        clipboardWriteTextMock = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(window, 'open', {
             value: openMock,
+            configurable: true,
+            writable: true,
+        });
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: clipboardWriteTextMock },
             configurable: true,
             writable: true,
         });
@@ -128,6 +147,11 @@ describe('ResourcesPage', () => {
             configurable: true,
             writable: true,
         });
+        if (originalClipboardDescriptor) {
+            Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
+        } else {
+            Reflect.deleteProperty(navigator, 'clipboard');
+        }
     });
 
     it('renders a table with the streamlined dataset overview', async () => {
@@ -274,8 +298,230 @@ describe('ResourcesPage', () => {
         expect(editorRouteMock).toHaveBeenCalledWith({
             query: { resourceId: resource.id },
         });
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
+        expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
         expect(buildCurationQueryFromResourceMock).not.toHaveBeenCalled();
         expect(routerMock.get).not.toHaveBeenCalled();
+    });
+
+    it('opens the curation editor in a new tab when a resource row is clicked', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('row', { name: /open resource 10\.9999\/example in editor/i }));
+
+        expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
+        expect(routerMock.get).not.toHaveBeenCalled();
+    });
+
+    it('opens the curation editor from keyboard row activation', () => {
+        const resource = {
+            id: 7,
+            doi: null,
+            year: 2024,
+            title: 'Keyboard resource',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        const row = screen.getByRole('row', { name: /open resource keyboard resource in editor/i });
+        fireEvent.keyDown(row, { key: 'Enter' });
+
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=7');
+
+        openDetachedTabMock.mockClear();
+        editorRouteMock.mockClear();
+
+        fireEvent.keyDown(row, { key: ' ' });
+
+        expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=7');
+    });
+
+    it('opens the editor when a non-interactive status cell area is clicked', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        fireEvent.click(screen.getByText('Curation'));
+
+        expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
+    });
+
+    it('does not open the editor when the row checkbox is clicked', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'curation',
+            landingPage: null,
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+
+        expect(screen.getByText(/^1 resource selected$/i)).toBeInTheDocument();
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the published status badge behavior separate from row editor activation', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'published',
+            landingPage: { id: 1, is_published: true, public_url: 'https://example.test/resource' },
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /published - click to open doi and copy url to clipboard/i }));
+
+        expect(clipboardWriteTextMock).toHaveBeenCalledWith('https://doi.org/10.9999/example');
+        expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
+    });
+
+    it('does not activate the row when an interactive status badge text node is clicked', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'published',
+            landingPage: { id: 1, is_published: true, public_url: 'https://example.test/resource' },
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        const statusTextNode = screen.getByText('Published').firstChild;
+
+        expect(statusTextNode).toBeInstanceOf(Text);
+
+        fireEvent.click(statusTextNode as Text);
+
+        expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
+        expect(editorRouteMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 });

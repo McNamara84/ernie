@@ -344,6 +344,7 @@ class LandingPagePublicController extends Controller
                     'displayLimits' => [
                         'creators' => $displayLimitTemplate->creator_display_limit,
                         'contributors' => $displayLimitTemplate->contributor_display_limit,
+                        'citationAuthors' => $displayLimitTemplate->citation_author_display_limit,
                     ],
                 ],
             ];

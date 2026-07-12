@@ -20,36 +20,40 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function resolveDatasetExample(filename: string): string {
-  return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
+    return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
 }
 
 test.describe('Critical E2E Workflows', () => {
-  test('user can upload XML file and access editor form', async ({ page }) => {
-    // Login first
-    await page.goto('/login');
-    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
-    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
-    await page.getByRole('button', { name: 'Log in' }).click();
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    test('user can upload XML file and access editor form', async ({ page }) => {
+        // Login first
+        await page.goto('/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await page.waitForURL(/\/dashboard/, { timeout: 15000 });
 
-    // Go to dashboard and upload XML
-    await page.goto('/dashboard');
-    await expect(page.getByTestId('unified-dropzone')).toBeVisible();
+        // Go to dashboard and upload XML
+        await page.goto('/dashboard');
+        await expect(page.getByTestId('unified-dropzone')).toBeVisible();
 
-    const fileInput = page.getByTestId('unified-file-input');
-    const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
-    await fileInput.setInputFiles(xmlFilePath);
+        const fileInput = page.getByTestId('unified-file-input');
+        const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
+        await fileInput.setInputFiles(xmlFilePath);
 
-    // Verify redirect to editor with persisted draft resource ID
-    // The 30s timeout accounts for XML parsing, session creation, and database operations.
-    // In Docker environments, first requests after container start may be slower due to
-    // cache warming and container initialization overhead.
-    await page.waitForURL(/\/editor/, { timeout: 30000 });
+        // Verify the dashboard keeps the upload result visible before explicit navigation.
+        // The 30s timeout accounts for XML parsing, session creation, and database operations.
+        // In Docker environments, first requests after container start may be slower due to
+        // cache warming and container initialization overhead.
+        await expect(page.getByTestId('dropzone-success-state')).toBeVisible({ timeout: 30000 });
+        await expect(page.getByTestId('dropzone-success-alert')).toContainText('DataCite upload complete');
 
-    const currentUrl = page.url();
-    expect(currentUrl).toMatch(/resourceId=\d+/);
+        await page.getByRole('button', { name: /open in editor/i }).click();
+        await page.waitForURL(/\/editor/, { timeout: 30000 });
 
-    // Verify editor page loaded successfully by checking for DOI input field
-    await expect(page.locator('#doi')).toBeVisible();
-  });
+        const currentUrl = page.url();
+        expect(currentUrl).toMatch(/resourceId=\d+/);
+
+        // Verify editor page loaded successfully by checking for DOI input field
+        await expect(page.locator('#doi')).toBeVisible();
+    });
 });

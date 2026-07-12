@@ -12,7 +12,7 @@ covers(StoreDraftResourceRequest::class);
 /**
  * @param  array<int, mixed>  $arguments
  */
-function invokeDraftRequestMethod(StoreDraftResourceRequest $request, string $method, array $arguments = []): mixed
+function invokeDraftRequestMethod(StoreDraftResourceRequest|StoreResourceRequest $request, string $method, array $arguments = []): mixed
 {
     $reflection = new ReflectionMethod($request, $method);
     $reflection->setAccessible(true);
@@ -27,11 +27,13 @@ it('normalizes related identifiers and keeps optional related-work fields only w
         ],
         'relatedIdentifiers' => [
             [
+                'id' => '42',
                 'identifier' => ' 10.5880/test.2026.001 ',
                 'identifierType' => ' DOI ',
                 'relationType' => ' Other ',
                 'relationTypeInformation' => '  Custom relationship  ',
                 'citationLabel' => '  Doe, J. (2026): Example citation.  ',
+                'source' => '  '.RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT.'  ',
             ],
             [
                 'identifier' => ' https://example.org/resource ',
@@ -53,11 +55,13 @@ it('normalizes related identifiers and keeps optional related-work fields only w
 
     expect($request->input('relatedIdentifiers'))->toBe([
         [
+            'id' => 42,
             'identifier' => '10.5880/test.2026.001',
             'identifierType' => 'DOI',
             'relationType' => 'Other',
             'relationTypeInformation' => 'Custom relationship',
             'citationLabel' => 'Doe, J. (2026): Example citation.',
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
         ],
         [
             'identifier' => 'https://example.org/resource',
@@ -66,6 +70,33 @@ it('normalizes related identifiers and keeps optional related-work fields only w
         ],
     ]);
 });
+
+it('keeps fractional related identifier ids invalid instead of coercing them', function (string $requestClass, string $uri): void {
+    /** @var StoreDraftResourceRequest|StoreResourceRequest $request */
+    $request = $requestClass::create($uri, 'POST', [
+        'relatedIdentifiers' => [
+            [
+                'id' => '42.9',
+                'identifier' => '10.5880/test.2026.001',
+                'identifierType' => 'DOI',
+                'relationType' => 'References',
+            ],
+        ],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    $validator = Validator::make($request->all(), [
+        'relatedIdentifiers.*.id' => ['nullable', 'integer', 'min:1'],
+    ]);
+
+    expect($request->input('relatedIdentifiers.0.id'))->toBe('42.9')
+        ->and($validator->passes())->toBeFalse()
+        ->and($validator->errors()->has('relatedIdentifiers.0.id'))->toBeTrue();
+})->with([
+    'draft request' => [StoreDraftResourceRequest::class, '/editor/resources/draft'],
+    'store request' => [StoreResourceRequest::class, '/editor/resources'],
+]);
 
 it('normalizes raw rights statements for draft saves', function (): void {
     $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
@@ -129,7 +160,9 @@ it('keeps related-work citation label limits aligned between draft and store req
     expect($draftRequest->rules()['relatedIdentifiers.*.citationLabel'])
         ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
         ->and($storeRequest->rules()['relatedIdentifiers.*.citationLabel'])
-        ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS);
+        ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
+        ->and($draftRequest->rules())->toHaveKey('relatedIdentifiers.*.source')
+        ->and($storeRequest->rules())->toHaveKey('relatedIdentifiers.*.source');
 });
 
 /**

@@ -14,6 +14,24 @@ final class SizeFormatSuggestionAcceptanceService
         private readonly SizeFormatSizeParserService $sizeParser,
     ) {}
 
+    private function isZipContentSuggestion(AssistantSuggestion $suggestion): bool
+    {
+        $metadata = is_array($suggestion->metadata) ? $suggestion->metadata : [];
+
+        return ($metadata['probe_method'] ?? null) === 'ZIP_CONTENT_LISTING';
+    }
+
+    private function removeZipContainerFormats(int $resourceId): void
+    {
+        Format::where('resource_id', $resourceId)
+            ->get()
+            ->each(function (Format $format): void {
+                if (SizeFormatFormatNormalizerService::normalize((string) $format->value) === 'application/zip') {
+                    $format->delete();
+                }
+            });
+    }
+
     /** @return array{success: bool, message: string} */
     public function accept(AssistantSuggestion $suggestion): array
     {
@@ -24,6 +42,10 @@ final class SizeFormatSuggestionAcceptanceService
                 'resource_id' => $suggestion->resource_id,
                 'value' => $formatValue,
             ]);
+
+            if ($formatValue !== 'application/zip' && $this->isZipContentSuggestion($suggestion)) {
+                $this->removeZipContainerFormats($suggestion->resource_id);
+            }
 
             return [
                 'success' => true,

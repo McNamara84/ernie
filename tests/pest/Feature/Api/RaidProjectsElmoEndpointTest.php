@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CacheKey;
 use App\Models\PidSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +14,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config(['services.ernie.api_key' => 'test-api-key']);
     Storage::fake();
+    CacheKey::RAID_PROJECTS->forget();
 });
 
 function createRaidSettingForApi(bool $isActive = true, bool $isElmoActive = true): PidSetting
