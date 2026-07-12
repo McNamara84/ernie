@@ -759,47 +759,45 @@ class RorDiscoveryService
      * @return array<int, string>
      */
     private function extractRorLocations(array $item): array
-{
-    if (! isset($item['locations']) || ! is_array($item['locations'])) {
-        return [];
-    }
-
-    $locations = [];
-
-    foreach ($item['locations'] as $location) {
-        if (! is_array($location)) {
-            continue;
+    {
+        if (! isset($item['locations']) || ! is_array($item['locations'])) {
+            return [];
         }
 
-        $parts = [];
+        $locations = [];
 
-        // Extract geonames_details
-        if (isset($location['geonames_details']) && is_array($location['geonames_details'])) {
-            $geonames = $location['geonames_details'];
-
-            if (isset($geonames['name']) && is_string($geonames['name']) && trim($geonames['name']) !== '') {
-                $parts[] = trim($geonames['name']);
+        foreach ($item['locations'] as $location) {
+            if (! is_array($location)) {
+                continue;
             }
 
-            if (isset($geonames['country_name']) && is_string($geonames['country_name']) && trim($geonames['country_name']) !== '') {
-                $country = trim($geonames['country_name']);
-                if (! in_array($country, $parts, true)) {
-                    $parts[] = $country;
+            $parts = [];
+
+            // Extract geonames_details
+            if (isset($location['geonames_details']) && is_array($location['geonames_details'])) {
+                $geonames = $location['geonames_details'];
+
+                if (isset($geonames['name']) && is_string($geonames['name']) && trim($geonames['name']) !== '') {
+                    $parts[] = trim($geonames['name']);
+                }
+
+                if (isset($geonames['country_name']) && is_string($geonames['country_name']) && trim($geonames['country_name']) !== '') {
+                    $country = trim($geonames['country_name']);
+                    if (! in_array($country, $parts, true)) {
+                        $parts[] = $country;
+                    }
                 }
             }
+
+            $formatted = trim(implode(', ', array_filter($parts, static fn ($value) => $value !== '')));
+
+            if ($formatted !== '') {
+                $locations[] = $formatted;
+            }
         }
 
-        $formatted = trim(implode(', ', array_filter($parts, static fn ($value) => $value !== '')));
-
-        if ($formatted !== '') {
-            $locations[] = $formatted;
-        }
+        return array_values(array_unique($locations));
     }
-
-    return array_values(array_unique($locations));
-}
-
-
 
     /**
      * Compute name similarity between an entity name and ROR organization names.
