@@ -17,7 +17,6 @@ import {
     type AssistancePageProps,
     type AssistantManifest,
     type BaseSuggestionItem,
-    type SuggestionItemGroup,
     type CheckStatusResponse,
     type PaginatedData,
     type SuggestedOrcidItem,
