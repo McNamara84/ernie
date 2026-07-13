@@ -60,6 +60,7 @@ it('queues a database dump export for a known target', function (): void {
         ->assertJsonPath('export.targetKey', 'ernie')
         ->assertJsonPath('export.status', DatabaseDumpExport::STATUS_PENDING);
 
+    $response->assertJsonMissingPath('export.dumpOptions');
     $exportId = $response->json('export.id');
 
     $export = DatabaseDumpExport::query()->findOrFail($exportId);
@@ -116,6 +117,20 @@ it('serializes dump creation per user with a cache lock', function (): void {
     Queue::assertNothingPushed();
 });
 
+it('rejects non-local dump disks before creating an export', function (): void {
+    Queue::fake();
+    config()->set('database_dumps.disk', 's3');
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)
+        ->postJson('/database/ernie/dumps')
+        ->assertStatus(500)
+        ->assertJsonPath('message', 'Database dump disk [s3] must use the local filesystem driver; configured driver is [s3].');
+
+    expect(DatabaseDumpExport::query()->count())->toBe(0);
+    Queue::assertNothingPushed();
+});
+
 it('returns status payloads and marks completed expired exports', function (): void {
     $admin = User::factory()->admin()->create();
     $export = DatabaseDumpExport::factory()->for($admin)->expired()->create();
@@ -124,7 +139,8 @@ it('returns status payloads and marks completed expired exports', function (): v
         ->getJson(route('database.dumps.status', $export))
         ->assertOk()
         ->assertJsonPath('export.status', DatabaseDumpExport::STATUS_EXPIRED)
-        ->assertJsonPath('export.downloadUrl', null);
+        ->assertJsonPath('export.downloadUrl', null)
+        ->assertJsonMissingPath('export.dumpOptions');
 
     expect($export->refresh()->status)->toBe(DatabaseDumpExport::STATUS_EXPIRED);
 });

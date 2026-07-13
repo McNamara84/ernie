@@ -54,31 +54,36 @@ final class DatabaseDumpService
             throw new \RuntimeException('No database dump client is available.');
         }
 
-        $serverInfo = $this->serverInfoProvider->resolve($connectionName);
-        $flags = $this->buildDumpFlags($client, $target, $connection);
-        $disk = Storage::disk($export->disk);
-        $path = $export->path ?? $this->buildPath($export);
-        $filename = $export->filename ?? basename($path);
-        $absoluteOutputPath = $disk->path($path);
+        $disk = null;
+        $path = null;
         $optionFile = null;
 
-        $export->forceFill([
-            'status' => DatabaseDumpExport::STATUS_RUNNING,
-            'path' => $path,
-            'filename' => $filename,
-            'started_at' => now(),
-            'server_version' => $this->formatServerVersion($serverInfo),
-            'dump_client' => basename($client),
-            'dump_options' => [
-                'flags' => $flags,
-                'server_info_source' => $serverInfo['source'],
-                'non_transactional_tables' => $this->nonTransactionalTables($connectionName, $export->database_name),
-                'legacy' => (bool) ($target['legacy'] ?? false),
-                'requires_legacy_ssl_probe' => (bool) ($target['requires_legacy_ssl_probe'] ?? false),
-            ],
-        ])->save();
-
         try {
+            $this->assertLocalDisk($export->disk);
+
+            $serverInfo = $this->serverInfoProvider->resolve($connectionName);
+            $flags = $this->buildDumpFlags($client, $target, $connection);
+            $disk = Storage::disk($export->disk);
+            $path = $export->path ?? $this->buildPath($export);
+            $filename = $export->filename ?? basename($path);
+            $absoluteOutputPath = $disk->path($path);
+
+            $export->forceFill([
+                'status' => DatabaseDumpExport::STATUS_RUNNING,
+                'path' => $path,
+                'filename' => $filename,
+                'started_at' => now(),
+                'server_version' => $this->formatServerVersion($serverInfo),
+                'dump_client' => basename($client),
+                'dump_options' => [
+                    'flags' => $flags,
+                    'server_info_source' => $serverInfo['source'],
+                    'non_transactional_tables' => $this->nonTransactionalTables($connectionName, $export->database_name),
+                    'legacy' => (bool) ($target['legacy'] ?? false),
+                    'requires_legacy_ssl_probe' => (bool) ($target['requires_legacy_ssl_probe'] ?? false),
+                ],
+            ])->save();
+
             $optionFile = $this->writeTemporaryOptionFile($export, $connection);
             $command = array_merge(
                 [$client, "--defaults-extra-file={$optionFile}"],
@@ -106,8 +111,14 @@ final class DatabaseDumpService
                 'error_message' => null,
             ])->save();
         } catch (\Throwable $exception) {
-            if ($disk->exists($path)) {
-                $disk->delete($path);
+            if ($disk !== null && $path !== null) {
+                try {
+                    if ($disk->exists($path)) {
+                        $disk->delete($path);
+                    }
+                } catch (\Throwable) {
+                    // The export is still marked failed; the job failure callback will attempt cleanup again.
+                }
             }
 
             $this->markFailed($export, $exception->getMessage());
@@ -143,6 +154,30 @@ final class DatabaseDumpService
         }
 
         return $database;
+    }
+
+    public function assertLocalDisk(string $diskName): void
+    {
+        $disks = config('filesystems.disks', []);
+        $disk = is_array($disks) ? ($disks[$diskName] ?? null) : null;
+
+        if (! is_array($disk)) {
+            throw new \RuntimeException("Database dump disk [{$diskName}] is not configured.");
+        }
+
+        $driver = $disk['driver'] ?? null;
+
+        if ($driver !== 'local') {
+            $driverName = is_scalar($driver) ? (string) $driver : 'unknown';
+
+            throw new \RuntimeException("Database dump disk [{$diskName}] must use the local filesystem driver; configured driver is [{$driverName}].");
+        }
+
+        $root = $disk['root'] ?? null;
+
+        if (! is_string($root) || trim($root) === '') {
+            throw new \RuntimeException("Database dump disk [{$diskName}] must define a local root path.");
+        }
     }
 
     private function markFailed(DatabaseDumpExport $export, string $message): void

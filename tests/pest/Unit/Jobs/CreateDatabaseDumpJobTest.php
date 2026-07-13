@@ -111,15 +111,21 @@ it('quietly ignores missing exports', function (): void {
     expect($runner->runs)->toBe(0);
 });
 
-it('marks existing exports as failed when the queued job fails before handling', function (): void {
+it('marks existing exports as failed and deletes referenced dump files when the queued job fails before handling', function (): void {
     $admin = User::factory()->admin()->create();
-    $export = DatabaseDumpExport::factory()->for($admin)->running()->create();
+    $export = DatabaseDumpExport::factory()->for($admin)->running()->create([
+        'disk' => 'local',
+        'path' => 'database-dumps/ernie/failed-job.sql.gz',
+        'filename' => 'failed-job.sql.gz',
+    ]);
+    Storage::disk('local')->put((string) $export->path, 'partial dump');
 
     (new CreateDatabaseDumpJob($export->id))->failed(new RuntimeException('mysqldump password=secret failed'));
 
     expect($export->refresh()->status)->toBe(DatabaseDumpExport::STATUS_FAILED)
         ->and($export->error_message)->toContain('password=[redacted]')
-        ->and($export->error_message)->not->toContain('secret');
+        ->and($export->error_message)->not->toContain('secret')
+        ->and(Storage::disk('local')->exists('database-dumps/ernie/failed-job.sql.gz'))->toBeFalse();
 });
 
 it('ignores failure callbacks for exports that no longer exist', function (): void {

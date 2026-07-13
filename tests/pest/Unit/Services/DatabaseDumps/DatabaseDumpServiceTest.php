@@ -23,6 +23,8 @@ final class FakeDatabaseDumpProcessRunner implements DatabaseDumpProcessRunner
 
     public ?string $lastOutputPath = null;
 
+    public int $runs = 0;
+
     /**
      * @param  list<string>  $supportedOptions
      */
@@ -50,6 +52,7 @@ final class FakeDatabaseDumpProcessRunner implements DatabaseDumpProcessRunner
     {
         $this->lastCommand = $command;
         $this->lastOutputPath = $compressedOutputPath;
+        $this->runs++;
 
         if (! is_dir(dirname($compressedOutputPath))) {
             mkdir(dirname($compressedOutputPath), 0775, true);
@@ -188,4 +191,23 @@ it('fails clearly when no dump client is installed', function (): void {
 
     expect($export->refresh()->status)->toBe(DatabaseDumpExport::STATUS_FAILED)
         ->and($export->error_message)->toBe('No mysqldump or mariadb-dump binary is available in the application container.');
+});
+
+it('fails clearly when the configured dump disk is not local', function (): void {
+    $runner = new FakeDatabaseDumpProcessRunner;
+    $service = databaseDumpService($runner);
+    $admin = User::factory()->admin()->create();
+    $export = DatabaseDumpExport::factory()->for($admin)->create([
+        'target_key' => 'ernie',
+        'connection_name' => 'dump_test',
+        'database_name' => 'ernie_test',
+        'disk' => 's3',
+    ]);
+
+    expect(fn () => $service->createDump($export))
+        ->toThrow(RuntimeException::class, 'Database dump disk [s3] must use the local filesystem driver');
+
+    expect($runner->runs)->toBe(0)
+        ->and($export->refresh()->status)->toBe(DatabaseDumpExport::STATUS_FAILED)
+        ->and($export->error_message)->toBe('Database dump disk [s3] must use the local filesystem driver; configured driver is [s3].');
 });

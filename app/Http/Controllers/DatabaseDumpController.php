@@ -60,6 +60,16 @@ class DatabaseDumpController extends Controller
                 ], 409);
             }
 
+            $disk = (string) config('database_dumps.disk', 'local');
+
+            try {
+                $this->databaseDumpService->assertLocalDisk($disk);
+            } catch (\RuntimeException $exception) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                ], 500);
+            }
+
             $export = DatabaseDumpExport::query()->create([
                 'user_id' => $user->id,
                 'target_key' => $target,
@@ -67,7 +77,7 @@ class DatabaseDumpController extends Controller
                 'connection_name' => (string) $targetConfig['connection'],
                 'database_name' => $this->databaseDumpService->databaseNameForTarget($targetConfig),
                 'status' => DatabaseDumpExport::STATUS_PENDING,
-                'disk' => (string) config('database_dumps.disk', 'local'),
+                'disk' => $disk,
                 'requested_at' => now(),
                 'expires_at' => now()->addHours(max(1, (int) config('database_dumps.expiry_hours', 24))),
             ]);
@@ -184,7 +194,6 @@ class DatabaseDumpController extends Controller
             'sha256' => $export->sha256,
             'serverVersion' => $export->server_version,
             'dumpClient' => $export->dump_client,
-            'dumpOptions' => $export->dump_options,
             'errorMessage' => $export->error_message,
             'requestedAt' => $export->requested_at?->toIso8601String(),
             'startedAt' => $export->started_at?->toIso8601String(),
