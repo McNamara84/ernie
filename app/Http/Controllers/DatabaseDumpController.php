@@ -11,6 +11,7 @@ use App\Services\DatabaseDumps\DatabaseDumpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,42 +39,54 @@ class DatabaseDumpController extends Controller
             abort(404);
         }
 
-        $targetConfig = $this->databaseDumpService->target($target);
-        $maxParallel = max(1, (int) config('database_dumps.max_parallel_per_user', 1));
-        $activeCount = DatabaseDumpExport::query()
-            ->activeForUser($user->id)
-            ->count();
+        $lock = Cache::lock("database-dumps:user:{$user->id}", 10);
 
-        if ($activeCount >= $maxParallel) {
+        if (! $lock->get()) {
             return response()->json([
-                'message' => 'Another database dump is already running. Please wait for it to finish.',
+                'message' => 'Another database dump request is already being prepared. Please try again shortly.',
             ], 409);
         }
 
-        $export = DatabaseDumpExport::query()->create([
-            'user_id' => $user->id,
-            'target_key' => $target,
-            'target_label' => (string) $targetConfig['label'],
-            'connection_name' => (string) $targetConfig['connection'],
-            'database_name' => $this->databaseDumpService->databaseNameForTarget($targetConfig),
-            'status' => DatabaseDumpExport::STATUS_PENDING,
-            'disk' => (string) config('database_dumps.disk', 'local'),
-            'requested_at' => now(),
-            'expires_at' => now()->addHours(max(1, (int) config('database_dumps.expiry_hours', 24))),
-        ]);
+        try {
+            $targetConfig = $this->databaseDumpService->target($target);
+            $maxParallel = max(1, (int) config('database_dumps.max_parallel_per_user', 1));
+            $activeCount = DatabaseDumpExport::query()
+                ->activeForUser($user->id)
+                ->count();
 
-        $export->forceFill([
-            'path' => $this->databaseDumpService->buildPath($export),
-        ])->save();
-        $export->forceFill([
-            'filename' => basename((string) $export->path),
-        ])->save();
+            if ($activeCount >= $maxParallel) {
+                return response()->json([
+                    'message' => 'Another database dump is already running. Please wait for it to finish.',
+                ], 409);
+            }
 
-        CreateDatabaseDumpJob::dispatch($export->id);
+            $export = DatabaseDumpExport::query()->create([
+                'user_id' => $user->id,
+                'target_key' => $target,
+                'target_label' => (string) $targetConfig['label'],
+                'connection_name' => (string) $targetConfig['connection'],
+                'database_name' => $this->databaseDumpService->databaseNameForTarget($targetConfig),
+                'status' => DatabaseDumpExport::STATUS_PENDING,
+                'disk' => (string) config('database_dumps.disk', 'local'),
+                'requested_at' => now(),
+                'expires_at' => now()->addHours(max(1, (int) config('database_dumps.expiry_hours', 24))),
+            ]);
 
-        return response()->json([
-            'export' => $this->exportPayload($export->fresh() ?? $export),
-        ], 202);
+            $export->forceFill([
+                'path' => $this->databaseDumpService->buildPath($export),
+            ])->save();
+            $export->forceFill([
+                'filename' => basename((string) $export->path),
+            ])->save();
+
+            CreateDatabaseDumpJob::dispatch($export->id);
+
+            return response()->json([
+                'export' => $this->exportPayload($export->fresh() ?? $export),
+            ], 202);
+        } finally {
+            $lock->release();
+        }
     }
 
     public function status(DatabaseDumpExport $export): JsonResponse
@@ -112,10 +125,9 @@ class DatabaseDumpController extends Controller
             'downloaded_at' => now(),
         ]);
 
-        $export->forceFill([
-            'download_count' => $export->download_count + 1,
+        $export->increment('download_count', 1, [
             'last_downloaded_at' => now(),
-        ])->save();
+        ]);
 
         return response()->download(
             $disk->path($path),

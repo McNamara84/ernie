@@ -13,9 +13,8 @@ return [
     'targets' => [
         'ernie' => [
             'label' => 'ERNIE',
-            'description' => 'Neue ERNIE-Datenbank',
+            'description' => 'Current ERNIE application database',
             'connection' => 'mysql',
-            'database_env' => 'DB_DATABASE',
             'legacy' => false,
             'server_version_hint' => 'MySQL Community Server 9.7.0',
         ],
@@ -26,25 +25,22 @@ return [
         // Remove this block when legacy database exports are retired.
         'sumariopmd' => [
             'label' => 'SUMARIOPMD',
-            'description' => 'Alte SUMARIOPMD-Datenbank',
+            'description' => 'Legacy SUMARIOPMD metadata database',
             'connection' => 'metaworks',
-            'database_env' => 'DB_SUMARIOPMD_NAME',
             'legacy' => true,
             'server_version_hint' => 'MySQL Community Server 5.7.38-log',
         ],
         'metaworks' => [
             'label' => 'MetaWorks',
-            'description' => 'Alte MetaWorks-Datenbank',
+            'description' => 'Legacy MetaWorks metadata database',
             'connection' => 'legacy_metaworks',
-            'database_env' => 'DB_METAWORKS_NAME',
             'legacy' => true,
             'server_version_hint' => 'MySQL Community Server 5.7.38-log',
         ],
         'igsn' => [
             'label' => 'IGSN',
-            'description' => 'Alte IGSN-Datenbank',
+            'description' => 'Legacy IGSN metadata database',
             'connection' => 'igsn_legacy',
-            'database_env' => 'DB_IGSN_NAME',
             'legacy' => true,
             'requires_legacy_ssl_probe' => true,
             'server_version_hint' => 'MySQL 5.6.36',

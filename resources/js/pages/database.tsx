@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { AlertTriangle, Database, Download, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Database, Download, Play } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -179,7 +179,7 @@ export default function DatabasePage({ targets: initialTargets }: DatabasePagePr
                             </div>
                             {activeExports.length > 0 && (
                                 <Badge variant="secondary" className="gap-1">
-                                    <RefreshCw aria-hidden="true" className="size-3 animate-spin" />
+                                    <Spinner size="xs" />
                                     Updating
                                 </Badge>
                             )}

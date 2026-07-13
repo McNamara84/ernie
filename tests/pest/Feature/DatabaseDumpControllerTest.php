@@ -8,6 +8,7 @@ use App\Jobs\CreateDatabaseDumpJob;
 use App\Models\DatabaseDumpDownload;
 use App\Models\DatabaseDumpExport;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -92,6 +93,26 @@ it('prevents a user from starting a second active dump', function (): void {
         ->assertStatus(409)
         ->assertJsonPath('message', 'Another database dump is already running. Please wait for it to finish.');
 
+    Queue::assertNothingPushed();
+});
+
+it('serializes dump creation per user with a cache lock', function (): void {
+    Queue::fake();
+    $admin = User::factory()->admin()->create();
+    $lock = Cache::lock("database-dumps:user:{$admin->id}", 10);
+
+    expect($lock->get())->toBeTrue();
+
+    try {
+        $this->actingAs($admin)
+            ->postJson('/database/ernie/dumps')
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Another database dump request is already being prepared. Please try again shortly.');
+    } finally {
+        $lock->release();
+    }
+
+    expect(DatabaseDumpExport::query()->count())->toBe(0);
     Queue::assertNothingPushed();
 });
 

@@ -75,7 +75,6 @@ beforeEach(function (): void {
             'label' => 'ERNIE',
             'description' => 'Test database',
             'connection' => 'dump_job_test',
-            'database_env' => 'DB_DATABASE',
             'legacy' => false,
         ],
     ]);
