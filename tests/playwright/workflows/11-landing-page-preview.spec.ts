@@ -55,15 +55,18 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // This avoids flakiness where Vite is up but module requests still return empty/incorrect content-type.
         if (assetMode === 'vite') {
             await expect
-                .poll(async () => {
-                    const response = await request.get('/resources/js/pages/auth/login.tsx');
-                    const status = response.status();
-                    const contentType = response.headers()['content-type'] ?? '';
-                    return `${status}:${contentType}`;
-                }, {
-                    timeout: 60_000,
-                    intervals: [500, 1000, 2000, 5000],
-                })
+                .poll(
+                    async () => {
+                        const response = await request.get('/resources/js/pages/auth/login.tsx');
+                        const status = response.status();
+                        const contentType = response.headers()['content-type'] ?? '';
+                        return `${status}:${contentType}`;
+                    },
+                    {
+                        timeout: 60_000,
+                        intervals: [500, 1000, 2000, 5000],
+                    },
+                )
                 .toMatch(/^200:.*javascript/i);
         }
 
@@ -89,8 +92,14 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
 
         await resourcesPage.verifyResourcesDisplayed();
 
-        // Open landing page setup modal for the first visible resource
-        const setupLandingPageButton = page.getByRole('button', { name: /setup landing page for resource/i }).first();
+        // Open landing page setup modal for the first visible resource via the bulk actions toolbar.
+        const firstResourceRow = resourcesPage.resourceTable.locator('tbody tr').first();
+        await expect(firstResourceRow).toBeVisible();
+        await firstResourceRow.getByRole('checkbox').click();
+        await expect(page.getByText(/^1 resource selected$/)).toBeVisible();
+        await page.getByTestId('resources-actions-menu-trigger').click();
+
+        const setupLandingPageButton = page.getByTestId('resources-action-setup-landing-page');
         await expect(setupLandingPageButton).toBeVisible();
         await expect(setupLandingPageButton).toBeEnabled();
         await setupLandingPageButton.click();
@@ -104,10 +113,7 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         await expect(previewButton).toBeVisible();
         await expect(previewButton).toBeEnabled();
 
-        const [previewPage] = await Promise.all([
-            context.waitForEvent('page'),
-            previewButton.click(),
-        ]);
+        const [previewPage] = await Promise.all([context.waitForEvent('page'), previewButton.click()]);
 
         await previewPage.waitForLoadState('domcontentloaded');
         // Verify the preview URL format.
@@ -122,12 +128,12 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         const previewUrl = previewPage.url();
         const previewUrlRegex = new RegExp(
             // Match: /resources/N/landing-page/preview OR /10.NNNN/path/slug?preview= OR /draft-N/slug?preview=
-            '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)'
+            '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)',
         );
         const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
         expect(
-            isValidPreviewUrl, 
-            `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`
+            isValidPreviewUrl,
+            `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`,
         ).toBeTruthy();
 
         // For semantic URLs, verify the preview token parameter is actually present

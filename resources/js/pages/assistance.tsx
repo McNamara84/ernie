@@ -21,6 +21,7 @@ import {
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
+    type SuggestedSpdxRightsItem,
 } from '@/types/assistance';
 import { validateORCID } from '@/utils/validation-rules';
 
@@ -271,6 +272,111 @@ function entityTypeBadgeColor(type: SuggestedRorItem['entity_type']): string {
     }
 }
 
+const RIGHTS_FIELD_LABELS: Record<string, string> = {
+    rights: 'rights',
+    rights_uri: 'rightsURI',
+    rights_identifier: 'rightsIdentifier',
+    rights_identifier_scheme: 'rightsIdentifierScheme',
+    scheme_uri: 'schemeURI',
+    language: 'lang',
+    source: 'source',
+};
+
+function RightsMetadataBlock({ title, values }: { title: string; values: Record<string, string> | undefined }) {
+    const entries = Object.entries(RIGHTS_FIELD_LABELS)
+        .map(([key, label]) => [label, values?.[key]] as const)
+        .filter(([, value]) => typeof value === 'string' && value.trim() !== '');
+
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</p>
+            {entries.length > 0 ? (
+                <dl className="space-y-1 text-xs">
+                    {entries.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
+                            <dt className="text-muted-foreground">{label}</dt>
+                            <dd className="break-words font-mono text-foreground">{value}</dd>
+                        </div>
+                    ))}
+                </dl>
+            ) : (
+                <p className="text-xs text-muted-foreground">No metadata captured.</p>
+            )}
+        </div>
+    );
+}
+
+function SpdxRightsSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedSpdxRightsItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const metadata = suggestion.metadata ?? null;
+    const percent = suggestion.similarity_score !== null ? Math.round(suggestion.similarity_score * 100) : null;
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            SPDX
+                        </Badge>
+                        {percent !== null && <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>{percent}% match</Badge>}
+                        <Badge variant="secondary" className="text-xs">
+                            resource_right #{suggestion.target_id}
+                        </Badge>
+                        <span className="font-mono text-sm break-all">{suggestion.suggested_value}</span>
+                    </div>
+
+                    <div className="grid gap-3 xl:grid-cols-2">
+                        <RightsMetadataBlock title="Current imported rights" values={metadata?.current} />
+                        <RightsMetadataBlock title="Proposed SPDX metadata" values={metadata?.proposed} />
+                    </div>
+
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        <div className="flex gap-2">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                            <p>
+                                Clicking Accept links only this rights statement to the shared SPDX catalog. Existing catalog fields are reused; only empty
+                                catalog fields may be filled.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        {metadata?.evidence?.matched_from && <span>Matched from: {metadata.evidence.matched_from}</span>}
+                        {metadata?.evidence?.reason && <span>Reason: {metadata.evidence.reason}</span>}
+                        {metadata?.source_url && (
+                            <a href={metadata.source_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+                                SPDX reference
+                            </a>
+                        )}
+                        <span>Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+
+                <div className="flex shrink-0 gap-2 self-start">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function RorSuggestionCard({
     suggestion,
     onAccept,
@@ -355,6 +461,220 @@ function RorSuggestionCard({
     );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function confidenceBadgeColor(confidence: string | null): string {
+    switch (confidence) {
+        case 'high':
+            return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        case 'medium':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        case 'low':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+        default:
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+    }
+}
+
+function confidenceLabel(confidence: string | null): string | null {
+    switch (confidence) {
+        case 'high':
+            return 'High confidence';
+        case 'medium':
+            return 'Medium confidence';
+        case 'low':
+            return 'Low confidence';
+        default:
+            return confidence ? `${confidence} confidence` : null;
+    }
+}
+
+function probeMethodLabel(probeMethod: string | null, targetType: unknown): string | null {
+    if (!probeMethod) return null;
+
+    const method = probeMethod.toUpperCase();
+
+    if (method === 'DIRECTORY_LISTING') {
+        return targetType === 'size' ? 'Calculated from download page' : 'Found on download page';
+    }
+
+    const labels: Record<string, string> = {
+        CONTENT_LENGTH_HEADER: 'Read from server file size',
+        CONTENT_TYPE_HEADER: 'Read from server file type',
+        FILENAME_EXTENSION: 'Detected from file name',
+        FILENAME_EXTENSION_FALLBACK: 'Detected from file name',
+        HTTP_HEAD: 'Checked server file metadata',
+        RANGED_GET: 'Checked partial file response',
+        RANGED_GET_CONTENT_RANGE: 'Read from partial file size',
+        RANGED_GET_CONTENT_TYPE: 'Read from partial file type',
+    };
+
+    return labels[method] ?? method.toLowerCase().replaceAll('_', ' ');
+}
+
+function sizeValueLabel(value: string): string {
+    const trimmed = value.trim();
+
+    return trimmed.replace(/^([0-9]+(?:\.[0-9]+)?)\s*(B|KB|MB|GB|TB|PB)$/i, (_, amount: string, unit: string) => {
+        return `${amount} ${unit.toUpperCase()}`;
+    });
+}
+
+function formatValueLabel(value: string): string {
+    const trimmed = value.trim();
+    const normalized = trimmed.toLowerCase().replace(/^\./, '');
+
+    const labels: Record<string, string> = {
+        'application/json': 'JSON file (application/json)',
+        'application/pdf': 'PDF document (application/pdf)',
+        'application/x-netcdf': 'NetCDF file (application/x-netcdf)',
+        'application/xml': 'XML file (application/xml)',
+        'application/zip': 'ZIP archive (application/zip)',
+        csv: 'CSV file (.csv)',
+        h5: 'HDF5 file (.h5)',
+        hdf: 'HDF file (.hdf)',
+        hdf5: 'HDF5 file (.hdf5)',
+        json: 'JSON file (.json)',
+        nc: 'NetCDF file (.nc)',
+        netcdf: 'NetCDF file (.netcdf)',
+        pdf: 'PDF document (.pdf)',
+        tif: 'TIFF image (.tif)',
+        tiff: 'TIFF image (.tiff)',
+        'text/csv': 'CSV file (text/csv)',
+        'text/plain': 'Text file (text/plain)',
+        'text/tab-separated-values': 'TSV file (text/tab-separated-values)',
+        txt: 'Text file (.txt)',
+        xml: 'XML file (.xml)',
+        zip: 'ZIP archive (.zip)',
+    };
+
+    if (labels[normalized]) {
+        return labels[normalized];
+    }
+
+    if (normalized.includes('/')) {
+        return trimmed;
+    }
+
+    if (/^[a-z0-9]{1,8}$/.test(normalized)) {
+        return `${normalized.toUpperCase()} file (.${normalized})`;
+    }
+
+    return trimmed;
+}
+
+function sizeFormatDisplayLabel(targetType: unknown, value: string, fallbackLabel: string): string {
+    if (targetType === 'size') {
+        const sizeValue = value || fallbackLabel.replace(/^SIZE:\s*/i, '');
+
+        return `Suggested size: ${sizeValueLabel(sizeValue)}`;
+    }
+
+    if (targetType === 'format') {
+        const formatValue = value || fallbackLabel.replace(/^FORMAT:\s*/i, '');
+
+        return `Suggested format: ${formatValueLabel(formatValue)}`;
+    }
+
+    return fallbackLabel;
+}
+
+function targetTypeLabel(targetType: unknown, isZip: boolean): string {
+    if (isZip) return 'ZIP Archive';
+    if (targetType === 'size') return 'File size';
+    if (targetType === 'format') return 'File format';
+
+    return String(targetType ?? 'Suggestion');
+}
+
+function SizeFormatSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: BaseSuggestionItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const value = String(suggestion.suggested_value ?? '');
+    const label = String(suggestion.suggested_label ?? value);
+    const isZip = value.toLowerCase() === 'zip' || value.toLowerCase().includes('application/zip');
+    const displayLabel = sizeFormatDisplayLabel(suggestion.target_type, value, label);
+    const metadata = isRecord(suggestion.metadata) ? suggestion.metadata : null;
+    const evidence = isRecord(metadata?.evidence) ? metadata.evidence : null;
+    const sourceUrl = typeof metadata?.source_url === 'string' ? metadata.source_url : null;
+    const probeMethod = typeof metadata?.probe_method === 'string' ? metadata.probe_method : null;
+    const confidence = typeof metadata?.confidence === 'string' ? metadata.confidence : null;
+    const displayConfidence = confidenceLabel(confidence);
+    const displayProbeMethod = probeMethodLabel(probeMethod, suggestion.target_type);
+    const parsedFileCount = typeof evidence?.parsed_file_count === 'number' ? evidence.parsed_file_count : null;
+    const totalFileCount = typeof evidence?.total_file_count === 'number' ? evidence.total_file_count : null;
+    const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
+
+    return (
+        <div
+            className={
+                isZip
+                    ? 'rounded-lg border-2 border-orange-500 bg-orange-50 p-4 shadow-sm transition-all hover:shadow-md dark:bg-orange-950/20'
+                    : 'rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md'
+            }
+        >
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={isZip ? 'bg-orange-600 text-white' : ''}>
+                            {targetTypeLabel(suggestion.target_type, isZip)}
+                        </Badge>
+                        {displayConfidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{displayConfidence}</Badge>}
+                        {displayProbeMethod && (
+                            <Badge variant="secondary" className="text-xs">
+                                {displayProbeMethod}
+                            </Badge>
+                        )}
+                    </div>
+
+                    <p className="text-sm font-medium">{displayLabel}</p>
+
+                    {(sourceUrl || filename || parsedFileCount !== null) && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            {sourceUrl && (
+                                <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="max-w-full break-all underline hover:text-foreground">
+                                    Open source
+                                </a>
+                            )}
+                            {filename && <span className="break-all">Detected from file: {filename}</span>}
+                            {parsedFileCount !== null && (
+                                <span>
+                                    Files counted: {parsedFileCount}
+                                    {totalFileCount !== null ? ` of ${totalFileCount}` : ''}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                        Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
+                    </p>
+                </div>
+
+                <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
 // ── Per-section state ────────────────────────────────────────────────
 
 interface SectionState {
@@ -656,6 +976,24 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 return (
                     <RorSuggestionCard
                         suggestion={item as unknown as SuggestedRorItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'size-format-suggestion':
+                return (
+                    <SizeFormatSuggestionCard
+                        suggestion={item}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
+            case 'spdx-license-suggestion':
+                return (
+                    <SpdxRightsSuggestionCard
+                        suggestion={item as unknown as SuggestedSpdxRightsItem}
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}

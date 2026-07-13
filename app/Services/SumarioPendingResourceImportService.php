@@ -143,10 +143,7 @@ class SumarioPendingResourceImportService
     {
         return OldDataset::query()
             ->where('publicstatus', 'pending')
-            ->where(function ($query) use ($doi): void {
-                $query->where('identifier', $doi)
-                    ->orWhere('identifier', strtoupper($doi));
-            })
+            ->where('identifier', $doi)
             ->first();
     }
 
@@ -201,6 +198,7 @@ class SumarioPendingResourceImportService
             'resourceType' => $this->resolveResourceTypeId($editorData['resourceType'] ?? null),
             'titles' => $this->normaliseTitles($editorData['titles'] ?? [], $oldDataset, $doi),
             'licenses' => $this->normaliseStringList($editorData['initialRights'] ?? []),
+            'rawRights' => is_array($editorData['initialRawRights'] ?? null) ? array_values($editorData['initialRawRights']) : [],
             'authors' => $this->normaliseContributors($editorData['authors'] ?? []),
             'contributors' => $this->normaliseContributors($editorData['contributors'] ?? [], true),
             'descriptions' => $this->normaliseDescriptions($editorData['descriptions'] ?? []),

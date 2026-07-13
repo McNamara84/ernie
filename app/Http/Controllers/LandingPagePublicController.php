@@ -324,7 +324,9 @@ class LandingPagePublicController extends Controller
                     return $exporter->export($resource);
                 });
 
-            $landingPageData = LandingPageController::serializeLandingPagePayload($resource, $landingPage);
+            $landingPageData = $this->applyDownloadsUnavailableDisplayPolicy(
+                LandingPageController::serializeLandingPagePayload($resource, $landingPage)
+            );
 
             if ($landingPage->isPublished() && $previewToken === null) {
                 $landingPageData = $this->attachTrackedDownloadUrls($landingPageData, $landingPage);
@@ -352,6 +354,24 @@ class LandingPagePublicController extends Controller
             : $buildRenderData();
 
         return Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $landingPageData
+     * @return array<string, mixed>
+     */
+    private function applyDownloadsUnavailableDisplayPolicy(array $landingPageData): array
+    {
+        if (($landingPageData['downloads_unavailable'] ?? false) !== true) {
+            return $landingPageData;
+        }
+
+        $landingPageData['ftp_url'] = null;
+        $landingPageData['tracked_ftp_url'] = null;
+        $landingPageData['files'] = [];
+        $landingPageData['links'] = [];
+
+        return $landingPageData;
     }
 
     /**

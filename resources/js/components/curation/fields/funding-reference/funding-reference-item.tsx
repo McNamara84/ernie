@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFundingReferenceValidation } from '@/hooks/use-funding-reference-validation';
+import { cn } from '@/lib/utils';
 
 import InputField from '../input-field';
 import { searchRorFunders } from './ror-search';
@@ -122,8 +123,9 @@ export function FundingReferenceItem({
 
     return (
         <section
-            className="rounded-lg border border-border bg-card p-6 shadow-sm transition hover:shadow-md"
+            className="rounded-lg border border-l-4 border-border border-l-gfz-primary bg-card p-6 text-card-foreground shadow-md transition-[border-color,box-shadow] focus-within:border-ring focus-within:border-l-gfz-primary focus-within:ring-[3px] focus-within:ring-ring/50 hover:border-ring/70 hover:border-l-gfz-primary hover:shadow-lg"
             aria-labelledby={`${funding.id}-heading`}
+            data-testid="funding-reference-card"
         >
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
@@ -160,7 +162,7 @@ export function FundingReferenceItem({
                         }}
                         placeholder="e.g., Deutsche Forschungsgemeinschaft (DFG)"
                         required
-                        className={`mt-2 ${validation.errors.funderName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                        className={cn('mt-2', validation.errors.funderName && 'border-destructive focus-visible:ring-destructive')}
                         autoComplete="off"
                         aria-invalid={!!validation.errors.funderName}
                         aria-describedby={validation.errors.funderName ? `${funding.id}-funder-name-error` : undefined}
@@ -246,7 +248,10 @@ export function FundingReferenceItem({
 
                 {/* Award Details (Expanded) */}
                 {funding.isExpanded && (
-                    <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
+                    <div
+                        className="space-y-4 rounded-lg border border-dashed border-input bg-background p-4"
+                        data-testid="funding-reference-award-details"
+                    >
                         <InputField
                             id={`${funding.id}-award-number`}
                             label="Award/Grant Number"
@@ -263,7 +268,7 @@ export function FundingReferenceItem({
                                 value={funding.awardUri}
                                 onChange={(e) => onAwardUriChange(e.target.value)}
                                 placeholder="e.g., https://cordis.europa.eu/project/id/101234567"
-                                className={validation.errors.awardUri ? 'border-destructive focus-visible:ring-destructive' : ''}
+                                className={cn(validation.errors.awardUri && 'border-destructive focus-visible:ring-destructive')}
                                 aria-invalid={!!validation.errors.awardUri}
                                 aria-describedby={validation.errors.awardUri ? `${funding.id}-award-uri-error` : undefined}
                             />

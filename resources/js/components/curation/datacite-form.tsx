@@ -6,7 +6,12 @@ import { toast } from 'sonner';
 
 import { ClickableValidationAlert } from '@/components/curation/clickable-validation-alert';
 import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
-import { SectionHeader } from '@/components/curation/section-header';
+import {
+    RELATED_ITEMS_SECTION_DESCRIPTION,
+    RELATED_ITEMS_SECTION_HELP,
+    RELATED_ITEMS_SECTION_LABEL,
+} from '@/components/curation/related-items-section-copy';
+import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -55,19 +60,24 @@ import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import UsedInstrumentsField from './fields/used-instruments-field';
 import {
+    type CustomLicenseEntry,
     type DataCiteFormData,
     type DataCiteFormProps,
     type DateEntry,
     type LicenseEntry,
     MAIN_TITLE_SLUG,
+    type RawRightsInput,
     type SerializedAuthor,
     type SerializedContributor,
     type TitleEntry,
 } from './types/datacite-form-types';
+import { type DateMode, isDateRangeCapable, isEditableDateType, normalizeDateTypeSlug } from './utils/date-rules';
 import {
     canAddDate,
-    canAddLicense,
     canAddTitle,
+    hasAnyLicenseEntryContent,
+    hasCompleteLicenseEntry,
+    isHttpUrl,
     mapInitialAuthorToEntry,
     mapInitialContributorToEntry,
     normalizeTitleTypeSlug,
@@ -76,7 +86,7 @@ import {
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
 // Re-export types for backward compatibility with existing imports
-export type { DataCiteFormProps, InitialAuthor, InitialContributor } from './types/datacite-form-types';
+export type { DataCiteFormProps, InitialAuthor, InitialContributor, RawRightsInput } from './types/datacite-form-types';
 
 // Re-export helper functions for backward compatibility
 export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
@@ -84,6 +94,15 @@ export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 const ABSTRACT_MIN_LENGTH = 50;
 const ABSTRACT_MAX_LENGTH = 17500;
 const CURATION_ACCORDION_PREFERENCE_URL = '/settings/curation-accordion';
+const SECTION_TRIGGER_CLASS_NAME = 'hover:no-underline';
+const DRAFT_AUTOSAVE_INTERVAL_MS = 60_000;
+
+type DraftAutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+type DraftSaveResponse = {
+    message?: string;
+    resource?: { id: number };
+};
 
 function normalizeAccordionItems(
     items: readonly string[],
@@ -114,6 +133,35 @@ function appendValidationMessage(errors: Record<string, string[]>, backendKey: s
     errors[backendKey] = [message];
 }
 
+function isRawRightsOnlyLicenseEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return entry.mode === 'custom' && entry.rawRight !== undefined && entry.uri.trim() === '' && entry.name.trim() !== '';
+}
+
+function isCustomLicensePayloadEntry(entry: LicenseEntry): entry is CustomLicenseEntry {
+    return entry.mode === 'custom' && hasAnyLicenseEntryContent(entry) && !isRawRightsOnlyLicenseEntry(entry);
+}
+
+function isCatalogLicensePayloadEntry(entry: LicenseEntry): entry is Extract<LicenseEntry, { mode: 'catalog' }> {
+    return entry.mode === 'catalog' && entry.license.trim() !== '';
+}
+
+function hasLicenseEntryEvidence(entry: LicenseEntry | undefined): boolean {
+    return hasCompleteLicenseEntry(entry) || (entry !== undefined && isRawRightsOnlyLicenseEntry(entry));
+}
+
+function canAddLicenseEntry(licenseEntries: LicenseEntry[], maxLicenses: number): boolean {
+    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && hasLicenseEntryEvidence(licenseEntries[licenseEntries.length - 1]);
+}
+
+function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRightsInput {
+    return {
+        ...entry.rawRight,
+        rights: entry.name.trim(),
+        rightsUri: null,
+        sourceResourceRightId: entry.sourceResourceRightId ?? entry.rawRight?.sourceResourceRightId ?? null,
+    };
+}
+
 function isDatacenterErrorKey(backendKey: string): boolean {
     return backendKey === 'datacenters' || backendKey.startsWith('datacenters.');
 }
@@ -142,6 +190,7 @@ export default function DataCiteForm({
     initialResourceType = '',
     initialTitles = [],
     initialLicenses = [],
+    initialRawRights = [],
     initialResourceId,
     initialAuthors = [],
     initialContributors = [],
@@ -166,23 +215,19 @@ export default function DataCiteForm({
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
 
-    // Date types that are automatically managed by the system and not editable by users
-    // This is a constant array that never changes, so no useMemo needed
-    const AUTO_MANAGED_DATE_TYPES = ['created', 'updated'] as const;
+    // Date types shown in the Dates section. Created/Updated are automatic;
+    // Coverage is edited exclusively in Spatial and Temporal Coverage.
+    const MAX_DATES = dateTypes.filter((dt) => isEditableDateType(dt.slug)).length;
 
-    // MAX_DATES excludes auto-managed types since users can't select them
-    // Simple calculation - dateTypes is stable from props, no memoization needed
-    const MAX_DATES = dateTypes.filter((dt) => !AUTO_MANAGED_DATE_TYPES.includes(dt.slug as (typeof AUTO_MANAGED_DATE_TYPES)[number])).length;
-
-    // Transform dateTypes prop to the format used by the form
-    // Note: 'Created' and 'Updated' are excluded as they are automatically managed
     const dateTypeOptions = useMemo(
         () =>
-            dateTypes.map((dt) => ({
-                value: dt.slug,
-                label: dt.name,
-                description: dt.description ?? '',
-            })),
+            dateTypes
+                .filter((dt) => isEditableDateType(dt.slug))
+                .map((dt) => ({
+                    value: dt.slug,
+                    label: dt.name,
+                    description: dt.description ?? '',
+                })),
         [dateTypes],
     );
 
@@ -239,14 +284,66 @@ export default function DataCiteForm({
         });
     });
 
-    const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(
-        initialLicenses.length
-            ? initialLicenses.map((l) => ({
-                  id: crypto.randomUUID(),
-                  license: l,
-              }))
-            : [{ id: crypto.randomUUID(), license: '' }],
-    );
+    const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(() => {
+        const entries: LicenseEntry[] = [];
+        const licensesByIdentifier = new Map(licenses.map((license) => [license.identifier, license]));
+
+        initialLicenses.forEach((identifier) => {
+            const catalogLicense = licensesByIdentifier.get(identifier);
+
+            if (catalogLicense && (catalogLicense.scheme_uri === null || catalogLicense.identifier.startsWith('CUSTOM-'))) {
+                entries.push({
+                    id: crypto.randomUUID(),
+                    mode: 'custom',
+                    name: catalogLicense.name,
+                    uri: catalogLicense.uri ?? '',
+                });
+                return;
+            }
+
+            entries.push({
+                id: crypto.randomUUID(),
+                mode: 'catalog',
+                license: identifier,
+            });
+        });
+
+        initialRawRights.forEach((rawRight) => {
+            const name = (rawRight.rights ?? rawRight.rightsIdentifier ?? '').trim();
+            const uri = (rawRight.rightsUri ?? '').trim();
+
+            if (!name && !uri) {
+                return;
+            }
+
+            entries.push({
+                id: crypto.randomUUID(),
+                mode: 'custom',
+                name,
+                uri,
+                sourceResourceRightId: rawRight.sourceResourceRightId ?? undefined,
+                rawRight,
+            });
+        });
+
+        return entries.length > 0 ? entries : [{ id: crypto.randomUUID(), mode: 'catalog', license: '' }];
+    });
+
+    const customLicensePayloadIndexesByEntryId = useMemo(() => {
+        const indexes = new Map<string, number>();
+        let customLicenseIndex = 0;
+
+        licenseEntries.forEach((entry) => {
+            if (!isCustomLicensePayloadEntry(entry)) {
+                return;
+            }
+
+            indexes.set(entry.id, customLicenseIndex);
+            customLicenseIndex += 1;
+        });
+
+        return indexes;
+    }, [licenseEntries]);
 
     const [authors, setAuthors] = useState<AuthorEntry[]>(() => {
         if (initialAuthors.length > 0) {
@@ -296,25 +393,29 @@ export default function DataCiteForm({
 
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
-            // Filter out auto-managed date types ('created' and 'updated')
-            // These are now automatically handled by the backend
-            const autoManagedTypes: readonly string[] = AUTO_MANAGED_DATE_TYPES;
             return initialDates
-                .filter((date) => !autoManagedTypes.includes(date.dateType.toLowerCase()))
+                .filter((date) => isEditableDateType(date.dateType))
                 .map((date) => {
                     // Parse ISO 8601 datetime values to separate date, time, and timezone
                     const parsedStart = parseDateTime(date.startDate);
                     const parsedEnd = parseDateTime(date.endDate);
+                    const isRangeCapable = isDateRangeCapable(date.dateType);
+                    const dateMode: DateMode =
+                        (date.dateMode === 'range' && isRangeCapable) ||
+                        (date.dateMode === undefined && isRangeCapable && parsedStart.date !== '' && parsedEnd.date !== '')
+                            ? 'range'
+                            : 'single';
 
                     return {
                         id: crypto.randomUUID(),
                         dateType: date.dateType,
+                        dateMode,
                         startDate: parsedStart.date || null,
-                        endDate: parsedEnd.date || null,
+                        endDate: dateMode === 'range' ? parsedEnd.date || null : null,
                         startTime: parsedStart.time,
-                        endTime: parsedEnd.time,
+                        endTime: dateMode === 'range' ? parsedEnd.time : null,
                         startTimezone: parsedStart.timezone,
-                        endTimezone: parsedEnd.timezone,
+                        endTimezone: dateMode === 'range' ? parsedEnd.timezone : null,
                     };
                 });
         }
@@ -604,14 +705,14 @@ export default function DataCiteForm({
         },
     ];
 
-    // License validation rules (primary license is required)
-    const primaryLicenseValidationRules: ValidationRule[] = [
+    // License validation rules (at least one complete license row or imported raw rights statement is required)
+    const primaryLicenseValidationRules: ValidationRule<LicenseEntry[]>[] = [
         {
             validate: (value) => {
-                const result = validateRequired(String(value || ''), 'Primary license');
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
+                if (!value.some(hasLicenseEntryEvidence)) {
+                    return { severity: 'error', message: 'At least one license is required.' };
                 }
+
                 return null;
             },
         },
@@ -1131,6 +1232,10 @@ export default function DataCiteForm({
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<DraftAutosaveStatus>('idle');
+    const [lastDraftAutosaveAt, setLastDraftAutosaveAt] = useState<Date | null>(null);
+    const draftAutosaveInFlightRef = useRef(false);
+    const lastDraftAutosaveSignatureRef = useRef<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [mappedValidationErrors, setMappedValidationErrors] = useState<MappedError[]>([]);
     const [validationAlertHeader, setValidationAlertHeader] = useState<string | undefined>(undefined);
@@ -1170,6 +1275,20 @@ export default function DataCiteForm({
         // Validate each user-entered date
         dates.forEach((date, index) => {
             const dateIndex = index + 1;
+
+            if (date.dateMode === 'range') {
+                if (!isDateRangeCapable(date.dateType)) {
+                    issues.push(`Date ${dateIndex}: ${date.dateType} does not support period entry`);
+                }
+
+                if (!date.startDate || date.startDate.trim() === '') {
+                    issues.push(`Date ${dateIndex}: Start date is required for periods`);
+                }
+
+                if (!date.endDate || date.endDate.trim() === '') {
+                    issues.push(`Date ${dateIndex}: End date is required for periods`);
+                }
+            }
 
             // Validate start date if provided
             if (date.startDate && date.startDate.trim() !== '') {
@@ -1240,9 +1359,28 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'language', 'Language is required.');
         }
 
-        if (!licenseEntries[0]?.license?.trim()) {
-            appendValidationMessage(errors, 'licenses.0.license', 'Primary License is required.');
+        if (!licenseEntries.some(hasLicenseEntryEvidence)) {
+            appendValidationMessage(errors, 'licenses', 'At least one License is required.');
         }
+
+        let customLicenseIndex = 0;
+        licenseEntries.forEach((entry) => {
+            if (!isCustomLicensePayloadEntry(entry)) {
+                return;
+            }
+
+            if (!entry.name.trim()) {
+                appendValidationMessage(errors, `customLicenses.${customLicenseIndex}.name`, 'Custom license name is required.');
+            }
+
+            if (!entry.uri.trim()) {
+                appendValidationMessage(errors, `customLicenses.${customLicenseIndex}.uri`, 'Custom license URL is required.');
+            } else if (!isHttpUrl(entry.uri.trim())) {
+                appendValidationMessage(errors, `customLicenses.${customLicenseIndex}.uri`, 'Custom license URL must use http or https.');
+            }
+
+            customLicenseIndex += 1;
+        });
 
         if (authors.length === 0) {
             appendValidationMessage(errors, 'authors', 'At least one author is required.');
@@ -1287,8 +1425,10 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'datacenters', 'At least one datacenter is required.');
         }
 
+        dateValidationIssues.forEach((issue) => appendValidationMessage(errors, 'dates', issue));
+
         return errors;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles, dateValidationIssues]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1328,8 +1468,12 @@ export default function DataCiteForm({
     }, [titles, form.year, form.resourceType, form.language, selectedDatacenters, getFieldState]);
 
     const licensesStatus = useMemo(() => {
-        const primaryLicense = licenseEntries[0]?.license?.trim();
-        if (!primaryLicense) {
+        const hasCompleteLicense = licenseEntries.some(hasLicenseEntryEvidence);
+        const hasInvalidCustomLicense = licenseEntries.some(
+            (entry) => isCustomLicensePayloadEntry(entry) && (!entry.name.trim() || !entry.uri.trim() || !isHttpUrl(entry.uri.trim())),
+        );
+
+        if (!hasCompleteLicense || hasInvalidCustomLicense) {
             return 'invalid';
         }
         return 'valid';
@@ -1590,20 +1734,59 @@ export default function DataCiteForm({
         }
     };
 
-    const handleLicenseChange = (index: number, value: string) => {
-        setLicenseEntries((prev) => {
-            const next = [...prev];
-            next[index] = { ...next[index], license: value };
+    const validatePrimaryLicenseEntries = (entries: LicenseEntry[]) => {
+        validateField({
+            fieldId: 'license-0',
+            value: entries,
+            rules: primaryLicenseValidationRules,
+            formData: form,
+        });
+    };
 
-            // Validate primary license (index 0)
-            if (index === 0) {
-                validateField({
-                    fieldId: 'license-0',
-                    value,
-                    rules: primaryLicenseValidationRules,
-                    formData: form,
-                });
-            }
+    const handleLicenseModeChange = (index: number, mode: LicenseEntry['mode']) => {
+        setLicenseEntries((prev) => {
+            const current = prev[index];
+            if (!current || current.mode === mode) return prev;
+
+            const next = [...prev];
+            const updated: LicenseEntry =
+                mode === 'custom'
+                    ? { id: current.id, mode: 'custom', name: '', uri: '' }
+                    : { id: current.id, mode: 'catalog', license: '' };
+
+            next[index] = updated;
+
+            validatePrimaryLicenseEntries(next);
+
+            return next;
+        });
+    };
+
+    const handleCatalogLicenseChange = (index: number, value: string) => {
+        setLicenseEntries((prev) => {
+            const current = prev[index];
+            if (!current) return prev;
+
+            const next = [...prev];
+            const updated: LicenseEntry = { id: current.id, mode: 'catalog', license: value };
+            next[index] = updated;
+
+            validatePrimaryLicenseEntries(next);
+
+            return next;
+        });
+    };
+
+    const handleCustomLicenseChange = (index: number, field: 'name' | 'uri', value: string) => {
+        setLicenseEntries((prev) => {
+            const current = prev[index];
+            if (!current || current.mode !== 'custom') return prev;
+
+            const next = [...prev];
+            const updated: LicenseEntry = { ...current, [field]: value };
+            next[index] = updated;
+
+            validatePrimaryLicenseEntries(next);
 
             return next;
         });
@@ -1611,19 +1794,54 @@ export default function DataCiteForm({
 
     const addLicense = () => {
         if (licenseEntries.length >= MAX_LICENSES) return;
-        setLicenseEntries((prev) => [...prev, { id: crypto.randomUUID(), license: '' }]);
+        setLicenseEntries((prev) => {
+            const next: LicenseEntry[] = [...prev, { id: crypto.randomUUID(), mode: 'catalog', license: '' }];
+            validatePrimaryLicenseEntries(next);
+            return next;
+        });
     };
 
     const removeLicense = (index: number) => {
-        setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
+        setLicenseEntries((prev) => {
+            const next = prev.filter((_, i) => i !== index);
+            validatePrimaryLicenseEntries(next);
+            return next;
+        });
     };
 
     const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
         setDates((prev) => {
+            const current = prev[index];
+            if (!current) return prev;
+
             const next = [...prev];
-            // When timezone select is set to "none", clear it to null
-            const resolvedValue = (field === 'startTimezone' || field === 'endTimezone') && value === 'none' ? null : value;
-            next[index] = { ...next[index], [field]: resolvedValue };
+            let updated: DateEntry = { ...current };
+
+            if (field === 'dateMode') {
+                const dateMode: DateMode = value === 'range' && isDateRangeCapable(current.dateType) ? 'range' : 'single';
+                updated = { ...updated, dateMode };
+
+                if (dateMode === 'single') {
+                    updated.endDate = null;
+                    updated.endTime = null;
+                    updated.endTimezone = null;
+                }
+            } else if (field === 'dateType') {
+                updated = { ...updated, dateType: value };
+
+                if (!isDateRangeCapable(value)) {
+                    updated.dateMode = 'single';
+                    updated.endDate = null;
+                    updated.endTime = null;
+                    updated.endTimezone = null;
+                }
+            } else if (field === 'startTimezone' || field === 'endTimezone') {
+                updated = { ...updated, [field]: value === 'none' ? null : value };
+            } else {
+                updated = { ...updated, [field]: value };
+            }
+
+            next[index] = updated;
             return next;
         });
     };
@@ -1631,8 +1849,9 @@ export default function DataCiteForm({
     const addDate = () => {
         if (dates.length >= MAX_DATES) return;
         // Find the first unused date type or default to 'other'
-        const usedTypes = new Set(dates.map((d) => d.dateType));
-        const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
+        const usedTypes = new Set(dates.map((d) => normalizeDateTypeSlug(d.dateType)));
+        const availableType =
+            dateTypeOptions.find((dt) => !usedTypes.has(normalizeDateTypeSlug(dt.value)))?.value ?? dateTypeOptions[0]?.value ?? 'other';
         setDates((prev) => [
             ...prev,
             {
@@ -1640,6 +1859,7 @@ export default function DataCiteForm({
                 startDate: '',
                 endDate: '',
                 dateType: availableType,
+                dateMode: 'single',
                 startTime: null,
                 endTime: null,
                 startTimezone: null,
@@ -1678,6 +1898,22 @@ export default function DataCiteForm({
     const saveUrl = useMemo(() => store.url(), []);
     const draftSaveUrl = useMemo(() => storeDraft.url(), []);
     const resourcesUrl = useMemo(() => resources.url(), []);
+    const draftAutosaveMessage = useMemo(() => {
+        if (draftAutosaveStatus === 'idle') {
+            return null;
+        }
+
+        if (draftAutosaveStatus === 'saving') {
+            return 'Autosaving draft...';
+        }
+
+        if (draftAutosaveStatus === 'error') {
+            return 'Autosave failed';
+        }
+
+        const savedAt = lastDraftAutosaveAt?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return savedAt ? 'Draft autosaved at ' + savedAt : 'Draft autosaved';
+    }, [draftAutosaveStatus, lastDraftAutosaveAt]);
 
     // Shared payload builder for both Save & Validate and Save Draft (Issue #548)
     const buildPayload = useCallback(() => {
@@ -1770,6 +2006,7 @@ export default function DataCiteForm({
             language: string;
             titles: { title: string; titleType: string; language?: string | null }[];
             licenses: string[];
+            customLicenses: { name: string; uri: string; sourceResourceRightId?: number | null }[];
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
             mslLaboratories: {
@@ -1826,6 +2063,7 @@ export default function DataCiteForm({
             datacenters: number[];
             importedCreatedDate: string | null;
             resourceId?: number;
+            rawRights: DataCiteFormProps['initialRawRights'];
         } = {
             doi: form.doi?.trim() || null,
             year: form.year ? Number(form.year) : null,
@@ -1837,7 +2075,19 @@ export default function DataCiteForm({
                 titleType: entry.titleType,
                 language: entry.language ?? null,
             })),
-            licenses: licenseEntries.map((entry) => entry.license).filter((license): license is string => Boolean(license)),
+            licenses: licenseEntries
+                .filter(isCatalogLicensePayloadEntry)
+                .map((entry) => entry.license),
+            customLicenses: licenseEntries
+                .filter(isCustomLicensePayloadEntry)
+                .map((entry) => ({
+                    name: entry.name.trim(),
+                    uri: entry.uri.trim(),
+                    ...(entry.sourceResourceRightId != null ? { sourceResourceRightId: entry.sourceResourceRightId } : {}),
+                })),
+            rawRights: licenseEntries
+                .filter(isRawRightsOnlyLicenseEntry)
+                .map(serializeRawRightsOnlyLicenseEntry),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -1855,8 +2105,9 @@ export default function DataCiteForm({
                 })),
             dates: dates.filter(hasValidDateValue).map((date) => ({
                 dateType: date.dateType,
+                dateMode: date.dateMode,
                 startDate: buildDateTime(date.startDate ?? '', date.startTime, date.startTimezone) || null,
-                endDate: buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null,
+                endDate: date.dateMode === 'range' ? buildDateTime(date.endDate ?? '', date.endTime, date.endTimezone) || null : null,
             })),
             freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
             gcmdKeywords: gcmdKeywords.map((kw) => ({
@@ -1940,6 +2191,95 @@ export default function DataCiteForm({
         spatialTemporalCoverages,
         titles,
     ]);
+
+    const updateDraftAutosaveSignature = useCallback((payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+        const savedPayload = resourceId ? { ...payload, resourceId } : payload;
+
+        try {
+            lastDraftAutosaveSignatureRef.current = JSON.stringify(savedPayload);
+        } catch (error) {
+            console.error('Failed to serialize draft autosave signature', error);
+            lastDraftAutosaveSignatureRef.current = null;
+        }
+    }, []);
+
+    const markDraftAutosaveSaved = useCallback(
+        (payload: ReturnType<typeof buildPayload>, resourceId?: number) => {
+            updateDraftAutosaveSignature(payload, resourceId);
+            setLastDraftAutosaveAt(new Date());
+            setDraftAutosaveStatus('saved');
+        },
+        [updateDraftAutosaveSignature],
+    );
+
+    useEffect(() => {
+        if (resolvedResourceId === null || lastDraftAutosaveSignatureRef.current !== null) {
+            return;
+        }
+
+        try {
+            lastDraftAutosaveSignatureRef.current = JSON.stringify(buildPayload());
+        } catch (error) {
+            console.error('Failed to initialize draft autosave signature', error);
+            lastDraftAutosaveSignatureRef.current = null;
+        }
+    }, [buildPayload, resolvedResourceId]);
+
+    const saveDraftSilently = useCallback(async () => {
+        if (!isDraftSaveable || dateValidationIssues.length > 0 || isSaving || isSavingDraft || draftAutosaveInFlightRef.current) {
+            return;
+        }
+
+        let payload: ReturnType<typeof buildPayload>;
+        let signature: string;
+
+        try {
+            payload = buildPayload();
+            signature = JSON.stringify(payload);
+        } catch (error) {
+            console.error('Failed to prepare draft autosave payload', error);
+            setDraftAutosaveStatus('error');
+            return;
+        }
+
+        if (signature === lastDraftAutosaveSignatureRef.current) {
+            return;
+        }
+
+        draftAutosaveInFlightRef.current = true;
+        setDraftAutosaveStatus('saving');
+
+        try {
+            const response = await axios.post(draftSaveUrl, payload, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+            });
+
+            const data = response.data as DraftSaveResponse | null;
+            const savedResourceId = data?.resource?.id;
+
+            if (savedResourceId) {
+                setResolvedResourceId(savedResourceId);
+            }
+
+            markDraftAutosaveSaved(payload, savedResourceId);
+        } catch (error) {
+            console.error('Failed to autosave draft', error);
+            setDraftAutosaveStatus('error');
+        } finally {
+            draftAutosaveInFlightRef.current = false;
+        }
+    }, [buildPayload, dateValidationIssues.length, draftSaveUrl, isDraftSaveable, isSaving, isSavingDraft, markDraftAutosaveSaved]);
+
+    useEffect(() => {
+        const autosaveTimerId = window.setInterval(() => {
+            void saveDraftSilently();
+        }, DRAFT_AUTOSAVE_INTERVAL_MS);
+
+        return () => window.clearInterval(autosaveTimerId);
+    }, [saveDraftSilently]);
 
     const revealValidationErrors = useCallback(
         (errors: Record<string, string[]>, headerMessage: string) => {
@@ -2161,7 +2501,7 @@ export default function DataCiteForm({
         }
     };
 
-    // Save draft with relaxed validation — only requires Main Title (Issue #548)
+    // Save draft with relaxed validation - only requires Main Title (Issue #548)
     const handleSaveDraft = async () => {
         if (!isDraftSaveable) return;
 
@@ -2169,6 +2509,13 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setMappedValidationErrors([]);
         clearBackendErrors();
+
+        if (dateValidationIssues.length > 0) {
+            setHasAttemptedSubmit(true);
+            revealValidationErrors({ dates: dateValidationIssues }, 'Please resolve the date validation issues before saving your draft.');
+            setIsSavingDraft(false);
+            return;
+        }
 
         const payload = buildPayload();
 
@@ -2180,18 +2527,15 @@ export default function DataCiteForm({
                 },
             });
 
-            interface DraftSaveResponse {
-                message?: string;
-                resource?: { id: number };
-            }
-
             const data = response.data as DraftSaveResponse | null;
             const successMsg = data?.message || 'Draft saved successfully.';
 
             // Persist the resource ID so subsequent saves update rather than duplicate (PR #639 review)
-            if (data?.resource?.id) {
-                setResolvedResourceId(data.resource.id);
+            const savedResourceId = data?.resource?.id;
+            if (savedResourceId) {
+                setResolvedResourceId(savedResourceId);
             }
+            updateDraftAutosaveSignature(payload, savedResourceId);
 
             setHasAttemptedSubmit(false);
 
@@ -2286,6 +2630,13 @@ export default function DataCiteForm({
         </>
     );
 
+    const renderSectionActions = (label: string, tooltip?: string) => (
+        <>
+            <SectionHelpAction label={label} tooltip={tooltip} />
+            {renderAccordionActions()}
+        </>
+    );
+
     // Build global error messages array for ValidationAlert when no mapped navigation errors are present.
     const globalErrorMessages = useMemo(() => {
         if (errorMessage && mappedValidationErrors.length === 0) {
@@ -2336,19 +2687,21 @@ export default function DataCiteForm({
             )}
             <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
                 <AccordionItem value="resource-info">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Resource Information</span>
-                            {renderStatusBadge(resourceInfoStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-6">
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Resource Information',
+                            'Required fields: Year, Resource Type, Main Title, Language, Datacenter',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Resource Information"
                             description="Basic metadata about your dataset including identifiers and type."
-                            tooltip="Required fields: Year, Resource Type, Main Title, Language, Datacenter"
                             required
+                            status={renderStatusBadge(resourceInfoStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-12">
                             <InputField
                                 id="doi"
@@ -2478,60 +2831,71 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="licenses-rights">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Licenses and Rights</span>
-                            {renderStatusBadge(licensesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Licenses and Rights',
+                            'At least one license is required. Choose a license that matches your data sharing policy.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Licenses and Rights"
                             description="Specify usage rights and restrictions for your dataset."
-                            tooltip="At least one license is required. Choose a license that matches your data sharing policy."
                             required
                             counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
+                            status={renderStatusBadge(licensesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <div className="space-y-4">
-                            {licenseEntries.map((entry, index) => (
-                                <LicenseField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    license={entry.license}
-                                    options={licenses.map((l) => ({
-                                        value: l.identifier,
-                                        label: l.name,
-                                    }))}
-                                    onLicenseChange={(val) => handleLicenseChange(index, val)}
-                                    onAdd={addLicense}
-                                    onRemove={() => removeLicense(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddLicense(licenseEntries, MAX_LICENSES)}
-                                    required={index === 0}
-                                    validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
-                                    touched={index === 0 ? getFieldState('license-0').touched : undefined}
-                                    onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
-                                    data-testid={`license-select-${index}`}
-                                />
-                            ))}
+                            {licenseEntries.map((entry, index) => {
+                                const customLicensePayloadIndex = entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
+
+                                return (
+                                    <LicenseField
+                                        key={entry.id}
+                                        id={entry.id}
+                                        entry={entry}
+                                        options={licenses.map((l) => ({
+                                            value: l.identifier,
+                                            label: l.name,
+                                        }))}
+                                        onModeChange={(mode) => handleLicenseModeChange(index, mode)}
+                                        onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
+                                        onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
+                                        onAdd={addLicense}
+                                        onRemove={() => removeLicense(index)}
+                                        isFirst={index === 0}
+                                        canAdd={canAddLicenseEntry(licenseEntries, MAX_LICENSES)}
+                                        required={index === 0}
+                                        customNameRequired={index === 0}
+                                        customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
+                                        validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
+                                        touched={index === 0 ? getFieldState('license-0').touched : undefined}
+                                        onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
+                                        data-testid={`license-select-${index}`}
+                                        customNameTestId={customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined}
+                                        customUriTestId={customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined}
+                                    />
+                                );
+                            })}
                         </div>
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="authors">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Authors</span>
-                            {renderStatusBadge(authorsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Authors', 'At least one author is required. Drag to reorder authors.')}
+                    >
+                        <AccordionSectionHeader
                             label="Authors"
                             description="People or institutions who created this work."
-                            tooltip="At least one author is required. Drag to reorder authors."
                             required
                             counter={{ current: authors.length, max: 100 }}
+                            status={renderStatusBadge(authorsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         {/* Validation issues notification (only after save attempt — Issue #625) */}
                         {hasAttemptedSubmit && <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />}
                         {authorRoleNames.length > 0 && (
@@ -2543,19 +2907,21 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Contributors</span>
-                            {renderStatusBadge(contributorsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Contributors',
+                            'Optional. Contributors can have different roles like Editor, Data Curator, etc.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Contributors"
                             description="Additional people who contributed to this work."
-                            tooltip="Optional. Contributors can have different roles like Editor, Data Curator, etc."
                             counter={{ current: contributors.length, max: 100 }}
+                            status={renderStatusBadge(contributorsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <ContributorField
                             contributors={contributors}
                             onChange={setContributors}
@@ -2566,19 +2932,21 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="descriptions">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Descriptions</span>
-                            {renderStatusBadge(descriptionsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Descriptions',
+                            `Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Descriptions"
                             description="Detailed information about your dataset."
-                            tooltip={`Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`}
                             required
+                            status={renderStatusBadge(descriptionsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <DescriptionField
                             descriptions={descriptions}
                             onChange={handleDescriptionChange}
@@ -2590,19 +2958,18 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Controlled Vocabularies</span>
-                            {renderStatusBadge(controlledVocabulariesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Controlled Vocabularies', 'Improves discoverability by using NASA GCMD and MSL keywords.')}
+                    >
+                        <AccordionSectionHeader
                             label="Controlled Vocabularies"
                             description="Select keywords from standardized vocabularies."
-                            tooltip="Improves discoverability by using NASA GCMD and MSL keywords."
                             counter={{ current: gcmdKeywords.length, max: 100 }}
+                            status={renderStatusBadge(controlledVocabulariesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         {isLoadingVocabularies ? (
                             <div className="py-8 text-center text-muted-foreground">Loading vocabularies...</div>
                         ) : (
@@ -2629,57 +2996,60 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="free-keywords">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Free Keywords</span>
-                            {renderStatusBadge(freeKeywordsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Free Keywords', 'Separate keywords with commas or press Enter.')}
+                    >
+                        <AccordionSectionHeader
                             label="Free Keywords"
                             description="Custom keywords for your dataset."
-                            tooltip="Separate keywords with commas or press Enter."
                             counter={{ current: freeKeywords.length, max: 100 }}
+                            status={renderStatusBadge(freeKeywordsStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
                     </AccordionContent>
                 </AccordionItem>
                 {shouldShowMSLSection && (
                     <AccordionItem value="msl-laboratories">
-                        <AccordionTrigger actions={renderAccordionActions()}>
-                            <div className="flex items-center gap-2">
-                                <span>🔬 Originating Multi-Scale Laboratories</span>
-                                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>
-                                {renderStatusBadge(mslLaboratoriesStatus)}
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <SectionHeader
+                        <AccordionTrigger
+                            className={SECTION_TRIGGER_CLASS_NAME}
+                            actions={renderSectionActions(
+                                'Originating Multi-Scale Laboratories',
+                                'Appears when EPOS/MSL keywords are detected in your dataset.',
+                            )}
+                        >
+                            <AccordionSectionHeader
                                 label="Originating Multi-Scale Laboratories"
                                 description="Select associated EPOS/MSL laboratories."
-                                tooltip="Appears when EPOS/MSL keywords are detected in your dataset."
                                 counter={{ current: mslLaboratories.length, max: 20 }}
+                                badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>}
+                                status={renderStatusBadge(mslLaboratoriesStatus)}
                             />
+                        </AccordionTrigger>
+                        <AccordionContent>
                             {mslValidationInfo && <ValidationAlert severity="info" title="Recommendation" messages={[mslValidationInfo.message]} />}
                             <MSLLaboratoriesField selectedLaboratories={mslLaboratories} onChange={setMslLaboratories} />
                         </AccordionContent>
                     </AccordionItem>
                 )}
                 <AccordionItem value="spatial-temporal-coverage">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Spatial and Temporal Coverage</span>
-                            {renderStatusBadge(spatialTemporalCoverageStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Spatial and Temporal Coverage',
+                            'Supports points, boxes, and polygons for geographic coverage.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Spatial and Temporal Coverage"
                             description="Geographic and time boundaries of your dataset."
-                            tooltip="Supports points, boxes, and polygons for geographic coverage."
                             counter={{ current: spatialTemporalCoverages.length, max: 50 }}
+                            status={renderStatusBadge(spatialTemporalCoverageStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         <SpatialTemporalCoverageField
                             coverages={spatialTemporalCoverages}
                             apiKey={googleMapsApiKey}
@@ -2688,19 +3058,18 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="dates">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Dates</span>
-                            {renderStatusBadge(datesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Dates', 'Add dates like collection period, validity, or other relevant temporal information.')}
+                    >
+                        <AccordionSectionHeader
                             label="Dates"
                             description="Important dates for your dataset."
-                            tooltip="Add dates like collection period, validity, or other relevant temporal information."
                             counter={{ current: dates.length, max: MAX_DATES }}
+                            status={renderStatusBadge(datesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent>
                         {hasAttemptedSubmit && <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />}
                         <div className="space-y-4">
                             {dates.length === 0 ? (
@@ -2716,7 +3085,9 @@ export default function DataCiteForm({
                                 />
                             ) : (
                                 dates.map((entry, index) => {
-                                    const selectedDateType = dateTypeOptions.find((dt) => dt.value === entry.dateType);
+                                    const selectedDateType = dateTypeOptions.find(
+                                        (dt) => normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType),
+                                    );
                                     return (
                                         <DateField
                                             key={entry.id}
@@ -2724,13 +3095,16 @@ export default function DataCiteForm({
                                             startDate={entry.startDate}
                                             endDate={entry.endDate}
                                             dateType={entry.dateType}
+                                            dateMode={entry.dateMode}
                                             startTime={entry.startTime}
                                             endTime={entry.endTime}
                                             startTimezone={entry.startTimezone}
                                             endTimezone={entry.endTimezone}
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions.filter(
-                                                (dt) => dt.value === entry.dateType || !dates.some((d) => d.dateType === dt.value),
+                                                (dt) =>
+                                                    normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType) ||
+                                                    !dates.some((d) => normalizeDateTypeSlug(d.dateType) === normalizeDateTypeSlug(dt.value)),
                                             )}
                                             onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
                                             onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
@@ -2739,6 +3113,7 @@ export default function DataCiteForm({
                                             onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}
                                             onEndTimezoneChange={(val) => handleDateChange(index, 'endTimezone', val)}
                                             onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
+                                            onDateModeChange={(val) => handleDateChange(index, 'dateMode', val)}
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
@@ -2751,19 +3126,22 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="related-work" data-testid="related-work-section">
-                    <AccordionTrigger data-testid="related-work-accordion-trigger" actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Related Work</span>
-                            {renderStatusBadge(relatedWorkStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent data-testid="related-work-accordion-content">
-                        <SectionHeader
+                    <AccordionTrigger
+                        data-testid="related-work-accordion-trigger"
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Related Work',
+                            'DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."
-                            tooltip="DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them."
                             counter={{ current: relatedWorks.length, max: 100 }}
+                            status={renderStatusBadge(relatedWorkStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="related-work-accordion-content">
                         <RelatedWorkField
                             relatedWorks={relatedWorks}
                             onChange={setRelatedWorks}
@@ -2773,53 +3151,61 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="citations" data-testid="citations-section">
-                    <AccordionTrigger data-testid="citations-accordion-trigger" actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Citations</span>
-                        </div>
+                    <AccordionTrigger
+                        data-testid="citations-accordion-trigger"
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            RELATED_ITEMS_SECTION_LABEL,
+                            RELATED_ITEMS_SECTION_HELP,
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label={RELATED_ITEMS_SECTION_LABEL}
+                            description={RELATED_ITEMS_SECTION_DESCRIPTION}
+                        />
                     </AccordionTrigger>
                     <AccordionContent data-testid="citations-accordion-content">
-                        <SectionHeader
-                            label="Citations"
-                            description="Inline citation metadata (DataCite 4.7 relatedItem)."
-                            tooltip="Use the Citation Manager to add publications cited by or supplementing this dataset. Each entry carries full metadata (authors, title, year, pages)."
-                        />
                         <CitationsField resourceId={resolvedResourceId} />
                     </AccordionContent>
                 </AccordionItem>
                 {shouldShowUsedInstrumentsSection && (
                     <AccordionItem value="used-instruments" data-testid="used-instruments-section">
-                        <AccordionTrigger data-testid="used-instruments-accordion-trigger" actions={renderAccordionActions()}>
-                            <div className="flex items-center gap-2">
-                                <span>Used Instruments</span>
-                                {renderStatusBadge(instrumentsStatus)}
-                            </div>
-                        </AccordionTrigger>
-                        <AccordionContent data-testid="used-instruments-accordion-content">
-                            <SectionHeader
+                        <AccordionTrigger
+                            data-testid="used-instruments-accordion-trigger"
+                            className={SECTION_TRIGGER_CLASS_NAME}
+                            actions={renderSectionActions(
+                                'Used Instruments',
+                                'Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers.',
+                            )}
+                        >
+                            <AccordionSectionHeader
                                 label="Used Instruments"
                                 description="Research instruments used for data collection."
-                                tooltip="Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers."
                                 counter={{ current: instruments.length, max: 100 }}
+                                status={renderStatusBadge(instrumentsStatus)}
                             />
+                        </AccordionTrigger>
+                        <AccordionContent data-testid="used-instruments-accordion-content">
                             <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
                         </AccordionContent>
                     </AccordionItem>
                 )}
                 <AccordionItem value="funding-references">
-                    <AccordionTrigger actions={renderAccordionActions()}>
-                        <div className="flex items-center gap-2">
-                            <span>Funding References</span>
-                            {renderStatusBadge(fundingReferencesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent id="funding-references-section">
-                        <SectionHeader
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Funding References',
+                            'ROR lookup available for funder identification. Include grant numbers when available.',
+                        )}
+                    >
+                        <AccordionSectionHeader
                             label="Funding References"
                             description="Grant and funder information."
-                            tooltip="ROR lookup available for funder identification. Include grant numbers when available."
                             counter={{ current: fundingReferences.length, max: 50 }}
+                            status={renderStatusBadge(fundingReferencesStatus)}
                         />
+                    </AccordionTrigger>
+                    <AccordionContent id="funding-references-section">
                         <FundingReferenceField value={fundingReferences} onChange={setFundingReferences} />
                     </AccordionContent>
                 </AccordionItem>
@@ -2835,57 +3221,67 @@ export default function DataCiteForm({
                         : []
                 }
             />
-            <div className="flex justify-end gap-3">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span tabIndex={0}>
-                            {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
-                                Drafts are partial saves — legacy keyword replacement is only
-                                required for full validation (Save & Validate). */}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                data-testid="save-draft-button"
-                                disabled={!isDraftSaveable || isSavingDraft || isSaving}
-                                aria-busy={isSavingDraft}
-                                onClick={handleSaveDraft}
-                            >
-                                <Save className="mr-2 h-4 w-4" />
-                                {isSavingDraft ? 'Saving…' : 'Save Draft'}
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    {!isDraftSaveable && !isSavingDraft && (
-                        <TooltipContent side="top" align="end" className="max-w-sm">
-                            <p className="text-sm">Enter a Main Title to save as draft.</p>
-                        </TooltipContent>
-                    )}
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <span tabIndex={0}>
-                            <Button
-                                type="submit"
-                                data-testid="save-resource-button"
-                                disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                                aria-busy={isSaving}
-                                aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
-                            >
-                                {isSaving ? 'Saving…' : 'Save & Validate'}
-                            </Button>
-                        </span>
-                    </TooltipTrigger>
-                    {hasLegacyKeywords && !isSaving && (
-                        <TooltipContent side="top" align="end" className="max-w-sm">
-                            <div className="space-y-2">
-                                <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
-                                <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
-                            </div>
-                        </TooltipContent>
-                    )}
-                </Tooltip>
+            <div className="flex flex-col items-end gap-2">
+                <div className="flex justify-end gap-3">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                {/* Save Draft is intentionally NOT disabled by hasLegacyKeywords.
+                                    Drafts are partial saves; legacy keyword replacement is only
+                                    required for full validation (Save & Validate). */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    data-testid="save-draft-button"
+                                    disabled={!isDraftSaveable || isSavingDraft || isSaving}
+                                    aria-busy={isSavingDraft}
+                                    onClick={handleSaveDraft}
+                                >
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {isSavingDraft ? 'Saving...' : 'Save Draft'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {!isDraftSaveable && !isSavingDraft && (
+                            <TooltipContent side="top" align="end" className="max-w-sm">
+                                <p className="text-sm">Enter a Main Title to save as draft.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                <Button
+                                    type="submit"
+                                    data-testid="save-resource-button"
+                                    disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                    aria-busy={isSaving}
+                                    aria-disabled={isSaving || isSavingDraft || hasLegacyKeywords}
+                                >
+                                    {isSaving ? 'Saving...' : 'Save & Validate'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {hasLegacyKeywords && !isSaving && (
+                            <TooltipContent side="top" align="end" className="max-w-sm">
+                                <div className="space-y-2">
+                                    <p className="text-sm font-semibold">Cannot save: Legacy keywords detected</p>
+                                    <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
+                                </div>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </div>
+                {draftAutosaveMessage && (
+                    <p
+                        className={draftAutosaveStatus === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}
+                        data-testid="draft-autosave-status"
+                        aria-live="polite"
+                    >
+                        {draftAutosaveMessage}
+                    </p>
+                )}
             </div>
-
             {/* DOI Conflict Modal */}
             {conflictData && (
                 <DoiConflictModal

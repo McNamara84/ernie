@@ -16,7 +16,8 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
 
     const badgeToneClasses: Record<NonNullable<NavItem['badgeTone']>, string> = {
         default: 'bg-sidebar-accent/70 text-sidebar-accent-foreground',
-        primary: 'bg-gfz-primary text-gfz-primary-foreground',
+        primary:
+            'bg-gfz-primary text-gfz-primary-foreground peer-hover/menu-button:text-gfz-primary-foreground peer-data-[active=true]/menu-button:text-gfz-primary-foreground',
         warning: 'bg-amber-500/15 text-amber-700 dark:text-amber-200',
     };
 

@@ -6,22 +6,25 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Service für den Abruf von DOI-Metadaten über die doi.org Content Negotiation API.
+ * Service for fetching DOI metadata through the doi.org Content Negotiation API.
  *
- * Funktioniert registrarunabhängig mit allen DOI-Registraren (DataCite, Crossref, mEDRA, etc.)
+ * Works independently of the DOI registrar (DataCite, Crossref, mEDRA, etc.).
  *
- * API-Dokumentation: https://citation.crosscite.org/docs.html
+ * API documentation: https://citation.crosscite.org/docs.html
  */
 class DataCiteApiService
 {
     use ChecksCacheTagging;
 
     private const DEFAULT_TIMEOUT_SECONDS = 10.0;
+
+    private const RESPONSE_BODY_LOG_EXCERPT_LENGTH = 1000;
 
     /** Sentinel value stored in cache to represent a confirmed 404. */
     private const CACHE_NULL_SENTINEL = '__NULL__';
@@ -55,12 +58,12 @@ class DataCiteApiService
     }
 
     /**
-     * Ruft Metadaten für eine DOI über Content Negotiation ab.
+     * Fetch metadata for a DOI through Content Negotiation.
      *
      * Results are cached for 24 hours to reduce load on doi.org.
      *
-     * @param  string  $doi  Die DOI, für die Metadaten abgerufen werden sollen
-     * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
+     * @param  string  $doi  The DOI to fetch metadata for
+     * @return array<string, mixed>|null The metadata array, or null on failure
      */
     public function getMetadata(string $doi, ?float $timeoutSeconds = null, bool $cacheTransientFailure = true): ?array
     {
@@ -118,7 +121,17 @@ class DataCiteApiService
                 ->get($url);
 
             if ($response->successful()) {
-                return $response->json();
+                $metadata = $response->json();
+
+                if (is_array($metadata)) {
+                    return $metadata;
+                }
+
+                Log::warning("DOI resolution returned non-JSON metadata for {$originalDoi}", [
+                    ...$this->responseLogContext($response),
+                ]);
+
+                return self::CACHE_TRANSIENT_FAILURE;
             }
 
             if ($response->status() === 404) {
@@ -128,8 +141,7 @@ class DataCiteApiService
             }
 
             Log::warning("DOI resolution error for {$originalDoi}", [
-                'status' => $response->status(),
-                'body' => $response->body(),
+                ...$this->responseLogContext($response),
             ]);
 
             return self::CACHE_TRANSIENT_FAILURE;
@@ -143,51 +155,108 @@ class DataCiteApiService
     }
 
     /**
-     * Erstellt einen Zitationsstring aus CSL JSON Metadaten.
+     * Build a citation string from CSL JSON metadata.
      *
-     * CSL JSON ist das Standardformat der doi.org Content Negotiation API.
+     * CSL JSON is the standard format returned by the doi.org Content Negotiation API.
      *
-     * @param  array<string, mixed>  $metadata  Die Metadaten von doi.org
-     * @return string Die formatierte Zitation
+     * @param  array<string, mixed>  $metadata  The metadata from doi.org
+     * @return string The formatted citation
      */
     public function buildCitationFromMetadata(array $metadata): string
     {
-        // Autoren aus CSL JSON Format extrahieren
-        $authors = $metadata['author'] ?? [];
+        // Extract authors from CSL JSON.
+        $authors = is_array($metadata['author'] ?? null) ? $metadata['author'] : [];
         $authorStrings = [];
         foreach ($authors as $author) {
-            $family = isset($author['family']) && is_string($author['family']) ? $author['family'] : null;
-            $given = isset($author['given']) && is_string($author['given']) ? $author['given'] : null;
-            $literal = isset($author['literal']) && is_string($author['literal']) ? $author['literal'] : null;
+            if (! is_array($author)) {
+                continue;
+            }
 
-            if ($family !== null && $given !== null) {
+            $family = $this->metadataString($author['family'] ?? null);
+            $given = $this->metadataString($author['given'] ?? null);
+            $literal = $this->metadataString($author['literal'] ?? null);
+
+            if ($family !== '' && $given !== '') {
                 $authorStrings[] = $family.', '.$this->abbreviateGivenName($given);
-            } elseif ($literal !== null) {
+            } elseif ($literal !== '') {
                 $authorStrings[] = $literal;
-            } elseif ($family !== null) {
+            } elseif ($family !== '') {
                 $authorStrings[] = $family;
             }
         }
         $authorsString = ! empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
 
-        // Jahr extrahieren - verschiedene mögliche Felder prüfen
-        $year = $metadata['issued']['date-parts'][0][0] ??
-                $metadata['published']['date-parts'][0][0] ??
-                $metadata['created']['date-parts'][0][0] ??
-                'n.d.';
+        // Extract the year from several possible CSL date fields.
+        $year = $this->metadataYear($metadata);
 
-        // Titel extrahieren
-        $title = $metadata['title'] ?? 'Untitled';
+        // Extract the title.
+        $title = $this->metadataString($metadata['title'] ?? null, 'Untitled');
 
-        // Verlag extrahieren
-        $publisher = $metadata['publisher'] ?? 'Unknown Publisher';
+        // Extract the publisher.
+        $publisher = $this->metadataString($metadata['publisher'] ?? null, 'Unknown Publisher');
 
-        // DOI extrahieren
-        $doi = $metadata['DOI'] ?? '';
-        $doiUrl = $doi ? "https://doi.org/{$doi}" : '';
+        // Extract the DOI.
+        $doi = $this->metadataString($metadata['DOI'] ?? null);
+        $cleanDoi = $doi !== '' ? $this->normalizeDoi($doi) : null;
+        $doiUrl = $cleanDoi !== null ? "https://doi.org/{$cleanDoi}" : '';
 
-        // Zitation aufbauen: [Autoren] ([Jahr]): [Titel]. [Verlag]. [DOI URL]
-        return trim("{$authorsString} ({$year}): {$title}. {$publisher}. {$doiUrl}");
+        $segments = [
+            "{$authorsString} ({$year}): {$title}",
+            $publisher,
+        ];
+
+        if ($doiUrl !== '') {
+            $segments[] = $doiUrl;
+        }
+
+        return implode('. ', $segments);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function metadataYear(array $metadata): string
+    {
+        foreach (['issued', 'published', 'created'] as $field) {
+            $date = $metadata[$field] ?? null;
+
+            if (! is_array($date)) {
+                continue;
+            }
+
+            $year = $this->metadataString($date['date-parts'] ?? null);
+
+            if ($year !== '') {
+                return $year;
+            }
+        }
+
+        return 'n.d.';
+    }
+
+    private function metadataString(mixed $value, string $fallback = ''): string
+    {
+        if (is_string($value)) {
+            $value = trim($value);
+
+            return $value !== '' ? $value : $fallback;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                $string = $this->metadataString($item);
+
+                if ($string !== '') {
+                    return $string;
+                }
+            }
+        }
+
+        return $fallback;
     }
 
     /**
@@ -262,8 +331,7 @@ class DataCiteApiService
             }
 
             Log::warning("DataCite REST API error for {$originalDoi}", [
-                'status' => $response->status(),
-                'body' => $response->body(),
+                ...$this->responseLogContext($response),
             ]);
 
             return self::CACHE_TRANSIENT_FAILURE;
@@ -274,6 +342,21 @@ class DataCiteApiService
 
             return self::CACHE_TRANSIENT_FAILURE;
         }
+    }
+
+    /**
+     * @return array{status: int, content_type: string|null, body_excerpt: string, body_truncated: bool}
+     */
+    private function responseLogContext(Response $response): array
+    {
+        $body = $response->body();
+
+        return [
+            'status' => $response->status(),
+            'content_type' => $response->header('Content-Type'),
+            'body_excerpt' => substr($body, 0, self::RESPONSE_BODY_LOG_EXCERPT_LENGTH),
+            'body_truncated' => strlen($body) > self::RESPONSE_BODY_LOG_EXCERPT_LENGTH,
+        ];
     }
 
     /**

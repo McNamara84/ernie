@@ -1,7 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
-import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/components/curation/datacite-form';
+import DataCiteForm, { type InitialAuthor, type InitialContributor, type RawRightsInput } from '@/components/curation/datacite-form';
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -36,6 +36,7 @@ interface EditorProps {
     resourceType?: string;
     titles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
+    initialRawRights?: RawRightsInput[];
     resourceId?: string;
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
@@ -67,6 +68,7 @@ export default function Editor({
     resourceType = '',
     titles = [],
     initialLicenses = [],
+    initialRawRights = [],
     resourceId,
     authors = [],
     contributors = [],
@@ -270,6 +272,7 @@ export default function Editor({
                         initialResourceType={resourceType}
                         initialTitles={titles}
                         initialLicenses={initialLicenses}
+                        initialRawRights={initialRawRights}
                         initialResourceId={resourceId}
                         initialAuthors={authors}
                         initialContributors={contributors}

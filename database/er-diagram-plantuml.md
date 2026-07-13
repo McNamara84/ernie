@@ -535,7 +535,14 @@ entity "resource_rights" as resource_rights {
     * **id** : BIGINT <<PK>>
     --
     * resource_id : BIGINT <<FK>>
-    * rights_id : BIGINT <<FK>>
+    rights_id : BIGINT <<FK>> <<nullable>> //optional catalog link//
+    rights_text : TEXT <<nullable>> //imported DataCite rights//
+    rights_uri : VARCHAR(512) <<nullable>>
+    rights_identifier : VARCHAR(255) <<nullable>>
+    rights_identifier_scheme : VARCHAR(100) <<nullable>>
+    scheme_uri : VARCHAR(512) <<nullable>>
+    language : VARCHAR(10) <<nullable>>
+    source : VARCHAR(100) <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -616,6 +623,7 @@ entity "landing_pages" as landing_pages {
     * template : VARCHAR(50) = 'default_gfz'
     landing_page_template_id : BIGINT <<FK>>
     ftp_url : VARCHAR(2048)
+    * downloads_unavailable : BOOLEAN = false
     external_domain_id : BIGINT <<FK>>
     external_path : VARCHAR(2048)
     * is_published : BOOLEAN = false
@@ -1110,8 +1118,8 @@ related_item_contributors ||--o{ related_item_contributor_affiliations
 identifier_type_patterns }o--|| identifier_types
 funding_references }o--o| funder_identifier_types
 
-' Rights pivot
-resource_rights }o--|| rights
+' Rights statements with optional catalog links
+resource_rights }o--o| rights
 
 ' Polymorphic creator/contributor relationships
 resource_creators }o--o| persons

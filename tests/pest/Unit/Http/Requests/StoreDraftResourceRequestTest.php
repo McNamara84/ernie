@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\RelatedIdentifier;
+use Illuminate\Support\Facades\Validator;
 
 covers(StoreDraftResourceRequest::class);
 
@@ -66,6 +67,61 @@ it('normalizes related identifiers and keeps optional related-work fields only w
     ]);
 });
 
+it('normalizes raw rights statements for draft saves', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [' CC-BY-4.0 ', '', 'CC-BY-4.0'],
+        'rawRights' => [
+            [
+                'rights_text' => ' CC BY 4.0 ',
+                'rightsURI' => ' http://creativecommons.org/licenses/by/4.0 ',
+                'rights_identifier' => ' CC-BY-4.0 ',
+                'rightsIdentifierScheme' => ' SPDX ',
+                'schemeURI' => ' https://spdx.org/licenses/ ',
+                'language' => ' en ',
+                'source' => ' xml-upload ',
+            ],
+            [
+                'rights' => '   ',
+                'rightsUri' => null,
+                'rightsIdentifier' => [],
+                'source' => (object) ['ignored' => true],
+            ],
+            'not-a-statement',
+        ],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('licenses'))->toBe(['CC-BY-4.0'])
+        ->and($request->input('rawRights'))->toBe([
+            [
+                'rights' => 'CC BY 4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                'rightsIdentifier' => 'CC-BY-4.0',
+                'rightsIdentifierScheme' => 'SPDX',
+                'schemeUri' => 'https://spdx.org/licenses/',
+                'lang' => 'en',
+                'source' => 'xml-upload',
+            ],
+        ]);
+});
+
+it('keeps non-array raw rights input unchanged for draft validation', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'rawRights' => 'not-an-array',
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('rawRights'))->toBe('not-an-array');
+});
+
 it('keeps related-work citation label limits aligned between draft and store requests', function (): void {
     $draftRequest = new StoreDraftResourceRequest;
     $storeRequest = new StoreResourceRequest;
@@ -74,4 +130,165 @@ it('keeps related-work citation label limits aligned between draft and store req
         ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS)
         ->and($storeRequest->rules()['relatedIdentifiers.*.citationLabel'])
         ->toContain('max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS);
+});
+
+/**
+ * @param  list<array<string, mixed>>  $dates
+ */
+function validateDraftDatePayload(array $dates): Illuminate\Validation\Validator
+{
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'dates' => $dates,
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    $rules = array_intersect_key($request->rules(), array_flip([
+        'dates',
+        'dates.*.dateType',
+        'dates.*.dateMode',
+        'dates.*.startDate',
+        'dates.*.endDate',
+    ]));
+
+    $validator = Validator::make($request->all(), $rules, $request->messages());
+
+    foreach ($request->after() as $callback) {
+        $validator->after($callback);
+    }
+
+    $validator->passes();
+
+    return $validator;
+}
+
+it('allows closed draft periods for collected, valid, and other dates', function (string $dateType): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => $dateType, 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeFalse()
+        ->and($validator->errors()->has('dates.0.startDate'))->toBeFalse();
+})->with(['collected', 'valid', 'other']);
+
+it('rejects unsupported draft date periods', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'available', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('rejects draft end dates without start dates', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => null, 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.startDate'))->toBeTrue();
+});
+
+it('rejects draft periods whose end date is before the start date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'other', 'dateMode' => 'range', 'startDate' => '2024-02-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+it('rejects draft range date mode without an end date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'range', 'startDate' => '2024-01-01', 'endDate' => null],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('rejects unknown draft date modes', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'collected', 'dateMode' => 'period', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.dateMode'))->toBeTrue();
+});
+
+it('rejects draft single date mode with an end date', function (): void {
+    $validator = validateDraftDatePayload([
+        ['dateType' => 'valid', 'dateMode' => 'single', 'startDate' => '2024-01-01', 'endDate' => '2024-01-31'],
+    ]);
+
+    expect($validator->errors()->has('dates.0.endDate'))->toBeTrue();
+});
+
+it('keeps date mode validation aligned between draft and final resource requests', function (): void {
+    $draftRequest = new StoreDraftResourceRequest;
+    $storeRequest = new StoreResourceRequest;
+
+    expect($draftRequest->rules())->toHaveKey('dates.*.dateMode')
+        ->and($storeRequest->rules())->toHaveKey('dates.*.dateMode');
+});
+
+it('uses position-aware safe URL messages for draft custom license URLs', function (): void {
+    $request = new StoreDraftResourceRequest;
+
+    $validator = Validator::make(
+        [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'customLicenses' => [
+                [
+                    'name' => 'Unsafe License',
+                    'uri' => 'javascript:alert(1)',
+                ],
+            ],
+        ],
+        $request->rules(),
+        $request->messages(),
+        $request->attributes(),
+    );
+
+    expect($validator->fails())->toBeTrue();
+
+    $message = $validator->errors()->first('customLicenses.0.uri');
+
+    expect($message)->toBe('[Licenses & Rights] The Custom license #1 license text URL must use http or https protocol.')
+        ->and($message)->not->toContain('customLicenses.0.uri');
+});
+
+it('normalizes custom licenses for draft saves', function (): void {
+    $request = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+        ],
+        'customLicenses' => [
+            [
+                'rights_text' => ' Community Data License ',
+                'rightsURI' => ' https://example.test/licenses/community-data ',
+                'source_resource_right_id' => '42',
+            ],
+            [
+                'name' => 'Started custom license',
+                'uri' => null,
+            ],
+            [
+                'name' => '   ',
+                'uri' => ' https://example.test/licenses/missing-name ',
+            ],
+            [
+                'sourceResourceRightId' => '43',
+            ],
+        ],
+    ]);
+
+    invokeDraftRequestMethod($request, 'prepareForValidation');
+
+    expect($request->input('customLicenses'))->toBe([
+        [
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'sourceResourceRightId' => 42,
+        ],
+    ]);
 });

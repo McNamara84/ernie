@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -171,6 +173,171 @@ it('rejects guests from deleting resources', function (): void {
 
     $this->delete(route('resources.destroy', $resource))
         ->assertRedirect('/login');
+
+    expect(Resource::find($resource->id))->not->toBeNull();
+});
+it('forbids admins from deleting draft resources with landing pages', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create([
+        'doi' => null,
+    ]);
+    LandingPage::factory()->withoutDoi()->draft()->create([
+        'resource_id' => $resource->id,
+    ]);
+
+    expect($resource->fresh()->publicStatus())->toBe('draft');
+
+    $this->actingAs($admin)
+        ->delete(route('resources.destroy', $resource))
+        ->assertStatus(403);
+
+    expect(Resource::find($resource->id))->not->toBeNull();
+});
+
+it('allows admins to batch delete draft resources without identifiers or landing pages', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $first = Resource::factory()->create(['doi' => null]);
+    $second = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$first->id, $second->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', '2 drafts deleted successfully.');
+
+    expect(Resource::find($first->id))->toBeNull()
+        ->and(Resource::find($second->id))->toBeNull();
+});
+
+it('allows admins to batch delete a single draft resource from duplicate selections', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$resource->id, $resource->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', 'Draft deleted successfully.');
+
+    expect(Resource::find($resource->id))->toBeNull();
+});
+
+it('normalizes duplicate batch delete ids before applying the maximum batch size', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => array_fill(0, DestroyResourcesRequest::MAX_BATCH_SIZE + 1, (string) $resource->id),
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', 'Draft deleted successfully.');
+
+    expect(Resource::find($resource->id))->toBeNull();
+});
+
+it('preserves malformed batch delete ids while deduplicating valid integer ids', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$resource->id, (string) $resource->id, "{$resource->id}.0"],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors('ids.1');
+
+    expect(Resource::find($resource->id))->not->toBeNull();
+});
+
+it('rejects batch deletion when any selected draft has a landing page', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $safeDraft = Resource::factory()->create(['doi' => null]);
+    $draftWithLandingPage = Resource::factory()->create(['doi' => null]);
+    LandingPage::factory()->withoutDoi()->draft()->create([
+        'resource_id' => $draftWithLandingPage->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$safeDraft->id, $draftWithLandingPage->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors('ids');
+
+    expect(Resource::find($safeDraft->id))->not->toBeNull()
+        ->and(Resource::find($draftWithLandingPage->id))->not->toBeNull();
+});
+
+it('rejects batch deletion when any selected draft has a persistent identifier', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $safeDraft = Resource::factory()->create(['doi' => null]);
+    $registeredDraft = Resource::factory()->create(['doi' => '10.5880/test.2026.batch']);
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$safeDraft->id, $registeredDraft->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors('ids');
+
+    expect(Resource::find($safeDraft->id))->not->toBeNull()
+        ->and(Resource::find($registeredDraft->id))->not->toBeNull();
+});
+
+it('rejects beginners from batch deleting draft resources', function (): void {
+    $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->actingAs($beginner)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$resource->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors('ids');
+
+    expect(Resource::find($resource->id))->not->toBeNull();
+});
+
+it('rejects invalid batch delete payloads', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors('ids');
+});
+
+it('reports missing batch delete resources from the controller without exposing individual ids', function (): void {
+    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+    $missingId = ((int) Resource::query()->max('id')) + 1;
+
+    $this->actingAs($admin)
+        ->from(route('resources'))
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$missingId],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHasErrors([
+            'ids' => 'Some selected resources could not be found.',
+        ]);
+});
+
+it('rejects guests from batch deleting resources', function (): void {
+    $resource = Resource::factory()->create(['doi' => null]);
+
+    $this->delete(route('resources.batch-destroy'), [
+        'ids' => [$resource->id],
+    ])->assertRedirect('/login');
 
     expect(Resource::find($resource->id))->not->toBeNull();
 });

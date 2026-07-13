@@ -7,6 +7,7 @@ use App\Services\DataCiteApiService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 covers(DataCiteApiService::class);
 
@@ -200,12 +201,45 @@ describe('getMetadata', function (): void {
 
     it('returns null on HTTP exception', function (): void {
         Http::fake([
-            'doi.org/*' => fn () => throw new \Exception('Connection timeout'),
+            'doi.org/*' => fn () => throw new Exception('Connection timeout'),
         ]);
 
         $result = $this->service->getMetadata('10.5880/test.2024.001');
 
         expect($result)->toBeNull();
+    });
+
+    it('returns null when doi.org responds successfully without JSON metadata', function (): void {
+        Http::fake([
+            'doi.org/*' => Http::response('', 200, ['Content-Type' => 'text/html']),
+        ]);
+
+        $result = $this->service->getMetadata('10.5880/non-json-response');
+
+        expect($result)->toBeNull();
+    });
+
+    it('logs an excerpt and content type for non-JSON DOI responses', function (): void {
+        Log::spy();
+
+        $body = str_repeat('x', 1100);
+
+        Http::fake([
+            'doi.org/*' => Http::response($body, 200, ['Content-Type' => 'text/html; charset=UTF-8']),
+        ]);
+
+        $result = $this->service->getMetadata('10.5880/non-json-response-with-large-body');
+
+        expect($result)->toBeNull();
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'non-JSON metadata')
+                && $context['status'] === 200
+                && $context['content_type'] === 'text/html; charset=UTF-8'
+                && $context['body_excerpt'] === substr($body, 0, 1000)
+                && $context['body_truncated'] === true
+                && ! array_key_exists('body', $context))
+            ->once();
     });
 });
 
@@ -286,6 +320,21 @@ describe('buildCitationFromMetadata', function (): void {
         expect($result)->toContain('(2023)');
     });
 
+    it('falls back when an earlier CSL date field is malformed', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'John']],
+            'issued' => '2024',
+            'published' => ['date-parts' => [[2023]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => '10.5880/test.2024.001',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toContain('(2023)');
+    });
+
     it('falls back to created date-parts when issued and published are missing', function (): void {
         $metadata = [
             'author' => [['family' => 'Doe', 'given' => 'John']],
@@ -339,7 +388,7 @@ describe('buildCitationFromMetadata', function (): void {
         expect($result)->toContain('Unknown Publisher');
     });
 
-    it('omits DOI URL when DOI is missing', function (): void {
+    it('omits DOI segment when DOI is missing', function (): void {
         $metadata = [
             'author' => [['family' => 'Doe', 'given' => 'John']],
             'issued' => ['date-parts' => [[2024]]],
@@ -349,7 +398,21 @@ describe('buildCitationFromMetadata', function (): void {
 
         $result = $this->service->buildCitationFromMetadata($metadata);
 
-        expect($result)->not->toContain('https://doi.org/');
+        expect($result)->toBe('Doe, J. (2024): Test. GFZ');
+    });
+
+    it('omits DOI segment when DOI normalization fails', function (): void {
+        $metadata = [
+            'author' => [['family' => 'Doe', 'given' => 'John']],
+            'issued' => ['date-parts' => [[2024]]],
+            'title' => 'Test',
+            'publisher' => 'GFZ',
+            'DOI' => 'https://doi.org/',
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toBe('Doe, J. (2024): Test. GFZ');
     });
 
     it('abbreviates multiple space-separated given names', function (): void {
@@ -448,6 +511,23 @@ describe('buildCitationFromMetadata', function (): void {
         $result = $this->service->buildCitationFromMetadata($metadata);
 
         expect($result)->toStartWith('Dupont, J.-P. (2024)');
+    });
+
+    it('normalizes array-valued CSL fields before building citations', function (): void {
+        $metadata = [
+            'author' => [
+                ['literal' => ['INTERMAGNET']],
+                ['family' => ['Doe'], 'given' => ['Jane Marie']],
+            ],
+            'issued' => ['date-parts' => [[[2024]]]],
+            'title' => ['Geomagnetic Dataset', 'Alternative Title'],
+            'publisher' => ['GFZ'],
+            'DOI' => ['10.5880/array.2024.001'],
+        ];
+
+        $result = $this->service->buildCitationFromMetadata($metadata);
+
+        expect($result)->toBe('INTERMAGNET; Doe, J. M. (2024): Geomagnetic Dataset. GFZ. https://doi.org/10.5880/array.2024.001');
     });
 });
 
@@ -596,7 +676,7 @@ describe('getDataCiteMetadata', function (): void {
 
     it('returns null on HTTP exception', function (): void {
         Http::fake([
-            'api.datacite.org/*' => fn () => throw new \Exception('Connection timeout'),
+            'api.datacite.org/*' => fn () => throw new Exception('Connection timeout'),
         ]);
 
         $result = $this->service->getDataCiteMetadata('10.5880/test.2024.001');

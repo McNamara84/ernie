@@ -5,13 +5,76 @@ declare(strict_types=1);
 use App\Http\Requests\StoreDraftResourceRequest;
 use App\Models\TitleType;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 covers(StoreDraftResourceRequest::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
     TitleType::factory()->count(5)->create();
+});
+
+describe('licenses validation (draft)', function () {
+    it('accepts null licenses in draft mode', function () {
+        $data = [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'licenses' => null,
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $data);
+
+        $response->assertJsonMissingValidationErrors(['licenses']);
+    });
+
+    it('rejects non-array licenses without throwing during draft normalization', function () {
+        $data = [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'licenses' => 'CC-BY-4.0',
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['licenses']);
+    });
+
+    it('ignores incomplete custom license rows in draft mode', function () {
+        $data = [
+            'titles' => [
+                ['title' => 'Draft Resource', 'titleType' => 'main-title'],
+            ],
+            'customLicenses' => [
+                [
+                    'name' => 'Started custom license',
+                    'uri' => null,
+                ],
+                [
+                    'name' => '',
+                    'uri' => 'https://example.test/licenses/missing-name',
+                ],
+                [
+                    'sourceResourceRightId' => 999999,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $data);
+
+        $response->assertCreated()
+            ->assertJsonMissingValidationErrors([
+                'customLicenses.0.uri',
+                'customLicenses.1.name',
+                'customLicenses.2.name',
+                'customLicenses.2.uri',
+                'customLicenses.2.sourceResourceRightId',
+            ]);
+    });
 });
 
 describe('contributor email/website validation (draft)', function () {

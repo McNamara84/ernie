@@ -1,6 +1,8 @@
-FROM php:8.5.6-fpm-trixie@sha256:e88c4218493214d7d2611dea9707359dc3b0c63814c0a5e9869bd60c1fc92928 AS app-base
+FROM php:8.5.7-fpm-trixie@sha256:a16de52d0ebd4b5f49dc811010d1437f6c70c6c142b75175ac2a94f2d5db9b4f AS app-base
 
 WORKDIR /var/www/html
+
+ARG PHP_REDIS_VERSION=6.3.0
 
 # Install system dependencies needed for the PHP runtime and extension builds.
 RUN apt-get update && apt-get install -y \
@@ -19,6 +21,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     netcat-traditional \
     ca-certificates \
+    libssl3t64 \
+    openssl \
+    openssl-provider-legacy \
     gnupg \
     && apt-get install -y --only-upgrade \
         libcap2 \
@@ -34,10 +39,15 @@ RUN apt-get update && apt-get install -y \
 
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl sockets
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Install Redis extension from the official phpredis source tag.
+RUN set -eux; \
+    curl -fsSL "https://github.com/phpredis/phpredis/archive/refs/tags/${PHP_REDIS_VERSION}.tar.gz" -o /tmp/phpredis.tar.gz; \
+    mkdir -p /usr/src/php/ext/redis; \
+    tar -xzf /tmp/phpredis.tar.gz -C /usr/src/php/ext/redis --strip-components=1; \
+    docker-php-ext-install redis; \
+    rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.9.8@sha256:b09bccd91a78fe8a9ab4b33d707b862e8fe54fec17782e32683ad2a69c46867d /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.1@sha256:c883af18892268b3b8369c4a39c08f80b393383e79d80b75140a3ea489dbbb78 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

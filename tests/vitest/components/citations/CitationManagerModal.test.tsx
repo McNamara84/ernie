@@ -49,7 +49,10 @@ describe('CitationManagerModal', () => {
         renderModal();
 
         await waitFor(() => {
+            expect(screen.getByRole('heading', { name: /Related Item Manager/i })).toBeInTheDocument();
+            expect(screen.getByText(/Manage DataCite related items for this resource/i)).toBeInTheDocument();
             expect(screen.getByText(/No related items yet/i)).toBeInTheDocument();
+            expect(screen.getByText(/Add related resources with full metadata/i)).toBeInTheDocument();
         });
     });
 

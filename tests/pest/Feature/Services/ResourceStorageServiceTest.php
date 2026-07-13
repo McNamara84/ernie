@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
+use App\Models\FunderIdentifierType;
 use App\Models\IdentifierType;
 use App\Models\LandingPage;
 use App\Models\RelationType;
 use App\Models\Resource;
+use App\Models\ResourceInstrument;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
@@ -14,6 +19,7 @@ use App\Services\KeywordSuggestionService;
 use App\Services\ResourceStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -91,6 +97,116 @@ describe('ResourceStorageService', function () {
         expect($resource->descriptions()->count())->toBe(1);
         $description = $resource->descriptions->first();
         expect($description->value)->toBe('Test abstract description.');
+    });
+
+    it('stores imported raw rights without a selected catalog license', function () {
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Imported rights resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'licenses' => [],
+            'rawRights' => [
+                [
+                    'rights' => 'CC BY 4.0',
+                    'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
+                    'source' => 'xml-upload',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Ada',
+                    'lastName' => 'Lovelace',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Imported rights should remain available for SPDX review.',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $resourceRight = ResourceRight::where('resource_id', $resource->id)->first();
+
+        expect($resourceRight)->not->toBeNull()
+            ->and($resourceRight->rights_id)->toBeNull()
+            ->and($resourceRight->rights_text)->toBe('CC BY 4.0')
+            ->and($resourceRight->rights_uri)->toBe('http://creativecommons.org/licenses/by/4.0')
+            ->and($resourceRight->source)->toBe('xml-upload');
+    });
+
+    it('recreates MainTitle title type when storing a resource and the lookup row is missing', function () {
+        TitleType::query()->delete();
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Recovered Main Title Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Recovery',
+                    'position' => 0,
+                ],
+            ],
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->firstOrFail();
+
+        expect($isUpdate)->toBeFalse()
+            ->and($mainTitleType->name)->toBe('Main Title')
+            ->and($resource->titles()->sole()->title_type_id)->toBe($mainTitleType->id);
+    });
+
+    it('stores editor title type slugs using the matching DataCite title type', function () {
+        $resourceType = ResourceType::first();
+        $alternativeTitleType = TitleType::where('slug', 'AlternativeTitle')->firstOrFail();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Recovered Alternative Title Resource',
+                    'titleType' => 'alternative-title',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Recovery',
+                    'position' => 0,
+                ],
+            ],
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+        expect($isUpdate)->toBeFalse()
+            ->and($resource->titles()->sole()->title_type_id)->toBe($alternativeTitleType->id);
     });
 
     it('updates an existing resource', function () {
@@ -183,7 +299,7 @@ describe('ResourceStorageService', function () {
         $resourceType = ResourceType::first();
 
         // Create a test license
-        $license = \App\Models\Right::factory()->create([
+        $license = Right::factory()->create([
             'identifier' => 'test-license',
             'name' => 'Test License',
         ]);
@@ -368,10 +484,10 @@ describe('ResourceStorageService', function () {
     it('stores related identifiers with resolved citation labels and trimmed relation details', function () {
         $resourceType = ResourceType::first();
 
-        $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldReceive('resolveBestEffort')
             ->once()
-            ->with('10.5880/test.related', 'DOI', \Mockery::type('float'))
+            ->with('10.5880/test.related', 'DOI', Mockery::type('float'))
             ->andReturn('Doe, J. (2026): Auto-resolved citation.');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
@@ -435,7 +551,7 @@ describe('ResourceStorageService', function () {
     it('preserves manual related identifier citation labels without calling the resolver', function () {
         $resourceType = ResourceType::first();
 
-        $mock = \Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
         $mock->shouldNotReceive('resolveBestEffort');
         $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
 
@@ -484,6 +600,41 @@ describe('ResourceStorageService', function () {
             ->and($related->relation_type_information)->toBeNull();
     });
 
+    it('coerces non-array related identifiers to an empty list before storage', function () {
+        $resourceType = ResourceType::first();
+
+        $mock = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+        $mock->shouldNotReceive('resolveBestEffort');
+        $this->app->instance(RelatedIdentifierCitationLabelService::class, $mock);
+
+        $service = app(ResourceStorageService::class);
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Test Resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'John',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'relatedIdentifiers' => 'not-an-array',
+        ];
+
+        [$resource] = $service->store($data, $this->user->id);
+
+        expect($resource->relatedIdentifiers()->count())->toBe(0);
+    });
+
     it('stores controlled GCMD keywords', function () {
         $resourceType = ResourceType::first();
 
@@ -530,6 +681,75 @@ describe('ResourceStorageService', function () {
             ->and($subject->subject_scheme)->toBe('Science Keywords')
             ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid')
             ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > SOLID EARTH > Test GCMD Keyword');
+    });
+
+    it('resolves legacy path-only controlled keywords before storing them', function () {
+        Storage::fake('local');
+        Storage::disk('local')->put('gcmd-science-keywords.json', json_encode([
+            'data' => [[
+                'id' => 'earth-science',
+                'text' => 'EARTH SCIENCE',
+                'scheme' => 'NASA/GCMD Earth Science Keywords',
+                'children' => [[
+                    'id' => 'biosphere',
+                    'text' => 'BIOSPHERE',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                    'children' => [[
+                        'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/forests-uri',
+                        'text' => 'FORESTS',
+                        'scheme' => 'NASA/GCMD Earth Science Keywords',
+                        'schemeURI' => 'https://example.test/sciencekeywords',
+                        'children' => [],
+                    ]],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR));
+
+        $resourceType = ResourceType::first();
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Legacy path keyword resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Test abstract.',
+                ],
+            ],
+            'gcmdKeywords' => [
+                [
+                    'id' => '',
+                    'text' => 'EARTH SCIENCE &gt;  BIOSPHERE  &gt; FORESTS',
+                    'path' => 'EARTH SCIENCE &gt;  BIOSPHERE  &gt; FORESTS',
+                    'scheme' => 'NASA/GCMD Earth Science Keywords',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $subject = $resource->subjects()->sole();
+
+        expect($subject->value)->toBe('EARTH SCIENCE > BIOSPHERE > FORESTS')
+            ->and($subject->subject_scheme)->toBe('Science Keywords')
+            ->and($subject->scheme_uri)->toBe('https://example.test/sciencekeywords')
+            ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/forests-uri')
+            ->and($subject->breadcrumb_path)->toBe('EARTH SCIENCE > BIOSPHERE > FORESTS');
     });
 
     it('stores classificationCode for controlled keywords', function () {
@@ -596,6 +816,208 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             $this->artisan('db:seed', ['--class' => 'ResourceTypeSeeder']);
         }
         $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
+    });
+
+    it('stores explicit Collected periods as start and end dates', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Collected Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id);
+
+        $collectedDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['collected']);
+        })->first();
+
+        expect($collectedDate)->not->toBeNull()
+            ->and($collectedDate->date_value)->toBeNull()
+            ->and($collectedDate->start_date)->toBe('2024-01-01')
+            ->and($collectedDate->end_date)->toBe('2024-12-31');
+    });
+
+    it('stores explicit single dates as date_value when only a start date is provided', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Available Single Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-01-01',
+                ],
+            ],
+        ], $this->user->id);
+
+        $availableDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['available']);
+        })->first();
+
+        expect($availableDate)->not->toBeNull()
+            ->and($availableDate->date_value)->toBe('2024-01-01')
+            ->and($availableDate->start_date)->toBeNull()
+            ->and($availableDate->end_date)->toBeNull();
+    });
+
+    it('normalizes date information when storing dates directly', function () {
+        $resourceType = ResourceType::first();
+
+        [$resource] = $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Date Information Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-01-01',
+                    'dateInformation' => '  Approximate availability date  ',
+                ],
+                [
+                    'dateType' => 'Other',
+                    'dateMode' => 'single',
+                    'startDate' => '2024-02-01',
+                    'dateInformation' => '   ',
+                ],
+            ],
+        ], $this->user->id);
+
+        $availableDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['available']);
+        })->first();
+        $otherDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['other']);
+        })->first();
+
+        expect($availableDate)->not->toBeNull()
+            ->and($availableDate->date_information)->toBe('Approximate availability date')
+            ->and($otherDate)->not->toBeNull()
+            ->and($otherDate->date_information)->toBeNull();
+    });
+
+    it('rejects explicit range dates without an end date before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Incomplete Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => null,
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects unsupported explicit range date types before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Unsupported Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'dateMode' => 'range',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects unknown date modes before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Unknown Date Mode Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Collected',
+                    'dateMode' => 'period',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
+    });
+
+    it('rejects non-range date types with start and end dates before storing', function () {
+        $resourceType = ResourceType::first();
+
+        expect(fn () => $this->service->store([
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Legacy Unsupported Period Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'dates' => [
+                [
+                    'dateType' => 'Available',
+                    'startDate' => '2024-01-01',
+                    'endDate' => '2024-12-31',
+                ],
+            ],
+        ], $this->user->id))->toThrow(ValidationException::class);
     });
 
     it('uses imported created date when provided for new resources', function () {
@@ -833,7 +1255,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
                 ->and($instruments[1]->instrument_pid)->toBe('http://hdl.handle.net/21.12132/NEW002');
 
             // Old instrument should be gone
-            expect(\App\Models\ResourceInstrument::where('instrument_pid', 'http://hdl.handle.net/21.12132/OLD001')->exists())->toBeFalse();
+            expect(ResourceInstrument::where('instrument_pid', 'http://hdl.handle.net/21.12132/OLD001')->exists())->toBeFalse();
         });
 
         it('skips instruments with empty pid or name', function () {
@@ -934,7 +1356,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
         it('stores funder_identifier_type_id correctly for ROR funders', function () {
             $resourceType = ResourceType::first();
-            $rorType = \App\Models\FunderIdentifierType::where('name', 'ROR')->first();
+            $rorType = FunderIdentifierType::where('name', 'ROR')->first();
 
             $data = [
                 'resourceId' => null,
@@ -969,7 +1391,7 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
 
         it('stores funder_identifier_type_id correctly for Crossref Funder ID', function () {
             $resourceType = ResourceType::first();
-            $crossrefType = \App\Models\FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
+            $crossrefType = FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
 
             $data = [
                 'resourceId' => null,
@@ -1031,5 +1453,62 @@ describe('ResourceStorageService - Issue #371: Date Created Handling', function 
             expect($funding->funder_identifier_type_id)->toBeNull()
                 ->and($funding->scheme_uri)->toBeNull();
         });
+    });
+
+    it('stores custom licenses as reusable rights catalog entries', function () {
+        $resourceType = ResourceType::first();
+        DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract']
+        );
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Custom license resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'licenses' => [],
+            'customLicenses' => [
+                [
+                    'name' => 'Community Data License',
+                    'uri' => 'https://example.test/licenses/community-data',
+                ],
+            ],
+            'rawRights' => [],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Ada',
+                    'lastName' => 'Lovelace',
+                    'position' => 0,
+                ],
+            ],
+            'descriptions' => [
+                [
+                    'descriptionType' => 'Abstract',
+                    'description' => 'Custom licenses should be persisted as catalog rights.',
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+
+        $right = Right::query()->where('name', 'Community Data License')->sole();
+        $resourceRight = ResourceRight::query()
+            ->where('resource_id', $resource->id)
+            ->where('rights_id', $right->id)
+            ->sole();
+
+        expect($right->identifier)->toStartWith('CUSTOM-COMMUNITY-DATA-LICENSE-')
+            ->and($right->uri)->toBe('https://example.test/licenses/community-data')
+            ->and($right->scheme_uri)->toBeNull()
+            ->and($right->is_active)->toBeTrue()
+            ->and($right->is_elmo_active)->toBeFalse()
+            ->and($resourceRight->rights_id)->toBe($right->id);
     });
 });

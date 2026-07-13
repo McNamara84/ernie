@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Services\SlugGeneratorService;
+use Database\Factories\LandingPageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -22,15 +25,16 @@ use Illuminate\Support\Str;
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
  * @property string|null $ftp_url Direct download URL for the dataset files
+ * @property bool $downloads_unavailable Whether the generated Files section is hidden because no downloads are available
  * @property int|null $external_domain_id FK to landing_page_domains (only for external landing pages)
  * @property string|null $external_path URL path appended to domain (only for external landing pages)
  * @property bool $is_published
  * @property string|null $preview_token
- * @property \Illuminate\Support\Carbon|null $published_at
+ * @property Carbon|null $published_at
  * @property int $view_count
- * @property \Illuminate\Support\Carbon|null $last_viewed_at
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $last_viewed_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read string $public_url Full public URL for the landing page
  * @property-read string|null $preview_url Full preview URL with token
@@ -85,10 +89,10 @@ use Illuminate\Support\Str;
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
  */
-#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
+#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'downloads_unavailable', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
 class LandingPage extends Model
 {
-    /** @use HasFactory<\Database\Factories\LandingPageFactory> */
+    /** @use HasFactory<LandingPageFactory> */
     use HasFactory;
 
     /**
@@ -98,6 +102,7 @@ class LandingPage extends Model
      */
     protected $casts = [
         'is_published' => 'boolean',
+        'downloads_unavailable' => 'boolean',
         'published_at' => 'datetime',
         'last_viewed_at' => 'datetime',
         'view_count' => 'integer',
@@ -319,11 +324,11 @@ class LandingPage extends Model
      * (e.g., "https://geofon.gfz.de/") which is combined with external_path
      * to form the full external landing page URL.
      *
-     * @return BelongsTo<\App\Models\LandingPageDomain, static>
+     * @return BelongsTo<LandingPageDomain, static>
      */
     public function externalDomain(): BelongsTo
     {
-        /** @var BelongsTo<\App\Models\LandingPageDomain, static> $relation */
+        /** @var BelongsTo<LandingPageDomain, static> $relation */
         $relation = $this->belongsTo(LandingPageDomain::class, 'external_domain_id');
 
         return $relation;
@@ -335,11 +340,11 @@ class LandingPage extends Model
      * When set, this provides custom section ordering and logo overrides.
      * When null, the built-in default layout is used.
      *
-     * @return BelongsTo<\App\Models\LandingPageTemplate, static>
+     * @return BelongsTo<LandingPageTemplate, static>
      */
     public function landingPageTemplate(): BelongsTo
     {
-        /** @var BelongsTo<\App\Models\LandingPageTemplate, static> $relation */
+        /** @var BelongsTo<LandingPageTemplate, static> $relation */
         $relation = $this->belongsTo(LandingPageTemplate::class);
 
         return $relation;
@@ -382,7 +387,7 @@ class LandingPage extends Model
             // Log error: published external landing page has no valid external URL.
             // This should not happen due to validation, but if it does,
             // fall through to internal URL as a last resort.
-            \Illuminate\Support\Facades\Log::error(
+            Log::error(
                 'LandingPage::getPublicUrlAttribute: External landing page has no external URL, falling back to internal URL',
                 ['landing_page_id' => $this->id, 'resource_id' => $this->resource_id]
             );
@@ -451,10 +456,10 @@ class LandingPage extends Model
         // Domain already includes trailing slash, path should not have leading slash
         $path = ltrim($this->external_path, '/');
 
-        $baseUrl = rtrim($domain->domain, '/') . '/';
+        $baseUrl = rtrim($domain->domain, '/').'/';
 
         // If path is empty, return just the domain with trailing slash
-        return $path !== '' ? $baseUrl . $path : $baseUrl;
+        return $path !== '' ? $baseUrl.$path : $baseUrl;
     }
 
     /**

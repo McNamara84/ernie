@@ -1,19 +1,26 @@
 <?php
 
 use App\Models\ContributorType;
+use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\Format;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
+use App\Models\ResourceRight;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\DataCiteJsonExporter;
+use App\Services\JsonSchemaValidator;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->exporter = new DataCiteJsonExporter;
@@ -47,6 +54,41 @@ describe('DataCiteJsonExporter - JSON Structure', function () {
             ->and($attributes)->toHaveKey('publisher')
             ->and($attributes)->toHaveKey('types')
             ->and($attributes)->not->toHaveKey('schemaVersion');
+    });
+});
+
+describe('DataCiteJsonExporter - Sizes & Formats', function () {
+    test('exports sizes and formats', function () {
+        $resource = Resource::factory()->create();
+
+        Size::create([
+            'resource_id' => $resource->id,
+            'numeric_value' => 2,
+            'unit' => 'MB',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'text/csv',
+        ]);
+        Format::create([
+            'resource_id' => $resource->id,
+            'value' => 'zip',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $attributes = $result['data']['attributes'];
+
+        expect($attributes)->toHaveKey('sizes', ['2 MB'])
+            ->and($attributes)->toHaveKey('formats', ['text/csv', 'application/zip']);
+    });
+
+    test('omits sizes and formats when none exist', function () {
+        $resource = Resource::factory()->create();
+
+        $attributes = $this->exporter->export($resource)['data']['attributes'];
+
+        expect($attributes)->not->toHaveKey('sizes')
+            ->and($attributes)->not->toHaveKey('formats');
     });
 });
 
@@ -362,6 +404,7 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
             [
                 'name' => 'Creative Commons Attribution 4.0 International',
                 'uri' => 'https://creativecommons.org/licenses/by/4.0/',
+                'scheme_uri' => 'https://spdx.org/licenses/',
             ]
         );
         $resource->rights()->attach($license->id);
@@ -372,6 +415,132 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
         expect($rightsList)->toBeArray()
             ->and($rightsList[0])->toHaveKey('rights', 'Creative Commons Attribution 4.0 International')
             ->and($rightsList[0])->toHaveKey('rightsIdentifier', 'CC-BY-4.0');
+    });
+
+    test('exports unresolved imported rights from raw resource_rights fields', function () {
+        $resource = Resource::factory()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_text' => 'CC BY 4.0',
+            'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'source' => 'xml-upload',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $rightsList = $result['data']['attributes']['rightsList'];
+
+        expect($rightsList)->toHaveCount(1)
+            ->and($rightsList[0])->toMatchArray([
+                'rights' => 'CC BY 4.0',
+                'rightsURI' => 'http://creativecommons.org/licenses/by/4.0',
+                'lang' => 'en',
+            ])
+            ->and($rightsList[0])->not->toHaveKey('rightsIdentifier');
+    });
+
+    test('exports unresolved imported rights identifier metadata when rights text is missing', function () {
+        $resource = Resource::factory()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_uri' => 'https://example.test/custom-license',
+            'rights_identifier' => 'CUSTOM-1.0',
+            'rights_identifier_scheme' => 'LocalScheme',
+            'scheme_uri' => 'https://example.test/schemes/licenses',
+            'source' => 'json-upload',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $rights = $result['data']['attributes']['rightsList'][0];
+
+        expect($rights)->toMatchArray([
+            'rights' => 'CUSTOM-1.0',
+            'rightsURI' => 'https://example.test/custom-license',
+            'rightsIdentifier' => 'CUSTOM-1.0',
+            'rightsIdentifierScheme' => 'LocalScheme',
+            'schemeURI' => 'https://example.test/schemes/licenses',
+        ]);
+    });
+
+    test('exports accepted SPDX rights using catalog values and statement language', function () {
+        $resource = Resource::factory()->create();
+        $license = Right::factory()->ccBy4()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_id' => $license->id,
+            'rights_text' => 'CC BY 4.0',
+            'rights_uri' => 'http://creativecommons.org/licenses/by/4.0',
+            'rights_identifier_scheme' => 'LocalScheme',
+            'scheme_uri' => 'https://example.test/schemes/licenses',
+            'language' => 'de',
+            'source' => 'xml-upload',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $rights = $result['data']['attributes']['rightsList'][0];
+
+        expect($rights)->toMatchArray([
+            'rights' => 'Creative Commons Attribution 4.0 International',
+            'rightsURI' => 'https://creativecommons.org/licenses/by/4.0/',
+            'rightsIdentifier' => 'CC-BY-4.0',
+            'rightsIdentifierScheme' => 'SPDX',
+            'schemeURI' => 'https://spdx.org/licenses/',
+            'lang' => 'de',
+        ]);
+    });
+
+    test('exports linked custom rights without internal identifiers', function () {
+        $resource = Resource::factory()->create();
+        $customRight = Right::query()->create([
+            'identifier' => 'CUSTOM-COMMUNITY-123456789ABC',
+            'name' => 'Community Data License',
+            'uri' => 'https://example.test/licenses/community-data',
+            'scheme_uri' => null,
+        ]);
+
+        ResourceRight::query()->create([
+            'resource_id' => $resource->id,
+            'rights_id' => $customRight->id,
+            'language' => 'de',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $rights = $result['data']['attributes']['rightsList'][0];
+
+        expect($rights)->toMatchArray([
+            'rights' => 'Community Data License',
+            'rightsURI' => 'https://example.test/licenses/community-data',
+            'lang' => 'de',
+        ])
+            ->and($rights)->not->toHaveKey('rightsIdentifier')
+            ->and($rights)->not->toHaveKey('rightsIdentifierScheme')
+            ->and($rights)->not->toHaveKey('schemeURI');
+    });
+    test('uses already loaded resource rights instead of querying them again', function () {
+        $resource = Resource::factory()->create();
+        $license = Right::factory()->ccBy4()->create();
+
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_id' => $license->id,
+            'rights_text' => 'CC BY 4.0',
+        ]);
+
+        $this->exporter->export($resource);
+
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+
+        $this->exporter->export($resource);
+
+        $resourceRightsQueries = collect(DB::getQueryLog())
+            ->filter(fn (array $query): bool => str_contains($query['query'], 'resource_rights'));
+
+        DB::disableQueryLog();
+
+        expect($resourceRightsQueries)->toBeEmpty();
     });
 });
 
@@ -453,7 +622,13 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
     });
 });
 
+use App\Models\IdentifierType;
+use App\Models\IgsnMetadata;
+use App\Models\Language;
 use App\Models\Publisher;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
+use App\Models\ResourceInstrument;
 
 describe('DataCiteJsonExporter - Publisher', function () {
     test('returns default publisher with full DataCite 4.7 fields when none set', function () {
@@ -580,7 +755,7 @@ describe('DataCiteJsonExporter - Publisher', function () {
 
 describe('DataCiteJsonExporter - Optional Fields', function () {
     test('exports language when present', function () {
-        $language = \App\Models\Language::firstOrCreate(
+        $language = Language::firstOrCreate(
             ['code' => 'en'],
             ['name' => 'English', 'active' => true]
         );
@@ -636,7 +811,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -735,7 +910,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -781,7 +956,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -826,7 +1001,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -879,7 +1054,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -932,7 +1107,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -976,7 +1151,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -1035,7 +1210,7 @@ describe('DataCiteJsonExporter - IGSN Contributors as Creators', function () {
         $resource = Resource::factory()->create([
             'resource_type_id' => $this->physicalObjectType->id,
         ]);
-        \App\Models\IgsnMetadata::create([
+        IgsnMetadata::create([
             'resource_id' => $resource->id,
             'sample_type' => 'Rock',
             'upload_status' => 'pending',
@@ -1273,7 +1448,7 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
     test('exports instrument as relatedIdentifier with IsCollectedBy', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
             'instrument_pid_type' => 'Handle',
@@ -1293,7 +1468,7 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
     test('exports multiple instruments as relatedIdentifiers', function () {
         $resource = Resource::factory()->create();
 
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST001',
             'instrument_pid_type' => 'Handle',
@@ -1301,7 +1476,7 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
             'position' => 0,
         ]);
 
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST002',
             'instrument_pid_type' => 'Handle',
@@ -1323,16 +1498,16 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
         $resource = Resource::factory()->create();
 
         // Add a regular relatedIdentifier
-        $doiType = \App\Models\IdentifierType::firstOrCreate(
+        $doiType = IdentifierType::firstOrCreate(
             ['slug' => 'DOI'],
             ['name' => 'DOI', 'slug' => 'DOI', 'is_active' => true]
         );
-        $relationType = \App\Models\RelationType::firstOrCreate(
+        $relationType = RelationType::firstOrCreate(
             ['slug' => 'References'],
             ['name' => 'References', 'slug' => 'References', 'is_active' => true]
         );
 
-        \App\Models\RelatedIdentifier::create([
+        RelatedIdentifier::create([
             'resource_id' => $resource->id,
             'identifier' => '10.1234/example.2024',
             'identifier_type_id' => $doiType->id,
@@ -1341,7 +1516,7 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
         ]);
 
         // Add an instrument
-        \App\Models\ResourceInstrument::factory()->create([
+        ResourceInstrument::factory()->create([
             'resource_id' => $resource->id,
             'instrument_pid' => 'http://hdl.handle.net/21.12132/INST003',
             'instrument_pid_type' => 'Handle',
@@ -1366,4 +1541,46 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
 
         expect($result['data']['attributes'])->not->toHaveKey('relatedIdentifiers');
     });
+});
+
+describe('DataCiteJsonExporter - Date periods', function () {
+    test('exports Collected, Valid, and Other periods as RKMS-ISO8601 interval strings that validate against DataCite JSON schema', function (string $dateTypeSlug, string $dateTypeName) {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/date-period.'.strtolower($dateTypeName),
+            'publication_year' => 2026,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(['slug' => 'main-title'], ['name' => 'Main Title']);
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => $dateTypeName.' Period Export Test',
+            'title_type_id' => $mainTitleType->id,
+        ]);
+
+        $dateType = DateType::firstOrCreate(
+            ['slug' => $dateTypeSlug],
+            ['name' => $dateTypeName, 'slug' => $dateTypeSlug, 'is_active' => true]
+        );
+
+        ResourceDate::create([
+            'resource_id' => $resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2024-01-01',
+            'end_date' => '2024-12-31',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $attributes = $result['data']['attributes'];
+
+        expect($attributes['dates'])->toContain([
+            'dateType' => $dateTypeName,
+            'date' => '2024-01-01/2024-12-31',
+        ]);
+
+        expect((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
+    })->with([
+        'Collected' => ['Collected', 'Collected'],
+        'Valid' => ['Valid', 'Valid'],
+        'Other' => ['Other', 'Other'],
+    ]);
 });

@@ -56,17 +56,10 @@ class OldDatasetKeywordTransformer
      * Transform a keyword from old database format to new format.
      *
      * @param  object  $oldKeyword  Object with properties: keyword, thesaurus, uri, description
-     * @return array<string, string|null>|null Array with keys: id, text, scheme, path, uuid, description
+     * @return array<string, string|null>|null Array with keys: id, text, scheme, schemeURI, path, uuid, description
      */
     public static function transform(object $oldKeyword): ?array
     {
-        // Extract UUID from old URI
-        $uuid = self::extractUuidFromOldUri($oldKeyword->uri ?? null);
-
-        if (! $uuid) {
-            return null;
-        }
-
         // Map to scheme name
         $scheme = self::mapScheme($oldKeyword->thesaurus ?? '');
 
@@ -74,14 +67,35 @@ class OldDatasetKeywordTransformer
             return null;
         }
 
-        // Construct new URI
-        $newUri = self::constructNewUri($uuid);
+        $keyword = trim((string) ($oldKeyword->keyword ?? ''));
+        $schemeUri = self::schemeUriForScheme($scheme);
+
+        // Extract UUID from old URI
+        $uuid = self::extractUuidFromOldUri($oldKeyword->uri ?? null);
+        $newUri = $uuid ? self::constructNewUri($uuid) : null;
+
+        if ($newUri === null && $keyword !== '') {
+            $resolvedKeyword = app(SubjectBreadcrumbPathResolverService::class)
+                ->resolveKeywordFromPath($scheme, $keyword);
+
+            if ($resolvedKeyword !== null) {
+                $newUri = $resolvedKeyword['id'];
+                $uuid = self::extractUuidFromOldUri($newUri);
+                $scheme = $resolvedKeyword['scheme'];
+                $schemeUri = $resolvedKeyword['schemeURI'] ?? self::schemeUriForScheme($scheme);
+            }
+        }
+
+        if ($newUri === null) {
+            return null;
+        }
 
         return [
             'id' => $newUri,
-            'text' => $oldKeyword->keyword ?? '',
+            'text' => $keyword,
             'scheme' => $scheme,
-            'path' => $oldKeyword->keyword ?? '', // The keyword text IS the hierarchical path
+            'schemeURI' => $schemeUri,
+            'path' => $keyword, // The keyword text IS the hierarchical path
             'uuid' => $uuid,
             'description' => $oldKeyword->description ?? null,
         ];
@@ -116,5 +130,10 @@ class OldDatasetKeywordTransformer
     public static function getSupportedThesauri(): array
     {
         return array_keys(self::SCHEME_MAP);
+    }
+
+    private static function schemeUriForScheme(string $scheme): ?string
+    {
+        return app(SubjectBreadcrumbPathResolverService::class)->resolveSchemeUri($scheme);
     }
 }

@@ -103,11 +103,14 @@ describe('RegisterDoiModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGet.mockReset();
+        mockPost.mockReset();
 
         // Default mock for prefix config
         mockGet.mockResolvedValue({
             data: mockPrefixConfig,
         });
+        mockPost.mockRejectedValue(new Error('Unexpected DOI registration request in test.'));
     });
 
     it('renders modal with correct title for new DOI registration', async () => {

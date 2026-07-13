@@ -44,7 +44,7 @@ final readonly class DataCiteXmlImportParser
         private XmlKeywordExtractor $keywordExtractor,
     ) {}
 
-    public function parse(XmlReader $reader, string $filename): DataCiteXmlImportResult
+    public function parse(XmlReader $reader, string $filename, ?string $xmlContents = null): DataCiteXmlImportResult
     {
         $identifierData = $this->identifierParser->parse($reader);
         $resourceType = $identifierData['resourceType'];
@@ -58,7 +58,7 @@ final readonly class DataCiteXmlImportParser
         $isoContactInfo = $this->isoContactParser->parse($reader);
         $authors = $this->mergeContactPersonsIntoAuthors($authors, $contactPersons, $isoContactInfo);
 
-        $descriptions = $this->descriptionParser->parse($reader);
+        $descriptions = $this->descriptionParser->parse($reader, $xmlContents);
         $dates = $this->dateParser->parse($reader);
         $coverages = $this->coverageParser->parse($reader, $dates);
 
@@ -77,7 +77,11 @@ final readonly class DataCiteXmlImportParser
         $mslKeywords = $this->keywordExtractor->extractMslKeywords($reader);
         $gemetKeywords = $this->keywordExtractor->extractGemetKeywords($reader);
 
-        $licenses = $this->rightsParser->parse($reader);
+        $rawRights = $this->rightsParser->parseRawRights($reader);
+        $licenses = array_values(array_filter(array_map(
+            fn (array $rights): ?string => isset($rights['rightsIdentifier']) ? (string) $rights['rightsIdentifier'] : null,
+            $rawRights,
+        )));
         $titles = $this->titleParser->parse($reader);
 
         ['relatedWorks' => $relatedWorks, 'instruments' => $instruments] =
@@ -94,6 +98,7 @@ final readonly class DataCiteXmlImportParser
             resourceType: $resourceType !== null ? (string) $resourceType : null,
             titles: $titles,
             licenses: $licenses,
+            rawRights: $rawRights,
             authors: $authors,
             contributors: $contributors,
             descriptions: $descriptions,

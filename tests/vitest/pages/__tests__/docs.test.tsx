@@ -354,13 +354,24 @@ describe('Docs page', () => {
         expect(screen.queryByText('Custom Landing Page Templates')).not.toBeInTheDocument();
     });
 
-    it('shows citation manager documentation for beginners', async () => {
+    it('shows related item manager documentation for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
-        expect(screen.getByText(/Inline Citations \(DataCite 4\.7/i)).toBeInTheDocument();
+        expect(screen.getByText(/Related Items \(DataCite 4\.7/i)).toBeInTheDocument();
         expect(screen.getByText(/You can open this workflow anywhere ERNIE lets you edit a resource\./i)).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('Related items appear in the Related Work section under the Citations heading, labelled with an Inline metadata badge.');
+            }),
+        ).toBeInTheDocument();
     });
 
     it('hides resource types documentation when no resource types are active', async () => {

@@ -30,7 +30,7 @@ interface CitationCardProps {
  * Renders a single {@link RelatedItem} as a formatted citation with a style
  * toggle (APA / IEEE) and copy-to-clipboard action.
  *
- * Used both in the Citation Manager modal and on public landing pages.
+ * Used both in the Related Item Manager modal and on public landing pages.
  */
 export function CitationCard({
     item,

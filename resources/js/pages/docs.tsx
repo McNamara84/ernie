@@ -580,6 +580,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 
                                 <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
                                 using title-text detection and supporting language hints
+                                <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
+                                license metadata before export
+                            </li>
+                            <li>
+                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose
+                                missing DataCite size and file-format metadata
                             </li>
                         </ul>
 
@@ -598,6 +604,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 evidence (an explicit language attribute on a title, description, or subject; a publisher-name heuristic;
                                 or automatic text detection). Title language suggestions also show the title text, current language,
                                 proposed language, confidence, and evidence summary so you can verify how the recommendation was created.
+                                </p>
+                                <p className="mt-2">
+                                    SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
+                                    Accept links only that rights statement to the shared SPDX catalog. Clicking Decline keeps the imported statement
+                                    unchanged and dismisses the suggestion.
+                                </p>
+                                <p className="mt-2">
+                                    Size and format suggestions show the detected value, source URL, probe method, and confidence level. Size values
+                                    use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
+                                    a suggestion when a resource has multiple download locations.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
@@ -1103,6 +1119,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Drag & Drop Reordering</h4>
                         <p>Reorder authors and contributors by dragging them to the desired position.</p>
+
+                        <h4>Contact Persons</h4>
+                        <p>
+                            Authors can be marked as contact persons with the CP checkbox. When imported metadata contains the same person as both
+                            an author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the
+                            separate creator and Contact Person contributor records required for DataCite export.
+                        </p>
                     </>
                 ),
             },
@@ -1392,18 +1415,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
             },
             {
                 id: 'citation-manager',
-                title: 'Citation Manager',
+                title: 'Related Item Manager',
                 icon: Quote,
                 minRole: 'beginner',
                 content: (
                     <>
                         <h3>
-                            Inline Citations (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
+                            Related Items (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
                         </h3>
                         <p>
-                            The Citation Manager complements plain <em>Related Identifiers</em> by allowing you to attach full bibliographic
-                            metadata for related works — including title, authors, publication year, volume, issue, pages, and publisher —
-                            directly to the resource. This is especially useful when citing a work that has no persistent identifier, or when
+                            The Related Item Manager complements plain <em>Related Identifiers</em> by allowing you to attach full metadata
+                            for resources related to the one being registered, including title, authors, publication year, volume, issue,
+                            pages, and publisher. This is especially useful when a related resource has no persistent identifier, or when
                             the linked record should remain visible even if the external DOI later becomes unavailable.
                         </p>
                         <p>You can open this workflow anywhere ERNIE lets you edit a resource.</p>
@@ -1412,15 +1435,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Resources list:</strong> click the quote icon <code>&quot;</code> in the Actions column of any row to open the
-                                Citation Manager modal for that resource.
+                                Related Item Manager modal for that resource.
                             </li>
                             <li>
-                                <strong>Curation form:</strong> expand the <em>Citations</em> accordion to add, edit, or delete citations while
+                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items while
                                 editing a resource.
                             </li>
                         </ul>
 
-                        <h4>Adding a Citation</h4>
+                        <h4>Adding a Related Item</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Auto-fill by DOI (recommended)">
                                 <p>
@@ -1436,13 +1459,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
                                 <p>
-                                    Every citation requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
+                                    Every related item requires at least one <em>MainTitle</em>. Creators support ORCID and ROR affiliations;
                                     contributors additionally carry a <em>contributorType</em> (Editor, Translator, …).
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Save & Reorder">
                                 <p>
-                                    Citations are persisted immediately. Drag rows in the list to change their display order on the landing
+                                    Related items are persisted immediately. Drag rows in the list to change their display order on the landing
                                     page. Switch between APA and IEEE preview styles and copy the formatted citation with one click.
                                 </p>
                             </WorkflowSteps.Step>
@@ -1450,16 +1473,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Export &amp; Import</h4>
                         <p>
-                            Citations are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
+                            Related items are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
                             <code>&lt;relatedItems&gt;</code>/<code>relatedItems</code> and in the Schema.org landing page markup
                             (<code>citation</code> block). XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on import and
-                            pre-filled in the editor. The DataCite JSON import path imports citations automatically.
+                            pre-filled in the editor. The DataCite JSON import path imports related items automatically.
                         </p>
 
                         <h4>On the Landing Page</h4>
                         <p>
-                            Inline citations appear in the <em>Related Work</em> section alongside standard related identifiers, labelled with
-                            an <em>Inline metadata</em> badge. If the citation has a DOI or URL identifier, the card links out to the external
+                            Related items appear in the <em>Related Work</em> section under the <em>Citations</em> heading, labelled with an{' '}
+                            <em>Inline metadata</em> badge. If the related item has a DOI or URL identifier, the card links out to the external
                             resource.
                         </p>
                     </>
@@ -1517,6 +1540,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             In the landing page setup modal, the primary <strong>Download URL</strong> field now suggests frequently reused base
                             domains and full URLs from existing landing pages. Click into the field to open the suggestions, pick a base domain such
                             as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
+                        </p>
+                        <p>
+                            If a generated GFZ landing page should not offer downloads yet, enable{' '}
+                            <strong>No data available for download</strong> in the same Download URL section. ERNIE keeps the saved primary URL,
+                            imported legacy files, and additional download links in the setup modal, but hides the complete Files section on the
+                            preview and public landing page until the option is disabled again.
                         </p>
 
                         <WorkflowSteps>
@@ -1852,6 +1881,19 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             and reported in the response toast.
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
+
+                        <h4>Resizable Columns</h4>
+                        <p>
+                            On tablet and desktop screens, drag the resize handle at the right edge of a column header to adjust the Resources
+                            table to your available screen width. Focus a handle with the keyboard and use Arrow Left or Arrow Right for fine
+                            adjustments, Shift plus Arrow Left or Arrow Right for larger steps, Home for the minimum width, and End for the
+                            maximum width. ERNIE saves your column widths in this browser, and the reset button above the table restores the
+                            defaults.
+                        </p>
+                        <p>
+                            Long values are shortened with an ellipsis when a column becomes narrow. Hover over a shortened value to see the
+                            complete text in a tooltip.
+                        </p>
 
                         <h4>Responsive Layout</h4>
                         <p>

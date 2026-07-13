@@ -350,7 +350,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = locationFirstRightColumnOrder();
-        $newLeftOrder = ['contact', 'files', 'related_work', 'model_description'];
+        $newLeftOrder = ['contact', 'files', 'dates', 'related_work', 'model_description'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -774,6 +774,7 @@ describe('API List', function (): void {
                 'related_work',
                 'general',
                 'acquisition',
+                'dates',
             ]);
     });
 
@@ -1032,7 +1033,7 @@ describe('Factory', function (): void {
 
     it('creates a template with custom section order', function (): void {
         $rightOrder = locationFirstRightColumnOrder();
-        $leftOrder = ['contact', 'files', 'model_description', 'related_work'];
+        $leftOrder = ['contact', 'files', 'dates', 'model_description', 'related_work'];
 
         $template = LandingPageTemplate::factory()
             ->withSectionOrder($rightOrder, $leftOrder)
@@ -1171,7 +1172,7 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 4 required left column sections
+        // Only 2 of 5 required left column sections
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],

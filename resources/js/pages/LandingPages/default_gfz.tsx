@@ -5,6 +5,7 @@ import type { LandingPageConfig, LandingPageDisplayLimits, LandingPageResource, 
 
 import { AbstractSection } from './components/AbstractSection';
 import { ContactSection } from './components/ContactSection';
+import { DatesSection } from './components/DatesSection';
 import { FilesSection } from './components/FilesSection';
 import { LandingPageShell } from './components/LandingPageShell';
 import { LocationSection } from './components/LocationSection';
@@ -43,7 +44,8 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 };
 
 export default function DefaultGfzTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits } = usePage<DefaultGfzTemplatePageProps>().props;
+    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits } =
+        usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
@@ -52,6 +54,7 @@ export default function DefaultGfzTemplate() {
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
     const leftOrder = sectionOrder?.leftColumn ?? RESOURCE_LEFT_COLUMN_SECTIONS;
+    const downloadsUnavailable = landingPage?.downloads_unavailable === true;
     const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
     const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
     const locationIndex = rightOrder.indexOf('location');
@@ -80,7 +83,7 @@ export default function DefaultGfzTemplate() {
 
     const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
         return {
-            files: (
+            files: downloadsUnavailable ? null : (
                 <FilesSection
                     key="files"
                     downloadUrl={landingPage?.tracked_ftp_url ?? landingPage?.ftp_url}
@@ -91,14 +94,22 @@ export default function DefaultGfzTemplate() {
                     additionalLinks={landingPage?.links}
                 />
             ),
+            dates: <DatesSection key="dates" dates={resource.dates || []} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
-            related_work: <RelatedWorkSection key="related_work" relatedIdentifiers={resource.related_identifiers || []} relatedItems={resource.related_items || []} resource={resource} />,
+            related_work: (
+                <RelatedWorkSection
+                    key="related_work"
+                    relatedIdentifiers={resource.related_identifiers || []}
+                    relatedItems={resource.related_items || []}
+                    resource={resource}
+                />
+            ),
             // IGSN-only sections — not rendered in the default resource template
             general: null,
             acquisition: null,
         };
-    }, [resource, landingPage, mainTitle]);
+    }, [resource, landingPage, mainTitle, downloadsUnavailable]);
 
     return (
         <LandingPageShell

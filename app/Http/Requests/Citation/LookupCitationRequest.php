@@ -11,7 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Validates the payload for the citation lookup API endpoint used by the
- * Citation Manager UI. Rejects obvious garbage early so upstream Crossref /
+ * Related Item Manager UI. Rejects obvious garbage early so upstream Crossref /
  * DataCite calls (and their rate-limit budgets) are not wasted on input that
  * cannot possibly be a DOI.
  */

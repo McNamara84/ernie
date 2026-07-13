@@ -380,6 +380,9 @@ describe('DataCiteForm', () => {
         { id: 7, name: 'Submitted', slug: 'submitted', description: 'The date the creator submits the resource to the publisher.' },
         { id: 8, name: 'Valid', slug: 'valid', description: 'The date range during which the dataset is accurate.' },
         { id: 9, name: 'Withdrawn', slug: 'withdrawn', description: 'The date the resource is removed.' },
+        { id: 10, name: 'Created', slug: 'created', description: 'The date the resource was created.' },
+        { id: 11, name: 'Updated', slug: 'updated', description: 'The date the resource metadata was updated.' },
+        { id: 12, name: 'Coverage', slug: 'coverage', description: 'Temporal coverage for the resource.' },
     ];
 
     const descriptionTypes: DescriptionType[] = [
@@ -409,6 +412,57 @@ describe('DataCiteForm', () => {
                 {...props}
             />,
         );
+
+    describe('Consolidated accordion section headers', () => {
+        it('renders Resource Information as one visible section header with metadata in the trigger', () => {
+            renderDataCiteForm();
+
+            const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+
+            expect(screen.getAllByText('Resource Information')).toHaveLength(1);
+            expect(within(resourceTrigger).getByText('Resource Information')).toBeInTheDocument();
+            expect(within(resourceTrigger).getByText('Basic metadata about your dataset including identifiers and type.')).toBeInTheDocument();
+            expect(within(resourceTrigger).getByLabelText('Required')).toBeInTheDocument();
+            expect(within(resourceTrigger).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+
+            const helpButton = screen.getByRole('button', { name: /Help for Resource Information/i });
+            expect(helpButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
+        });
+
+        it('keeps counters and status indicators in accordion triggers without duplicate content headings', () => {
+            renderDataCiteForm();
+
+            const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+            const authorsTrigger = getAccordionTrigger(/Authors/i);
+            const contributorsTrigger = getAccordionTrigger(/Contributors/i);
+
+            expect(screen.getAllByText('Licenses and Rights')).toHaveLength(1);
+            expect(within(licensesTrigger).getByText('Specify usage rights and restrictions for your dataset.')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByText('(1 / 99)')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByLabelText('Required')).toBeInTheDocument();
+            expect(within(licensesTrigger).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+
+            expect(screen.getAllByText('Authors')).toHaveLength(1);
+            expect(within(authorsTrigger).getByText('(0 / 100)')).toBeInTheDocument();
+            expect(within(authorsTrigger).getByLabelText('Required')).toBeInTheDocument();
+
+            expect(screen.getAllByText('Contributors')).toHaveLength(1);
+            expect(within(contributorsTrigger).getByText('(0 / 100)')).toBeInTheDocument();
+            expect(within(contributorsTrigger).getByLabelText('Optional section')).toBeInTheDocument();
+        });
+
+        it('keeps help actions outside accordion trigger buttons', () => {
+            renderDataCiteForm();
+
+            const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+            const resourceHelp = screen.getByRole('button', { name: /Help for Resource Information/i });
+            const licenseHelp = screen.getByRole('button', { name: /Help for Licenses and Rights/i });
+
+            expect(resourceTrigger).toHaveAttribute('data-slot', 'accordion-trigger');
+            expect(resourceHelp.closest('[data-slot="accordion-trigger"]')).toBeNull();
+            expect(licenseHelp.closest('[data-slot="accordion-trigger"]')).toBeNull();
+        });
+    });
 
     describe('Accordion bulk controls', () => {
         it('renders collapse-all actions next to visible field group triggers and hides expand-all while all are open', async () => {
@@ -1103,7 +1157,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('button', { name: /^Main Title is required\.$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Publication Year is required\.$/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /^Resource Type is required\.$/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /^Primary License is required\.$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^At least one License is required\.$/i })).toBeInTheDocument();
     });
 
     it('shows validation error list on every save attempt, not just the first (Issue #538)', { timeout: 60000 }, async () => {
@@ -2725,6 +2779,250 @@ describe('DataCiteForm', () => {
         expect(toast.success).toHaveBeenCalledWith('Resource stored!');
     });
 
+    it('submits user-entered custom licenses in the payload', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Custom License Dataset', titleType: 'main-title' }]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        await user.click(screen.getByRole('button', { name: 'Custom' }));
+        await user.type(screen.getByRole('textbox', { name: /^License name/ }), 'Community Data License');
+        await user.type(screen.getByRole('textbox', { name: /^License text URL/ }), 'https://example.test/licenses/community-data');
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.licenses).toEqual([]);
+        expect(body.customLicenses).toEqual([
+            {
+                name: 'Community Data License',
+                uri: 'https://example.test/licenses/community-data',
+            },
+        ]);
+        expect(body.rawRights).toEqual([]);
+    });
+
+    it('indexes custom license inputs by custom payload order when catalog rows come first', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialLicenses={['MIT']}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 123,
+                        rights: 'Imported Community License',
+                        rightsUri: 'https://example.test/licenses/imported-community',
+                        source: 'xml-upload',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByTestId('custom-license-name-0')).toHaveValue('Imported Community License');
+        expect(screen.getByTestId('custom-license-uri-0')).toHaveValue('https://example.test/licenses/imported-community');
+        expect(screen.queryByTestId('custom-license-name-1')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('custom-license-uri-1')).not.toBeInTheDocument();
+    });
+
+    it('accepts a complete later license when the first license row is blank', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Later License Dataset', titleType: 'main-title' }]}
+                initialLicenses={['', 'MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(screen.queryByRole('button', { name: /^At least one License is required\.$/i })).not.toBeInTheDocument();
+        expect(body.licenses).toEqual(['MIT']);
+    });
+
+    it('preserves imported raw rights without a URL as raw rights', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Text Only Rights Dataset', titleType: 'main-title' }]}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 456,
+                        rights: 'HyMap imagery is available under commercial End User Licencing Agreements',
+                        source: 'legacy-sumario',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue(
+            'HyMap imagery is available under commercial End User Licencing Agreements',
+        );
+        const licenseTextUrlInput = screen.getByRole('textbox', { name: /^License text URL/ });
+        expect(licenseTextUrlInput).toHaveValue('');
+        expect(licenseTextUrlInput).not.toBeRequired();
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.customLicenses).toEqual([]);
+        expect(body.rawRights).toEqual([
+            {
+                rights: 'HyMap imagery is available under commercial End User Licencing Agreements',
+                rightsUri: null,
+                source: 'legacy-sumario',
+                sourceResourceRightId: 456,
+            },
+        ]);
+    });
+
+    it('round-trips imported raw rights as custom licenses with source row IDs', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Imported Rights Dataset', titleType: 'main-title' }]}
+                initialRawRights={[
+                    {
+                        sourceResourceRightId: 123,
+                        rights: 'Imported Community License',
+                        rightsUri: 'https://example.test/licenses/imported-community',
+                        source: 'xml-upload',
+                    },
+                ]}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const licensesTrigger = getAccordionTrigger(/Licenses and Rights/i);
+        if (licensesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(licensesTrigger);
+        }
+
+        expect(screen.getByRole('textbox', { name: /^License name/ })).toHaveValue('Imported Community License');
+        expect(screen.getByRole('textbox', { name: /^License text URL/ })).toHaveValue('https://example.test/licenses/imported-community');
+
+        await fillRequiredAuthor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.customLicenses).toEqual([
+            {
+                name: 'Imported Community License',
+                uri: 'https://example.test/licenses/imported-community',
+                sourceResourceRightId: 123,
+            },
+        ]);
+        expect(body.rawRights).toEqual([]);
+    });
+
     it('includes the resource identifier when updating an existing dataset', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -3816,11 +4114,13 @@ describe('DataCiteForm', () => {
             const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
             expect(acceptedOption).not.toBeInTheDocument();
 
-            // 'Created' and 'Updated' should also not be available (auto-managed)
+            // 'Created' and 'Updated' are auto-managed; 'Coverage' belongs to Spatial and Temporal Coverage.
             const createdOption = screen.queryByRole('option', { name: 'Created' });
             const updatedOption = screen.queryByRole('option', { name: 'Updated' });
+            const coverageOption = screen.queryByRole('option', { name: 'Coverage' });
             expect(createdOption).not.toBeInTheDocument();
             expect(updatedOption).not.toBeInTheDocument();
+            expect(coverageOption).not.toBeInTheDocument();
         });
 
         it('displays description for selected date type', () => {
@@ -3844,7 +4144,7 @@ describe('DataCiteForm', () => {
             expect(description).toBeInTheDocument();
         });
 
-        it('shows both start and end date fields only for "valid" date type', async () => {
+        it('shows period mode only after selecting it for supported date types', async () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3860,11 +4160,22 @@ describe('DataCiteForm', () => {
                     initialDates={[{ dateType: 'valid', startDate: '', endDate: '' }]}
                 />,
             );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            // "valid" date type should have both start and end date fields (date range)
-            // DatePicker uses combobox role
-            const allComboboxes = screen.getAllByRole('combobox');
-            const datePickerComboboxes = allComboboxes.filter(
+            expect(screen.getByRole('radiogroup', { name: /date mode/i })).toBeInTheDocument();
+            expect(screen.getByText('Single date')).toBeInTheDocument();
+            expect(screen.getByText('Period')).toBeInTheDocument();
+
+            let allComboboxes = screen.getAllByRole('combobox');
+            let datePickerComboboxes = allComboboxes.filter(
+                (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
+            );
+            expect(datePickerComboboxes).toHaveLength(1);
+
+            await user.click(screen.getByText('Period'));
+
+            allComboboxes = screen.getAllByRole('combobox');
+            datePickerComboboxes = allComboboxes.filter(
                 (el) => el.textContent?.includes('Select date') || /\d{4}-\d{2}-\d{2}/.test(el.textContent || ''),
             );
             expect(datePickerComboboxes).toHaveLength(2);
@@ -3916,7 +4227,7 @@ describe('DataCiteForm', () => {
             expect(datePickerComboboxes[0]).toHaveTextContent('2024-01-01');
         });
 
-        it('filters out created and updated dates from initialDates', () => {
+        it('filters out created, updated, and coverage dates from initialDates', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -3932,12 +4243,13 @@ describe('DataCiteForm', () => {
                     initialDates={[
                         { dateType: 'created', startDate: '2024-01-01', endDate: '' },
                         { dateType: 'updated', startDate: '2024-06-15', endDate: '' },
+                        { dateType: 'coverage', startDate: '2024-03-01', endDate: '2024-03-31' },
                         { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
                     ]}
                 />,
             );
 
-            // Only 'accepted' should be shown, 'created' and 'updated' are auto-managed
+            // Only 'accepted' should be shown; created/updated are auto-managed and coverage is edited elsewhere.
             // DatePicker uses combobox role
             const allComboboxes = screen.getAllByRole('combobox');
             const datePickerComboboxes = allComboboxes.filter(
@@ -4451,6 +4763,72 @@ describe('DataCiteForm', () => {
             expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
         });
 
+        it('blocks draft save when a selected date period is incomplete', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn();
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'collected', startDate: '2024-01-01', endDate: '' }]}
+                />,
+            );
+
+            const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(mainTitleInput, 'Draft Dataset');
+
+            await ensureDatesOpen(user);
+            await user.click(screen.getByText('Period'));
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.getAllByText(/End date is required for periods/).length).toBeGreaterThan(0);
+        });
+
+        it('uses a generic date validation header when draft save is blocked by invalid single dates', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn();
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialTitles={[{ title: 'Draft Dataset', titleType: 'main-title' }]}
+                    initialDates={[{ dateType: 'available', dateMode: 'single', startDate: '2999-01-01', endDate: '' }]}
+                />,
+            );
+
+            const draftButton = screen.getByTestId('save-draft-button');
+            await user.click(draftButton);
+
+            expect(mockedAxios.post).not.toHaveBeenCalled();
+            expect(screen.getByText('Please resolve the date validation issues before saving your draft.')).toBeInTheDocument();
+            expect(screen.queryByText('Please complete the date period before saving your draft.')).not.toBeInTheDocument();
+        });
+
         it('redirects to resources after draft save (Issue #624)', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -4502,6 +4880,136 @@ describe('DataCiteForm', () => {
 
             const { toast } = await import('sonner');
             expect(toast.success).toHaveBeenCalledWith('Draft saved.');
+        });
+
+        it('updates the autosave signature without showing autosave status after manual draft save', { timeout: 60000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft saved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            const view = renderDataCiteForm();
+
+            try {
+                const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+                await act(async () => {
+                    fireEvent.change(mainTitleInput, { target: { value: 'Draft Dataset' } });
+                });
+
+                const draftButton = screen.getByTestId('save-draft-button');
+                await act(async () => {
+                    fireEvent.click(draftButton);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
+                expect(mockRouterVisit).toHaveBeenCalledWith(
+                    '/resources',
+                    expect.objectContaining({
+                        onError: expect.any(Function),
+                    }),
+                );
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('autosaves changed draft data without redirecting', { timeout: 30000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft autosaved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            const view = renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+            });
+
+            try {
+                const mainTitleInput = screen.getByRole('textbox', { name: /Title/ });
+                fireEvent.change(mainTitleInput, { target: { value: 'Changed Draft' } });
+
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+
+                await act(async () => {
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+                expect(mockedAxios.post).toHaveBeenCalledWith(
+                    '/editor/resources/draft',
+                    expect.objectContaining({
+                        resourceId: 42,
+                        titles: [{ title: 'Changed Draft', titleType: 'main-title', language: null }],
+                    }),
+                    expect.objectContaining({
+                        headers: expect.objectContaining({
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                        }),
+                    }),
+                );
+                expect(mockRouterVisit).not.toHaveBeenCalled();
+                expect(screen.getByTestId('draft-autosave-status')).toHaveTextContent(/Draft autosaved/);
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not autosave an unchanged loaded draft', { timeout: 30000 }, async () => {
+            vi.useFakeTimers();
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+            mockedAxios.post = vi.fn().mockResolvedValue({
+                data: { message: 'Draft autosaved.', resource: { id: 42 } },
+                status: 200,
+                statusText: 'OK',
+                headers: {},
+                config: {},
+            });
+
+            const view = renderDataCiteForm({
+                initialResourceId: '42',
+                initialTitles: [{ title: 'Initial Draft', titleType: 'main-title' }],
+            });
+
+            try {
+                await act(async () => {
+                    vi.advanceTimersByTime(60_000);
+                    await Promise.resolve();
+                });
+
+                expect(mockedAxios.post).not.toHaveBeenCalled();
+                expect(screen.queryByTestId('draft-autosave-status')).not.toBeInTheDocument();
+            } finally {
+                view.unmount();
+                vi.useRealTimers();
+            }
         });
     });
 

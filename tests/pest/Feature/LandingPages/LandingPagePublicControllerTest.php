@@ -509,6 +509,42 @@ describe('Tracked Download URLs', function () {
             );
     });
 
+    test('published landing pages hide download payloads when downloads are unavailable', function () {
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->downloadsUnavailable()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'downloads-unavailable-test',
+                'ftp_url' => 'https://downloads.example.org/dataset.zip',
+            ]);
+
+        $landingPage->files()->create([
+            'url' => 'https://downloads.example.org/supplement.csv',
+            'position' => 0,
+        ]);
+        $landingPage->links()->create([
+            'url' => 'https://example.org/supporting-repository',
+            'label' => 'Supporting repository',
+            'position' => 0,
+        ]);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('landingPage.downloads_unavailable', true)
+                ->where('landingPage.ftp_url', null)
+                ->where('landingPage.tracked_ftp_url', null)
+                ->where('landingPage.files', [])
+                ->where('landingPage.links', [])
+            );
+
+        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/dataset.zip')
+            ->and($landingPage->fresh()->files)->toHaveCount(1)
+            ->and($landingPage->fresh()->links)->toHaveCount(1);
+    });
+
     test('preview payloads do not expose tracked download URLs', function () {
         $landingPage = LandingPage::factory()
             ->published()
@@ -924,7 +960,7 @@ describe('Landing Page with Custom Template', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.landing_page_template_id', $template->id)
-                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition'])
+                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates'])
             );
     });
 

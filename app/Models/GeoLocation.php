@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * GeoLocation Model (DataCite #18)
@@ -29,8 +31,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property float|null $in_polygon_point_latitude
  * @property float|null $elevation
  * @property string|null $elevation_unit
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Resource $resource
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/properties/geolocation/
@@ -38,7 +40,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['resource_id', 'geo_type', 'place', 'point_longitude', 'point_latitude', 'elevation', 'elevation_unit', 'west_bound_longitude', 'east_bound_longitude', 'south_bound_latitude', 'north_bound_latitude', 'polygon_points', 'in_polygon_point_longitude', 'in_polygon_point_latitude'])]
 class GeoLocation extends Model
 {
-    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    /** @use HasFactory<Factory<static>> */
     use HasFactory;
 
     public const GLOBAL_COVERAGE_TOLERANCE = 0.000001;
@@ -55,6 +57,51 @@ class GeoLocation extends Model
         'in_polygon_point_longitude' => 'decimal:8',
         'in_polygon_point_latitude' => 'decimal:8',
     ];
+
+    public function setPointLongitudeAttribute(mixed $value): void
+    {
+        $this->attributes['point_longitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setPointLatitudeAttribute(mixed $value): void
+    {
+        $this->attributes['point_latitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setElevationAttribute(mixed $value): void
+    {
+        $this->attributes['elevation'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setWestBoundLongitudeAttribute(mixed $value): void
+    {
+        $this->attributes['west_bound_longitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setEastBoundLongitudeAttribute(mixed $value): void
+    {
+        $this->attributes['east_bound_longitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setSouthBoundLatitudeAttribute(mixed $value): void
+    {
+        $this->attributes['south_bound_latitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setNorthBoundLatitudeAttribute(mixed $value): void
+    {
+        $this->attributes['north_bound_latitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setInPolygonPointLongitudeAttribute(mixed $value): void
+    {
+        $this->attributes['in_polygon_point_longitude'] = $this->normaliseNullableDecimal($value);
+    }
+
+    public function setInPolygonPointLatitudeAttribute(mixed $value): void
+    {
+        $this->attributes['in_polygon_point_latitude'] = $this->normaliseNullableDecimal($value);
+    }
 
     /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo
@@ -152,5 +199,18 @@ class GeoLocation extends Model
             : self::GLOBAL_COVERAGE_TOLERANCE;
 
         return abs($actual - $expected) <= $tolerance;
+    }
+
+    private function normaliseNullableDecimal(mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+
+        return is_numeric($value) ? $value : null;
     }
 }

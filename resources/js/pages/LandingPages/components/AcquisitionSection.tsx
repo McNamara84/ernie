@@ -9,7 +9,7 @@ import type {
     LandingPageResourceDate,
 } from '@/types/landing-page';
 
-import { findDateByType } from '../lib/dateHelpers';
+import { findDateByType, formatLandingPageDate } from '../lib/dateHelpers';
 import { LandingPageCard } from './LandingPageCard';
 import { hasVisibleMetadataRows, MetadataList, type MetadataRow } from './MetadataList';
 
@@ -65,30 +65,20 @@ export function AcquisitionSection({
             .map((name) => name.trim()),
     ).join(', ');
 
-    const otherDescription = descriptions.find(
-        (description) => description.description_type?.toLowerCase() === 'other',
-    );
+    const otherDescription = descriptions.find((description) => description.description_type?.toLowerCase() === 'other');
     const trimmedComment = otherDescription?.value?.trim();
-    const comments = trimmedComment
-        ? <span className="whitespace-pre-line">{trimmedComment}</span>
-        : null;
+    const comments = trimmedComment ? <span className="whitespace-pre-line">{trimmedComment}</span> : null;
 
     const chiefScientists = dedup(
         contributors
             .filter((contributor) =>
-                contributor.contributor_types.some(
-                    (type) => type.toLowerCase() === 'data collector' || type.toLowerCase() === 'datacollector',
-                ),
+                contributor.contributor_types.some((type) => type.toLowerCase() === 'data collector' || type.toLowerCase() === 'datacollector'),
             )
             .map(formatContributorName)
             .filter((name): name is string => name !== null),
     ).join(', ');
 
-    const collectedDate = findDateByType(dates, 'Collected');
-    const startDate = collectedDate?.start_date ?? collectedDate?.date_value ?? null;
-    const endDateRaw = collectedDate?.end_date ?? null;
-    // Hide end date if equal to start date (single-day collection rendered as "Start Date" only).
-    const endDate = endDateRaw !== null && endDateRaw !== startDate ? endDateRaw : null;
+    const collectionDate = formatLandingPageDate(findDateByType(dates, 'Collected'));
 
     const collectionMethod = igsn?.collection_method?.trim() || null;
     const collectionMethodDescription = igsn?.collection_method_description?.trim() || null;
@@ -97,9 +87,7 @@ export function AcquisitionSection({
         collectionMethodNode = (
             <span>
                 {collectionMethod}
-                <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">
-                    {collectionMethodDescription}
-                </span>
+                <span className="mt-1 block text-xs text-gray-600 dark:text-gray-400">{collectionMethodDescription}</span>
             </span>
         );
     }
@@ -111,8 +99,7 @@ export function AcquisitionSection({
         { label: 'Funding Agency', value: fundingAgency || null },
         { label: 'Comments', value: comments },
         { label: 'Chief Scientist', value: chiefScientists || null },
-        { label: 'Start Date', value: startDate },
-        { label: 'End Date', value: endDate },
+        { label: 'Collection Date', value: collectionDate },
     ];
 
     const hasContent = hasVisibleMetadataRows(rows);
