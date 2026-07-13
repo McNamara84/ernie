@@ -4,6 +4,7 @@ import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { BaseSuggestionItem, PaginatedData, SuggestedLanguageItem, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
 import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem, SuggestedSpdxRightsItem } from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
@@ -94,6 +95,15 @@ function makeRorSuggestion(overrides: Partial<SuggestedRorItem> = {}): Suggested
     };
 }
 
+function makeLanguageSuggestion(overrides: Partial<SuggestedLanguageItem> = {}): SuggestedLanguageItem {
+    return {
+        id: 3,
+        resource_id: 30,
+        resource_doi: '10.5880/test.2024.003',
+        resource_title: 'Language Test Resource',
+        suggested_value: 'de',
+        suggested_label: 'German (de)',
+        similarity_score: 0.95,
 function makeSpdxRightsSuggestion(overrides: Partial<SuggestedSpdxRightsItem> = {}): SuggestedSpdxRightsItem {
     return {
         id: 3,
@@ -182,6 +192,22 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
+
+describe('LanguageSuggestionCard – confidence', () => {
+    it('shows the confidence percentage in a compact badge', () => {
+        const suggestion = makeLanguageSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'language-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('language-suggestion', 'language', 'Language Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('95% confidence')).toBeInTheDocument();
+        expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+});
 
 describe('OrcidSuggestionCard – ORCID link', () => {
     it('renders the suggested ORCID as a clickable link', () => {

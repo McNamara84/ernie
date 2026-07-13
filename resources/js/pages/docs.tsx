@@ -573,6 +573,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 funders via the ROR API v2
                             </li>
                             <li>
+                                <strong>Suggested Resource Languages</strong> – Finds resources without a language assignment and proposes
+                                the most likely language from title, description, subject, and publisher context.
+                            </li>
+                            <li>
+                                
+                                <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
+                                using title-text detection and supporting language hints
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
                                 license metadata before export
                             </li>
@@ -592,8 +599,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Review suggestions">
                                 <p>
-                                    Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
-                                    score.
+                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
+                                score. Resource language suggestions show the proposed language, a confidence score, and the supporting
+                                evidence (an explicit language attribute on a title, description, or subject; a publisher-name heuristic;
+                                or automatic text detection). Title language suggestions also show the title text, current language,
+                                proposed language, confidence, and evidence summary so you can verify how the recommendation was created.
                                 </p>
                                 <p className="mt-2">
                                     SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
@@ -609,11 +619,38 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to
-                                    permanently dismiss that suggestion.
+                                permanently dismiss that suggestion. Accepting a resource language suggestion updates the resource's
+                                language field directly. For title language suggestions, accepting updates the selected title's
+                                language field and removes the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Resource language evidence:</strong> Suggested Resource Languages follow a documented precedence
+                                order across explicit language attributes on titles, descriptions, and subjects, publisher-name
+                                heuristics, and automatic text detection as a fallback. Multilingual, ambiguous, or low-text records
+                                (e.g. formulas, acronyms, or very short titles) are downgraded to low confidence or skipped entirely
+                                rather than forced into a single dominant language. If a resource&apos;s language changes before a
+                                suggestion is reviewed, ERNIE detects the outdated state and safely dismisses the stale suggestion
+                                instead of overwriting the newer value.
+                            </p>
+                        </div>
 
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Resource
+                                language and typed-title context are used only as supporting evidence. Short, formula-like, acronym-heavy, or
+                                mixed-language titles may be skipped when detection is unreliable. Existing title language values are never
+                                overwritten without curator review.
+                            </p>
+                        </div>
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>DataCite XML export:</strong> Accepted title language suggestions are saved on the selected title and exported
+                                to DataCite XML as an <code>xml:lang</code> attribute when supported.
+                            </p>
+                        </div>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending

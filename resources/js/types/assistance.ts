@@ -50,24 +50,10 @@ export interface BaseSuggestionItem {
     [key: string]: unknown;
 }
 
-export interface SpdxRightsSuggestionMetadata {
-    current?: Record<string, string>;
-    proposed?: Record<string, string>;
-    source?: string;
-    source_url?: string;
-    evidence?: {
-        matched_from?: string | null;
-        reason?: string | null;
-    };
-}
-
-export interface SuggestedSpdxRightsItem extends BaseSuggestionItem {
-    target_type: 'resource_right';
-    target_id: number;
+export interface SuggestedLanguageItem extends BaseSuggestionItem {
     suggested_value: string;
     suggested_label: string;
     similarity_score: number | null;
-    metadata: SpdxRightsSuggestionMetadata | null;
 }
 
 export interface AssistancePageProps {
