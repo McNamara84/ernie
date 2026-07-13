@@ -392,6 +392,124 @@ describe('DataCiteXmlExporter - Titles', function () {
         expect($xml)->toContain('titleType="AlternativeTitle"')
             ->and($xml)->toContain('Alternative Name</title>');
     });
+
+    test('uses title language for xml:lang and falls back to resource language when title language is missing', function () {
+        $french = Language::firstOrCreate(
+            ['code' => 'fr'],
+            ['code' => 'fr', 'name' => 'French', 'active' => true, 'elmo_active' => true]
+        );
+
+        $german = Language::firstOrCreate(
+            ['code' => 'de'],
+            ['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'language_id' => $german->id,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        $subtitleType = TitleType::firstOrCreate(
+            ['slug' => 'Subtitle'],
+            ['name' => 'Subtitle', 'slug' => 'Subtitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Translated Title',
+            'title_type_id' => $subtitleType->id,
+            'language' => $french->code,
+        ]);
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Fallback Title',
+            'title_type_id' => $mainTitleType->id,
+            'language' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleLanguagesByText = [];
+        foreach ($dom->getElementsByTagName('title') as $titleElement) {
+            $titleLanguagesByText[$titleElement->textContent] = $titleElement->getAttribute('xml:lang');
+        }
+
+        expect($titleLanguagesByText)->toHaveCount(2)
+            ->and($titleLanguagesByText['Translated Title'])->toBe('fr')
+            ->and($titleLanguagesByText['Fallback Title'])->toBe('de')
+            ->and($xml)->toContain('Translated Title')
+            ->and($xml)->toContain('Fallback Title');
+    });
+
+    test('ignores invalid title language values and falls back to resource language', function () {
+        $german = Language::firstOrCreate(
+            ['code' => 'de'],
+            ['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'language_id' => $german->id,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Legacy Invalid Language Title',
+            'title_type_id' => $mainTitleType->id,
+            'language' => 'not valid',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleElements = $dom->getElementsByTagName('title');
+
+        expect($titleElements->length)->toBe(1)
+            ->and($titleElements->item(0)?->getAttribute('xml:lang'))->toBe('de');
+    });
+
+    test('does not add xml:lang when title and resource languages are missing', function () {
+        $resource = Resource::factory()->create([
+            'language_id' => null,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Title without Language',
+            'title_type_id' => $mainTitleType->id,
+            'language' => null,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleElements = $dom->getElementsByTagName('title');
+
+        expect($titleElements->length)->toBe(1)
+            ->and($titleElements->item(0)?->hasAttribute('xml:lang'))->toBeFalse()
+            ->and($xml)->toContain('Title without Language');
+    });
 });
 
 describe('DataCiteXmlExporter - Descriptions', function () {

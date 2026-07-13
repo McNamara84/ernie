@@ -165,6 +165,47 @@ it('keeps related-work citation label limits aligned between draft and store req
         ->and($storeRequest->rules())->toHaveKey('relatedIdentifiers.*.source');
 });
 
+it('validates and normalizes title language tags for draft and final resource requests', function (): void {
+    $draftRequest = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Draft Resource', 'titleType' => 'main-title', 'language' => ' EN_us '],
+        ],
+    ]);
+    invokeDraftRequestMethod($draftRequest, 'prepareForValidation');
+
+    $storeRequest = StoreResourceRequest::create('/editor/resources', 'POST', [
+        'titles' => [
+            ['title' => 'Resource', 'titleType' => 'main-title', 'language' => ' DE '],
+        ],
+    ]);
+    $reflection = new ReflectionMethod($storeRequest, 'prepareForValidation');
+    $reflection->setAccessible(true);
+    $reflection->invoke($storeRequest);
+
+    expect($draftRequest->input('titles.0.language'))->toBe('en-us')
+        ->and($storeRequest->input('titles.0.language'))->toBe('de');
+
+    $draftRules = array_intersect_key($draftRequest->rules(), array_flip([
+        'titles',
+        'titles.*.title',
+        'titles.*.titleType',
+        'titles.*.language',
+    ]));
+
+    $invalidRequest = StoreDraftResourceRequest::create('/editor/resources/draft', 'POST', [
+        'titles' => [
+            ['title' => 'Broken Resource', 'titleType' => 'main-title', 'language' => 'not valid'],
+        ],
+    ]);
+    invokeDraftRequestMethod($invalidRequest, 'prepareForValidation');
+
+    $validator = Validator::make($invalidRequest->all(), $draftRules);
+
+    expect($validator->fails())->toBeTrue()
+        ->and($invalidRequest->input('titles.0.language'))->toBe('not valid')
+        ->and($validator->errors()->has('titles.0.language'))->toBeTrue();
+});
+
 /**
  * @param  list<array<string, mixed>>  $dates
  */
