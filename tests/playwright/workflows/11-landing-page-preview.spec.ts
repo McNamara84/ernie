@@ -128,8 +128,9 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // burden - if route patterns change, this test only needs updating if the
         // general URL structure changes.
         const previewUrl = previewPage.url();
+        await previewPage.waitForLoadState('networkidle');
+        expect(previewUrl).not.toBe('about:blank');
         const previewUrlRegex = new RegExp(
-            // Match: /resources/N/landing-page/preview OR /10.NNNN/path/slug?preview= OR /draft-N/slug?preview=
             '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)',
         );
         const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
@@ -137,11 +138,11 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
             isValidPreviewUrl,
             `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`,
         ).toBeTruthy();
-
-        // For semantic URLs, verify the preview token parameter is actually present
         if (!previewUrl.includes('/landing-page/preview')) {
             expect(previewUrl).toContain('?preview=');
         }
+        await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 20000 });
+
 
         // The default template shows this banner in preview mode
         await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 15000 });
