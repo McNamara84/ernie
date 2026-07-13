@@ -17,10 +17,11 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
-use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
+use App\Support\LanguageTag;
 use App\Support\OrcidNormalizer;
 
 /**
@@ -194,12 +195,11 @@ class DataCiteJsonExporter
                 $titleData['titleType'] = $this->convertTitleType($slug);
             }
 
-            // Add language if available
-            if ($resource->language) {
-                $titleData['lang'] = $resource->language->code ?? 'en';
-            } elseif ($resource->igsnMetadata) {
-                // IGSN resources default to English since IGSN CSV doesn't include language
-                $titleData['lang'] = 'en';
+            $lang = LanguageTag::validOrNull($title->language)
+            ?? LanguageTag::validOrNull($resource->language?->code)
+            ?? ($resource->igsnMetadata ? 'en' : null);
+            if ($lang !== null) {
+                $titleData['lang'] = $lang;
             }
 
             $titles[] = $titleData;
