@@ -43,22 +43,23 @@ final class DatabaseDumpService
 
     public function createDump(DatabaseDumpExport $export): void
     {
-        $target = $this->target($export->target_key);
-        $connectionName = (string) $target['connection'];
-        $connection = $this->connectionConfig($connectionName);
-        $client = $this->processRunner->findDumpClient();
-
-        if ($client === null) {
-            $this->markFailed($export, 'No mysqldump or mariadb-dump binary is available in the application container.');
-
-            throw new \RuntimeException('No database dump client is available.');
-        }
-
         $disk = null;
         $path = null;
         $optionFile = null;
+        $failedMessage = null;
 
         try {
+            $target = $this->target($export->target_key);
+            $connectionName = (string) $target['connection'];
+            $connection = $this->connectionConfig($connectionName);
+            $client = $this->processRunner->findDumpClient();
+
+            if ($client === null) {
+                $failedMessage = 'No mysqldump or mariadb-dump binary is available in the application container.';
+
+                throw new \RuntimeException('No database dump client is available.');
+            }
+
             $this->assertLocalDisk($export->disk);
 
             $serverInfo = $this->serverInfoProvider->resolve($connectionName);
@@ -121,7 +122,7 @@ final class DatabaseDumpService
                 }
             }
 
-            $this->markFailed($export, $exception->getMessage());
+            $this->markFailed($export, $failedMessage ?? $exception->getMessage());
 
             throw $exception;
         } finally {

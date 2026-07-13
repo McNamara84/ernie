@@ -175,6 +175,44 @@ it('marks the export failed and removes partial files when the dump process fail
         ->and(Storage::disk('local')->exists('database-dumps/ernie/failure.sql.gz'))->toBeFalse();
 });
 
+it('marks the export failed when the dump target is unknown', function (): void {
+    $runner = new FakeDatabaseDumpProcessRunner;
+    $service = databaseDumpService($runner);
+    $admin = User::factory()->admin()->create();
+    $export = DatabaseDumpExport::factory()->for($admin)->create([
+        'target_key' => 'unknown',
+        'connection_name' => 'missing',
+        'database_name' => 'missing',
+        'disk' => 'local',
+    ]);
+
+    expect(fn () => $service->createDump($export))->toThrow(InvalidArgumentException::class, 'Unknown database dump target.');
+
+    expect($runner->runs)->toBe(0)
+        ->and($export->refresh()->status)->toBe(DatabaseDumpExport::STATUS_FAILED)
+        ->and($export->error_message)->toBe('Unknown database dump target.');
+});
+
+it('marks the export failed when the configured database connection is missing', function (): void {
+    $runner = new FakeDatabaseDumpProcessRunner;
+    $service = databaseDumpService($runner);
+    $admin = User::factory()->admin()->create();
+    config()->set('database_dumps.targets.ernie.connection', 'missing_dump_connection');
+    $export = DatabaseDumpExport::factory()->for($admin)->create([
+        'target_key' => 'ernie',
+        'connection_name' => 'missing_dump_connection',
+        'database_name' => 'ernie_test',
+        'disk' => 'local',
+    ]);
+
+    expect(fn () => $service->createDump($export))
+        ->toThrow(RuntimeException::class, 'Database connection missing_dump_connection is not configured.');
+
+    expect($runner->runs)->toBe(0)
+        ->and($export->refresh()->status)->toBe(DatabaseDumpExport::STATUS_FAILED)
+        ->and($export->error_message)->toBe('Database connection missing_dump_connection is not configured.');
+});
+
 it('fails clearly when no dump client is installed', function (): void {
     $runner = new FakeDatabaseDumpProcessRunner;
     $runner->client = null;
