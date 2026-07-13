@@ -5,7 +5,7 @@ This documentation describes the functionality of the Date Type Normalization an
 ---
 
 ## 1. Overview
-The Date Type Normalization and Completion Assistant helps curators identify missing, incorrect, or implausible DataCite date metadata. It suggests corrections for misused date types (e.g. `Collected` to `Coverage`), discovers missing `Created` and `Issued` dates from external metadata sources (schema.org) and generates review hints for implausible chronological relationships between date types. All suggestions require manual review before they are applied.
+The Date Type Normalization and Completion Assistant helps curators identify missing, incorrect or implausible DataCite date metadata. It suggests corrections for misused date types (`Collected` to `Coverage`), discovers missing `Created` and `Issued` dates from schema.org and generates review hints for implausible chronological relationships between date types. All suggestions require manual review before they are applied.
 
 ---
 
@@ -21,10 +21,15 @@ The assistant checks whether a resource already contains `Created` or `Issued` d
 
 The extraction supports both ISO date strings and numeric year values to handle different schema.org representations.
 
+The schema.org extraction uses the following fields:
+
+- dateCreated for Created
+- datePublished for Issued
+
 A suggestion is created only when:
 
 - the corresponding date type is missing
-- the extracted target date type is supported,
+- the extracted target date type is supported
 - a non-empty normalized date value is available
 
 Accepted suggestions are normalized again before storage. They are not applied if the resource already contains the proposed date type or if the value or target type is invalid.
@@ -40,15 +45,6 @@ The plausibility check supports:
 
 - single date values
 - multiple values of the same date type
-- and date ranges
+- date ranges
 
 For ranges, the end of the earlier value is compared with the start of the later value. Date values are normalized before comparison, and the order in which database rows are returned does not affect the result.
-
----
-
-## 3. Technical Parsing & Implementation Notes
-
-
-### Schema.org Date Extraction
-The assistant extracts `Created` and `Issued` dates from schema.org metadata. The extraction supports both ISO date strings and numeric year values to handle different schema.org representations.
-

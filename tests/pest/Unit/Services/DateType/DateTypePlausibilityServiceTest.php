@@ -204,12 +204,12 @@ it ('returns hints when an earlier range ends after later range start', function
         ->and($warnings[1]['is_ambiguous'])->toBeTrue();
 });
 
-it ('returns no hint when an earlier range ends before a later date starts', function () 
+it ('returns no hint when an earlier range ends before a later range starts', function () 
 {
     $warnings = $this->plausibilityService->hint
     ([
         'Collected' => ['2016-07-03/2018-07-03'],
-        'Issued' => ['2019-07-03'],
+        'Issued' => ['2019-07-03/2020-07-03'],
     ]);
     expect($warnings)->toBe([]);
 });
@@ -234,6 +234,34 @@ it ('ignores invalid legacy date values during plausibility checks', function ()
     ([
         'Created' => ['2018-13-03'],
         'Issued' => ['2019-07-03'],
+    ]);
+    expect($warnings)->toBe([]);
+});
+
+it ('handles different date formats correctly', function () 
+{
+    $warnings = $this->plausibilityService->hint
+    ([
+        'Collected' => ['2016', '2017-07-03', '2018/2019', '2020-08-01/2021'],
+        'Issued' => ['2018'],
+    ]);
+    expect($warnings)->toHaveCount(2)
+        ->and($warnings[0]['suggestion_kind'])->toBe('hint')
+        ->and($warnings[0]['message'])->toBe('Collected (2018/2019) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.')
+        ->and($warnings[0]['confidence'])->toBe('medium')
+        ->and($warnings[0]['is_ambiguous'])->toBeTrue()
+        ->and($warnings[1]['suggestion_kind'])->toBe('hint')
+        ->and($warnings[1]['message'])->toBe('Collected (2020-08-01/2021) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.')
+        ->and($warnings[1]['confidence'])->toBe('medium')
+        ->and($warnings[1]['is_ambiguous'])->toBeTrue();
+});
+
+it ('ignores invalid ranges during plausibility checks', function () 
+{
+    $warnings = $this->plausibilityService->hint
+    ([
+        'Collected' => ['2018-07-03/2016-07-03'],
+        'Issued' => ['2017-07-03'],
     ]);
     expect($warnings)->toBe([]);
 });
