@@ -17,6 +17,24 @@ use Modules\Assistants\DateTypeSuggestion\Assistant;
 
 function createCollectedCoverageSuggestion(Assistant $assistant, Resource $resource): AssistantSuggestion
 {
+    $collectedDates = $resource->dates()
+        ->whereHas('dateType', fn ($query) => $query->where('slug', 'Collected'))
+        ->orderBy('id')
+        ->get();
+    $collectedDateIds = $collectedDates
+        ->pluck('id')
+        ->all();
+    $collectedDatesSnapshot = $collectedDates
+        ->map(fn (ResourceDate $date): array => [
+            'id' => (int) $date->id,
+            'date_value' => $date->date_value,
+            'start_date' => $date->start_date,
+            'end_date' => $date->end_date,
+            'date_information' => $date->date_information,
+        ])
+        ->all();
+    $geoLocationIds = $resource->geoLocations()->orderBy('id')->pluck('id')->all();
+
     return AssistantSuggestion::create([
         'assistant_id' => $assistant->getId(),
         'resource_id' => $resource->id,
@@ -27,6 +45,11 @@ function createCollectedCoverageSuggestion(Assistant $assistant, Resource $resou
         'metadata' => [
             'source' => 'database',
             'check' => 'collected_dates_vs_geolocations',
+            'collected_dates_count' => count($collectedDateIds),
+            'geo_locations_count' => count($geoLocationIds),
+            'collected_date_ids' => $collectedDateIds,
+            'collected_dates_snapshot' => $collectedDatesSnapshot,
+            'geo_location_ids' => $geoLocationIds,
         ],
         'discovered_at' => now(),
     ]);
@@ -226,7 +249,19 @@ it('keeps a stale collected to coverage correction pending when the counts chang
         'target_id' => $resource->id,
         'suggested_value' => 'collected_dates:1;geo_locations:1',
         'suggested_label' => 'Collected dates (1) match geolocations (1)',
-        'metadata' => ['collected_dates_count' => 1, 'geo_locations_count' => 1],
+        'metadata' => [
+            'collected_dates_count' => 1,
+            'geo_locations_count' => 1,
+            'collected_date_ids' => [$originalDate->id],
+            'collected_dates_snapshot' => [[
+                'id' => $originalDate->id,
+                'date_value' => $originalDate->date_value,
+                'start_date' => null,
+                'end_date' => null,
+                'date_information' => null,
+            ]],
+            'geo_location_ids' => $resource->geoLocations()->pluck('id')->all(),
+        ],
         'discovered_at' => now(),
     ]);
     $newDate = ResourceDate::create([
@@ -244,6 +279,62 @@ it('keeps a stale collected to coverage correction pending when the counts chang
         ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
         ->and($originalDate->fresh()->date_type_id)->toBe($collectedType->id)
         ->and($newDate->fresh()->date_type_id)->toBe($collectedType->id);
+});
+
+it('keeps a stale collected to coverage correction pending when a reviewed date was edited in place', function (): void {
+    $assistant = app(Assistant::class);
+    $collectedType = DateType::create(['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]);
+    DateType::create(['name' => 'Coverage', 'slug' => 'Coverage', 'is_active' => true]);
+    $resource = Resource::factory()->create();
+    $reviewedDate = ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $collectedType->id,
+        'date_value' => '2020-01-01',
+    ]);
+    GeoLocation::factory()->withPoint(13.0, 52.0)->create(['resource_id' => $resource->id]);
+    $suggestion = createCollectedCoverageSuggestion($assistant, $resource);
+
+    $reviewedDate->update(['date_value' => '2021-01-01']);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'message' => 'This suggestion is stale because the reviewed Collected dates or geolocations changed.',
+    ])
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and($reviewedDate->fresh()->date_type_id)->toBe($collectedType->id)
+        ->and($reviewedDate->fresh()->date_value)->toBe('2021-01-01');
+});
+
+it('keeps a stale collected to coverage correction pending when the collected rows changed but the count stayed the same', function (): void {
+    $assistant = app(Assistant::class);
+    $collectedType = DateType::create(['name' => 'Collected', 'slug' => 'Collected', 'is_active' => true]);
+    DateType::create(['name' => 'Coverage', 'slug' => 'Coverage', 'is_active' => true]);
+    $resource = Resource::factory()->create();
+    $reviewedDate = ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $collectedType->id,
+        'date_value' => '2020-01-01',
+    ]);
+    GeoLocation::factory()->withPoint(13.0, 52.0)->create(['resource_id' => $resource->id]);
+    $suggestion = createCollectedCoverageSuggestion($assistant, $resource);
+
+    $reviewedDate->delete();
+    $unreviewedDate = ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => $collectedType->id,
+        'date_value' => '2021-01-01',
+    ]);
+
+    $result = $assistant->acceptSuggestion($suggestion->id);
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'message' => 'This suggestion is stale because the reviewed Collected dates or geolocations changed.',
+    ])
+        ->and(AssistantSuggestion::find($suggestion->id))->not->toBeNull()
+        ->and($unreviewedDate->fresh()->date_type_id)->toBe($collectedType->id);
 });
 
 it('keeps a collected to coverage correction pending when no collected dates exist', function (): void {
@@ -854,7 +945,10 @@ it('discovers collected to coverage correction when collected date and geolocati
         ->and($suggestion->metadata['from_date_type'])->toBe('Collected')
         ->and($suggestion->metadata['target_date_type'])->toBe('Coverage')
         ->and($suggestion->metadata['collected_dates_count'])->toBe(1)
-        ->and($suggestion->metadata['geo_locations_count'])->toBe(1);
+        ->and($suggestion->metadata['geo_locations_count'])->toBe(1)
+        ->and($suggestion->metadata['collected_date_ids'])->toHaveCount(1)
+        ->and($suggestion->metadata['collected_dates_snapshot'])->toHaveCount(1)
+        ->and($suggestion->metadata['geo_location_ids'])->toHaveCount(1);
 });
 
 it('stores plausibility hint suggestions', function (): void {
@@ -953,4 +1047,3 @@ it('stores multiple plausibility hint suggestions for the same date type', funct
         ->and($suggestion[1]->metadata['is_ambiguous'])->toBeTrue()
         ->and($suggestion[1]->metadata['source_url'])->toBe('https://doi.org/10.5880/pik.2023.001');
 });
-

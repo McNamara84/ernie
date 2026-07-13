@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\DateType;
 
 use App\Models\Resource;
+use App\Models\ResourceDate;
 use Illuminate\Database\Eloquent\Builder;
 use App\Services\DateType\DateTypeSchemaorgExtractionService;
 use Closure;
@@ -234,6 +235,39 @@ final class DateTypeDiscoveryService
             return false;
         }
 
+        $collectedDates = $resource->dates()
+            ->whereHas('dateType', fn (Builder $query): Builder => $query
+                ->whereIn('slug', self::COLLECTED_DATE_TYPES))
+            ->orderBy('id')
+            ->get(['dates.id', 'date_value', 'start_date', 'end_date', 'date_information']);
+        $collectedDateIds = $collectedDates
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+        $collectedDatesSnapshot = $collectedDates
+            ->map(fn (ResourceDate $date): array => [
+                'id' => (int) $date->id,
+                'date_value' => $date->date_value,
+                'start_date' => $date->start_date,
+                'end_date' => $date->end_date,
+                'date_information' => $date->date_information,
+            ])
+            ->all();
+        $geoLocationIds = $resource->geoLocations()
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        // Counts may have changed since the candidate query was loaded. Only
+        // persist a suggestion when its row snapshots still support the match.
+        $collectedDatesCount = count($collectedDateIds);
+        $geoLocationsCount = count($geoLocationIds);
+
+        if ($collectedDatesCount === 0 || $collectedDatesCount !== $geoLocationsCount) {
+            return false;
+        }
+
         $suggestedValue = "collected_dates:{$collectedDatesCount};geo_locations:{$geoLocationsCount}";
         $suggestedLabel = "Collected dates ({$collectedDatesCount}) match geolocations ({$geoLocationsCount})";
 
@@ -255,6 +289,9 @@ final class DateTypeDiscoveryService
                 'source_url' => 'https://doi.org/'.$resource->doi,
                 'collected_dates_count' => $collectedDatesCount,
                 'geo_locations_count' => $geoLocationsCount,
+                'collected_date_ids' => $collectedDateIds,
+                'collected_dates_snapshot' => $collectedDatesSnapshot,
+                'geo_location_ids' => $geoLocationIds,
                 'evidence' => 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
             ],
         );

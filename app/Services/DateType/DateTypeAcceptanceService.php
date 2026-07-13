@@ -7,6 +7,7 @@ namespace App\Services\DateType;
 use App\Models\AssistantSuggestion;
 use App\Models\DateType;
 use App\Models\ResourceDate;
+use Illuminate\Support\Facades\DB;
 
 final class DateTypeAcceptanceService
 {
@@ -24,7 +25,7 @@ final class DateTypeAcceptanceService
             ];
         }
 
-        $dateValue = DateTypeNormalizerService::normalize( $suggestion->metadata['normalized_value'] ?? $suggestion->suggested_value);
+        $dateValue = DateTypeNormalizerService::normalize($suggestion->metadata['normalized_value'] ?? $suggestion->suggested_value);
 
         if (! is_string($dateValue) || $dateValue === '') {
             return [
@@ -110,18 +111,6 @@ final class DateTypeAcceptanceService
             ];
         }
 
-        $dates = ResourceDate::query()
-            ->where('resource_id', $suggestion->resource_id)
-            ->whereHas('dateType', fn ($query) => $query->where('slug', 'Collected'))
-            ->get();
-
-        if ($dates->isEmpty()) {
-            return [
-                'success' => false,
-                'message' => 'No Collected date entries were found for this resource.',
-            ];
-        }
-
         $metadata = $suggestion->metadata ?? [];
         $expectedCollectedCount = filter_var($metadata['collected_dates_count'] ?? null, FILTER_VALIDATE_INT);
         $expectedGeoLocationCount = filter_var($metadata['geo_locations_count'] ?? null, FILTER_VALIDATE_INT);
@@ -132,29 +121,116 @@ final class DateTypeAcceptanceService
             $expectedGeoLocationCount = isset($matches[2]) ? (int) $matches[2] : null;
         }
 
-        $currentCollectedCount = $dates->count();
-        $currentGeoLocationCount = $suggestion->resource()->first()?->geoLocations()->count();
+        $expectedCollectedDateIds = $this->snapshotIds($metadata['collected_date_ids'] ?? null);
+        $expectedCollectedDatesSnapshot = $metadata['collected_dates_snapshot'] ?? null;
+        $expectedGeoLocationIds = $this->snapshotIds($metadata['geo_location_ids'] ?? null);
 
-        if ($expectedCollectedCount === null
-            || $expectedGeoLocationCount === null
-            || $currentCollectedCount !== $expectedCollectedCount
-            || $currentGeoLocationCount !== $expectedGeoLocationCount
-            || $currentCollectedCount !== $currentGeoLocationCount) {
+        return DB::transaction(function () use (
+            $suggestion,
+            $coverageDateTypeId,
+            $expectedCollectedCount,
+            $expectedGeoLocationCount,
+            $expectedCollectedDateIds,
+            $expectedCollectedDatesSnapshot,
+            $expectedGeoLocationIds,
+        ): array {
+            $dates = ResourceDate::query()
+                ->where('resource_id', $suggestion->resource_id)
+                ->whereHas('dateType', fn ($query) => $query->where('slug', 'Collected'))
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($dates->isEmpty()) {
+                return [
+                    'success' => false,
+                    'message' => 'No Collected date entries were found for this resource.',
+                ];
+            }
+
+            if ($expectedCollectedDateIds === null
+                || ! is_array($expectedCollectedDatesSnapshot)
+                || ! array_is_list($expectedCollectedDatesSnapshot)
+                || $expectedGeoLocationIds === null) {
+                return [
+                    'success' => false,
+                    'message' => 'This suggestion is stale because it does not identify the reviewed Collected dates and geolocations.',
+                ];
+            }
+
+            $currentCollectedDateIds = $dates->pluck('id')->map(fn (mixed $id): int => (int) $id)->all();
+            $currentCollectedDatesSnapshot = $dates
+                ->map(fn (ResourceDate $date): array => [
+                    'id' => (int) $date->id,
+                    'date_value' => $date->date_value,
+                    'start_date' => $date->start_date,
+                    'end_date' => $date->end_date,
+                    'date_information' => $date->date_information,
+                ])
+                ->all();
+            $currentGeoLocationIds = $suggestion->resource()
+                ->firstOrFail()
+                ->geoLocations()
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->pluck('id')
+                ->map(fn (mixed $id): int => (int) $id)
+                ->all();
+
+            if (count($currentCollectedDateIds) !== $expectedCollectedCount
+                || count($currentGeoLocationIds) !== $expectedGeoLocationCount
+                || count($currentCollectedDateIds) !== count($currentGeoLocationIds)) {
+                return [
+                    'success' => false,
+                    'message' => 'This suggestion is stale because the Collected date or geolocation counts changed.',
+                ];
+            }
+
+            if ($currentCollectedDateIds !== $expectedCollectedDateIds
+                || $currentCollectedDatesSnapshot !== $expectedCollectedDatesSnapshot
+                || $currentGeoLocationIds !== $expectedGeoLocationIds) {
+                return [
+                    'success' => false,
+                    'message' => 'This suggestion is stale because the reviewed Collected dates or geolocations changed.',
+                ];
+            }
+
+            // Update the locked, reviewed rows rather than a newly evaluated
+            // open-ended set of all current Collected dates.
+            $dates->each(fn (ResourceDate $date) => $date->update([
+                'date_type_id' => $coverageDateTypeId,
+            ]));
+
+            $updatedCount = $dates->count();
+
             return [
-                'success' => false,
-                'message' => 'This suggestion is stale because the Collected date or geolocation counts changed.',
+                'success' => true,
+                'message' => "Changed {$updatedCount} Collected date entr".($updatedCount === 1 ? 'y' : 'ies').' to Coverage.',
             ];
+        });
+    }
+
+    /** @return list<int>|null */
+    private function snapshotIds(mixed $value): ?array
+    {
+        if (! is_array($value) || ! array_is_list($value) || $value === []) {
+            return null;
         }
 
-        $dates->each(fn (ResourceDate $date) => $date->update([
-            'date_type_id' => $coverageDateTypeId,
-        ]));
+        $ids = [];
 
-        $updatedCount = $dates->count();
+        foreach ($value as $id) {
+            $validatedId = filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-        return [
-            'success' => true,
-            'message' => "Changed {$updatedCount} Collected date entr".($updatedCount === 1 ? 'y' : 'ies').' to Coverage.',
-        ];
+            if ($validatedId === false) {
+                return null;
+            }
+
+            $ids[] = $validatedId;
+        }
+
+        sort($ids);
+
+        return count($ids) === count(array_unique($ids)) ? $ids : null;
     }
 }
