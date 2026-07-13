@@ -86,7 +86,7 @@ function LanguageSuggestionCard({
                             {suggestion.suggested_value}
                         </Badge>
                         <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>
-                            {percent}% confidence
+                            {percent}% match
                         </Badge>
                     </div>
 
