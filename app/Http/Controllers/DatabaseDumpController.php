@@ -96,8 +96,9 @@ class DatabaseDumpController extends Controller
         }
 
         $disk = Storage::disk($export->disk);
+        $path = $export->path;
 
-        if ($export->path === null || ! $disk->exists($export->path)) {
+        if (! is_string($path) || ! $disk->exists($path)) {
             return response()->json(['message' => 'The database dump file could not be found.'], 404);
         }
 
@@ -117,8 +118,8 @@ class DatabaseDumpController extends Controller
         ])->save();
 
         return response()->download(
-            $disk->path($export->path),
-            $export->filename ?? basename($export->path),
+            $disk->path($path),
+            $export->filename ?? basename($path),
             ['Content-Type' => 'application/gzip'],
         );
     }
@@ -128,29 +129,30 @@ class DatabaseDumpController extends Controller
      */
     private function targetPayload(): array
     {
-        return collect($this->databaseDumpService->targets())
-            ->map(function (array $target, string $key): array {
-                $latestExport = DatabaseDumpExport::query()
-                    ->where('target_key', $key)
-                    ->latest('requested_at')
-                    ->first();
+        $payload = [];
 
-                return [
-                    'key' => $key,
-                    'label' => (string) $target['label'],
-                    'description' => (string) ($target['description'] ?? ''),
-                    'connection' => (string) $target['connection'],
-                    'database' => $this->safeDatabaseName($target),
-                    'legacy' => (bool) ($target['legacy'] ?? false),
-                    'requiresLegacySslProbe' => (bool) ($target['requires_legacy_ssl_probe'] ?? false),
-                    'serverVersionHint' => $target['server_version_hint'] ?? null,
-                    'latestExport' => $latestExport instanceof DatabaseDumpExport
-                        ? $this->exportPayload($this->markExpiredIfNeeded($latestExport))
-                        : null,
-                ];
-            })
-            ->values()
-            ->all();
+        foreach ($this->databaseDumpService->targets() as $key => $target) {
+            $latestExport = DatabaseDumpExport::query()
+                ->where('target_key', $key)
+                ->latest('requested_at')
+                ->first();
+
+            $payload[] = [
+                'key' => $key,
+                'label' => (string) $target['label'],
+                'description' => (string) ($target['description'] ?? ''),
+                'connection' => (string) $target['connection'],
+                'database' => $this->safeDatabaseName($target),
+                'legacy' => (bool) ($target['legacy'] ?? false),
+                'requiresLegacySslProbe' => (bool) ($target['requires_legacy_ssl_probe'] ?? false),
+                'serverVersionHint' => $target['server_version_hint'] ?? null,
+                'latestExport' => $latestExport instanceof DatabaseDumpExport
+                    ? $this->exportPayload($this->markExpiredIfNeeded($latestExport))
+                    : null,
+            ];
+        }
+
+        return $payload;
     }
 
     /**

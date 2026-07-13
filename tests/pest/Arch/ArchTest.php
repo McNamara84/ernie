@@ -114,6 +114,11 @@ describe('Services', function () {
             'App\Services\SubjectEnrichment\SubjectVocabularyConcept',
             'App\Services\SubjectEnrichment\SubjectVocabularyMatchSet',
             'App\Services\SubjectEnrichment\SubjectVocabularySource',
+            'App\Services\DatabaseDumps\DatabaseDumpProcessResult',
+            'App\Services\DatabaseDumps\DatabaseDumpProcessRunner',
+            'App\Services\DatabaseDumps\DatabaseServerInfoProvider',
+            'App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner',
+            'App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider',
         ]);
 
     arch('services are not extending controllers')

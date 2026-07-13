@@ -48,12 +48,14 @@ class CreateDatabaseDumpJob implements ShouldQueue
             return;
         }
 
+        $message = $exception?->getMessage() ?? 'Database dump job failed.';
+        $message = preg_replace('/password\s*=\s*("[^"]*"|[^\s]+)/i', 'password=[redacted]', $message) ?? $message;
+        $message = preg_replace('/--password(=|\s+)([^\s]+)/i', '--password=[redacted]', $message) ?? $message;
+
         $export->forceFill([
             'status' => DatabaseDumpExport::STATUS_FAILED,
             'finished_at' => now(),
-            'error_message' => $exception?->getMessage() !== null
-                ? str($exception->getMessage())->limit(1000)->toString()
-                : 'Database dump job failed.',
+            'error_message' => str($message)->limit(1000)->toString(),
         ])->save();
     }
 }

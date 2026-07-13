@@ -275,11 +275,17 @@ SQL,
                 [$databaseName],
             );
 
-            return collect($rows)
-                ->map(fn (object $row): string => (string) ($row->table_name ?? ''))
-                ->filter()
-                ->values()
-                ->all();
+            $tables = [];
+
+            foreach ($rows as $row) {
+                $table = (string) ($row->table_name ?? '');
+
+                if ($table !== '') {
+                    $tables[] = $table;
+                }
+            }
+
+            return $tables;
         } catch (\Throwable) {
             return null;
         }

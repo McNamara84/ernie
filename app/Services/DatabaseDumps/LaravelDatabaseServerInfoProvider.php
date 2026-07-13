@@ -66,6 +66,13 @@ final class LaravelDatabaseServerInfoProvider implements DatabaseServerInfoProvi
         }
 
         $length = ord($header[0]) | (ord($header[1]) << 8) | (ord($header[2]) << 16);
+
+        if ($length < 1) {
+            fclose($socket);
+
+            return $this->emptyResult('unavailable');
+        }
+
         $payload = fread($socket, $length);
         fclose($socket);
 
