@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -17,6 +18,7 @@ import {
     type BaseSuggestionItem,
     type CheckStatusResponse,
     type PaginatedData,
+    type SuggestedLanguageItem,
     type SuggestedOrcidItem,
     type SuggestedRelationItem,
     type SuggestedRorItem,
@@ -53,6 +55,65 @@ function isValidRorUrl(url: string): boolean {
     } catch {
         return false;
     }
+}
+
+function confidencePercent(score: number | null): number {
+    return Math.round(Math.min(1, Math.max(0, score ?? 0)) * 100);
+}
+
+function LanguageSuggestionCard({
+    suggestion,
+    onAccept,
+    onDecline,
+    isProcessing,
+}: {
+    suggestion: SuggestedLanguageItem;
+    onAccept: (id: number) => void;
+    onDecline: (id: number) => void;
+    isProcessing: boolean;
+}) {
+    const percent = confidencePercent(suggestion.similarity_score);
+
+    return (
+        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                            Suggested language
+                        </Badge>
+                        <span className="text-sm font-medium">{suggestion.suggested_label}</span>
+                        <Badge variant="secondary" className="font-mono text-xs">
+                            {suggestion.suggested_value}
+                        </Badge>
+                    </div>
+
+                    <div className="max-w-md space-y-1.5">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Confidence</span>
+                            <span>{percent}%</span>
+                        </div>
+                        <Progress value={percent} aria-label={`Suggestion confidence: ${percent}%`} />
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                        Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}
+                    </p>
+                </div>
+
+                <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
+                        <X className="mr-1 h-4 w-4" />
+                        Decline
+                    </Button>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function SuggestionCard({
@@ -570,6 +631,15 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         const onDecline = (id: number) => handleDecline(manifest, id);
 
         switch (manifest.id) {
+            case 'language-suggestion':
+                return (
+                    <LanguageSuggestionCard
+                        suggestion={item as unknown as SuggestedLanguageItem}
+                        onAccept={onAccept}
+                        onDecline={onDecline}
+                        isProcessing={isProcessing}
+                    />
+                );
             case 'relation-suggestion':
                 return (
                     <SuggestionCard

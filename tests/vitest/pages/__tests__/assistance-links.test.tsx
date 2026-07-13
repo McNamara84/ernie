@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
+import type { BaseSuggestionItem, PaginatedData, SuggestedLanguageItem, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
 
 // ── Mocks ────────────────────────────────────────────────────────────
 
@@ -68,6 +68,20 @@ function makeRorSuggestion(overrides: Partial<SuggestedRorItem> = {}): Suggested
     };
 }
 
+function makeLanguageSuggestion(overrides: Partial<SuggestedLanguageItem> = {}): SuggestedLanguageItem {
+    return {
+        id: 3,
+        resource_id: 30,
+        resource_doi: '10.5880/test.2024.003',
+        resource_title: 'Language Test Resource',
+        suggested_value: 'de',
+        suggested_label: 'German (de)',
+        similarity_score: 0.95,
+        discovered_at: '2024-06-15T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
 function makeManifest(id: string, routePrefix: string, name: string) {
     return {
         id,
@@ -103,6 +117,22 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
+
+describe('LanguageSuggestionCard – confidence', () => {
+    it('shows a confidence bar and percentage for the suggested language', () => {
+        const suggestion = makeLanguageSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'language-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('language-suggestion', 'language', 'Language Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('95%')).toBeInTheDocument();
+        expect(screen.getByRole('progressbar', { name: 'Suggestion confidence: 95%' })).toHaveAttribute('aria-valuenow', '95');
+    });
+});
 
 describe('OrcidSuggestionCard – ORCID link', () => {
     it('renders the suggested ORCID as a clickable link', () => {

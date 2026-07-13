@@ -50,6 +50,12 @@ export interface BaseSuggestionItem {
     [key: string]: unknown;
 }
 
+export interface SuggestedLanguageItem extends BaseSuggestionItem {
+    suggested_value: string;
+    suggested_label: string;
+    similarity_score: number | null;
+}
+
 export interface AssistancePageProps {
     sections: Record<string, PaginatedData<BaseSuggestionItem>>;
     manifests: AssistantManifest[];
