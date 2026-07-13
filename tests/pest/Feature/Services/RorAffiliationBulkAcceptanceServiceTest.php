@@ -21,7 +21,8 @@ covers(RorAffiliationBulkAcceptanceService::class, RorDiscoveryService::class);
 
 beforeEach(function (): void {
     Cache::flush();
-    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService{
+    app()->instance(DataCiteSyncService::class, new class(app(DataCiteServiceInterface::class)) extends DataCiteSyncService
+    {
         public function syncIfRegistered(Resource $resource): DataCiteSyncResult
         {
             if ($resource->doi === null || $resource->doi === '') {
@@ -464,7 +465,6 @@ it('removes all suggestions for a bulk match whose creator morph target is unexp
         'existing_identifier_type' => null,
         'discovered_at' => now(),
     ]);
-
 
     $singleResult = app(RorDiscoveryService::class)->acceptRor($source['suggestion']);
     $match['creator']->update([
