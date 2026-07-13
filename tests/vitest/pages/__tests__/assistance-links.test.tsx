@@ -119,7 +119,7 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('LanguageSuggestionCard – confidence', () => {
-    it('shows a confidence bar and percentage for the suggested language', () => {
+    it('shows the confidence percentage in a compact badge', () => {
         const suggestion = makeLanguageSuggestion();
 
         render(
@@ -129,8 +129,8 @@ describe('LanguageSuggestionCard – confidence', () => {
             />,
         );
 
-        expect(screen.getByText('95%')).toBeInTheDocument();
-        expect(screen.getByRole('progressbar', { name: 'Suggestion confidence: 95%' })).toHaveAttribute('aria-valuenow', '95');
+        expect(screen.getByText('95% confidence')).toBeInTheDocument();
+        expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
 });
 

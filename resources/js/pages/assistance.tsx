@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
@@ -77,7 +76,7 @@ function LanguageSuggestionCard({
     return (
         <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-3">
+                <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="text-xs">
                             Suggested language
@@ -86,14 +85,9 @@ function LanguageSuggestionCard({
                         <Badge variant="secondary" className="font-mono text-xs">
                             {suggestion.suggested_value}
                         </Badge>
-                    </div>
-
-                    <div className="max-w-md space-y-1.5">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Confidence</span>
-                            <span>{percent}%</span>
-                        </div>
-                        <Progress value={percent} aria-label={`Suggestion confidence: ${percent}%`} />
+                        <Badge className={`text-xs ${similarityColor(suggestion.similarity_score ?? 0)}`}>
+                            {percent}% confidence
+                        </Badge>
                     </div>
 
                     <p className="text-xs text-muted-foreground">
