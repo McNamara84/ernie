@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\UploadErrorCode;
 use App\Exceptions\DuplicateUploadedResourceDoiException;
 use App\Http\Requests\UploadXmlRequest;
+use App\Services\ResourceStorageService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Services\Xml\DataCiteXmlImportParser;
@@ -24,6 +25,7 @@ class UploadXmlController extends Controller
         private readonly UploadLogService $uploadLogService,
         private readonly DataCiteXmlImportParser $importParser,
         private readonly UploadedResourceDraftService $uploadedResourceDraftService,
+        private readonly ResourceStorageService $resourceStorageService,
     ) {}
 
     public function __invoke(UploadXmlRequest $request): JsonResponse
@@ -127,6 +129,8 @@ class UploadXmlController extends Controller
                 500,
             );
         }
+
+        $this->resourceStorageService->ensureSystemDate($resource, 'Accepted');
 
         // Keep a short-lived session fallback for older editor links and tests.
         $sessionKey = 'xml_upload_'.Str::random(32);

@@ -36,11 +36,12 @@ import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps
 import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, UserRole } from '@/types';
-import type { DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
+import type { DataCiteDocsSettings, DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
 
 interface DocsProps {
     userRole: UserRole;
     editorSettings: EditorSettings;
+    dataCite: DataCiteDocsSettings;
 }
 
 /**
@@ -55,8 +56,13 @@ const roleHierarchy: Record<UserRole, number> = {
 
 const CURRENT_DATACITE_METADATA_SCHEMA_VERSION = '4.7';
 const LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION = '4.6';
+const NOT_CONFIGURED_LABEL = 'Not configured';
 
-export default function Docs({ userRole, editorSettings }: DocsProps) {
+function formatConfiguredList(values: string[]): string {
+    return values.length > 0 ? values.join(', ') : NOT_CONFIGURED_LABEL;
+}
+
+export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) {
     const [activeTab, setActiveTab] = useState<DocsTabId>('getting-started');
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -82,8 +88,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Welcome to ERNIE</h3>
                         <p>
-                            ERNIE is a DataCite v{CURRENT_DATACITE_METADATA_SCHEMA_VERSION} metadata editor for research data curation at GFZ Helmholtz
-                            Centre. This documentation helps you find the workflows and features that matter for your daily work.
+                            ERNIE is a DataCite v{CURRENT_DATACITE_METADATA_SCHEMA_VERSION} metadata editor for research data curation at GFZ
+                            Helmholtz Centre. This documentation helps you find the workflows and features that matter for your daily work.
                         </p>
 
                         <h4>Your Role: {userRole}</h4>
@@ -125,16 +131,18 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950">
                             <p className="text-sm text-violet-900 dark:text-violet-100">
                                 <strong>Workspace Switcher:</strong> Admins and Group Leaders now see a <strong>Curation</strong> /{' '}
-                                <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for
-                                day-to-day metadata work such as the Dashboard, Resources, and IGSN tools. Use <strong>Administration</strong>{' '}
-                                for privileged destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment,
-                                Logs, and legacy maintenance pages. ERNIE remembers the last selected workspace locally.
+                                <strong>Administration</strong> switcher at the top of the sidebar. Use <strong>Curation</strong> for day-to-day
+                                metadata work such as the Dashboard, Resources, and IGSN tools. Use <strong>Administration</strong> for privileged
+                                destinations such as Users, Statistics, Editor Settings, Landing Pages, Assistance, Assessment, Logs, and legacy
+                                maintenance pages. ERNIE remembers the last selected workspace locally.
                             </p>
                         </div>
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
-                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a page defines breadcrumbs, ERNIE shows them directly below the header so your current location stays clear.
+                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick
+                                access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a
+                                page defines breadcrumbs, ERNIE shows them directly below the header so your current location stays clear.
                             </p>
                         </div>
 
@@ -157,7 +165,12 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Personal Settings</h3>
                         <p>
-                            Navigate to <code>/settings</code> to customize your ERNIE experience.
+                            Open the user menu from your avatar in the page header and choose <strong>Settings</strong>. This opens your personal
+                            profile settings at <code>/settings/profile</code>.
+                        </p>
+                        <p>
+                            Admins and Group Leaders also have an <strong>Editor Settings</strong> entry at <code>/settings</code>. That page controls
+                            ERNIE configuration and is separate from your personal settings.
                         </p>
 
                         <h4>Profile Settings</h4>
@@ -185,8 +198,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <h4>Quick Font Size Toggle</h4>
                         <p>
-                            For quick access, use the font size toggle button in the page header. Click the icon to switch instantly between
-                            regular and large font sizes without opening Settings. Your preference is saved automatically.
+                            For quick access, use the font size toggle button in the page header. Click the icon to switch instantly between regular
+                            and large font sizes without opening Settings. Your preference is saved automatically.
                         </p>
                     </>
                 ),
@@ -242,8 +255,8 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <h4>Creating New Users</h4>
                         <p>
-                            Navigate to <code>/users</code> and click <strong>"Create User"</strong>. Enter the new user's name and email. The system
-                            will:
+                            Navigate to <code>/users</code> and click <strong>"Add User"</strong>. Enter the new user's name and email in the dialog,
+                            then submit it with <strong>"Create User"</strong>. The system will:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -267,15 +280,21 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Group Leader</h5>
-                                <p className="text-sm text-muted-foreground">Manage users, view statistics, editor settings, landing page management, production DOI registration</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Manage users, view statistics, editor settings, landing page management, production DOI registration
+                                </p>
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Curator</h5>
-                                <p className="text-sm text-muted-foreground">Standard curation features, landing page management, production DOI registration</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Standard curation features, landing page management, production DOI registration
+                                </p>
                             </div>
                             <div className="rounded-lg border bg-card p-3">
                                 <h5 className="text-sm font-semibold">Beginner</h5>
-                                <p className="text-sm text-muted-foreground">Limited curation, test DOI only (forced)</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Training curation with landing pages and DataCite test DOI registration; destructive actions remain restricted
+                                </p>
                             </div>
                         </div>
 
@@ -309,10 +328,9 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                     <>
                         <h3>Editor Configuration</h3>
                         <p>
-                            You can configure the Data Editor at <code>/settings</code> (Editor Settings). For Admins and Group Leaders,
-                            the page is available from the <strong>Administration</strong> workspace in the authenticated sidebar, next to
-                            other privileged destinations such as <strong>Users</strong>, <strong>Landing Pages</strong>, and role-specific
-                            operations pages:
+                            You can configure the Data Editor at <code>/settings</code> (Editor Settings). For Admins and Group Leaders, the page is
+                            available from the <strong>Administration</strong> workspace in the authenticated sidebar, next to other privileged
+                            destinations such as <strong>Users</strong>, <strong>Landing Pages</strong>, and role-specific operations pages:
                         </p>
 
                         <h4>Configurable Options</h4>
@@ -333,12 +351,13 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                                 <strong>Date Types:</strong> Enable/disable date type options
                             </li>
                             <li>
-                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS Chronostratigraphy, GEMET,
-                                Analytical Methods for Geochemistry and Cosmochemistry, and European Science Vocabulary (EuroSciVoc)
+                                <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS
+                                Chronostratigraphy, GEMET, Analytical Methods for Geochemistry and Cosmochemistry, and European Science Vocabulary
+                                (EuroSciVoc)
                             </li>
                             <li>
-                                <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for
-                                linking research instruments and ROR for research organizations
+                                <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for linking research
+                                instruments, ROR for research organizations, and RAiD for research activities
                             </li>
                             <li>
                                 <strong>Limits:</strong> Set maximum titles and licenses per resource
@@ -358,13 +377,11 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
 
                         <h4>Bulk Selection</h4>
                         <p>
-                            The settings tables for Resource Types, Title Types, Licenses, and Languages provide a{' '}
-                            <strong>header checkbox</strong> in both the &quot;ERNIE active&quot; and &quot;ELMO active&quot;
-                            columns. The Date Types table only has an ERNIE header checkbox (ELMO is not supported for
-                            Date Types). Use these checkboxes to select or deselect all options in a column at once. When
-                            some options are selected and others are not, the checkbox shows an indeterminate state (—).
-                            The Thesauri card provides an &quot;All ERNIE&quot; / &quot;All ELMO&quot; row at the top for
-                            the same purpose.
+                            The settings tables for Resource Types, Title Types, Licenses, and Languages provide a <strong>header checkbox</strong> in
+                            both the &quot;ERNIE active&quot; and &quot;ELMO active&quot; columns. The Date Types table only has an ERNIE header
+                            checkbox (ELMO is not supported for Date Types). Use these checkboxes to select or deselect all options in a column at
+                            once. When some options are selected and others are not, the checkbox shows an indeterminate state (—). The Thesauri card
+                            provides an &quot;All ERNIE&quot; / &quot;All ELMO&quot; row at the top for the same purpose.
                         </p>
 
                         <h4>Thesaurus Management</h4>
@@ -380,14 +397,16 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <p>The Persistent Identifiers card allows you to manage PID registries:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>PID4INST (b2inst):</strong> Instruments from the EUDAT b2inst registry can be
-                                linked to datasets as DataCite relatedIdentifiers with relationType
-                                &quot;IsCollectedBy&quot;
+                                <strong>PID4INST (b2inst):</strong> Instruments from the EUDAT b2inst registry can be linked to datasets as DataCite
+                                relatedIdentifiers with relationType &quot;IsCollectedBy&quot;
                             </li>
                             <li>
-                                <strong>ROR (Research Organization Registry):</strong> Organization data used for
-                                affiliation lookups. The ROR dataset is fetched from the Zenodo data dump and can be
-                                provided to ELMO via the API.
+                                <strong>ROR (Research Organization Registry):</strong> Organization data used for affiliation lookups. The ROR dataset
+                                is fetched from the Zenodo data dump and can be provided to ELMO via the API.
+                            </li>
+                            <li>
+                                <strong>RAiD (Research Activity Identifier):</strong> Public research activity records discovered through DataCite.
+                                RAiD projects can be updated from Editor Settings and provided to ELMO via the API.
                             </li>
                             <li>Enable/disable PID registries for ERNIE and/or ELMO independently</li>
                             <li>Check for updates by comparing local item count with the remote registry</li>
@@ -422,45 +441,47 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <h4>Update ICS Chronostratigraphy (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-chronostrat-timescale" />
                         <p className="text-sm text-muted-foreground">
-                            Downloads the International Chronostratigraphic Chart from the ARDC Linked Data API.
-                            Can also be triggered from Editor Settings.
+                            Downloads the International Chronostratigraphic Chart from the ARDC Linked Data API. Can also be triggered from Editor
+                            Settings.
                         </p>
 
                         <h4>Update GEMET Thesaurus (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-gemet-thesaurus" />
                         <p className="text-sm text-muted-foreground">
-                            Downloads the GEMET vocabulary from the EIONET REST API.
-                            Can also be triggered from Editor Settings.
+                            Downloads the GEMET vocabulary from the EIONET REST API. Can also be triggered from Editor Settings.
                         </p>
 
                         <h4>Update Analytical Methods (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-analytical-methods" />
                         <p className="text-sm text-muted-foreground">
-                            Downloads the Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the
-                            ARDC Linked Data API (EarthChem/GEOROC). The vocabulary version can be configured in
-                            Editor Settings. Can also be triggered from Editor Settings.
+                            Downloads the Analytical Methods for Geochemistry and Cosmochemistry vocabulary from the ARDC Linked Data API
+                            (EarthChem/GEOROC). The vocabulary version can be configured in Editor Settings. Can also be triggered from Editor
+                            Settings.
                         </p>
 
                         <h4>Update European Science Vocabulary (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-euroscivoc" />
                         <p className="text-sm text-muted-foreground">
-                            Downloads the European Science Vocabulary (EuroSciVoc) from the Publications Office of the
-                            European Union. EuroSciVoc is a taxonomy of fields of science based on the OECD Frascati
-                            Manual. Can also be triggered from Editor Settings.
+                            Downloads the European Science Vocabulary (EuroSciVoc) from the Publications Office of the European Union. EuroSciVoc is a
+                            taxonomy of fields of science based on the OECD Frascati Manual. Can also be triggered from Editor Settings.
                         </p>
 
                         <h4>Update PID4INST Instruments (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-pid4inst-instruments" />
                         <p className="text-sm text-muted-foreground">
-                            Downloads all instruments from the b2inst registry. Can also be triggered from Editor
-                            Settings.
+                            Downloads all instruments from the b2inst registry. Can also be triggered from Editor Settings.
                         </p>
 
                         <h4>Update ROR Affiliations (CLI)</h4>
                         <DocsCodeBlock code="php artisan get-ror-ids" />
                         <p className="text-sm text-muted-foreground">
-                            Downloads the full ROR data dump from Zenodo. Can also be triggered from Editor
-                            Settings.
+                            Downloads the full ROR data dump from Zenodo. Can also be triggered from Editor Settings.
+                        </p>
+
+                        <h4>Update RAiD Projects (CLI)</h4>
+                        <DocsCodeBlock code="php artisan get-raid-projects" />
+                        <p className="text-sm text-muted-foreground">
+                            Downloads public RAiD project records discovered through DataCite. Can also be triggered from Editor Settings.
                         </p>
 
                         <h4>Update MSL Keywords</h4>
@@ -469,14 +490,12 @@ export default function Docs({ userRole, editorSettings }: DocsProps) {
                         <h4>Backfill Related Work Citation Labels</h4>
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels" />
                         <p className="text-sm text-muted-foreground">
-                            Run this once after deploying the citation-label update to an existing installation. It hydrates missing
-                            citation labels for already stored DOI-based related identifiers without overwriting labels that were curated
-                            manually.
+                            Run this once after deploying the citation-label update to an existing installation. It hydrates missing citation labels
+                            for already stored DOI-based related identifiers without overwriting labels that were curated manually.
                         </p>
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels --limit=500" />
                         <p className="text-sm text-muted-foreground">
-                            Use <code>--limit</code> to process large installations in smaller batches during low-traffic maintenance
-                            windows.
+                            Use <code>--limit</code> to process large installations in smaller batches during low-traffic maintenance windows.
                         </p>
 
                         <h4>DataCite Configuration</h4>
@@ -561,16 +580,30 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Available Assistants</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Suggested Relations</strong> – Discovers missing related identifiers between resources using the
-                                ScholExplorer API
+                                <strong>Suggested Relations</strong> – Discovers missing related identifiers between resources using the ScholExplorer
+                                API
                             </li>
                             <li>
-                                <strong>Suggested ORCIDs</strong> – Finds ORCID identifiers for authors and contributors without one by
-                                searching the ORCID API
+                                <strong>Suggested ORCIDs</strong> – Finds ORCID identifiers for authors and contributors without one by searching the
+                                ORCID API
                             </li>
                             <li>
-                                <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and
-                                funders via the ROR API v2
+                                <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and funders via
+                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR
+                                identifier to further pending creator affiliations with exactly matching <code>creatorName</code> and{' '}
+                                <code>affiliation</code> values.
+                            </li>
+                            <li>
+                                <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
+                                proposes safe ROR replacements from the local ROR FundRef index
+                            </li>
+                            <li>
+                                <strong>Suggested Title Languages</strong> – Suggests missing language values for title records using title-text
+                                detection
+                            </li>
+                            <li>
+                                <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed license
+                                metadata before export
                             </li>
                             <li>
                                 <strong>Suggested Resource Languages</strong> – Finds resources without a language assignment and proposes
@@ -582,10 +615,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 using title-text detection and supporting language hints
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
                                 license metadata before export
+                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose missing
+                                DataCite size and file-format metadata
                             </li>
                             <li>
-                                <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose
-                                missing DataCite size and file-format metadata
+                                <strong>Subject Metadata Enrichment</strong> - Completes DataCite Subject metadata from supported local vocabulary
+                                caches while preserving imported subject text
+                            </li>
+                            <li>
+                                <strong>Description Segmentation Suggestions</strong> - Reviews long legacy Abstract descriptions and proposes
+                                curator-approved splits into DataCite Methods, Technical Information, Table of Contents, or Series Information
+                                descriptions
                             </li>
                         </ul>
 
@@ -593,8 +633,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Check for suggestions">
                                 <p>
-                                    Click &quot;Check all&quot; to scan all resources at once, or use the individual &quot;Check&quot; button
-                                    on each card.
+                                    Click &quot;Check all&quot; to scan all resources at once, or use the individual &quot;Check&quot; button on each
+                                    card.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Review suggestions">
@@ -604,6 +644,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 evidence (an explicit language attribute on a title, description, or subject; a publisher-name heuristic;
                                 or automatic text detection). Title language suggestions also show the title text, current language,
                                 proposed language, confidence, and evidence summary so you can verify how the recommendation was created.
+                                    Each suggestion shows the affected resource, the current value, and the proposed match with a confidence score.
+                                    Title language suggestions also show the title text, current language, proposed language, confidence, and evidence
+                                    summary so you can verify how the recommendation was created.
                                 </p>
                                 <p className="mt-2">
                                     SPDX license suggestions show the current imported rights metadata beside the proposed SPDX metadata. Clicking
@@ -615,6 +658,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     use the same spaced format as DataCite export, such as <strong>2 MB</strong>. Review the evidence before accepting
                                     a suggestion when a resource has multiple download locations.
                                 </p>
+                                <p className="mt-2">
+                                    Crossref Funder ROR suggestions compare the current Crossref Funder ID with the proposed ROR identifier,
+                                    provenance, confidence evidence, and conflict warnings. Accepting updates only the funding-reference identifier,
+                                    identifier type, and scheme URI; funder names and award metadata are preserved.
+                                </p>
+                                <p className="mt-2">
+                                    Suggested ROR-ID affiliation matches are exact. If a creator-affiliation suggestion has further pending matches
+                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE
+                                    asks whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
+                                    creator name identifiers and affiliation labels stay unchanged.
+                                </p>
+                                <p className="mt-2">
+                                    Subject Metadata Enrichment suggestions compare the stored Subject row with proposed DataCite fields such as
+                                    subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and lang. Accepting revalidates the match
+                                    against the current local vocabulary cache, updates only the listed fields, and preserves the original subject
+                                    text. Free Keyword transfer suggestions show a warning before they become controlled thesaurus keywords.
+                                </p>
+                                <p className="mt-2">
+                                    Description Segmentation suggestions show the current Abstract beside the proposed remaining Abstract and every
+                                    new Description segment. Accepting replaces only the reviewed source Abstract text and creates the listed Methods,
+                                    Technical Information, Table of Contents, or Series Information descriptions; stale suggestions are rejected if
+                                    the source Abstract changed after discovery.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
@@ -622,6 +688,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 permanently dismiss that suggestion. Accepting a resource language suggestion updates the resource's
                                 language field directly. For title language suggestions, accepting updates the selected title's
                                 language field and removes the pending suggestion.
+                                    Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to permanently
+                                    dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
+                                    removes the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -653,8 +722,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </div>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending
-                                suggestions across all assistants.
+                                <strong>DataCite XML export:</strong> Accepted title language suggestions are saved on the selected title and exported
+                                to DataCite XML as an <code>xml:lang</code> attribute when supported.
+                            </p>
+                        </div>
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Sidebar Badge:</strong> The Assistance entry in the sidebar shows the total number of pending suggestions
+                                across all assistants.
                             </p>
                         </div>
                     </>
@@ -670,14 +745,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>FAIR Assessment Dashboard</h3>
                         <p>
                             The <strong>Assessment</strong> page (<code>/assessment</code>) is available to administrators in the
-                            <strong>Administration</strong> workspace of the sidebar. It runs F-UJI checks against publicly reachable landing
-                            pages and stores the latest FAIR result per resource.
+                            <strong>Administration</strong> workspace of the sidebar. It runs F-UJI checks against publicly reachable landing pages
+                            and stores the latest FAIR result per resource.
                         </p>
 
                         <p>
-                            The sidebar entry itself also shows a compact FAIR average summary in the format <strong>Resources / IGSNs</strong>,
-                            for example <strong>6.9 / 3.2</strong>. The numbers reflect the latest completed assessments with a stored FAIR score
-                            in each scope.
+                            The sidebar entry itself also shows a compact FAIR average summary in the format <strong>Resources / IGSNs</strong>, for
+                            example <strong>6.9 / 3.2</strong>. The numbers reflect the latest completed assessments with a stored FAIR score in each
+                            scope.
                         </p>
 
                         <h4>What the Dashboard Shows</h4>
@@ -688,37 +763,33 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <strong>IGSNs needing your attention</strong> – the 10 lowest-scoring Physical Object records
                             </li>
-                            <li>
-                                Scope summaries for assessed, failed, skipped, and not yet assessed records
-                            </li>
+                            <li>Scope summaries for assessed, failed, skipped, and not yet assessed records</li>
                         </ul>
 
                         <h4>Workflow</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Start a check">
                                 <p>
-                                    Use <strong>Check Resources</strong>, <strong>Check IGSNs</strong>, or <strong>Check all</strong> to enqueue
-                                    new F-UJI assessments.
+                                    Use <strong>Check Resources</strong>, <strong>Check IGSNs</strong>, or <strong>Check all</strong> to enqueue new
+                                    F-UJI assessments.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Monitor progress">
-                                <p>
-                                    The page polls the queue status and shows progress messages while each scope is running.
-                                </p>
+                                <p>The page polls the queue status and shows progress messages while each scope is running.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Review the worst scores">
                                 <p>
-                                    After completion, the page refreshes automatically and lists the weakest FAIR scores first so you can
-                                    focus curation work where it has the biggest impact.
+                                    After completion, the page refreshes automatically and lists the weakest FAIR scores first so you can focus
+                                    curation work where it has the biggest impact.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Important:</strong> A record is skipped when it has no DOI. Missing or draft local landing pages do
-                                not prevent an assessment run. If the dashboard shows a temporary F-UJI warning, you can still start a
-                                check and the server will validate F-UJI availability again before queueing the job.
+                                <strong>Important:</strong> A record is skipped when it has no DOI. Missing or draft local landing pages do not
+                                prevent an assessment run. If the dashboard shows a temporary F-UJI warning, you can still start a check and the
+                                server will validate F-UJI availability again before queueing the job.
                             </p>
                         </div>
                     </>
@@ -761,6 +832,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/ror-affiliations</code> – ROR organization affiliations
                             </li>
                             <li>
+                                <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
+                            </li>
+                            <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
                             </li>
                             <li>
@@ -773,7 +847,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <code>/api/v1/vocabularies/gemet</code> – GEMET environmental thesaurus
                             </li>
                             <li>
-                                <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns is_elmo_active)
+                                <code>/api/v1/elmo/vocabularies/thesauri-availability</code> – ELMO-specific thesaurus availability (returns
+                                is_elmo_active)
                             </li>
                         </ul>
                     </>
@@ -797,14 +872,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Uploading DataCite Files</h3>
                         <p>
-                            The Dashboard (<code>/dashboard</code>) features a unified import hub for file uploads. The dropzone now keeps you informed with dedicated progress, success, and error states while routing each file type into the appropriate workflow.
+                            The Dashboard (<code>/dashboard</code>) features a unified import hub for file uploads. The dropzone now keeps you
+                            informed with dedicated progress, success, and error states while keeping the result on the dashboard for review.
                         </p>
 
                         <h4>Supported Formats</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>DataCite XML v4.x</li>
                             <li>DataCite JSON (standard API format)</li>
-                            <li>DataCite JSON-LD (linked data format with <code>@context</code>)</li>
+                            <li>
+                                DataCite JSON-LD (linked data format with <code>@context</code>)
+                            </li>
                             <li>ELMO's legacy DataCite {LEGACY_ELMO_ENVELOPE_SCHEMA_VERSION} + ISO envelope format</li>
                         </ul>
 
@@ -817,17 +895,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Upload File">
                                 <p>
-                                    Drag and drop your XML, JSON, or JSON-LD file or click the dropzone to select a file.
-                                    The system routes files by extension (XML vs JSON) and then detects the JSON
-                                    sub-format (standard JSON vs JSON-LD) based on the file content.
+                                    Drag and drop your XML, JSON, or JSON-LD file or click the dropzone to select a file. The system routes files by
+                                    extension (XML vs JSON) and then detects the JSON sub-format (standard JSON vs JSON-LD) based on the file content.
                                 </p>
                                 <p>
-                                    During upload, the import hub shows a dedicated in-progress state. If something fails, ERNIE keeps the file name and the failure reason visible so you can retry immediately.
+                                    During upload, the import hub shows a dedicated in-progress state. If something fails, ERNIE keeps the file name
+                                    and the failure reason visible so you can retry immediately.
                                 </p>
                             </WorkflowSteps.Step>
-                            <WorkflowSteps.Step number={3} title="Automatic Redirect">
+                            <WorkflowSteps.Step number={3} title="Review Upload Result">
                                 <p>
-                                    After successful upload, you'll be redirected to the <strong>Data Editor</strong> with metadata pre-populated.
+                                    After successful upload, the dashboard shows a confirmation. Use <strong>Open in editor</strong> when you are
+                                    ready to review the pre-populated metadata.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -858,8 +937,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Fill in spatial and temporal coverage using the interactive tools.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Save">
-                                <p>
-                                    Choose one of two options:
+                                <p>Choose one of these actions from the bottom-right editor action bar:</p>
+                                <p className="mt-2">
+                                    The action bar stays available while you move through the form. On smaller pointer-based screens it fades back
+                                    until you hover near the bottom-right corner or focus a button; on touch screens it remains visible and compact.
                                 </p>
                                 <ul>
                                     <li>
@@ -867,14 +948,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                         complete it. Drafts are shown with an amber badge in the resource list and on the dashboard.
                                     </li>
                                     <li>
-                                        <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields
-                                        (title, year, resource type, datacenter, language, license, authors, abstract) must be filled.
+                                        <strong>"Show LP Preview"</strong> – Save the current editor values as a draft first, then open the landing
+                                        page preview. If no landing page exists yet, ERNIE opens the setup modal. After creating the preview there,
+                                        the landing page opens in a new browser tab.
+                                    </li>
+                                    <li>
+                                        <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields (title,
+                                        year, resource type, datacenter, language, license, authors, abstract) must be filled.
                                     </li>
                                 </ul>
                                 <p className="mt-3">
-                                    After <strong>"Save &amp; Validate"</strong>, ERNIE shows blocking validation issues in a clickable summary
-                                    above the form. Select any entry to reopen the relevant accordion section and jump directly to the affected
-                                    field.
+                                    After <strong>"Save &amp; Validate"</strong>, ERNIE shows blocking validation issues in a clickable summary above
+                                    the form. Select any entry to reopen the relevant accordion section and jump directly to the affected field.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -941,15 +1026,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Assigning Datacenters</h3>
                         <p>
-                            When saving a validated (non-draft) resource, at least one datacenter must be selected. Datacenters indicate
-                            which GFZ data center or project database is responsible for storing or managing the dataset. Drafts can be
-                            saved without a datacenter assignment.
+                            When saving a validated (non-draft) resource, at least one datacenter must be selected. Datacenters indicate which GFZ
+                            data center or project database is responsible for storing or managing the dataset. Drafts can be saved without a
+                            datacenter assignment.
                         </p>
 
                         <h4>How to Select Datacenters</h4>
                         <p>
-                            In the <strong>Resource Information</strong> section of the Data Editor, click the
-                            &quot;Select datacenters...&quot; button next to Resource Type. A searchable dropdown appears where you can:
+                            In the <strong>Resource Information</strong> section of the Data Editor, click the &quot;Select datacenters...&quot;
+                            button next to Resource Type. A searchable dropdown appears where you can:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Search for datacenters by typing in the search field</li>
@@ -959,80 +1044,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Required:</strong> At least one datacenter must be selected before saving a validated resource.
-                                Drafts can be saved without a datacenter.
+                                <strong>Required:</strong> At least one datacenter must be selected before saving a validated resource. Drafts can be
+                                saved without a datacenter.
                             </p>
                         </div>
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Note:</strong> Datacenters are for internal categorization only and are not included in DataCite metadata exports.
-                                Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.
+                                <strong>Note:</strong> Datacenters are for internal categorization only and are not included in DataCite metadata
+                                exports. Administrators and Group Leaders can manage the list of available datacenters in Editor Settings.
                             </p>
                         </div>
                     </>
                 ),
             },
             {
-                id: 'portal-search',
-                title: 'Data Portal Search',
-                icon: Globe,
-                minRole: 'beginner',
-                content: (
-                    <>
-                        <h3>Searching Published Records in the Portal</h3>
-                        <p>
-                            The public Data Portal at <code>/portal</code> lets you explore published datasets and physical samples with text,
-                            spatial, temporal, datacenter, and keyword filters. Every filter state is stored in the URL, so filtered views can be
-                            bookmarked and shared.
-                        </p>
-
-                        <h4>Free Keywords</h4>
-                        <p>
-                            The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as plain
-                            text during curation. Select one or more values to require exact matches on those free-form terms.
-                        </p>
-
-                        <h4>Thesaurus Keywords</h4>
-                        <p>
-                            Controlled vocabulary terms are now filtered separately in the <strong>Thesaurus Keywords</strong> section. ERNIE shows a
-                            dedicated tree for each thesaurus and hides unused branches automatically, so you only browse terms that are already used
-                            by published records.
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>Select a parent node to include matching descendant terms automatically</li>
-                            <li>Select multiple thesaurus nodes to combine them with AND logic</li>
-                            <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
-                        </ul>
-
-                        <h4>Other Portal Filters</h4>
-                        <p>
-                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
-                            filters. When the result set refreshes, the current results stay visible until the new response arrives.
-                        </p>
-
-                        <h4>Result Preview</h4>
-                        <p>
-                            Portal result rows stay compact for faster scanning. If a title is too long for the available row width, ERNIE truncates
-                            it responsively so author and year metadata stay visible.
-                        </p>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>Hover a result row with the mouse to open a metadata preview</li>
-                            <li>Tab to a result link to open the same preview from the keyboard</li>
-                            <li>The preview shows the full main title, the full creator list, and the abstract when one is available</li>
-                        </ul>
-                    </>
-                ),
-            },
-            {
-                id: 'titles-descriptions',
-                title: 'Titles & Descriptions',
+                id: 'titles',
+                title: 'Titles',
                 icon: Type,
                 minRole: 'beginner',
                 content: (
                     <>
                         <h3>Titles</h3>
-                        <p>Every resource requires at least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.</p>
+                        <p>
+                            Titles are edited in the <strong>Resource Information</strong> section of the Data Editor. Every resource requires at
+                            least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.
+                        </p>
 
                         <h4>Title Types</h4>
                         <div className="mt-2 space-y-2">
@@ -1057,38 +1094,37 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </>
                             )}
                         </div>
+                    </>
+                ),
+            },
+            {
+                id: 'licenses',
+                title: 'Licenses',
+                icon: FileText,
+                minRole: 'beginner',
+                showIf: (settings) => settings.features.hasActiveLicenses,
+                content: (
+                    <>
+                        <h3>Assigning Licenses</h3>
+                        <p>Select appropriate licenses for your dataset from the SPDX license list.</p>
 
-                        <h3 className="mt-8">Descriptions</h3>
-                        <p>Provide detailed information about your dataset with different description types:</p>
-
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
-                                only: <code>&lt;p&gt;</code>, <code>&lt;br&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>,{' '}
-                                <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>, <code>&lt;a&gt;</code>, <code>&lt;sub&gt;</code>,{' '}
-                                <code>&lt;sup&gt;</code>, and <code>&lt;code&gt;</code>. ERNIE stores and shows this formatting on landing pages, but
-                                all exports and DataCite submissions remain plain text.
-                            </p>
-                        </div>
-
-                        <h4>Description Types</h4>
+                        <h4>Selecting a License</h4>
+                        <p>The license dropdown shows all active licenses. Common choices for research data include:</p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Abstract:</strong> Brief summary of the resource content
+                                <strong>CC-BY-4.0:</strong> Attribution required, commercial use allowed
                             </li>
                             <li>
-                                <strong>Methods:</strong> Methodology used to create or collect the data
+                                <strong>CC-BY-SA-4.0:</strong> Attribution + ShareAlike
                             </li>
                             <li>
-                                <strong>Technical Info:</strong> Technical details about data format, structure, or processing
-                            </li>
-                            <li>
-                                <strong>Table of Contents:</strong> Structure overview for complex datasets
-                            </li>
-                            <li>
-                                <strong>Other:</strong> Any additional descriptive information
+                                <strong>CC0-1.0:</strong> Public domain dedication
                             </li>
                         </ul>
+
+                        <p className="mt-4 text-sm text-muted-foreground">
+                            You can assign up to {editorSettings.limits.maxLicenses} license(s) per resource.
+                        </p>
                     </>
                 ),
             },
@@ -1122,10 +1158,51 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Contact Persons</h4>
                         <p>
-                            Authors can be marked as contact persons with the CP checkbox. When imported metadata contains the same person as both
-                            an author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the
-                            separate creator and Contact Person contributor records required for DataCite export.
+                            Authors can be marked as contact persons with the CP checkbox. When imported metadata contains the same person as both an
+                            author and a Contact Person contributor, the editor shows one author entry for editing while ERNIE keeps the separate
+                            creator and Contact Person contributor records required for DataCite export.
                         </p>
+                    </>
+                ),
+            },
+            {
+                id: 'descriptions',
+                title: 'Descriptions',
+                icon: FileText,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Descriptions</h3>
+                        <p>Provide detailed information about your dataset with different description types:</p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Landing Page Formatting:</strong> Description fields support a limited HTML subset for landing-page display
+                                only: <code>&lt;p&gt;</code>, <code>&lt;br&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code>,{' '}
+                                <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>, <code>&lt;a&gt;</code>,{' '}
+                                <code>&lt;sub&gt;</code>, <code>&lt;sup&gt;</code>, and <code>&lt;code&gt;</code>. ERNIE stores and shows this
+                                formatting on landing pages, but all exports and DataCite submissions remain plain text.
+                            </p>
+                        </div>
+
+                        <h4>Description Types</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Abstract:</strong> Brief summary of the resource content
+                            </li>
+                            <li>
+                                <strong>Methods:</strong> Methodology used to create or collect the data
+                            </li>
+                            <li>
+                                <strong>Technical Info:</strong> Technical details about data format, structure, or processing
+                            </li>
+                            <li>
+                                <strong>Table of Contents:</strong> Structure overview for complex datasets
+                            </li>
+                            <li>
+                                <strong>Other:</strong> Any additional descriptive information
+                            </li>
+                        </ul>
                     </>
                 ),
             },
@@ -1134,7 +1211,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 title: 'Controlled Keywords',
                 icon: Tags,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveGcmd || settings.features.hasActiveMsl || settings.features.hasActiveChronostrat || settings.features.hasActiveGemet || settings.features.hasActiveAnalyticalMethods || settings.features.hasActiveEuroSciVoc,
+                showIf: (settings) =>
+                    settings.features.hasActiveGcmd ||
+                    settings.features.hasActiveMsl ||
+                    settings.features.hasActiveChronostrat ||
+                    settings.features.hasActiveGemet ||
+                    settings.features.hasActiveAnalyticalMethods ||
+                    settings.features.hasActiveEuroSciVoc,
                 content: (
                     <>
                         <h3>Controlled Vocabularies</h3>
@@ -1163,9 +1246,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <>
                                 <h4>ICS Chronostratigraphy</h4>
                                 <p>
-                                    The International Chronostratigraphic Chart provides standardized geologic time intervals
-                                    organized in five hierarchy levels: Eon, Era, Period, Epoch, and Age. Sourced from the
-                                    ARDC Linked Data API (GeoSciML Geologic Time Scale 2020).
+                                    The International Chronostratigraphic Chart provides standardized geologic time intervals organized in five
+                                    hierarchy levels: Eon, Era, Period, Epoch, and Age. Sourced from the ARDC Linked Data API (GeoSciML Geologic Time
+                                    Scale 2020).
                                 </p>
                             </>
                         )}
@@ -1174,9 +1257,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <>
                                 <h4>GEMET Keywords</h4>
                                 <p>
-                                    The GEneral Multilingual Environmental Thesaurus (GEMET) provides standardized
-                                    environmental terminology. Concepts are organized in a three-level hierarchy:
-                                    Super Groups, Groups, and Concepts (~5,500 terms). Sourced from the
+                                    The GEneral Multilingual Environmental Thesaurus (GEMET) provides standardized environmental terminology. Concepts
+                                    are organized in a three-level hierarchy: Super Groups, Groups, and Concepts (~5,500 terms). Sourced from the
                                     European Environment Information and Observation Network (EIONET).
                                 </p>
                             </>
@@ -1186,11 +1268,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <>
                                 <h4>Analytical Methods</h4>
                                 <p>
-                                    The Analytical Methods for Geochemistry and Cosmochemistry vocabulary provides
-                                    standardized terms for analytical techniques used in geochemical and cosmochemical
-                                    research (e.g. mass spectrometry, X-ray diffraction). Concepts include optional
-                                    notation codes. Sourced from the ARDC Linked Data API (EarthChem/GEOROC).
-                                    The vocabulary version is configurable by administrators and group leaders.
+                                    The Analytical Methods for Geochemistry and Cosmochemistry vocabulary provides standardized terms for analytical
+                                    techniques used in geochemical and cosmochemical research (e.g. mass spectrometry, X-ray diffraction). Concepts
+                                    include optional notation codes. Sourced from the ARDC Linked Data API (EarthChem/GEOROC). The vocabulary version
+                                    is configurable by administrators and group leaders.
                                 </p>
                             </>
                         )}
@@ -1199,13 +1280,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <>
                                 <h4>European Science Vocabulary (EuroSciVoc)</h4>
                                 <p>
-                                    The European Science Vocabulary (EuroSciVoc) is a taxonomy of fields of science
-                                    published by the Publications Office of the European Union. It is based on the
-                                    OECD&apos;s 2015 Frascati Manual taxonomy and extended with categories extracted
-                                    from CORDIS content. The vocabulary covers six top-level domains: Natural Sciences,
-                                    Engineering and Technology, Medical and Health Sciences, Agricultural Sciences,
-                                    Social Sciences, and Humanities. Keywords are mapped to DataCite with
-                                    subjectScheme &quot;European Science Vocabulary (EuroSciVoc)&quot;.
+                                    The European Science Vocabulary (EuroSciVoc) is a taxonomy of fields of science published by the Publications
+                                    Office of the European Union. It is based on the OECD&apos;s 2015 Frascati Manual taxonomy and extended with
+                                    categories extracted from CORDIS content. The vocabulary covers six top-level domains: Natural Sciences,
+                                    Engineering and Technology, Medical and Health Sciences, Agricultural Sciences, Social Sciences, and Humanities.
+                                    Keywords are mapped to DataCite with subjectScheme &quot;European Science Vocabulary (EuroSciVoc)&quot;.
                                 </p>
                             </>
                         )}
@@ -1237,7 +1316,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <strong>Polygon:</strong> Draw custom shapes for complex regions
                             </li>
                             <li>
-                                <strong>Line:</strong> Draw a polyline (e.g. transects, routes, profiles) by clicking successive points on the map. Requires at least 2 points. For DataCite export, lines are automatically converted to thin polygons.
+                                <strong>Line:</strong> Draw a polyline (e.g. transects, routes, profiles) by clicking successive points on the map.
+                                Requires at least 2 points. For DataCite export, lines are automatically converted to thin polygons.
                             </li>
                         </ul>
 
@@ -1250,8 +1330,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>CSV Import for Polygons and Lines</h4>
                         <p>
-                            For polygons or lines with many coordinate pairs, you can import coordinates from a CSV file
-                            instead of entering them manually:
+                            For polygons or lines with many coordinate pairs, you can import coordinates from a CSV file instead of entering them
+                            manually:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
@@ -1326,43 +1406,6 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
-                id: 'funding-references',
-                title: 'Funding References',
-                icon: Coins,
-                minRole: 'beginner',
-                content: (
-                    <>
-                        <h3>Acknowledging Funding Sources</h3>
-                        <p>Document the funding sources that supported your research:</p>
-
-                        <h4>Required Information</h4>
-                        <ul className="list-inside list-disc space-y-1">
-                            <li>
-                                <strong>Funder Name:</strong> Official name of the funding organization
-                            </li>
-                            <li>
-                                <strong>Funder Identifier:</strong> Crossref Funder ID or ROR ID (optional but recommended)
-                            </li>
-                            <li>
-                                <strong>Award Number:</strong> Grant or project number
-                            </li>
-                            <li>
-                                <strong>Award Title:</strong> Title of the funded project (optional)
-                            </li>
-                        </ul>
-
-                        <h4>Common Funders</h4>
-                        <p>Search for your funder by name – the system will suggest matching organizations with their official identifiers.</p>
-
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> Including funder information improves discoverability and helps funders track research outputs.
-                            </p>
-                        </div>
-                    </>
-                ),
-            },
-            {
                 id: 'related-identifiers',
                 title: 'Related Identifiers',
                 icon: Link2,
@@ -1375,24 +1418,36 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h4>Adding Related Identifiers</h4>
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Enter the Identifier">
-                                <p>Paste a DOI, URL, Handle, IGSN, URN, or another supported identifier. ERNIE auto-detects the type and still lets you override it manually when needed.</p>
+                                <p>
+                                    Paste a DOI, URL, Handle, IGSN, URN, or another supported identifier. ERNIE auto-detects the type and still lets
+                                    you override it manually when needed.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Pick the Relation Type">
-                                <p>The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block, with the full schema available below it.</p>
+                                <p>
+                                    The relation menu keeps the most frequently used DataCite relation types in a dedicated <em>Most used</em> block,
+                                    with the full schema available below it.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Refine the Card">
-                                <p>After adding an entry, edit the related-work card directly. You can adjust the identifier, change the relation type, and add a custom citation label for landing pages.</p>
+                                <p>
+                                    After adding an entry, edit the related-work card directly. You can adjust the identifier, change the relation
+                                    type, and add a custom citation label for landing pages.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Reorder the List">
-                                <p>Drag related-work cards into the order you want. This order is preserved in the editor and reused on the landing page.</p>
+                                <p>
+                                    Drag related-work cards into the order you want. This order is preserved in the editor and reused on the landing
+                                    page.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
                         <h4>DOI Citation Labels</h4>
                         <p>
-                            When you add a DOI, ERNIE tries to resolve a formatted citation label immediately and stores it with the related identifier.
-                            The same citation label is reused on landing pages and in the relation browser, so no third-party citation lookup is needed at page-load time.
-                            You can overwrite the label manually whenever you need a curated citation string.
+                            When you add a DOI, ERNIE tries to resolve a formatted citation label immediately and stores it with the related
+                            identifier. The same citation label is reused on landing pages and in the relation browser, so no third-party citation
+                            lookup is needed at page-load time. You can overwrite the label manually whenever you need a curated citation string.
                         </p>
 
                         <h4>Common Relation Types</h4>
@@ -1424,10 +1479,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             Related Items (DataCite {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} <code>relatedItem</code>)
                         </h3>
                         <p>
-                            The Related Item Manager complements plain <em>Related Identifiers</em> by allowing you to attach full metadata
-                            for resources related to the one being registered, including title, authors, publication year, volume, issue,
-                            pages, and publisher. This is especially useful when a related resource has no persistent identifier, or when
-                            the linked record should remain visible even if the external DOI later becomes unavailable.
+                            The Related Item Manager complements plain <em>Related Identifiers</em> by allowing you to attach full metadata for
+                            resources related to the one being registered, including title, authors, publication year, volume, issue, pages, and
+                            publisher. This is especially useful when a related resource has no persistent identifier, or when the linked record
+                            should remain visible even if the external DOI later becomes unavailable.
                         </p>
                         <p>You can open this workflow anywhere ERNIE lets you edit a resource.</p>
 
@@ -1438,8 +1493,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 Related Item Manager modal for that resource.
                             </li>
                             <li>
-                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items while
-                                editing a resource.
+                                <strong>Curation form:</strong> expand the <em>Related Items</em> accordion to add, edit, or delete related items
+                                while editing a resource.
                             </li>
                         </ul>
 
@@ -1447,14 +1502,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Auto-fill by DOI (recommended)">
                                 <p>
-                                    Enter a DOI in the identifier field and the form will pre-populate title, authors, year, volume, issue,
-                                    pages and publisher from Crossref (with DataCite as fallback). You can override any field afterwards.
+                                    Enter a DOI in the identifier field and the form will pre-populate title, authors, year, volume, issue, pages and
+                                    publisher from Crossref (with DataCite as fallback). You can override any field afterwards.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Choose Relation & Type">
                                 <p>
-                                    Select the relation type (e.g. <em>IsCitedBy</em>, <em>IsSupplementTo</em>) and the related item type
-                                    (<em>JournalArticle</em>, <em>Book</em>, <em>Dataset</em>, …).
+                                    Select the relation type (e.g. <em>IsCitedBy</em>, <em>IsSupplementTo</em>) and the related item type (
+                                    <em>JournalArticle</em>, <em>Book</em>, <em>Dataset</em>, …).
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Enter Titles, Creators & Contributors">
@@ -1465,18 +1520,18 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Save & Reorder">
                                 <p>
-                                    Related items are persisted immediately. Drag rows in the list to change their display order on the landing
-                                    page. Switch between APA and IEEE preview styles and copy the formatted citation with one click.
+                                    Related items are persisted immediately. Drag rows in the list to change their display order on the landing page.
+                                    Switch between APA and IEEE preview styles and copy the formatted citation with one click.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
                         <h4>Export &amp; Import</h4>
                         <p>
-                            Related items are included in all DataCite exports (XML, JSON, JSON-LD) as{' '}
-                            <code>&lt;relatedItems&gt;</code>/<code>relatedItems</code> and in the Schema.org landing page markup
-                            (<code>citation</code> block). XML uploads with <code>&lt;relatedItems&gt;</code> blocks are parsed on import and
-                            pre-filled in the editor. The DataCite JSON import path imports related items automatically.
+                            Related items are included in all DataCite exports (XML, JSON, JSON-LD) as <code>&lt;relatedItems&gt;</code>/
+                            <code>relatedItems</code> and in the Schema.org landing page markup (<code>citation</code> block). XML uploads with{' '}
+                            <code>&lt;relatedItems&gt;</code> blocks are parsed on import and pre-filled in the editor. The DataCite JSON import path
+                            imports related items automatically.
                         </p>
 
                         <h4>On the Landing Page</h4>
@@ -1489,33 +1544,100 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
-                id: 'licenses',
-                title: 'Licenses',
-                icon: FileText,
+                id: 'funding-references',
+                title: 'Funding References',
+                icon: Coins,
                 minRole: 'beginner',
-                showIf: (settings) => settings.features.hasActiveLicenses,
                 content: (
                     <>
-                        <h3>Assigning Licenses</h3>
-                        <p>Select appropriate licenses for your dataset from the SPDX license list.</p>
+                        <h3>Acknowledging Funding Sources</h3>
+                        <p>
+                            Document the funding sources that supported your research. The documentation follows the same wording and order as the
+                            editor.
+                        </p>
 
-                        <h4>Selecting a License</h4>
-                        <p>The license dropdown shows all active licenses. Common choices for research data include:</p>
+                        <h4>Editor Fields</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>CC-BY-4.0:</strong> Attribution required, commercial use allowed
+                                <strong>Funder Name:</strong> Official name of the funding organization. Start typing to search matching ROR funders.
                             </li>
                             <li>
-                                <strong>CC-BY-SA-4.0:</strong> Attribution + ShareAlike
+                                <strong>Funder Identifier:</strong> ROR, Crossref Funder ID, ISNI, GRID, or Other identifier shown as a badge after a
+                                funder match is selected.
                             </li>
                             <li>
-                                <strong>CC0-1.0:</strong> Public domain dedication
+                                <strong>Show award details:</strong> Expands the optional award fields for grant-level metadata.
+                            </li>
+                            <li>
+                                <strong>Award/Grant Number:</strong> Grant, award, or project number.
+                            </li>
+                            <li>
+                                <strong>Award URI:</strong> URL for the award or project record.
+                            </li>
+                            <li>
+                                <strong>Award Title:</strong> Title of the funded project.
                             </li>
                         </ul>
 
-                        <p className="mt-4 text-sm text-muted-foreground">
-                            You can assign up to {editorSettings.limits.maxLicenses} license(s) per resource.
+                        <h4>Common Funders</h4>
+                        <p>Search for your funder by name - the system will suggest matching organizations with their official identifiers.</p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Tip:</strong> Including funder information improves discoverability and helps funders track research outputs.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'portal-search',
+                title: 'Data Portal Search',
+                icon: Globe,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Searching Published Records in the Portal</h3>
+                        <p>
+                            The public Data Portal at <code>/portal</code> lets you explore published datasets and physical samples with text,
+                            spatial, temporal, datacenter, and keyword filters. Every filter state is stored in the URL, so filtered views can be
+                            bookmarked and shared.
                         </p>
+
+                        <h4>Free Keywords</h4>
+                        <p>
+                            The <strong>Free Keywords</strong> filter is a searchable multi-select for uncontrolled keywords that were entered as
+                            plain text during curation. Select one or more values to require exact matches on those free-form terms.
+                        </p>
+
+                        <h4>Thesaurus Keywords</h4>
+                        <p>
+                            Controlled vocabulary terms are now filtered separately in the <strong>Thesaurus Keywords</strong> section. ERNIE shows a
+                            dedicated tree for each thesaurus and hides unused branches automatically, so you only browse terms that are already used
+                            by published records.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Select a parent node to include matching descendant terms automatically</li>
+                            <li>Select multiple thesaurus nodes to combine them with AND logic</li>
+                            <li>Remove individual selections from the chips above the tree without resetting the other filters</li>
+                        </ul>
+
+                        <h4>Other Portal Filters</h4>
+                        <p>
+                            Resource type, datacenter, temporal range, and spatial map filters continue to work together with the split keyword
+                            filters. When the result set refreshes, the current results stay visible until the new response arrives.
+                        </p>
+
+                        <h4>Result Preview</h4>
+                        <p>
+                            Portal result rows stay compact for faster scanning. If a title is too long for the available row width, ERNIE truncates
+                            it responsively so author and year metadata stay visible.
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>Hover a result row with the mouse to open a metadata preview</li>
+                            <li>Tab to a result link to open the same preview from the keyboard</li>
+                            <li>The preview shows the full main title, the full creator list, and the abstract when one is available</li>
+                        </ul>
                     </>
                 ),
             },
@@ -1523,13 +1645,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 id: 'landing-pages',
                 title: 'Landing Pages',
                 icon: Globe,
-                minRole: 'curator',
+                minRole: 'beginner',
                 content: (
                     <>
                         <h3>Creating Landing Pages</h3>
                         <p>
                             Landing pages are public-facing pages for your datasets. A published landing page is <strong>required</strong> before DOI
-                            registration.
+                            registration. Beginner users can create, edit, preview, and publish landing pages for the training workflow; deleting
+                            draft landing pages remains available only to Curators and above.
                         </p>
                         <p>
                             Controlled thesaurus keywords on GFZ-hosted landing pages keep their hierarchy. ERNIE shows a compact breadcrumb on the
@@ -1542,10 +1665,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             as <code>https://datapub.gfz.de/</code> to save typing, and then continue editing the remainder of the path if needed.
                         </p>
                         <p>
-                            If a generated GFZ landing page should not offer downloads yet, enable{' '}
-                            <strong>No data available for download</strong> in the same Download URL section. ERNIE keeps the saved primary URL,
-                            imported legacy files, and additional download links in the setup modal, but hides the complete Files section on the
-                            preview and public landing page until the option is disabled again.
+                            If a generated GFZ landing page should not offer downloads yet, enable <strong>No data available for download</strong> in
+                            the same Download URL section. ERNIE keeps the saved primary URL, imported legacy files, and additional download links in
+                            the setup modal, but hides the complete Files section on the preview and public landing page until the option is disabled
+                            again.
+                        </p>
+                        <p>
+                            From the Data Editor, click <strong>Show LP Preview</strong> in the bottom-right action bar next to{' '}
+                            <strong>Save Draft</strong> and <strong>Save &amp; Validate</strong> to save the current metadata as a draft and open the
+                            landing page flow immediately. Existing landing pages open in a new browser tab. If the resource has no landing page yet,
+                            ERNIE opens the setup modal and automatically opens the preview after you create it.
                         </p>
 
                         <WorkflowSteps>
@@ -1555,7 +1684,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Create Landing Page">
-                                <p>Click the landing page icon button to generate a draft.</p>
+                                <p>
+                                    Select the resource and click the <strong>Set up landing page</strong> quick action in the bulk toolbar, or use{' '}
+                                    <strong>Show LP Preview</strong> directly in the Data Editor.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Preview">
                                 <p>Review how the landing page will appear before publishing.</p>
@@ -1585,12 +1717,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <WorkflowSteps>
                             <WorkflowSteps.Step number={1} title="Open Landing Page Setup">
-                                <p>Click the landing page icon for your resource and open the setup modal.</p>
+                                <p>
+                                    Select the resource on <code>/resources</code> and click <strong>Set up landing page</strong> in the bulk toolbar
+                                    to open the setup modal.
+                                </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Add Links">
                                 <p>
-                                    In the <strong>"Additional Links"</strong> section, click <strong>"Add Link"</strong> and enter a URL and label for
-                                    each link.
+                                    In the <strong>"Additional Links"</strong> section, click <strong>"Add Link"</strong> and enter a URL and label
+                                    for each link.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder via Drag &amp; Drop">
@@ -1598,8 +1733,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Save">
                                 <p>
-                                    Click Save to persist the links. They will appear on the preview immediately and on the public
-                                    landing page once it is published.
+                                    Click Save to persist the links. They will appear on the preview immediately and on the public landing page once
+                                    it is published.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -1669,8 +1804,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Clone Default Template">
                                 <p>
-                                    Click <strong>"New Template"</strong> and enter a unique name. The new template starts as an
-                                    exact copy of the Default GFZ template.
+                                    Click <strong>"New Template"</strong> and enter a unique name. The new template starts as an exact copy of the
+                                    Default GFZ template.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Reorder Sections">
@@ -1695,22 +1830,22 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Upload Custom Logo (Optional)">
                                 <p>
-                                    Click the image icon on a template card to upload a custom header logo (PNG, JPG, SVG, or
-                                    WebP, max 2 MB). The logo replaces the default GFZ logo on landing pages using this template.
+                                    Click the image icon on a template card to upload a custom header logo (PNG, JPG, SVG, or WebP, max 2 MB). The
+                                    logo replaces the default GFZ logo on landing pages using this template.
                                 </p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Use in Landing Pages">
                                 <p>
-                                    When setting up a landing page for a resource, custom templates appear in the template dropdown
-                                    alongside the built-in templates. Select a custom template to apply its layout and branding.
+                                    When setting up a landing page for a resource, custom templates appear in the template dropdown alongside the
+                                    built-in templates. Select a custom template to apply its layout and branding.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Note:</strong> The Default GFZ template cannot be modified or deleted. Custom templates that
-                                are currently in use by published landing pages are also protected from deletion.
+                                <strong>Note:</strong> The Default GFZ template cannot be modified or deleted. Custom templates that are currently in
+                                use by published landing pages are also protected from deletion.
                             </p>
                         </div>
                     </>
@@ -1724,7 +1859,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 content: (
                     <>
                         <h3>Registering DOIs</h3>
-                        <p>Once your landing page is public, you can register a DOI through DataCite.</p>
+                        <p>
+                            Once your landing page is public, you can register a DOI through DataCite. Beginner users follow the same workflow, but
+                            ERNIE forces their requests to the DataCite test API.
+                        </p>
 
                         <h4>DOI Duplicate Detection</h4>
                         <p>The system automatically validates DOIs when you enter them and when you save:</p>
@@ -1737,60 +1875,81 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>ORCID Pre-flight Validation</h4>
                         <p>
-                            Both when registering a new DOI <em>and</em> when updating metadata for an
-                            existing DOI, ERNIE performs a final ORCID pre-flight check for every creator
-                            and contributor attached to the resource before any request is sent to DataCite:
+                            Both when registering a new DOI <em>and</em> when updating metadata for an existing DOI, ERNIE performs a final ORCID
+                            pre-flight check for every creator and contributor attached to the resource before any request is sent to DataCite:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Hard block</strong> – If an ORCID is malformed, has an invalid checksum,
-                                or is reported as "not found" by orcid.org, registration <em>and</em> metadata
-                                updates are refused with a 422 response listing each offending person. You must
-                                correct the identifier in the editor before retrying.
+                                <strong>Hard block</strong> – If an ORCID is malformed, has an invalid checksum, or is reported as "not found" by
+                                orcid.org, registration <em>and</em> metadata updates are refused with a 422 response listing each offending person.
+                                You must correct the identifier in the editor before retrying.
                             </li>
                             <li>
-                                <strong>Warning (override possible)</strong> – If the ORCID service is
-                                temporarily unreachable (network error, timeout, API error), the registration
-                                modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
-                                re-runs the pre-flight against orcid.org (use this when the service may have
-                                recovered), and <strong>"Register anyway"</strong> (labeled{' '}
-                                <strong>"Update anyway"</strong> when updating an existing DOI) submits with
-                                an override flag. On the override attempt the throttled orcid.org call is
-                                skipped entirely – only the offline format + checksum gates still run, and
-                                registration (or metadata update) proceeds regardless of the earlier transient
-                                warning. Hard blockers (malformed / checksum / not found) are never overridden
-                                this way.
+                                <strong>Warning (override possible)</strong> – If the ORCID service is temporarily unreachable (network error,
+                                timeout, API error), the registration modal shows a warning with two options: <strong>"Retry verification"</strong>{' '}
+                                re-runs the pre-flight against orcid.org (use this when the service may have recovered), and{' '}
+                                <strong>"Register anyway"</strong> (labeled <strong>"Update anyway"</strong> when updating an existing DOI) submits
+                                with an override flag. On the override attempt the throttled orcid.org call is skipped entirely – only the offline
+                                format + checksum gates still run, and registration (or metadata update) proceeds regardless of the earlier transient
+                                warning. Hard blockers (malformed / checksum / not found) are never overridden this way.
                             </li>
                             <li>
-                                <strong>Success</strong> – On the first successful pre-flight, the person
-                                record is stamped with an internal <code>orcid_verified_at</code> timestamp
-                                for auditing purposes. The timestamp records the <em>first</em> confirmation
-                                by orcid.org and is intentionally not refreshed on subsequent registrations,
-                                so the audit trail of the original verification is preserved. The editor
-                                itself still marks identifiers as verified via an offline format + checksum
-                                check when a resource is loaded; the stored timestamp is not yet consumed
-                                to skip future preflight checks.
+                                <strong>Success</strong> – On the first successful pre-flight, the person record is stamped with an internal{' '}
+                                <code>orcid_verified_at</code> timestamp for auditing purposes. The timestamp records the <em>first</em> confirmation
+                                by orcid.org and is intentionally not refreshed on subsequent registrations, so the audit trail of the original
+                                verification is preserved. The editor itself still marks identifiers as verified via an offline format + checksum
+                                check when a resource is loaded; the stored timestamp is not yet consumed to skip future preflight checks.
                             </li>
                         </ul>
                         <p className="mt-2 text-sm text-muted-foreground">
-                            Note: Opening an existing resource in the editor no longer triggers ORCID
-                            validation for stored authors. The network check only runs when you actively edit
-                            an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
+                            Note: Opening an existing resource in the editor no longer triggers ORCID validation for stored authors. The network check
+                            only runs when you actively edit an ORCID / name field or when you press <strong>Register DOI</strong> or{' '}
                             <strong>Update metadata</strong>.
                         </p>
 
                         <h4>Test vs Production</h4>
+                        <p>
+                            DOI registration uses the DataCite mode resolved for your account. Current mode:{' '}
+                            <strong>{dataCite.currentMode === 'test' ? 'Test' : 'Production'}</strong>.
+                        </p>
+                        <p>
+                            A new DOI is minted by DataCite from the selected prefix plus a generated suffix. For example, selecting prefix{' '}
+                            <code>
+                                {dataCite.currentMode === 'test'
+                                    ? (dataCite.testPrefixes[0] ?? '10.xxxxx')
+                                    : (dataCite.productionPrefixes[0] ?? '10.xxxxx')}
+                            </code>{' '}
+                            produces a DOI in that prefix namespace.
+                        </p>
                         <div className="mt-2 space-y-2">
                             <div className="rounded-lg border bg-card p-4">
                                 <h5 className="font-semibold">Test Mode</h5>
-                                <p className="text-sm text-muted-foreground">For practice – DOIs are not publicly resolvable.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    For practice and Beginner training. Test DOI registrations are sent to{' '}
+                                    <code>{dataCite.testEndpoint || NOT_CONFIGURED_LABEL}</code>.
+                                </p>
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Test prefixes: <code>{formatConfiguredList(dataCite.testPrefixes)}</code>
+                                </p>
                             </div>
                             <div className="rounded-lg border bg-card p-4">
                                 <h5 className="font-semibold">Production Mode</h5>
-                                <p className="text-sm text-muted-foreground">For real publications – DOIs are permanent and public.</p>
+                                <p className="text-sm text-muted-foreground">
+                                    For real publications. Production DOI registrations are sent to{' '}
+                                    <code>{dataCite.productionEndpoint || NOT_CONFIGURED_LABEL}</code> and create permanent public identifiers.
+                                </p>
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    Production prefixes: <code>{formatConfiguredList(dataCite.productionPrefixes)}</code>
+                                </p>
                                 {userRole === 'beginner' && (
                                     <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-                                        <strong>Note:</strong> Beginners can only register test DOIs.
+                                        <strong>Note:</strong> Beginners always register through the DataCite test API, even when production mode is
+                                        enabled globally.
+                                    </p>
+                                )}
+                                {dataCite.isTestModeForcedForUser && (
+                                    <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                                        ERNIE is currently forcing test mode for your account because Beginner users cannot mint production DOIs.
                                     </p>
                                 )}
                             </div>
@@ -1847,16 +2006,32 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Selecting and Acting on Multiple Resources</h3>
                         <p>
-                            The <code>/resources</code> page supports multi-selection so you can act on several
-                            resources at once. Select rows individually with the checkbox in the leftmost column,
-                            or use the header checkbox to select all currently visible resources. The bulk
-                            actions toolbar sits directly below the filter row and shows how many resources are
-                            selected.
+                            The <code>/resources</code> page supports multi-selection so you can act on several resources at once. Select rows
+                            individually with the checkbox in the leftmost column, or use the header checkbox to select all currently visible
+                            resources. The bulk actions toolbar sits directly below the filter row and shows how many resources are selected.
+                        </p>
+                        <p>
+                            Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls
+                            keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and
+                            copy the DOI or preview URL. Whenever exactly one resource is being opened and the browser blocks its editor tab, ERNIE
+                            shows a warning so you can allow pop-ups and try again.
+                        </p>
+
+                        <h4>Quick Resource Actions</h4>
+                        <p>
+                            <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
+                            Edit opens every selected resource in the Data Editor. When multiple resources are selected and the browser blocks one or
+                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page stays
+                            visible as a quick action and reports the standard single-record message when more than one row is selected.
+                        </p>
+                        <p>
+                            The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related
+                            items, and deletion remain grouped together.
                         </p>
 
                         <h4>Bulk Export (all roles)</h4>
                         <p>
-                            Click <strong>Export Selected</strong> to download a single ZIP archive containing
+                            Open the <strong>Actions</strong> menu and choose the desired export command to download a single ZIP archive containing
                             the metadata of every selected resource in your chosen format:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
@@ -1865,60 +2040,73 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>DataCite JSON-LD (Linked Data)</li>
                         </ul>
                         <p className="text-sm text-muted-foreground">
-                            Limit: up to 100 resources per ZIP. Bulk exports stream the generated payload
-                            directly to the browser without running the DataCite Schema {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} validator —
-                            use the single-resource export in the editor if you need schema-validated output.
+                            Limit: up to 100 resources per ZIP. Bulk exports stream the generated payload directly to the browser without running the
+                            DataCite Schema {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} validator — use the single-resource export in the editor if you
+                            need schema-validated output.
                         </p>
 
-                        <h4>Bulk Register / Update DOI (Curator and above)</h4>
+                        <h4>Bulk Register / Update DOI (all roles, Beginner test-only)</h4>
                         <p>
-                            Click <strong>Register Selected</strong> to push every selected resource to DataCite
-                            in one batch. The bulk flow <strong>only updates resources that already have a
-                            DOI</strong>; the button is disabled when the selection contains any DOI-less resource
-                            so you never accidentally mint a DOI without picking a prefix. To mint a new DOI,
-                            open the resource in the editor and use the single-resource register action there.
-                            Resources without a landing page or that are physical samples (IGSNs) are skipped
-                            and reported in the response toast.
+                            Open the <strong>Actions</strong> menu and choose <strong>Register DOI</strong> or <strong>Update metadata</strong> to
+                            push selected resources to DataCite in one batch. Beginner users can run the same training action, but ERNIE always routes
+                            their requests to DataCite test mode. The bulk flow <strong>only updates resources that already have a DOI</strong>; the
+                            action is unavailable when the selection contains any DOI-less resource so you never accidentally mint a DOI without
+                            picking a prefix. To mint a new DOI, open the resource in the editor and use the single-resource register action there.
+                            Resources without a landing page or that are physical samples (IGSNs) are skipped and reported in the response toast.
                         </p>
                         <p className="text-sm text-muted-foreground">Limit: up to 25 resources per batch.</p>
 
+                        {roleHierarchy[userRole] >= roleHierarchy.curator && (
+                            <>
+                                <h4>Delete Selected Resources (Curator and above)</h4>
+                                <p>
+                                    Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources that have not been
+                                    published. DOI and landing page data no longer block deletion by themselves: draft, curation, and preview
+                                    resources can be deleted as long as their public status is not published.
+                                </p>
+                                <p>
+                                    The confirmation dialog groups the current selection into draft, curation, preview, and published resources. You
+                                    can choose which deletable groups to submit. Preview resources show an additional warning because their preview
+                                    landing pages will be removed with the resource. Published resources are listed as protected and are never sent to
+                                    the delete endpoint.
+                                </p>
+                            </>
+                        )}
+
                         <h4>Resizable Columns</h4>
                         <p>
-                            On tablet and desktop screens, drag the resize handle at the right edge of a column header to adjust the Resources
-                            table to your available screen width. Focus a handle with the keyboard and use Arrow Left or Arrow Right for fine
-                            adjustments, Shift plus Arrow Left or Arrow Right for larger steps, Home for the minimum width, and End for the
-                            maximum width. ERNIE saves your column widths in this browser, and the reset button above the table restores the
-                            defaults.
+                            On tablet and desktop screens, drag the resize handle at the right edge of a column header to adjust the Resources table
+                            to your available screen width. Focus a handle with the keyboard and use Arrow Left or Arrow Right for fine adjustments,
+                            Shift plus Arrow Left or Arrow Right for larger steps, Home for the minimum width, and End for the maximum width. ERNIE
+                            saves your column widths in this browser, and the reset button above the table restores the defaults.
                         </p>
                         <p>
-                            Long values are shortened with an ellipsis when a column becomes narrow. Hover over a shortened value to see the
-                            complete text in a tooltip.
+                            Long values are shortened with an ellipsis when a column becomes narrow. Hover over a shortened value to see the complete
+                            text in a tooltip.
                         </p>
 
                         <h4>Responsive Layout</h4>
                         <p>
-                            On smaller screens, less critical sub-rows (Resource Type, Curator) and the
-                            Created/Updated column are hidden so the essential columns (Title, Author/Year,
-                            Status, Actions) remain readable without horizontal scrolling.
+                            On smaller screens, less critical sub-rows (Resource Type, Curator) and the Created/Updated column are hidden so the
+                            essential columns (Title, Author/Year, Status, Actions) remain readable without horizontal scrolling.
                         </p>
 
                         <h4>Import Existing GFZ Legacy Resources</h4>
-                        <p>Admins and Group Leaders see two import actions to the right of the bulk toolbar on the <code>/resources</code> page:</p>
+                        <p>
+                            Admins and Group Leaders see two import actions to the right of the bulk toolbar on the <code>/resources</code> page:
+                        </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
-                                <strong>Import all old Resources</strong> starts the existing background import of
-                                all GFZ DataCite resources.
+                                <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
                             </li>
                             <li>
                                 <strong>Import old single Resource</strong> opens a dialog for a single DOI.
                             </li>
                         </ul>
                         <p>
-                            The single-resource dialog accepts either a bare DOI such as{' '}
-                            <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}
-                            <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the
-                            GFZ legacy database before the import starts. Resources that already exist in ERNIE
-                            are detected and skipped without overwriting the current record.
+                            The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}
+                            <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database before the
+                            import starts. Resources that already exist in ERNIE are detected and skipped without overwriting the current record.
                         </p>
                     </>
                 ),
@@ -1963,15 +2151,14 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>From the Resources List</h4>
                         <p>
-                            Click the JSON-LD export button (braces icon) on any resource row to download the
-                            metadata in DataCite Linked Data format (<code>.jsonld</code>).
+                            Click the JSON-LD export button (braces icon) on any resource row to download the metadata in DataCite Linked Data format
+                            (<code>.jsonld</code>).
                         </p>
 
                         <h4>From Landing Pages</h4>
                         <p>
-                            Published landing pages include a JSON-LD download button in the &ldquo;Download
-                            Metadata&rdquo; section. Additionally, Schema.org Dataset metadata is automatically
-                            embedded in the page for search engine discoverability.
+                            Published landing pages include a JSON-LD download button in the &ldquo;Download Metadata&rdquo; section. Additionally,
+                            Schema.org Dataset metadata is automatically embedded in the page for search engine discoverability.
                         </p>
 
                         <h4>What is JSON-LD?</h4>
@@ -1984,15 +2171,15 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>Tip:</strong> JSON-LD exports do not require validation — they are generated
-                                directly from the stored metadata.
+                                <strong>Tip:</strong> JSON-LD exports do not require validation — they are generated directly from the stored
+                                metadata.
                             </p>
                         </div>
                     </>
                 ),
             },
         ],
-        [userRole, editorSettings],
+        [userRole, editorSettings, dataCite],
     );
 
     // ===========================================
@@ -2109,7 +2296,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 <p>Drop your CSV file onto the dropzone. The system auto-detects the file type.</p>
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={4} title="Review Results">
-                                <p>A confirmation shows the number of IGSNs imported. You'll be redirected to the IGSN list.</p>
+                                <p>
+                                    A confirmation shows the number of IGSNs imported. Use <strong>View IGSNs</strong> when you are ready to open the
+                                    IGSN list.
+                                </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
@@ -2148,9 +2338,13 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <ul className="list-inside list-disc space-y-1">
                             <li>Click column headers to sort</li>
                             <li>Search by IGSN identifier or title</li>
-                            <li>Filter by IGSN prefix or upload status using the dropdown menus — active filters are shown as badges that can be individually removed</li>
+                            <li>
+                                Filter by IGSN prefix or upload status using the dropdown menus — active filters are shown as badges that can be
+                                individually removed
+                            </li>
                             <li>Export individual IGSNs as DataCite JSON</li>
                             <li>Setup landing pages for IGSNs</li>
+                            <li>Register or update IGSNs at DataCite; Beginner users are forced to the test API</li>
                         </ul>
 
                         <h4>Bulk Selection</h4>
@@ -2230,7 +2424,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
                             <p className="text-sm text-green-900 dark:text-green-100">
-                                <strong>Validation:</strong> All exports are validated against DataCite Schema {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} before download.
+                                <strong>Validation:</strong> All exports are validated against DataCite Schema{' '}
+                                {CURRENT_DATACITE_METADATA_SCHEMA_VERSION} before download.
                             </p>
                         </div>
                     </>
@@ -2245,14 +2440,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>JSON-LD (Linked Data) Export for IGSNs</h3>
                         <p>
-                            Export IGSN metadata as <strong>DataCite Linked Data JSON-LD</strong> by clicking the
-                            JSON-LD button (braces icon) on any IGSN row.
+                            Export IGSN metadata as <strong>DataCite Linked Data JSON-LD</strong> by clicking the JSON-LD button (braces icon) on any
+                            IGSN row.
                         </p>
 
                         <h4>Format Details</h4>
                         <ul className="list-inside list-disc space-y-1">
                             <li>Uses the official DataCite Linked Data vocabulary</li>
-                            <li>Downloaded as <code>.jsonld</code> file</li>
+                            <li>
+                                Downloaded as <code>.jsonld</code> file
+                            </li>
                             <li>Includes all IGSN-specific metadata fields</li>
                             <li>No validation required — generated directly from stored data</li>
                         </ul>

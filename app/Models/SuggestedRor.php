@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property string $suggested_name
  * @property float $similarity_score
  * @property array<int, string>|null $ror_aliases
+ * @property array<int, string>|null $locations
  * @property string|null $existing_identifier
  * @property string|null $existing_identifier_type
  * @property Carbon $discovered_at
@@ -40,6 +41,7 @@ use Illuminate\Support\Carbon;
     'suggested_name',
     'similarity_score',
     'ror_aliases',
+    'locations',
     'existing_identifier',
     'existing_identifier_type',
     'discovered_at',
@@ -51,6 +53,7 @@ class SuggestedRor extends Model
         'discovered_at' => 'datetime',
         'similarity_score' => 'float',
         'ror_aliases' => 'array',
+        'locations' => 'array',
     ];
 
     /** @return BelongsTo<Resource, static> */

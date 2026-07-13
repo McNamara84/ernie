@@ -1088,7 +1088,7 @@ describe('transformDates', function (): void {
     });
 
     it('falls back to date_value for imported single dates', function (): void {
-        $dateType = DateType::factory()->create(['slug' => 'Issued', 'name' => 'Issued']);
+        $dateType = DateType::factory()->create(['slug' => 'Submitted', 'name' => 'Submitted']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
             'date_type_id' => $dateType->id,
@@ -1101,14 +1101,14 @@ describe('transformDates', function (): void {
         $result = $this->transformer->transformDates($this->resource);
 
         expect($result)->toHaveCount(1)
-            ->and($result[0]['dateType'])->toBe('Issued')
+            ->and($result[0]['dateType'])->toBe('Submitted')
             ->and($result[0]['dateMode'])->toBe('single')
             ->and($result[0]['startDate'])->toBe('2026-02-10')
             ->and($result[0]['endDate'])->toBe('');
     });
 
-    it('excludes coverage, created, and updated date types', function (): void {
-        foreach (['coverage', 'created', 'updated'] as $slug) {
+    it('excludes coverage, accepted, issued, and updated date types', function (): void {
+        foreach (['coverage', 'accepted', 'issued', 'updated'] as $slug) {
             $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
             ResourceDate::create([
                 'resource_id' => $this->resource->id,
@@ -1123,8 +1123,8 @@ describe('transformDates', function (): void {
         expect($result)->toBeEmpty();
     });
 
-    it('excludes coverage, created, and updated even when only date_value is populated', function (): void {
-        foreach (['coverage', 'created', 'updated'] as $slug) {
+    it('excludes coverage, accepted, issued, and updated even when only date_value is populated', function (): void {
+        foreach (['coverage', 'accepted', 'issued', 'updated'] as $slug) {
             $dateType = DateType::factory()->create(['slug' => $slug, 'name' => ucfirst($slug)]);
             ResourceDate::create([
                 'resource_id' => $this->resource->id,
@@ -1137,6 +1137,25 @@ describe('transformDates', function (): void {
         $result = $this->transformer->transformDates($this->resource);
 
         expect($result)->toBeEmpty();
+    });
+
+    it('transforms Created date periods for editor hydration', function (): void {
+        $dateType = DateType::factory()->create(['slug' => 'Created', 'name' => 'Created']);
+        ResourceDate::create([
+            'resource_id' => $this->resource->id,
+            'date_type_id' => $dateType->id,
+            'start_date' => '2020-01-01',
+            'end_date' => '2020-12-31',
+        ]);
+        $this->resource->load('dates.dateType');
+
+        $result = $this->transformer->transformDates($this->resource);
+
+        expect($result)->toHaveCount(1)
+            ->and($result[0]['dateType'])->toBe('Created')
+            ->and($result[0]['dateMode'])->toBe('range')
+            ->and($result[0]['startDate'])->toBe('2020-01-01')
+            ->and($result[0]['endDate'])->toBe('2020-12-31');
     });
 
     it('preserves ISO 8601 datetime+timezone values', function (): void {
@@ -1186,7 +1205,7 @@ describe('transformDates', function (): void {
     });
 
     it('returns empty string for null date values', function (): void {
-        $dateType = DateType::factory()->create(['slug' => 'Issued', 'name' => 'Issued']);
+        $dateType = DateType::factory()->create(['slug' => 'Submitted', 'name' => 'Submitted']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
             'date_type_id' => $dateType->id,
@@ -1202,7 +1221,7 @@ describe('transformDates', function (): void {
     });
 
     it('returns empty string for unparseable date values', function (): void {
-        $dateType = DateType::factory()->create(['slug' => 'Accepted', 'name' => 'Accepted']);
+        $dateType = DateType::factory()->create(['slug' => 'Available', 'name' => 'Available']);
         ResourceDate::create([
             'resource_id' => $this->resource->id,
             'date_type_id' => $dateType->id,
@@ -1216,7 +1235,7 @@ describe('transformDates', function (): void {
         expect($result[0]['startDate'])->toBe('');
     });
 
-    it('loads imported DataCite single dates into the editor payload', function (): void {
+    it('loads imported DataCite editable dates into the editor payload', function (): void {
         test()->seed(ResourceTypeSeeder::class);
         test()->seed(TitleTypeSeeder::class);
         test()->seed(DateTypeSeeder::class);
@@ -1240,6 +1259,7 @@ describe('transformDates', function (): void {
                     ['date' => '2025-06-03', 'dateType' => 'Collected'],
                     ['date' => '2026-02-10', 'dateType' => 'Issued'],
                     ['date' => '2027-06', 'dateType' => 'Available'],
+                    ['date' => '2024-01-15', 'dateType' => 'Created'],
                 ],
             ],
         ], $user->id);
@@ -1251,15 +1271,16 @@ describe('transformDates', function (): void {
         expect($resource->dates)->toHaveCount(4)
             ->and($result)->toHaveCount(3)
             ->and($result->keys()->all())->toContain('Collected')
-            ->and($result->keys()->all())->toContain('Issued')
+            ->and($result->keys()->all())->toContain('Created')
             ->and($result->keys()->all())->toContain('Available')
+            ->and($result->keys()->all())->not->toContain('Issued')
             ->and($result['Collected']['dateMode'])->toBe('single')
             ->and($result['Collected']['startDate'])->toBe('2025-06-03')
             ->and($result['Collected']['endDate'])->toBe('')
-            ->and($result['Issued']['dateMode'])->toBe('single')
-            ->and($result['Issued']['startDate'])->toBe('2026-02-10')
+            ->and($result['Created']['dateMode'])->toBe('single')
+            ->and($result['Created']['startDate'])->toBe('2024-01-15')
             ->and($result['Available']['dateMode'])->toBe('single')
-            ->and($result['Available']['startDate'])->toBe('2027-06-01');
+            ->and($result['Available']['startDate'])->toBe('2027-06');
     });
 });
 
@@ -1555,6 +1576,7 @@ describe('transformRelatedIdentifiers', function (): void {
             'identifier_type_id' => $identifierType->id,
             'relation_type_id' => $relationType->id,
             'citation_label' => 'Doe, J. (2024): First item. GFZ.',
+            'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
             'position' => 1,
         ]);
 
@@ -1567,7 +1589,10 @@ describe('transformRelatedIdentifiers', function (): void {
             ->and($result[1]['identifier'])->toBe('10.5880/test.2024.002')
             ->and($result[0]['identifier_type'])->toBe('DOI')
             ->and($result[0]['relation_type'])->toBe('Cites')
-            ->and($result[0]['citation_label'])->toBe('Doe, J. (2024): First item. GFZ.');
+            ->and($result[0]['citation_label'])->toBe('Doe, J. (2024): First item. GFZ.')
+            ->and($result[0]['source'])->toBe(RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT)
+            ->and($result[0]['is_repository_curation'])->toBeTrue()
+            ->and($result[1]['is_repository_curation'])->toBeFalse();
     });
 });
 

@@ -14,6 +14,7 @@ use App\Rules\HasMainTitle;
 use App\Rules\SafeUrl;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
+use App\Support\LanguageTag;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -58,7 +59,7 @@ class StoreResourceRequest extends FormRequest
             'titles.*.title' => ['required', 'string', 'max:255'],
             // Title types are validated in after(): allow 'main-title' even if there is no DB TitleType row.
             'titles.*.titleType' => ['required', 'string', 'max:255'],
-            'titles.*.language' => ['nullable', 'string', 'max:10'],
+            'titles.*.language' => LanguageTag::validationRules(),
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
             'customLicenses' => ['nullable', 'array'],
@@ -115,15 +116,12 @@ class StoreResourceRequest extends FormRequest
             'dates.*.dateType' => [
                 'required',
                 'string',
-                Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
+                Rule::in(['available', 'collected', 'copyrighted', 'created', 'submitted', 'valid', 'withdrawn', 'other']),
             ],
             'dates.*.dateMode' => ['nullable', Rule::in(['single', 'range'])],
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
-            // Imported 'created' date from XML/DataCite import (Issue #371)
-            // If provided, this date is used instead of the current date for new resources
-            'importedCreatedDate' => ['nullable', 'date'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
             'gcmdKeywords' => ['nullable', 'array'],
@@ -150,6 +148,7 @@ class StoreResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
             'relatedIdentifiers' => ['nullable', 'array'],
+            'relatedIdentifiers.*.id' => ['nullable', 'integer', 'min:1'],
             'relatedIdentifiers.*.identifier' => ['required', 'string', 'max:2183'],
             'relatedIdentifiers.*.identifierType' => [
                 'required',
@@ -175,11 +174,12 @@ class StoreResourceRequest extends FormRequest
             ],
             'relatedIdentifiers.*.relationTypeInformation' => ['nullable', 'string', 'max:255'],
             'relatedIdentifiers.*.citationLabel' => ['nullable', 'string', 'max:'.RelatedIdentifier::MAX_CITATION_LABEL_CHARACTERS],
+            'relatedIdentifiers.*.source' => ['nullable', 'string', Rule::in([RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT])],
 
             // Related Item Manager: inline <relatedItem> metadata (DataCite 4.7).
             'relatedItems' => ['nullable', 'array'],
             // Canonical DataCite `resourceTypeGeneral` enum (PascalCase, no
-            // spaces — e.g. `JournalArticle`); kept in sync with
+            // spaces -- e.g. `JournalArticle`); kept in sync with
             // `StoreRelatedItemRequest` and the vocabularies endpoint via
             // `ResourceType::slugToDataciteResourceTypeGeneral()` (and the
             // matching instance helper `dataciteResourceTypeGeneral()`).
@@ -311,12 +311,12 @@ class StoreResourceRequest extends FormRequest
                 }
             }
 
-            $language = isset($title['language']) ? trim((string) $title['language']) : '';
+            $language = LanguageTag::normalize($title['language'] ?? null);
 
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
                 'titleType' => $titleType,
-                'language' => $language !== '' ? $language : null,
+                'language' => $language,
             ];
         }
 
@@ -799,12 +799,20 @@ class StoreResourceRequest extends FormRequest
                 ? trim((string) $relatedIdentifier['citationLabel'])
                 : '';
 
+            $id = $this->normalizeRelatedIdentifierId($relatedIdentifier['id'] ?? null);
+
+            $source = isset($relatedIdentifier['source']) && is_scalar($relatedIdentifier['source'])
+                ? trim((string) $relatedIdentifier['source'])
+                : '';
+
             $relatedIdentifiers[] = [
+                ...($id !== null ? ['id' => $id] : []),
                 'identifier' => $identifier,
                 'identifierType' => $identifierType,
                 'relationType' => $relationType,
                 ...($relationTypeInformation !== '' ? ['relationTypeInformation' => $relationTypeInformation] : []),
                 ...($citationLabel !== '' ? ['citationLabel' => $citationLabel] : []),
+                ...($source !== '' ? ['source' => $source] : []),
             ];
         }
 
@@ -1033,7 +1041,7 @@ class StoreResourceRequest extends FormRequest
     }
 
     /**
-     * Normalize a DOI input value: trim, strip URL prefix, lowercase — or return null.
+     * Normalize a DOI input value: trim, strip URL prefix, lowercase, or return null.
      *
      * Reuses the normalization logic from DoiSuggestionService to ensure consistent
      * DOI handling across the entire system (validation, storage, duplicate checks).
@@ -1373,7 +1381,7 @@ class StoreResourceRequest extends FormRequest
 
                     $roles = $contributor['roles'] ?? [];
 
-                    // Skip roles-empty check — already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
+                    // Skip roles-empty check -- already enforced by 'contributors.*.roles' => ['required', 'array', 'min:1'] in rules()
 
                     // Require email when Contact Person role is assigned to a person contributor
                     if ($type === 'person' && is_array($roles) && $contactPersonNames !== []) {
@@ -1421,7 +1429,7 @@ class StoreResourceRequest extends FormRequest
                 }
             },
             function (Validator $validator): void {
-                // Validate polygon coverages have at least 3 points
+                // Validate polygon and line coverages have the required minimum number of points
                 $coverages = $this->input('spatialTemporalCoverages', []);
 
                 if (! is_array($coverages)) {
@@ -1435,19 +1443,33 @@ class StoreResourceRequest extends FormRequest
 
                     $type = $coverage['type'] ?? 'point';
 
-                    if ($type === 'polygon') {
+                    if ($type === 'polygon' || $type === 'line') {
                         $polygonPoints = $coverage['polygonPoints'] ?? [];
+                        $minimumPoints = $type === 'polygon' ? 3 : 2;
 
-                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                        if (! is_array($polygonPoints) || count($polygonPoints) < $minimumPoints) {
                             $validator->errors()->add(
                                 "spatialTemporalCoverages.$index.polygonPoints",
-                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' polygon must have at least 3 points.',
+                                '[Spatial & Temporal Coverage] Coverage #'.($index + 1).' '.$type.' must have at least '.$minimumPoints.' points.',
                             );
                         }
                     }
                 }
             },
         ];
+    }
+
+    private function normalizeRelatedIdentifierId(mixed $id): mixed
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        $validatedId = filter_var($id, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        return $validatedId === false ? $id : $validatedId;
     }
 
     private function normalizeString(mixed $value): ?string

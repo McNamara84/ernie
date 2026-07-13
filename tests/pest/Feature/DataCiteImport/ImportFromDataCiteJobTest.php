@@ -4,6 +4,7 @@ use App\Enums\CacheKey;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
@@ -114,18 +115,18 @@ describe('ImportFromDataCiteJob', function () {
             ->once()
             ->andReturn((function () {
                 yield [
-                    'id' => '10.5880/test.1',
+                    'id' => '10.5880/sample.1',
                     'attributes' => [
-                        'doi' => '10.5880/test.1',
+                        'doi' => '10.5880/sample.1',
                         'titles' => [['title' => 'Test 1']],
                         'publicationYear' => 2024,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
                     ],
                 ];
                 yield [
-                    'id' => '10.5880/test.2',
+                    'id' => '10.5880/sample.2',
                     'attributes' => [
-                        'doi' => '10.5880/test.2',
+                        'doi' => '10.5880/sample.2',
                         'titles' => [['title' => 'Test 2']],
                         'publicationYear' => 2024,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
@@ -366,9 +367,9 @@ describe('ImportFromDataCiteJob', function () {
             ->once()
             ->andReturn((function () {
                 yield [
-                    'id' => '10.5880/test.1',
+                    'id' => '10.5880/sample.1',
                     'attributes' => [
-                        'doi' => '10.5880/test.1',
+                        'doi' => '10.5880/sample.1',
                         'titles' => [['title' => 'Test']],
                         'publicationYear' => 2024,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
@@ -639,11 +640,11 @@ describe('ImportFromDataCiteJob', function () {
         $this->importService
             ->shouldReceive('fetchSingleDoi')
             ->once()
-            ->with('10.5880/test.single')
+            ->with('10.5880/sample.single')
             ->andReturn([
-                'id' => '10.5880/test.single',
+                'id' => '10.5880/sample.single',
                 'attributes' => [
-                    'doi' => '10.5880/test.single',
+                    'doi' => '10.5880/sample.single',
                     'titles' => [['title' => 'Single DOI Test']],
                     'publicationYear' => 2024,
                     'types' => ['resourceTypeGeneral' => 'Dataset'],
@@ -656,7 +657,7 @@ describe('ImportFromDataCiteJob', function () {
             ->andReturn(Resource::factory()->make());
 
         $importId = Str::uuid()->toString();
-        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/test.single');
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, '10.5880/sample.single');
         $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         $status = Cache::get("datacite_import:{$importId}");
@@ -1009,9 +1010,9 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->once()
             ->andReturn((function () {
                 yield [
-                    'id' => '10.5880/lp.test.001',
+                    'id' => '10.5880/lp.sample.001',
                     'attributes' => [
-                        'doi' => '10.5880/lp.test.001',
+                        'doi' => '10.5880/lp.sample.001',
                         'titles' => [['title' => 'Test Dataset Title']],
                         'publicationYear' => 2024,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
@@ -1023,22 +1024,22 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/lp.test.001']));
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/lp.sample.001']));
 
         // Override the default mock: return download URLs (all public)
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
         $metaworksService->shouldReceive('lookupFileEntries')
-            ->with('10.5880/lp.test.001')
+            ->with('10.5880/lp.sample.001')
             ->once()
             ->andReturn([
                 'files' => [
                     [
-                        'url' => 'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip',
+                        'url' => 'https://datapub.gfz.de/download/10.5880/GFZ.lp.sample.001/file1.zip',
                         'label' => 'Archive package',
                         'visible' => 'public',
                     ],
                     [
-                        'url' => 'https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip',
+                        'url' => 'https://datapub.gfz.de/download/10.5880/GFZ.lp.sample.001/file2.zip',
                         'label' => 'Supplement table',
                         'visible' => 'public',
                     ],
@@ -1051,17 +1052,17 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         $job->handle($this->importService, $this->transformer, $metaworksService);
 
         // Verify landing page was created
-        $resource = Resource::where('doi', '10.5880/lp.test.001')->first();
+        $resource = Resource::where('doi', '10.5880/lp.sample.001')->first();
         $landingPage = LandingPage::where('resource_id', $resource->id)->first();
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->template)->toBe('default_gfz')
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull()
-            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file1.zip');
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.sample.001/file1.zip');
 
         $links = LandingPageLink::where('landing_page_id', $landingPage->id)->orderBy('position')->get();
         expect($links)->toHaveCount(1)
-            ->and($links[0]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.test.001/file2.zip')
+            ->and($links[0]->url)->toBe('https://datapub.gfz.de/download/10.5880/GFZ.lp.sample.001/file2.zip')
             ->and($links[0]->label)->toBe('Supplement table')
             ->and($links[0]->position)->toBe(0);
 
@@ -1163,6 +1164,152 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect(LandingPage::where('resource_id', $resource->id)->exists())->toBeFalse();
     });
 
+    it('creates a default landing page with downloads unavailable when a legacy resource has no files', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/gfz.dekorp.ktb8401.001',
+                    'attributes' => [
+                        'doi' => '10.5880/gfz.dekorp.ktb8401.001',
+                        'url' => 'https://dataservices.gfz.de/dekorp/showshort.php?id=493dcc02-011c-11ed-9531-ca1f3ed77ce8',
+                        'titles' => [['title' => 'DEKORP No Files Dataset']],
+                        'publicationYear' => 2022,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/gfz.dekorp.ktb8401.001']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/gfz.dekorp.ktb8401.001')
+            ->andReturn([
+                'files' => [],
+                'allPublic' => false,
+                'resourceFound' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $resource = Resource::where('doi', '10.5880/gfz.dekorp.ktb8401.001')->firstOrFail();
+        $landingPage = $resource->fresh(['landingPage'])->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->template)->toBe('default_gfz')
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->is_published)->toBeFalse()
+            ->and(LandingPageDomain::count())->toBe(0);
+    });
+
+    it('ignores old DataCite data services URLs and imports SUMARIO file URLs instead', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/gfz.2.6.2023.010',
+                    'attributes' => [
+                        'doi' => '10.5880/gfz.2.6.2023.010',
+                        'url' => 'https://dataservices.gfz.de/panmetaworks/showshort.php?id=d9d1cfb5-7a4f-11ee-967a-4ffbfe06208e',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'Global energy magnitude catalog']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/gfz.2.6.2023.010']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/gfz.2.6.2023.010')
+            ->andReturn([
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/10.5880.GFZ.2.6.2023.010-NcaeZB',
+                        'label' => 'download data and description',
+                        'visible' => 'public',
+                    ],
+                ],
+                'allPublic' => true,
+                'resourceFound' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $resource = Resource::where('doi', '10.5880/gfz.2.6.2023.010')->firstOrFail();
+        $landingPage = $resource->fresh(['landingPage.externalDomain'])->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->template)->toBe('default_gfz')
+            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880.GFZ.2.6.2023.010-NcaeZB')
+            ->and($landingPage->downloads_unavailable)->toBeFalse()
+            ->and($landingPage->externalDomain)->toBeNull()
+            ->and(LandingPageDomain::count())->toBe(0);
+    });
+
+    it('skips imported legacy resources when the DOI contains test or delete', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/fidgeo.test.to.be.deleted',
+                    'attributes' => [
+                        'doi' => '10.5880/fidgeo.test.to.be.deleted',
+                        'url' => 'https://ernie.rz-vm499.gfz.de/10.5880/fidgeo.test.to.be.deleted/test-title-to-be-deleted',
+                        'titles' => [['title' => 'Test title to be deleted']],
+                    ],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('prepareDoiData')->never();
+        $this->transformer->shouldReceive('transform')->never();
+        $this->metaworksService->shouldReceive('lookupFileEntries')->never();
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['skipped_dois'])->toBe(['10.5880/fidgeo.test.to.be.deleted'])
+            ->and(Resource::where('doi', '10.5880/fidgeo.test.to.be.deleted')->exists())->toBeFalse();
+    });
     it('does not create landing page for skipped (existing) resources', function () {
         Resource::factory()->create(['doi' => '10.5880/skip.existing']);
 
@@ -1242,6 +1389,97 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880.skip.backfill')
             ->and($landingPage->is_published)->toBeTrue();
+    });
+
+    it('creates an external landing page from DataCite url before metaworks lookup', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.14470/rv968923',
+                    'attributes' => [
+                        'doi' => '10.14470/rv968923',
+                        'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=_EIFELLNX',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'GEOFON Network']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.14470/rv968923']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldNotReceive('lookupFileEntries');
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $resource = Resource::where('doi', '10.14470/rv968923')->firstOrFail();
+        $landingPage = $resource->fresh(['landingPage.externalDomain'])->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->template)->toBe('external')
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->externalDomain->domain)->toBe('https://geofon.gfz.de/')
+            ->and($landingPage->external_path)->toBe('waveform/archive/network.php?ncode=_EIFELLNX')
+            ->and(LandingPageDomain::where('domain', 'https://geofon.gfz.de/')->exists())->toBeTrue();
+    });
+
+    it('backfills an external DataCite landing page for skipped existing resources', function () {
+        $resource = Resource::factory()->create(['doi' => '10.14470/skip.external']);
+
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.14470/skip.external',
+                    'attributes' => [
+                        'doi' => '10.14470/skip.external',
+                        'url' => 'https://geofon.gfz.de/waveform/archive/network.php?ncode=SKIP',
+                        'state' => 'findable',
+                    ],
+                ];
+            })());
+
+        $this->transformer->shouldReceive('transform')->never();
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldNotReceive('lookupFileEntries');
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(0)
+            ->and($status['skipped'])->toBe(1)
+            ->and($status['enriched'])->toBe(1)
+            ->and($status['enriched_dois'])->toBe(['10.14470/skip.external']);
+
+        $landingPage = $resource->fresh(['landingPage.externalDomain'])->landingPage;
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->template)->toBe('external')
+            ->and($landingPage->external_url)->toBe('https://geofon.gfz.de/waveform/archive/network.php?ncode=SKIP');
     });
     it('continues import gracefully when metaworks lookup fails', function () {
         $this->importService

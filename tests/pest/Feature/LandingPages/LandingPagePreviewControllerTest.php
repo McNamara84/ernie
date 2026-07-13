@@ -261,6 +261,9 @@ describe('Session Preview Display', function () {
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/custom-igsn-logo.png',
+            'creator_display_limit' => 13,
+            'contributor_display_limit' => 14,
+            'citation_author_display_limit' => 15,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -280,6 +283,9 @@ describe('Session Preview Display', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('displayLimits.creators', 13)
+                ->where('displayLimits.contributors', 14)
+                ->where('displayLimits.citationAuthors', 15)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/custom-igsn-logo.png'))
             );
     });
@@ -298,6 +304,9 @@ describe('Session Preview Display', function () {
             'right_column_order' => ['location', 'abstract', 'methods', 'technical_info', 'series_information', 'table_of_contents', 'other', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
             'left_column_order' => ['contact', 'general', 'acquisition', 'model_description', 'related_work'],
             'logo_path' => 'landing-page-logos/test/normalized-igsn-logo.png',
+            'creator_display_limit' => 16,
+            'contributor_display_limit' => 17,
+            'citation_author_display_limit' => 18,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -321,6 +330,9 @@ describe('Session Preview Display', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('displayLimits.creators', 16)
+                ->where('displayLimits.contributors', 17)
+                ->where('displayLimits.citationAuthors', 18)
                 ->where('customLogoUrl', fn ($url) => str_contains($url, 'landing-page-logos/test/normalized-igsn-logo.png'))
             );
     });
@@ -337,6 +349,11 @@ describe('Session Preview Display', function () {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->user->id,
             'logo_path' => 'landing-page-logos/test/resource-logo.png',
+        ]);
+        LandingPageTemplate::defaultForType(LandingPageTemplate::TEMPLATE_TYPE_IGSN)->update([
+            'creator_display_limit' => 31,
+            'contributor_display_limit' => 41,
+            'citation_author_display_limit' => 61,
         ]);
 
         Session::put("landing_page_preview.{$resource->id}", [
@@ -355,11 +372,19 @@ describe('Session Preview Display', function () {
                 ->where('landingPage.landing_page_template_id', null)
                 ->where('customLogoUrl', null)
                 ->where('sectionOrder', null)
+                ->where('displayLimits.creators', 31)
+                ->where('displayLimits.contributors', 41)
+                ->where('displayLimits.citationAuthors', 61)
             );
     });
 
     test('preview display ignores built-in default template ids passed as custom overrides', function () {
         $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
+        $defaultTemplate->update([
+            'creator_display_limit' => 31,
+            'contributor_display_limit' => 41,
+            'citation_author_display_limit' => 61,
+        ]);
 
         Session::put("landing_page_preview.{$this->resource->id}", [
             'template' => 'default_gfz',
@@ -376,6 +401,9 @@ describe('Session Preview Display', function () {
                 ->where('landingPage.landing_page_template_id', null)
                 ->where('customLogoUrl', null)
                 ->where('sectionOrder', null)
+                ->where('displayLimits.creators', 31)
+                ->where('displayLimits.contributors', 41)
+                ->where('displayLimits.citationAuthors', 61)
             );
     });
 });

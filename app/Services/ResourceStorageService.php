@@ -13,6 +13,7 @@ use App\Models\Institution;
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Publisher;
+use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -28,7 +29,6 @@ use App\Services\Rights\ResourceRightsStorageService;
 use App\Support\OrcidNormalizer;
 use App\Support\SubjectBreadcrumbPath;
 use App\Support\UriHelper;
-use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -1013,52 +1013,127 @@ class ResourceStorageService
     }
 
     /**
+     * Ensure a one-time system-managed DataCite date exists.
+     *
+     * This helper is intentionally limited to Accepted and Issued dates, which
+     * are written once and then preserved. Updated is refreshed by storeDates()
+     * on resource updates because it has overwrite semantics.
+     */
+    public function ensureSystemDate(Resource $resource, string $dateTypeSlug, ?string $dateValue = null): void
+    {
+        $dateTypeKey = Str::kebab($dateTypeSlug);
+        $systemDateTypes = [
+            'accepted' => ['name' => 'Accepted', 'slug' => 'Accepted'],
+            'issued' => ['name' => 'Issued', 'slug' => 'Issued'],
+        ];
+
+        if (! array_key_exists($dateTypeKey, $systemDateTypes)) {
+            throw new \InvalidArgumentException('Only Accepted and Issued can be written as system dates.');
+        }
+
+        $dateType = DateType::query()
+            ->whereRaw('LOWER(slug) = ?', [$dateTypeKey])
+            ->first();
+
+        if (! $dateType instanceof DateType) {
+            try {
+                $dateType = DateType::query()->firstOrCreate(
+                    ['slug' => $systemDateTypes[$dateTypeKey]['slug']],
+                    [
+                        'name' => $systemDateTypes[$dateTypeKey]['name'],
+                        'is_active' => true,
+                    ],
+                );
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+
+                $dateType = DateType::query()
+                    ->whereRaw('LOWER(slug) = ?', [$dateTypeKey])
+                    ->first();
+
+                if (! $dateType instanceof DateType) {
+                    throw $exception;
+                }
+            }
+        }
+
+        DB::transaction(function () use ($resource, $dateType, $dateValue): void {
+            /** @var Resource $lockedResource */
+            $lockedResource = Resource::query()
+                ->lockForUpdate()
+                ->findOrFail($resource->getKey());
+
+            if ($lockedResource->dates()->where('date_type_id', $dateType->id)->exists()) {
+                return;
+            }
+
+            $lockedResource->dates()->create([
+                'date_type_id' => $dateType->id,
+                'date_value' => $dateValue ?? now()->format('Y-m-d'),
+                'start_date' => null,
+                'end_date' => null,
+                'date_information' => null,
+            ]);
+        });
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $errorInfo = $exception->errorInfo ?? [];
+        $sqlState = isset($errorInfo[0]) ? (string) $errorInfo[0] : '';
+        $driverCode = isset($errorInfo[1]) ? (string) $errorInfo[1] : '';
+
+        return in_array($sqlState, ['23000', '23505'], true)
+            || in_array($driverCode, ['19', '1062'], true);
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function storeDates(Resource $resource, array $data, bool $isUpdate): void
     {
-        // Save dates
-        // Note: 'created' and 'updated' dates are auto-managed and should not be
-        // submitted by the frontend. They are handled separately below.
-
-        // Pre-fetch all date type IDs in a single query to avoid N+1 queries
-        // This lookup map is used for both system date types and user-provided dates
         /** @var array<string, int> $dateTypeLookup */
         $dateTypeLookup = DateType::query()
             ->get(['id', 'slug'])
             ->mapWithKeys(fn (DateType $type): array => [Str::kebab($type->slug) => $type->id])
             ->all();
-        $createdDateTypeId = $dateTypeLookup['created'] ?? null;
-        $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
 
-        if ($isUpdate) {
-            // When updating, preserve 'created' date (never overwritten) and delete
-            // all other user-managed dates. The 'updated' date is handled separately below.
-            if ($createdDateTypeId !== null) {
+        $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
+        $hasSubmittedDates = array_key_exists('dates', $data);
+        $dates = $hasSubmittedDates && is_array($data['dates']) ? $data['dates'] : [];
+
+        if ($isUpdate && $hasSubmittedDates) {
+            $preservedDateTypeKeys = ['accepted', 'issued', 'coverage'];
+            $preservedDateTypeIds = array_values(array_filter(
+                array_map(fn (string $dateType): ?int => $dateTypeLookup[$dateType] ?? null, $preservedDateTypeKeys),
+                fn (?int $dateTypeId): bool => $dateTypeId !== null,
+            ));
+
+            if ($preservedDateTypeIds !== []) {
                 $resource->dates()
-                    ->where('date_type_id', '!=', $createdDateTypeId)
+                    ->whereNotIn('date_type_id', $preservedDateTypeIds)
                     ->delete();
             } else {
-                // If 'created' type doesn't exist, delete all dates
                 $resource->dates()->delete();
             }
         }
 
-        $dates = $data['dates'] ?? [];
-
         foreach ($dates as $index => $date) {
-            // Skip 'created' and 'updated' date types - these are auto-managed
-            if (in_array(Str::kebab((string) ($date['dateType'] ?? '')), ['created', 'updated'], true)) {
+            if (! is_array($date)) {
                 continue;
             }
 
-            // Use the pre-fetched lookup map instead of querying for each date
             $dateTypeKey = Str::kebab((string) ($date['dateType'] ?? ''));
+
+            if (in_array($dateTypeKey, ['accepted', 'issued', 'updated', 'coverage'], true)) {
+                continue;
+            }
+
             $dateTypeId = $dateTypeLookup[$dateTypeKey] ?? null;
 
             if ($dateTypeId === null) {
-                // Throw validation exception for unknown date type to prevent silent data loss
-                // This will rollback the transaction and return a proper validation error response
                 $submittedDateType = (string) ($date['dateType'] ?? '');
                 Log::warning('Unknown date type slug: '.$submittedDateType);
 
@@ -1073,7 +1148,7 @@ class ResourceStorageService
             $endDate = $endDate !== '' ? $endDate : null;
             $mode = isset($date['dateMode']) ? Str::kebab(trim((string) $date['dateMode'])) : null;
             $mode = $mode !== '' ? $mode : null;
-            $supportsPeriod = in_array($dateTypeKey, ['collected', 'valid', 'other'], true);
+            $supportsPeriod = in_array($dateTypeKey, ['created', 'collected', 'valid', 'other'], true);
 
             if ($mode !== null && ! in_array($mode, ['single', 'range'], true)) {
                 throw ValidationException::withMessages([
@@ -1091,7 +1166,7 @@ class ResourceStorageService
                 $messages = [];
 
                 if (! $supportsPeriod) {
-                    $messages["dates.$index.dateMode"] = ['Only Collected, Valid, and Other dates can be stored as periods.'];
+                    $messages["dates.$index.dateMode"] = ['Only Created, Collected, Valid, and Other dates can be stored as periods.'];
                 }
 
                 if ($startDate === null) {
@@ -1116,9 +1191,13 @@ class ResourceStorageService
 
                 if (! $supportsPeriod) {
                     throw ValidationException::withMessages([
-                        "dates.$index.endDate" => ['Only Collected, Valid, and Other dates can include an end date.'],
+                        "dates.$index.endDate" => ['Only Created, Collected, Valid, and Other dates can include an end date.'],
                     ]);
                 }
+            }
+
+            if ($startDate === null && $endDate === null) {
+                continue;
             }
 
             $hasRange = ($mode === 'range' || ($mode === null && $endDate !== null))
@@ -1134,33 +1213,11 @@ class ResourceStorageService
             ]);
         }
 
-        // Auto-manage 'created' date: Set only on new resources (not on updates)
-        // Issue #371: If an imported 'created' date is provided (from XML/DataCite import),
-        // use that date instead of the current date. This preserves the original creation
-        // date from external sources like ELMO.
-        if (! $isUpdate && $createdDateTypeId !== null) {
-            // Check if an imported created date was provided
-            $importedCreatedDate = $data['importedCreatedDate'] ?? null;
-
-            // Use imported date if available, otherwise use current date as fallback
-            $createdDateValue = $importedCreatedDate !== null && $importedCreatedDate !== ''
-                ? Carbon::parse($importedCreatedDate)->format('Y-m-d')
-                : now()->format('Y-m-d');
-
-            $resource->dates()->create([
-                'date_type_id' => $createdDateTypeId,
-                'date_value' => $createdDateValue,
-                'start_date' => null,
-                'end_date' => null,
-                'date_information' => null,
-            ]);
-        }
-
-        // Auto-manage 'updated' date: Update timestamp on every update operation.
-        // This reflects when the resource was last saved by a curator.
         if ($isUpdate && $updatedDateTypeId !== null) {
-            // Create new 'updated' date with current timestamp
-            // (any existing 'updated' entry was already deleted above)
+            $resource->dates()
+                ->where('date_type_id', $updatedDateTypeId)
+                ->delete();
+
             $resource->dates()->create([
                 'date_type_id' => $updatedDateTypeId,
                 'date_value' => now()->format('Y-m-d'),
@@ -1471,9 +1528,14 @@ class ResourceStorageService
      */
     private function storeRelatedIdentifiers(Resource $resource, array $data, bool $isUpdate): void
     {
-        // Save related identifiers
+        $existingRelatedIdentifiersById = [];
+
         if ($isUpdate) {
-            $resource->relatedIdentifiers()->delete();
+            /** @var array<int, RelatedIdentifier> $existingRelatedIdentifiersById */
+            $existingRelatedIdentifiersById = $resource->relatedIdentifiers()
+                ->get()
+                ->keyBy('id')
+                ->all();
         }
 
         // Pre-fetch related identifier type and relation type IDs
@@ -1483,6 +1545,7 @@ class ResourceStorageService
         $relationTypeLookup = RelationType::pluck('id', 'slug')->all();
 
         $relatedIdentifiers = $data['relatedIdentifiers'] ?? [];
+        $retainedRelatedIdentifierIds = [];
 
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
             // Only save if identifier is not empty
@@ -1491,16 +1554,65 @@ class ResourceStorageService
                     ? trim($relatedIdentifier['citationLabel'])
                     : null;
 
-                $resource->relatedIdentifiers()->create([
+                $existingRelatedIdentifier = $this->existingRelatedIdentifierForUpdate($relatedIdentifier, $existingRelatedIdentifiersById);
+                $attributes = [
                     'identifier' => trim($relatedIdentifier['identifier']),
                     'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                     'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                     'relation_type_information' => isset($relatedIdentifier['relationTypeInformation']) && trim($relatedIdentifier['relationTypeInformation']) !== '' ? trim($relatedIdentifier['relationTypeInformation']) : null,
                     'citation_label' => $citationLabel,
+                    'source' => $this->preservedRelatedIdentifierSource($existingRelatedIdentifier),
                     'position' => $index,
-                ]);
+                ];
+
+                if ($existingRelatedIdentifier instanceof RelatedIdentifier) {
+                    $existingRelatedIdentifier->fill($attributes);
+                    $existingRelatedIdentifier->save();
+                    $retainedRelatedIdentifierIds[] = $existingRelatedIdentifier->id;
+
+                    continue;
+                }
+
+                $createdRelatedIdentifier = $resource->relatedIdentifiers()->create($attributes);
+                $retainedRelatedIdentifierIds[] = $createdRelatedIdentifier->id;
             }
         }
+
+        if ($isUpdate) {
+            $deleteQuery = $resource->relatedIdentifiers();
+
+            if ($retainedRelatedIdentifierIds !== []) {
+                $deleteQuery->whereNotIn('id', $retainedRelatedIdentifierIds);
+            }
+
+            $deleteQuery->delete();
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $relatedIdentifier
+     * @param  array<int, RelatedIdentifier>  $existingRelatedIdentifiersById
+     */
+    private function existingRelatedIdentifierForUpdate(array $relatedIdentifier, array $existingRelatedIdentifiersById): ?RelatedIdentifier
+    {
+        $id = $relatedIdentifier['id'] ?? null;
+
+        $validatedId = filter_var($id, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        if ($validatedId === false) {
+            return null;
+        }
+
+        return $existingRelatedIdentifiersById[$validatedId] ?? null;
+    }
+
+    private function preservedRelatedIdentifierSource(?RelatedIdentifier $existingRelatedIdentifier): ?string
+    {
+        $source = $existingRelatedIdentifier?->source;
+
+        return $source === RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT ? $source : null;
     }
 
     /**

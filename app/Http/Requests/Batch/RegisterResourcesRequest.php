@@ -11,7 +11,7 @@ use Illuminate\Foundation\Http\FormRequest;
 /**
  * Authorizes and validates batch registration of regular resources at DataCite.
  *
- * Only users granted the `register-production-doi` ability may register
+ * Only users granted the `register-doi` ability may register
  * resources. The `prefix` is optional because already-registered resources
  * are updated rather than created.
  */
@@ -34,7 +34,7 @@ class RegisterResourcesRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('register-production-doi') === true;
+        return $this->user()?->can('register-doi') === true;
     }
 
     /**

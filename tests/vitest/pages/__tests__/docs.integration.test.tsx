@@ -4,7 +4,7 @@ import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Docs from '@/pages/docs';
-import type { EditorSettings } from '@/types/docs';
+import type { DataCiteDocsSettings, EditorSettings } from '@/types/docs';
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -60,14 +60,21 @@ const defaultEditorSettings: EditorSettings = {
     },
 };
 
+const defaultDataCite: DataCiteDocsSettings = {
+    currentMode: 'test',
+    isTestModeForcedForUser: false,
+    testPrefixes: ['10.83279', '10.83186', '10.83114'],
+    productionPrefixes: ['10.5880', '10.1594', '10.14470'],
+    testEndpoint: 'https://api.test.datacite.org',
+    productionEndpoint: 'https://api.datacite.org',
+};
 describe('Docs integration', () => {
     beforeEach(() => {
         document.title = '';
     });
 
     it('sets the document title', () => {
-        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} />);
+        render(<Docs userRole="curator" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
         expect(document.title).toBe('Documentation');
     });
 });
-

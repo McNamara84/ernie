@@ -2,11 +2,13 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Copy, Eye, Globe, GripVertical, Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
 import {
     buildLandingPagePreviewPayload,
@@ -26,6 +28,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import type { User as AuthUser } from '@/types';
 import {
     getTemplateOptions,
     isIgsnLandingPageResourceType,
@@ -49,8 +52,9 @@ interface SetupLandingPageModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: () => void;
+    onSuccess?: (landingPage?: LandingPageConfig | null, preopenedPreviewWindow?: Window | null) => void;
     existingConfig?: LandingPageConfig | null;
+    openPreviewOnSuccess?: boolean;
 }
 
 const EMPTY_DOWNLOAD_URL_SUGGESTIONS: LandingPageDownloadUrlSuggestions = {
@@ -249,7 +253,10 @@ function SortableLinkItem({
     );
 }
 
-export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig }: SetupLandingPageModalProps) {
+export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuccess, existingConfig, openPreviewOnSuccess = false }: SetupLandingPageModalProps) {
+    const { auth } = usePage<{ auth: { user: AuthUser | null } }>().props;
+    const canDeleteLandingPages = auth.user?.can_delete_landing_pages ?? false;
+
     // PhysicalObject resources (IGSNs) default to the IGSN renderer; everything
     // else uses the standard `default_gfz` template.
     const initialTemplate = getPreferredTemplateForResource(resource.resourcetypegeneral, existingConfig?.template);
@@ -532,6 +539,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
+        let preopenedPreviewWindow: Window | null = null;
+
+        if (openPreviewOnSuccess) {
+            preopenedPreviewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!preopenedPreviewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+        }
+
         setIsSaving(true);
 
         try {
@@ -577,8 +595,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Ignore errors from clearing preview session
             }
 
-            onSuccess?.();
+            const savedLandingPage = response.data.landing_page ?? null;
+
+            if (preopenedPreviewWindow) {
+                onSuccess?.(savedLandingPage, preopenedPreviewWindow);
+            } else {
+                onSuccess?.(savedLandingPage);
+            }
         } catch (error) {
+            preopenedPreviewWindow?.close();
             console.error('Failed to save landing page:', error);
             toast.error(getLandingPageRequestErrorMessage(error, 'Failed to save landing page configuration'));
         } finally {
@@ -614,7 +639,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setPreviewUrl('');
             applyDraftState(buildDraftStateFromConfig(null));
             toast.success('Landing page preview removed successfully');
-            onSuccess?.();
+            onSuccess?.(null);
             onClose();
         } catch (error) {
             console.error('Failed to remove preview:', error);
@@ -804,6 +829,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 return;
             }
 
+            const previewWindow = openLandingPagePreviewPlaceholder();
+
+            if (!previewWindow) {
+                toast.error(LANDING_PAGE_POPUP_BLOCKED_MESSAGE);
+                return;
+            }
+
             try {
                 const payload = buildLandingPagePreviewPayload({
                     template,
@@ -822,11 +854,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 // Store preview in session and get preview URL
                 const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
 
-                // Open preview in new tab
+                // Open preview in the tab that was created synchronously by the click handler.
                 const previewUrlFromServer = response.data?.preview_url;
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank', 'noopener,noreferrer');
+                previewWindow.location.href = previewUrlFromServer || fallbackPreviewUrl;
             } catch (error) {
+                previewWindow.close();
                 console.error('Failed to create preview:', error);
                 toast.error(getLandingPageRequestErrorMessage(error, 'Failed to create preview'));
             }
@@ -1354,7 +1387,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 >
                     {/* Only show Remove Preview for draft landing pages.
                         Published landing pages cannot be removed because DOIs are persistent. */}
-                    {currentConfig && currentConfig.status === 'draft' && (
+                    {canDeleteLandingPages && currentConfig && currentConfig.status === 'draft' && (
                         <Button type="button" variant="destructive" onClick={handleRemovePreview} disabled={isSaving} className="mr-auto">
                             Remove Preview
                         </Button>

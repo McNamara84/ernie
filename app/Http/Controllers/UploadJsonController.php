@@ -15,6 +15,7 @@ use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
+use App\Support\DataCiteDateNormalizer;
 use App\Support\GcmdUriHelper;
 use App\Support\UploadError;
 use App\Support\XmlKeywordExtractor;
@@ -1375,30 +1376,15 @@ class UploadJsonController extends Controller
             return '';
         }
 
-        // Strip time part
-        if (str_contains($dateValue, ' ')) {
-            $dateValue = explode(' ', $dateValue)[0];
-        }
-        if (str_contains($dateValue, 'T')) {
-            $dateValue = explode('T', $dateValue)[0];
+        $normalized = DataCiteDateNormalizer::normalize($dateValue);
+
+        if ($normalized !== null) {
+            return $normalized;
         }
 
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
-            return $dateValue;
-        }
-
-        if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
-            return $matches[1].'-'.$matches[2].'-01';
-        }
-
-        if (preg_match('/^\d{4}$/', $dateValue)) {
-            return $dateValue.'-01-01';
-        }
-
-        $timestamp = strtotime($dateValue);
-        if ($timestamp !== false) {
-            return date('Y-m-d', $timestamp);
-        }
+        Log::warning('Could not parse date value during JSON import', [
+            'value' => $dateValue,
+        ]);
 
         return '';
     }

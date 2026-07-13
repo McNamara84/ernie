@@ -39,6 +39,7 @@ const DEFAULT_USER: User = {
     role_label: 'Curator',
     is_active: true,
     can_manage_users: false,
+    can_register_doi: false,
     can_register_production_doi: false,
     can_delete_logs: false,
     can_access_logs: true,
@@ -47,6 +48,7 @@ const DEFAULT_USER: User = {
     can_access_users: false,
     can_access_editor_settings: true,
     can_manage_landing_pages: false,
+    can_delete_landing_pages: false,
     deactivated_at: null,
     deactivated_by: null,
     avatar: undefined,
@@ -76,6 +78,7 @@ export function createMockAdminUser(overrides?: Partial<User>): User {
         role: 'admin',
         role_label: 'Admin',
         can_manage_users: true,
+        can_register_doi: true,
         can_register_production_doi: true,
         can_delete_logs: true,
         can_access_logs: true,
@@ -84,6 +87,7 @@ export function createMockAdminUser(overrides?: Partial<User>): User {
         can_access_users: true,
         can_access_editor_settings: true,
         can_manage_landing_pages: true,
+        can_delete_landing_pages: true,
         ...overrides,
     });
 }

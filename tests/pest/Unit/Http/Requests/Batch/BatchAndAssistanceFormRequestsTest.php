@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Batch\DestroyIgsnsRequest;
 use App\Http\Requests\Batch\ExportResourcesRequest;
@@ -12,10 +13,12 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
 covers(
+    AcceptRorAffiliationMatchesRequest::class,
     DeclineSuggestionRequest::class,
     DestroyIgsnsRequest::class,
     RegisterResourcesRequest::class,
@@ -23,6 +26,18 @@ covers(
     ExportResourcesRequest::class,
 );
 
+it('AcceptRorAffiliationMatchesRequest requires a uuid bulk token', function (): void {
+    $request = new AcceptRorAffiliationMatchesRequest;
+    expect($request->authorize())->toBeFalse();
+
+    $request->setUserResolver(fn () => User::factory()->create());
+    expect($request->authorize())->toBeTrue();
+
+    $rules = $request->rules();
+    expect(Validator::make([], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['bulk_token' => 'missing-token'], $rules)->fails())->toBeTrue();
+    expect(Validator::make(['bulk_token' => (string) Str::uuid()], $rules)->fails())->toBeFalse();
+});
 it('DeclineSuggestionRequest authorizes only authenticated users', function (): void {
     $request = new DeclineSuggestionRequest;
     expect($request->authorize())->toBeFalse();
@@ -55,7 +70,7 @@ it('DestroyIgsnsRequest authorizes only admins', function (): void {
     expect(Validator::make(['ids' => array_fill(0, 101, 1)], $rules)->fails())->toBeTrue();
 });
 
-it('RegisterResourcesRequest authorizes via register-production-doi gate', function (): void {
+it('RegisterResourcesRequest authorizes via register-doi gate', function (): void {
     $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
     $curator = User::factory()->create(['role' => UserRole::CURATOR]);
 
@@ -63,7 +78,7 @@ it('RegisterResourcesRequest authorizes via register-production-doi gate', funct
     expect($req->authorize())->toBeFalse();
 
     $req->setUserResolver(fn () => $beginner);
-    expect($req->authorize())->toBeFalse();
+    expect($req->authorize())->toBeTrue();
 
     $req->setUserResolver(fn () => $curator);
     expect($req->authorize())->toBeTrue();
@@ -74,7 +89,7 @@ it('RegisterResourcesRequest authorizes via register-production-doi gate', funct
     expect(Validator::make(['ids' => array_fill(0, 26, 1)], $rules)->fails())->toBeTrue();
 });
 
-it('RegisterIgsnsRequest authorizes via register-production-doi gate', function (): void {
+it('RegisterIgsnsRequest authorizes via register-doi gate', function (): void {
     $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
     $curator = User::factory()->create(['role' => UserRole::CURATOR]);
 
@@ -82,7 +97,7 @@ it('RegisterIgsnsRequest authorizes via register-production-doi gate', function 
     expect($req->authorize())->toBeFalse();
 
     $req->setUserResolver(fn () => $beginner);
-    expect($req->authorize())->toBeFalse();
+    expect($req->authorize())->toBeTrue();
 
     $req->setUserResolver(fn () => $curator);
     expect($req->authorize())->toBeTrue();

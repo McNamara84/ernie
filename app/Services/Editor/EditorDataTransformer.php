@@ -81,6 +81,14 @@ class EditorDataTransformer
             'mslLaboratories' => $this->transformMslLaboratories($resource),
             'instruments' => $this->transformInstruments($resource),
             'initialDatacenters' => $resource->datacenters->pluck('id')->all(),
+            'landingPage' => $resource->landingPage ? [
+                'id' => $resource->landingPage->id,
+                'is_published' => $resource->landingPage->is_published,
+                'status' => $resource->landingPage->status,
+                'public_url' => $resource->landingPage->public_url,
+                'preview_url' => $resource->landingPage->preview_url,
+                'external_url' => $resource->landingPage->external_url,
+            ] : null,
         ];
     }
 
@@ -502,7 +510,7 @@ class EditorDataTransformer
     /**
      * Transform resource dates to frontend format.
      *
-     * Excludes 'coverage', 'created', and 'updated' dates as they are handled separately.
+     * Excludes system-managed and coverage dates that are not editable in the Dates section.
      * Preserves full ISO 8601 datetime+timezone values for dates that include time components.
      *
      * @return array<int, array{dateType: string, dateMode: 'single'|'range', startDate: string, endDate: string}>
@@ -513,14 +521,14 @@ class EditorDataTransformer
             ->filter(function (ResourceDate $date): bool {
                 $slug = mb_strtolower($date->dateType->slug);
 
-                return ! in_array($slug, ['coverage', 'created', 'updated'], true);
+                return ! in_array($slug, ['coverage', 'accepted', 'issued', 'updated'], true);
             })
             ->map(function (ResourceDate $date): array {
                 $dateType = $date->dateType->slug;
                 $dateTypeSlug = Str::kebab(mb_strtolower($dateType));
                 $hasClosedRange = ($date->start_date ?? '') !== '' && ($date->end_date ?? '') !== '';
 
-                $dateMode = $hasClosedRange && in_array($dateTypeSlug, ['collected', 'valid', 'other'], true)
+                $dateMode = $hasClosedRange && in_array($dateTypeSlug, ['created', 'collected', 'valid', 'other'], true)
                     ? 'range'
                     : 'single';
 
@@ -694,18 +702,21 @@ class EditorDataTransformer
     /**
      * Transform related identifiers to frontend format.
      *
-     * @return array<int, array{identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null}>
+     * @return array<int, array{id: int, identifier: string, identifier_type: string, relation_type: string, relation_type_information: string|null, citation_label: string|null, source: string|null, is_repository_curation: bool}>
      */
     public function transformRelatedIdentifiers(Resource $resource): array
     {
         return $resource->relatedIdentifiers
             ->sortBy('position')
             ->map(fn (RelatedIdentifier $relatedId): array => [
+                'id' => $relatedId->id,
                 'identifier' => $relatedId->identifier,
                 'identifier_type' => $relatedId->identifierType->slug,
                 'relation_type' => $relatedId->relationType->slug,
                 'relation_type_information' => $relatedId->relation_type_information,
                 'citation_label' => $relatedId->citation_label,
+                'source' => $relatedId->source,
+                'is_repository_curation' => $relatedId->isRepositoryCuration(),
             ])
             ->values()
             ->toArray();

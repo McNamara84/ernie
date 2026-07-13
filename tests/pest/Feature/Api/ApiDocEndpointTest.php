@@ -89,6 +89,13 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/RorAffiliations')
         ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
         ->assertJsonPath('paths./api/v1/ror-affiliations/elmo.get.responses.404.description', 'ROR is disabled or data file not found')
+        // RAiD projects endpoint
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.tags.0', 'Vocabularies')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.security.0.ElmoApiKey', [])
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.summary', 'Get RAiD projects for ELMO')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.200.content.application/json.schema.$ref', '#/components/schemas/RaidProjects')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.401.$ref', '#/components/responses/UnauthorizedError')
+        ->assertJsonPath('paths./api/v1/vocabularies/raid-projects.get.responses.404.description', 'RAiD is disabled or data file not found')
         // Authenticated IGSN import endpoint
         ->assertJsonPath('paths./igsns/import/start-single.post.tags.0', 'IGSN Imports')
         ->assertJsonPath('paths./igsns/import/start-single.post.requestBody.content.application/json.schema.$ref', '#/components/schemas/SingleIgsnImportRequest')
@@ -96,7 +103,15 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.403.$ref', '#/components/responses/ForbiddenError')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.422.content.application/json.schema.$ref', '#/components/schemas/ValidationErrorResponse')
         ->assertJsonPath('paths./igsns/import/start-single.post.responses.503.content.application/json.schema.$ref', '#/components/schemas/MessageResponse')
-        // ROR schema
+        // PID schemas
+        ->assertJsonPath('components.schemas.RaidProjects.description', 'Public RAiD project records with metadata wrapper')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.0', 'string')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.type.1', 'null')
+        ->assertJsonPath('components.schemas.RaidProject.properties.raidId.format', 'uri')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.type.0', 'string')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.type.1', 'null')
+        ->assertJsonPath('components.schemas.RaidProject.properties.url.format', 'uri')
+        ->assertJsonPath('components.schemas.PidAvailability.example.raid.displayName', 'RAiD (Research Activity Identifier)')
         ->assertJsonPath('components.schemas.RorAffiliations.description', 'ROR affiliations data with metadata wrapper')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.401.$ref', '#/components/responses/UnauthorizedError')

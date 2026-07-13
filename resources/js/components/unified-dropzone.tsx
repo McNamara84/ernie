@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { AlertCircle, CheckCircle2, FileSpreadsheet, FileText, Upload, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink, FileSpreadsheet, FileText, Upload, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -25,6 +25,16 @@ type LegacyUploadError = {
     message: string;
 };
 
+export type DataCiteUploadResult = {
+    success: true;
+    uploadKind: 'datacite';
+    filename: string;
+    resourceId?: string | null;
+    sessionKey?: string | null;
+    editorUrl: string;
+    message?: string;
+};
+
 type CsvUploadResult = {
     success: boolean;
     created?: number;
@@ -34,9 +44,18 @@ type CsvUploadResult = {
     message?: string;
 };
 
+type CsvUploadSuccessResult = CsvUploadResult & {
+    success: true;
+    uploadKind: 'csv';
+    filename: string;
+    created: number;
+};
+
+type UploadSuccessResult = DataCiteUploadResult | CsvUploadSuccessResult;
+
 type UnifiedDropzoneProps = {
-    onXmlUpload: (files: File[]) => Promise<void>;
-    onJsonUpload: (files: File[]) => Promise<void>;
+    onXmlUpload: (files: File[]) => Promise<DataCiteUploadResult | undefined>;
+    onJsonUpload: (files: File[]) => Promise<DataCiteUploadResult | undefined>;
 };
 
 /**
@@ -62,12 +81,21 @@ function normalizeErrors(errors?: LegacyUploadError[] | UploadError[]): UploadEr
     });
 }
 
+function requireDataCiteEditorTarget(result: DataCiteUploadResult | undefined, filename: string): DataCiteUploadResult {
+    if (!result?.editorUrl || result.editorUrl.trim() === '') {
+        throw new Error(`Upload completed for ${filename}, but no editor target was returned. Please try again or contact support.`);
+    }
+
+    return result;
+}
+
 export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzoneProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [uploadState, setUploadState] = useState<UploadState>('idle');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [csvResult, setCsvResult] = useState<CsvUploadResult | null>(null);
+    const [successResult, setSuccessResult] = useState<UploadSuccessResult | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [lastUploadType, setLastUploadType] = useState<FileType>('unknown');
@@ -80,6 +108,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
         setUploadState('idle');
         setUploadProgress(0);
         setCsvResult(null);
+        setSuccessResult(null);
         setSelectedFile(null);
         setError(null);
         setLastUploadType('unknown');
@@ -144,11 +173,13 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setUploadProgress(10);
             setSelectedFile(file);
             setLastUploadType('csv');
+            setSuccessResult(null);
+            setError(null);
 
             const csrfHeaders = buildCsrfHeaders();
 
             // Accept either the unencrypted meta token (X-CSRF-TOKEN) or the
-            // encrypted cookie token (X-XSRF-TOKEN) — Laravel decrypts the latter.
+            // encrypted cookie token (X-XSRF-TOKEN); Laravel decrypts the latter.
             if (!csrfHeaders['X-CSRF-TOKEN'] && !csrfHeaders['X-XSRF-TOKEN']) {
                 setUploadState('error');
                 const errorResult: CsvUploadResult = {
@@ -184,13 +215,19 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 setUploadProgress(100);
 
                 if (data.success) {
+                    const created = data.created ?? 0;
+                    const success: CsvUploadSuccessResult = {
+                        ...data,
+                        success: true,
+                        uploadKind: 'csv',
+                        filename: data.filename ?? file.name,
+                        created,
+                    };
+
                     setUploadState('success');
                     setCsvResult(data);
-                    feedback.uploadSucceeded(file.name, `${data.created} IGSN(s) imported successfully.`);
-                    // Redirect to IGSN list after short delay to show success message
-                    setTimeout(() => {
-                        router.visit(igsnIndexRoute.url());
-                    }, 1500);
+                    setSuccessResult(success);
+                    feedback.uploadSucceeded(file.name, `${created} IGSN(s) imported successfully.`);
                 } else {
                     setUploadState('error');
                     setCsvResult(data);
@@ -216,17 +253,20 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setSelectedFile(file);
             setLastUploadType('xml');
             setError(null);
+            setCsvResult(null);
+            setSuccessResult(null);
 
             try {
-                await onXmlUpload([file]);
-                // If successful, the page will navigate to the editor
-                // so we don't need to handle success state here
+                const result = requireDataCiteEditorTarget(await onXmlUpload([file]), file.name);
+                setUploadProgress(100);
+                setSuccessResult(result);
+                setUploadState('success');
+                feedback.uploadSucceeded(file.name, 'Draft metadata is ready to review from the upload panel.');
             } catch (err) {
                 setUploadState('error');
                 const errorMessage = err instanceof Error ? err.message : 'Upload failed';
                 setError(errorMessage);
 
-                // Show toast notification for XML upload errors
                 feedback.uploadFailed(file.name, errorMessage);
             }
         },
@@ -240,10 +280,15 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
             setSelectedFile(file);
             setLastUploadType('json');
             setError(null);
+            setCsvResult(null);
+            setSuccessResult(null);
 
             try {
-                await onJsonUpload([file]);
-                // If successful, the page will navigate to the editor
+                const result = requireDataCiteEditorTarget(await onJsonUpload([file]), file.name);
+                setUploadProgress(100);
+                setSuccessResult(result);
+                setUploadState('success');
+                feedback.uploadSucceeded(file.name, 'Draft metadata is ready to review from the upload panel.');
             } catch (err) {
                 setUploadState('error');
                 const errorMessage = err instanceof Error ? err.message : 'Upload failed';
@@ -304,42 +349,55 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
         }
     };
 
+    const errorModal = (
+        <UploadErrorModal
+            open={showErrorModal}
+            onClose={() => setShowErrorModal(false)}
+            filename={modalFilename}
+            message={modalMessage}
+            errors={modalErrors}
+            onRetry={resetState}
+        />
+    );
     // Render error state
     if (uploadState === 'error') {
         return (
-            <div data-testid="dropzone-error-state" className="flex w-full flex-col items-center gap-4">
-                <Alert variant="destructive" data-testid="dropzone-error-alert" className="max-w-2xl text-left">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>We couldn&apos;t import this file</AlertTitle>
-                    <AlertDescription>
-                        {selectedFile && <span className="font-medium">{selectedFile.name}: </span>}
-                        {error || csvResult?.message || 'An error occurred during upload.'}
-                    </AlertDescription>
-                </Alert>
+            <>
+                <div data-testid="dropzone-error-state" className="flex w-full flex-col items-center gap-4">
+                    <Alert variant="destructive" data-testid="dropzone-error-alert" className="max-w-2xl text-left">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>We couldn&apos;t import this file</AlertTitle>
+                        <AlertDescription>
+                            {selectedFile && <span className="font-medium">{selectedFile.name}: </span>}
+                            {error || csvResult?.message || 'An error occurred during upload.'}
+                        </AlertDescription>
+                    </Alert>
 
-                {/* Show CSV-specific errors */}
-                {csvResult?.errors && csvResult.errors.length > 0 && (
-                    <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
-                        <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
-                        <ul className="space-y-1 text-sm">
-                            {normalizeErrors(csvResult.errors).map((err, index) => (
-                                <li key={index} className="flex items-start gap-2">
-                                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                                    <span>
-                                        {err.row && <strong>Row {err.row}: </strong>}
-                                        {err.identifier && <code className="mr-1 rounded bg-muted px-1">{err.identifier}</code>}
-                                        {err.message}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                    {/* Show CSV-specific errors */}
+                    {lastUploadType === 'csv' && !showErrorModal && csvResult?.errors && csvResult.errors.length > 0 && (
+                        <div className="max-h-60 w-full overflow-y-auto rounded-md border p-4">
+                            <h4 className="mb-2 font-medium text-destructive">Row Errors:</h4>
+                            <ul className="space-y-1 text-sm">
+                                {normalizeErrors(csvResult.errors).map((err, index) => (
+                                    <li key={index} className="flex items-start gap-2">
+                                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                        <span>
+                                            {err.row && <strong>Row {err.row}: </strong>}
+                                            {err.identifier && <code className="mr-1 rounded bg-muted px-1">{err.identifier}</code>}
+                                            {err.message}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
-                <Button onClick={resetState} variant="outline">
-                    Try Again
-                </Button>
-            </div>
+                    <Button onClick={resetState} variant="outline">
+                        Try Again
+                    </Button>
+                </div>
+                {errorModal}
+            </>
         );
     }
 
@@ -351,7 +409,8 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                     <Spinner size="sm" />
                     <AlertTitle>Import in progress</AlertTitle>
                     <AlertDescription>
-                        Uploading {lastUploadType === 'csv' ? 'CSV' : lastUploadType === 'json' ? 'JSON' : 'XML'} metadata now. We will route you into the right workspace as soon as it is ready.
+                        Uploading {lastUploadType === 'csv' ? 'CSV' : lastUploadType === 'json' ? 'JSON' : 'XML'} metadata now. The result will appear
+                        here when the import is ready.
                     </AlertDescription>
                 </Alert>
                 <div className="w-full max-w-md space-y-2">
@@ -362,17 +421,31 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
         );
     }
 
-    // Render success state (only for CSV, XML navigates to editor)
-    if (uploadState === 'success' && csvResult) {
-        const normalizedErrors = normalizeErrors(csvResult.errors);
+    // Render success state
+    if (uploadState === 'success' && successResult) {
+        const normalizedErrors = successResult.uploadKind === 'csv' ? normalizeErrors(successResult.errors) : [];
 
         return (
             <div data-testid="dropzone-success-state" className="flex w-full flex-col items-center gap-4">
                 <Alert data-testid="dropzone-success-alert" className="max-w-2xl text-left">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <AlertTitle className="text-green-700">IGSN import complete</AlertTitle>
+                    <AlertTitle className="text-green-700">
+                        {successResult.uploadKind === 'csv' ? 'IGSN import complete' : 'DataCite upload complete'}
+                    </AlertTitle>
                     <AlertDescription>
-                        Successfully created {csvResult.created} IGSN resource(s). You will be redirected to the list automatically.
+                        {successResult.uploadKind === 'csv' ? (
+                            <>
+                                <span className="font-medium">{successResult.filename}</span> imported {successResult.created} IGSN resource(s). You
+                                can upload another file or open the IGSN list.
+                            </>
+                        ) : (
+                            <>
+                                <span className="font-medium">{successResult.filename}</span> uploaded successfully.{' '}
+                                {successResult.resourceId
+                                    ? `Draft resource #${successResult.resourceId} is ready to review.`
+                                    : 'The parsed metadata is ready to open in the editor.'}
+                            </>
+                        )}
                     </AlertDescription>
                 </Alert>
 
@@ -401,9 +474,23 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                     </div>
                 )}
 
-                <Button onClick={resetState} variant="outline">
-                    Upload Another File
-                </Button>
+                <div className="flex flex-wrap justify-center gap-2">
+                    {successResult.uploadKind === 'datacite' && successResult.editorUrl && (
+                        <Button type="button" onClick={() => router.visit(successResult.editorUrl)}>
+                            <ExternalLink className="h-4 w-4" />
+                            Open in editor
+                        </Button>
+                    )}
+                    {successResult.uploadKind === 'csv' && (
+                        <Button type="button" onClick={() => router.visit(igsnIndexRoute.url())}>
+                            <ExternalLink className="h-4 w-4" />
+                            View IGSNs
+                        </Button>
+                    )}
+                    <Button type="button" onClick={resetState} variant="outline">
+                        Upload another file
+                    </Button>
+                </div>
             </div>
         );
     }
@@ -420,7 +507,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                     isDragging ? 'border-primary bg-accent/60 shadow-sm' : 'border-muted-foreground/25 bg-muted/60'
                 }`}
             >
-                <div className="mb-3 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="mb-3 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
                     Start from a file
                 </div>
                 <Upload className="mb-3 h-9 w-9 text-muted-foreground" />
@@ -449,15 +536,7 @@ export function UnifiedDropzone({ onXmlUpload, onJsonUpload }: UnifiedDropzonePr
                 </Button>
             </div>
 
-            {/* Error modal for complex errors */}
-            <UploadErrorModal
-                open={showErrorModal}
-                onClose={() => setShowErrorModal(false)}
-                filename={modalFilename}
-                message={modalMessage}
-                errors={modalErrors}
-                onRetry={resetState}
-            />
+            {errorModal}
         </>
     );
 }

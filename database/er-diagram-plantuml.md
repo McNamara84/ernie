@@ -410,6 +410,7 @@ entity "related_identifiers" as related_identifiers {
     * relation_type_id : BIGINT <<FK>>
     relation_type_information : VARCHAR //DataCite 4.7//
     citation_label : MEDIUMTEXT
+    source : VARCHAR(100) <<nullable>>
     related_metadata_scheme : VARCHAR
     scheme_uri : VARCHAR(512)
     scheme_type : VARCHAR(100)
@@ -609,6 +610,7 @@ entity "landing_page_templates" as landing_page_templates {
     * left_column_order : JSON
     * creator_display_limit : SMALLINT = 50
     * contributor_display_limit : SMALLINT = 50
+    * citation_author_display_limit : SMALLINT = 50
     created_by : BIGINT <<FK>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

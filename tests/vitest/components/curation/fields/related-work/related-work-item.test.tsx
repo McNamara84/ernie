@@ -17,15 +17,7 @@ describe('RelatedWorkItem variants', () => {
     });
 
     const renderItem = (item: RelatedIdentifier) =>
-        render(
-            <RelatedWorkItem
-                sortableId="related-work-0"
-                item={item}
-                index={0}
-                onChange={mockOnChange}
-                onRemove={mockOnRemove}
-            />,
-        );
+        render(<RelatedWorkItem sortableId="related-work-0" item={item} index={0} onChange={mockOnChange} onRemove={mockOnRemove} />);
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -83,6 +75,19 @@ describe('RelatedWorkItem variants', () => {
         );
     });
 
+    it('marks related identifiers added via the assistance tool', () => {
+        renderItem(
+            createItem({
+                source: 'relation_suggestion_assistant',
+                is_repository_curation: true,
+            }),
+        );
+
+        const note = screen.getByText('Related identifier added via the assistance tool.');
+
+        expect(note).toBeInTheDocument();
+        expect(note).toHaveClass('text-cyan-900');
+    });
     it('keeps validation icons hidden when status is validating', () => {
         render(
             <RelatedWorkItem

@@ -74,7 +74,6 @@ final class UploadedResourceDraftService
             'contributors' => $this->positionedList($payload['contributors'] ?? []),
             'descriptions' => $this->descriptionList($payload['descriptions'] ?? []),
             'dates' => $this->dateList($payload['dates'] ?? []),
-            'importedCreatedDate' => $this->importedCreatedDate($payload['dates'] ?? []),
             'freeKeywords' => $this->freeKeywords($payload['freeKeywords'] ?? []),
             'gcmdKeywords' => $this->controlledKeywords($payload),
             'spatialTemporalCoverages' => $this->coverageList($payload),
@@ -285,7 +284,7 @@ final class UploadedResourceDraftService
             $startDate = $this->stringOrNull($item['startDate'] ?? null);
             $endDate = $this->stringOrNull($item['endDate'] ?? null);
 
-            if ($dateTypeKey === null || in_array($dateTypeKey, ['coverage', 'created', 'updated'], true)) {
+            if ($dateTypeKey === null || in_array($dateTypeKey, ['coverage', 'accepted', 'issued', 'updated'], true)) {
                 continue;
             }
 
@@ -293,7 +292,7 @@ final class UploadedResourceDraftService
                 continue;
             }
 
-            $supportsPeriod = in_array($dateTypeKey, ['collected', 'valid', 'other'], true);
+            $supportsPeriod = in_array($dateTypeKey, ['created', 'collected', 'valid', 'other'], true);
             if ($endDate !== null && ($startDate === null || ! $supportsPeriod)) {
                 continue;
             }
@@ -308,27 +307,6 @@ final class UploadedResourceDraftService
         }
 
         return $dates;
-    }
-
-    private function importedCreatedDate(mixed $items): ?string
-    {
-        foreach ($this->arrayList($items) as $item) {
-            if (! is_array($item)) {
-                continue;
-            }
-
-            $dateType = $this->stringOrNull($item['dateType'] ?? null);
-            if ($dateType === null || Str::kebab($dateType) !== 'created') {
-                continue;
-            }
-
-            $startDate = $this->stringOrNull($item['startDate'] ?? null);
-            if ($startDate !== null) {
-                return $startDate;
-            }
-        }
-
-        return null;
     }
 
     /**

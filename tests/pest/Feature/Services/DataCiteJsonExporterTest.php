@@ -18,6 +18,7 @@ use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
+use App\Models\Language;
 use App\Services\DataCiteJsonExporter;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Support\Facades\DB;
@@ -624,7 +625,6 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
 
 use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
-use App\Models\Language;
 use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
@@ -1544,7 +1544,7 @@ describe('DataCiteJsonExporter - Instruments as RelatedIdentifiers', function ()
 });
 
 describe('DataCiteJsonExporter - Date periods', function () {
-    test('exports Collected, Valid, and Other periods as RKMS-ISO8601 interval strings that validate against DataCite JSON schema', function (string $dateTypeSlug, string $dateTypeName) {
+    test('exports Created, Collected, Valid, and Other periods as RKMS-ISO8601 interval strings that validate against DataCite JSON schema', function (string $dateTypeSlug, string $dateTypeName) {
         $resource = Resource::factory()->create([
             'doi' => '10.5880/date-period.'.strtolower($dateTypeName),
             'publication_year' => 2026,
@@ -1579,8 +1579,118 @@ describe('DataCiteJsonExporter - Date periods', function () {
 
         expect((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
     })->with([
+        'Created' => ['Created', 'Created'],
         'Collected' => ['Collected', 'Collected'],
         'Valid' => ['Valid', 'Valid'],
         'Other' => ['Other', 'Other'],
     ]);
+});
+describe('DataCiteJsonExporter - Title-Level Languages', function () {
+    test('uses title language for lang and falls back to resource language when title language is missing', function () {
+        $french = Language::firstOrCreate(
+            ['code' => 'fr'],
+            ['code' => 'fr', 'name' => 'French', 'active' => true, 'elmo_active' => true]
+        );
+
+        $german = Language::firstOrCreate(
+            ['code' => 'de'],
+            ['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'language_id' => $german->id,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        $subtitleType = TitleType::firstOrCreate(
+            ['slug' => 'Subtitle'],
+            ['name' => 'Subtitle', 'slug' => 'Subtitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Translated Title',
+            'title_type_id' => $subtitleType->id,
+            'language' => $french->code,
+        ]);
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Fallback Title',
+            'title_type_id' => $mainTitleType->id,
+            'language' => null,
+        ]);
+
+        $json = $this->exporter->export($resource);
+
+        $titles = $json['data']['attributes']['titles'];
+
+        $titleLanguagesByText = [];
+        foreach ($titles as $title) {
+            $titleLanguagesByText[$title['title']] = $title['lang'] ?? null;
+        }
+
+        expect($titleLanguagesByText)->toHaveCount(2)
+            ->and($titleLanguagesByText['Translated Title'])->toBe('fr')
+            ->and($titleLanguagesByText['Fallback Title'])->toBe('de');
+    });
+
+    test('ignores invalid title language values and falls back to resource language', function () {
+        $german = Language::firstOrCreate(
+            ['code' => 'de'],
+            ['code' => 'de', 'name' => 'German', 'active' => true, 'elmo_active' => true]
+        );
+
+        $resource = Resource::factory()->create([
+            'language_id' => $german->id,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Legacy Invalid Language Title',
+            'title_type_id' => $mainTitleType->id,
+            'language' => 'not valid',
+        ]);
+
+        $json = $this->exporter->export($resource);
+
+        $titles = $json['data']['attributes']['titles'];
+
+        expect($titles)->toHaveCount(1)
+            ->and($titles[0]['lang'])->toBe('de');
+    });
+
+    test('does not add lang when title and resource languages are missing', function () {
+        $resource = Resource::factory()->create([
+            'language_id' => null,
+        ]);
+
+        $mainTitleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]
+        );
+
+        Title::create([
+            'resource_id' => $resource->id,
+            'value' => 'Title without Language',
+            'title_type_id' => $mainTitleType->id,
+            'language' => null,
+        ]);
+
+        $json = $this->exporter->export($resource);
+
+        $titles = $json['data']['attributes']['titles'];
+
+        expect($titles)->toHaveCount(1)
+            ->and($titles[0])->not->toHaveKey('lang');
+    });
 });

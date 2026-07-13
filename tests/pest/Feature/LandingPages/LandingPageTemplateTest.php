@@ -161,7 +161,7 @@ describe('Landing Page Preview Session Storage', function () {
             ->assertJsonValidationErrors(['template']);
     });
 
-    test('beginner cannot create session preview', function () {
+    test('beginner can create session preview', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
         $resource = Resource::factory()->create();
 
@@ -170,16 +170,16 @@ describe('Landing Page Preview Session Storage', function () {
                 'template' => 'default_gfz',
             ]);
 
-        $response->assertForbidden();
+        $response->assertCreated();
     });
 
-    test('beginner cannot clear session preview', function () {
+    test('beginner can clear session preview', function () {
         $user = User::factory()->create(['role' => UserRole::BEGINNER]);
         $resource = Resource::factory()->create();
 
         $response = $this->actingAs($user)
             ->deleteJson("/resources/{$resource->id}/landing-page/preview");
 
-        $response->assertForbidden();
+        $response->assertOk();
     });
 });

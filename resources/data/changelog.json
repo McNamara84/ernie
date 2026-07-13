@@ -11,8 +11,16 @@
     },
     {
         "version": "1.0.0",
-        "date": "2026-06-23",
+        "date": "2026-07-06",
         "features": [
+            {
+                "title": "Landing Page Preview from the Data Editor",
+                "description": "Curators can now click Show LP Preview next to Save Draft and Save & Validate in the Data Editor. ERNIE saves the current metadata as a draft first, then opens the existing landing page preview or public URL in a new browser tab. If no landing page exists yet, the regular setup modal opens and automatically launches the newly created preview after setup."
+            },
+            {
+                "title": "RAiD Persistent Identifier Support",
+                "description": "Editor Settings now include RAiD (Research Activity Identifier) alongside PID4INST and ROR. Admins and Group Leaders can enable RAiD separately for ERNIE and ELMO, check DataCite-backed RAiD project counts for updates, trigger background refreshes, and expose normalized RAiD project metadata to ELMO through the API-key protected vocabulary endpoint."
+            },
             {
                 "title": "Landing Pages Without Download Sections",
                 "description": "Generated GFZ landing pages can now be marked as having no data available for download. Curators can keep existing primary download URLs, legacy imported files, and additional download links in the setup modal for later reuse, while the public landing page and preview hide the complete Files section until downloads are enabled again."
@@ -46,16 +54,20 @@
                 "description": "A new Related Item Manager allows curators to add detailed inline metadata for related works directly to a resource, using DataCite Metadata Schema 4.7 relatedItem. A new Quote icon on the /resources page opens a modal to create, edit, reorder, and delete related items per resource. Each related item captures full bibliographic metadata: resource type, relation type, titles (with MainTitle/Subtitle/TranslatedTitle/AlternativeTitle), creators and contributors with ORCID/ROR affiliations, publication year, volume, issue, pages, publisher, edition, identifier (DOI, ISBN, URL, etc.). DOIs can be auto-filled via a Crossref lookup (30 requests/minute), and related items can be previewed as APA or IEEE citations with one-click copy. Related items are included in DataCite XML, JSON, JSON-LD, and Schema.org exports; imported from DataCite JSON; parsed from XML uploads; and displayed on the public landing page next to plain related identifiers with an 'Inline metadata' badge. Administrators can inspect and curate related items via the curation form's new Related Items accordion."
             },
             {
+                "title": "Repository-Curated Related Identifiers",
+                "description": "Related identifiers accepted through the Relation Suggestions assistance tool now keep their repository-curation provenance. The Data Editor highlights these entries with a clear assistance-tool note, while landing pages display them in a separate 'Added by repository curation' section below the initially supplied related identifiers."
+            },
+            {
                 "title": "Password Visibility Toggle on Reset Password Page",
                 "description": "The 'Reset password' page now shows an eye icon inside both the password and confirm-password fields. Clicking the icon toggles the entered value between hidden and plain text, helping users verify their new password before submission and avoid typos. The icon clearly indicates the current state (eye = hidden, eye-with-slash = visible), is fully keyboard accessible, and carries distinct screen-reader labels for the two fields. Toggling visibility does not affect how the password is transmitted or stored."
             },
             {
                 "title": "Bulk Actions on Resources Page",
-                "description": "Curators can now select multiple resources via checkboxes and trigger bulk actions: register/update DOIs at DataCite (up to 25 at once) and export selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format (up to 100 at once). DOI registration actions are hidden for users without DOI registration permission. Resource actions are now accessed from the selection toolbar menu after selecting one or more rows."
+                "description": "Curators can now select one or more resources via checkboxes and work from a clearer selection toolbar. Edit and Set up landing page are quick actions directly in the toolbar, while exports, DOI registration, metadata updates, related items, and deletion remain grouped in the Actions menu. Bulk DataCite registration/update supports up to 25 selected resources, and bulk export downloads selected resources as a single ZIP archive in DataCite JSON, DataCite XML, or DataCite JSON-LD format for up to 100 resources. If the browser blocks editor tabs, ERNIE shows fallback links for the affected resources."
             },
             {
-                "title": "Batch Draft Deletion on Resources Page",
-                "description": "Admins, Group Leaders, and Curators can now delete selected draft resources directly from the Resources bulk action menu. The action is limited to draft resources without a DOI and without any landing page, and the confirmation dialog reports how many drafts will be deleted before the request is submitted. Registered resources and resources with configured landing pages remain protected from batch deletion."
+                "title": "Batch Resource Deletion on Resources Page",
+                "description": "Admins, Group Leaders, and Curators can delete selected non-published resources from the Resources Actions menu. Draft, curation, and preview resources are grouped in the confirmation dialog and can be selected independently; preview resources include a warning that their preview landing pages will be removed. Published resources are shown as protected and are never submitted for deletion."
             },
             {
                 "title": "Landing Page Template Management",
@@ -118,15 +130,43 @@
                 "description": "New 'Suggested ROR-IDs' card on the Assistance page for discovering missing ROR identifiers. The system searches the ROR API v2 for affiliations, institutions (as creators/contributors), and funders without a ROR-ID, ranks candidates by name similarity (minimum 50% threshold), and presents the best matches. Curators can accept (updates the entity and syncs all affected resources to DataCite) or decline (permanently dismisses that entity+ROR combination). Entities with existing non-ROR identifiers show a warning before replacement. Includes an individual 'Check' button and integration with the 'Check all' workflow."
             },
             {
+                "title": "Assistance: Bulk ROR Affiliation Acceptance",
+                "description": "When an Admin or Group Leader accepts a ROR suggestion for a creator affiliation, ERNIE now detects further pending creator-affiliation suggestions with the same exported creatorName, affiliation label, and proposed ROR identifier. A confirmation dialog lets the reviewer apply that ROR identifier to all exact matches at once while preserving affiliation labels and creator name identifiers. If processing fails before completion, the confirmation can be retried."
+            },
+            {
+                "title": "Assistance: Crossref Funder ID to ROR Suggestions",
+                "description": "The Assistance page now includes a Crossref Funder ID to ROR assistant for funding references. It uses the locally generated ROR FundRef index to propose high-confidence ROR identifiers for funding references that currently use Crossref Funder IDs, shows provenance and exact-match evidence for review, and lets curators accept or decline each suggestion while preserving award metadata."
+            },
+            {
                 "title": "Assistance: SPDX Rights Suggestions",
                 "description": "Imported DataCite rights statements are now preserved as raw resource-right rows even before they are linked to the shared SPDX license catalog. The new SPDX Rights Suggestions assistant on /assistance reviews unresolved rights metadata from legacy, XML, and JSON imports, proposes trusted SPDX matches with evidence, and lets curators accept or decline each suggestion. Accepted suggestions link only the affected rights statement to the catalog while keeping the imported evidence for audit and export round-tripping."
             },
             {
                 "title": "Assistance: Size and Format Suggestions",
                 "description": "New 'Size and Format Suggestions' assistant on /assistance for discovering missing DataCite size and format metadata from approved GFZ download URLs. The assistant resolves allowed doi.org targets safely, inspects landing-page download links, HTTP headers, ranged metadata, Apache directory listings, and file names, then proposes evidence-backed size and MIME format suggestions with confidence levels. Curators can accept suggestions to add the corresponding DataCite size or format record, or decline suggestions that should not be applied."
+            },
+            {
+                "title": "Assistance: Subject Metadata Enrichment",
+                "description": "The Assistance page now includes a Subject Metadata Enrichment assistant for completing DataCite Subject metadata from supported local vocabulary caches. It detects legacy breadcrumb paths, stable concept URIs, notation-backed concepts, and globally unique free keywords, shows provenance and transfer warnings, and lets curators accept only the proposed subjectScheme, schemeURI, valueURI, classificationCode, breadcrumbPath, and language updates while preserving the imported subject text."
+            },
+            {
+                "title": "Assistance: Description Segmentation Suggestions",
+                "description": "The Assistance page now includes a Description Segmentation assistant for reviewing long legacy Abstract descriptions before splitting them into more precise DataCite description types. Suggestions show the current Abstract, the proposed remaining Abstract, target segments for Methods, Technical Information, Table of Contents, or Series Information, and evidence metadata. Accepting a suggestion updates only the reviewed Abstract and creates the listed Description records; declining keeps the legacy Abstract unchanged and dismisses that preview."
             }
         ],
         "improvements": [
+            {
+                "title": "ZIP Content Size and Format Suggestions",
+                "description": "The Size and Format Suggestions assistant now inspects approved ZIP downloads and directory listings to propose contained file formats and uncompressed sizes instead of only the ZIP container format. ZIP inspection stays bounded by host allowlists, redirect handling, per-file size limits, entry-count limits, and a per-directory ZIP inspection cap so discovery remains predictable."
+            },
+            {
+                "title": "Always-Available Data Editor Actions",
+                "description": "The Data Editor now keeps Save Draft, Show LP Preview, and Save & Validate anchored in the bottom-right corner so curators can use them from any point in the form. On smaller pointer-based screens the action group fades back until the cursor moves near it or a button receives focus, while touch devices keep the compact buttons visible."
+            },
+            {
+                "title": "Faster Resource Editing from the Resources Table",
+                "description": "On the /resources page, clicking a resource row now opens that resource directly in the Data Editor in a new browser tab. Existing controls keep their own behavior: row checkboxes still manage selection, published and preview status badges still open and copy DOI or preview URLs, and ERNIE shows a warning if the browser blocks the single editor tab."
+            },
             {
                 "title": "Resizable Resources Table Columns",
                 "description": "The Resources table now lets curators manually adjust every visible metadata column except the selection checkbox. Column widths are saved in the browser, can be reset to defaults, and long values stay on one line with ellipsis plus hover tooltips for the full text. Resize handles support mouse dragging and keyboard controls on tablet and desktop screens."

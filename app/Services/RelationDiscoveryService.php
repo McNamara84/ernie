@@ -281,6 +281,7 @@ class RelationDiscoveryService
                 'identifier_type_id' => $suggestion->identifier_type_id,
                 'relation_type_id' => $suggestion->relation_type_id,
                 'citation_label' => $citationLabel,
+                'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
                 'position' => $maxPosition + 1,
             ]);
 
