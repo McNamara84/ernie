@@ -88,6 +88,7 @@ export interface User {
     can_access_statistics?: boolean;
     can_access_users?: boolean;
     can_access_editor_settings?: boolean;
+    can_access_database_dumps?: boolean;
     // Landing page management permission (Issue #375)
     can_manage_landing_pages?: boolean;
     can_delete_landing_pages?: boolean;

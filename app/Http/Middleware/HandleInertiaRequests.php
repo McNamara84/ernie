@@ -81,6 +81,7 @@ class HandleInertiaRequests extends Middleware
                     // Assistance page permission
                     'can_access_assistance' => $request->user()->can('access-assistance'),
                     'can_access_assessment' => $request->user()->can('access-assessment'),
+                    'can_access_database_dumps' => $request->user()->can('access-database-dumps'),
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

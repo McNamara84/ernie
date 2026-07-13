@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 /**
  * Role-based Access Control Tests (Issue #379)
@@ -21,8 +22,7 @@ use App\Models\User;
  * | Editor Settings | ✅    | ✅           | ❌      | ❌       |
  * | Assistance      | ✅    | ✅           | ❌      | ❌       |
  */
-
-uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 describe('Admin Access', function () {
     beforeEach(function () {
@@ -88,6 +88,12 @@ describe('Admin Access', function () {
     it('can access assistance page', function () {
         $this->actingAs($this->admin)
             ->get('/assistance')
+            ->assertOk();
+    });
+
+    it('can access database dumps page', function () {
+        $this->actingAs($this->admin)
+            ->get('/database')
             ->assertOk();
     });
 });
@@ -157,6 +163,12 @@ describe('Group Leader Access', function () {
         $this->actingAs($this->groupLeader)
             ->get('/assistance')
             ->assertOk();
+    });
+
+    it('cannot access database dumps page', function () {
+        $this->actingAs($this->groupLeader)
+            ->get('/database')
+            ->assertForbidden();
     });
 });
 
@@ -234,6 +246,12 @@ describe('Curator Access', function () {
     it('cannot access assistance page', function () {
         $this->actingAs($this->curator)
             ->get('/assistance')
+            ->assertForbidden();
+    });
+
+    it('cannot access database dumps page', function () {
+        $this->actingAs($this->curator)
+            ->get('/database')
             ->assertForbidden();
     });
 });
@@ -314,6 +332,12 @@ describe('Beginner Access', function () {
             ->get('/assistance')
             ->assertForbidden();
     });
+
+    it('cannot access database dumps page', function () {
+        $this->actingAs($this->beginner)
+            ->get('/database')
+            ->assertForbidden();
+    });
 });
 
 describe('Gate Definitions', function () {
@@ -388,6 +412,18 @@ describe('Gate Definitions', function () {
         expect($curator->can('access-assistance'))->toBeFalse();
         expect($beginner->can('access-assistance'))->toBeFalse();
     });
+
+    it('access-database-dumps gate allows only admin', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+        $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+        $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+
+        expect($admin->can('access-database-dumps'))->toBeTrue();
+        expect($groupLeader->can('access-database-dumps'))->toBeFalse();
+        expect($curator->can('access-database-dumps'))->toBeFalse();
+        expect($beginner->can('access-database-dumps'))->toBeFalse();
+    });
 });
 
 describe('Unauthenticated Access', function () {
@@ -418,6 +454,11 @@ describe('Unauthenticated Access', function () {
 
     it('redirects to login for assistance page', function () {
         $this->get('/assistance')
+            ->assertRedirect('/login');
+    });
+
+    it('redirects to login for database dumps page', function () {
+        $this->get('/database')
             ->assertRedirect('/login');
     });
 

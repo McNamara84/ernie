@@ -73,6 +73,16 @@ services:
       - DB_SUMARIOPMD_NAME=${DB_SUMARIOPMD_NAME:-sumario-pmd}
       - DB_SUMARIOPMD_USER=${DB_SUMARIOPMD_USER:-root}
       - DB_SUMARIOPMD_PASSWORD=${DB_SUMARIOPMD_PASSWORD:-}
+      - DB_METAWORKS_HOST=${DB_METAWORKS_HOST:-127.0.0.1}
+      - DB_METAWORKS_PORT=${DB_METAWORKS_PORT:-3306}
+      - DB_METAWORKS_NAME=${DB_METAWORKS_NAME:-metaworks}
+      - DB_METAWORKS_USER=${DB_METAWORKS_USER:-root}
+      - DB_METAWORKS_PASSWORD=${DB_METAWORKS_PASSWORD:-}
+      - DB_IGSN_HOST=${DB_IGSN_HOST:-127.0.0.1}
+      - DB_IGSN_PORT=${DB_IGSN_PORT:-3306}
+      - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
+      - DB_IGSN_USER=${DB_IGSN_USER:-root}
+      - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       # Mail configuration
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
@@ -182,7 +192,7 @@ services:
     pull_policy: build
     container_name: dockerized-laravel-queue
     restart: unless-stopped
-    command: php artisan queue:work --queue=vocabularies,default,imports --verbose --tries=3 --timeout=7200
+    command: php artisan queue:work --queue=vocabularies,database-dumps,default,imports --verbose --tries=3 --timeout=7200
     volumes:
       - storage-data:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
@@ -230,6 +240,11 @@ services:
       - DB_METAWORKS_NAME=${DB_METAWORKS_NAME:-metaworks}
       - DB_METAWORKS_USER=${DB_METAWORKS_USER:-root}
       - DB_METAWORKS_PASSWORD=${DB_METAWORKS_PASSWORD:-}
+      - DB_IGSN_HOST=${DB_IGSN_HOST:-127.0.0.1}
+      - DB_IGSN_PORT=${DB_IGSN_PORT:-3306}
+      - DB_IGSN_NAME=${DB_IGSN_NAME:-igsn-metadata}
+      - DB_IGSN_USER=${DB_IGSN_USER:-root}
+      - DB_IGSN_PASSWORD=${DB_IGSN_PASSWORD:-}
       # Mail configuration (needed for queued mail jobs)
       - MAIL_MAILER=${MAIL_MAILER:-smtp}
       - MAIL_HOST=${MAIL_HOST}
