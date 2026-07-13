@@ -589,9 +589,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and funders via
-                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR
-                                identifier to further pending creator affiliations with exactly matching <code>creatorName</code> and{' '}
-                                <code>affiliation</code> values.
+                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR identifier
+                                to further pending creator affiliations with exactly matching <code>creatorName</code> and <code>affiliation</code>{' '}
+                                values.
                             </li>
                             <li>
                                 <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
@@ -606,15 +606,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 metadata before export
                             </li>
                             <li>
-                                <strong>Suggested Resource Languages</strong> – Finds resources without a language assignment and proposes
-                                the most likely language from title, description, subject, and publisher context.
+                                <strong>Suggested Resource Languages</strong> – Finds resources without a language assignment and proposes the most
+                                likely language from title, description, subject, and publisher context.
                             </li>
                             <li>
-                                
-                                <strong>Suggested Title Languages</strong> – Suggests missing or conflicting language values for title records
-                                using title-text detection and supporting language hints
-                                <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed
-                                license metadata before export
                                 <strong>Size and Format Suggestions</strong> – Inspects approved GFZ landing-page and download URLs to propose missing
                                 DataCite size and file-format metadata
                             </li>
@@ -639,13 +634,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={2} title="Review suggestions">
                                 <p>
-                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence
-                                score. Resource language suggestions show the proposed language, a confidence score, and the supporting
-                                evidence (an explicit language attribute on a title, description, or subject; a publisher-name heuristic;
-                                or automatic text detection). Title language suggestions also show the title text, current language,
-                                proposed language, confidence, and evidence summary so you can verify how the recommendation was created.
                                     Each suggestion shows the affected resource, the current value, and the proposed match with a confidence score.
-                                    Title language suggestions also show the title text, current language, proposed language, confidence, and evidence
+                                    Resource language suggestions show the proposed language, a confidence score, and the supporting evidence. Title
+                                    language suggestions also show the title text, current language, proposed language, confidence, and evidence
                                     summary so you can verify how the recommendation was created.
                                 </p>
                                 <p className="mt-2">
@@ -665,8 +656,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                                 <p className="mt-2">
                                     Suggested ROR-ID affiliation matches are exact. If a creator-affiliation suggestion has further pending matches
-                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE
-                                    asks whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
+                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE asks
+                                    whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
                                     creator name identifiers and affiliation labels stay unchanged.
                                 </p>
                                 <p className="mt-2">
@@ -684,40 +675,30 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={3} title="Accept or decline">
                                 <p>
-                                    Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to
-                                permanently dismiss that suggestion. Accepting a resource language suggestion updates the resource's
-                                language field directly. For title language suggestions, accepting updates the selected title's
-                                language field and removes the pending suggestion.
                                     Accept to update the resource (and auto-sync to DataCite if a DOI is registered), or decline to permanently
-                                    dismiss that suggestion. For title language suggestions, accepting updates the selected title's language field and
-                                    removes the pending suggestion.
+                                    dismiss that suggestion. Accepting a resource language suggestion updates the resource&apos;s language field
+                                    directly. For title language suggestions, accepting updates the selected title&apos;s language field and removes
+                                    the pending suggestion.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Resource language evidence:</strong> Suggested Resource Languages follow a documented precedence
-                                order across explicit language attributes on titles, descriptions, and subjects, publisher-name
-                                heuristics, and automatic text detection as a fallback. Multilingual, ambiguous, or low-text records
-                                (e.g. formulas, acronyms, or very short titles) are downgraded to low confidence or skipped entirely
-                                rather than forced into a single dominant language. If a resource&apos;s language changes before a
-                                suggestion is reviewed, ERNIE detects the outdated state and safely dismisses the stale suggestion
-                                instead of overwriting the newer value.
+                                <strong>Resource language evidence:</strong> Suggested Resource Languages follow a documented precedence order across
+                                explicit language attributes on titles, descriptions, and subjects, publisher-name heuristics, and automatic text
+                                detection as a fallback. Multilingual, ambiguous, or low-text records (e.g. formulas, acronyms, or very short titles)
+                                are downgraded to low confidence or skipped entirely rather than forced into a single dominant language. If a
+                                resource&apos;s language changes before a suggestion is reviewed, ERNIE detects the outdated state and safely
+                                dismisses the stale suggestion instead of overwriting the newer value.
                             </p>
                         </div>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Resource
-                                language and typed-title context are used only as supporting evidence. Short, formula-like, acronym-heavy, or
-                                mixed-language titles may be skipped when detection is unreliable. Existing title language values are never
-                                overwritten without curator review.
-                            </p>
-                        </div>
-                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                            <p className="text-sm text-blue-900 dark:text-blue-100">
-                                <strong>DataCite XML export:</strong> Accepted title language suggestions are saved on the selected title and exported
-                                to DataCite XML as an <code>xml:lang</code> attribute when supported.
+                                <strong>Title language review:</strong> Suggested Title Languages evaluate each title independently. Resource language
+                                and typed-title context are used only as supporting evidence. Short, formula-like, acronym-heavy, or mixed-language
+                                titles may be skipped when detection is unreliable. Existing title language values are never overwritten without
+                                curator review.
                             </p>
                         </div>
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
@@ -2021,8 +2002,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
                             Edit opens every selected resource in the Data Editor. When multiple resources are selected and the browser blocks one or
-                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page stays
-                            visible as a quick action and reports the standard single-record message when more than one row is selected.
+                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page
+                            stays visible as a quick action and reports the standard single-record message when more than one row is selected.
                         </p>
                         <p>
                             The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related

@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\Title;
 use App\Services\Language\LanguageSuggestionDiscoveryService;
 
 beforeEach(function () {
-    \App\Models\DescriptionType::firstOrCreate(
+    DescriptionType::firstOrCreate(
         ['id' => 1],
         ['name' => 'abstract', 'slug' => 'abstract']
     );

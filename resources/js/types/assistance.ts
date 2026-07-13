@@ -56,6 +56,26 @@ export interface SuggestedLanguageItem extends BaseSuggestionItem {
     similarity_score: number | null;
 }
 
+export interface SpdxRightsSuggestionMetadata {
+    current?: Record<string, string>;
+    proposed?: Record<string, string>;
+    source?: string;
+    source_url?: string;
+    evidence?: {
+        matched_from?: string;
+        reason?: string;
+    };
+}
+
+export interface SuggestedSpdxRightsItem extends BaseSuggestionItem {
+    target_type: 'resource_right';
+    target_id: number;
+    suggested_value: string;
+    suggested_label: string;
+    similarity_score: number | null;
+    metadata: SpdxRightsSuggestionMetadata | null;
+}
+
 export interface CrossrefFunderRorCurrentMetadata {
     funding_reference_id?: number;
     resource_id?: number;

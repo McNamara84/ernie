@@ -10,13 +10,13 @@ This document defines how the Resource Language Enrichment Assistant derives lan
 
 The assistant combines multiple language signals instead of relying on a single source.
 
-| Evidence Source | Priority | Reliability | Notes |
-|-----------------|----------|-------------|-------|
-| Title languages (`Title.language`) | 1 | Very High | Explicit curator metadata. |
-| Description languages | 2 | Very High | Explicit language assignments on descriptions. |
-| Subject languages | 3 | High | Useful when titles/descriptions are unavailable. |
-| Publisher default language | 4 | Medium | Fallback only if no stronger evidence exists. |
-| Automatic language detection | 5 | Medium | Applied to textual content when explicit metadata is missing. |
+| Evidence Source                    | Priority | Reliability | Notes                                                         |
+| ---------------------------------- | -------- | ----------- | ------------------------------------------------------------- |
+| Title languages (`Title.language`) | 1        | Very High   | Explicit curator metadata.                                    |
+| Description languages              | 2        | Very High   | Explicit language assignments on descriptions.                |
+| Subject languages                  | 3        | High        | Useful when titles/descriptions are unavailable.              |
+| Publisher default language         | 4        | Medium      | Fallback only if no stronger evidence exists.                 |
+| Automatic language detection       | 5        | Medium      | Applied to textual content when explicit metadata is missing. |
 
 ---
 
@@ -30,7 +30,7 @@ The assistant evaluates evidence in the following order.
 4. Publisher default language
 5. Automatic language detection
 
-Higher-priority evidence forms the primary basis for the suggested language. Lower-priority evidence does not override higher-priority evidence but may increase or decrease the confidence score when it agrees or conflicts. 
+Higher-priority evidence forms the primary basis for the suggested language. Lower-priority evidence does not override higher-priority evidence but may increase or decrease the confidence score when it agrees or conflicts.
 Example:
 
 Title = English
@@ -49,12 +49,12 @@ because explicit metadata has precedence over automatic detection.
 
 Confidence is determined by combining all available evidence.
 
-| Confidence | Meaning | Action |
-|------------|---------|--------|
-| 95–100 | Strong agreement between multiple high-priority signals | Suggest automatically |
-| 80–94 | Good agreement with minor uncertainty | Suggest |
-| 60–79 | Weak agreement or limited evidence | Suggest with low-confidence warning |
-| Below 60 | Insufficient confidence | Skip suggestion |
+| Confidence | Meaning                                                 | Action                              |
+| ---------- | ------------------------------------------------------- | ----------------------------------- |
+| 95–100     | Strong agreement between multiple high-priority signals | Suggest automatically               |
+| 80–94      | Good agreement with minor uncertainty                   | Suggest                             |
+| 60–79      | Weak agreement or limited evidence                      | Suggest with low-confidence warning |
+| Below 60   | Insufficient confidence                                 | Skip suggestion                     |
 
 ---
 
@@ -146,15 +146,15 @@ Generate no suggestion.
 
 # Decision Matrix
 
-| Scenario | Result |
-|----------|--------|
-| All evidence agrees | High confidence suggestion |
-| Explicit metadata agrees, detection differs | Follow explicit metadata |
-| Detection only | Medium confidence suggestion |
-| Detection confidence below threshold | Skip |
-| Multiple languages detected | Skip |
-| Very little text | Skip |
-| Existing resource language | Skip |
+| Scenario                                    | Result                       |
+| ------------------------------------------- | ---------------------------- |
+| All evidence agrees                         | High confidence suggestion   |
+| Explicit metadata agrees, detection differs | Follow explicit metadata     |
+| Detection only                              | Medium confidence suggestion |
+| Detection confidence below threshold        | Skip                         |
+| Multiple languages detected                 | Skip                         |
+| Very little text                            | Skip                         |
+| Existing resource language                  | Skip                         |
 
 ---
 
@@ -164,26 +164,26 @@ Each suggestion should expose the information required by the reviewer UI.
 
 ```json
 {
-  "type": "resource-language",
-  "proposedLanguage": "en",
-  "confidence": 97,
-  "evidence": [
-    {
-      "source": "title",
-      "language": "en"
-    },
-    {
-      "source": "description",
-      "language": "en"
-    },
-    {
-      "source": "language_detection",
-      "language": "en",
-      "confidence": 99
-    }
-  ],
-  "summary": "All available language signals consistently identify English.",
-  "explanation": "Titles, descriptions, and automatic language detection all indicate English with high confidence."
+    "type": "resource-language",
+    "proposedLanguage": "en",
+    "confidence": 97,
+    "evidence": [
+        {
+            "source": "title",
+            "language": "en"
+        },
+        {
+            "source": "description",
+            "language": "en"
+        },
+        {
+            "source": "language_detection",
+            "language": "en",
+            "confidence": 99
+        }
+    ],
+    "summary": "All available language signals consistently identify English.",
+    "explanation": "Titles, descriptions, and automatic language detection all indicate English with high confidence."
 }
 ```
 

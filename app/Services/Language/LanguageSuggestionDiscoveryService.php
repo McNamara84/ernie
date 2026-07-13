@@ -108,11 +108,17 @@ final class LanguageSuggestionDiscoveryService
         return $count;
     }
 
+    /**
+     * @return Builder<Resource>
+     */
     private function candidateQuery(): Builder
     {
         return Resource::query()->whereNull('language_id');
     }
 
+    /**
+     * @return array{code: string, label: string, confidence: float, source: string, scores: array<string, int>, evidence: array<string, mixed>}|null
+     */
     private function inferLanguageSuggestion(Resource $resource): ?array
     {
         $languageCodes = $this->loadLanguageCodes();
@@ -189,7 +195,6 @@ final class LanguageSuggestionDiscoveryService
             return null;
         }
 
-
         return [
             'code' => $topCode,
             'label' => $this->languageLabel($topCode),
@@ -206,6 +211,7 @@ final class LanguageSuggestionDiscoveryService
     }
 
     /**
+     * @param  array<int, string>  $languageCodes
      * @return array<int, array{source: string, language: string|null}>
      */
     private function collectEvidence(Resource $resource, array $languageCodes): array
@@ -213,7 +219,7 @@ final class LanguageSuggestionDiscoveryService
         $evidence = [];
 
         foreach ($resource->titles as $title) {
-            if (is_string($title->language) && $title->language !== '') {
+            if ($title->language !== null && $title->language !== '') {
                 $code = $this->normaliseCode($title->language);
                 if (in_array($code, $languageCodes, true)) {
                     $evidence[] = ['source' => 'title', 'language' => $code];
@@ -222,7 +228,7 @@ final class LanguageSuggestionDiscoveryService
         }
 
         foreach ($resource->descriptions as $description) {
-            if (is_string($description->language) && $description->language !== '') {
+            if ($description->language !== null && $description->language !== '') {
                 $code = $this->normaliseCode($description->language);
                 if (in_array($code, $languageCodes, true)) {
                     $evidence[] = ['source' => 'description', 'language' => $code];
@@ -242,7 +248,7 @@ final class LanguageSuggestionDiscoveryService
             }
         }
 
-        if ($resource->publisher !== null && is_string($resource->publisher->name) && $resource->publisher->name !== '') {
+        if ($resource->publisher !== null && $resource->publisher->name !== '') {
             $publisherLanguage = $this->inferPublisherLanguage($resource->publisher->name);
             if ($publisherLanguage !== null && in_array($publisherLanguage, $languageCodes, true)) {
                 $evidence[] = ['source' => 'publisher', 'language' => $publisherLanguage];
@@ -257,24 +263,24 @@ final class LanguageSuggestionDiscoveryService
         $parts = [];
 
         foreach ($resource->titles as $title) {
-            if (is_string($title->value) && $title->value !== '') {
+            if ($title->value !== '') {
                 $parts[] = $title->value;
             }
         }
 
         foreach ($resource->descriptions as $description) {
-            if (is_string($description->value) && $description->value !== '') {
+            if ($description->value !== '') {
                 $parts[] = $description->value;
             }
         }
 
         foreach ($resource->subjects as $subject) {
-            if (is_string($subject->value) && $subject->value !== '') {
+            if ($subject->value !== '') {
                 $parts[] = $subject->value;
             }
         }
 
-        return trim(implode(' ', array_filter($parts, static fn (string $value): bool => $value !== '')));
+        return trim(implode(' ', $parts));
     }
 
     private function scoreText(string $text, string $languageCode): int
@@ -283,12 +289,12 @@ final class LanguageSuggestionDiscoveryService
         $score = 0;
 
         foreach (self::$stopwords[$languageCode] ?? [] as $word) {
-            $pattern = '/\b' . preg_quote($word, '/') . '\b/ui';
+            $pattern = '/\b'.preg_quote($word, '/').'\b/ui';
             $score += preg_match_all($pattern, $textLower);
         }
 
         foreach (self::$signalWords[$languageCode] ?? [] as $word) {
-            $pattern = '/\b' . preg_quote($word, '/') . '\b/ui';
+            $pattern = '/\b'.preg_quote($word, '/').'\b/ui';
             $score += preg_match_all($pattern, $textLower) * 2;
         }
 
@@ -373,7 +379,7 @@ final class LanguageSuggestionDiscoveryService
         $englishStopwords = self::$stopwords['en'] ?? [];
         $englishSignalCount = 0;
         foreach ($englishStopwords as $word) {
-            $pattern = '/\b' . preg_quote($word, '/') . '\b/ui';
+            $pattern = '/\b'.preg_quote($word, '/').'\b/ui';
             if (preg_match($pattern, $textLower) === 1) {
                 $englishSignalCount++;
             }
@@ -390,7 +396,7 @@ final class LanguageSuggestionDiscoveryService
                     continue;
                 }
 
-                $pattern = '/\b' . preg_quote($word, '/') . '\b/ui';
+                $pattern = '/\b'.preg_quote($word, '/').'\b/ui';
                 if (preg_match($pattern, $textLower) === 1) {
                     $foreignSignalCount++;
                 }
@@ -452,6 +458,6 @@ final class LanguageSuggestionDiscoveryService
     {
         $value = str_replace('_', '-', strtolower(trim($code)));
 
-        return explode('-', $value)[0] ?? $value;
+        return explode('-', $value)[0];
     }
 }

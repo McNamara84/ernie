@@ -23,7 +23,7 @@ it('applies a language suggestion to a resource', function () {
         'discovered_at' => now(),
     ]);
 
-    $service = new LanguageSuggestionAcceptanceService();
+    $service = new LanguageSuggestionAcceptanceService;
     $result = $service->accept($suggestion);
 
     expect($result['success'])->toBeTrue();

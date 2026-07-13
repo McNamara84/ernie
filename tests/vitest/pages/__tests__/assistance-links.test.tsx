@@ -6,13 +6,12 @@ import { toast } from 'sonner';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { BaseSuggestionItem, PaginatedData, SuggestedLanguageItem, SuggestedOrcidItem, SuggestedRorItem } from '@/types/assistance';
-import type { BaseSuggestionItem, PaginatedData, SuggestedOrcidItem, SuggestedRorItem, SuggestedSpdxRightsItem } from '@/types/assistance';
 import type {
     BaseSuggestionItem,
     PaginatedData,
     SuggestedCrossrefFunderRorItem,
     SuggestedDescriptionSegmentationItem,
+    SuggestedLanguageItem,
     SuggestedOrcidItem,
     SuggestedRorItem,
     SuggestedSpdxRightsItem,
@@ -140,6 +139,11 @@ function makeLanguageSuggestion(overrides: Partial<SuggestedLanguageItem> = {}):
         suggested_value: 'de',
         suggested_label: 'German (de)',
         similarity_score: 0.95,
+        discovered_at: '2024-06-15T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
 function makeSpdxRightsSuggestion(overrides: Partial<SuggestedSpdxRightsItem> = {}): SuggestedSpdxRightsItem {
     return {
         id: 3,
@@ -504,6 +508,9 @@ describe('LanguageSuggestionCard – confidence', () => {
 
         expect(screen.getByText('95% confidence')).toBeInTheDocument();
         expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+});
+
 describe('Assistance resource header links', () => {
     it('renders the resource DOI as a visible editor link', () => {
         const suggestion = makeSizeFormatSuggestion();
@@ -1813,9 +1820,11 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('Manual review')).toBeInTheDocument();
         expect(screen.getByText('Medium confidence')).toBeInTheDocument();
 
-        expect(screen.getByText(
-            'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
-        )).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+            ),
+        ).toBeInTheDocument();
 
         expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
@@ -1848,10 +1857,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('High confidence')).toBeInTheDocument();
         expect(screen.getByText('schema.org field: datePublished')).toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute(
-            'href',
-            'https://dataservices.gfz.de/example-dataset',
-        );
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://dataservices.gfz.de/example-dataset');
 
         expect(screen.getByRole('link', { name: 'Open schema.org' })).toHaveAttribute(
             'href',
@@ -1871,7 +1877,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
                 target_date_type: 'Coverage',
                 confidence: 'medium',
                 collected_dates_count: 1,
-                source_url : 'https://doi.org/10.5880/test.001',
+                source_url: 'https://doi.org/10.5880/test.001',
                 geo_locations_count: 1,
                 evidence: 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
             },
@@ -1897,4 +1903,3 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });
-
