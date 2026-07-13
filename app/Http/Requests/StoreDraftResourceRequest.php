@@ -10,6 +10,7 @@ use App\Models\TitleType;
 use App\Rules\SafeUrl;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
+use App\Support\LanguageTag;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -63,7 +64,7 @@ class StoreDraftResourceRequest extends FormRequest
             'titles' => ['required', 'array', 'min:1'],
             'titles.*.title' => ['required', 'string', 'max:255'],
             'titles.*.titleType' => ['required', 'string', 'max:255'],
-            'titles.*.language' => ['nullable', 'string', 'max:10'],
+            'titles.*.language' => LanguageTag::validationRules(),
             // Licenses are optional for drafts
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
@@ -253,12 +254,12 @@ class StoreDraftResourceRequest extends FormRequest
                 }
             }
 
-            $language = isset($title['language']) ? trim((string) $title['language']) : '';
+            $language = LanguageTag::normalize($title['language'] ?? null);
 
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
                 'titleType' => $titleType,
-                'language' => $language !== '' ? $language : null,
+                'language' => $language,
             ];
         }
 

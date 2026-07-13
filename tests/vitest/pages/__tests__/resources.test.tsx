@@ -15,6 +15,7 @@ const editorRouteMock = vi.hoisted(() =>
         method: 'get',
     })),
 );
+const openDetachedTabMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -53,6 +54,7 @@ vi.mock('@/lib/curation-query', () => ({
 vi.mock('@/routes', () => ({
     editor: editorRouteMock,
 }));
+vi.mock('@/lib/detached-tab', () => ({ openDetachedTab: openDetachedTabMock }));
 
 vi.mock('@/utils/filter-parser', () => ({
     parseResourceFiltersFromUrl: vi.fn().mockReturnValue({}),
@@ -108,6 +110,8 @@ describe('ResourcesPage', () => {
         buildCurationQueryFromResourceMock.mockReset();
         buildCurationQueryFromResourceMock.mockResolvedValue({});
         editorRouteMock.mockClear();
+        openDetachedTabMock.mockReset();
+        openDetachedTabMock.mockReturnValue({} as Window);
         originalOpen = window.open;
         originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
         openMock = vi.fn().mockReturnValue({ closed: false });
@@ -294,7 +298,8 @@ describe('ResourcesPage', () => {
         expect(editorRouteMock).toHaveBeenCalledWith({
             query: { resourceId: resource.id },
         });
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
+        expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
         expect(buildCurationQueryFromResourceMock).not.toHaveBeenCalled();
         expect(routerMock.get).not.toHaveBeenCalled();
     });
@@ -330,7 +335,7 @@ describe('ResourcesPage', () => {
         fireEvent.click(screen.getByRole('row', { name: /open resource 10\.9999\/example in editor/i }));
 
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
         expect(routerMock.get).not.toHaveBeenCalled();
     });
 
@@ -365,15 +370,15 @@ describe('ResourcesPage', () => {
         const row = screen.getByRole('row', { name: /open resource keyboard resource in editor/i });
         fireEvent.keyDown(row, { key: 'Enter' });
 
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=7', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=7');
 
-        openMock.mockClear();
+        openDetachedTabMock.mockClear();
         editorRouteMock.mockClear();
 
         fireEvent.keyDown(row, { key: ' ' });
 
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=7', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=7');
     });
 
     it('opens the editor when a non-interactive status cell area is clicked', () => {
@@ -407,7 +412,7 @@ describe('ResourcesPage', () => {
         fireEvent.click(screen.getByText('Curation'));
 
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: resource.id } });
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
     });
 
     it('does not open the editor when the row checkbox is clicked', () => {
@@ -442,7 +447,7 @@ describe('ResourcesPage', () => {
 
         expect(screen.getByText(/^1 resource selected$/i)).toBeInTheDocument();
         expect(editorRouteMock).not.toHaveBeenCalled();
-        expect(openMock).not.toHaveBeenCalled();
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 
     it('keeps the published status badge behavior separate from row editor activation', () => {
@@ -478,7 +483,7 @@ describe('ResourcesPage', () => {
         expect(clipboardWriteTextMock).toHaveBeenCalledWith('https://doi.org/10.9999/example');
         expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
         expect(editorRouteMock).not.toHaveBeenCalled();
-        expect(openMock).not.toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 
     it('does not activate the row when an interactive status badge text node is clicked', () => {
@@ -517,6 +522,6 @@ describe('ResourcesPage', () => {
 
         expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
         expect(editorRouteMock).not.toHaveBeenCalled();
-        expect(openMock).not.toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 });

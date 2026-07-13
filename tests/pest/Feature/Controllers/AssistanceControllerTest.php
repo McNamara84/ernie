@@ -3,6 +3,11 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AssistanceController;
+use App\Models\Person;
+use App\Models\Resource;
+use App\Models\ResourceCreator;
+use App\Models\ResourceContributor;
+use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Support\Facades\Config;
@@ -37,6 +42,90 @@ describe('index', function () {
                 ->component('assistance')
                 ->has('sections')
                 ->has('manifests')
+            );
+    });
+
+    it('includes the associated person name for affiliation ROR suggestions', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create([
+            'family_name' => 'Curie',
+            'given_name' => 'Marie',
+        ]);
+        $creator = ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+        $affiliation = $creator->affiliations()->create([
+            'name' => 'Sorbonne University',
+            'identifier' => null,
+            'identifier_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        SuggestedRor::create([
+            'resource_id' => $resource->id,
+            'entity_type' => 'affiliation',
+            'entity_id' => $affiliation->id,
+            'entity_name' => 'Sorbonne University',
+            'suggested_ror_id' => 'https://ror.org/02en5vm52',
+            'suggested_name' => 'Sorbonne University',
+            'similarity_score' => 0.98,
+            'ror_aliases' => [],
+            'existing_identifier' => null,
+            'existing_identifier_type' => null,
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('sections.ror-suggestion.data.0.person_name', 'Curie, Marie')
+            );
+    });
+
+    it('includes the associated person name for contributor affiliation ROR suggestions', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create([
+            'family_name' => 'Einstein',
+            'given_name' => 'Albert',
+        ]);
+        $contributor = ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'position' => 1,
+        ]);
+        $affiliation = $contributor->affiliations()->create([
+            'name' => 'ETH Zurich',
+            'identifier' => null,
+            'identifier_scheme' => null,
+            'scheme_uri' => null,
+        ]);
+
+        SuggestedRor::create([
+            'resource_id' => $resource->id,
+            'entity_type' => 'affiliation',
+            'entity_id' => $affiliation->id,
+            'entity_name' => 'ETH Zurich',
+            'suggested_ror_id' => 'https://ror.org/04bsj9r31',
+            'suggested_name' => 'ETH Zurich',
+            'similarity_score' => 0.98,
+            'ror_aliases' => [],
+            'existing_identifier' => null,
+            'existing_identifier_type' => null,
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('sections.ror-suggestion.data.0.person_name', 'Einstein, Albert')
             );
     });
 

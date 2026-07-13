@@ -1977,15 +1977,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls
                             keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and
-                            copy the DOI or preview URL.
+                            copy the DOI or preview URL. Whenever exactly one resource is being opened and the browser blocks its editor tab, ERNIE
+                            shows a warning so you can allow pop-ups and try again.
                         </p>
 
                         <h4>Quick Resource Actions</h4>
                         <p>
                             <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
-                            Edit opens every selected resource in the Data Editor. If the browser blocks one or more editor tabs, ERNIE shows a
-                            fallback dialog with direct editor links. Set up landing page stays visible as a quick action and reports the standard
-                            single-record message when more than one row is selected.
+                            Edit opens every selected resource in the Data Editor. When multiple resources are selected and the browser blocks one or
+                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page stays
+                            visible as a quick action and reports the standard single-record message when more than one row is selected.
                         </p>
                         <p>
                             The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related

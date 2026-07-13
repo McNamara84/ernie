@@ -343,10 +343,12 @@ export interface SuggestedRorItem {
     entity_type: 'affiliation' | 'institution' | 'funder';
     entity_id: number;
     entity_name: string;
+    person_name: string | null;
     suggested_ror_id: string;
     suggested_name: string;
     similarity_score: number;
     ror_aliases: string[];
+    locations?: string[];
     existing_identifier: string | null;
     existing_identifier_type: string | null;
     discovered_at: string;

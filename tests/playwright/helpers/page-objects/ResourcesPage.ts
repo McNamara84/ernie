@@ -19,7 +19,7 @@ export class ResourcesPage {
     this.heading = page.getByRole('heading', { name: 'Resources' });
     // Use data-testid for stable selectors, fallback to role for compatibility
     this.resourceTable = page.getByTestId('resources-table');
-    this.searchInput = page.getByPlaceholder('Search resources...');
+    this.searchInput = page.getByRole('searchbox', { name: 'Search resources by title or DOI' });
     this.createButton = page.getByRole('button', { name: 'Create Resource' });
     this.noResourcesMessage = page.getByText('No resources found');
   }
@@ -47,7 +47,7 @@ export class ResourcesPage {
    */
   async search(searchTerm: string) {
     await this.searchInput.fill(searchTerm);
-    await this.page.waitForTimeout(500);
+    await expect(this.page).toHaveURL((url) => url.searchParams.get('search') === searchTerm.trim());
   }
 
   /**
