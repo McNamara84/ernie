@@ -1801,17 +1801,6 @@ describe('Generic fallback suggestion card', () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_label: 'Custom label',
             suggested_value: 'custom-value',
-
-describe('DateTypeSuggestionCard - DateType preview', () => {
-    it('renders review hints with dismiss action only', () => {
-        const suggestion = makeDateTypeSuggestion({
-            suggested_label:
-                'Hint: Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
-            metadata: {
-                suggestion_kind: 'hint',
-                confidence: 'medium',
-                is_ambiguous: true,
-            },
         });
 
         render(
@@ -1828,6 +1817,49 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         const suggestion = makeSizeFormatSuggestion({
             suggested_label: undefined,
             suggested_value: 'fallback-value',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('fallback-value')).toBeInTheDocument();
+    });
+
+    it('falls back to "Suggestion" when both label and value are missing', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: undefined,
+            suggested_value: undefined,
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('Suggestion', { selector: 'p' })).toBeInTheDocument();
+    });
+});
+
+describe('DateTypeSuggestionCard - DateType preview', () => {
+    it('renders review hints with dismiss action only', () => {
+        const suggestion = makeDateTypeSuggestion({
+            suggested_label:
+                'Hint: Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+            metadata: {
+                suggestion_kind: 'hint',
+                confidence: 'medium',
+                is_ambiguous: true,
+            },
+        });
+
+        render(
+            <AssistancePage
                 sections={{ 'date-type-suggestion': paginated([suggestion]) }}
                 manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
             />,
@@ -1837,9 +1869,11 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('Manual review')).toBeInTheDocument();
         expect(screen.getByText('Medium confidence')).toBeInTheDocument();
 
-        expect(screen.getByText(
-            'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
-        )).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+            ),
+        ).toBeInTheDocument();
 
         expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
@@ -1862,18 +1896,6 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
 
         render(
             <AssistancePage
-                sections={{ 'future-module': paginated([suggestion]) }}
-                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
-            />,
-        );
-
-        expect(screen.getByText('fallback-value')).toBeInTheDocument();
-    });
-
-    it('falls back to "Suggestion" when both label and value are missing', () => {
-        const suggestion = makeSizeFormatSuggestion({
-            suggested_label: undefined,
-            suggested_value: undefined,
                 sections={{ 'date-type-suggestion': paginated([suggestion]) }}
                 manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
             />,
@@ -1907,7 +1929,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
                 target_date_type: 'Coverage',
                 confidence: 'medium',
                 collected_dates_count: 1,
-                source_url : 'https://doi.org/10.5880/test.001',
+                source_url: 'https://doi.org/10.5880/test.001',
                 geo_locations_count: 1,
                 evidence: 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
             },
@@ -1915,14 +1937,6 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
 
         render(
             <AssistancePage
-                sections={{ 'future-module': paginated([suggestion]) }}
-                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
-            />,
-        );
-
-        expect(screen.getByText('Suggestion', { selector: 'p' })).toBeInTheDocument();
-    });
-});
                 sections={{ 'date-type-suggestion': paginated([suggestion]) }}
                 manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
             />,
@@ -1941,4 +1955,3 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });
-
