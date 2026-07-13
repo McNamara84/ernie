@@ -88,6 +88,7 @@ class Assistant extends AbstractAssistant
             'suggested_name' => $suggestion->suggested_name,
             'similarity_score' => $suggestion->similarity_score,
             'ror_aliases' => $suggestion->ror_aliases ?? [],
+            'locations' => $suggestion->locations ?? [],
             'existing_identifier' => $suggestion->existing_identifier,
             'existing_identifier_type' => $suggestion->existing_identifier_type,
             'discovered_at' => $suggestion->discovered_at->toIso8601String(),

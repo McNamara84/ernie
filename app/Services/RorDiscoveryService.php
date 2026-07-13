@@ -634,11 +634,16 @@ class RorDiscoveryService
                     'suggested_name' => $candidate['name'],
                     'similarity_score' => $best['similarity'],
                     'ror_aliases' => $candidate['aliases'],
+                    'locations' => $candidate['locations'],
                     'existing_identifier' => $entity['existing_identifier'],
                     'existing_identifier_type' => $entity['existing_identifier_type'],
                     'discovered_at' => now(),
                 ],
             );
+
+            if (! $suggestion->wasRecentlyCreated && empty($suggestion->locations) && ! empty($candidate['locations'])) {
+                $suggestion->update(['locations' => $candidate['locations']]);
+            }
 
             if ($suggestion->wasRecentlyCreated) {
                 $newCount++;
@@ -651,7 +656,7 @@ class RorDiscoveryService
     /**
      * Search the ROR API v2 for organizations matching a name.
      *
-     * @return array<int, array{ror_id: string, name: string, names: array<int, string>, aliases: array<int, string>}>
+     * @return array<int, array{ror_id: string, name: string, names: array<int, string>, aliases: array<int, string>, locations: array<int, string>}>
      */
     private function searchRorApi(string $query): array
     {
@@ -697,6 +702,7 @@ class RorDiscoveryService
                     'name' => $primaryName,
                     'names' => $names,
                     'aliases' => array_slice($names, 1),
+                    'locations' => $this->extractRorLocations($item),
                 ];
             }
 
@@ -744,6 +750,53 @@ class RorDiscoveryService
         }
 
         return array_values(array_unique($names));
+    }
+
+    /**
+     * Extract location strings from a ROR API organization item.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<int, string>
+     */
+    private function extractRorLocations(array $item): array
+    {
+        if (! isset($item['locations']) || ! is_array($item['locations'])) {
+            return [];
+        }
+
+        $locations = [];
+
+        foreach ($item['locations'] as $location) {
+            if (! is_array($location)) {
+                continue;
+            }
+
+            $parts = [];
+
+            // Extract geonames_details
+            if (isset($location['geonames_details']) && is_array($location['geonames_details'])) {
+                $geonames = $location['geonames_details'];
+
+                if (isset($geonames['name']) && is_string($geonames['name']) && trim($geonames['name']) !== '') {
+                    $parts[] = trim($geonames['name']);
+                }
+
+                if (isset($geonames['country_name']) && is_string($geonames['country_name']) && trim($geonames['country_name']) !== '') {
+                    $country = trim($geonames['country_name']);
+                    if (! in_array($country, $parts, true)) {
+                        $parts[] = $country;
+                    }
+                }
+            }
+
+            $formatted = trim(implode(', ', array_filter($parts, static fn ($value) => $value !== '')));
+
+            if ($formatted !== '') {
+                $locations[] = $formatted;
+            }
+        }
+
+        return array_values(array_unique($locations));
     }
 
     /**

@@ -1347,6 +1347,51 @@ describe('RorSuggestionCard – ROR link', () => {
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
     });
 
+    it('renders preferred label and other names for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/GFZ German Research Centre for Geosciences/)).toBeInTheDocument();
+        expect(screen.getByText(/Also known as:/)).toHaveTextContent('GFZ Potsdam, Helmholtz-Zentrum Potsdam');
+        expect(screen.getByText(/Helmholtz-Zentrum Potsdam/)).toBeInTheDocument();
+    });
+
+    it('renders the locations for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany', 'Telegrafenberg'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/Locations:/)).toBeInTheDocument();
+        expect(screen.getByText(/Potsdam, Germany/)).toBeInTheDocument();
+        expect(screen.getByText(/Telegrafenberg/)).toBeInTheDocument();
+    });
+
+    it('keeps the ROR link intact after rendering additional metadata', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: 'https://ror.org/04t3en479' });
+        expect(link).toBeInTheDocument();
+        expect(link).toHaveAttribute('href', 'https://ror.org/04t3en479');
+    });
+
     it('reloads immediately after accepting a ROR suggestion without bulk matches', async () => {
         const suggestion = makeRorSuggestion({ id: 954 });
         const user = userEvent.setup();
@@ -1467,6 +1512,7 @@ describe('RorSuggestionCard – ROR link', () => {
             'There is 1 further creator affiliation with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for this affiliation as well?',
         );
     });
+
     it('keeps the bulk ROR dialog open so a failed request can be retried', async () => {
         const suggestion = makeRorSuggestion({ id: 957 });
         const user = userEvent.setup();
@@ -1591,6 +1637,7 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
+
     it('declines the bulk ROR dialog without posting the token', async () => {
         const suggestion = makeRorSuggestion({ id: 956 });
         const user = userEvent.setup();
