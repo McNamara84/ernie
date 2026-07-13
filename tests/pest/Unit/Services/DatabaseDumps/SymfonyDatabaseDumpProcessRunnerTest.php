@@ -16,19 +16,34 @@ it('prefers a configured executable dump client', function (): void {
     expect((new SymfonyDatabaseDumpProcessRunner)->findDumpClient())->toBe(PHP_BINARY);
 });
 
-it('detects supported and unsupported client options', function (): void {
+it('detects supported options from cached client help output', function (): void {
     $runner = new SymfonyDatabaseDumpProcessRunner;
-    $client = storage_path('framework/testing/fake-mysqldump-client');
+    $script = storage_path('framework/testing/fake-mysqldump-client.php');
+    $counter = storage_path('framework/testing/fake-mysqldump-help-count.txt');
+    @unlink($counter);
 
-    file_put_contents($client, <<<'PHP'
+    file_put_contents($script, <<<'PHP'
 #!/usr/bin/env php
 <?php
+$counter = __DIR__.DIRECTORY_SEPARATOR.'fake-mysqldump-help-count.txt';
+$count = is_file($counter) ? (int) file_get_contents($counter) : 0;
+file_put_contents($counter, (string) ($count + 1));
 echo "--column-statistics\n--set-gtid-purged\n";
 PHP);
-    chmod($client, 0755);
+    chmod($script, 0755);
+
+    if (PHP_OS_FAMILY === 'Windows') {
+        $client = storage_path('framework/testing/fake-mysqldump-client.bat');
+        file_put_contents($client, "@echo off\r\n\"".PHP_BINARY."\" \"{$script}\" %*\r\n");
+    } else {
+        $client = storage_path('framework/testing/fake-mysqldump-client');
+        copy($script, $client);
+        chmod($client, 0755);
+    }
 
     expect($runner->supportsOption($client, '--column-statistics=0'))->toBeTrue()
-        ->and($runner->supportsOption($client, '--definitely-not-a-real-option'))->toBeFalse();
+        ->and($runner->supportsOption($client, '--definitely-not-a-real-option'))->toBeFalse()
+        ->and((int) file_get_contents($counter))->toBe(1);
 });
 
 it('streams process stdout into a gzip file and captures stderr', function (): void {

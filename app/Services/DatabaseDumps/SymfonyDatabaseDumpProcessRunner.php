@@ -9,9 +9,9 @@ use Symfony\Component\Process\Process;
 final class SymfonyDatabaseDumpProcessRunner implements DatabaseDumpProcessRunner
 {
     /**
-     * @var array<string, bool>
+     * @var array<string, string|null>
      */
-    private array $optionSupportCache = [];
+    private array $helpOutputCache = [];
 
     public function findDumpClient(): ?string
     {
@@ -36,10 +36,19 @@ final class SymfonyDatabaseDumpProcessRunner implements DatabaseDumpProcessRunne
 
     public function supportsOption(string $client, string $option): bool
     {
-        $cacheKey = "{$client}:{$option}";
+        $output = $this->helpOutput($client);
 
-        if (array_key_exists($cacheKey, $this->optionSupportCache)) {
-            return $this->optionSupportCache[$cacheKey];
+        if ($output === null) {
+            return false;
+        }
+
+        return str_contains($output, $this->optionName($option));
+    }
+
+    private function helpOutput(string $client): ?string
+    {
+        if (array_key_exists($client, $this->helpOutputCache)) {
+            return $this->helpOutputCache[$client];
         }
 
         try {
@@ -47,15 +56,17 @@ final class SymfonyDatabaseDumpProcessRunner implements DatabaseDumpProcessRunne
             $process->setTimeout(10);
             $process->run();
 
-            $output = $process->getOutput()."\n".$process->getErrorOutput();
-            $optionName = str_contains($option, '=')
-                ? substr($option, 0, (int) strpos($option, '='))
-                : $option;
-
-            return $this->optionSupportCache[$cacheKey] = str_contains($output, $optionName);
+            return $this->helpOutputCache[$client] = $process->getOutput()."\n".$process->getErrorOutput();
         } catch (\Throwable) {
-            return $this->optionSupportCache[$cacheKey] = false;
+            return $this->helpOutputCache[$client] = null;
         }
+    }
+
+    private function optionName(string $option): string
+    {
+        return str_contains($option, '=')
+            ? substr($option, 0, (int) strpos($option, '='))
+            : $option;
     }
 
     /**
