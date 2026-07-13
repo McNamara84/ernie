@@ -17,13 +17,12 @@ use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\Right;
-use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
+use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
-use App\Support\OrcidNormalizer;
 use App\Support\LanguageTag;
-use App\Models\Language;
+use App\Support\OrcidNormalizer;
 
 /**
  * Service for exporting Resource data to DataCite JSON format (v4.7)
@@ -199,9 +198,9 @@ class DataCiteJsonExporter
             $lang = LanguageTag::validOrNull($title->language)
             ?? LanguageTag::validOrNull($resource->language?->code)
             ?? ($resource->igsnMetadata ? 'en' : null);
-        if ($lang !== null) {
-            $titleData['lang'] = $lang;
-        }
+            if ($lang !== null) {
+                $titleData['lang'] = $lang;
+            }
 
             $titles[] = $titleData;
         }
