@@ -20,6 +20,9 @@ COPY .node-version /tmp/.node-version
 
 # Install system dependencies and Node.js in one RUN step to keep the build
 # setup straightforward.
+# LEGACY_DATABASE_DUMP_SUPPORT:
+# Required for the admin-only /database dump page while legacy MySQL 5.6/5.7 exports exist.
+# Remove this package when legacy database exports are retired.
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -36,6 +39,7 @@ RUN apt-get update && apt-get install -y \
     make \
     g++ \
     netcat-traditional \
+    default-mysql-client \
     ca-certificates \
     libssl3t64 \
     openssl \

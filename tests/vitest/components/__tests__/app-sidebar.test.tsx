@@ -6,6 +6,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SIDEBAR_WORKSPACE_STORAGE_KEY } from '@/hooks/use-sidebar-workspace';
 import type { AssessmentAverageSummary, NavItem } from '@/types';
 
+if (!window.localStorage) {
+    const storage = new Map<string, string>();
+
+    Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        value: {
+            clear: () => storage.clear(),
+            getItem: (key: string) => storage.get(key) ?? null,
+            key: (index: number) => Array.from(storage.keys())[index] ?? null,
+            removeItem: (key: string) => storage.delete(key),
+            setItem: (key: string, value: string) => storage.set(key, value),
+            get length() {
+                return storage.size;
+            },
+        },
+    });
+}
+
 let mockUrl = '/dashboard';
 
 let mockUser = {
@@ -21,6 +39,7 @@ let mockUser = {
     can_access_statistics: true,
     can_access_users: true,
     can_access_editor_settings: true,
+    can_access_database_dumps: true,
     can_manage_landing_page_templates: false,
     can_access_assistance: false,
     can_access_assessment: false,
@@ -49,6 +68,7 @@ const setMockUser = (
         can_access_statistics: boolean;
         can_access_users: boolean;
         can_access_editor_settings: boolean;
+        can_access_database_dumps: boolean;
         can_manage_landing_page_templates: boolean;
         can_access_assistance: boolean;
         can_access_assessment: boolean;
@@ -67,6 +87,7 @@ const setMockUser = (
         can_access_statistics: true,
         can_access_users: true,
         can_access_editor_settings: true,
+        can_access_database_dumps: true,
         can_manage_landing_page_templates: false,
         can_access_assistance: false,
         can_access_assessment: false,
@@ -213,7 +234,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls.map((call) => call[0].label)).toEqual(['Team', 'Configuration', 'Operations', 'Legacy']);
         expect(sectionCalls[0][0].items.map((item: NavItem) => item.title)).toEqual(['Users']);
         expect(sectionCalls[1][0].items.map((item: NavItem) => item.title)).toEqual(['Editor Settings']);
-        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Statistics', 'Logs']);
+        expect(sectionCalls[2][0].items.map((item: NavItem) => item.title)).toEqual(['Database', 'Statistics', 'Logs']);
         expect(sectionCalls[3][0].items.map((item: NavItem) => item.title)).toEqual(['Old Datasets', 'Statistics (old)']);
     });
 
@@ -226,6 +247,7 @@ describe('AppSidebar', () => {
             can_access_statistics: true,
             can_access_users: true,
             can_access_editor_settings: true,
+            can_access_database_dumps: false,
         });
 
         render(<AppSidebar />);
@@ -289,7 +311,7 @@ describe('AppSidebar', () => {
 
         const operationsSection = NavSectionMock.mock.calls.find((call) => call[0].label === 'Operations');
         expect(operationsSection).toBeDefined();
-        expect(operationsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assessment', 'Statistics', 'Logs']);
+        expect(operationsSection?.[0].items.map((item: NavItem) => item.title)).toEqual(['Assessment', 'Database', 'Statistics', 'Logs']);
         expect(operationsSection?.[0].items[0].badge).toBe('6.9 / 3.2');
     });
 
@@ -378,6 +400,7 @@ describe('AppSidebar', () => {
             can_access_assessment: true,
             can_access_logs: true,
             can_access_editor_settings: true,
+            can_access_database_dumps: false,
             can_manage_landing_page_templates: true,
         });
         setMockSharedProps({
@@ -417,6 +440,7 @@ describe('AppSidebar', () => {
             can_access_users: false,
             can_access_editor_settings: false,
             can_manage_landing_page_templates: false,
+            can_access_database_dumps: false,
             can_access_assistance: false,
             can_access_assessment: false,
         });
@@ -437,6 +461,7 @@ describe('AppSidebar', () => {
             can_access_users: false,
             can_access_editor_settings: false,
             can_manage_landing_page_templates: false,
+            can_access_database_dumps: false,
             can_access_assistance: false,
             can_access_assessment: false,
         });
@@ -458,6 +483,7 @@ describe('AppSidebar', () => {
             can_access_users: false,
             can_access_editor_settings: false,
             can_manage_landing_page_templates: false,
+            can_access_database_dumps: false,
             can_access_assistance: false,
             can_access_assessment: false,
         });

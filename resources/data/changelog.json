@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-07-06",
+        "date": "2026-07-13",
         "features": [
+            {
+                "title": "Admin Database Dump Exports",
+                "description": "Admins can now open the new /database page from the Administration workspace to queue downloadable compressed database dumps for the ERNIE application database and configured legacy metadata databases. Exports are audited, expire automatically, and the scheduled cleanup command removes expired dump files so private exports are not kept indefinitely."
+            },
             {
                 "title": "Landing Page Preview from the Data Editor",
                 "description": "Curators can now click Show LP Preview next to Save Draft and Save & Validate in the Data Editor. ERNIE saves the current metadata as a draft first, then opens the existing landing page preview or public URL in a new browser tab. If no landing page exists yet, the regular setup modal opens and automatically launches the newly created preview after setup."

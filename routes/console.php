@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Jobs\DiscoverRelationsJob;
 use App\Models\User;
 use App\Services\VocabularyCacheService;
@@ -23,7 +24,7 @@ Artisan::command('add-user {name} {email} {password}', function (string $name, s
         'email' => $email,
         'password' => Hash::make($password),
         // First user automatically becomes admin
-        'role' => $isFirstUser ? \App\Enums\UserRole::ADMIN : \App\Enums\UserRole::BEGINNER,
+        'role' => $isFirstUser ? UserRole::ADMIN : UserRole::BEGINNER,
     ]);
 
     if ($isFirstUser) {
@@ -47,7 +48,7 @@ Schedule::call(function () {
     if ($lock->get()) {
         try {
             DiscoverRelationsJob::dispatch(Str::uuid()->toString(), $lock->owner());
-        } catch (\Throwable) {
+        } catch (Throwable) {
             $lock->release();
         }
     }
@@ -59,4 +60,10 @@ Schedule::call(function () {
 Schedule::command('oaipmh:purge-tokens')
     ->dailyAt('03:00')
     ->name('purge-oaipmh-tokens')
+    ->withoutOverlapping();
+
+// Purge expired private database dump files hourly.
+Schedule::command('database-dumps:cleanup')
+    ->hourly()
+    ->name('cleanup-database-dumps')
     ->withoutOverlapping();
