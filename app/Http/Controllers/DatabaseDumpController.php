@@ -82,11 +82,11 @@ class DatabaseDumpController extends Controller
                 'expires_at' => now()->addHours(max(1, (int) config('database_dumps.expiry_hours', 24))),
             ]);
 
+            $path = $this->databaseDumpService->buildPath($export);
+
             $export->forceFill([
-                'path' => $this->databaseDumpService->buildPath($export),
-            ])->save();
-            $export->forceFill([
-                'filename' => basename((string) $export->path),
+                'path' => $path,
+                'filename' => basename($path),
             ])->save();
 
             CreateDatabaseDumpJob::dispatch($export->id);
