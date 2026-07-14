@@ -195,6 +195,10 @@ describe('HandleInertiaRequests', function () {
             'can_access_editor_settings',
             'can_manage_landing_pages',
             'can_delete_landing_pages',
+            'can_manage_landing_page_templates',
+            'can_access_assistance',
+            'can_access_assessment',
+            'can_access_database_dumps',
         ]);
     });
 

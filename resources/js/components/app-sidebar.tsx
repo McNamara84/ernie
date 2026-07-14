@@ -166,6 +166,16 @@ export function AppSidebar() {
         operationsItems.push(assessmentItem);
     }
 
+    if (auth.user?.can_access_database_dumps) {
+        const databaseDumpsItem: NavItem = {
+            title: 'Database',
+            href: '/database',
+            icon: Database,
+        };
+
+        administrationItems.push(databaseDumpsItem);
+        operationsItems.push(databaseDumpsItem);
+    }
     if (auth.user?.can_access_old_datasets) {
         const oldDatasetsItem: NavItem = {
             title: 'Old Datasets',

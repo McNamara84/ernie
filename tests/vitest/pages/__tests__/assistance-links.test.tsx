@@ -182,6 +182,27 @@ function makeSizeFormatSuggestion(overrides: Partial<BaseSuggestionItem> = {}): 
     };
 }
 
+function makeDateTypeSuggestion(overrides: Partial<BaseSuggestionItem> = {}): BaseSuggestionItem {
+    return {
+        id: 88,
+        resource_id: 80,
+        resource_doi: '10.5880/test.2026.088',
+        resource_title: 'DateType suggestion example resource',
+        target_type: 'date_type',
+        target_id: 88,
+        suggested_value: '2024-07-01',
+        suggested_label: 'ISSUED: 2024-07-01',
+        similarity_score: null,
+        metadata: {
+            suggestion_kind: 'addition',
+            target_date_type: 'Issued',
+            confidence: 'high',
+        },
+        discovered_at: '2026-07-05T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
 function makeCrossrefFunderRorSuggestion(overrides: Partial<SuggestedCrossrefFunderRorItem> = {}): SuggestedCrossrefFunderRorItem {
     const metadata: SuggestedCrossrefFunderRorItem['metadata'] = {
         current: {
@@ -1347,6 +1368,51 @@ describe('RorSuggestionCard – ROR link', () => {
         expect(screen.getByText(/ror\.org\/search/)).toBeInTheDocument();
     });
 
+    it('renders preferred label and other names for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/GFZ German Research Centre for Geosciences/)).toBeInTheDocument();
+        expect(screen.getByText(/Also known as:/)).toHaveTextContent('GFZ Potsdam, Helmholtz-Zentrum Potsdam');
+        expect(screen.getByText(/Helmholtz-Zentrum Potsdam/)).toBeInTheDocument();
+    });
+
+    it('renders the locations for a ROR suggestion', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany', 'Telegrafenberg'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText(/Locations:/)).toBeInTheDocument();
+        expect(screen.getByText(/Potsdam, Germany/)).toBeInTheDocument();
+        expect(screen.getByText(/Telegrafenberg/)).toBeInTheDocument();
+    });
+
+    it('keeps the ROR link intact after rendering additional metadata', () => {
+        const suggestion = makeRorSuggestion({ locations: ['Potsdam, Germany'] });
+
+        render(
+            <AssistancePage
+                sections={{ 'ror-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('ror-suggestion', 'rors', 'ROR Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: 'https://ror.org/04t3en479' });
+        expect(link).toBeInTheDocument();
+        expect(link).toHaveAttribute('href', 'https://ror.org/04t3en479');
+    });
+
     it('reloads immediately after accepting a ROR suggestion without bulk matches', async () => {
         const suggestion = makeRorSuggestion({ id: 954 });
         const user = userEvent.setup();
@@ -1467,6 +1533,7 @@ describe('RorSuggestionCard – ROR link', () => {
             'There is 1 further creator affiliation with the same <creatorName>, <affiliation>, and ROR suggestion you have just confirmed. Would you like to accept the ROR suggestion for this affiliation as well?',
         );
     });
+
     it('keeps the bulk ROR dialog open so a failed request can be retried', async () => {
         const suggestion = makeRorSuggestion({ id: 957 });
         const user = userEvent.setup();
@@ -1591,6 +1658,7 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
+
     it('declines the bulk ROR dialog without posting the token', async () => {
         const suggestion = makeRorSuggestion({ id: 956 });
         const user = userEvent.setup();
@@ -1697,3 +1765,112 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         });
     });
 });
+
+describe('DateTypeSuggestionCard - DateType preview', () => {
+    it('renders review hints with dismiss action only', () => {
+        const suggestion = makeDateTypeSuggestion({
+            suggested_label:
+                'Hint: Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+            metadata: {
+                suggestion_kind: 'hint',
+                confidence: 'medium',
+                is_ambiguous: true,
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Hint')).toBeInTheDocument();
+        expect(screen.getByText('Manual review')).toBeInTheDocument();
+        expect(screen.getByText('Medium confidence')).toBeInTheDocument();
+
+        expect(screen.getByText(
+            'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+        )).toBeInTheDocument();
+
+        expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Decline' })).not.toBeInTheDocument();
+    });
+
+    it('renders addition suggestions with metadata and source links', () => {
+        const suggestion = makeDateTypeSuggestion({
+            suggested_label: 'ISSUED: 2024',
+            suggested_value: '2024',
+            metadata: {
+                suggestion_kind: 'addition',
+                target_date_type: 'Issued',
+                confidence: 'high',
+                schema_org_field: 'datePublished',
+                source_url: 'https://dataservices.gfz.de/example-dataset',
+                evidence_url: 'https://data.crosscite.org/application/vnd.schemaorg.ld+json/10.5880/test.001',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Addition')).toBeInTheDocument();
+        expect(screen.getByText('Issued')).toBeInTheDocument();
+        expect(screen.getByText('High confidence')).toBeInTheDocument();
+        expect(screen.getByText('schema.org field: datePublished')).toBeInTheDocument();
+
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute(
+            'href',
+            'https://dataservices.gfz.de/example-dataset',
+        );
+
+        expect(screen.getByRole('link', { name: 'Open schema.org' })).toHaveAttribute(
+            'href',
+            'https://data.crosscite.org/application/vnd.schemaorg.ld+json/10.5880/test.001',
+        );
+
+        expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
+    });
+
+    it('renders correction suggestions with suggested label and count evidence', () => {
+        const suggestion = makeDateTypeSuggestion({
+            suggested_label: 'Collected dates (1) match geolocations (1)',
+            suggested_value: 'collected_dates:1;geo_locations:1',
+            metadata: {
+                suggestion_kind: 'correction',
+                target_date_type: 'Coverage',
+                confidence: 'medium',
+                collected_dates_count: 1,
+                source_url : 'https://doi.org/10.5880/test.001',
+                geo_locations_count: 1,
+                evidence: 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'date-type-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('date-type-suggestion', 'date-type', 'Date Type Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('Correction')).toBeInTheDocument();
+        expect(screen.getByText('Coverage')).toBeInTheDocument();
+        expect(screen.getByText('Medium confidence')).toBeInTheDocument();
+        expect(screen.getByText('1:1')).toBeInTheDocument();
+        expect(screen.getByText('Collected dates (1) match geolocations (1)')).toBeInTheDocument();
+        expect(screen.getByText(/The resource has a DOI/)).toBeInTheDocument();
+        expect(screen.queryByText(/collected_dates:1;geo_locations:1/)).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://doi.org/10.5880/test.001');
+
+        expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
+    });
+});
+

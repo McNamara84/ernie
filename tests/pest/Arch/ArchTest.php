@@ -114,6 +114,16 @@ describe('Services', function () {
             'App\Services\SubjectEnrichment\SubjectVocabularyConcept',
             'App\Services\SubjectEnrichment\SubjectVocabularyMatchSet',
             'App\Services\SubjectEnrichment\SubjectVocabularySource',
+            'App\Services\DatabaseDumps\DatabaseDumpProcessResult',
+            'App\Services\DatabaseDumps\DatabaseDumpProcessRunner',
+            'App\Services\DatabaseDumps\DatabaseServerInfoProvider',
+            'App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner',
+            'App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider',
+            // Test-time function doubles for LaravelDatabaseServerInfoProvider.
+            'App\Services\DatabaseDumps\fsockopen',
+            'App\Services\DatabaseDumps\stream_set_timeout',
+            'App\Services\DatabaseDumps\fread',
+            'App\Services\DatabaseDumps\fclose',
         ]);
 
     arch('services are not extending controllers')

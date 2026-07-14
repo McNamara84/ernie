@@ -3063,7 +3063,18 @@ describe('IGSN Title Lang Attribute Export', function () {
         $response->assertOk();
         $xml = $response->getContent();
 
-        expect($xml)->toContain('xml:lang="en"');
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $titleLanguage = null;
+        foreach ($dom->getElementsByTagName('title') as $titleElement) {
+            if ($titleElement->textContent === 'XML Title Sample') {
+                $titleLanguage = $titleElement->getAttribute('xml:lang');
+                break;
+            }
+        }
+
+        expect($titleLanguage)->toBe('en');
     });
 
     it('does not export lang attribute for titles of non-IGSN resources without explicit language', function () {

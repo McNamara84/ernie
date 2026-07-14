@@ -533,6 +533,46 @@ erDiagram
     %% APPLICATION-SPECIFIC TABLES
     %% =========================================================================
 
+    database_dump_exports {
+        uuid id PK
+        bigint user_id FK
+        varchar target_key "50"
+        varchar target_label "100"
+        varchar connection_name "100"
+        varchar database_name "255"
+        varchar status "30, indexed"
+        varchar disk "50"
+        varchar path "500, nullable"
+        varchar filename "nullable"
+        unsigned_bigint size_bytes "nullable"
+        varchar sha256 "64, nullable"
+        varchar server_version "nullable"
+        varchar dump_client "nullable"
+        json dump_options "nullable"
+        timestamp requested_at "nullable, indexed"
+        timestamp started_at "nullable"
+        timestamp finished_at "nullable"
+        timestamp expires_at "nullable, indexed"
+        text error_message "nullable"
+        int download_count "default 0"
+        timestamp last_downloaded_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+    %% database_dump_exports indexes: index(user_id, status), index(target_key, requested_at)
+
+    database_dump_downloads {
+        bigint id PK
+        uuid database_dump_export_id FK
+        bigint user_id FK
+        varchar ip_address "45, nullable"
+        text user_agent "nullable"
+        timestamp downloaded_at "default current"
+        timestamp created_at
+        timestamp updated_at
+    }
+    %% database_dump_downloads indexes: index(database_dump_export_id, downloaded_at)
+
     landing_page_templates {
         bigint id PK
         varchar name UK
@@ -986,6 +1026,11 @@ erDiagram
     users ||--o{ user_guided_tour_assignments : "owns"
     users ||--o{ user_guided_tour_assignments : "assigned by"
     guided_tours ||--o{ user_guided_tour_assignments : "has"
+
+    %% Database dump relationships
+    users ||--o{ database_dump_exports : "requests"
+    users ||--o{ database_dump_downloads : "downloads"
+    database_dump_exports ||--o{ database_dump_downloads : "has"
 
     %% Resource core relationships
     resources ||--o{ titles : "has"
