@@ -1,21 +1,4 @@
-[
-    {
-        "version": "1.0.1",
-        "date": "2026-07-11",
-        "features": [
-            {
-                "title": "Aggregated Assistance Review",
-                "description": "The Assistance page now includes an 'All assistants' tab that groups pending suggestions by resource so curators can review, select, and apply multiple changes across assistants in one workflow."
-            }
-        ],
-        "improvements": [
-            {
-                "title": "Bulk suggestion actions",
-                "description": "Curators can accept or decline selected suggestions for a resource, or accept every pending suggestion for that resource from the new aggregated tab."
-            }
-        ]
-    },
-    {
+{
         "version": "1.0.0",
         "date": "2026-07-06",
         "features": [
@@ -496,7 +479,13 @@
             {
                 "title": "Relation Browser",
                 "description": "Interactive graph visualization for the Related Work section on GFZ landing pages. View relationships between datasets as a force-directed network graph with color-coded identifier types and relation type categories. Nodes display 'Author, Year' labels with full citation details on hover. Supports drag-and-drop, zoom, pan, and click-through to related resources. Includes a comprehensive color legend for both node and edge types."
-            },
+            }
+        ]
+    },
+    {
+        "version": "1.0.0rc2",
+        "date": "2026-03-15",
+        "features": [
             {
                 "title": "Download URL Import from Legacy Database",
                 "description": "During DataCite import, download URLs are now automatically imported from the legacy metaworks database. For each newly imported resource, the system looks up file download URLs by DOI and determines whether all files are publicly visible. If all files are public, the landing page is published immediately; otherwise it is created as a draft. Landing pages support multiple download files, displayed as individual download buttons. The SetupLandingPageModal shows imported files as a read-only list."
@@ -1943,4 +1932,4 @@
             }
         ]
     }
-]
+}
