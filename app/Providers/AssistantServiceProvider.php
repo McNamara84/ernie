@@ -92,6 +92,12 @@ class AssistantServiceProvider extends ServiceProvider
                             ->name("assistance.{$id}.bulk-affiliation-accept")
                             ->defaults('assistantId', $id);
                     }
+                    if ($id === 'relation-suggestion') {
+                        Route::post("/{$prefix}/batch/{action}", [AssistanceController::class, 'batchRelations'])
+                            ->where('action', 'accept|decline')
+                            ->name("assistance.{$id}.batch")
+                            ->defaults('assistantId', $id);
+}
 
                     // Accept suggestion
                     Route::post("/{$prefix}/{suggestion}/accept", [AssistanceController::class, 'accept'])
