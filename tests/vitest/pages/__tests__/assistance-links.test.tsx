@@ -500,6 +500,8 @@ describe('Assistance resource header links', () => {
         expect(screen.getAllByRole('listitem')).toHaveLength(2);
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
         expect(screen.queryByRole('columnheader', { name: 'Suggestion' })).not.toBeInTheDocument();
+        expect(screen.getAllByText('Suggestion')).toHaveLength(2);
+        expect(screen.getAllByText('Actions')).toHaveLength(2);
     });
 
     it('names the assistant on its check button', () => {
@@ -511,7 +513,7 @@ describe('Assistance resource header links', () => {
         );
 
         expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toHaveTextContent('Check');
+        expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toHaveTextContent(`Check ${SIZE_FORMAT_ASSISTANT_NAME}`);
     });
 
     it('renders the resource DOI as a visible editor link', () => {

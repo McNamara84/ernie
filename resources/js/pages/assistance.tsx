@@ -120,7 +120,7 @@ function SuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -191,7 +191,7 @@ function OrcidSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -328,7 +328,7 @@ function SpdxRightsSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -415,7 +415,7 @@ function RorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -658,7 +658,7 @@ function SubjectMetadataEnrichmentCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -831,7 +831,7 @@ function CrossrefFunderRorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -1024,7 +1024,7 @@ function SizeFormatSuggestionCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -1153,7 +1153,7 @@ function DateTypeSuggestionCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         {isHint ? 'Dismiss' : 'Decline'}
@@ -1306,12 +1306,12 @@ function DescriptionSegmentationSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
                         disabled={isProcessing}
-                        data-testid={`description-segmentation-decline-${suggestion.id}`}
+                        data-original-testid={`description-segmentation-decline-${suggestion.id}`}
                         onClick={() => onDecline(suggestion.id)}
                     >
                         <X className="mr-1 h-4 w-4" />
@@ -1320,7 +1320,7 @@ function DescriptionSegmentationSuggestionCard({
                     <Button
                         size="sm"
                         disabled={isProcessing}
-                        data-testid={`description-segmentation-accept-${suggestion.id}`}
+                        data-original-testid={`description-segmentation-accept-${suggestion.id}`}
                         onClick={() => onAccept(suggestion.id)}
                     >
                         <Check className="mr-1 h-4 w-4" />
@@ -1648,6 +1648,37 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
     // ── Render helpers ───────────────────────────────────────────────
 
+    function renderSuggestionActions(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
+        const isDateTypeHint = manifest.id === 'date-type-suggestion' && isRecord(item.metadata) && item.metadata.suggestion_kind === 'hint';
+        const descriptionSegmentationTestId = manifest.id === 'description-segmentation' ? 'description-segmentation' : null;
+
+        return (
+            <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isProcessing}
+                    data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-decline-${item.id}` : undefined}
+                    onClick={() => handleDecline(manifest, item.id)}
+                >
+                    <X className="mr-1 h-4 w-4" />
+                    {isDateTypeHint ? 'Dismiss' : 'Decline'}
+                </Button>
+                {!isDateTypeHint && (
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-accept-${item.id}` : undefined}
+                        onClick={() => handleAccept(manifest, item.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                )}
+            </div>
+        );
+    }
+
     function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
         const onAccept = (id: number) => handleAccept(manifest, id);
         const onDecline = (id: number) => handleDecline(manifest, id);
@@ -1738,7 +1769,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                     Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
                                 </p>
                             </div>
-                            <div className="flex shrink-0 gap-2">
+                            <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                                 <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
                                     <X className="mr-1 h-4 w-4" />
                                     Decline
@@ -1841,20 +1872,19 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="self-start sm:self-auto"
-                                    aria-label={`Check ${manifest.name}`}
+                                    className="h-auto max-w-full self-start whitespace-normal text-left sm:self-auto"
                                     onClick={() => handleCheck(manifest)}
                                     disabled={state?.isChecking ?? false}
                                 >
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />
-                                            Checking...
+                                            Checking {manifest.name}...
                                         </>
                                     ) : (
                                         <>
                                             <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check
+                                            Check {manifest.name}
                                         </>
                                     )}
                                 </Button>
@@ -1886,13 +1916,27 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                                         </Badge>
                                                     </CardHeader>
                                                     <CardContent className="p-0">
+                                                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
+                                                            <span>Suggestion</span>
+                                                            <span>Actions</span>
+                                                        </div>
                                                         <ul
                                                             aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
                                                             className="divide-y"
                                                         >
                                                             {group.items.map((item) => (
-                                                                <li key={item.id as number} className="p-2 sm:p-3">
-                                                                    {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                                <li
+                                                                    key={item.id as number}
+                                                                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-2 sm:p-3"
+                                                                >
+                                                                    <div className="min-w-0 [&_.suggestion-card-actions]:hidden">
+                                                                        {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                                    </div>
+                                                                    {renderSuggestionActions(
+                                                                        manifest,
+                                                                        item,
+                                                                        state?.processingIds.has(item.id as number) ?? false,
+                                                                    )}
                                                                 </li>
                                                             ))}
                                                         </ul>
