@@ -1,12 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-<<<<<<<<< Temporary merge branch 1
-import { AlertTriangle, Building2, Check, Plus,RefreshCw, User, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-=========
 import { AlertTriangle, Building2, Check, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
->>>>>>>>> Temporary merge branch 2
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
