@@ -219,10 +219,10 @@ public function batchRelations(Request $request, string $action): JsonResponse
 
     /** @var User $user */
     $user = $request->user();
-    $resource = $suggestions->first()?->resource;
-    $resourceLabel = is_string($resource?->doi) && trim($resource->doi) !== ''
-        ? trim($resource->doi)
-        : 'Resource #'.$resource->id;
+    $resource = $suggestions->first()->resource;
+    $resourceLabel = $resource !== null && is_string($resource->doi) && trim($resource->doi) !== ''
+         ? trim($resource->doi)
+            : 'Resource #'.($resource?->id ?? 'unknown');
 
     $identifiers = $suggestions
         ->pluck('identifier')
