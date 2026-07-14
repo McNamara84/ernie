@@ -597,6 +597,48 @@ entity "alternate_identifiers" as alternate_identifiers {
 ' APPLICATION-SPECIFIC TABLES
 ' ==========================================================================
 
+entity "database_dump_exports" as database_dump_exports {
+    * **id** : UUID <<PK>>
+    --
+    * user_id : BIGINT <<FK>>
+    * target_key : VARCHAR(50)
+    * target_label : VARCHAR(100)
+    * connection_name : VARCHAR(100)
+    * database_name : VARCHAR(255)
+    * status : VARCHAR(30)
+    * disk : VARCHAR(50)
+    path : VARCHAR(500) <<nullable>>
+    filename : VARCHAR(255) <<nullable>>
+    size_bytes : BIGINT <<nullable>>
+    sha256 : VARCHAR(64) <<nullable>>
+    server_version : VARCHAR(255) <<nullable>>
+    dump_client : VARCHAR(255) <<nullable>>
+    dump_options : JSON <<nullable>>
+    requested_at : TIMESTAMP <<nullable>>
+    started_at : TIMESTAMP <<nullable>>
+    finished_at : TIMESTAMP <<nullable>>
+    expires_at : TIMESTAMP <<nullable>>
+    error_message : TEXT <<nullable>>
+    * download_count : INT = 0
+    last_downloaded_at : TIMESTAMP <<nullable>>
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+' database_dump_exports indexes: index(status), index(requested_at), index(expires_at), index(user_id, status), index(target_key, requested_at)
+
+entity "database_dump_downloads" as database_dump_downloads {
+    * **id** : BIGINT <<PK>>
+    --
+    * database_dump_export_id : UUID <<FK>>
+    * user_id : BIGINT <<FK>>
+    ip_address : VARCHAR(45) <<nullable>>
+    user_agent : TEXT <<nullable>>
+    * downloaded_at : TIMESTAMP = CURRENT_TIMESTAMP
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+' database_dump_downloads indexes: index(database_dump_export_id, downloaded_at)
+
 entity "landing_page_templates" as landing_page_templates {
     * **id** : BIGINT <<PK>>
     --
@@ -1074,6 +1116,11 @@ users ||--o{ guided_tours : "created_by"
 users ||--o{ user_guided_tour_assignments : "user_id"
 users ||--o{ user_guided_tour_assignments : "assigned_by"
 guided_tours ||--o{ user_guided_tour_assignments
+
+' Database dump relationships
+users ||--o{ database_dump_exports : "user_id"
+users ||--o{ database_dump_downloads : "user_id"
+database_dump_exports ||--o{ database_dump_downloads
 
 ' Resource core relationships
 resources ||--o{ titles

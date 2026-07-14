@@ -17,6 +17,7 @@ use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use App\Services\Rights\CustomRightCatalogService;
 use App\Services\Spdx\SpdxLicenseLookup;
 use App\Services\Traits\DataCiteExporterHelpers;
+use App\Support\LanguageTag;
 use DOMDocument;
 use DOMElement;
 use Illuminate\Support\Facades\Log;
@@ -285,19 +286,16 @@ class DataCiteXmlExporter
                 $titleElement->setAttribute('titleType', $slug);
             }
 
-            // Add language
-            if ($resource->language) {
+            // Fallback order: valid Title.language, Resource.language, then English for IGSN exports.
+            $lang = LanguageTag::validOrNull($title->language)
+                ?? LanguageTag::validOrNull($resource->language?->code)
+                ?? ($resource->igsnMetadata ? 'en' : null);
+
+            if ($lang !== null) {
                 $titleElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
-                    $resource->language->code ?? 'en'
-                );
-            } elseif ($resource->igsnMetadata) {
-                // IGSN resources default to English since IGSN CSV doesn't include language
-                $titleElement->setAttributeNS(
-                    self::XML_NAMESPACE,
-                    'xml:lang',
-                    'en'
+                    $lang
                 );
             }
 

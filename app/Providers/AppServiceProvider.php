@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Enums\UserRole;
+use App\Jobs\CreateDatabaseDumpJob;
 use App\Jobs\DiscoverRelationsJob;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
@@ -22,6 +23,10 @@ use App\Observers\ResourceObserver;
 use App\Observers\ResourceTypeObserver;
 use App\Observers\SubjectObserver;
 use App\Services\BotProtection\BotClassifierService;
+use App\Services\DatabaseDumps\DatabaseDumpProcessRunner;
+use App\Services\DatabaseDumps\DatabaseServerInfoProvider;
+use App\Services\DatabaseDumps\LaravelDatabaseServerInfoProvider;
+use App\Services\DatabaseDumps\SymfonyDatabaseDumpProcessRunner;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteServiceInterface;
 use App\Services\PortalKeywordCacheInvalidationService;
@@ -50,6 +55,8 @@ class AppServiceProvider extends ServiceProvider
         // RorLookupService is a singleton so the ROR JSON file is loaded at most once per request
         $this->app->singleton(RorLookupService::class);
         $this->app->singleton(PortalKeywordCacheInvalidationService::class);
+        $this->app->singleton(DatabaseDumpProcessRunner::class, SymfonyDatabaseDumpProcessRunner::class);
+        $this->app->singleton(DatabaseServerInfoProvider::class, LaravelDatabaseServerInfoProvider::class);
     }
 
     /**
@@ -76,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
         Queue::route(ImportFromDataCiteJob::class, queue: 'imports');
         Queue::route(UpdatePidJob::class, queue: 'vocabularies');
         Queue::route(UpdateThesaurusJob::class, queue: 'vocabularies');
+        Queue::route(CreateDatabaseDumpJob::class, queue: 'database-dumps');
         Queue::route(DiscoverRelationsJob::class, queue: 'default');
     }
 
@@ -243,6 +251,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Access to Assessment page (Admin only)
         Gate::define('access-assessment', function (User $user): bool {
+            return $user->role === UserRole::ADMIN;
+        });
+
+        // Access to database dump exports (Admin only)
+        Gate::define('access-database-dumps', function (User $user): bool {
             return $user->role === UserRole::ADMIN;
         });
     }

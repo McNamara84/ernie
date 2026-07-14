@@ -7,6 +7,7 @@ use App\Http\Controllers\BatchIgsnRegistrationController;
 use App\Http\Controllers\BatchResourceExportController;
 use App\Http\Controllers\BatchResourceRegistrationController;
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\DatabaseDumpController;
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DocsController;
@@ -309,6 +310,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('logs.clear');
     });
 
+    // Database dump routes (Admin only)
+    Route::middleware(['can:access-database-dumps'])->group(function () {
+        Route::get('database', [DatabaseDumpController::class, 'index'])
+            ->name('database.index');
+
+        Route::post('database/{target}/dumps', [DatabaseDumpController::class, 'store'])
+            ->name('database.dumps.store');
+
+        Route::get('database/dumps/{export}/status', [DatabaseDumpController::class, 'status'])
+            ->name('database.dumps.status');
+
+        Route::get('database/dumps/{export}/download', [DatabaseDumpController::class, 'download'])
+            ->name('database.dumps.download');
+    });
     // Thesaurus settings routes (Admin and Group Leader)
     Route::middleware(['can:manage-thesauri'])->prefix('thesauri')->group(function () {
         Route::get('/', [ThesaurusSettingsController::class, 'index'])

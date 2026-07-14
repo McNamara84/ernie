@@ -5,6 +5,9 @@ WORKDIR /var/www/html
 ARG PHP_REDIS_VERSION=6.3.0
 
 # Install system dependencies needed for the PHP runtime and extension builds.
+# LEGACY_DATABASE_DUMP_SUPPORT:
+# Required for the admin-only /database dump page while legacy MySQL 5.6/5.7 exports exist.
+# Remove this package when legacy database exports are retired.
 RUN apt-get update && apt-get install -y \
     libnghttp2-14 \
     git \
@@ -20,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     libicu-dev \
     g++ \
     netcat-traditional \
+    default-mysql-client \
     ca-certificates \
     libssl3t64 \
     openssl \
