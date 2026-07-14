@@ -20,6 +20,7 @@ const editorRouteMock = vi.hoisted(() =>
         method: 'get',
     })),
 );
+const openDetachedTabMock = vi.hoisted(() => vi.fn());
 
 const axiosPostMock = vi.hoisted(() => vi.fn());
 const axiosGetMock = vi.hoisted(() => vi.fn());
@@ -54,6 +55,7 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/routes', () => ({ editor: editorRouteMock }));
+vi.mock('@/lib/detached-tab', () => ({ openDetachedTab: openDetachedTabMock }));
 
 vi.mock('@/lib/curation-query', () => ({
     buildCurationQueryFromResource: vi.fn().mockResolvedValue({}),
@@ -181,10 +183,8 @@ const waitForFilterOptionsToLoad = async () => {
 describe('ResourcesPage - bulk selection', () => {
     let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
     let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
-    let originalOpen: typeof window.open;
     let createObjectUrlMock: ReturnType<typeof vi.fn>;
     let revokeObjectUrlMock: ReturnType<typeof vi.fn>;
-    let openMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         routerMock.delete.mockClear();
@@ -227,16 +227,15 @@ describe('ResourcesPage - bulk selection', () => {
         toastMock.error.mockClear();
         toastMock.warning.mockClear();
         editorRouteMock.mockClear();
+        openDetachedTabMock.mockReset();
+        openDetachedTabMock.mockReturnValue({} as Window);
 
         const createDescriptor = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
         const revokeDescriptor = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
         originalCreateObjectURL = createDescriptor ? URL.createObjectURL : undefined;
         originalRevokeObjectURL = revokeDescriptor ? URL.revokeObjectURL : undefined;
-        originalOpen = window.open;
-
         createObjectUrlMock = vi.fn().mockReturnValue('blob:mock');
         revokeObjectUrlMock = vi.fn();
-        openMock = vi.fn().mockReturnValue({ closed: false });
 
         Object.defineProperty(URL, 'createObjectURL', {
             value: createObjectUrlMock,
@@ -245,11 +244,6 @@ describe('ResourcesPage - bulk selection', () => {
         });
         Object.defineProperty(URL, 'revokeObjectURL', {
             value: revokeObjectUrlMock,
-            configurable: true,
-            writable: true,
-        });
-        Object.defineProperty(window, 'open', {
-            value: openMock,
             configurable: true,
             writable: true,
         });
@@ -278,11 +272,6 @@ describe('ResourcesPage - bulk selection', () => {
             });
         }
 
-        Object.defineProperty(window, 'open', {
-            value: originalOpen,
-            configurable: true,
-            writable: true,
-        });
     });
 
     it('renders selection checkboxes and the idle toolbar hint', async () => {
@@ -310,7 +299,7 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
     });
 
-    it('opens every selected resource in the editor from the toolbar edit action', async () => {
+    it('opens every selected resource without showing a false blocked-tab warning', async () => {
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
@@ -319,8 +308,10 @@ describe('ResourcesPage - bulk selection', () => {
 
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 1 } });
         expect(editorRouteMock).toHaveBeenCalledWith({ query: { resourceId: 2 } });
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=1', '_blank', 'noopener,noreferrer');
-        expect(openMock).toHaveBeenCalledWith('/editor?resourceId=2', '_blank', 'noopener,noreferrer');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=1');
+        expect(openDetachedTabMock).toHaveBeenCalledWith('/editor?resourceId=2');
+        expect(toastMock.warning).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
     });
 
     it('keeps quick edit and setup actions outside the action menu', async () => {
@@ -339,27 +330,49 @@ describe('ResourcesPage - bulk selection', () => {
         expect(within(menu).getByTestId('resources-action-manage-related-items')).toBeInTheDocument();
     });
 
-    it('shows fallback editor links when an editor tab is blocked', async () => {
-        openMock.mockReturnValueOnce(null);
+    it('shows only a warning toast when one selected editor tab is blocked', async () => {
+        openDetachedTabMock.mockReturnValueOnce(null);
         render(<ResourcesPage {...buildProps()} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
         await userEvent.click(screen.getByTestId('resources-action-edit'));
 
+        expect(toastMock.warning).toHaveBeenCalledWith('Your browser blocked the editor tab. Please allow pop-ups for ERNIE and try again.');
+        expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: /first/i })).not.toBeInTheDocument();
+    });
+
+    it('shows fallback links only for tabs blocked during a multi-resource edit', async () => {
+        openDetachedTabMock.mockReturnValueOnce({} as Window).mockReturnValueOnce(null);
+        render(<ResourcesPage {...buildProps()} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-1'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-2'));
+        await userEvent.click(screen.getByTestId('resources-action-edit'));
+
         expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('fallback links'));
         expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
-        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(screen.queryByRole('link', { name: /first/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /second/i })).toHaveAttribute('href', '/editor?resourceId=2');
+        expect(screen.getByRole('link', { name: /second/i })).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('allows long blocked editor tab labels to wrap inside the fallback dialog', async () => {
-        openMock.mockReturnValueOnce(null);
+        openDetachedTabMock.mockReturnValue(null);
         const longTitle =
             'A very long resource title with enough descriptive metadata to exceed the dialog width and aSuperLongUnbrokenSegmentThatStillNeedsToStayInsideTheFallbackLink';
 
-        render(<ResourcesPage {...buildProps([buildResource({ id: 9470, doi: '10.9999/long-title', title: longTitle })])} />);
+        render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 9470, doi: '10.9999/long-title', title: longTitle }),
+                    buildResource({ id: 9471, doi: '10.9999/second-blocked', title: 'Second blocked resource' }),
+                ])}
+            />,
+        );
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-9470'));
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-9471'));
         await userEvent.click(screen.getByTestId('resources-action-edit'));
 
         const fallbackLink = screen.getByRole('link', { name: new RegExp(longTitle) });
@@ -373,19 +386,18 @@ describe('ResourcesPage - bulk selection', () => {
         expect(label).toHaveClass('whitespace-normal');
         expect(label).toHaveClass('wrap-break-word');
         expect(label).not.toHaveClass('truncate');
+        expect(screen.getByRole('link', { name: /second blocked resource/i })).toHaveAttribute('href', '/editor?resourceId=9471');
     });
 
-    it('shows fallback editor links when a row editor tab is blocked', async () => {
-        openMock.mockReturnValueOnce(null);
+    it('shows only a warning toast when a row editor tab is blocked', async () => {
+        openDetachedTabMock.mockReturnValueOnce(null);
         render(<ResourcesPage {...buildProps()} />);
         await waitForFilterOptionsToLoad();
 
         fireEvent.click(screen.getByRole('row', { name: /open resource 10\.9999\/one in editor/i }));
 
-        expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('fallback links'));
-        expect(screen.getByTestId('blocked-editor-tabs-dialog')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('href', '/editor?resourceId=1');
-        expect(screen.getByRole('link', { name: /first/i })).toHaveAttribute('target', '_blank');
+        expect(toastMock.warning).toHaveBeenCalledWith('Your browser blocked the editor tab. Please allow pop-ups for ERNIE and try again.');
+        expect(screen.queryByTestId('blocked-editor-tabs-dialog')).not.toBeInTheDocument();
     });
 
     it('keeps single-resource actions visible but reports a useful error for multi-selection', async () => {

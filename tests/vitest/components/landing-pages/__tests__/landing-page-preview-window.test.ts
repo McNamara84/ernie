@@ -7,6 +7,7 @@ import {
     LANDING_PAGE_PREVIEW_PLACEHOLDER_URL,
     openLandingPagePreviewPlaceholder,
 } from '@/components/landing-pages/landing-page-preview-window';
+import { DETACHED_TAB_PLACEHOLDER_URL } from '@/lib/detached-tab';
 
 describe('landing-page-preview-window', () => {
     afterEach(() => {
@@ -32,6 +33,7 @@ describe('landing-page-preview-window', () => {
 
         const result = openLandingPagePreviewPlaceholder();
 
+        expect(LANDING_PAGE_PREVIEW_PLACEHOLDER_URL).toBe(DETACHED_TAB_PLACEHOLDER_URL);
         expect(open).toHaveBeenCalledWith(LANDING_PAGE_PREVIEW_PLACEHOLDER_URL, '_blank');
         expect(result).toBe(previewWindow);
         expect(documentOpen).toHaveBeenCalledOnce();

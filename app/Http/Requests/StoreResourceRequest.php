@@ -14,6 +14,7 @@ use App\Rules\HasMainTitle;
 use App\Rules\SafeUrl;
 use App\Services\DoiSuggestionService;
 use App\Support\BooleanNormalizer;
+use App\Support\LanguageTag;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -58,7 +59,7 @@ class StoreResourceRequest extends FormRequest
             'titles.*.title' => ['required', 'string', 'max:255'],
             // Title types are validated in after(): allow 'main-title' even if there is no DB TitleType row.
             'titles.*.titleType' => ['required', 'string', 'max:255'],
-            'titles.*.language' => ['nullable', 'string', 'max:10'],
+            'titles.*.language' => LanguageTag::validationRules(),
             'licenses' => ['nullable', 'array'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
             'customLicenses' => ['nullable', 'array'],
@@ -310,12 +311,12 @@ class StoreResourceRequest extends FormRequest
                 }
             }
 
-            $language = isset($title['language']) ? trim((string) $title['language']) : '';
+            $language = LanguageTag::normalize($title['language'] ?? null);
 
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
                 'titleType' => $titleType,
-                'language' => $language !== '' ? $language : null,
+                'language' => $language,
             ];
         }
 
