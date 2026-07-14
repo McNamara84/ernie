@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Trash2 } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucide-react';;
+
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
