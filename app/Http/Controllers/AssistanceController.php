@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
+use App\Models\SuggestedRelation;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\RorDiscoveryService;
@@ -176,6 +177,91 @@ class AssistanceController extends Controller
 
         return response()->json(['success' => true]);
     }
+    /**
+ * Accept or decline selected relation suggestions for a single DOI tile.
+ */
+public function batchRelations(Request $request, string $action): JsonResponse
+{
+    $assistantId = (string) $request->route('assistantId');
+    $assistant = $this->registrar->get($assistantId);
+
+    if ($assistant === null || $assistantId !== 'relation-suggestion') {
+        return response()->json(['error' => 'Unknown assistant.'], 404);
+    }
+
+    /** @var array{suggestion_ids: list<int|string>, reason?: string|null} $validated */
+    $validated = $request->validate([
+        'suggestion_ids' => ['required', 'array', 'min:1'],
+        'suggestion_ids.*' => ['integer', 'distinct'],
+        'reason' => ['nullable', 'string', 'max:1000'],
+    ]);
+
+    /** @var list<int> $suggestionIds */
+    $suggestionIds = array_values(array_unique(array_map('intval', $validated['suggestion_ids'])));
+
+    $suggestions = SuggestedRelation::with('resource')
+        ->whereIn('id', $suggestionIds)
+        ->get();
+
+    if ($suggestions->count() !== count($suggestionIds)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'One or more selected relation suggestions are no longer available.',
+        ], 422);
+    }
+
+    if ($suggestions->pluck('resource_id')->unique()->count() !== 1) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Relation suggestions can only be processed for one DOI at a time.',
+        ], 422);
+    }
+
+    /** @var User $user */
+    $user = $request->user();
+    $resource = $suggestions->first()?->resource;
+    $resourceLabel = is_string($resource?->doi) && trim($resource->doi) !== ''
+        ? trim($resource->doi)
+        : 'Resource #'.($resource?->id ?? 'unknown');
+
+    $identifiers = $suggestions
+        ->pluck('identifier')
+        ->take(3)
+        ->implode(', ');
+
+    $suffix = $suggestions->count() > 3 ? ', ...' : '';
+
+    if ($action === 'accept') {
+        $accepted = 0;
+        $skipped = 0;
+
+        foreach ($suggestionIds as $suggestionId) {
+            $result = $assistant->acceptSuggestion($suggestionId);
+            ($result['success'] ?? false) ? $accepted++ : $skipped++;
+        }
+
+        return response()->json([
+            'success' => true,
+            'accepted_count' => $accepted,
+            'skipped_count' => $skipped,
+            'message' => "Accepted {$accepted} relation suggestion(s) for {$resourceLabel}: {$identifiers}{$suffix}.",
+        ]);
+    }
+
+    $reason = isset($validated['reason']) && is_string($validated['reason'])
+        ? $validated['reason']
+        : null;
+
+    foreach ($suggestionIds as $suggestionId) {
+        $assistant->declineSuggestion($suggestionId, $user, $reason);
+    }
+
+    return response()->json([
+        'success' => true,
+        'declined_count' => count($suggestionIds),
+        'message' => 'Declined '.count($suggestionIds)." relation suggestion(s) for {$resourceLabel}: {$identifiers}{$suffix}.",
+    ]);
+}
 
     /**
      * Start discovery for ALL registered assistants simultaneously.
