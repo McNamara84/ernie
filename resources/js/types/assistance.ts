@@ -318,6 +318,14 @@ export interface AcceptResponse {
     message: string;
 }
 
+export interface BatchRelationSuggestionsResponse {
+    success: boolean;
+    message: string;
+    accepted_count?: number;
+    declined_count?: number;
+    skipped_count?: number;
+}
+
 export interface RorAffiliationBulkMatch {
     available: boolean;
     count: number;
@@ -335,13 +343,6 @@ export interface BulkRorAffiliationAcceptResponse {
     message: string;
 }
 
-export interface BatchRelationSuggestionsResponse {
-    success: boolean;
-    message: string;
-    accepted_count?: number;
-    declined_count?: number;
-    skipped_count?: number;
-}
 export interface SuggestedRorItem {
     id: number;
     resource_id: number;
