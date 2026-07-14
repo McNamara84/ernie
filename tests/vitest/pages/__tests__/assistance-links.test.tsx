@@ -481,7 +481,7 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('Assistance resource header links', () => {
-    it('delineates each resource in a card with a compact suggestion table', () => {
+    it('delineates each resource in a card with a compact suggestion list', () => {
         const suggestions = [
             makeSizeFormatSuggestion({ id: 41, resource_id: 41, resource_doi: '10.5880/test.2026.041' }),
             makeSizeFormatSuggestion({ id: 42, resource_id: 42, resource_doi: '10.5880/test.2026.042' }),
@@ -496,8 +496,10 @@ describe('Assistance resource header links', () => {
 
         expect(screen.getByTestId(`resource-card-${SIZE_FORMAT_ASSISTANT_ID}-41`)).toBeInTheDocument();
         expect(screen.getByTestId(`resource-card-${SIZE_FORMAT_ASSISTANT_ID}-42`)).toBeInTheDocument();
-        expect(screen.getAllByRole('table')).toHaveLength(2);
-        expect(screen.getAllByRole('columnheader', { name: 'Suggestion' })).toHaveLength(2);
+        expect(screen.getAllByRole('list', { name: /Suggestions from Size and Format Suggestions/ })).toHaveLength(2);
+        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        expect(screen.queryByRole('table')).not.toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Suggestion' })).not.toBeInTheDocument();
     });
 
     it('names the assistant on its check button', () => {
@@ -509,7 +511,7 @@ describe('Assistance resource header links', () => {
         );
 
         expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Check' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toHaveTextContent('Check');
     });
 
     it('renders the resource DOI as a visible editor link', () => {
@@ -1955,4 +1957,3 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });
-

@@ -1829,25 +1829,32 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                     return (
                         <Card key={manifest.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                                <div className="space-y-1.5">
-                                    <CardTitle>{manifest.name}</CardTitle>
+                            <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0 space-y-1.5">
+                                    <CardTitle className="break-words">{manifest.name}</CardTitle>
                                     <CardDescription>
                                         {sectionData.total > 0
                                             ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
                                             : manifest.emptyState.description}
                                     </CardDescription>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => handleCheck(manifest)} disabled={state?.isChecking ?? false}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="self-start sm:self-auto"
+                                    aria-label={`Check ${manifest.name}`}
+                                    onClick={() => handleCheck(manifest)}
+                                    disabled={state?.isChecking ?? false}
+                                >
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />
-                                            Checking {manifest.name}...
+                                            Checking...
                                         </>
                                     ) : (
                                         <>
                                             <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check {manifest.name}
+                                            Check
                                         </>
                                     )}
                                 </Button>
@@ -1879,30 +1886,16 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                                         </Badge>
                                                     </CardHeader>
                                                     <CardContent className="p-0">
-                                                        <div
-                                                            role="table"
+                                                        <ul
                                                             aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
                                                             className="divide-y"
                                                         >
-                                                            <div
-                                                                role="row"
-                                                                className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase"
-                                                            >
-                                                                <span role="columnheader">Suggestion</span>
-                                                                <span role="columnheader">Actions</span>
-                                                            </div>
                                                             {group.items.map((item) => (
-                                                                <div role="row" key={item.id as number} className="p-2 sm:p-3">
-                                                                    <div role="cell">
-                                                                        {renderCard(
-                                                                            manifest,
-                                                                            item,
-                                                                            state?.processingIds.has(item.id as number) ?? false,
-                                                                        )}
-                                                                    </div>
-                                                                </div>
+                                                                <li key={item.id as number} className="p-2 sm:p-3">
+                                                                    {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                                </li>
                                                             ))}
-                                                        </div>
+                                                        </ul>
                                                     </CardContent>
                                                 </Card>
                                             );
