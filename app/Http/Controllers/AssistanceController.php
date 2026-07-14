@@ -219,10 +219,19 @@ public function batchRelations(Request $request, string $action): JsonResponse
 
     /** @var User $user */
     $user = $request->user();
-    $resource = $suggestions->first()->resource;
-    $resourceLabel = $resource !== null && is_string($resource->doi) && trim($resource->doi) !== ''
-         ? trim($resource->doi)
-            : 'Resource #'.($resource?->id ?? 'unknown');
+    $firstSuggestion = $suggestions->first();
+
+    if ($firstSuggestion === null) {
+        return response()->json([
+        'success' => false,
+        'message' => 'One or more selected relation suggestions are no longer available.',
+        ], 422);
+    }
+
+    $resource = $firstSuggestion->resource;
+    $resourceLabel = is_string($resource->doi) && trim($resource->doi) !== ''
+        ? trim($resource->doi)
+        : 'Resource #'.$resource->id;
 
     $identifiers = $suggestions
         ->pluck('identifier')
