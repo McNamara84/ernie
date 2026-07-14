@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
@@ -18,6 +19,7 @@ import {
     type AssistancePageProps,
     type AssistantManifest,
     type BaseSuggestionItem,
+    type BatchRelationSuggestionsResponse,
     type BulkRorAffiliationAcceptResponse,
     type CheckStatusResponse,
     type PaginatedData,
@@ -87,20 +89,30 @@ function firstNonEmptyResourceHeaderValue(current: string, candidate: string): s
 
 function SuggestionCard({
     suggestion,
-    onAccept,
-    onDecline,
+    isSelected,
+    onSelectedChange,
     isProcessing,
 }: {
     suggestion: SuggestedRelationItem;
-    onAccept: (id: number) => void;
-    onDecline: (id: number) => void;
+    isSelected: boolean;
+    onSelectedChange: (id: number, selected: boolean) => void;
     isProcessing: boolean;
 }) {
+    const checkboxId = `relation-suggestion-${suggestion.id}`;
+
     return (
         <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+                <Checkbox
+                    id={checkboxId}
+                    checked={isSelected}
+                    disabled={isProcessing}
+                    onCheckedChange={(checked) => onSelectedChange(suggestion.id, checked === true)}
+                    aria-label={`Select relation suggestion ${suggestion.identifier}`}
+                    className="mt-1 size-5 shrink-0 border-2"
+                />
                 <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <label htmlFor={checkboxId} className="flex cursor-pointer flex-wrap items-center gap-2">
                         <Badge variant="outline" className="font-mono text-xs">
                             {suggestion.relation_type_name}
                         </Badge>
@@ -108,7 +120,7 @@ function SuggestionCard({
                             {suggestion.identifier_type}
                         </Badge>
                         <span className="font-mono text-sm break-all">{suggestion.identifier}</span>
-                    </div>
+                    </label>
 
                     {suggestion.source_title && <p className="text-sm font-medium text-foreground">&quot;{suggestion.source_title}&quot;</p>}
 
@@ -118,17 +130,6 @@ function SuggestionCard({
                         <span>Source: {sourceLabel(suggestion.source)}</span>
                         <span>Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}</span>
                     </div>
-                </div>
-
-                <div className="flex shrink-0 gap-2">
-                    <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
-                        <X className="mr-1 h-4 w-4" />
-                        Decline
-                    </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
-                        <Check className="mr-1 h-4 w-4" />
-                        Accept
-                    </Button>
                 </div>
             </div>
         </div>
@@ -1343,7 +1344,7 @@ interface SectionState {
     processingIds: Set<number>;
 }
 
-function useSectionState(manifests: AssistantManifest[]) {
+function useSectionState(manifests: AssistantManifest[]){
     const defaultState = (): SectionState => ({ isChecking: false, progress: '', processingIds: new Set() });
 
     const [states, setStates] = useState<Record<string, SectionState>>(() => {
@@ -1389,6 +1390,15 @@ function useSectionState(manifests: AssistantManifest[]) {
         });
     }, []);
 
+    const addProcessingIds = useCallback((sectionId: string, suggestionIds: number[]) => {
+    setStates((prev) => {
+        const current = prev[sectionId] ?? defaultState();
+        const next = new Set(current.processingIds);
+        suggestionIds.forEach((suggestionId) => next.add(suggestionId));
+        return { ...prev, [sectionId]: { ...current, processingIds: next } };
+    });
+}, []);
+
     const removeProcessingId = useCallback((sectionId: string, suggestionId: number) => {
         setStates((prev) => {
             const current = prev[sectionId] ?? defaultState();
@@ -1397,6 +1407,15 @@ function useSectionState(manifests: AssistantManifest[]) {
             return { ...prev, [sectionId]: { ...current, processingIds: next } };
         });
     }, []);
+
+    const removeProcessingIds = useCallback((sectionId: string, suggestionIds: number[]) => {
+    setStates((prev) => {
+        const current = prev[sectionId] ?? defaultState();
+        const next = new Set(current.processingIds);
+        suggestionIds.forEach((suggestionId) => next.delete(suggestionId));
+        return { ...prev, [sectionId]: { ...current, processingIds: next } };
+    });
+}, []);
 
     // Cleanup all polling on unmount
     useEffect(() => {
@@ -1408,21 +1427,47 @@ function useSectionState(manifests: AssistantManifest[]) {
         };
     }, []);
 
-    return { states, patch, addProcessingId, removeProcessingId, pollingRefs };
+    return { states, patch, addProcessingId, addProcessingIds, removeProcessingId, removeProcessingIds, pollingRefs };
 }
 
 // ── Main page component ──────────────────────────────────────────────
 
 export default function AssistancePage({ sections, manifests }: AssistancePageProps) {
-    const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
-
+    const { states, patch, addProcessingId, addProcessingIds, removeProcessingId, removeProcessingIds, pollingRefs } = useSectionState(manifests);
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
-    const [pendingRorBulkMatch, setPendingRorBulkMatch] = useState<RorAffiliationBulkMatch | null>(null);
+    const [pendingRorBulkMatch, setIsPendingRorBulkMatch] = useState<RorAffiliationBulkMatch | null>(null);
     const [isAcceptingRorBulkMatch, setIsAcceptingRorBulkMatch] = useState(false);
+    const [selectedRelationSuggestions, setSelectedRelationSuggestions] = useState<Record<number, Set<number>>>({});
 
     const reloadAssistanceSections = useCallback(() => {
         router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
     }, []);
+    const handleRelationSuggestionSelected = useCallback((resourceId: number, suggestionId: number, selected: boolean) => {
+    setSelectedRelationSuggestions((prev) => {
+        const nextForResource = new Set(prev[resourceId] ?? []);
+
+        if (selected) {
+            nextForResource.add(suggestionId);
+        } else {
+            nextForResource.delete(suggestionId);
+        }
+
+        if (nextForResource.size === 0) {
+            const { [resourceId]: _removed, ...rest } = prev;
+            return rest;
+        }
+
+        return { ...prev, [resourceId]: nextForResource };
+    });
+}, []);
+
+const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
+    setSelectedRelationSuggestions((prev) => {
+        const { [resourceId]: _removed, ...rest } = prev;
+        return rest;
+    });
+}, []);
+
     // ── Polling logic ────────────────────────────────────────────────
 
     const stopPolling = useCallback(
@@ -1578,7 +1623,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                 const bulkMatch = data.bulk_affiliation_match;
                 if (data.success && manifest.id === 'ror-suggestion' && bulkMatch?.available === true && bulkMatch.count > 0) {
-                    setPendingRorBulkMatch(bulkMatch);
+                    setIsPendingRorBulkMatch(bulkMatch);
                     return;
                 }
 
@@ -1595,7 +1640,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
     const handleAcceptRorBulkMatch = useCallback(async () => {
         if (pendingRorBulkMatch === null) return;
 
-        setIsAcceptingRorBulkMatch(true);
+        setIsPendingRorBulkMatch(null);
 
         try {
             const { data } = await axios.post<BulkRorAffiliationAcceptResponse>('/assistance/rors/bulk-affiliation-accept', {
@@ -1608,7 +1653,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 toast.warning(data.message);
             }
 
-            setPendingRorBulkMatch(null);
+            setIsPendingRorBulkMatch(null);
             reloadAssistanceSections();
         } catch (error) {
             const isAxiosBulkAcceptError = axios.isAxiosError(error);
@@ -1620,20 +1665,20 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             }
 
             if (isAxiosBulkAcceptError && error.response?.status === 422) {
-                setPendingRorBulkMatch(null);
+                setIsPendingRorBulkMatch(null);
                 reloadAssistanceSections();
             }
         } finally {
-            setIsAcceptingRorBulkMatch(false);
+            setIsPendingRorBulkMatch(null);
         }
     }, [pendingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDeclineRorBulkMatch = useCallback(() => {
-        if (isAcceptingRorBulkMatch) return;
+        if (pendingRorBulkMatch === null) return;
 
-        setPendingRorBulkMatch(null);
+        setIsPendingRorBulkMatch(null);
         reloadAssistanceSections();
-    }, [isAcceptingRorBulkMatch, reloadAssistanceSections]);
+    }, [pendingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDecline = useCallback(
         async (manifest: AssistantManifest, suggestionId: number) => {
@@ -1651,21 +1696,64 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         },
         [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
+    const handleRelationBatch = useCallback(
+    async (manifest: AssistantManifest, resourceId: number, action: 'accept' | 'decline') => {
+        const suggestionIds = Array.from(selectedRelationSuggestions[resourceId] ?? []);
+
+        if (suggestionIds.length === 0) {
+            toast.warning('Select at least one relation suggestion first.');
+            return;
+        }
+
+        addProcessingIds(manifest.id, suggestionIds);
+
+        try {
+            const { data } = await axios.post<BatchRelationSuggestionsResponse>(`/assistance/${manifest.routePrefix}/batch/${action}`, {
+                suggestion_ids: suggestionIds,
+            });
+
+            if (data.success) {
+                action === 'accept' ? toast.success(data.message) : toast.info(data.message);
+            } else {
+                toast.warning(data.message);
+            }
+
+            clearSelectedRelationSuggestions(resourceId);
+            reloadAssistanceSections();
+        } catch (error) {
+            if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
+                toast.warning(error.response.data.message);
+            } else {
+                toast.error(action === 'accept' ? 'Failed to accept relation suggestions.' : 'Failed to decline relation suggestions.');
+            }
+        } finally {
+            removeProcessingIds(manifest.id, suggestionIds);
+        }
+    },
+    [
+        addProcessingIds,
+        clearSelectedRelationSuggestions,
+        reloadAssistanceSections,
+        removeProcessingIds,
+        selectedRelationSuggestions,
+        isAcceptingRorBulkMatch,
+    ],
+);
 
     // ── Render helpers ───────────────────────────────────────────────
 
-    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
+    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean, resourceId: number) {        
         const onAccept = (id: number) => handleAccept(manifest, id);
         const onDecline = (id: number) => handleDecline(manifest, id);
 
         switch (manifest.id) {
             case 'relation-suggestion':
                 return (
-                    <SuggestionCard
-                        suggestion={item as unknown as SuggestedRelationItem}
-                        onAccept={onAccept}
-                        onDecline={onDecline}
-                        isProcessing={isProcessing}
+                   <SuggestionCard
+                      suggestion={item as unknown as SuggestedRelationItem}
+                     isSelected={selectedRelationSuggestions[resourceId]?.has(item.id as number) ?? false}
+                     onSelectedChange={(id, selected) => handleRelationSuggestionSelected(resourceId, id, selected)}
+                     isProcessing={isProcessing}
                     />
                 );
             case 'orcid-suggestion':
@@ -1757,7 +1845,6 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         </div>
                     </div>
                 );
-            
         }
     }
 
@@ -1864,26 +1951,59 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
                                             const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
                                             const resourceTitle = group.title === '' ? 'Untitled' : group.title;
+                                            const selectedRelationIds = Array.from(selectedRelationSuggestions[group.resourceId] ?? []);
+                                            const isRelationGroup = manifest.id === 'relation-suggestion';
+                                            const isRelationGroupProcessing =  isRelationGroup &&  group.items.some((item) => state?.processingIds.has(item.id as number) ?? false);
 
                                             return (
                                                 <div key={resourceKey} className="space-y-3">
-                                                    <div className="flex items-baseline gap-2">
-                                                        <Link
-                                                            href={resourceEditorUrl(group.resourceId)}
-                                                            className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                                            title={`Open ${resourceLabel} in editor`}
-                                                        >
-                                                            {resourceLabel}
-                                                        </Link>
-                                                        <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
-                                                        <Badge variant="secondary" className="ml-auto text-xs">
-                                                            {group.items.length} suggestion(s)
-                                                        </Badge>
-                                                    </div>
+                                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                                <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+                                                    <Link
+                                                        href={resourceEditorUrl(group.resourceId)}
+                                                        className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                        title={`Open ${resourceLabel} in editor`}
+                                                    >
+                                                        {resourceLabel}
+                                                    </Link>
+                                                    <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
+                                                </div>
+                                                <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
+                                                    <Badge variant="secondary" className="text-xs">
+                                                        {group.items.length} suggestion(s)
+                                                    </Badge>
+                                                    {isRelationGroup && (
+                                                        <>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                disabled={isRelationGroupProcessing || selectedRelationIds.length === 0}
+                                                                onClick={() => handleRelationBatch(manifest, group.resourceId, 'decline')}
+                                                            >
+                                                                <X className="mr-1 h-4 w-4" />
+                                                                Decline
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                disabled={isRelationGroupProcessing || selectedRelationIds.length === 0}
+                                                                onClick={() => handleRelationBatch(manifest, group.resourceId, 'accept')}
+                                                            >
+                                                                <Check className="mr-1 h-4 w-4" />
+                                                                Accept
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
                                                     <div className="space-y-2 pl-4">
                                                         {group.items.map((item) => (
                                                             <div key={item.id as number}>
-                                                                {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
+                                                                {renderCard(
+                                                                    manifest,
+                                                                    item,
+                                                                    state?.processingIds.has(item.id as number) ?? false,
+                                                                    group.resourceId,
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1930,7 +2050,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     if (!open) handleDeclineRorBulkMatch();
                 }}
             >
-                <DialogContent showCloseButton={!isAcceptingRorBulkMatch}>
+                <DialogContent showCloseButton={!setIsPendingRorBulkMatch}>
                     <DialogHeader>
                         <DialogTitle>Accept matching ROR suggestions?</DialogTitle>
                         <DialogDescription>{rorBulkMatchDialogDescription(pendingRorBulkMatch?.count ?? 0)}</DialogDescription>
