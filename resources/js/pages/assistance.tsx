@@ -1453,8 +1453,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         }
 
         if (nextForResource.size === 0) {
-            const { [resourceId]: _removed, ...rest } = prev;
-            return rest;
+            const next = { ...prev };
+            delete next[resourceId];
+
+            return next;
         }
 
         return { ...prev, [resourceId]: nextForResource };
@@ -1463,8 +1465,9 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
 const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
     setSelectedRelationSuggestions((prev) => {
-        const { [resourceId]: _removed, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[resourceId];
+        return next;
     });
 }, []);
 
@@ -1638,7 +1641,9 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
     );
 
     const handleAcceptRorBulkMatch = useCallback(async () => {
-        if (pendingRorBulkMatch === null) return;
+        if (pendingRorBulkMatch === null || isAcceptingRorBulkMatch) return;
+
+        setIsAcceptingRorBulkMatch(true);
 
         setIsPendingRorBulkMatch(null);
 
@@ -1669,7 +1674,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
                 reloadAssistanceSections();
             }
         } finally {
-            setIsPendingRorBulkMatch(null);
+            setIsAcceptingRorBulkMatch(false);
         }
     }, [pendingRorBulkMatch, reloadAssistanceSections]);
 
@@ -1706,7 +1711,6 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         }
 
         addProcessingIds(manifest.id, suggestionIds);
-
         try {
             const { data } = await axios.post<BatchRelationSuggestionsResponse>(`/assistance/${manifest.routePrefix}/batch/${action}`, {
                 suggestion_ids: suggestionIds,
