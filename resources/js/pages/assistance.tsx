@@ -1872,7 +1872,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-auto max-w-full self-start whitespace-normal text-left sm:self-auto"
+                                    className="min-h-8 max-w-full self-start whitespace-normal text-left sm:self-auto"
                                     onClick={() => handleCheck(manifest)}
                                     disabled={state?.isChecking ?? false}
                                 >
