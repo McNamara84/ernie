@@ -3,22 +3,35 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AssistanceController;
+use App\Models\DismissedRelation;
+use App\Models\IdentifierType;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceContributor;
+use App\Models\SuggestedRelation;
 use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
-use Illuminate\Support\Facades\Config;
+use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
-
+use Mockery;
 covers(AssistanceController::class);
 
 beforeEach(function (): void {
     Config::set('cache.default', 'array');
     Queue::fake();
+
+    $citationLabelService = Mockery::mock(RelatedIdentifierCitationLabelService::class);
+    $citationLabelService
+        ->shouldReceive('resolveBestEffort')
+        ->andReturn(null)
+        ->byDefault();
+    app()->instance(RelatedIdentifierCitationLabelService::class, $citationLabelService);
 
     foreach (['relation_discovery_running', 'orcid_discovery_running', 'ror_discovery_running'] as $lockKey) {
         Cache::lock($lockKey, 7200)->forceRelease();
@@ -26,6 +39,32 @@ beforeEach(function (): void {
 
     Cache::flush();
 });
+
+function createRelationSuggestionForControllerTest(Resource $resource, string $identifier): SuggestedRelation
+{
+    $identifierType = IdentifierType::firstOrCreate(
+        ['slug' => 'URL'],
+        ['name' => 'URL', 'is_active' => true, 'is_elmo_active' => true],
+    );
+
+    $relationType = RelationType::firstOrCreate(
+        ['slug' => 'References'],
+        ['name' => 'References', 'is_active' => true, 'is_elmo_active' => true],
+    );
+
+    return SuggestedRelation::create([
+        'resource_id' => $resource->id,
+        'identifier' => $identifier,
+        'identifier_type_id' => $identifierType->id,
+        'relation_type_id' => $relationType->id,
+        'source' => 'datacite_event_data',
+        'source_title' => 'Suggested related work',
+        'source_type' => 'Dataset',
+        'source_publisher' => 'Example Publisher',
+        'source_publication_date' => '2026',
+        'discovered_at' => now(),
+    ]);
+}
 
 // =========================================================================
 // index
@@ -245,6 +284,76 @@ describe('decline', function () {
             ->post('/assistance/relations/99999/decline', ['reason' => 'Not relevant'])
             ->assertOk()
             ->assertJson(['success' => true]);
+    });
+});
+
+// =========================================================================
+// batchRelations
+// =========================================================================
+
+describe('batchRelations', function () {
+    it('accepts selected relation suggestions for one DOI', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->withDoi('10.14470/test-batch-accept')->create();
+        $first = createRelationSuggestionForControllerTest($resource, 'https://example.org/related-1');
+        $second = createRelationSuggestionForControllerTest($resource, 'https://example.org/related-2');
+
+        $this->actingAs($user)
+            ->post('/assistance/relations/batch/accept', [
+                'suggestion_ids' => [$first->id, $second->id],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'accepted_count' => 2,
+                'skipped_count' => 0,
+            ])
+            ->assertJsonPath('message', 'Accepted 2 relation suggestion(s) for 10.14470/test-batch-accept: https://example.org/related-1, https://example.org/related-2.');
+
+        expect(SuggestedRelation::query()->whereKey([$first->id, $second->id])->count())->toBe(0)
+            ->and(RelatedIdentifier::query()->where('resource_id', $resource->id)->count())->toBe(2);
+    });
+
+    it('declines selected relation suggestions for one DOI', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->withDoi('10.14470/test-batch-decline')->create();
+        $first = createRelationSuggestionForControllerTest($resource, 'https://example.org/declined-1');
+        $second = createRelationSuggestionForControllerTest($resource, 'https://example.org/declined-2');
+
+        $this->actingAs($user)
+            ->post('/assistance/relations/batch/decline', [
+                'suggestion_ids' => [$first->id, $second->id],
+            ])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'declined_count' => 2,
+            ])
+            ->assertJsonPath('message', 'Declined 2 relation suggestion(s) for 10.14470/test-batch-decline: https://example.org/declined-1, https://example.org/declined-2.');
+
+        expect(SuggestedRelation::query()->whereKey([$first->id, $second->id])->count())->toBe(0)
+            ->and(DismissedRelation::query()->where('resource_id', $resource->id)->count())->toBe(2);
+    });
+
+    it('rejects relation suggestion batches spanning multiple DOIs', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $firstResource = Resource::factory()->withDoi('10.14470/test-batch-one')->create();
+        $secondResource = Resource::factory()->withDoi('10.14470/test-batch-two')->create();
+        $first = createRelationSuggestionForControllerTest($firstResource, 'https://example.org/one');
+        $second = createRelationSuggestionForControllerTest($secondResource, 'https://example.org/two');
+
+        $this->actingAs($user)
+            ->post('/assistance/relations/batch/accept', [
+                'suggestion_ids' => [$first->id, $second->id],
+            ])
+            ->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'message' => 'Relation suggestions can only be processed for one DOI at a time.',
+            ]);
+
+        expect(SuggestedRelation::query()->whereKey([$first->id, $second->id])->count())->toBe(2)
+            ->and(RelatedIdentifier::query()->whereIn('resource_id', [$firstResource->id, $secondResource->id])->count())->toBe(0);
     });
 });
 
