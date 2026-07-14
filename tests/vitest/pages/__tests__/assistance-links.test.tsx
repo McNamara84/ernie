@@ -1955,3 +1955,4 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });
+
