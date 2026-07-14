@@ -222,7 +222,7 @@ public function batchRelations(Request $request, string $action): JsonResponse
     $resource = $suggestions->first()?->resource;
     $resourceLabel = is_string($resource?->doi) && trim($resource->doi) !== ''
         ? trim($resource->doi)
-        : 'Resource #'.($resource?->id ?? 'unknown');
+        : 'Resource #'.$resource->id;
 
     $identifiers = $suggestions
         ->pluck('identifier')
@@ -248,9 +248,7 @@ public function batchRelations(Request $request, string $action): JsonResponse
         ]);
     }
 
-    $reason = isset($validated['reason']) && is_string($validated['reason'])
-        ? $validated['reason']
-        : null;
+    $reason = $validated['reason'] ?? null;
 
     foreach ($suggestionIds as $suggestionId) {
         $assistant->declineSuggestion($suggestionId, $user, $reason);
