@@ -99,7 +99,7 @@ function SuggestionCard({
     const sourceType = suggestion.source_type?.trim() ?? '';
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -127,7 +127,7 @@ function SuggestionCard({
                     </Badge>
                 )}
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -157,7 +157,7 @@ function OrcidSuggestionCard({
     const candidateName = [suggestion.candidate_first_name, suggestion.candidate_last_name].filter(Boolean).join(' ');
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -198,7 +198,7 @@ function OrcidSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -292,7 +292,7 @@ function SpdxRightsSuggestionCard({
     const percent = suggestion.similarity_score !== null ? Math.round(suggestion.similarity_score * 100) : null;
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -335,7 +335,7 @@ function SpdxRightsSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -364,7 +364,7 @@ function RorSuggestionCard({
     const percent = Math.round(suggestion.similarity_score * 100);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -422,7 +422,7 @@ function RorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -585,7 +585,7 @@ function SubjectMetadataEnrichmentCard({
     const updateFields = subjectUpdateFields(proposed?.updates);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -665,7 +665,7 @@ function SubjectMetadataEnrichmentCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -752,7 +752,7 @@ function CrossrefFunderRorSuggestionCard({
     const ambiguityStatus = metadataText(ambiguity?.status);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -838,7 +838,7 @@ function CrossrefFunderRorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -989,13 +989,7 @@ function SizeFormatSuggestionCard({
     const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
 
     return (
-        <div
-            className={
-                isZip
-                    ? 'rounded-lg border-2 border-orange-500 bg-orange-50 p-4 shadow-sm transition-all hover:shadow-md dark:bg-orange-950/20'
-                    : 'rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md'
-            }
-        >
+        <div className={isZip ? 'border-l-4 border-orange-500 bg-orange-50 p-2 sm:p-3 dark:bg-orange-950/20' : 'bg-card p-2 sm:p-3'}>
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1037,7 +1031,7 @@ function SizeFormatSuggestionCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -1159,7 +1153,7 @@ function DateTypeSuggestionCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         {isHint ? 'Dismiss' : 'Decline'}
@@ -1226,7 +1220,7 @@ function DescriptionSegmentationSuggestionCard({
     const preconditions = metadataList(metadata?.acceptance?.preconditions);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1311,12 +1305,12 @@ function DescriptionSegmentationSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
                         disabled={isProcessing}
-                        data-testid={`description-segmentation-decline-${suggestion.id}`}
+                        data-original-testid={`description-segmentation-decline-${suggestion.id}`}
                         onClick={() => onDecline(suggestion.id)}
                     >
                         <X className="mr-1 h-4 w-4" />
@@ -1325,7 +1319,7 @@ function DescriptionSegmentationSuggestionCard({
                     <Button
                         size="sm"
                         disabled={isProcessing}
-                        data-testid={`description-segmentation-accept-${suggestion.id}`}
+                        data-original-testid={`description-segmentation-accept-${suggestion.id}`}
                         onClick={() => onAccept(suggestion.id)}
                     >
                         <Check className="mr-1 h-4 w-4" />
@@ -1653,6 +1647,37 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
     // ── Render helpers ───────────────────────────────────────────────
 
+    function renderSuggestionActions(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
+        const isDateTypeHint = manifest.id === 'date-type-suggestion' && isRecord(item.metadata) && item.metadata.suggestion_kind === 'hint';
+        const descriptionSegmentationTestId = manifest.id === 'description-segmentation' ? 'description-segmentation' : null;
+
+        return (
+            <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isProcessing}
+                    data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-decline-${item.id}` : undefined}
+                    onClick={() => handleDecline(manifest, item.id)}
+                >
+                    <X className="mr-1 h-4 w-4" />
+                    {isDateTypeHint ? 'Dismiss' : 'Decline'}
+                </Button>
+                {!isDateTypeHint && (
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-accept-${item.id}` : undefined}
+                        onClick={() => handleAccept(manifest, item.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                )}
+            </div>
+        );
+    }
+
     function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
         const onAccept = (id: number) => handleAccept(manifest, id);
         const onDecline = (id: number) => handleDecline(manifest, id);
@@ -1728,7 +1753,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             default:
                 // Generic card for future student modules
                 return (
-                    <div className="rounded-lg border bg-card p-4 shadow-sm">
+                    <div className="bg-card p-2 sm:p-3">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1 space-y-1">
                                 <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
@@ -1736,7 +1761,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                     Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
                                 </p>
                             </div>
-                            <div className="flex shrink-0 gap-2">
+                            <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                                 <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
                                     <X className="mr-1 h-4 w-4" />
                                     Decline
@@ -1826,59 +1851,92 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                     return (
                         <Card key={manifest.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                                <div className="space-y-1.5">
-                                    <CardTitle>{manifest.name}</CardTitle>
+                            <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0 space-y-1.5">
+                                    <CardTitle className="break-words">{manifest.name}</CardTitle>
                                     <CardDescription>
                                         {sectionData.total > 0
                                             ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
                                             : manifest.emptyState.description}
                                     </CardDescription>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => handleCheck(manifest)} disabled={state?.isChecking ?? false}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="min-h-8 max-w-full self-start text-left whitespace-normal sm:self-auto"
+                                    onClick={() => handleCheck(manifest)}
+                                    disabled={state?.isChecking ?? false}
+                                >
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />
-                                            Checking...
+                                            Checking {manifest.name}...
                                         </>
                                     ) : (
                                         <>
                                             <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check
+                                            Check {manifest.name}
                                         </>
                                     )}
                                 </Button>
                             </CardHeader>
                             <CardContent>
                                 {Object.keys(grouped).length > 0 ? (
-                                    <div className="space-y-6">
+                                    <div className="space-y-4">
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
                                             const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
                                             const resourceTitle = group.title === '' ? 'Untitled' : group.title;
 
                                             return (
-                                                <div key={resourceKey} className="space-y-3">
-                                                    <div className="flex items-baseline gap-2">
-                                                        <Link
-                                                            href={resourceEditorUrl(group.resourceId)}
-                                                            className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                                            title={`Open ${resourceLabel} in editor`}
-                                                        >
-                                                            {resourceLabel}
-                                                        </Link>
-                                                        <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
-                                                        <Badge variant="secondary" className="ml-auto text-xs">
+                                                <Card key={resourceKey} data-testid={`resource-card-${manifest.id}-${group.resourceId}`}>
+                                                    <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
+                                                        <div className="min-w-0 space-y-1">
+                                                            <CardTitle className="text-base">
+                                                                <Link
+                                                                    href={resourceEditorUrl(group.resourceId)}
+                                                                    className="font-mono break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                                    title={`Open ${resourceLabel} in editor`}
+                                                                >
+                                                                    {resourceLabel}
+                                                                </Link>
+                                                            </CardTitle>
+                                                            <CardDescription>{resourceTitle}</CardDescription>
+                                                        </div>
+                                                        <Badge variant="secondary" className="shrink-0 text-xs">
                                                             {group.items.length} suggestion(s)
                                                         </Badge>
-                                                    </div>
-                                                    <div className="space-y-2 pl-4">
-                                                        {group.items.map((item) => (
-                                                            <div key={item.id as number}>
-                                                                {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                    </CardHeader>
+                                                    <CardContent className="p-0">
+                                                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
+                                                            <span>Suggestion</span>
+                                                            <span>Actions</span>
+                                                        </div>
+                                                        <ul
+                                                            aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
+                                                            className="divide-y"
+                                                        >
+                                                            {group.items.map((item) => (
+                                                                <li
+                                                                    key={item.id as number}
+                                                                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-2 sm:p-3"
+                                                                >
+                                                                    <div className="min-w-0 [&_.suggestion-card-actions]:hidden">
+                                                                        {renderCard(
+                                                                            manifest,
+                                                                            item,
+                                                                            state?.processingIds.has(item.id as number) ?? false,
+                                                                        )}
+                                                                    </div>
+                                                                    {renderSuggestionActions(
+                                                                        manifest,
+                                                                        item,
+                                                                        state?.processingIds.has(item.id as number) ?? false,
+                                                                    )}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </CardContent>
+                                                </Card>
                                             );
                                         })}
                                     </div>
