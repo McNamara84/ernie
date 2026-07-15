@@ -355,6 +355,38 @@ describe('batchRelations', function () {
         expect(SuggestedRelation::query()->whereKey([$first->id, $second->id])->count())->toBe(2)
             ->and(RelatedIdentifier::query()->whereIn('resource_id', [$firstResource->id, $secondResource->id])->count())->toBe(0);
     });
+
+    it('validates relation batch requests', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/assistance/relations/batch/accept', [
+            'suggestion_ids' => [],
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['suggestion_ids']);
+
+    $this->actingAs($user)
+        ->postJson('/assistance/relations/batch/accept', [
+            'suggestion_ids' => ['not-an-id'],
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(['suggestion_ids.0']);
+    });
+
+    it('rejects relation batch requests when a selected suggestion no longer exists', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/assistance/relations/batch/accept', [
+            'suggestion_ids' => [999999],
+        ])
+        ->assertStatus(422)
+        ->assertJson([
+            'success' => false,
+            'message' => 'One or more selected relation suggestions are no longer available.',
+        ]);
+    });
 });
 
 // =========================================================================
