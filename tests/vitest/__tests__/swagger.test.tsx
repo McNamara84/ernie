@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import { act } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import type { Root } from 'react-dom/client';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 interface SwaggerMockProps {
     spec: { info: { title: string } };
@@ -27,9 +28,23 @@ import { endpointCopyFeedbackPlugin } from '@/components/api-doc/endpoint-copy-b
 import { renderSwagger } from '@/swagger';
 
 describe('renderSwagger', () => {
+    let container: HTMLDivElement | undefined;
+    let root: Root | undefined;
+
+    afterEach(async () => {
+        await act(async () => {
+            root?.unmount();
+        });
+        container?.remove();
+        swaggerMockState.current = undefined;
+        root = undefined;
+        container = undefined;
+    });
+
     it('renders the API title with endpoint copy feedback and the configured toaster', async () => {
         const el = document.createElement('div');
         document.body.appendChild(el);
+        container = el;
         const spec = {
             openapi: '3.2.0',
             info: { title: 'Example API', summary: 'OpenAPI 3.2 test document', version: '1.0.0' },
@@ -37,7 +52,7 @@ describe('renderSwagger', () => {
         };
 
         await act(async () => {
-            renderSwagger(spec, el);
+            root = renderSwagger(spec, el);
         });
 
         expect(screen.getByText('Example API')).toBeInTheDocument();

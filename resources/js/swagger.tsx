@@ -14,12 +14,16 @@ declare global {
 }
 
 export function renderSwagger(spec: object, element: HTMLElement) {
-    createRoot(element).render(
+    const root = createRoot(element);
+
+    root.render(
         <>
             <SwaggerUI spec={spec} plugins={[endpointCopyFeedbackPlugin]} />
             <Toaster position="bottom-right" richColors />
         </>,
     );
+
+    return root;
 }
 
 window.addEventListener('load', () => {
