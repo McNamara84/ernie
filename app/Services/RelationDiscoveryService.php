@@ -12,6 +12,7 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
+use App\Services\Citations\CitationLookupService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,6 +29,7 @@ class RelationDiscoveryService
     public function __construct(
         private readonly ScholExplorerService $scholExplorerService,
         private readonly DataCiteEventDataService $dataCiteEventDataService,
+        private readonly CitationLookupService $citationLookupService,
         private readonly DataCiteSyncService $dataCiteSyncService,
         private readonly RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
     ) {}
@@ -46,6 +48,7 @@ class RelationDiscoveryService
 
         $processed = 0;
         $newCount = 0;
+        $updatedCount = 0;
 
         // Pre-fetch lookups
         $identifierTypeLookup = IdentifierType::pluck('id', 'slug')->all();
@@ -60,6 +63,7 @@ class RelationDiscoveryService
                 $total,
                 &$processed,
                 &$newCount,
+                &$updatedCount,
                 $progressCallback,
             ) {
                 $resourceIds = $resources->pluck('id')->all();
@@ -68,19 +72,21 @@ class RelationDiscoveryService
                 $existingKeys = RelatedIdentifier::whereIn('resource_id', $resourceIds)
                     ->get(['resource_id', 'identifier', 'relation_type_id'])
                     ->groupBy('resource_id')
-                    ->map(fn ($items) => $items->map(fn (RelatedIdentifier $ri) => mb_strtolower($ri->identifier) . '|' . $ri->relation_type_id)->all())
+                    ->map(fn ($items) => $items->map(fn (RelatedIdentifier $ri) => mb_strtolower($ri->identifier).'|'.$ri->relation_type_id)->all())
                     ->all();
 
                 $dismissedKeys = DismissedRelation::whereIn('resource_id', $resourceIds)
                     ->get(['resource_id', 'identifier', 'relation_type_id'])
                     ->groupBy('resource_id')
-                    ->map(fn ($items) => $items->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier) . '|' . $dr->relation_type_id)->all())
+                    ->map(fn ($items) => $items->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier).'|'.$dr->relation_type_id)->all())
                     ->all();
 
-                $suggestedKeys = SuggestedRelation::whereIn('resource_id', $resourceIds)
-                    ->get(['resource_id', 'identifier', 'relation_type_id'])
+                $pendingSuggestions = SuggestedRelation::whereIn('resource_id', $resourceIds)
+                    ->get(['id', 'resource_id', 'identifier', 'relation_type_id', 'source_type'])
                     ->groupBy('resource_id')
-                    ->map(fn ($items) => $items->map(fn (SuggestedRelation $sr) => mb_strtolower($sr->identifier) . '|' . $sr->relation_type_id)->all())
+                    ->map(fn ($items) => $items->mapWithKeys(fn (SuggestedRelation $sr) => [
+                        mb_strtolower($sr->identifier).'|'.$sr->relation_type_id => $sr,
+                    ])->all())
                     ->all();
 
                 foreach ($resources as $resource) {
@@ -91,17 +97,20 @@ class RelationDiscoveryService
                     $knownSet = array_flip(array_merge(
                         $existingKeys[$resourceId] ?? [],
                         $dismissedKeys[$resourceId] ?? [],
-                        $suggestedKeys[$resourceId] ?? [],
+                        array_keys($pendingSuggestions[$resourceId] ?? []),
                     ));
 
                     $relations = $this->discoverForDoi($doi);
-                    $newCount += $this->storeNewSuggestions(
+                    $counts = $this->storeNewSuggestions(
                         $resourceId,
                         $relations,
                         $identifierTypeLookup,
                         $relationTypeLookup,
                         $knownSet,
+                        $pendingSuggestions[$resourceId] ?? [],
                     );
+                    $newCount += $counts['created'];
+                    $updatedCount += $counts['updated'];
 
                     $processed++;
                     if ($progressCallback !== null) {
@@ -113,9 +122,10 @@ class RelationDiscoveryService
         Log::info('Relation discovery completed', [
             'total_dois' => $total,
             'new_suggestions' => $newCount,
+            'updated_suggestions' => $updatedCount,
         ]);
 
-        if ($newCount > 0) {
+        if ($newCount > 0 || $updatedCount > 0) {
             $this->invalidateAssistanceCache();
         }
 
@@ -135,7 +145,7 @@ class RelationDiscoveryService
         // Primary source: ScholExplorer
         $scholexResults = $this->scholExplorerService->findRelationsForDoi($doi);
         foreach ($scholexResults as $relation) {
-            $key = mb_strtolower($relation['identifier']) . '|' . $relation['relation_type'];
+            $key = mb_strtolower($relation['identifier']).'|'.$relation['relation_type'];
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $allRelations[] = [
@@ -148,7 +158,7 @@ class RelationDiscoveryService
         // Supplementary source: DataCite Event Data
         $dataciteResults = $this->dataCiteEventDataService->findRelationsForDoi($doi);
         foreach ($dataciteResults as $relation) {
-            $key = mb_strtolower($relation['identifier']) . '|' . $relation['relation_type'];
+            $key = mb_strtolower($relation['identifier']).'|'.$relation['relation_type'];
             if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $allRelations[] = [
@@ -162,14 +172,50 @@ class RelationDiscoveryService
     }
 
     /**
+     * @param  array{identifier: string, identifier_type: string, relation_type: string, source: string, source_title: string|null, source_type: string|null, source_publisher: string|null, source_publication_date: string|null}  $relation
+     * @return array{identifier: string, identifier_type: string, relation_type: string, source: string, source_title: string|null, source_type: string|null, source_publisher: string|null, source_publication_date: string|null}
+     */
+    private function enrichDataCiteEventRelationSourceType(array $relation): array
+    {
+        if ($relation['identifier_type'] !== 'DOI') {
+            return $relation;
+        }
+
+        $existingSourceType = $relation['source_type'] ?? null;
+        if (is_string($existingSourceType) && trim($existingSourceType) !== '') {
+            return $relation;
+        }
+
+        $result = $this->citationLookupService->lookup($relation['identifier']);
+
+        if (! $result->found || ! is_array($result->data)) {
+            return $relation;
+        }
+
+        $relatedItemType = $result->data['relatedItemType'] ?? null;
+        if (! is_string($relatedItemType)) {
+            return $relation;
+        }
+
+        $relatedItemType = trim($relatedItemType);
+        if ($relatedItemType === '') {
+            return $relation;
+        }
+
+        $relation['source_type'] = $relatedItemType;
+
+        return $relation;
+    }
+
+    /**
      * Store new suggestions, filtering out known relations using pre-loaded set.
      *
-     * @param  int  $resourceId
-     * @param  array<int, array<string, mixed>>  $relations
+     * @param  array<int, array{identifier: string, identifier_type: string, relation_type: string, source: string, source_title: string|null, source_type: string|null, source_publisher: string|null, source_publication_date: string|null}>  $relations
      * @param  array<string, int>  $identifierTypeLookup
      * @param  array<string, int>  $relationTypeLookup
      * @param  array<string, true|int>  $knownSet  Pre-loaded set of known relation keys
-     * @return int Number of newly stored suggestions
+     * @param  array<string, SuggestedRelation>  $pendingSuggestions
+     * @return array{created: int, updated: int}
      */
     private function storeNewSuggestions(
         int $resourceId,
@@ -177,12 +223,14 @@ class RelationDiscoveryService
         array $identifierTypeLookup,
         array $relationTypeLookup,
         array $knownSet,
-    ): int {
+        array $pendingSuggestions,
+    ): array {
         if (empty($relations)) {
-            return 0;
+            return ['created' => 0, 'updated' => 0];
         }
 
         $newCount = 0;
+        $updatedCount = 0;
 
         foreach ($relations as $relation) {
             $relationTypeId = $relationTypeLookup[$relation['relation_type']] ?? null;
@@ -198,7 +246,36 @@ class RelationDiscoveryService
                 continue;
             }
 
-            $key = mb_strtolower((string) $relation['identifier']) . '|' . $relationTypeId;
+            $key = mb_strtolower((string) $relation['identifier']).'|'.$relationTypeId;
+            $existingPendingSuggestion = $pendingSuggestions[$key] ?? null;
+            $pendingSourceType = $existingPendingSuggestion?->source_type;
+            $pendingHasSourceType = is_string($pendingSourceType) && trim($pendingSourceType) !== '';
+            $shouldEnrichPendingSuggestion = $existingPendingSuggestion !== null && ! $pendingHasSourceType;
+            $shouldEnrichNewSuggestion = $existingPendingSuggestion === null && ! isset($knownSet[$key]);
+
+            if (($shouldEnrichNewSuggestion || $shouldEnrichPendingSuggestion) && $relation['source'] === 'datacite_event_data') {
+                $relation = $this->enrichDataCiteEventRelationSourceType($relation);
+            }
+
+            $sourceType = $relation['source_type'] ?? null;
+            if (is_string($sourceType)) {
+                $sourceType = trim($sourceType);
+                if ($sourceType === '') {
+                    $sourceType = null;
+                }
+            } else {
+                $sourceType = null;
+            }
+
+            if ($existingPendingSuggestion !== null) {
+                if (! $pendingHasSourceType && $sourceType !== null) {
+                    $existingPendingSuggestion->source_type = $sourceType;
+                    $existingPendingSuggestion->save();
+                    $updatedCount++;
+                }
+
+                continue;
+            }
 
             if (isset($knownSet[$key])) {
                 continue;
@@ -214,7 +291,7 @@ class RelationDiscoveryService
                     'identifier_type_id' => $identifierTypeId,
                     'source' => $relation['source'],
                     'source_title' => $relation['source_title'] ?? null,
-                    'source_type' => $relation['source_type'] ?? null,
+                    'source_type' => $sourceType,
                     'source_publisher' => $relation['source_publisher'] ?? null,
                     'source_publication_date' => $relation['source_publication_date'] ?? null,
                     'discovered_at' => now(),
@@ -230,14 +307,14 @@ class RelationDiscoveryService
             }
         }
 
-        return $newCount;
+        return ['created' => $newCount, 'updated' => $updatedCount];
     }
 
     /**
      * Accept a suggested relation: creates a RelatedIdentifier and syncs to DataCite.
      *
-    * Uses a DB transaction for atomicity and re-checks duplicates under a
-    * resource-level lock before assigning the next position.
+     * Uses a DB transaction for atomicity and re-checks duplicates under a
+     * resource-level lock before assigning the next position.
      *
      * @return array{success: bool, datacite_synced: bool, message: string}
      */
@@ -314,7 +391,7 @@ class RelationDiscoveryService
         return [
             'success' => true,
             'datacite_synced' => false,
-            'message' => 'Relation accepted but DataCite sync failed: ' . ($syncResult->errorMessage ?? 'Unknown error'),
+            'message' => 'Relation accepted but DataCite sync failed: '.($syncResult->errorMessage ?? 'Unknown error'),
         ];
     }
 
@@ -354,7 +431,7 @@ class RelationDiscoveryService
             $label .= ". {$publisher}";
         }
 
-        return rtrim($label, ". ") . '.';
+        return rtrim($label, '. ').'.';
     }
 
     private function extractPublicationYear(?string $publicationDate): ?string

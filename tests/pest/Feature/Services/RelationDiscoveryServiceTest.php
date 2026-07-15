@@ -7,6 +7,8 @@ use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
+use App\Services\Citations\CitationLookupResult;
+use App\Services\Citations\CitationLookupService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteEventDataService;
 use App\Services\DataCiteSyncResult;
@@ -16,6 +18,7 @@ use App\Services\ScholExplorerService;
 use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\RelationTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -64,6 +67,7 @@ describe('RelationDiscoveryService', function (): void {
         $service = new RelationDiscoveryService(
             Mockery::mock(ScholExplorerService::class),
             Mockery::mock(DataCiteEventDataService::class),
+            Mockery::mock(CitationLookupService::class),
             $syncService,
             $citationLabelService,
         );
@@ -115,6 +119,7 @@ describe('RelationDiscoveryService', function (): void {
         $service = new RelationDiscoveryService(
             Mockery::mock(ScholExplorerService::class),
             Mockery::mock(DataCiteEventDataService::class),
+            Mockery::mock(CitationLookupService::class),
             $syncService,
             $citationLabelService,
         );
@@ -168,6 +173,7 @@ describe('RelationDiscoveryService', function (): void {
         $service = new RelationDiscoveryService(
             Mockery::mock(ScholExplorerService::class),
             Mockery::mock(DataCiteEventDataService::class),
+            Mockery::mock(CitationLookupService::class),
             $syncService,
             $citationLabelService,
         );
@@ -179,5 +185,194 @@ describe('RelationDiscoveryService', function (): void {
         expect($relatedIdentifiers)->toHaveCount(1)
             ->and($relatedIdentifiers->first()?->citation_label)->toBe('Manual curated citation label')
             ->and(SuggestedRelation::query()->find($suggestion->id))->toBeNull();
+    });
+
+    it('stores the related resource type from CitationLookupService for Crossref DOI relations discovered from DataCite Event Data', function (): void {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/source.2026.001',
+        ]);
+
+        $relatedDoi = '10.1016/j.cageo.2026.106001';
+
+        $scholExplorerService = Mockery::mock(ScholExplorerService::class);
+        $scholExplorerService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([]);
+
+        $dataCiteEventDataService = Mockery::mock(DataCiteEventDataService::class);
+        $dataCiteEventDataService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([
+                [
+                    'identifier' => $relatedDoi,
+                    'identifier_type' => 'DOI',
+                    'relation_type' => 'Cites',
+                    'source_title' => null,
+                    'source_type' => null,
+                    'source_publisher' => null,
+                    'source_publication_date' => null,
+                ],
+            ]);
+
+        $citationLookupService = Mockery::mock(CitationLookupService::class);
+        $citationLookupService->shouldReceive('lookup')
+            ->once()
+            ->with($relatedDoi)
+            ->andReturn(CitationLookupResult::hit('crossref', [
+                'relatedItemType' => 'JournalArticle',
+            ]));
+
+        app()->instance(ScholExplorerService::class, $scholExplorerService);
+        app()->instance(DataCiteEventDataService::class, $dataCiteEventDataService);
+        app()->instance(CitationLookupService::class, $citationLookupService);
+        app()->instance(DataCiteSyncService::class, Mockery::mock(DataCiteSyncService::class));
+        app()->instance(RelatedIdentifierCitationLabelService::class, Mockery::mock(RelatedIdentifierCitationLabelService::class));
+
+        app(RelationDiscoveryService::class)->discoverAll();
+
+        $suggestion = SuggestedRelation::query()->first();
+
+        expect(SuggestedRelation::query()->count())->toBe(1)
+            ->and($suggestion)->not->toBeNull()
+            ->and($suggestion?->source_type)->toBe('JournalArticle');
+    });
+
+    it('backfills the related resource type for an existing pending suggestion', function (): void {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/source.2026.002',
+        ]);
+
+        $identifierTypeId = IdentifierType::query()->where('slug', 'DOI')->value('id');
+        $relationTypeId = RelationType::query()->where('slug', 'Cites')->value('id');
+
+        expect($identifierTypeId)->toBeInt()
+            ->and($relationTypeId)->toBeInt();
+
+        $relatedDoi = '10.5880/related.2026.002';
+        $originalDiscoveredAt = Carbon::parse('2026-02-03 04:05:06');
+
+        $existingSuggestion = SuggestedRelation::query()->create([
+            'resource_id' => $resource->id,
+            'identifier' => $relatedDoi,
+            'identifier_type_id' => $identifierTypeId,
+            'relation_type_id' => $relationTypeId,
+            'source' => 'datacite_event_data',
+            'source_title' => null,
+            'source_type' => null,
+            'source_publisher' => null,
+            'source_publication_date' => null,
+            'discovered_at' => $originalDiscoveredAt,
+        ]);
+
+        $scholExplorerService = Mockery::mock(ScholExplorerService::class);
+        $scholExplorerService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([]);
+
+        $dataCiteEventDataService = Mockery::mock(DataCiteEventDataService::class);
+        $dataCiteEventDataService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([
+                [
+                    'identifier' => $relatedDoi,
+                    'identifier_type' => 'DOI',
+                    'relation_type' => 'Cites',
+                    'source_title' => null,
+                    'source_type' => null,
+                    'source_publisher' => null,
+                    'source_publication_date' => null,
+                ],
+            ]);
+
+        $citationLookupService = Mockery::mock(CitationLookupService::class);
+        $citationLookupService->shouldReceive('lookup')
+            ->once()
+            ->with($relatedDoi)
+            ->andReturn(CitationLookupResult::hit('datacite', [
+                'relatedItemType' => 'Dataset',
+            ]));
+
+        app()->instance(ScholExplorerService::class, $scholExplorerService);
+        app()->instance(DataCiteEventDataService::class, $dataCiteEventDataService);
+        app()->instance(CitationLookupService::class, $citationLookupService);
+        app()->instance(DataCiteSyncService::class, Mockery::mock(DataCiteSyncService::class));
+        app()->instance(RelatedIdentifierCitationLabelService::class, Mockery::mock(RelatedIdentifierCitationLabelService::class));
+
+        $newCount = app(RelationDiscoveryService::class)->discoverAll();
+
+        $refreshedSuggestion = $existingSuggestion->fresh();
+
+        expect($newCount)->toBe(0)
+            ->and(SuggestedRelation::query()->count())->toBe(1)
+            ->and($refreshedSuggestion)->not->toBeNull()
+            ->and($refreshedSuggestion?->id)->toBe($existingSuggestion->id)
+            ->and($refreshedSuggestion?->source_type)->toBe('Dataset')
+            ->and($refreshedSuggestion?->discovered_at?->equalTo($originalDiscoveredAt))->toBeTrue();
+    });
+
+    it('keeps the related resource type empty when it cannot be resolved', function (): void {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/source.2026.003',
+        ]);
+
+        $relatedUrl = 'https://example.org/related-resource';
+        $relatedDoi = '10.5880/related.2026.003';
+
+        $scholExplorerService = Mockery::mock(ScholExplorerService::class);
+        $scholExplorerService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([]);
+
+        $dataCiteEventDataService = Mockery::mock(DataCiteEventDataService::class);
+        $dataCiteEventDataService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([
+                [
+                    'identifier' => $relatedUrl,
+                    'identifier_type' => 'URL',
+                    'relation_type' => 'References',
+                    'source_title' => null,
+                    'source_type' => null,
+                    'source_publisher' => null,
+                    'source_publication_date' => null,
+                ],
+                [
+                    'identifier' => $relatedDoi,
+                    'identifier_type' => 'DOI',
+                    'relation_type' => 'Cites',
+                    'source_title' => null,
+                    'source_type' => null,
+                    'source_publisher' => null,
+                    'source_publication_date' => null,
+                ],
+            ]);
+
+        $citationLookupService = Mockery::mock(CitationLookupService::class);
+        $citationLookupService->shouldReceive('lookup')
+            ->once()
+            ->with($relatedDoi)
+            ->andReturn(CitationLookupResult::notFound('datacite'));
+
+        app()->instance(ScholExplorerService::class, $scholExplorerService);
+        app()->instance(DataCiteEventDataService::class, $dataCiteEventDataService);
+        app()->instance(CitationLookupService::class, $citationLookupService);
+        app()->instance(DataCiteSyncService::class, Mockery::mock(DataCiteSyncService::class));
+        app()->instance(RelatedIdentifierCitationLabelService::class, Mockery::mock(RelatedIdentifierCitationLabelService::class));
+
+        $newCount = app(RelationDiscoveryService::class)->discoverAll();
+
+        $suggestions = SuggestedRelation::query()
+            ->orderBy('identifier')
+            ->get();
+
+        expect($newCount)->toBe(2)
+            ->and($suggestions)->toHaveCount(2)
+            ->and($suggestions->pluck('source_type')->all())->toBe([null, null]);
     });
 });

@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, Plus,RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -96,6 +96,8 @@ function SuggestionCard({
     onDecline: (id: number) => void;
     isProcessing: boolean;
 }) {
+    const sourceType = suggestion.source_type?.trim() ?? '';
+
     return (
         <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
             <div className="flex items-start justify-between gap-4">
@@ -114,11 +116,16 @@ function SuggestionCard({
 
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {suggestion.source_publisher && <span>Publisher: {suggestion.source_publisher}</span>}
-                        {suggestion.source_type && <span>Type: {suggestion.source_type}</span>}
                         <span>Source: {sourceLabel(suggestion.source)}</span>
                         <span>Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}</span>
                     </div>
                 </div>
+
+                {sourceType !== '' && (
+                    <Badge variant="outline" className="min-w-24 justify-center self-center">
+                        {sourceType}
+                    </Badge>
+                )}
 
                 <div className="flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
@@ -1072,13 +1079,15 @@ function DateTypeSuggestionCard({
     const isAmbiguous = metadata?.is_ambiguous === true || isHint || confidence === 'low';
     const evidenceUrl = typeof metadata?.evidence_url === 'string' ? metadata.evidence_url : null;
     const hintLabel = String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType hint').replace(/^Hint:\s*/i, '');
-    const displayLabel = isHint ? hintLabel : suggestionKind === 'correction'
-        ? String(suggestion.suggested_label ?? 'DateType correction')
-        : dateTypeDisplayLabel(
-              targetDateType,
-              String(suggestion.suggested_value ?? ''),
-              String(suggestion.suggested_label ?? 'DateType suggestion'),
-          );
+    const displayLabel = isHint
+        ? hintLabel
+        : suggestionKind === 'correction'
+          ? String(suggestion.suggested_label ?? 'DateType correction')
+          : dateTypeDisplayLabel(
+                targetDateType,
+                String(suggestion.suggested_value ?? ''),
+                String(suggestion.suggested_label ?? 'DateType suggestion'),
+            );
 
     return (
         <div
@@ -1091,22 +1100,22 @@ function DateTypeSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                            {isHint ? (
-                                <Badge className="bg-orange-600 text-white">
-                                    <AlertTriangle className="mr-1 h-3 w-3" />
-                                    Hint
-                                </Badge>
-                            ) : suggestionKind === 'correction' ? (
-                                <Badge className="bg-black text-white">
-                                    <RefreshCw className="mr-1 h-3 w-3" />
-                                    Correction
-                                </Badge>
-                            ) : (
-                                <Badge className="bg-black text-white">
-                                    <Plus className="mr-1 h-3 w-3" />
-                                    Addition
-                                </Badge>
-                            )}
+                        {isHint ? (
+                            <Badge className="bg-orange-600 text-white">
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Hint
+                            </Badge>
+                        ) : suggestionKind === 'correction' ? (
+                            <Badge className="bg-black text-white">
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Correction
+                            </Badge>
+                        ) : (
+                            <Badge className="bg-black text-white">
+                                <Plus className="mr-1 h-3 w-3" />
+                                Addition
+                            </Badge>
+                        )}
 
                         {targetDateType && (
                             <Badge variant="secondary" className="text-xs">
@@ -1114,16 +1123,10 @@ function DateTypeSuggestionCard({
                             </Badge>
                         )}
 
-                        {confidence && (
-                            <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>
-                                {confidenceLabel(confidence)}
-                            </Badge>
-                        )}
+                        {confidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{confidenceLabel(confidence)}</Badge>}
 
                         {isAmbiguous && (
-                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">
-                                Manual review
-                            </Badge>
+                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">Manual review</Badge>
                         )}
 
                         {collectedDatesCount !== null && geoLocationsCount !== null && (
@@ -1133,9 +1136,7 @@ function DateTypeSuggestionCard({
                         )}
                     </div>
 
-                    <p className="text-sm font-medium">
-                        {displayLabel}
-                    </p>
+                    <p className="text-sm font-medium">{displayLabel}</p>
 
                     {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
                     {(sourceUrl || evidenceUrl || schemaOrgField) && (
@@ -1155,7 +1156,6 @@ function DateTypeSuggestionCard({
                     )}
                     <p className="text-xs text-muted-foreground">
                         Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
-
                     </p>
                 </div>
 
@@ -1176,8 +1176,7 @@ function DateTypeSuggestionCard({
         </div>
     );
 }
-function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string,): string 
-{
+function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string): string {
     if (typeof targetType !== 'string') {
         return fallbackLabel;
     }
@@ -1688,15 +1687,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 );
             case 'size-format-suggestion':
                 return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
-                case 'date-type-suggestion':
-                return (
-                    <DateTypeSuggestionCard
-                        suggestion={item}
-                        onAccept={onAccept}
-                        onDecline={onDecline}
-                        isProcessing={isProcessing}
-                    />
-                );
+            case 'date-type-suggestion':
+                return <DateTypeSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
             case 'description-segmentation':
                 return (
                     <DescriptionSegmentationSuggestionCard
@@ -1733,7 +1725,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         isProcessing={isProcessing}
                     />
                 );
-            default: 
+            default:
                 // Generic card for future student modules
                 return (
                     <div className="rounded-lg border bg-card p-4 shadow-sm">
@@ -1757,7 +1749,6 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         </div>
                     </div>
                 );
-            
         }
     }
 

@@ -12,6 +12,7 @@ import type {
     SuggestedCrossrefFunderRorItem,
     SuggestedDescriptionSegmentationItem,
     SuggestedOrcidItem,
+    SuggestedRelationItem,
     SuggestedRorItem,
     SuggestedSpdxRightsItem,
     SuggestedSubjectMetadataEnrichmentItem,
@@ -76,6 +77,9 @@ const SUBJECT_METADATA_ASSISTANT_NAME = 'Subject Metadata Enrichment';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_ID = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ROUTE_PREFIX = 'description-segmentation';
 const DESCRIPTION_SEGMENTATION_ASSISTANT_NAME = 'Description Segmentation Suggestions';
+const RELATION_ASSISTANT_ID = 'relation-suggestion';
+const RELATION_ROUTE_PREFIX = 'relations';
+const RELATION_ASSISTANT_NAME = 'Relation Suggestions';
 const BULK_TOKEN_MATCH = '00000000-0000-4000-8000-000000000955';
 const BULK_TOKEN_SINGULAR = '00000000-0000-4000-8000-000000000958';
 const BULK_TOKEN_RETRY = '00000000-0000-4000-8000-000000000957';
@@ -198,6 +202,27 @@ function makeDateTypeSuggestion(overrides: Partial<BaseSuggestionItem> = {}): Ba
             target_date_type: 'Issued',
             confidence: 'high',
         },
+        discovered_at: '2026-07-05T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
+function makeRelationSuggestion(overrides: Partial<SuggestedRelationItem> = {}): SuggestedRelationItem {
+    return {
+        id: 89,
+        resource_id: 89,
+        resource_doi: '10.5880/test.2026.089',
+        resource_title: 'Related resource type example',
+        identifier: '10.5880/related.2026.089',
+        identifier_type: 'DOI',
+        identifier_type_name: 'DOI',
+        relation_type: 'Cites',
+        relation_type_name: 'Cites',
+        source: 'datacite_event_data',
+        source_title: null,
+        source_type: 'Dataset',
+        source_publisher: null,
+        source_publication_date: null,
         discovered_at: '2026-07-05T10:00:00+00:00',
         ...overrides,
     };
@@ -612,6 +637,25 @@ describe('Assistance resource header links', () => {
         expect(screen.getByText(/Original grouped title/)).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: '10.5880/conflict.2026.201' })).not.toBeInTheDocument();
         expect(screen.queryByText(/Conflicting grouped title/)).not.toBeInTheDocument();
+    });
+});
+
+describe('RelationSuggestionCard - resource type', () => {
+    it('renders the related resource type for relation suggestions', () => {
+        const suggestion = makeRelationSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [RELATION_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(RELATION_ASSISTANT_ID, RELATION_ROUTE_PREFIX, RELATION_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const badge = screen.getByText('Dataset');
+
+        expect(badge).toBeVisible();
+        expect(badge).toHaveAttribute('data-slot', 'badge');
+        expect(badge).toHaveAttribute('data-variant', 'outline');
     });
 });
 
@@ -1789,9 +1833,11 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('Manual review')).toBeInTheDocument();
         expect(screen.getByText('Medium confidence')).toBeInTheDocument();
 
-        expect(screen.getByText(
-            'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
-        )).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+            ),
+        ).toBeInTheDocument();
 
         expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
@@ -1824,10 +1870,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('High confidence')).toBeInTheDocument();
         expect(screen.getByText('schema.org field: datePublished')).toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute(
-            'href',
-            'https://dataservices.gfz.de/example-dataset',
-        );
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://dataservices.gfz.de/example-dataset');
 
         expect(screen.getByRole('link', { name: 'Open schema.org' })).toHaveAttribute(
             'href',
@@ -1847,7 +1890,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
                 target_date_type: 'Coverage',
                 confidence: 'medium',
                 collected_dates_count: 1,
-                source_url : 'https://doi.org/10.5880/test.001',
+                source_url: 'https://doi.org/10.5880/test.001',
                 geo_locations_count: 1,
                 evidence: 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
             },
@@ -1873,4 +1916,3 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });
-
