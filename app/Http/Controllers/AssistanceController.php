@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
+use App\Http\Requests\BatchRelationsRequest;
 use App\Models\SuggestedRelation;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
@@ -180,7 +181,7 @@ class AssistanceController extends Controller
     /**
  * Accept or decline selected relation suggestions for a single DOI tile.
  */
-public function batchRelations(Request $request, string $action): JsonResponse
+public function batchRelations(BatchRelationsRequest $request, string $action): JsonResponse
 {
     $assistantId = (string) $request->route('assistantId');
     $assistant = $this->registrar->get($assistantId);
@@ -190,11 +191,7 @@ public function batchRelations(Request $request, string $action): JsonResponse
     }
 
     /** @var array{suggestion_ids: list<int|string>, reason?: string|null} $validated */
-    $validated = $request->validate([
-        'suggestion_ids' => ['required', 'array', 'min:1'],
-        'suggestion_ids.*' => ['integer', 'distinct'],
-        'reason' => ['nullable', 'string', 'max:1000'],
-    ]);
+    $validated = $request->validated();
 
     /** @var list<int> $suggestionIds */
     $suggestionIds = array_values(array_unique(array_map('intval', $validated['suggestion_ids'])));
