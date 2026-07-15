@@ -318,37 +318,4 @@ public function batchRelations(BatchRelationsRequest $request, string $action): 
 
         return response()->json($result);
     }
-
-    it('validates relation batch requests', function (): void {
-    $user = User::factory()->create();
-
-    $this->actingAs($user)
-        ->postJson('/assistance/relations/batch/accept', [
-            'suggestion_ids' => [],
-        ])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['suggestion_ids']);
-
-    $this->actingAs($user)
-        ->postJson('/assistance/relations/batch/accept', [
-            'suggestion_ids' => ['not-an-id'],
-        ])
-        ->assertStatus(422)
-        ->assertJsonValidationErrors(['suggestion_ids.0']);
-});
-
-    it('rejects relation batch requests when a selected suggestion no longer exists', function (): void {
-    $user = User::factory()->create();
-
-    $this->actingAs($user)
-        ->postJson('/assistance/relations/batch/accept', [
-            'suggestion_ids' => [999999],
-        ])
-        ->assertStatus(422)
-        ->assertJson([
-            'success' => false,
-            'message' => 'One or more selected relation suggestions are no longer available.',
-        ]);
-});
-
 }
