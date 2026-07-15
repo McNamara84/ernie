@@ -1452,10 +1452,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             nextForResource.delete(suggestionId);
         }
 
-        if (nextForResource.size === 0) {
-            const { [resourceId]: _removed, ...rest } = prev;
-            return rest;
-        }
+        const next = { ...prev };
+        delete next[resourceId];
+
+return next;
 
         return { ...prev, [resourceId]: nextForResource };
     });
@@ -1463,8 +1463,10 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
 const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
     setSelectedRelationSuggestions((prev) => {
-        const { [resourceId]: _removed, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[resourceId];
+
+        return next;
     });
 }, []);
 
@@ -1672,7 +1674,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         } finally {
             setIsAcceptingRorBulkMatch(false);
         }
-    }, [pendingRorBulkMatch, reloadAssistanceSections]);
+    }, [pendingRorBulkMatch, isAcceptingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDeclineRorBulkMatch = useCallback(() => {
         if (pendingRorBulkMatch === null || isAcceptingRorBulkMatch) return;
@@ -1714,7 +1716,11 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
             });
 
             if (data.success) {
-                action === 'accept' ? toast.success(data.message) : toast.info(data.message);
+               if (action === 'accept') {
+                 toast.success(data.message);
+            } else {
+                toast.info(data.message);
+            }
             } else {
                 toast.warning(data.message);
             }
@@ -1732,12 +1738,11 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         }
     },
     [
-        addProcessingIds,
+       addProcessingIds,
         clearSelectedRelationSuggestions,
         reloadAssistanceSections,
         removeProcessingIds,
         selectedRelationSuggestions,
-        isAcceptingRorBulkMatch,
     ],
 );
 
