@@ -1,6 +1,8 @@
+import type { ComponentType, SVGProps } from 'react';
 import { toast } from 'sonner';
 
 export interface EndpointCopyButtonProps {
+    getComponent: (name: 'CopyIcon') => ComponentType<SVGProps<SVGSVGElement>>;
     textToCopy: string;
 }
 
@@ -10,7 +12,9 @@ interface EndpointCopyFeedbackPlugin {
     };
 }
 
-export function EndpointCopyButton({ textToCopy }: EndpointCopyButtonProps) {
+export function EndpointCopyButton({ getComponent, textToCopy }: EndpointCopyButtonProps) {
+    const CopyIcon = getComponent('CopyIcon');
+
     const copyEndpointPath = async () => {
         if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
             toast.error('Could not copy endpoint to clipboard');
@@ -28,7 +32,9 @@ export function EndpointCopyButton({ textToCopy }: EndpointCopyButtonProps) {
 
     return (
         <div className="view-line-link copy-to-clipboard" title="Copy to clipboard">
-            <button type="button" aria-label="Copy endpoint path to clipboard" onClick={copyEndpointPath} />
+            <button type="button" aria-label="Copy endpoint path to clipboard" onClick={copyEndpointPath}>
+                <CopyIcon />
+            </button>
         </div>
     );
 }

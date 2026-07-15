@@ -12,12 +12,18 @@ vi.mock('sonner', () => ({
 }));
 
 const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+const CopyIcon = () => <svg aria-hidden="true" data-testid="swagger-copy-icon" />;
+const getComponent = vi.fn(() => CopyIcon);
 
 function setClipboard(writeText: ReturnType<typeof vi.fn>) {
     Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: { writeText },
     });
+}
+
+function renderEndpointCopyButton(textToCopy: string) {
+    return render(<EndpointCopyButton getComponent={getComponent} textToCopy={textToCopy} />);
 }
 
 describe('EndpointCopyButton', () => {
@@ -33,21 +39,23 @@ describe('EndpointCopyButton', () => {
         }
     });
 
-    it('renders an accessible button with the Swagger UI style hooks', () => {
-        render(<EndpointCopyButton textToCopy="/api/v1/licenses" />);
+    it('renders an accessible button with Swagger UI style hooks and its visible copy icon', () => {
+        renderEndpointCopyButton('/api/v1/licenses');
 
         const button = screen.getByRole('button', { name: 'Copy endpoint path to clipboard' });
 
         expect(button).toHaveAttribute('type', 'button');
+        expect(button).toContainElement(screen.getByTestId('swagger-copy-icon'));
         expect(button.parentElement).toHaveClass('view-line-link', 'copy-to-clipboard');
         expect(button.parentElement).toHaveAttribute('title', 'Copy to clipboard');
+        expect(getComponent).toHaveBeenCalledWith('CopyIcon');
     });
 
     it('copies the exact endpoint path and reports success after the write resolves', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined);
         setClipboard(writeText);
 
-        render(<EndpointCopyButton textToCopy="/api/v1/resource-types/{type}" />);
+        renderEndpointCopyButton('/api/v1/resource-types/{type}');
         fireEvent.click(screen.getByRole('button', { name: 'Copy endpoint path to clipboard' }));
 
         await waitFor(() => {
@@ -61,7 +69,7 @@ describe('EndpointCopyButton', () => {
         const writeText = vi.fn().mockRejectedValue(new Error('Clipboard permission denied'));
         setClipboard(writeText);
 
-        render(<EndpointCopyButton textToCopy="/api/v1/licenses" />);
+        renderEndpointCopyButton('/api/v1/licenses');
         fireEvent.click(screen.getByRole('button', { name: 'Copy endpoint path to clipboard' }));
 
         await waitFor(() => {
@@ -73,7 +81,7 @@ describe('EndpointCopyButton', () => {
     it('reports an unavailable Clipboard API without throwing or showing success', async () => {
         Reflect.deleteProperty(navigator, 'clipboard');
 
-        render(<EndpointCopyButton textToCopy="/api/v1/languages" />);
+        renderEndpointCopyButton('/api/v1/languages');
         fireEvent.click(screen.getByRole('button', { name: 'Copy endpoint path to clipboard' }));
 
         expect(toast.error).toHaveBeenCalledWith('Could not copy endpoint to clipboard');
