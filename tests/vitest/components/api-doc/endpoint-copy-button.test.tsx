@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { SVGProps } from 'react';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,7 +13,7 @@ vi.mock('sonner', () => ({
 }));
 
 const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
-const CopyIcon = () => <svg aria-hidden="true" data-testid="swagger-copy-icon" />;
+const CopyIcon = (props: SVGProps<SVGSVGElement>) => <svg data-testid="swagger-copy-icon" {...props} />;
 const getComponent = vi.fn(() => CopyIcon);
 
 function setClipboard(writeText: ReturnType<typeof vi.fn>) {
@@ -46,6 +47,8 @@ describe('EndpointCopyButton', () => {
 
         expect(button).toHaveAttribute('type', 'button');
         expect(button).toContainElement(screen.getByTestId('swagger-copy-icon'));
+        expect(screen.getByTestId('swagger-copy-icon')).toHaveAttribute('aria-hidden', 'true');
+        expect(screen.getByTestId('swagger-copy-icon')).toHaveAttribute('focusable', 'false');
         expect(button.parentElement).toHaveClass('view-line-link', 'copy-to-clipboard');
         expect(button.parentElement).toHaveAttribute('title', 'Copy to clipboard');
         expect(getComponent).toHaveBeenCalledWith('CopyIcon');

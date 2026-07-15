@@ -33,7 +33,7 @@ export function EndpointCopyButton({ getComponent, textToCopy }: EndpointCopyBut
     return (
         <div className="view-line-link copy-to-clipboard" title="Copy to clipboard">
             <button type="button" aria-label="Copy endpoint path to clipboard" onClick={copyEndpointPath}>
-                <CopyIcon />
+                <CopyIcon aria-hidden="true" focusable="false" />
             </button>
         </div>
     );

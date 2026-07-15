@@ -12,6 +12,6 @@
 
 .swagger-ui .opblock .opblock-summary .view-line-link.copy-to-clipboard button:focus-visible {
     border-radius: 2px;
-    outline: 2px solid #2563eb;
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
 }
