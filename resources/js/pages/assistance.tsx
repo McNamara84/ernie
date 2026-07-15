@@ -1453,10 +1453,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         }
 
         if (nextForResource.size === 0) {
-            const next = { ...prev };
-            delete next[resourceId];
-
-            return next;
+            const { [resourceId]: _removed, ...rest } = prev;
+            return rest;
         }
 
         return { ...prev, [resourceId]: nextForResource };
@@ -1465,9 +1463,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
 const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
     setSelectedRelationSuggestions((prev) => {
-        const next = { ...prev };
-        delete next[resourceId];
-        return next;
+        const { [resourceId]: _removed, ...rest } = prev;
+        return rest;
     });
 }, []);
 
@@ -1645,7 +1642,6 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
 
         setIsAcceptingRorBulkMatch(true);
 
-        setIsPendingRorBulkMatch(null);
 
         try {
             const { data } = await axios.post<BulkRorAffiliationAcceptResponse>('/assistance/rors/bulk-affiliation-accept', {
@@ -1679,11 +1675,11 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
     }, [pendingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDeclineRorBulkMatch = useCallback(() => {
-        if (pendingRorBulkMatch === null) return;
+        if (pendingRorBulkMatch === null || isAcceptingRorBulkMatch) return;
 
         setIsPendingRorBulkMatch(null);
         reloadAssistanceSections();
-    }, [pendingRorBulkMatch, reloadAssistanceSections]);
+    }, [pendingRorBulkMatch, isAcceptingRorBulkMatch, reloadAssistanceSections]);
 
     const handleDecline = useCallback(
         async (manifest: AssistantManifest, suggestionId: number) => {
@@ -1701,7 +1697,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         },
         [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
-   const handleRelationBatch = useCallback(
+    const handleRelationBatch = useCallback(
     async (manifest: AssistantManifest, resourceId: number, action: 'accept' | 'decline') => {
         const suggestionIds = Array.from(selectedRelationSuggestions[resourceId] ?? []);
 
@@ -1718,11 +1714,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
             });
 
             if (data.success) {
-                if (action === 'accept') {
-                    toast.success(data.message);
-                } else {
-                    toast.info(data.message);
-                }
+                action === 'accept' ? toast.success(data.message) : toast.info(data.message);
             } else {
                 toast.warning(data.message);
             }
@@ -1745,6 +1737,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         reloadAssistanceSections,
         removeProcessingIds,
         selectedRelationSuggestions,
+        isAcceptingRorBulkMatch,
     ],
 );
 
