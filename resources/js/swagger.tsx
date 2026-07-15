@@ -1,7 +1,11 @@
 import 'swagger-ui-react/swagger-ui.css';
+import '../css/swagger-overrides.css';
 
 import { createRoot } from 'react-dom/client';
 import SwaggerUI from 'swagger-ui-react';
+
+import { endpointCopyFeedbackPlugin } from '@/components/api-doc/endpoint-copy-button';
+import { Toaster } from '@/components/ui/sonner';
 
 declare global {
     interface Window {
@@ -10,7 +14,12 @@ declare global {
 }
 
 export function renderSwagger(spec: object, element: HTMLElement) {
-    createRoot(element).render(<SwaggerUI spec={spec} />);
+    createRoot(element).render(
+        <>
+            <SwaggerUI spec={spec} plugins={[endpointCopyFeedbackPlugin]} />
+            <Toaster position="bottom-right" richColors />
+        </>,
+    );
 }
 
 window.addEventListener('load', () => {

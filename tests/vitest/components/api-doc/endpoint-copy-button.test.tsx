@@ -1,0 +1,89 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { toast } from 'sonner';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { EndpointCopyButton, endpointCopyFeedbackPlugin } from '@/components/api-doc/endpoint-copy-button';
+
+vi.mock('sonner', () => ({
+    toast: {
+        error: vi.fn(),
+        success: vi.fn(),
+    },
+}));
+
+const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+function setClipboard(writeText: ReturnType<typeof vi.fn>) {
+    Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+    });
+}
+
+describe('EndpointCopyButton', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        if (originalClipboardDescriptor) {
+            Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
+        } else {
+            Reflect.deleteProperty(navigator, 'clipboard');
+        }
+    });
+
+    it('renders an accessible button with the Swagger UI style hooks', () => {
+        render(<EndpointCopyButton textToCopy="/api/v1/licenses" />);
+
+        const button = screen.getByRole('button', { name: 'Copy endpoint path to clipboard' });
+
+        expect(button).toHaveAttribute('type', 'button');
+        expect(button.parentElement).toHaveClass('view-line-link', 'copy-to-clipboard');
+        expect(button.parentElement).toHaveAttribute('title', 'Copy to clipboard');
+    });
+
+    it('copies the exact endpoint path and reports success after the write resolves', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        setClipboard(writeText);
+
+        render(<EndpointCopyButton textToCopy="/api/v1/resource-types/{type}" />);
+        fireEvent.click(screen.getByRole('button', { name: 'Copy endpoint path to clipboard' }));
+
+        await waitFor(() => {
+            expect(writeText).toHaveBeenCalledWith('/api/v1/resource-types/{type}');
+            expect(toast.success).toHaveBeenCalledWith('Copied to clipboard');
+        });
+        expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed clipboard write without showing false success', async () => {
+        const writeText = vi.fn().mockRejectedValue(new Error('Clipboard permission denied'));
+        setClipboard(writeText);
+
+        render(<EndpointCopyButton textToCopy="/api/v1/licenses" />);
+        fireEvent.click(screen.getByRole('button', { name: 'Copy endpoint path to clipboard' }));
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith('Could not copy endpoint to clipboard');
+        });
+        expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it('reports an unavailable Clipboard API without throwing or showing success', async () => {
+        Reflect.deleteProperty(navigator, 'clipboard');
+
+        render(<EndpointCopyButton textToCopy="/api/v1/languages" />);
+        fireEvent.click(screen.getByRole('button', { name: 'Copy endpoint path to clipboard' }));
+
+        expect(toast.error).toHaveBeenCalledWith('Could not copy endpoint to clipboard');
+        expect(toast.success).not.toHaveBeenCalled();
+    });
+
+    it("only replaces Swagger UI's endpoint copy component plug point", () => {
+        const plugin = endpointCopyFeedbackPlugin();
+
+        expect(Object.keys(plugin.wrapComponents)).toEqual(['CopyToClipboardBtn']);
+        expect(plugin.wrapComponents.CopyToClipboardBtn()).toBe(EndpointCopyButton);
+    });
+});
