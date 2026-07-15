@@ -357,7 +357,7 @@ describe('batchRelations', function () {
     });
 
     it('validates relation batch requests', function (): void {
-    $user = User::factory()->create();
+   $user = User::factory()->create(['role' => 'admin']);
 
     $this->actingAs($user)
         ->postJson('/assistance/relations/batch/accept', [
@@ -375,7 +375,7 @@ describe('batchRelations', function () {
     });
 
     it('rejects relation batch requests when a selected suggestion no longer exists', function (): void {
-    $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
 
     $this->actingAs($user)
         ->postJson('/assistance/relations/batch/accept', [
