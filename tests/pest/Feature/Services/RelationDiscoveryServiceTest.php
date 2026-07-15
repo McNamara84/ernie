@@ -375,4 +375,106 @@ describe('RelationDiscoveryService', function (): void {
             ->and($suggestions)->toHaveCount(2)
             ->and($suggestions->pluck('source_type')->all())->toBe([null, null]);
     });
+
+    it('keeps an existing related resource type from DataCite Event Data without calling CitationLookupService', function (): void {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/source.2026.004',
+        ]);
+
+        $relatedDoi = '10.5880/related.2026.004';
+
+        $scholExplorerService = Mockery::mock(ScholExplorerService::class);
+        $scholExplorerService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([]);
+
+        $dataCiteEventDataService = Mockery::mock(DataCiteEventDataService::class);
+        $dataCiteEventDataService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([
+                [
+                    'identifier' => $relatedDoi,
+                    'identifier_type' => 'DOI',
+                    'relation_type' => 'Cites',
+                    'source_title' => null,
+                    'source_type' => 'Dataset',
+                    'source_publisher' => null,
+                    'source_publication_date' => null,
+                ],
+            ]);
+
+        $citationLookupService = Mockery::mock(CitationLookupService::class);
+        $citationLookupService->shouldNotReceive('lookup');
+
+        app()->instance(ScholExplorerService::class, $scholExplorerService);
+        app()->instance(DataCiteEventDataService::class, $dataCiteEventDataService);
+        app()->instance(CitationLookupService::class, $citationLookupService);
+        app()->instance(DataCiteSyncService::class, Mockery::mock(DataCiteSyncService::class));
+        app()->instance(RelatedIdentifierCitationLabelService::class, Mockery::mock(RelatedIdentifierCitationLabelService::class));
+
+        app(RelationDiscoveryService::class)->discoverAll();
+
+        $suggestion = SuggestedRelation::query()->first();
+
+        expect(SuggestedRelation::query()->count())->toBe(1)
+            ->and($suggestion)->not->toBeNull()
+            ->and($suggestion?->source_type)->toBe('Dataset');
+    });
+
+    it('keeps the related resource type empty when CitationLookupService returns an invalid related item type', function (mixed $relatedItemType): void {
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/source.2026.005',
+        ]);
+
+        $relatedDoi = '10.5880/related.2026.005';
+
+        $scholExplorerService = Mockery::mock(ScholExplorerService::class);
+        $scholExplorerService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([]);
+
+        $dataCiteEventDataService = Mockery::mock(DataCiteEventDataService::class);
+        $dataCiteEventDataService->shouldReceive('findRelationsForDoi')
+            ->once()
+            ->with($resource->doi)
+            ->andReturn([
+                [
+                    'identifier' => $relatedDoi,
+                    'identifier_type' => 'DOI',
+                    'relation_type' => 'Cites',
+                    'source_title' => null,
+                    'source_type' => null,
+                    'source_publisher' => null,
+                    'source_publication_date' => null,
+                ],
+            ]);
+
+        $citationLookupService = Mockery::mock(CitationLookupService::class);
+        $citationLookupService->shouldReceive('lookup')
+            ->once()
+            ->with($relatedDoi)
+            ->andReturn(CitationLookupResult::hit('datacite', [
+                'relatedItemType' => $relatedItemType,
+            ]));
+
+        app()->instance(ScholExplorerService::class, $scholExplorerService);
+        app()->instance(DataCiteEventDataService::class, $dataCiteEventDataService);
+        app()->instance(CitationLookupService::class, $citationLookupService);
+        app()->instance(DataCiteSyncService::class, Mockery::mock(DataCiteSyncService::class));
+        app()->instance(RelatedIdentifierCitationLabelService::class, Mockery::mock(RelatedIdentifierCitationLabelService::class));
+
+        app(RelationDiscoveryService::class)->discoverAll();
+
+        $suggestion = SuggestedRelation::query()->first();
+
+        expect(SuggestedRelation::query()->count())->toBe(1)
+            ->and($suggestion)->not->toBeNull()
+            ->and($suggestion?->source_type)->toBeNull();
+    })->with([
+        'non-string related item type' => [123],
+        'whitespace-only related item type' => ['   '],
+    ]);
 });

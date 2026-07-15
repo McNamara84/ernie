@@ -692,6 +692,23 @@ describe('RelationSuggestionCard - resource type', () => {
         expect(badge).toHaveAttribute('data-slot', 'badge');
         expect(badge).toHaveAttribute('data-variant', 'outline');
     });
+
+    it('does not render a resource type badge when the relation suggestion has no source type', () => {
+        const suggestion = makeRelationSuggestion({ source_type: null });
+
+        const { container } = render(
+            <AssistancePage
+                sections={{ [RELATION_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(RELATION_ASSISTANT_ID, RELATION_ROUTE_PREFIX, RELATION_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const outlineBadges = container.querySelectorAll('[data-slot="badge"][data-variant="outline"]');
+
+        expect(screen.queryByText('Dataset')).not.toBeInTheDocument();
+        expect(outlineBadges).toHaveLength(1);
+        expect(outlineBadges[0]).toHaveTextContent('Cites');
+    });
 });
 
 describe('OrcidSuggestionCard – ORCID link', () => {
