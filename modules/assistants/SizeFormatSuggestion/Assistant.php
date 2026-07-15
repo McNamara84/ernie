@@ -66,12 +66,4 @@ final class Assistant extends GenericTableAssistant
     {
         return $this->acceptanceService->accept($suggestion);
     }
-
-public function loadSuggestions($paginator): \Illuminate\Pagination\LengthAwarePaginator
-    {
-        $transformer = new \Modules\Assistants\SizeFormatSuggestion\SizeFormatDataTransformer();
-        
-        return $transformer->transformCollection($paginator);
-    }
-
-    }
+}
