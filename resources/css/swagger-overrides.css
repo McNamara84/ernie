@@ -1,0 +1,17 @@
+.swagger-ui .opblock .opblock-summary .view-line-link.copy-to-clipboard:focus-within {
+    width: 24px;
+    margin: 0 5px;
+}
+
+.swagger-ui .opblock .opblock-summary .view-line-link.copy-to-clipboard button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: none;
+}
+
+.swagger-ui .opblock .opblock-summary .view-line-link.copy-to-clipboard button:focus-visible {
+    border-radius: 2px;
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}

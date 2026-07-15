@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, Plus,RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -101,7 +101,7 @@ function SuggestionCard({
     const checkboxId = `relation-suggestion-${suggestion.id}`;
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start gap-4">
                 <Checkbox
                     id={checkboxId}
@@ -151,7 +151,7 @@ function OrcidSuggestionCard({
     const candidateName = [suggestion.candidate_first_name, suggestion.candidate_last_name].filter(Boolean).join(' ');
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -192,7 +192,7 @@ function OrcidSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -286,7 +286,7 @@ function SpdxRightsSuggestionCard({
     const percent = suggestion.similarity_score !== null ? Math.round(suggestion.similarity_score * 100) : null;
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -329,7 +329,7 @@ function SpdxRightsSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -358,7 +358,7 @@ function RorSuggestionCard({
     const percent = Math.round(suggestion.similarity_score * 100);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -416,7 +416,7 @@ function RorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -579,7 +579,7 @@ function SubjectMetadataEnrichmentCard({
     const updateFields = subjectUpdateFields(proposed?.updates);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -659,7 +659,7 @@ function SubjectMetadataEnrichmentCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -746,7 +746,7 @@ function CrossrefFunderRorSuggestionCard({
     const ambiguityStatus = metadataText(ambiguity?.status);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -832,7 +832,7 @@ function CrossrefFunderRorSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
@@ -983,13 +983,7 @@ function SizeFormatSuggestionCard({
     const filename = typeof evidence?.filename === 'string' ? evidence.filename : null;
 
     return (
-        <div
-            className={
-                isZip
-                    ? 'rounded-lg border-2 border-orange-500 bg-orange-50 p-4 shadow-sm transition-all hover:shadow-md dark:bg-orange-950/20'
-                    : 'rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md'
-            }
-        >
+        <div className={isZip ? 'border-l-4 border-orange-500 bg-orange-50 p-2 sm:p-3 dark:bg-orange-950/20' : 'bg-card p-2 sm:p-3'}>
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1031,7 +1025,7 @@ function SizeFormatSuggestionCard({
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         Decline
@@ -1073,13 +1067,15 @@ function DateTypeSuggestionCard({
     const isAmbiguous = metadata?.is_ambiguous === true || isHint || confidence === 'low';
     const evidenceUrl = typeof metadata?.evidence_url === 'string' ? metadata.evidence_url : null;
     const hintLabel = String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType hint').replace(/^Hint:\s*/i, '');
-    const displayLabel = isHint ? hintLabel : suggestionKind === 'correction'
-        ? String(suggestion.suggested_label ?? 'DateType correction')
-        : dateTypeDisplayLabel(
-              targetDateType,
-              String(suggestion.suggested_value ?? ''),
-              String(suggestion.suggested_label ?? 'DateType suggestion'),
-          );
+    const displayLabel = isHint
+        ? hintLabel
+        : suggestionKind === 'correction'
+          ? String(suggestion.suggested_label ?? 'DateType correction')
+          : dateTypeDisplayLabel(
+                targetDateType,
+                String(suggestion.suggested_value ?? ''),
+                String(suggestion.suggested_label ?? 'DateType suggestion'),
+            );
 
     return (
         <div
@@ -1092,22 +1088,22 @@ function DateTypeSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                            {isHint ? (
-                                <Badge className="bg-orange-600 text-white">
-                                    <AlertTriangle className="mr-1 h-3 w-3" />
-                                    Hint
-                                </Badge>
-                            ) : suggestionKind === 'correction' ? (
-                                <Badge className="bg-black text-white">
-                                    <RefreshCw className="mr-1 h-3 w-3" />
-                                    Correction
-                                </Badge>
-                            ) : (
-                                <Badge className="bg-black text-white">
-                                    <Plus className="mr-1 h-3 w-3" />
-                                    Addition
-                                </Badge>
-                            )}
+                        {isHint ? (
+                            <Badge className="bg-orange-600 text-white">
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Hint
+                            </Badge>
+                        ) : suggestionKind === 'correction' ? (
+                            <Badge className="bg-black text-white">
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Correction
+                            </Badge>
+                        ) : (
+                            <Badge className="bg-black text-white">
+                                <Plus className="mr-1 h-3 w-3" />
+                                Addition
+                            </Badge>
+                        )}
 
                         {targetDateType && (
                             <Badge variant="secondary" className="text-xs">
@@ -1115,16 +1111,10 @@ function DateTypeSuggestionCard({
                             </Badge>
                         )}
 
-                        {confidence && (
-                            <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>
-                                {confidenceLabel(confidence)}
-                            </Badge>
-                        )}
+                        {confidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{confidenceLabel(confidence)}</Badge>}
 
                         {isAmbiguous && (
-                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">
-                                Manual review
-                            </Badge>
+                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">Manual review</Badge>
                         )}
 
                         {collectedDatesCount !== null && geoLocationsCount !== null && (
@@ -1134,9 +1124,7 @@ function DateTypeSuggestionCard({
                         )}
                     </div>
 
-                    <p className="text-sm font-medium">
-                        {displayLabel}
-                    </p>
+                    <p className="text-sm font-medium">{displayLabel}</p>
 
                     {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
                     {(sourceUrl || evidenceUrl || schemaOrgField) && (
@@ -1156,11 +1144,10 @@ function DateTypeSuggestionCard({
                     )}
                     <p className="text-xs text-muted-foreground">
                         Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
-
                     </p>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>
                         <X className="mr-1 h-4 w-4" />
                         {isHint ? 'Dismiss' : 'Decline'}
@@ -1177,8 +1164,7 @@ function DateTypeSuggestionCard({
         </div>
     );
 }
-function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string,): string 
-{
+function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string): string {
     if (typeof targetType !== 'string') {
         return fallbackLabel;
     }
@@ -1228,7 +1214,7 @@ function DescriptionSegmentationSuggestionCard({
     const preconditions = metadataList(metadata?.acceptance?.preconditions);
 
     return (
-        <div className="rounded-lg border bg-card p-4 shadow-sm transition-all hover:shadow-md">
+        <div className="bg-card p-2 sm:p-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1313,12 +1299,12 @@ function DescriptionSegmentationSuggestionCard({
                     </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2 self-start">
+                <div hidden className="suggestion-card-actions flex shrink-0 gap-2 self-start">
                     <Button
                         variant="outline"
                         size="sm"
                         disabled={isProcessing}
-                        data-testid={`description-segmentation-decline-${suggestion.id}`}
+                        data-original-testid={`description-segmentation-decline-${suggestion.id}`}
                         onClick={() => onDecline(suggestion.id)}
                     >
                         <X className="mr-1 h-4 w-4" />
@@ -1327,7 +1313,7 @@ function DescriptionSegmentationSuggestionCard({
                     <Button
                         size="sm"
                         disabled={isProcessing}
-                        data-testid={`description-segmentation-accept-${suggestion.id}`}
+                        data-original-testid={`description-segmentation-accept-${suggestion.id}`}
                         onClick={() => onAccept(suggestion.id)}
                     >
                         <Check className="mr-1 h-4 w-4" />
@@ -1344,7 +1330,7 @@ interface SectionState {
     processingIds: Set<number>;
 }
 
-function useSectionState(manifests: AssistantManifest[]){
+function useSectionState(manifests: AssistantManifest[]) {
     const defaultState = (): SectionState => ({ isChecking: false, progress: '', processingIds: new Set() });
 
     const [states, setStates] = useState<Record<string, SectionState>>(() => {
@@ -1391,13 +1377,13 @@ function useSectionState(manifests: AssistantManifest[]){
     }, []);
 
     const addProcessingIds = useCallback((sectionId: string, suggestionIds: number[]) => {
-    setStates((prev) => {
-        const current = prev[sectionId] ?? defaultState();
-        const next = new Set(current.processingIds);
-        suggestionIds.forEach((suggestionId) => next.add(suggestionId));
-        return { ...prev, [sectionId]: { ...current, processingIds: next } };
-    });
-}, []);
+        setStates((prev) => {
+            const current = prev[sectionId] ?? defaultState();
+            const next = new Set(current.processingIds);
+            suggestionIds.forEach((suggestionId) => next.add(suggestionId));
+            return { ...prev, [sectionId]: { ...current, processingIds: next } };
+        });
+    }, []);
 
     const removeProcessingId = useCallback((sectionId: string, suggestionId: number) => {
         setStates((prev) => {
@@ -1409,13 +1395,13 @@ function useSectionState(manifests: AssistantManifest[]){
     }, []);
 
     const removeProcessingIds = useCallback((sectionId: string, suggestionIds: number[]) => {
-    setStates((prev) => {
-        const current = prev[sectionId] ?? defaultState();
-        const next = new Set(current.processingIds);
-        suggestionIds.forEach((suggestionId) => next.delete(suggestionId));
-        return { ...prev, [sectionId]: { ...current, processingIds: next } };
-    });
-}, []);
+        setStates((prev) => {
+            const current = prev[sectionId] ?? defaultState();
+            const next = new Set(current.processingIds);
+            suggestionIds.forEach((suggestionId) => next.delete(suggestionId));
+            return { ...prev, [sectionId]: { ...current, processingIds: next } };
+        });
+    }, []);
 
     // Cleanup all polling on unmount
     useEffect(() => {
@@ -1443,32 +1429,35 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
         router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
     }, []);
     const handleRelationSuggestionSelected = useCallback((resourceId: number, suggestionId: number, selected: boolean) => {
-    setSelectedRelationSuggestions((prev) => {
-        const nextForResource = new Set(prev[resourceId] ?? []);
+        setSelectedRelationSuggestions((prev) => {
+            const nextForResource = new Set(prev[resourceId] ?? []);
 
-        if (selected) {
-            nextForResource.add(suggestionId);
-        } else {
-            nextForResource.delete(suggestionId);
-        }
+            if (selected) {
+                nextForResource.add(suggestionId);
+            } else {
+                nextForResource.delete(suggestionId);
+            }
 
-        const next = { ...prev };
-        delete next[resourceId];
+            const next = { ...prev };
 
-return next;
+            if (nextForResource.size === 0) {
+                delete next[resourceId];
+            } else {
+                next[resourceId] = nextForResource;
+            }
 
-        return { ...prev, [resourceId]: nextForResource };
-    });
-}, []);
+            return next;
+        });
+    }, []);
 
-const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
-    setSelectedRelationSuggestions((prev) => {
-        const next = { ...prev };
-        delete next[resourceId];
+    const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
+        setSelectedRelationSuggestions((prev) => {
+            const next = { ...prev };
+            delete next[resourceId];
 
-        return next;
-    });
-}, []);
+            return next;
+        });
+    }, []);
 
     // ── Polling logic ────────────────────────────────────────────────
 
@@ -1644,7 +1633,6 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
 
         setIsAcceptingRorBulkMatch(true);
 
-
         try {
             const { data } = await axios.post<BulkRorAffiliationAcceptResponse>('/assistance/rors/bulk-affiliation-accept', {
                 bulk_token: pendingRorBulkMatch.bulk_token,
@@ -1700,66 +1688,91 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
     const handleRelationBatch = useCallback(
-    async (manifest: AssistantManifest, resourceId: number, action: 'accept' | 'decline') => {
-        const suggestionIds = Array.from(selectedRelationSuggestions[resourceId] ?? []);
+        async (manifest: AssistantManifest, resourceId: number, action: 'accept' | 'decline') => {
+            const suggestionIds = Array.from(selectedRelationSuggestions[resourceId] ?? []);
 
-        if (suggestionIds.length === 0) {
-            toast.warning('Select at least one relation suggestion first.');
-            return;
-        }
-
-        addProcessingIds(manifest.id, suggestionIds);
-
-        try {
-            const { data } = await axios.post<BatchRelationSuggestionsResponse>(`/assistance/${manifest.routePrefix}/batch/${action}`, {
-                suggestion_ids: suggestionIds,
-            });
-
-            if (data.success) {
-               if (action === 'accept') {
-                 toast.success(data.message);
-            } else {
-                toast.info(data.message);
-            }
-            } else {
-                toast.warning(data.message);
+            if (suggestionIds.length === 0) {
+                toast.warning('Select at least one relation suggestion first.');
+                return;
             }
 
-            clearSelectedRelationSuggestions(resourceId);
-            reloadAssistanceSections();
-        } catch (error) {
-            if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
-                toast.warning(error.response.data.message);
-            } else {
-                toast.error(action === 'accept' ? 'Failed to accept relation suggestions.' : 'Failed to decline relation suggestions.');
+            addProcessingIds(manifest.id, suggestionIds);
+
+            try {
+                const { data } = await axios.post<BatchRelationSuggestionsResponse>(`/assistance/${manifest.routePrefix}/batch/${action}`, {
+                    suggestion_ids: suggestionIds,
+                });
+
+                if (data.success) {
+                    if (action === 'accept') {
+                        toast.success(data.message);
+                    } else {
+                        toast.info(data.message);
+                    }
+                } else {
+                    toast.warning(data.message);
+                }
+
+                clearSelectedRelationSuggestions(resourceId);
+                reloadAssistanceSections();
+            } catch (error) {
+                if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
+                    toast.warning(error.response.data.message);
+                } else {
+                    toast.error(action === 'accept' ? 'Failed to accept relation suggestions.' : 'Failed to decline relation suggestions.');
+                }
+            } finally {
+                removeProcessingIds(manifest.id, suggestionIds);
             }
-        } finally {
-            removeProcessingIds(manifest.id, suggestionIds);
-        }
-    },
-    [
-       addProcessingIds,
-        clearSelectedRelationSuggestions,
-        reloadAssistanceSections,
-        removeProcessingIds,
-        selectedRelationSuggestions,
-    ],
-);
+        },
+        [addProcessingIds, clearSelectedRelationSuggestions, reloadAssistanceSections, removeProcessingIds, selectedRelationSuggestions],
+    );
 
     // ── Render helpers ───────────────────────────────────────────────
 
-    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean, resourceId: number) {        
+    function renderSuggestionActions(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
+        const isDateTypeHint = manifest.id === 'date-type-suggestion' && isRecord(item.metadata) && item.metadata.suggestion_kind === 'hint';
+        const descriptionSegmentationTestId = manifest.id === 'description-segmentation' ? 'description-segmentation' : null;
+
+        return (
+            <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isProcessing}
+                    data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-decline-${item.id}` : undefined}
+                    onClick={() => handleDecline(manifest, item.id)}
+                >
+                    <X className="mr-1 h-4 w-4" />
+                    {isDateTypeHint ? 'Dismiss' : 'Decline'}
+                </Button>
+                {!isDateTypeHint && (
+                    <Button
+                        size="sm"
+                        disabled={isProcessing}
+                        data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-accept-${item.id}` : undefined}
+                        onClick={() => handleAccept(manifest, item.id)}
+                    >
+                        <Check className="mr-1 h-4 w-4" />
+                        Accept
+                    </Button>
+                )}
+            </div>
+        );
+    }
+
+    function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean, resourceId: number = item.resource_id) {
         const onAccept = (id: number) => handleAccept(manifest, id);
         const onDecline = (id: number) => handleDecline(manifest, id);
 
         switch (manifest.id) {
             case 'relation-suggestion':
                 return (
-                   <SuggestionCard
-                      suggestion={item as unknown as SuggestedRelationItem}
-                     isSelected={selectedRelationSuggestions[resourceId]?.has(item.id as number) ?? false}
-                     onSelectedChange={(id, selected) => handleRelationSuggestionSelected(resourceId, id, selected)}
-                     isProcessing={isProcessing}
+                    <SuggestionCard
+                        suggestion={item as unknown as SuggestedRelationItem}
+                        isSelected={selectedRelationSuggestions[resourceId]?.has(item.id as number) ?? false}
+                        onSelectedChange={(id, selected) => handleRelationSuggestionSelected(resourceId, id, selected)}
+                        isProcessing={isProcessing}
                     />
                 );
             case 'orcid-suggestion':
@@ -1782,15 +1795,8 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
                 );
             case 'size-format-suggestion':
                 return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
-                case 'date-type-suggestion':
-                return (
-                    <DateTypeSuggestionCard
-                        suggestion={item}
-                        onAccept={onAccept}
-                        onDecline={onDecline}
-                        isProcessing={isProcessing}
-                    />
-                );
+            case 'date-type-suggestion':
+                return <DateTypeSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
             case 'description-segmentation':
                 return (
                     <DescriptionSegmentationSuggestionCard
@@ -1827,10 +1833,10 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
                         isProcessing={isProcessing}
                     />
                 );
-            default: 
+            default:
                 // Generic card for future student modules
                 return (
-                    <div className="rounded-lg border bg-card p-4 shadow-sm">
+                    <div className="bg-card p-2 sm:p-3">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1 space-y-1">
                                 <p className="text-sm font-medium">{String(item.suggested_label ?? item.suggested_value ?? 'Suggestion')}</p>
@@ -1838,7 +1844,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
                                     Discovered: {item.discovered_at ? new Date(item.discovered_at).toLocaleDateString() : '—'}
                                 </p>
                             </div>
-                            <div className="flex shrink-0 gap-2">
+                            <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                                 <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(item.id)}>
                                     <X className="mr-1 h-4 w-4" />
                                     Decline
@@ -1928,92 +1934,128 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
 
                     return (
                         <Card key={manifest.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                                <div className="space-y-1.5">
-                                    <CardTitle>{manifest.name}</CardTitle>
+                            <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0 space-y-1.5">
+                                    <CardTitle className="break-words">{manifest.name}</CardTitle>
                                     <CardDescription>
                                         {sectionData.total > 0
                                             ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
                                             : manifest.emptyState.description}
                                     </CardDescription>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => handleCheck(manifest)} disabled={state?.isChecking ?? false}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="min-h-8 max-w-full self-start text-left whitespace-normal sm:self-auto"
+                                    onClick={() => handleCheck(manifest)}
+                                    disabled={state?.isChecking ?? false}
+                                >
                                     {state?.isChecking ? (
                                         <>
                                             <Spinner size="sm" className="mr-2" />
-                                            Checking...
+                                            Checking {manifest.name}...
                                         </>
                                     ) : (
                                         <>
                                             <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check
+                                            Check {manifest.name}
                                         </>
                                     )}
                                 </Button>
                             </CardHeader>
                             <CardContent>
                                 {Object.keys(grouped).length > 0 ? (
-                                    <div className="space-y-6">
+                                    <div className="space-y-4">
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
                                             const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
                                             const resourceTitle = group.title === '' ? 'Untitled' : group.title;
                                             const selectedRelationIds = Array.from(selectedRelationSuggestions[group.resourceId] ?? []);
                                             const isRelationGroup = manifest.id === 'relation-suggestion';
-                                            const isRelationGroupProcessing =  isRelationGroup &&  group.items.some((item) => state?.processingIds.has(item.id as number) ?? false);
+                                            const isRelationGroupProcessing =
+                                                isRelationGroup && group.items.some((item) => state?.processingIds.has(item.id as number) ?? false);
 
                                             return (
-                                                <div key={resourceKey} className="space-y-3">
-                                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                                <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-                                                    <Link
-                                                        href={resourceEditorUrl(group.resourceId)}
-                                                        className="font-mono text-sm font-semibold break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                                        title={`Open ${resourceLabel} in editor`}
-                                                    >
-                                                        {resourceLabel}
-                                                    </Link>
-                                                    <span className="text-sm text-muted-foreground">— {resourceTitle}</span>
-                                                </div>
-                                                <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
-                                                    <Badge variant="secondary" className="text-xs">
-                                                        {group.items.length} suggestion(s)
-                                                    </Badge>
-                                                    {isRelationGroup && (
-                                                        <>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                disabled={isRelationGroupProcessing || selectedRelationIds.length === 0}
-                                                                onClick={() => handleRelationBatch(manifest, group.resourceId, 'decline')}
-                                                            >
-                                                                <X className="mr-1 h-4 w-4" />
-                                                                Decline
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                disabled={isRelationGroupProcessing || selectedRelationIds.length === 0}
-                                                                onClick={() => handleRelationBatch(manifest, group.resourceId, 'accept')}
-                                                            >
-                                                                <Check className="mr-1 h-4 w-4" />
-                                                                Accept
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                                    <div className="space-y-2 pl-4">
-                                                        {group.items.map((item) => (
-                                                            <div key={item.id as number}>
-                                                                {renderCard(
-                                                                    manifest,
-                                                                    item,
-                                                                    state?.processingIds.has(item.id as number) ?? false,
-                                                                    group.resourceId,
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                                <Card key={resourceKey} data-testid={`resource-card-${manifest.id}-${group.resourceId}`}>
+                                                    <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
+                                                        <div className="min-w-0 space-y-1">
+                                                            <CardTitle className="text-base">
+                                                                <Link
+                                                                    href={resourceEditorUrl(group.resourceId)}
+                                                                    className="font-mono break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                                    title={`Open ${resourceLabel} in editor`}
+                                                                >
+                                                                    {resourceLabel}
+                                                                </Link>
+                                                            </CardTitle>
+                                                            <CardDescription>{resourceTitle}</CardDescription>
+                                                        </div>
+                                                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                                            <Badge variant="secondary" className="shrink-0 text-xs">
+                                                                {group.items.length} suggestion(s)
+                                                            </Badge>
+
+                                                            {isRelationGroup && (
+                                                                <>
+                                                                    <Button
+                                                                        variant="outline"
+
+                                                                        size="sm"
+
+                                                                        disabled={isRelationGroupProcessing || selectedRelationIds.length === 0}
+
+                                                                        onClick={() => handleRelationBatch(manifest, group.resourceId, 'decline')}
+                                                                    >
+                                                                        <X className="mr-1 h-4 w-4" />
+                                                                        Decline
+                                                                    </Button>
+
+                                                                    <Button
+                                                                        size="sm"
+
+                                                                        disabled={isRelationGroupProcessing || selectedRelationIds.length === 0}
+
+                                                                        onClick={() => handleRelationBatch(manifest, group.resourceId, 'accept')}
+                                                                    >
+                                                                        <Check className="mr-1 h-4 w-4" />
+                                                                        Accept
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardContent className="p-0">
+                                                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
+                                                            <span>Suggestion</span>
+                                                            <span>Actions</span>
+                                                        </div>
+                                                        <ul
+                                                            aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
+                                                            className="divide-y"
+                                                        >
+                                                            {group.items.map((item) => (
+                                                                <li
+                                                                    key={item.id as number}
+                                                                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-2 sm:p-3"
+                                                                >
+                                                                    <div className="min-w-0 [&_.suggestion-card-actions]:hidden">
+                                                                        {renderCard(
+                                                                            manifest,
+                                                                            item,
+                                                                            state?.processingIds.has(item.id as number) ?? false,
+                                                                            group.resourceId,
+                                                                        )}
+                                                                    </div>
+                                                                    {!isRelationGroup &&
+                                                                        renderSuggestionActions(
+                                                                            manifest,
+                                                                            item,
+                                                                            state?.processingIds.has(item.id as number) ?? false,
+                                                                        )}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </CardContent>
+                                                </Card>
                                             );
                                         })}
                                     </div>
@@ -2056,7 +2098,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
                     if (!open) handleDeclineRorBulkMatch();
                 }}
             >
-                <DialogContent showCloseButton={!setIsPendingRorBulkMatch}>
+                <DialogContent showCloseButton={!isAcceptingRorBulkMatch}>
                     <DialogHeader>
                         <DialogTitle>Accept matching ROR suggestions?</DialogTitle>
                         <DialogDescription>{rorBulkMatchDialogDescription(pendingRorBulkMatch?.count ?? 0)}</DialogDescription>

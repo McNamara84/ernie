@@ -118,6 +118,13 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         const [previewPage] = await Promise.all([context.waitForEvent('page'), previewButton.click()]);
 
         await previewPage.waitForLoadState('domcontentloaded');
+        await expect
+            .poll(() => previewPage.url(), {
+                timeout: 15000,
+                message: 'Preview page should navigate away from about:blank',
+            })
+            .not.toBe('about:blank');
+
         // Verify the preview URL format.
         // Depending on environment/config, the preview can open either:
         // - the internal preview route: /resources/{id}/landing-page/preview

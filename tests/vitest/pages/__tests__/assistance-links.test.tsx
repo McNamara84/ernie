@@ -12,6 +12,7 @@ import type {
     SuggestedCrossrefFunderRorItem,
     SuggestedDescriptionSegmentationItem,
     SuggestedOrcidItem,
+    SuggestedRelationItem,
     SuggestedRorItem,
     SuggestedSpdxRightsItem,
     SuggestedSubjectMetadataEnrichmentItem,
@@ -61,6 +62,9 @@ import AssistancePage from '@/pages/assistance';
 
 // ── Fixtures ─────────────────────────────────────────────────────────
 
+const RELATION_ASSISTANT_ID = 'relation-suggestion';
+const RELATION_ROUTE_PREFIX = 'relations';
+const RELATION_ASSISTANT_NAME = 'Suggested Relations';
 const SPDX_ASSISTANT_ID = 'spdx-license-suggestion';
 const SPDX_ROUTE_PREFIX = 'spdx-rights';
 const SPDX_ASSISTANT_NAME = 'SPDX Rights Suggestions';
@@ -87,6 +91,27 @@ beforeEach(() => {
     mockedRouterReload.mockReset();
     mockedToastWarning.mockReset();
 });
+
+function makeRelationSuggestion(overrides: Partial<SuggestedRelationItem> = {}): SuggestedRelationItem {
+    return {
+        id: 11,
+        resource_id: 110,
+        resource_doi: '10.5880/test.2026.110',
+        resource_title: 'Relation suggestion example resource',
+        identifier: '10.5880/related.2026.001',
+        identifier_type: 'DOI',
+        identifier_type_name: 'DOI',
+        relation_type: 'References',
+        relation_type_name: 'References',
+        source: 'scholexplorer',
+        source_title: 'Related example resource',
+        source_type: 'Dataset',
+        source_publisher: 'GFZ',
+        source_publication_date: '2026',
+        discovered_at: '2026-07-05T10:00:00+00:00',
+        ...overrides,
+    };
+}
 
 function makeOrcidSuggestion(overrides: Partial<SuggestedOrcidItem> = {}): SuggestedOrcidItem {
     return {
@@ -481,6 +506,64 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe('Assistance resource header links', () => {
+    it('enables relation batch actions after selecting a relation suggestion', async () => {
+        const user = userEvent.setup();
+        const suggestion = makeRelationSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [RELATION_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(RELATION_ASSISTANT_ID, RELATION_ROUTE_PREFIX, RELATION_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const acceptButton = screen.getByRole('button', { name: 'Accept' });
+        const declineButton = screen.getByRole('button', { name: 'Decline' });
+
+        expect(acceptButton).toBeDisabled();
+        expect(declineButton).toBeDisabled();
+
+        await user.click(screen.getByRole('checkbox', { name: /select relation suggestion/i }));
+
+        expect(acceptButton).toBeEnabled();
+        expect(declineButton).toBeEnabled();
+    });
+
+    it('delineates each resource in a card with a compact suggestion list', () => {
+        const suggestions = [
+            makeSizeFormatSuggestion({ id: 41, resource_id: 41, resource_doi: '10.5880/test.2026.041' }),
+            makeSizeFormatSuggestion({ id: 42, resource_id: 42, resource_doi: '10.5880/test.2026.042' }),
+        ];
+
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated(suggestions) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByTestId(`resource-card-${SIZE_FORMAT_ASSISTANT_ID}-41`)).toBeInTheDocument();
+        expect(screen.getByTestId(`resource-card-${SIZE_FORMAT_ASSISTANT_ID}-42`)).toBeInTheDocument();
+        expect(screen.getAllByRole('list', { name: /Suggestions from Size and Format Suggestions/ })).toHaveLength(2);
+        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        expect(screen.queryByRole('table')).not.toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Suggestion' })).not.toBeInTheDocument();
+        expect(screen.getAllByText('Suggestion')).toHaveLength(2);
+        expect(screen.getAllByText('Actions')).toHaveLength(2);
+    });
+
+    it('names the assistant on its check button', () => {
+        render(
+            <AssistancePage
+                sections={{ [SIZE_FORMAT_ASSISTANT_ID]: paginated([]) }}
+                manifests={[makeManifest(SIZE_FORMAT_ASSISTANT_ID, SIZE_FORMAT_ROUTE_PREFIX, SIZE_FORMAT_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: `Check ${SIZE_FORMAT_ASSISTANT_NAME}` })).toHaveTextContent(`Check ${SIZE_FORMAT_ASSISTANT_NAME}`);
+    });
+
     it('renders the resource DOI as a visible editor link', () => {
         const suggestion = makeSizeFormatSuggestion();
 
@@ -1765,6 +1848,55 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
         });
     });
 });
+describe('Generic fallback suggestion card', () => {
+    it('shows suggested_label when present', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: 'Custom label',
+            suggested_value: 'custom-value',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('Custom label')).toBeInTheDocument();
+    });
+
+    it('falls back to suggested_value when suggested_label is missing', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: undefined,
+            suggested_value: 'fallback-value',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('fallback-value')).toBeInTheDocument();
+    });
+
+    it('falls back to "Suggestion" when both label and value are missing', () => {
+        const suggestion = makeSizeFormatSuggestion({
+            suggested_label: undefined,
+            suggested_value: undefined,
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'future-module': paginated([suggestion]) }}
+                manifests={[makeManifest('future-module', 'future-module', 'Future Module')]}
+            />,
+        );
+
+        expect(screen.getByText('Suggestion', { selector: 'p' })).toBeInTheDocument();
+    });
+});
 
 describe('DateTypeSuggestionCard - DateType preview', () => {
     it('renders review hints with dismiss action only', () => {
@@ -1789,9 +1921,11 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('Manual review')).toBeInTheDocument();
         expect(screen.getByText('Medium confidence')).toBeInTheDocument();
 
-        expect(screen.getByText(
-            'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
-        )).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Created (2023-02-22) occurs after Issued (2018). Please check whether the date values or date types are assigned correctly.',
+            ),
+        ).toBeInTheDocument();
 
         expect(screen.getByRole('button', { name: 'Dismiss' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Accept' })).not.toBeInTheDocument();
@@ -1824,10 +1958,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('High confidence')).toBeInTheDocument();
         expect(screen.getByText('schema.org field: datePublished')).toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute(
-            'href',
-            'https://dataservices.gfz.de/example-dataset',
-        );
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://dataservices.gfz.de/example-dataset');
 
         expect(screen.getByRole('link', { name: 'Open schema.org' })).toHaveAttribute(
             'href',
@@ -1847,7 +1978,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
                 target_date_type: 'Coverage',
                 confidence: 'medium',
                 collected_dates_count: 1,
-                source_url : 'https://doi.org/10.5880/test.001',
+                source_url: 'https://doi.org/10.5880/test.001',
                 geo_locations_count: 1,
                 evidence: 'The resource has a DOI and the same number of Collected date entries as geolocation entries.',
             },
@@ -1873,4 +2004,3 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
     });
 });
-
