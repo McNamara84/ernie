@@ -137,6 +137,7 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
             isValidPreviewUrl,
             `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`,
         ).toBeTruthy();
+
         // For semantic URLs, verify the preview token parameter is actually present
         if (!previewUrl.includes('/landing-page/preview')) {
             expect(previewUrl).toContain('?preview=');
