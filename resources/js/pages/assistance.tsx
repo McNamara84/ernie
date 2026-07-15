@@ -1701,7 +1701,7 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         },
         [addProcessingId, reloadAssistanceSections, removeProcessingId],
     );
-    const handleRelationBatch = useCallback(
+   const handleRelationBatch = useCallback(
     async (manifest: AssistantManifest, resourceId: number, action: 'accept' | 'decline') => {
         const suggestionIds = Array.from(selectedRelationSuggestions[resourceId] ?? []);
 
@@ -1711,13 +1711,18 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         }
 
         addProcessingIds(manifest.id, suggestionIds);
+
         try {
             const { data } = await axios.post<BatchRelationSuggestionsResponse>(`/assistance/${manifest.routePrefix}/batch/${action}`, {
                 suggestion_ids: suggestionIds,
             });
 
             if (data.success) {
-                action === 'accept' ? toast.success(data.message) : toast.info(data.message);
+                if (action === 'accept') {
+                    toast.success(data.message);
+                } else {
+                    toast.info(data.message);
+                }
             } else {
                 toast.warning(data.message);
             }
@@ -1740,7 +1745,6 @@ const clearSelectedRelationSuggestions = useCallback((resourceId: number) => {
         reloadAssistanceSections,
         removeProcessingIds,
         selectedRelationSuggestions,
-        isAcceptingRorBulkMatch,
     ],
 );
 
