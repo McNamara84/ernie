@@ -744,6 +744,28 @@ describe('DataCite Draft 2020-12 contract', function () {
             ]))->toBeFalse();
     });
 
+    it('does not apply the URI conditional when relatedIdentifierType is missing', function () {
+        $validator = new JsonSchemaValidator;
+        $errors = null;
+
+        expect($validator->isValid([
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+            'relatedIdentifiers' => [[
+                'relatedIdentifier' => 'not a URI',
+                'relationType' => 'References',
+            ]],
+        ], $errors))->toBeFalse();
+
+        $keywords = collect($errors)->pluck('keyword')->all();
+
+        expect($keywords)->toContain('required')
+            ->and($keywords)->not->toContain('format');
+    });
+
     it('validates the canonical DataCite polygon representation', function () {
         $base = [
             'creators' => [['name' => 'Test Author']],

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\JsonLdConversionException;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 
 beforeEach(function () {
@@ -485,4 +486,15 @@ describe('related item conversion', function () {
             'publisher' => 'Example Publisher',
         ]);
     });
+
+    it('rejects non-object related item entries with a conversion error', function (mixed $item, string $message) {
+        expect(fn () => $this->converter->convert([
+            'relatedItems' => [
+                'relatedItem' => [$item],
+            ],
+        ]))->toThrow(JsonLdConversionException::class, $message);
+    })->with([
+        'scalar entry' => ['invalid', 'Invalid JSON-LD relatedItem entry: expected an object, got string.'],
+        'null entry' => [null, 'Invalid JSON-LD relatedItem entry: expected an object, got null.'],
+    ]);
 });

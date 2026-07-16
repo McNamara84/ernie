@@ -408,7 +408,8 @@
                         "if": {
                             "properties": {
                                 "relatedIdentifierType": { "enum": ["URL", "URN"] }
-                            }
+                            },
+                            "required": ["relatedIdentifierType"]
                         },
                         "then": {
                             "properties": {

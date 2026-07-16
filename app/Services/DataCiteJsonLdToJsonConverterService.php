@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Exceptions\JsonLdConversionException;
+
 /**
  * Converts DataCite JSON-LD (Linked Data) back to standard DataCite JSON format.
  *
@@ -580,7 +582,14 @@ class DataCiteJsonLdToJsonConverterService
 
         $items = $this->unwrapSingularKey($data, 'relatedItem');
 
-        return array_values(array_map(function (array $item): array {
+        return array_values(array_map(function (mixed $item): array {
+            if (! is_array($item)) {
+                throw new JsonLdConversionException(sprintf(
+                    'Invalid JSON-LD relatedItem entry: expected an object, got %s.',
+                    get_debug_type($item),
+                ));
+            }
+
             $result = [];
             $attrs = is_array($item['attrs'] ?? null) ? $item['attrs'] : [];
             $value = is_array($item['value'] ?? null) ? $item['value'] : $item;
