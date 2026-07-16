@@ -31,14 +31,15 @@ class DataCiteLinkedDataExporter
             '@context' => config('datacite.linked_data.context_url'),
         ];
 
-        // Add @id only if DOI is present
-        if (isset($attributes['doi'])) {
-            $jsonLd['@id'] = 'https://doi.org/'.$attributes['doi'];
-        }
+        $doi = trim((string) ($attributes['doi'] ?? ''));
 
-        // Identifier
-        if (! empty($attributes['identifiers'])) {
-            $jsonLd['identifier'] = $this->transformIdentifiers($attributes['identifiers']);
+        // Add DOI-derived fields only if DOI is not blank
+        if ($doi !== '') {
+            $jsonLd['@id'] = 'https://doi.org/'.$doi;
+            $jsonLd['identifier'] = $this->transformSingleIdentifier([
+                'identifier' => $doi,
+                'identifierType' => 'DOI',
+            ]);
         }
 
         // Creators
@@ -140,24 +141,6 @@ class DataCiteLinkedDataExporter
     }
 
     /**
-     * @param  array<int, array<string, string>>  $identifiers
-     * @return array<string, mixed>
-     */
-    private function transformIdentifiers(array $identifiers): array
-    {
-        if (count($identifiers) === 1) {
-            return $this->transformSingleIdentifier($identifiers[0]);
-        }
-
-        return [
-            'identifier' => array_map(
-                fn (array $id): array => $this->transformSingleIdentifier($id),
-                $identifiers
-            ),
-        ];
-    }
-
-    /**
      * @param  array<string, string>  $identifier
      * @return array<string, mixed>
      */
@@ -241,7 +224,7 @@ class DataCiteLinkedDataExporter
         $attrs = array_filter([
             'affiliationIdentifier' => $affiliation['affiliationIdentifier'] ?? null,
             'affiliationIdentifierScheme' => $affiliation['affiliationIdentifierScheme'] ?? null,
-            'schemeURI' => $affiliation['schemeURI'] ?? null,
+            'schemeURI' => $affiliation['schemeUri'] ?? null,
         ]);
 
         $result = ['value' => $affiliation['name'] ?? ''];
@@ -444,6 +427,9 @@ class DataCiteLinkedDataExporter
             $attrs = array_filter([
                 'relatedIdentifierType' => $ri['relatedIdentifierType'] ?? null,
                 'relationType' => $ri['relationType'] ?? null,
+                'relatedMetadataScheme' => $ri['relatedMetadataScheme'] ?? null,
+                'schemeURI' => $ri['schemeUri'] ?? null,
+                'schemeType' => $ri['schemeType'] ?? null,
                 'resourceTypeGeneral' => $ri['resourceTypeGeneral'] ?? null,
                 'relationTypeInformation' => $ri['relationTypeInformation'] ?? null,
             ]);
@@ -472,10 +458,40 @@ class DataCiteLinkedDataExporter
             ]);
 
             $value = [];
-            foreach (['titles', 'creators', 'contributors', 'relatedItemIdentifier', 'publicationYear', 'volume', 'issue', 'number', 'numberType', 'firstPage', 'lastPage', 'publisher', 'edition'] as $key) {
+
+            if (! empty($ri['titles'])) {
+                $value['titles'] = $this->transformTitles($ri['titles']);
+            }
+            if (! empty($ri['creators'])) {
+                $value['creators'] = $this->transformCreators($ri['creators']);
+            }
+            if (! empty($ri['contributors'])) {
+                $value['contributors'] = $this->transformContributors($ri['contributors']);
+            }
+            if (isset($ri['relatedItemIdentifier']) && is_array($ri['relatedItemIdentifier'])) {
+                $identifier = $ri['relatedItemIdentifier'];
+                $identifierAttrs = array_filter([
+                    'relatedItemIdentifierType' => $identifier['relatedItemIdentifierType'] ?? null,
+                    'relatedMetadataScheme' => $identifier['relatedMetadataScheme'] ?? null,
+                    'schemeURI' => $identifier['schemeUri'] ?? null,
+                    'schemeType' => $identifier['schemeType'] ?? null,
+                ]);
+                $value['relatedItemIdentifier'] = [
+                    'attrs' => $identifierAttrs,
+                    'value' => $identifier['relatedItemIdentifier'] ?? '',
+                ];
+            }
+
+            foreach (['publicationYear', 'volume', 'issue', 'firstPage', 'lastPage', 'publisher', 'edition'] as $key) {
                 if (array_key_exists($key, $ri)) {
-                    $value[$key] = $ri[$key];
+                    $value[$key] = ['value' => $ri[$key]];
                 }
+            }
+            if (array_key_exists('number', $ri)) {
+                $value['number'] = [
+                    'attrs' => array_filter(['numberType' => $ri['numberType'] ?? null]),
+                    'value' => $ri['number'],
+                ];
             }
 
             $result = [];
@@ -522,10 +538,10 @@ class DataCiteLinkedDataExporter
     {
         $transformed = array_map(function (array $rights): array {
             $attrs = array_filter([
-                'rightsURI' => $rights['rightsURI'] ?? null,
+                'rightsURI' => $rights['rightsUri'] ?? null,
                 'rightsIdentifier' => $rights['rightsIdentifier'] ?? null,
                 'rightsIdentifierScheme' => $rights['rightsIdentifierScheme'] ?? null,
-                'schemeURI' => $rights['schemeURI'] ?? null,
+                'schemeURI' => $rights['schemeUri'] ?? null,
                 'lang' => $rights['lang'] ?? null,
             ]);
 
@@ -595,18 +611,29 @@ class DataCiteLinkedDataExporter
 
             if (isset($geo['geoLocationPolygon'])) {
                 $polygon = $geo['geoLocationPolygon'];
-                $points = array_map(fn (array $point): array => [
-                    'pointLongitude' => ['value' => (string) $point['pointLongitude']],
-                    'pointLatitude' => ['value' => (string) $point['pointLatitude']],
-                ], $polygon['polygonPoints']);
+                $points = [];
+                $inPolygonPoint = null;
+
+                foreach ($polygon as $entry) {
+                    if (isset($entry['polygonPoint'])) {
+                        $points[] = [
+                            'pointLongitude' => ['value' => (string) $entry['polygonPoint']['pointLongitude']],
+                            'pointLatitude' => ['value' => (string) $entry['polygonPoint']['pointLatitude']],
+                        ];
+                    }
+
+                    if (isset($entry['inPolygonPoint'])) {
+                        $inPolygonPoint = [
+                            'pointLongitude' => ['value' => (string) $entry['inPolygonPoint']['pointLongitude']],
+                            'pointLatitude' => ['value' => (string) $entry['inPolygonPoint']['pointLatitude']],
+                        ];
+                    }
+                }
 
                 $result['geoLocationPolygon'] = ['polygonPoint' => $points];
 
-                if (isset($polygon['inPolygonPoint'])) {
-                    $result['geoLocationPolygon']['inPolygonPoint'] = [
-                        'pointLongitude' => ['value' => (string) $polygon['inPolygonPoint']['pointLongitude']],
-                        'pointLatitude' => ['value' => (string) $polygon['inPolygonPoint']['pointLatitude']],
-                    ];
+                if ($inPolygonPoint !== null) {
+                    $result['geoLocationPolygon']['inPolygonPoint'] = $inPolygonPoint;
                 }
             }
 

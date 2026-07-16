@@ -193,6 +193,100 @@ describe('JSON Upload - Keyword extraction', function () {
     });
 });
 
+describe('JSON Upload - DataCite API normalization', function () {
+    test('imports an official API response after bounded normalization', function () {
+        $this->actingAs(User::factory()->create());
+
+        $attributes = minimalAttributes([
+            'publicationYear' => 2026,
+            'prefix' => '10.5880',
+            'suffix' => 'issue-424',
+            'state' => 'findable',
+            'metadataVersion' => 2,
+            'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+            'types' => [
+                'resourceTypeGeneral' => 'Dataset',
+                'resourceType' => 'Dataset',
+                'ris' => 'DATA',
+                'bibtex' => 'misc',
+                'citeproc' => 'dataset',
+                'schemaOrg' => 'Dataset',
+            ],
+            'creators' => [[
+                'name' => 'Doe, Jane',
+                'nameType' => 'Personal',
+                'affiliation' => ['GFZ Helmholtz Centre for Geosciences'],
+            ]],
+            'rightsList' => [[
+                'rights' => 'CC BY 4.0',
+                'rightsURI' => 'https://creativecommons.org/licenses/by/4.0/',
+            ]],
+            'geoLocations' => [[
+                'geoLocationPoint' => [
+                    'pointLongitude' => '13.064',
+                    'pointLatitude' => '52.379',
+                ],
+            ]],
+        ]);
+        $json = json_encode([
+            'data' => [
+                'id' => '10.5880/issue-424',
+                'type' => 'dois',
+                'attributes' => $attributes,
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->postJson('/dashboard/upload-json', [
+            'file' => UploadedFile::fake()->createWithContent('api-response.json', $json),
+        ]);
+
+        $data = getJsonUploadData($response);
+        expect($response->json('success'))->toBeTrue()
+            ->and($data['doi'])->toBe('10.5880/issue-424')
+            ->and($data['year'])->toBe('2026')
+            ->and($data['authors'][0]['affiliations'][0]['value'])->toBe('GFZ Helmholtz Centre for Geosciences')
+            ->and($data['rawRights'][0]['rightsUri'])->toBe('https://creativecommons.org/licenses/by/4.0/')
+            ->and($data['coverages'][0]['lonMin'])->toBe('13.064000')
+            ->and($data['coverages'][0]['latMin'])->toBe('52.379000');
+    });
+
+    test('retains unknown API fields for strict rejection', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'prefix' => '10.5880',
+            'unknownApiField' => 'must not be discarded',
+        ]));
+
+        $response = $this->postJson('/dashboard/upload-json', [
+            'file' => UploadedFile::fake()->createWithContent('unknown.json', $json),
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error.code', 'json_schema_validation_error');
+    });
+
+    test('rejects schemeless URI aliases without auto-prefixing them', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'rightsList' => [[
+                'rights' => 'Example license',
+                'rightsURI' => 'example.org/license',
+            ]],
+        ]));
+
+        $response = $this->postJson('/dashboard/upload-json', [
+            'file' => UploadedFile::fake()->createWithContent('invalid-uri.json', $json),
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('error.code', 'json_schema_validation_error');
+        expect(collect($response->json('errors'))->pluck('field')->all())
+            ->toContain('/rightsList/0/rightsUri');
+    });
+});
+
 describe('JSON Upload - Geo location edge cases', function () {
     test('extracts bounding box geo location', function () {
         $this->actingAs(User::factory()->create());

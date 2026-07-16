@@ -62,6 +62,7 @@ class DataCiteToResourceTransformer
         private ?RorLookupService $rorLookupService = null,
         private ?SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver = null,
         private ?RightsSectionParser $xmlRightsParser = null,
+        private ?DataCiteJsonImportNormalizerService $jsonImportNormalizer = null,
     ) {}
 
     /**
@@ -144,6 +145,7 @@ class DataCiteToResourceTransformer
     private function prepareAttributes(array $attributes): array
     {
         $attributes = $this->preferOriginalXmlRights($attributes);
+        $attributes = ($this->jsonImportNormalizer ??= new DataCiteJsonImportNormalizerService)->normalize($attributes);
 
         $relatedIdentifiers = $attributes['relatedIdentifiers'] ?? null;
 
@@ -1315,10 +1317,26 @@ class DataCiteToResourceTransformer
             $inPolygonPointLon = null;
             $inPolygonPointLat = null;
 
-            if ($polygon !== null && ! empty($polygon['polygonPoints'])) {
+            if (is_array($polygon)) {
+                $rawPolygonPoints = [];
+                foreach ($polygon as $entry) {
+                    if (! is_array($entry)) {
+                        continue;
+                    }
+
+                    if (is_array($entry['polygonPoint'] ?? null)) {
+                        $rawPolygonPoints[] = $entry['polygonPoint'];
+                    }
+
+                    if (is_array($entry['inPolygonPoint'] ?? null)) {
+                        $inPolygonPointLon = $this->normaliseCoordinate($entry['inPolygonPoint']['pointLongitude'] ?? null);
+                        $inPolygonPointLat = $this->normaliseCoordinate($entry['inPolygonPoint']['pointLatitude'] ?? null);
+                    }
+                }
+
                 // Filter out points with missing coordinates instead of coercing to 0
                 $validPoints = array_filter(
-                    $polygon['polygonPoints'],
+                    $rawPolygonPoints,
                     fn (array $p): bool => $this->normaliseCoordinate($p['pointLongitude'] ?? null) !== null
                         && $this->normaliseCoordinate($p['pointLatitude'] ?? null) !== null,
                 );
@@ -1331,10 +1349,6 @@ class DataCiteToResourceTransformer
                     ], $validPoints));
                 }
 
-                if (isset($polygon['inPolygonPoint'])) {
-                    $inPolygonPointLon = $this->normaliseCoordinate($polygon['inPolygonPoint']['pointLongitude'] ?? null);
-                    $inPolygonPointLat = $this->normaliseCoordinate($polygon['inPolygonPoint']['pointLatitude'] ?? null);
-                }
             }
 
             // Determine geo_type based on available (valid) data
@@ -1466,14 +1480,10 @@ class DataCiteToResourceTransformer
                 if (is_array($raw)) {
                     $identifier = is_string($raw['relatedItemIdentifier'] ?? null) ? $raw['relatedItemIdentifier'] : null;
                     $identifierType = is_string($raw['relatedItemIdentifierType'] ?? null) ? $raw['relatedItemIdentifierType'] : null;
-                    // Optional DataCite 4.7 metadata-scheme attributes — read
-                    // both `schemeURI` (DataCite spec casing) and `schemeUri`
-                    // (camelCase variant emitted by some clients) so the
-                    // value survives round-trips regardless of source casing.
+                    // Import normalization guarantees canonical DataCite API
+                    // casing for optional metadata-scheme attributes here.
                     $relatedMetadataScheme = is_string($raw['relatedMetadataScheme'] ?? null) ? $raw['relatedMetadataScheme'] : null;
-                    $relatedSchemeUri = is_string($raw['schemeURI'] ?? null)
-                        ? $raw['schemeURI']
-                        : (is_string($raw['schemeUri'] ?? null) ? $raw['schemeUri'] : null);
+                    $relatedSchemeUri = is_string($raw['schemeUri'] ?? null) ? $raw['schemeUri'] : null;
                     $relatedSchemeType = is_string($raw['schemeType'] ?? null) ? $raw['schemeType'] : null;
                 } elseif (is_string($raw)) {
                     $identifier = $raw;

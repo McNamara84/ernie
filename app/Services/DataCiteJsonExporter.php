@@ -10,9 +10,7 @@ use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Publisher;
 use App\Models\RelatedItemContributor;
-use App\Models\RelatedItemContributorAffiliation;
 use App\Models\RelatedItemCreator;
-use App\Models\RelatedItemCreatorAffiliation;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -73,12 +71,6 @@ class DataCiteJsonExporter
             'types' => $this->buildTypes($resource),
             'creators' => $this->buildCreators($resource),
         ];
-
-        // Add identifiers only if DOI is present (required for registration, optional for export)
-        $identifiers = $this->buildIdentifiers($resource);
-        if (! empty($identifiers)) {
-            $attributes['identifiers'] = $identifiers;
-        }
 
         // Add doi only if it has a value
         if ($resource->doi !== null) {
@@ -148,28 +140,6 @@ class DataCiteJsonExporter
         }
 
         return $attributes;
-    }
-
-    /**
-     * Build the identifiers array.
-     *
-     * Returns an empty array if DOI is not set, allowing export of draft resources.
-     * The identifiers field is only required for DataCite registration, not for preview exports.
-     *
-     * @return array<int, array<string, string>>
-     */
-    private function buildIdentifiers(Resource $resource): array
-    {
-        if (empty($resource->doi)) {
-            return [];
-        }
-
-        return [
-            [
-                'identifier' => $resource->doi,
-                'identifierType' => 'DOI',
-            ],
-        ];
     }
 
     /**
@@ -807,7 +777,7 @@ class DataCiteJsonExporter
             ];
 
             if ($rightsUri !== null && trim($rightsUri) !== '') {
-                $rightsData['rightsURI'] = $rightsUri;
+                $rightsData['rightsUri'] = $rightsUri;
             }
 
             if ($rightsIdentifier !== null && trim($rightsIdentifier) !== '') {
@@ -818,7 +788,7 @@ class DataCiteJsonExporter
                 }
 
                 if ($schemeUri !== null && trim($schemeUri) !== '') {
-                    $rightsData['schemeURI'] = $schemeUri;
+                    $rightsData['schemeUri'] = $schemeUri;
                 }
             }
 
@@ -937,6 +907,18 @@ class DataCiteJsonExporter
                 $relatedData['resourceTypeGeneral'] = $relatedIdentifier->resource_type_general;
             }
 
+            if ($relatedIdentifier->related_metadata_scheme) {
+                $relatedData['relatedMetadataScheme'] = $relatedIdentifier->related_metadata_scheme;
+            }
+
+            if ($relatedIdentifier->scheme_uri) {
+                $relatedData['schemeUri'] = $relatedIdentifier->scheme_uri;
+            }
+
+            if ($relatedIdentifier->scheme_type) {
+                $relatedData['schemeType'] = $relatedIdentifier->scheme_type;
+            }
+
             // Add relationTypeInformation if available (DataCite 4.7, property 12.g)
             if ($relatedIdentifier->relation_type_information) {
                 $relatedData['relationTypeInformation'] = $relatedIdentifier->relation_type_information;
@@ -996,7 +978,7 @@ class DataCiteJsonExporter
                     $idEntry['relatedMetadataScheme'] = $item->related_metadata_scheme;
                 }
                 if (is_string($item->scheme_uri) && $item->scheme_uri !== '') {
-                    $idEntry['schemeURI'] = $item->scheme_uri;
+                    $idEntry['schemeUri'] = $item->scheme_uri;
                 }
                 if (is_string($item->scheme_type) && $item->scheme_type !== '') {
                     $idEntry['schemeType'] = $item->scheme_type;
@@ -1060,41 +1042,6 @@ class DataCiteJsonExporter
         if (is_string($person->family_name) && $person->family_name !== '') {
             $data['familyName'] = $person->family_name;
         }
-        if (is_string($person->name_identifier) && $person->name_identifier !== ''
-            && is_string($person->name_identifier_scheme) && $person->name_identifier_scheme !== ''
-        ) {
-            $ni = [
-                'nameIdentifier' => $person->name_identifier,
-                'nameIdentifierScheme' => $person->name_identifier_scheme,
-            ];
-            if (is_string($person->scheme_uri) && $person->scheme_uri !== '') {
-                $ni['schemeUri'] = $person->scheme_uri;
-            }
-            $data['nameIdentifiers'] = [$ni];
-        }
-
-        $affiliations = [];
-        foreach ($person->affiliations as $aff) {
-            /** @var RelatedItemCreatorAffiliation|RelatedItemContributorAffiliation $aff */
-            $entry = ['name' => $aff->name];
-            if (is_string($aff->affiliation_identifier) && $aff->affiliation_identifier !== '') {
-                $entry['affiliationIdentifier'] = $aff->affiliation_identifier;
-            }
-            if (is_string($aff->scheme) && $aff->scheme !== '') {
-                $entry['affiliationIdentifierScheme'] = $aff->scheme;
-            }
-            // Mirror the import side: if a scheme URI is stored on the
-            // related-item affiliation, emit it so the export round-trips
-            // through DataCite JSON without losing data.
-            if (is_string($aff->scheme_uri) && $aff->scheme_uri !== '') {
-                $entry['schemeUri'] = $aff->scheme_uri;
-            }
-            $affiliations[] = $entry;
-        }
-        if ($affiliations !== []) {
-            $data['affiliation'] = $affiliations;
-        }
-
         return $data;
     }
 

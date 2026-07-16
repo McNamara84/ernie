@@ -171,6 +171,40 @@ describe('DataCiteToResourceTransformer - geo location normalization', function 
             ->and((string) $geoLocation->south_bound_latitude)->toBe('-3.31676000')
             ->and($geoLocation->north_bound_latitude)->toBeNull();
     });
+
+    it('stores canonical DataCite polygon entries without losing the in-polygon point', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/canonical-polygon.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Canonical Polygon Test']],
+                'creators' => [['name' => 'Creator, Casey', 'nameType' => 'Personal']],
+                'geoLocations' => [[
+                    'geoLocationPolygon' => [
+                        ['polygonPoint' => ['pointLongitude' => 13.0, 'pointLatitude' => 52.0]],
+                        ['polygonPoint' => ['pointLongitude' => 14.0, 'pointLatitude' => 52.0]],
+                        ['polygonPoint' => ['pointLongitude' => 14.0, 'pointLatitude' => 53.0]],
+                        ['polygonPoint' => ['pointLongitude' => 13.0, 'pointLatitude' => 52.0]],
+                        ['inPolygonPoint' => ['pointLongitude' => 13.5, 'pointLatitude' => 52.5]],
+                    ],
+                ]],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $geoLocation = $resource->geoLocations()->firstOrFail();
+
+        expect($geoLocation->polygon_points)->toHaveCount(4)
+            ->and($geoLocation->polygon_points[0])->toBe([
+                'longitude' => 13,
+                'latitude' => 52,
+            ])
+            ->and((float) $geoLocation->in_polygon_point_longitude)->toBe(13.5)
+            ->and((float) $geoLocation->in_polygon_point_latitude)->toBe(52.5);
+    });
 });
 
 afterEach(function (): void {

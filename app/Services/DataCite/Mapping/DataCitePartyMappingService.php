@@ -108,7 +108,7 @@ final readonly class DataCitePartyMappingService
             $schemeUri = $affiliation->scheme_uri ?? $this->getSchemeUri($scheme);
 
             if ($schemeUri !== '') {
-                $data['schemeURI'] = $schemeUri;
+                $data['schemeUri'] = $schemeUri;
             }
         }
 

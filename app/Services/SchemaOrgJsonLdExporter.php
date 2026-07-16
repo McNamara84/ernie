@@ -404,8 +404,8 @@ class SchemaOrgJsonLdExporter
 
         foreach ($rightsList as $rights) {
             // Prefer SPDX scheme URI if available
-            if (! empty($rights['schemeURI'])) {
-                $spdxUri = rtrim($rights['schemeURI'], '/');
+            if (! empty($rights['schemeUri'])) {
+                $spdxUri = rtrim($rights['schemeUri'], '/');
                 if (! empty($rights['rightsIdentifier'])) {
                     $spdxUri .= '/' . $rights['rightsIdentifier'];
                 }
@@ -413,8 +413,8 @@ class SchemaOrgJsonLdExporter
             }
 
             // Also add the original rights URI if different
-            if (! empty($rights['rightsURI'])) {
-                $originalUri = $rights['rightsURI'];
+            if (! empty($rights['rightsUri'])) {
+                $originalUri = $rights['rightsUri'];
                 if (! in_array($originalUri, $uris, true)) {
                     $uris[] = $originalUri;
                 }
@@ -465,7 +465,13 @@ class SchemaOrgJsonLdExporter
                     ]),
                 ];
             } elseif (isset($geo['geoLocationPolygon'])) {
-                $points = $geo['geoLocationPolygon']['polygonPoints'] ?? [];
+                $points = array_values(array_map(
+                    static fn (array $entry): array => $entry['polygonPoint'],
+                    array_filter(
+                        $geo['geoLocationPolygon'],
+                        static fn (array $entry): bool => isset($entry['polygonPoint']),
+                    ),
+                ));
                 $pairs = array_map(
                     fn (array $p): string => $p['pointLatitude'] . ' ' . $p['pointLongitude'],
                     $points

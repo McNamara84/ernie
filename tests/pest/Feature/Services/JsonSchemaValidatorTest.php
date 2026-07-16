@@ -402,7 +402,7 @@ describe('JsonSchemaValidator', function () {
                         'nameIdentifiers' => [
                             ['nameIdentifier' => '0000-0001-2345-6789', 'nameIdentifierScheme' => 'ORCID'],
                         ],
-                        'affiliations' => [
+                        'affiliation' => [
                             ['name' => 'GFZ Helmholtz Centre Potsdam'],
                         ],
                     ],
@@ -525,17 +525,17 @@ describe('JsonSchemaValidator', function () {
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
             ];
 
-            // Strict mode - should fail because identifiers are required
+            // Strict mode - should fail because a DOI is required
             expect(fn () => $validator->validate($data, strictMode: true))
                 ->toThrow(JsonValidationException::class);
         });
 
-        it('passes with identifiers in strict mode', function () {
+        it('passes with doi in strict mode', function () {
             $validator = new JsonSchemaValidator;
 
-            // Data with identifiers - valid for registration
+            // Data with DOI - valid for registration
             $data = [
-                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'doi' => '10.5880/test',
                 'creators' => [['name' => 'Test Author']],
                 'titles' => [['title' => 'Test Title']],
                 'publisher' => 'Test Publisher',
@@ -543,14 +543,14 @@ describe('JsonSchemaValidator', function () {
                 'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
             ];
 
-            // Strict mode with identifiers - should pass
+            // Strict mode with DOI - should pass
             expect($validator->validate($data, strictMode: true))->toBeTrue();
         });
 
         it('isValid respects strictMode parameter', function () {
             $validator = new JsonSchemaValidator;
 
-            $dataWithoutIdentifiers = [
+            $dataWithoutDoi = [
                 'creators' => [['name' => 'Test Author']],
                 'titles' => [['title' => 'Test Title']],
                 'publisher' => 'Test Publisher',
@@ -561,13 +561,300 @@ describe('JsonSchemaValidator', function () {
             $errors = null;
 
             // Non-strict mode - should be valid
-            expect($validator->isValid($dataWithoutIdentifiers, $errors, strictMode: false))->toBeTrue();
+            expect($validator->isValid($dataWithoutDoi, $errors, strictMode: false))->toBeTrue();
 
             // Strict mode - should be invalid
-            expect($validator->isValid($dataWithoutIdentifiers, $errors, strictMode: true))->toBeFalse();
+            expect($validator->isValid($dataWithoutDoi, $errors, strictMode: true))->toBeFalse();
             expect($errors)->not->toBeEmpty();
-            expect(collect($errors)->pluck('path')->toArray())->toContain('/identifiers');
+            expect(collect($errors)->pluck('path')->toArray())->toContain('/doi');
         });
+    });
+});
+
+describe('DataCite Draft 2020-12 contract', function () {
+    it('declares the 2020-12 dialect and only uses executable formats', function () {
+        $schema = json_decode(
+            (string) file_get_contents(base_path('resources/data/scheme/datacite_4.7_schema.json')),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $formats = [];
+        $collectFormats = function (mixed $node) use (&$collectFormats, &$formats): void {
+            if (! is_array($node)) {
+                return;
+            }
+
+            if (isset($node['format']) && is_string($node['format'])) {
+                $formats[] = $node['format'];
+            }
+
+            foreach ($node as $value) {
+                $collectFormats($value);
+            }
+        };
+        $collectFormats($schema);
+
+        expect($schema['$schema'])->toBe('https://json-schema.org/draft/2020-12/schema')
+            ->and($schema['$id'])->toBe('urn:ernie:schema:datacite:4.7')
+            ->and($schema)->toHaveKey('$defs')
+            ->and(array_values(array_unique($formats)))->toEqualCanonicalizing([
+                'uri',
+                'datacite-year',
+                'datacite-date',
+            ]);
+    });
+
+    it('enforces the maximum timezone offset for DataCite dates', function () {
+        $validator = new JsonSchemaValidator;
+        $base = [
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+        ];
+
+        expect($validator->validate($base + [
+            'dates' => [[
+                'date' => '2026-07-16T12:30+14:00',
+                'dateType' => 'Created',
+            ]],
+        ]))->toBeTrue();
+
+        $errors = null;
+        expect($validator->isValid($base + [
+            'dates' => [[
+                'date' => '2026-07-16T12:30+23:00',
+                'dateType' => 'Created',
+            ]],
+        ], $errors))->toBeFalse()
+            ->and(collect($errors)->pluck('path')->all())->toContain('/dates/0/date')
+            ->and(collect($errors)->pluck('keyword')->all())->toContain('format');
+    });
+
+    it('rejects unknown properties recursively', function () {
+        $base = [
+            'creators' => [[
+                'name' => 'Test Author',
+                'nameIdentifiers' => [[
+                    'nameIdentifier' => '0000-0001-2345-6789',
+                    'nameIdentifierScheme' => 'ORCID',
+                ]],
+                'affiliation' => [['name' => 'GFZ']],
+            ]],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => ['name' => 'Test Publisher'],
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+            'relatedIdentifiers' => [[
+                'relatedIdentifier' => '10.5880/related',
+                'relatedIdentifierType' => 'DOI',
+                'relationType' => 'References',
+            ]],
+            'geoLocations' => [[
+                'geoLocationPoint' => ['pointLongitude' => 13.0, 'pointLatitude' => 52.4],
+            ]],
+            'fundingReferences' => [['funderName' => 'DFG']],
+            'relatedItems' => [[
+                'relatedItemType' => 'JournalArticle',
+                'relationType' => 'References',
+                'titles' => [['title' => 'Related title']],
+            ]],
+        ];
+
+        $mutations = [
+            'root' => fn (array $data): array => $data + ['unexpected' => true],
+            'creator' => function (array $data): array {
+                $data['creators'][0]['unexpected'] = true;
+
+                return $data;
+            },
+            'name identifier' => function (array $data): array {
+                $data['creators'][0]['nameIdentifiers'][0]['unexpected'] = true;
+
+                return $data;
+            },
+            'affiliation' => function (array $data): array {
+                $data['creators'][0]['affiliation'][0]['unexpected'] = true;
+
+                return $data;
+            },
+            'related identifier' => function (array $data): array {
+                $data['relatedIdentifiers'][0]['unexpected'] = true;
+
+                return $data;
+            },
+            'geo point' => function (array $data): array {
+                $data['geoLocations'][0]['geoLocationPoint']['unexpected'] = true;
+
+                return $data;
+            },
+            'funding reference' => function (array $data): array {
+                $data['fundingReferences'][0]['unexpected'] = true;
+
+                return $data;
+            },
+            'related item title' => function (array $data): array {
+                $data['relatedItems'][0]['titles'][0]['unexpected'] = true;
+
+                return $data;
+            },
+        ];
+
+        $validator = new JsonSchemaValidator;
+        foreach ($mutations as $label => $mutate) {
+            $errors = null;
+            expect($validator->isValid($mutate($base), $errors))->toBeFalse($label)
+                ->and($errors)->not->toBeEmpty()
+                ->and(collect($errors)->pluck('keyword')->all())->toContain('unevaluatedProperties')
+                ->and(collect($errors)->pluck('message')->contains(
+                    fn (string $message): bool => str_contains($message, "'unexpected'"),
+                ))->toBeTrue();
+        }
+    });
+
+    it('allows metadata scheme fields only for metadata relations', function () {
+        $base = [
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+        ];
+        $metadata = [
+            'relatedIdentifier' => 'https://example.org/schema.xml',
+            'relatedIdentifierType' => 'URL',
+            'relationType' => 'HasMetadata',
+            'relatedMetadataScheme' => 'Example',
+            'schemeUri' => 'https://example.org/schema',
+            'schemeType' => 'XSD',
+        ];
+
+        $validator = new JsonSchemaValidator;
+        expect($validator->validate($base + ['relatedIdentifiers' => [$metadata]]))->toBeTrue();
+
+        $metadata['relationType'] = 'References';
+        expect($validator->isValid($base + ['relatedIdentifiers' => [$metadata]]))->toBeFalse();
+    });
+
+    it('asserts URI formats without mutating values', function () {
+        $base = [
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+        ];
+        $validator = new JsonSchemaValidator;
+
+        expect($validator->validate($base + [
+            'subjects' => [['subject' => 'Geology', 'schemeUri' => 'https://example.org/scheme']],
+            'relatedIdentifiers' => [[
+                'relatedIdentifier' => 'urn:isbn:9780141036144',
+                'relatedIdentifierType' => 'URN',
+                'relationType' => 'References',
+            ]],
+        ]))->toBeTrue();
+
+        $errors = null;
+        expect($validator->isValid($base + [
+            'subjects' => [['subject' => 'Geology', 'schemeUri' => 'example.org/scheme']],
+        ], $errors))->toBeFalse()
+            ->and(collect($errors)->pluck('path')->all())->toContain('/subjects/0/schemeUri')
+            ->and(collect($errors)->pluck('keyword')->all())->toContain('format')
+            ->and($validator->isValid($base + [
+                'relatedIdentifiers' => [[
+                    'relatedIdentifier' => 'example.org/related',
+                    'relatedIdentifierType' => 'URL',
+                    'relationType' => 'References',
+                ]],
+            ]))->toBeFalse();
+    });
+
+    it('does not apply the URI conditional when relatedIdentifierType is missing', function () {
+        $validator = new JsonSchemaValidator;
+        $errors = null;
+
+        expect($validator->isValid([
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+            'relatedIdentifiers' => [[
+                'relatedIdentifier' => 'not a URI',
+                'relationType' => 'References',
+            ]],
+        ], $errors))->toBeFalse();
+
+        $keywords = collect($errors)->pluck('keyword')->all();
+
+        expect($keywords)->toContain('required')
+            ->and($keywords)->not->toContain('format');
+    });
+
+    it('validates the canonical DataCite polygon representation', function () {
+        $base = [
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+        ];
+        $polygon = [
+            ['polygonPoint' => ['pointLongitude' => 0.0, 'pointLatitude' => 0.0]],
+            ['polygonPoint' => ['pointLongitude' => 1.0, 'pointLatitude' => 0.0]],
+            ['polygonPoint' => ['pointLongitude' => 1.0, 'pointLatitude' => 1.0]],
+            ['polygonPoint' => ['pointLongitude' => 0.0, 'pointLatitude' => 0.0]],
+            ['inPolygonPoint' => ['pointLongitude' => 0.5, 'pointLatitude' => 0.5]],
+        ];
+
+        $validator = new JsonSchemaValidator;
+        expect($validator->validate($base + [
+            'geoLocations' => [['geoLocationPolygon' => $polygon]],
+        ]))->toBeTrue();
+
+        array_pop($polygon);
+        expect($validator->validate($base + [
+            'geoLocations' => [['geoLocationPolygon' => $polygon]],
+        ]))->toBeTrue();
+
+        $polygonWithTwoInteriorPoints = [...$polygon,
+            ['inPolygonPoint' => ['pointLongitude' => 0.4, 'pointLatitude' => 0.4]],
+            ['inPolygonPoint' => ['pointLongitude' => 0.5, 'pointLatitude' => 0.5]],
+        ];
+        expect($validator->isValid($base + [
+            'geoLocations' => [['geoLocationPolygon' => $polygonWithTwoInteriorPoints]],
+        ]))->toBeFalse();
+
+        array_splice($polygon, 2, 1);
+        expect($validator->isValid($base + [
+            'geoLocations' => [['geoLocationPolygon' => $polygon]],
+        ]))->toBeFalse();
+    });
+
+    it('validates related item number fields as siblings', function () {
+        $data = [
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+            'relatedItems' => [[
+                'relatedItemType' => 'JournalArticle',
+                'relationType' => 'IsPublishedIn',
+                'titles' => [['title' => 'Journal']],
+                'number' => 'e12345',
+                'numberType' => 'Article',
+            ]],
+        ];
+
+        $validator = new JsonSchemaValidator;
+        expect($validator->validate($data))->toBeTrue();
+
+        unset($data['relatedItems'][0]['number']);
+        expect($validator->isValid($data))->toBeFalse();
     });
 });
 

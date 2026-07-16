@@ -110,19 +110,19 @@ describe('Line to Polygon Conversion', function () {
 
         // A→B→A'→A = 4 points
         expect($polygon)->not->toBeNull()
-            ->and($polygon['polygonPoints'])->toHaveCount(4)
+            ->and($polygon)->toHaveCount(4)
             // First point = start
-            ->and($polygon['polygonPoints'][0]['pointLongitude'])->toBe(13.0)
-            ->and($polygon['polygonPoints'][0]['pointLatitude'])->toBe(52.0)
+            ->and($polygon[0]['polygonPoint']['pointLongitude'])->toBe(13.0)
+            ->and($polygon[0]['polygonPoint']['pointLatitude'])->toBe(52.0)
             // Second point = end of line
-            ->and($polygon['polygonPoints'][1]['pointLongitude'])->toBe(14.0)
-            ->and($polygon['polygonPoints'][1]['pointLatitude'])->toBe(53.0)
+            ->and($polygon[1]['polygonPoint']['pointLongitude'])->toBe(14.0)
+            ->and($polygon[1]['polygonPoint']['pointLatitude'])->toBe(53.0)
             // Third point = return with offset
-            ->and($polygon['polygonPoints'][2]['pointLongitude'])->toBe(13.0)
-            ->and(abs($polygon['polygonPoints'][2]['pointLatitude'] - 52.00000001))->toBeLessThan(0.0000001)
+            ->and($polygon[2]['polygonPoint']['pointLongitude'])->toBe(13.0)
+            ->and(abs($polygon[2]['polygonPoint']['pointLatitude'] - 52.00000001))->toBeLessThan(0.0000001)
             // Last point = close = first point
-            ->and($polygon['polygonPoints'][3]['pointLongitude'])->toBe(13.0)
-            ->and($polygon['polygonPoints'][3]['pointLatitude'])->toBe(52.0);
+            ->and($polygon[3]['polygonPoint']['pointLongitude'])->toBe(13.0)
+            ->and($polygon[3]['polygonPoint']['pointLatitude'])->toBe(52.0);
     });
 
     it('converts a 3-point line to a valid closed polygon', function () {
@@ -143,22 +143,22 @@ describe('Line to Polygon Conversion', function () {
 
         // A→B→C→B'→A'→A = 6 points
         expect($polygon)->not->toBeNull()
-            ->and($polygon['polygonPoints'])->toHaveCount(6)
+            ->and($polygon)->toHaveCount(6)
             // Forward: A
-            ->and($polygon['polygonPoints'][0]['pointLongitude'])->toBe(13.0)
+            ->and($polygon[0]['polygonPoint']['pointLongitude'])->toBe(13.0)
             // Forward: B
-            ->and($polygon['polygonPoints'][1]['pointLongitude'])->toBe(13.5)
+            ->and($polygon[1]['polygonPoint']['pointLongitude'])->toBe(13.5)
             // Forward: C
-            ->and($polygon['polygonPoints'][2]['pointLongitude'])->toBe(14.0)
+            ->and($polygon[2]['polygonPoint']['pointLongitude'])->toBe(14.0)
             // Return: B' (offset)
-            ->and($polygon['polygonPoints'][3]['pointLongitude'])->toBe(13.5)
-            ->and(abs($polygon['polygonPoints'][3]['pointLatitude'] - 52.50000001))->toBeLessThan(0.0000001)
+            ->and($polygon[3]['polygonPoint']['pointLongitude'])->toBe(13.5)
+            ->and(abs($polygon[3]['polygonPoint']['pointLatitude'] - 52.50000001))->toBeLessThan(0.0000001)
             // Return: A' (offset)
-            ->and($polygon['polygonPoints'][4]['pointLongitude'])->toBe(13.0)
-            ->and(abs($polygon['polygonPoints'][4]['pointLatitude'] - 52.00000001))->toBeLessThan(0.0000001)
+            ->and($polygon[4]['polygonPoint']['pointLongitude'])->toBe(13.0)
+            ->and(abs($polygon[4]['polygonPoint']['pointLatitude'] - 52.00000001))->toBeLessThan(0.0000001)
             // Close: A
-            ->and($polygon['polygonPoints'][5]['pointLongitude'])->toBe(13.0)
-            ->and($polygon['polygonPoints'][5]['pointLatitude'])->toBe(52.0);
+            ->and($polygon[5]['polygonPoint']['pointLongitude'])->toBe(13.0)
+            ->and($polygon[5]['polygonPoint']['pointLatitude'])->toBe(52.0);
     });
 
     it('exports line as polygon in XML', function () {

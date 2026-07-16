@@ -366,13 +366,14 @@ describe('transformGeoLocationPolygon()', function (): void {
 
         $result = $this->helper->transformGeoLocationPolygon($geo);
 
-        expect($result)->toHaveKey('polygonPoints');
-        expect($result['polygonPoints'])->toHaveCount(4);
-        expect($result['polygonPoints'][0])->toBe([
-            'pointLongitude' => 12.0,
-            'pointLatitude' => 51.0,
-        ]);
-        expect($result)->not->toHaveKey('inPolygonPoint');
+        expect($result)->toHaveCount(4)
+            ->and($result[0])->toBe([
+                'polygonPoint' => [
+                    'pointLongitude' => 12.0,
+                    'pointLatitude' => 51.0,
+                ],
+            ])
+            ->and(collect($result)->contains(fn (array $entry): bool => isset($entry['inPolygonPoint'])))->toBeFalse();
     });
 
     it('includes in-polygon point when available', function (): void {
@@ -388,11 +389,27 @@ describe('transformGeoLocationPolygon()', function (): void {
 
         $result = $this->helper->transformGeoLocationPolygon($geo);
 
-        expect($result)->toHaveKey('inPolygonPoint');
-        expect($result['inPolygonPoint'])->toBe([
-            'pointLongitude' => 13.0,
-            'pointLatitude' => 52.0,
-        ]);
+        expect($result)->toHaveCount(5)
+            ->and($result[4])->toBe([
+                'inPolygonPoint' => [
+                    'pointLongitude' => 13.0,
+                    'pointLatitude' => 52.0,
+                ],
+            ]);
+    });
+
+    it('closes an open polygon for DataCite', function (): void {
+        $geo = new GeoLocation;
+        $geo->polygon_points = [
+            ['longitude' => 12.0, 'latitude' => 51.0],
+            ['longitude' => 14.0, 'latitude' => 51.0],
+            ['longitude' => 14.0, 'latitude' => 53.0],
+        ];
+
+        $result = $this->helper->transformGeoLocationPolygon($geo);
+
+        expect($result)->toHaveCount(4)
+            ->and($result[3])->toBe($result[0]);
     });
 });
 
@@ -501,15 +518,18 @@ describe('transformGeoLocationLine()', function (): void {
 
         $result = $this->helper->transformGeoLocationLine($geo);
 
-        expect($result)->toHaveKey('polygonPoints')
-            ->and($result['polygonPoints'])->toHaveCount(4)
-            ->and($result['polygonPoints'][0])->toBe([
-                'pointLongitude' => 13.0,
-                'pointLatitude' => 52.0,
+        expect($result)->toHaveCount(4)
+            ->and($result[0])->toBe([
+                'polygonPoint' => [
+                    'pointLongitude' => 13.0,
+                    'pointLatitude' => 52.0,
+                ],
             ])
-            ->and($result['polygonPoints'][1])->toBe([
-                'pointLongitude' => 14.0,
-                'pointLatitude' => 53.0,
+            ->and($result[1])->toBe([
+                'polygonPoint' => [
+                    'pointLongitude' => 14.0,
+                    'pointLatitude' => 53.0,
+                ],
             ]);
     });
 });
@@ -706,7 +726,7 @@ describe('transformAffiliation()', function (): void {
         expect($result)->toHaveKey('name', 'GFZ Potsdam');
         expect($result)->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394');
         expect($result)->toHaveKey('affiliationIdentifierScheme', 'ROR');
-        expect($result)->toHaveKey('schemeURI', 'https://ror.org/');
+        expect($result)->toHaveKey('schemeUri', 'https://ror.org/');
     });
 
     it('defaults identifier scheme to ROR when not set', function (): void {
@@ -719,6 +739,6 @@ describe('transformAffiliation()', function (): void {
         $result = $this->helper->transformAffiliation($affiliation);
 
         expect($result)->toHaveKey('affiliationIdentifierScheme', 'ROR');
-        expect($result)->toHaveKey('schemeURI', 'https://ror.org/');
+        expect($result)->toHaveKey('schemeUri', 'https://ror.org/');
     });
 });

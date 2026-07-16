@@ -48,7 +48,7 @@ it('builds person creator data with identifiers and affiliations', function (): 
             'name' => 'GFZ Potsdam',
             'affiliationIdentifier' => 'https://ror.org/04z8jg394',
             'affiliationIdentifierScheme' => 'ROR',
-            'schemeURI' => 'https://ror.org/',
+            'schemeUri' => 'https://ror.org/',
         ]],
     ]);
 });

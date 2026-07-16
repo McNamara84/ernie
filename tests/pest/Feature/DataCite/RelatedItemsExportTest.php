@@ -170,15 +170,7 @@ describe('DataCiteJsonExporter — relatedItems', function () {
             'givenName' => 'Jane',
             'familyName' => 'Doe',
         ]);
-        expect($ri['creators'][0]['nameIdentifiers'][0])->toMatchArray([
-            'nameIdentifier' => '0000-0001-0002-0003',
-            'nameIdentifierScheme' => 'ORCID',
-        ]);
-        expect($ri['creators'][0]['affiliation'][0])->toMatchArray([
-            'name' => 'GFZ Helmholtz Centre',
-            'affiliationIdentifier' => 'https://ror.org/04z8jg394',
-            'affiliationIdentifierScheme' => 'ROR',
-        ]);
+        expect($ri['creators'][0])->not->toHaveKeys(['nameIdentifiers', 'affiliation']);
         expect($ri['contributors'][0]['contributorType'])->toBe('Editor');
     });
 
@@ -189,26 +181,16 @@ describe('DataCiteJsonExporter — relatedItems', function () {
         expect($json['data']['attributes'])->not->toHaveKey('relatedItems');
     });
 
-    test('emits schemeUri on relatedItem affiliations when stored', function () {
+    test('omits person identifiers and affiliations unsupported by DataCite relatedItem', function () {
         $resource = makeResourceWithRelatedItem();
-        // Attach scheme_uri to the existing creator affiliation so we can
-        // verify the export round-trips the optional DataCite 4.7 attribute.
-        $aff = $resource->relatedItems[0]->creators[0]->affiliations[0];
-        $aff->scheme_uri = 'https://ror.org';
-        $aff->save();
-
-        $json = (new DataCiteJsonExporter())->export($resource->fresh());
+        $json = (new DataCiteJsonExporter())->export($resource);
         $ri = $json['data']['attributes']['relatedItems'][0];
 
-        expect($ri['creators'][0]['affiliation'][0])->toMatchArray([
-            'name' => 'GFZ Helmholtz Centre',
-            'affiliationIdentifier' => 'https://ror.org/04z8jg394',
-            'affiliationIdentifierScheme' => 'ROR',
-            'schemeUri' => 'https://ror.org',
-        ]);
+        expect($ri['creators'][0])->not->toHaveKeys(['nameIdentifiers', 'affiliation'])
+            ->and($ri['contributors'][0])->not->toHaveKeys(['nameIdentifiers', 'affiliation']);
     });
 
-    test('emits relatedMetadataScheme/schemeURI/schemeType on relatedItemIdentifier', function () {
+    test('emits relatedMetadataScheme/schemeUri/schemeType on relatedItemIdentifier', function () {
         $resource = makeResourceWithRelatedItem();
         $item = $resource->relatedItems[0];
         $item->related_metadata_scheme = 'citeproc-json';
@@ -223,7 +205,7 @@ describe('DataCiteJsonExporter — relatedItems', function () {
             'relatedItemIdentifier' => '10.1234/xyz',
             'relatedItemIdentifierType' => 'DOI',
             'relatedMetadataScheme' => 'citeproc-json',
-            'schemeURI' => 'https://citationstyles.org/schema',
+            'schemeUri' => 'https://citationstyles.org/schema',
             'schemeType' => 'JSON',
         ]);
     });
@@ -242,7 +224,13 @@ describe('DataCiteLinkedDataExporter — relatedItems', function () {
         ]);
         expect($ri['value'])->toHaveKey('titles');
         expect($ri['value'])->toHaveKey('creators');
-        expect($ri['value']['publisher'])->toBe('Journal of Science');
+        expect($ri['value']['titles']['title'][0]['value'])->toBe('The Main Title');
+        expect($ri['value']['creators']['creator']['creatorName']['value'])->toBe('Doe, Jane');
+        expect($ri['value']['publisher'])->toBe(['value' => 'Journal of Science']);
+        expect($ri['value']['relatedItemIdentifier'])->toMatchArray([
+            'attrs' => ['relatedItemIdentifierType' => 'DOI'],
+            'value' => '10.1234/xyz',
+        ]);
     });
 });
 
