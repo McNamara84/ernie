@@ -110,6 +110,33 @@ it('removes nulls and normalizes years without inventing required values', funct
         ->and($normalized['relatedItems'][0])->not->toHaveKey('volume');
 });
 
+it('reindexes JSON arrays after removing null entries', function () {
+    $normalized = $this->normalizer->normalize([
+        'creators' => [
+            null,
+            [
+                'name' => 'Doe, Jane',
+                'affiliation' => [
+                    null,
+                    ['name' => 'GFZ', 'schemeURI' => 'https://ror.org/'],
+                    null,
+                ],
+            ],
+            null,
+        ],
+    ]);
+
+    expect($normalized['creators'])->toBe([
+        [
+            'name' => 'Doe, Jane',
+            'affiliation' => [
+                ['name' => 'GFZ', 'schemeUri' => 'https://ror.org/'],
+            ],
+        ],
+    ])->and(array_is_list($normalized['creators']))->toBeTrue()
+        ->and(array_is_list($normalized['creators'][0]['affiliation']))->toBeTrue();
+});
+
 it('removes only empty legacy date entries before strict validation', function () {
     $normalized = $this->normalizer->normalize([
         'dates' => [

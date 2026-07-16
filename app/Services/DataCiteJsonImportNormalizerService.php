@@ -127,6 +127,8 @@ final class DataCiteJsonImportNormalizerService
      */
     private function normalizeAliasesAndNulls(array $value): array
     {
+        $isList = array_is_list($value);
+
         foreach ($value as $key => $item) {
             if ($item === null) {
                 unset($value[$key]);
@@ -139,8 +141,8 @@ final class DataCiteJsonImportNormalizerService
             }
         }
 
-        if (array_is_list($value)) {
-            return $value;
+        if ($isList) {
+            return array_values($value);
         }
 
         foreach (self::URI_ALIASES as $alias => $canonical) {
