@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Services\DataCite\DataCiteDateFormat;
+use App\Services\DataCite\DataCiteDateFormatService;
 
-describe('DataCiteDateFormat', function () {
+describe('DataCiteDateFormatService', function () {
     it('accepts DataCite publication years', function (string $year) {
-        expect(DataCiteDateFormat::isPublicationYear($year))->toBeTrue();
+        expect(DataCiteDateFormatService::isPublicationYear($year))->toBeTrue();
     })->with([
         'year 0000' => '0000',
         'historic year' => '1957',
@@ -15,7 +15,7 @@ describe('DataCiteDateFormat', function () {
     ]);
 
     it('rejects invalid publication years', function (string $year) {
-        expect(DataCiteDateFormat::isPublicationYear($year))->toBeFalse();
+        expect(DataCiteDateFormatService::isPublicationYear($year))->toBeFalse();
     })->with([
         'too short' => '999',
         'too long' => '10000',
@@ -26,7 +26,7 @@ describe('DataCiteDateFormat', function () {
     ]);
 
     it('accepts W3CDTF dates and RKMS ISO 8601 ranges', function (string $date) {
-        expect(DataCiteDateFormat::isDate($date))->toBeTrue();
+        expect(DataCiteDateFormatService::isDate($date))->toBeTrue();
     })->with([
         'year' => '2026',
         'negative year' => '-0054',
@@ -44,7 +44,7 @@ describe('DataCiteDateFormat', function () {
     ]);
 
     it('rejects malformed or impossible DataCite dates', function (string $date) {
-        expect(DataCiteDateFormat::isDate($date))->toBeFalse();
+        expect(DataCiteDateFormatService::isDate($date))->toBeFalse();
     })->with([
         'empty' => '',
         'both range ends empty' => '/',

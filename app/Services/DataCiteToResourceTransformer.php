@@ -62,7 +62,7 @@ class DataCiteToResourceTransformer
         private ?RorLookupService $rorLookupService = null,
         private ?SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver = null,
         private ?RightsSectionParser $xmlRightsParser = null,
-        private ?DataCiteJsonImportNormalizer $jsonImportNormalizer = null,
+        private ?DataCiteJsonImportNormalizerService $jsonImportNormalizer = null,
     ) {}
 
     /**
@@ -145,7 +145,7 @@ class DataCiteToResourceTransformer
     private function prepareAttributes(array $attributes): array
     {
         $attributes = $this->preferOriginalXmlRights($attributes);
-        $attributes = ($this->jsonImportNormalizer ??= new DataCiteJsonImportNormalizer)->normalize($attributes);
+        $attributes = ($this->jsonImportNormalizer ??= new DataCiteJsonImportNormalizerService)->normalize($attributes);
 
         $relatedIdentifiers = $attributes['relatedIdentifiers'] ?? null;
 

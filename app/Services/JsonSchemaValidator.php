@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\JsonValidationException;
-use App\Services\DataCite\DataCiteDateFormat;
+use App\Services\DataCite\DataCiteDateFormatService;
 use Illuminate\Support\Facades\Log;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\Errors\ValidationError;
@@ -44,7 +44,7 @@ class JsonSchemaValidator
             throw new \RuntimeException('Opis JSON Schema format resolver is not available.');
         }
 
-        DataCiteDateFormat::register($formatResolver);
+        DataCiteDateFormatService::register($formatResolver);
 
         // Set max errors to collect all validation issues
         $this->validator->setMaxErrors(50);

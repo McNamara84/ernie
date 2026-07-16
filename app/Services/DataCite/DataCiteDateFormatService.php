@@ -12,7 +12,7 @@ use Opis\JsonSchema\Resolvers\FormatResolver;
  * DataCite dates use the W3CDTF granularities and may additionally be
  * expressed as closed or open RKMS-ISO8601 ranges.
  */
-final class DataCiteDateFormat
+final class DataCiteDateFormatService
 {
     public const YEAR = 'datacite-year';
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\DataCiteJsonImportNormalizer;
+use App\Services\DataCiteJsonImportNormalizerService;
 
 beforeEach(function () {
-    $this->normalizer = new DataCiteJsonImportNormalizer;
+    $this->normalizer = new DataCiteJsonImportNormalizerService;
 });
 
 it('removes only known DataCite API read attributes and derived type fields', function () {

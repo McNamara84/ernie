@@ -11,7 +11,7 @@ namespace App\Services;
  * Unknown fields are deliberately retained so the strict schema can report
  * them. This service must never be used for export validation.
  */
-final class DataCiteJsonImportNormalizer
+final class DataCiteJsonImportNormalizerService
 {
     /**
      * Known read-only or computed attributes returned by the DataCite API.

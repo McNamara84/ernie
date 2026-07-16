@@ -10,7 +10,7 @@ use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
-use App\Services\DataCiteJsonImportNormalizer;
+use App\Services\DataCiteJsonImportNormalizerService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
@@ -82,7 +82,7 @@ class UploadJsonController extends Controller
     public function __construct(
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
-        private readonly DataCiteJsonImportNormalizer $jsonImportNormalizer,
+        private readonly DataCiteJsonImportNormalizerService $jsonImportNormalizer,
         private readonly DataCiteJsonLdToJsonConverterService $jsonLdConverter,
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
