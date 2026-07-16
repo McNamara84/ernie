@@ -31,11 +31,13 @@ class DataCiteLinkedDataExporter
             '@context' => config('datacite.linked_data.context_url'),
         ];
 
-        // Add @id only if DOI is present
-        if (isset($attributes['doi'])) {
-            $jsonLd['@id'] = 'https://doi.org/'.$attributes['doi'];
+        $doi = trim((string) ($attributes['doi'] ?? ''));
+
+        // Add DOI-derived fields only if DOI is not blank
+        if ($doi !== '') {
+            $jsonLd['@id'] = 'https://doi.org/'.$doi;
             $jsonLd['identifier'] = $this->transformSingleIdentifier([
-                'identifier' => $attributes['doi'],
+                'identifier' => $doi,
                 'identifierType' => 'DOI',
             ]);
         }

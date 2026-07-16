@@ -52,6 +52,15 @@ describe('export basics', function () {
         expect($result['@id'])->toBe('https://doi.org/10.5880/test.2025.001');
     });
 
+    it('trims DOI before emitting DOI-derived fields', function () {
+        $resource = createResourceWithTitle('  10.5880/test.2025.001  ');
+
+        $result = $this->exporter->export($resource);
+
+        expect($result['@id'])->toBe('https://doi.org/10.5880/test.2025.001')
+            ->and($result['identifier']['value'])->toBe('10.5880/test.2025.001');
+    });
+
     it('omits @id and identifier when DOI is null', function () {
         $resource = createResourceWithTitle(null);
 
@@ -60,6 +69,18 @@ describe('export basics', function () {
         expect($result)->not->toHaveKey('@id')
             ->and($result)->not->toHaveKey('identifier');
     });
+
+    it('omits @id and identifier when DOI is blank', function (string $doi) {
+        $resource = createResourceWithTitle($doi);
+
+        $result = $this->exporter->export($resource);
+
+        expect($result)->not->toHaveKey('@id')
+            ->and($result)->not->toHaveKey('identifier');
+    })->with([
+        'empty DOI' => '',
+        'whitespace-only DOI' => " \t\n",
+    ]);
 
     it('includes publicationYear as value wrapper', function () {
         $resource = createResourceWithTitle();
