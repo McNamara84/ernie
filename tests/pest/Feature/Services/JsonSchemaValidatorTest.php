@@ -605,6 +605,34 @@ describe('DataCite Draft 2020-12 contract', function () {
             ]);
     });
 
+    it('enforces the maximum timezone offset for DataCite dates', function () {
+        $validator = new JsonSchemaValidator;
+        $base = [
+            'creators' => [['name' => 'Test Author']],
+            'titles' => [['title' => 'Test Title']],
+            'publisher' => 'Test Publisher',
+            'publicationYear' => '2026',
+            'types' => ['resourceTypeGeneral' => 'Dataset'],
+        ];
+
+        expect($validator->validate($base + [
+            'dates' => [[
+                'date' => '2026-07-16T12:30+14:00',
+                'dateType' => 'Created',
+            ]],
+        ]))->toBeTrue();
+
+        $errors = null;
+        expect($validator->isValid($base + [
+            'dates' => [[
+                'date' => '2026-07-16T12:30+23:00',
+                'dateType' => 'Created',
+            ]],
+        ], $errors))->toBeFalse()
+            ->and(collect($errors)->pluck('path')->all())->toContain('/dates/0/date')
+            ->and(collect($errors)->pluck('keyword')->all())->toContain('format');
+    });
+
     it('rejects unknown properties recursively', function () {
         $base = [
             'creators' => [[

@@ -115,7 +115,11 @@ final class DataCiteDateFormatService
             $timezoneHour = (int) substr($timezone, 1, 2);
             $timezoneMinute = (int) substr($timezone, 4, 2);
 
-            if ($timezoneHour > 23 || $timezoneMinute > 59) {
+            if (
+                $timezoneHour > 14
+                || $timezoneMinute > 59
+                || ($timezoneHour === 14 && $timezoneMinute !== 0)
+            ) {
                 return false;
             }
         }
