@@ -40,11 +40,6 @@ class DataCiteLinkedDataExporter
             ]);
         }
 
-        // Identifier fallback for non-DOI legacy payloads
-        if (! isset($jsonLd['identifier']) && ! empty($attributes['identifiers'])) {
-            $jsonLd['identifier'] = $this->transformIdentifiers($attributes['identifiers']);
-        }
-
         // Creators
         if (! empty($attributes['creators'])) {
             $jsonLd['creators'] = $this->transformCreators($attributes['creators']);
@@ -141,24 +136,6 @@ class DataCiteLinkedDataExporter
         }
 
         return $jsonLd;
-    }
-
-    /**
-     * @param  array<int, array<string, string>>  $identifiers
-     * @return array<string, mixed>
-     */
-    private function transformIdentifiers(array $identifiers): array
-    {
-        if (count($identifiers) === 1) {
-            return $this->transformSingleIdentifier($identifiers[0]);
-        }
-
-        return [
-            'identifier' => array_map(
-                fn (array $id): array => $this->transformSingleIdentifier($id),
-                $identifiers
-            ),
-        ];
     }
 
     /**

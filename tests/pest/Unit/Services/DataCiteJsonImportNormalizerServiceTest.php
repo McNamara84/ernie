@@ -33,17 +33,21 @@ it('removes only known DataCite API read attributes and derived type fields', fu
     ]);
 });
 
-it('retains unknown fields so strict validation can reject them', function () {
+it('retains unknown non-null fields but removes unknown null fields', function () {
     $normalized = $this->normalizer->normalize([
         'unknownRoot' => true,
+        'unknownRootNull' => null,
         'types' => [
             'resourceTypeGeneral' => 'Dataset',
             'unknownDerivedField' => true,
+            'unknownDerivedNull' => null,
         ],
     ]);
 
     expect($normalized)->toHaveKey('unknownRoot')
-        ->and($normalized['types'])->toHaveKey('unknownDerivedField');
+        ->and($normalized)->not->toHaveKey('unknownRootNull')
+        ->and($normalized['types'])->toHaveKey('unknownDerivedField')
+        ->and($normalized['types'])->not->toHaveKey('unknownDerivedNull');
 });
 
 it('normalizes URI aliases recursively', function () {

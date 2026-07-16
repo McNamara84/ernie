@@ -8,8 +8,10 @@ namespace App\Services;
  * Normalizes supported DataCite API read/legacy representations into the
  * canonical DataCite API JSON shape validated by JsonSchemaValidator.
  *
- * Unknown fields are deliberately retained so the strict schema can report
- * them. This service must never be used for export validation.
+ * Unknown non-null fields are deliberately retained so the strict schema can
+ * report them. Null-valued properties are removed recursively, including
+ * unknown fields, to normalize DataCite API response placeholders. This
+ * service must never be used for export validation.
  */
 final class DataCiteJsonImportNormalizerService
 {

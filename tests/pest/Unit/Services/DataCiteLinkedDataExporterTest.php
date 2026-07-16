@@ -52,12 +52,13 @@ describe('export basics', function () {
         expect($result['@id'])->toBe('https://doi.org/10.5880/test.2025.001');
     });
 
-    it('omits @id when DOI is null', function () {
+    it('omits @id and identifier when DOI is null', function () {
         $resource = createResourceWithTitle(null);
 
         $result = $this->exporter->export($resource);
 
-        expect($result)->not->toHaveKey('@id');
+        expect($result)->not->toHaveKey('@id')
+            ->and($result)->not->toHaveKey('identifier');
     });
 
     it('includes publicationYear as value wrapper', function () {
