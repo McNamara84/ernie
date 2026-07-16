@@ -116,7 +116,7 @@ trait DataCiteExporterHelpers
      * Transform an affiliation to DataCite format.
      *
      * Includes defense-in-depth:
-     * - Always emits schemeURI for known identifier schemes, even if not persisted.
+     * - Always emits schemeUri for known identifier schemes, even if not persisted.
      * - Detects legacy records where a ROR URL was stored in the name field and
      *   attempts to resolve the correct organization name from the ROR data dump.
      *
@@ -215,7 +215,7 @@ trait DataCiteExporterHelpers
      *
      * Note: Coordinates must be floats for DataCite JSON schema.
      *
-     * @return array{polygonPoints: array<int, array{pointLongitude: float, pointLatitude: float}>, inPolygonPoint?: array{pointLongitude: float, pointLatitude: float}}|null
+     * @return list<array{polygonPoint?: array{pointLongitude: float, pointLatitude: float}, inPolygonPoint?: array{pointLongitude: float, pointLatitude: float}}>|null
      */
     protected function transformGeoLocationPolygon(GeoLocation $geoLocation): ?array
     {
@@ -225,22 +225,31 @@ trait DataCiteExporterHelpers
             return null;
         }
 
-        $polygonPoints = array_map(fn (array $point) => [
-            'pointLongitude' => (float) $point['longitude'],
-            'pointLatitude' => (float) $point['latitude'],
-        ], $points);
+        $firstPoint = $points[0];
+        $lastPoint = $points[array_key_last($points)];
+        if ((float) $firstPoint['longitude'] !== (float) $lastPoint['longitude']
+            || (float) $firstPoint['latitude'] !== (float) $lastPoint['latitude']) {
+            $points[] = $firstPoint;
+        }
 
-        $result = ['polygonPoints' => $polygonPoints];
+        $polygon = array_values(array_map(fn (array $point) => [
+            'polygonPoint' => [
+                'pointLongitude' => (float) $point['longitude'],
+                'pointLatitude' => (float) $point['latitude'],
+            ],
+        ], $points));
 
         // Check for in-polygon-point from geo_locations columns
         if ($geoLocation->in_polygon_point_longitude !== null && $geoLocation->in_polygon_point_latitude !== null) {
-            $result['inPolygonPoint'] = [
-                'pointLongitude' => (float) $geoLocation->in_polygon_point_longitude,
-                'pointLatitude' => (float) $geoLocation->in_polygon_point_latitude,
+            $polygon[] = [
+                'inPolygonPoint' => [
+                    'pointLongitude' => (float) $geoLocation->in_polygon_point_longitude,
+                    'pointLatitude' => (float) $geoLocation->in_polygon_point_latitude,
+                ],
             ];
         }
 
-        return $result;
+        return $polygon;
     }
 
     /**
@@ -294,7 +303,7 @@ trait DataCiteExporterHelpers
      *
      * Converts line points to a thin polygon and delegates to polygon format.
      *
-     * @return array{polygonPoints: array<int, array{pointLongitude: float, pointLatitude: float}>}|null
+     * @return list<array{polygonPoint: array{pointLongitude: float, pointLatitude: float}}>|null
      */
     protected function transformGeoLocationLine(GeoLocation $geoLocation): ?array
     {
@@ -306,12 +315,12 @@ trait DataCiteExporterHelpers
 
         $polygonPoints = $this->convertLineToPolygonPoints($points);
 
-        return [
-            'polygonPoints' => array_map(fn (array $point) => [
+        return array_values(array_map(fn (array $point) => [
+            'polygonPoint' => [
                 'pointLongitude' => (float) $point['longitude'],
                 'pointLatitude' => (float) $point['latitude'],
-            ], $polygonPoints),
-        ];
+            ],
+        ], $polygonPoints));
     }
 
     /**

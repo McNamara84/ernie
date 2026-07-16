@@ -410,6 +410,25 @@ describe('spatial coverage', function () {
         expect($spatial['geo']['@type'])->toBe('GeoShape');
         expect($spatial['geo'])->toHaveKey('box');
     });
+
+    it('transforms a canonical DataCite polygon to GeoShape', function () {
+        $resource = createSchemaOrgResource();
+
+        $resource->geoLocations()->create([
+            'geo_type' => 'polygon',
+            'polygon_points' => [
+                ['longitude' => 13.0, 'latitude' => 52.0],
+                ['longitude' => 14.0, 'latitude' => 52.0],
+                ['longitude' => 14.0, 'latitude' => 53.0],
+            ],
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $geoShape = $result['spatialCoverage']['geo'];
+
+        expect($geoShape['@type'])->toBe('GeoShape')
+            ->and($geoShape['polygon'])->toBe('52 13 52 14 53 14 52 13');
+    });
 });
 
 describe('funding', function () {

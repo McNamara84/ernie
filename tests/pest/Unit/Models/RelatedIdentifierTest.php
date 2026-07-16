@@ -71,6 +71,9 @@ describe('Fillable attributes', function () {
             'identifier' => '10.5678/example',
             'identifier_type_id' => 1,
             'relation_type_id' => 1,
+            'related_metadata_scheme' => 'Example',
+            'scheme_uri' => 'https://example.org/schema',
+            'scheme_type' => 'XSD',
             'resource_type_general' => 'Dataset',
             'position' => 5,
         ]);
@@ -79,6 +82,9 @@ describe('Fillable attributes', function () {
         expect($relatedIdentifier->identifier)->toBe('10.5678/example');
         expect($relatedIdentifier->identifier_type_id)->toBe(1);
         expect($relatedIdentifier->relation_type_id)->toBe(1);
+        expect($relatedIdentifier->related_metadata_scheme)->toBe('Example');
+        expect($relatedIdentifier->scheme_uri)->toBe('https://example.org/schema');
+        expect($relatedIdentifier->scheme_type)->toBe('XSD');
         expect($relatedIdentifier->resource_type_general)->toBe('Dataset');
         expect($relatedIdentifier->position)->toBe(5);
     });

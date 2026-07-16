@@ -209,8 +209,8 @@ class DataCiteXmlExporter
             if (isset($affiliationData['affiliationIdentifier'])) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
-                if (isset($affiliationData['schemeURI'])) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
+                if (isset($affiliationData['schemeUri'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeUri']));
                 }
             }
 
@@ -257,8 +257,8 @@ class DataCiteXmlExporter
             if (isset($affiliationData['affiliationIdentifier'])) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
-                if (isset($affiliationData['schemeURI'])) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
+                if (isset($affiliationData['schemeUri'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeUri']));
                 }
             }
 
@@ -642,8 +642,8 @@ class DataCiteXmlExporter
             if (isset($affiliationData['affiliationIdentifier'])) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
-                if (isset($affiliationData['schemeURI'])) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
+                if (isset($affiliationData['schemeUri'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeUri']));
                 }
             }
 
@@ -691,8 +691,8 @@ class DataCiteXmlExporter
             if (isset($affiliationData['affiliationIdentifier'])) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
-                if (isset($affiliationData['schemeURI'])) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
+                if (isset($affiliationData['schemeUri'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeUri']));
                 }
             }
 

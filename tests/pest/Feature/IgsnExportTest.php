@@ -1689,13 +1689,19 @@ describe('IGSN GeoLocation Export', function () {
         expect($geoLocations[0])->toHaveKey('geoLocationPolygon');
 
         $polygon = $geoLocations[0]['geoLocationPolygon'];
-        expect($polygon)->toHaveKey('polygonPoints');
-        expect($polygon['polygonPoints'])->toHaveCount(4);
+        $polygonPoints = collect($polygon)
+            ->filter(fn (array $entry): bool => isset($entry['polygonPoint']))
+            ->pluck('polygonPoint')
+            ->values();
+        expect($polygonPoints)->toHaveCount(5)
+            ->and($polygonPoints->last())->toBe($polygonPoints->first());
 
         // Verify in-polygon point
-        expect($polygon)->toHaveKey('inPolygonPoint');
-        expect($polygon['inPolygonPoint']['pointLongitude'])->toBe(13.5);
-        expect($polygon['inPolygonPoint']['pointLatitude'])->toBe(52.5);
+        $inPolygonPoint = collect($polygon)->first(
+            fn (array $entry): bool => isset($entry['inPolygonPoint']),
+        )['inPolygonPoint'];
+        expect($inPolygonPoint['pointLongitude'])->toBe(13.5);
+        expect($inPolygonPoint['pointLatitude'])->toBe(52.5);
     });
 
     it('exports geoLocation to XML with point coordinates', function () {

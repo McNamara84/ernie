@@ -370,7 +370,39 @@ describe('rights', function () {
         expect($rights)->toHaveKey('value');
         expect($rights['value'])->toBe('Creative Commons Attribution 4.0 International');
         expect($rights)->toHaveKey('attrs');
-        expect($rights['attrs'])->toHaveKey('rightsIdentifier');
+        expect($rights['attrs'])->toHaveKey('rightsIdentifier')
+            ->and($rights['attrs'])->toHaveKey('rightsURI', 'https://creativecommons.org/licenses/by/4.0/')
+            ->and($rights['attrs'])->toHaveKey('schemeURI', 'https://spdx.org/licenses/');
+    });
+});
+
+describe('canonical DataCite API boundaries', function () {
+    it('maps canonical polygon entries back to the JSON-LD polygon structure', function () {
+        $resource = createResourceWithTitle();
+        $resource->geoLocations()->create([
+            'geo_type' => 'polygon',
+            'polygon_points' => [
+                ['longitude' => 12.0, 'latitude' => 51.0],
+                ['longitude' => 14.0, 'latitude' => 51.0],
+                ['longitude' => 14.0, 'latitude' => 53.0],
+            ],
+            'in_polygon_point_longitude' => 13.0,
+            'in_polygon_point_latitude' => 52.0,
+        ]);
+
+        $result = $this->exporter->export($resource->fresh());
+        $polygon = $result['geoLocations']['geoLocation']['geoLocationPolygon'];
+
+        expect($polygon['polygonPoint'])->toHaveCount(4)
+            ->and($polygon['polygonPoint'][0])->toBe([
+                'pointLongitude' => ['value' => '12'],
+                'pointLatitude' => ['value' => '51'],
+            ])
+            ->and($polygon['polygonPoint'][3])->toBe($polygon['polygonPoint'][0])
+            ->and($polygon['inPolygonPoint'])->toBe([
+                'pointLongitude' => ['value' => '13'],
+                'pointLatitude' => ['value' => '52'],
+            ]);
     });
 });
 

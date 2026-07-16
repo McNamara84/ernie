@@ -10,6 +10,7 @@ use App\Exceptions\JsonLdConversionException;
 use App\Http\Requests\UploadJsonRequest;
 use App\Models\ResourceType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
+use App\Services\DataCiteJsonImportNormalizer;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
@@ -81,6 +82,7 @@ class UploadJsonController extends Controller
     public function __construct(
         private readonly UploadLogService $uploadLogService,
         private readonly JsonSchemaValidator $jsonSchemaValidator,
+        private readonly DataCiteJsonImportNormalizer $jsonImportNormalizer,
         private readonly DataCiteJsonLdToJsonConverterService $jsonLdConverter,
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
@@ -128,6 +130,7 @@ class UploadJsonController extends Controller
         // Auto-detect format and extract attributes
         try {
             $attributes = $this->extractAttributes($decoded);
+            $attributes = $this->jsonImportNormalizer->normalize($attributes);
         } catch (\Throwable $e) {
             $errorCode = $e instanceof JsonLdConversionException
                 ? UploadErrorCode::JSON_LD_CONVERSION_ERROR
@@ -798,24 +801,21 @@ class UploadJsonController extends Controller
                 $polygon = $geo['geoLocationPolygon'];
                 $points = [];
 
-                $polygonPoints = $polygon['polygonPoints'] ?? [];
-                if (is_array($polygonPoints)) {
-                    foreach ($polygonPoints as $pt) {
-                        if (! is_array($pt)) {
+                if (is_array($polygon)) {
+                    foreach ($polygon as $entry) {
+                        if (! is_array($entry) || ! is_array($entry['polygonPoint'] ?? null)) {
                             continue;
                         }
 
-                        $lat = $pt['pointLatitude'] ?? null;
-                        $lon = $pt['pointLongitude'] ?? null;
+                        $lat = $entry['polygonPoint']['pointLatitude'] ?? null;
+                        $lon = $entry['polygonPoint']['pointLongitude'] ?? null;
 
-                        if (! is_numeric($lat) || ! is_numeric($lon)) {
-                            continue;
+                        if (is_numeric($lat) && is_numeric($lon)) {
+                            $points[] = [
+                                'lat' => (float) $lat,
+                                'lon' => (float) $lon,
+                            ];
                         }
-
-                        $points[] = [
-                            'lat' => (float) $lat,
-                            'lon' => (float) $lon,
-                        ];
                     }
                 }
 

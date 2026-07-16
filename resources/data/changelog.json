@@ -150,6 +150,10 @@
         ],
         "improvements": [
             {
+                "title": "Strict DataCite 4.7 JSON Validation",
+                "description": "ERNIE now validates DataCite API JSON with JSON Schema Draft 2020-12, executable DataCite date and URI formats, and recursively closed object contracts. JSON exports use canonical DataCite field names and polygon/Related Item structures, while imports retain compatibility through a bounded normalizer for documented API read fields and legacy URI aliases. Unknown fields, invalid dates, and schemeless URIs are reported with their concrete JSON paths."
+            },
+            {
                 "title": "ZIP Content Size and Format Suggestions",
                 "description": "The Size and Format Suggestions assistant now inspects approved ZIP downloads and directory listings to propose contained file formats and uncompressed sizes instead of only the ZIP container format. ZIP inspection stays bounded by host allowlists, redirect handling, per-file size limits, entry-count limits, and a per-directory ZIP inspection cap so discovery remains predictable."
             },

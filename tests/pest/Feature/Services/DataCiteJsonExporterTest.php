@@ -49,11 +49,12 @@ describe('DataCiteJsonExporter - JSON Structure', function () {
         $attributes = $result['data']['attributes'];
 
         expect($attributes)->toHaveKey('doi', '10.82433/TEST-1234')
-            ->and($attributes)->toHaveKey('publicationYear', 2024)
+            ->and($attributes)->toHaveKey('publicationYear', '2024')
             ->and($attributes)->toHaveKey('titles')
             ->and($attributes)->toHaveKey('creators')
             ->and($attributes)->toHaveKey('publisher')
             ->and($attributes)->toHaveKey('types')
+            ->and($attributes)->not->toHaveKey('identifiers')
             ->and($attributes)->not->toHaveKey('schemaVersion');
     });
 });
@@ -434,7 +435,7 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
         expect($rightsList)->toHaveCount(1)
             ->and($rightsList[0])->toMatchArray([
                 'rights' => 'CC BY 4.0',
-                'rightsURI' => 'http://creativecommons.org/licenses/by/4.0',
+                'rightsUri' => 'http://creativecommons.org/licenses/by/4.0',
                 'lang' => 'en',
             ])
             ->and($rightsList[0])->not->toHaveKey('rightsIdentifier');
@@ -457,10 +458,10 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
 
         expect($rights)->toMatchArray([
             'rights' => 'CUSTOM-1.0',
-            'rightsURI' => 'https://example.test/custom-license',
+            'rightsUri' => 'https://example.test/custom-license',
             'rightsIdentifier' => 'CUSTOM-1.0',
             'rightsIdentifierScheme' => 'LocalScheme',
-            'schemeURI' => 'https://example.test/schemes/licenses',
+            'schemeUri' => 'https://example.test/schemes/licenses',
         ]);
     });
 
@@ -484,10 +485,10 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
 
         expect($rights)->toMatchArray([
             'rights' => 'Creative Commons Attribution 4.0 International',
-            'rightsURI' => 'https://creativecommons.org/licenses/by/4.0/',
+            'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/',
             'rightsIdentifier' => 'CC-BY-4.0',
             'rightsIdentifierScheme' => 'SPDX',
-            'schemeURI' => 'https://spdx.org/licenses/',
+            'schemeUri' => 'https://spdx.org/licenses/',
             'lang' => 'de',
         ]);
     });
@@ -512,12 +513,12 @@ describe('DataCiteJsonExporter - Rights/Licenses', function () {
 
         expect($rights)->toMatchArray([
             'rights' => 'Community Data License',
-            'rightsURI' => 'https://example.test/licenses/community-data',
+            'rightsUri' => 'https://example.test/licenses/community-data',
             'lang' => 'de',
         ])
             ->and($rights)->not->toHaveKey('rightsIdentifier')
             ->and($rights)->not->toHaveKey('rightsIdentifierScheme')
-            ->and($rights)->not->toHaveKey('schemeURI');
+            ->and($rights)->not->toHaveKey('schemeUri');
     });
     test('uses already loaded resource rights instead of querying them again', function () {
         $resource = Resource::factory()->create();
@@ -1281,7 +1282,7 @@ describe('DataCiteJsonExporter - Affiliations', function () {
             ->and($affiliations[0])->toHaveKey('name', 'University of Potsdam')
             ->and($affiliations[0])->not->toHaveKey('affiliationIdentifier')
             ->and($affiliations[0])->not->toHaveKey('affiliationIdentifierScheme')
-            ->and($affiliations[0])->not->toHaveKey('schemeURI');
+            ->and($affiliations[0])->not->toHaveKey('schemeUri');
     });
 
     test('exports affiliation with name and ROR identifier', function () {
@@ -1308,10 +1309,10 @@ describe('DataCiteJsonExporter - Affiliations', function () {
             ->and($affiliations[0])->toHaveKey('name', 'University of Lausanne')
             ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/019whta54')
             ->and($affiliations[0])->toHaveKey('affiliationIdentifierScheme', 'ROR')
-            ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org/');
+            ->and($affiliations[0])->toHaveKey('schemeUri', 'https://ror.org/');
     });
 
-    test('exports schemeURI fallback for ROR affiliations without scheme_uri in DB', function () {
+    test('exports schemeUri fallback for ROR affiliations without scheme_uri in DB', function () {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create(['given_name' => 'Jane', 'family_name' => 'Doe']);
         $creator = ResourceCreator::create([
@@ -1335,7 +1336,7 @@ describe('DataCiteJsonExporter - Affiliations', function () {
         expect($affiliations)->toHaveCount(1)
             ->and($affiliations[0])->toHaveKey('affiliationIdentifier', 'https://ror.org/04z8jg394')
             ->and($affiliations[0])->toHaveKey('affiliationIdentifierScheme', 'ROR')
-            ->and($affiliations[0])->toHaveKey('schemeURI', 'https://ror.org/');
+            ->and($affiliations[0])->toHaveKey('schemeUri', 'https://ror.org/');
     });
 
     test('does not export ROR URL as affiliation name for legacy records', function () {
@@ -1692,5 +1693,89 @@ describe('DataCiteJsonExporter - Title-Level Languages', function () {
 
         expect($titles)->toHaveCount(1)
             ->and($titles[0])->not->toHaveKey('lang');
+    });
+});
+
+describe('DataCiteJsonExporter - canonical API contract', function () {
+    test('exports a closed polygon using canonical DataCite point entries', function () {
+        $resource = Resource::factory()->create();
+        $titleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true],
+        );
+        Title::create([
+            'resource_id' => $resource->id,
+            'title_type_id' => $titleType->id,
+            'value' => 'Polygon resource',
+        ]);
+        \App\Models\GeoLocation::create([
+            'resource_id' => $resource->id,
+            'geo_type' => 'polygon',
+            'polygon_points' => [
+                ['longitude' => 12.0, 'latitude' => 51.0],
+                ['longitude' => 14.0, 'latitude' => 51.0],
+                ['longitude' => 14.0, 'latitude' => 53.0],
+            ],
+            'in_polygon_point_longitude' => 13.0,
+            'in_polygon_point_latitude' => 52.0,
+        ]);
+
+        $attributes = $this->exporter->export($resource->fresh())['data']['attributes'];
+        $polygon = $attributes['geoLocations'][0]['geoLocationPolygon'];
+
+        expect($polygon)->toHaveCount(5)
+            ->and($polygon[0])->toBe([
+                'polygonPoint' => ['pointLongitude' => 12.0, 'pointLatitude' => 51.0],
+            ])
+            ->and($polygon[3])->toBe($polygon[0])
+            ->and($polygon[4])->toBe([
+                'inPolygonPoint' => ['pointLongitude' => 13.0, 'pointLatitude' => 52.0],
+            ])
+            ->and((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
+    });
+
+    test('preserves related identifier metadata scheme fields with canonical casing', function () {
+        $resource = Resource::factory()->create();
+        $titleType = TitleType::firstOrCreate(
+            ['slug' => 'MainTitle'],
+            ['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true],
+        );
+        Title::create([
+            'resource_id' => $resource->id,
+            'title_type_id' => $titleType->id,
+            'value' => 'Metadata resource',
+        ]);
+        $identifierType = IdentifierType::firstOrCreate(
+            ['slug' => 'URL'],
+            ['name' => 'URL', 'slug' => 'URL', 'is_active' => true],
+        );
+        $relationType = RelationType::firstOrCreate(
+            ['slug' => 'HasMetadata'],
+            ['name' => 'Has Metadata', 'slug' => 'HasMetadata', 'is_active' => true],
+        );
+
+        RelatedIdentifier::create([
+            'resource_id' => $resource->id,
+            'identifier' => 'https://example.org/schema.xml',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationType->id,
+            'related_metadata_scheme' => 'Example',
+            'scheme_uri' => 'https://example.org/schema',
+            'scheme_type' => 'XSD',
+            'position' => 1,
+        ]);
+
+        $attributes = $this->exporter->export($resource->fresh())['data']['attributes'];
+        $related = $attributes['relatedIdentifiers'][0];
+
+        expect($related)->toMatchArray([
+            'relatedIdentifier' => 'https://example.org/schema.xml',
+            'relatedIdentifierType' => 'URL',
+            'relationType' => 'HasMetadata',
+            'relatedMetadataScheme' => 'Example',
+            'schemeUri' => 'https://example.org/schema',
+            'schemeType' => 'XSD',
+        ])->and($related)->not->toHaveKey('schemeURI')
+            ->and((new JsonSchemaValidator)->validate($attributes))->toBeTrue();
     });
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Exceptions\JsonValidationException;
+use App\Services\DataCite\DataCiteDateFormat;
 use Illuminate\Support\Facades\Log;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\Errors\ValidationError;
@@ -17,7 +18,7 @@ use Opis\JsonSchema\Validator;
  * to ensure compliance with the DataCite Metadata Schema before export.
  *
  * Supports two validation modes:
- * - Non-strict (default for exports): DOI/identifiers are optional, allows draft resources
+ * - Non-strict (default for exports): DOI is optional, allows draft resources
  * - Strict (for registration): All required fields including DOI must be present
  */
 class JsonSchemaValidator
@@ -34,6 +35,17 @@ class JsonSchemaValidator
     {
         $this->validator = new Validator;
 
+        $parser = $this->validator->parser();
+        $parser->setOption('allowFormats', true);
+        $parser->setOption('allowUnevaluated', true);
+
+        $formatResolver = $parser->getFormatResolver();
+        if ($formatResolver === null) {
+            throw new \RuntimeException('Opis JSON Schema format resolver is not available.');
+        }
+
+        DataCiteDateFormat::register($formatResolver);
+
         // Set max errors to collect all validation issues
         $this->validator->setMaxErrors(50);
     }
@@ -42,7 +54,7 @@ class JsonSchemaValidator
      * Validate JSON data against the DataCite schema.
      *
      * @param  array<string, mixed>  $data  The data to validate
-     * @param  bool  $strictMode  If true, requires identifiers/DOI (for registration). If false, allows draft resources.
+     * @param  bool  $strictMode  If true, requires DOI (for registration). If false, allows draft resources.
      * @return bool True if validation passes
      *
      * @throws JsonValidationException If validation fails
@@ -60,14 +72,14 @@ class JsonSchemaValidator
             $errors = $this->formatErrors($result->error());
         }
 
-        // In strict mode, additionally check for required identifiers
-        if ($strictMode && empty($data['identifiers'])) {
+        // In strict mode, additionally check for the DataCite API DOI attribute.
+        if ($strictMode && (! is_string($data['doi'] ?? null) || trim($data['doi']) === '')) {
             $errors[] = [
-                'path' => '/identifiers',
-                'message' => "Required field 'identifiers' is missing. DOI is required for DataCite registration. (Path: /identifiers)",
+                'path' => '/doi',
+                'message' => "Required field 'doi' is missing. DOI is required for DataCite registration. (Path: /doi)",
                 'keyword' => 'required',
                 'context' => [
-                    'raw_message' => 'The identifiers field is required for DataCite registration but is missing.',
+                    'raw_message' => 'The doi field is required for DataCite registration but is missing.',
                 ],
             ];
         }
@@ -90,7 +102,7 @@ class JsonSchemaValidator
      *
      * @param  array<string, mixed>  $data  The data to validate
      * @param  array<int, array{path: string, message: string, keyword: string, context: array<string, mixed>}>|null  $errors  Reference to store errors if validation fails
-     * @param  bool  $strictMode  If true, requires identifiers/DOI (for registration)
+     * @param  bool  $strictMode  If true, requires DOI (for registration)
      */
     public function isValid(array $data, ?array &$errors = null, bool $strictMode = false): bool
     {
@@ -188,17 +200,32 @@ class JsonSchemaValidator
         }
 
         $formatter = new ErrorFormatter;
-        $formattedErrors = $formatter->format($error, true);
+        $formattedErrors = $formatter->format(
+            $error,
+            true,
+            static function (ValidationError $validationError, ?string $message = null) use ($formatter): array {
+                return [
+                    'raw_message' => $formatter->formatErrorMessage($validationError, $message),
+                    'keyword' => $validationError->keyword(),
+                    'arguments' => $validationError->args(),
+                ];
+            },
+        );
 
         $errors = [];
-        foreach ($formattedErrors as $path => $messages) {
-            foreach ($messages as $message) {
+        foreach ($formattedErrors as $path => $details) {
+            foreach ($details as $detail) {
+                $rawMessage = $detail['raw_message'];
+                $keyword = $detail['keyword'];
+                $arguments = $detail['arguments'];
+
                 $errors[] = [
                     'path' => $path,
-                    'message' => $this->createHybridMessage($path, $message),
-                    'keyword' => $this->extractKeyword($message),
+                    'message' => $this->createHybridMessage($path, $rawMessage, $keyword, $arguments),
+                    'keyword' => $keyword,
                     'context' => [
-                        'raw_message' => $message,
+                        'raw_message' => $rawMessage,
+                        'arguments' => $arguments,
                     ],
                 ];
             }
@@ -209,22 +236,42 @@ class JsonSchemaValidator
 
     /**
      * Create a hybrid error message with both human-readable text and technical details.
+     *
+     * @param  array<string, mixed>  $arguments
      */
-    private function createHybridMessage(string $path, string $rawMessage): string
+    private function createHybridMessage(string $path, string $rawMessage, string $keyword, array $arguments): string
     {
         // Map common validation keywords to human-readable messages
-        $humanReadable = $this->getHumanReadableMessage($path, $rawMessage);
+        $humanReadable = $this->getHumanReadableMessage($path, $rawMessage, $keyword, $arguments);
 
         return "{$humanReadable} (Path: {$path})";
     }
 
     /**
      * Get a human-readable message based on the error path and raw message.
+     *
+     * @param  array<string, mixed>  $arguments
      */
-    private function getHumanReadableMessage(string $path, string $rawMessage): string
+    private function getHumanReadableMessage(string $path, string $rawMessage, string $keyword, array $arguments): string
     {
         // Extract the field name from the path
         $fieldName = $this->extractFieldName($path);
+
+        if (in_array($keyword, ['additionalProperties', 'unevaluatedProperties'], true)) {
+            $properties = array_values(array_filter(
+                $arguments['properties'] ?? [],
+                static fn (mixed $property): bool => is_string($property) && $property !== '',
+            ));
+
+            if ($properties !== []) {
+                $quotedProperties = implode(', ', array_map(
+                    static fn (string $property): string => "'{$property}'",
+                    $properties,
+                ));
+
+                return "Field '{$fieldName}' contains unexpected properties: {$quotedProperties}";
+            }
+        }
 
         // Common error patterns and their human-readable equivalents
         $patterns = [
@@ -236,7 +283,8 @@ class JsonSchemaValidator
             '/minLength|maxLength/i' => "Field '{$fieldName}' has an invalid length",
             '/minItems|maxItems/i' => "Field '{$fieldName}' has an invalid number of items",
             '/format/i' => "Field '{$fieldName}' has an invalid format (e.g., date, URI)",
-            '/additionalProperties/i' => "Field '{$fieldName}' contains unexpected properties",
+            '/additionalProperties|unevaluatedProperties/i' => "Field '{$fieldName}' contains unexpected properties",
+            '/contains|minContains|maxContains/i' => "Field '{$fieldName}' contains an invalid combination of items",
         ];
 
         foreach ($patterns as $pattern => $message) {
@@ -269,27 +317,6 @@ class JsonSchemaValidator
         }
 
         return $lastSegment ?: 'unknown';
-    }
-
-    /**
-     * Extract the validation keyword from the error message.
-     */
-    private function extractKeyword(string $message): string
-    {
-        $keywords = [
-            'required', 'type', 'enum', 'minimum', 'maximum',
-            'pattern', 'minLength', 'maxLength', 'minItems', 'maxItems',
-            'format', 'additionalProperties', 'oneOf', 'anyOf', 'allOf',
-        ];
-
-        $messageLower = strtolower($message);
-        foreach ($keywords as $keyword) {
-            if (str_contains($messageLower, $keyword)) {
-                return $keyword;
-            }
-        }
-
-        return 'unknown';
     }
 
     /**

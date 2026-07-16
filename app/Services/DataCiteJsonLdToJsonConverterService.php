@@ -98,6 +98,11 @@ class DataCiteJsonLdToJsonConverterService
             $attributes['relatedIdentifiers'] = $this->convertRelatedIdentifiers($jsonLd['relatedIdentifiers']);
         }
 
+        // Related Items
+        if (isset($jsonLd['relatedItems'])) {
+            $attributes['relatedItems'] = $this->convertRelatedItems($jsonLd['relatedItems']);
+        }
+
         // Sizes
         if (isset($jsonLd['sizes'])) {
             $attributes['sizes'] = $this->convertSizes($jsonLd['sizes']);
@@ -548,15 +553,107 @@ class DataCiteJsonLdToJsonConverterService
             $result = ['relatedIdentifier' => $this->unwrapValue($item)];
 
             if (is_array($item) && isset($item['attrs'])) {
-                foreach (['relatedIdentifierType', 'relationType', 'resourceTypeGeneral', 'relationTypeInformation'] as $key) {
+                foreach (['relatedIdentifierType', 'relationType', 'relatedMetadataScheme', 'schemeType', 'resourceTypeGeneral', 'relationTypeInformation'] as $key) {
                     if (isset($item['attrs'][$key])) {
                         $result[$key] = $item['attrs'][$key];
                     }
+                }
+
+                $schemeUri = $item['attrs']['schemeURI'] ?? $item['attrs']['schemeUri'] ?? null;
+                if ($schemeUri !== null) {
+                    $result['schemeUri'] = $schemeUri;
                 }
             }
 
             return $result;
         }, $items));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function convertRelatedItems(mixed $data): array
+    {
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $items = $this->unwrapSingularKey($data, 'relatedItem');
+
+        return array_values(array_map(function (array $item): array {
+            $result = [];
+            $attrs = is_array($item['attrs'] ?? null) ? $item['attrs'] : [];
+            $value = is_array($item['value'] ?? null) ? $item['value'] : $item;
+
+            foreach (['relatedItemType', 'relationType'] as $key) {
+                if (isset($attrs[$key])) {
+                    $result[$key] = $attrs[$key];
+                } elseif (isset($value[$key])) {
+                    $result[$key] = $this->unwrapValue($value[$key]);
+                }
+            }
+
+            if (isset($value['titles'])) {
+                $result['titles'] = $this->convertTitles($value['titles']);
+            }
+            if (isset($value['creators'])) {
+                $result['creators'] = $this->convertCreators($value['creators']);
+            }
+            if (isset($value['contributors'])) {
+                $result['contributors'] = $this->convertContributors($value['contributors']);
+            }
+            if (isset($value['relatedItemIdentifier']) && is_array($value['relatedItemIdentifier'])) {
+                $result['relatedItemIdentifier'] = $this->convertRelatedItemIdentifier($value['relatedItemIdentifier']);
+            }
+
+            foreach (['publicationYear', 'volume', 'issue', 'firstPage', 'lastPage', 'publisher', 'edition'] as $key) {
+                if (array_key_exists($key, $value)) {
+                    $result[$key] = $this->unwrapValue($value[$key]);
+                }
+            }
+
+            if (array_key_exists('number', $value)) {
+                $result['number'] = $this->unwrapValue($value['number']);
+                if (is_array($value['number']) && isset($value['number']['attrs']['numberType'])) {
+                    $result['numberType'] = $value['number']['attrs']['numberType'];
+                } elseif (isset($value['numberType'])) {
+                    $result['numberType'] = $this->unwrapValue($value['numberType']);
+                }
+            }
+
+            return $result;
+        }, $items));
+    }
+
+    /**
+     * @param  array<string, mixed>  $identifier
+     * @return array<string, mixed>
+     */
+    private function convertRelatedItemIdentifier(array $identifier): array
+    {
+        if (array_key_exists('value', $identifier)) {
+            $result = [
+                'relatedItemIdentifier' => $this->unwrapValue($identifier),
+            ];
+            $attrs = is_array($identifier['attrs'] ?? null) ? $identifier['attrs'] : [];
+        } else {
+            $result = $identifier;
+            $attrs = $identifier;
+        }
+
+        foreach (['relatedItemIdentifierType', 'relatedMetadataScheme', 'schemeType'] as $key) {
+            if (isset($attrs[$key])) {
+                $result[$key] = $attrs[$key];
+            }
+        }
+
+        $schemeUri = $attrs['schemeURI'] ?? $attrs['schemeUri'] ?? null;
+        if ($schemeUri !== null) {
+            $result['schemeUri'] = $schemeUri;
+        }
+        unset($result['schemeURI'], $result['attrs'], $result['value']);
+
+        return $result;
     }
 
     /**
@@ -695,22 +792,24 @@ class DataCiteJsonLdToJsonConverterService
 
         if (isset($geo['geoLocationPolygon'])) {
             $polygon = $geo['geoLocationPolygon'];
-            $points = [];
+            $geoPolygon = [];
 
             if (isset($polygon['polygonPoint'])) {
                 $polygonPoints = $this->ensureList($polygon['polygonPoint']);
-                $points = array_map(fn (array $pt): array => [
-                    'pointLongitude' => $this->unwrapValue($pt['pointLongitude'] ?? ''),
-                    'pointLatitude' => $this->unwrapValue($pt['pointLatitude'] ?? ''),
+                $geoPolygon = array_map(fn (array $pt): array => [
+                    'polygonPoint' => [
+                        'pointLongitude' => $this->unwrapValue($pt['pointLongitude'] ?? ''),
+                        'pointLatitude' => $this->unwrapValue($pt['pointLatitude'] ?? ''),
+                    ],
                 ], $polygonPoints);
             }
 
-            $geoPolygon = ['polygonPoints' => $points];
-
             if (isset($polygon['inPolygonPoint'])) {
-                $geoPolygon['inPolygonPoint'] = [
-                    'pointLongitude' => $this->unwrapValue($polygon['inPolygonPoint']['pointLongitude'] ?? ''),
-                    'pointLatitude' => $this->unwrapValue($polygon['inPolygonPoint']['pointLatitude'] ?? ''),
+                $geoPolygon[] = [
+                    'inPolygonPoint' => [
+                        'pointLongitude' => $this->unwrapValue($polygon['inPolygonPoint']['pointLongitude'] ?? ''),
+                        'pointLatitude' => $this->unwrapValue($polygon['inPolygonPoint']['pointLatitude'] ?? ''),
+                    ],
                 ];
             }
 

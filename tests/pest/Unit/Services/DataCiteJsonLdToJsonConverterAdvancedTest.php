@@ -229,11 +229,11 @@ describe('geo location polygon conversion', function () {
         $result = $this->converter->convert($jsonLd);
         $polygon = $result['geoLocations'][0]['geoLocationPolygon'];
 
-        expect($polygon['polygonPoints'])->toHaveCount(4);
-        expect($polygon['polygonPoints'][0]['pointLongitude'])->toBe('13.0');
-        expect($polygon['polygonPoints'][0]['pointLatitude'])->toBe('52.0');
-        expect($polygon['inPolygonPoint']['pointLongitude'])->toBe('13.3');
-        expect($polygon['inPolygonPoint']['pointLatitude'])->toBe('52.3');
+        expect($polygon)->toHaveCount(5);
+        expect($polygon[0]['polygonPoint']['pointLongitude'])->toBe('13.0');
+        expect($polygon[0]['polygonPoint']['pointLatitude'])->toBe('52.0');
+        expect($polygon[4]['inPolygonPoint']['pointLongitude'])->toBe('13.3');
+        expect($polygon[4]['inPolygonPoint']['pointLatitude'])->toBe('52.3');
     });
 
     it('converts polygon without inPolygonPoint', function () {
@@ -264,8 +264,9 @@ describe('geo location polygon conversion', function () {
         $result = $this->converter->convert($jsonLd);
         $polygon = $result['geoLocations'][0]['geoLocationPolygon'];
 
-        expect($polygon['polygonPoints'])->toHaveCount(3);
-        expect($polygon)->not->toHaveKey('inPolygonPoint');
+        expect($polygon)->toHaveCount(3);
+        expect($polygon[0])->toHaveKey('polygonPoint');
+        expect(collect($polygon)->contains(fn (array $entry): bool => isset($entry['inPolygonPoint'])))->toBeFalse();
     });
 });
 
@@ -419,5 +420,69 @@ describe('funding reference edge cases', function () {
         expect($result['fundingReferences'][0]['funderName'])->toBe('DFG');
         expect($result['fundingReferences'][0])->not->toHaveKey('funderIdentifier');
         expect($result['fundingReferences'][0])->not->toHaveKey('awardNumber');
+    });
+});
+
+describe('related item conversion', function () {
+    it('converts JSON-LD nesting and URI aliases to canonical API JSON', function () {
+        $jsonLd = [
+            'relatedItems' => [
+                'relatedItem' => [
+                    'attrs' => [
+                        'relatedItemType' => 'JournalArticle',
+                        'relationType' => 'IsPublishedIn',
+                    ],
+                    'value' => [
+                        'titles' => [
+                            'title' => ['value' => 'Journal title'],
+                        ],
+                        'creators' => [
+                            'creator' => [
+                                'creatorName' => [
+                                    'attrs' => ['nameType' => 'Personal'],
+                                    'value' => 'Doe, Jane',
+                                ],
+                            ],
+                        ],
+                        'relatedItemIdentifier' => [
+                            'attrs' => [
+                                'relatedItemIdentifierType' => 'URL',
+                                'relatedMetadataScheme' => 'citeproc-json',
+                                'schemeURI' => 'https://citationstyles.org/schema',
+                                'schemeType' => 'JSON',
+                            ],
+                            'value' => 'https://example.org/article',
+                        ],
+                        'publicationYear' => ['value' => '2025'],
+                        'number' => [
+                            'attrs' => ['numberType' => 'Article'],
+                            'value' => 'e12345',
+                        ],
+                        'publisher' => ['value' => 'Example Publisher'],
+                    ],
+                ],
+            ],
+        ];
+
+        $result = $this->converter->convert($jsonLd);
+        $relatedItem = $result['relatedItems'][0];
+
+        expect($relatedItem)->toMatchArray([
+            'relatedItemType' => 'JournalArticle',
+            'relationType' => 'IsPublishedIn',
+            'titles' => [['title' => 'Journal title']],
+            'creators' => [['name' => 'Doe, Jane', 'nameType' => 'Personal']],
+            'relatedItemIdentifier' => [
+                'relatedItemIdentifier' => 'https://example.org/article',
+                'relatedItemIdentifierType' => 'URL',
+                'relatedMetadataScheme' => 'citeproc-json',
+                'schemeUri' => 'https://citationstyles.org/schema',
+                'schemeType' => 'JSON',
+            ],
+            'publicationYear' => '2025',
+            'number' => 'e12345',
+            'numberType' => 'Article',
+            'publisher' => 'Example Publisher',
+        ]);
     });
 });
