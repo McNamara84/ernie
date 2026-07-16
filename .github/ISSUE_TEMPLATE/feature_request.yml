@@ -1,7 +1,7 @@
 name: Feature Request
 description: Suggest a new feature or improvement for ERNIE
 title: "[FEATURE] "
-labels: ["enhancement"]
+labels: ["enhancement", "DoR not met"]
 projects: ["McNamara84/14"]
 body:
   - type: markdown
@@ -63,7 +63,7 @@ body:
         - label: The problem or user need is clear.
         - label: The acceptance criteria follow the Given-When-Then format.
         - label: Acceptance criteria are testable.
-        - label: Relevant Resource, DOI, IGSN, or sample data is included/linked.
+        - label: Relevant Resource or Sample is included/linked when relevant.
         - label: Sketches, mockups, or wireframes are attached when they could be helpful.
 
   - type: textarea
@@ -77,4 +77,4 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Draft or missing info?** Add the `DoR not met` label if this issue is still a draft or important details are missing. Developer will ignore the issue until the label is removed or there is a question and they are mentioned.
+        **Ready for work?** This issue is created with the `DoR not met` label by default. Remove it only when the Definition of Ready is met or when a developer is mentioned for a question.

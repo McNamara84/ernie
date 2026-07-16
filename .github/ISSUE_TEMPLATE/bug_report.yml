@@ -1,7 +1,7 @@
 name: Bug Report
 description: Report a bug or unexpected behavior in ERNIE
 title: "[BUG] "
-labels: ["bug"]
+labels: ["bug", "DoR not met"]
 projects: ["McNamara84/14"]
 body:
   - type: markdown
@@ -85,7 +85,7 @@ body:
       options:
         - label: The affected ERNIE page, route, or workflow is named.
         - label: If the bug is reported from stakeholders, the bug was reproduced by at least one team member.
-        - label: The affected Resource, DOI, IGSN, or sample data is named/linked when relevant.
+        - label: The affected Resource or Sample is named/linked when relevant.
         - label: The user role, browser, ERNIE version or branch, and environment are added when relevant.
         - label: The current behavior and expected behavior are clear.
         - label: The steps to reproduce are testable.
@@ -102,4 +102,4 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Draft or missing info?** Add the `DoR not met` label if this issue is still a draft or important details are missing. Developer will ignore the issue until the label is removed or there is a question and they are mentioned.
+        **Ready for work?** This issue is created with the `DoR not met` label by default. Remove it only when the Definition of Ready is met or when a developer is mentioned for a question.
