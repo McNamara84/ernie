@@ -1,8 +1,9 @@
 import { Check, Copy } from 'lucide-react';
-import { type ChangeEvent, useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { LandingPageCitationStyle, LandingPageCitationStyleId, LandingPageResource } from '@/types/landing-page';
 
 import { buildCitation } from '../lib/buildCitation';
@@ -121,9 +122,9 @@ export function CiteThisResourceSection({ resource, citationStyles = [], citatio
         setCopied(false);
     };
 
-    const handleStyleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const handleStyleChange = (value: string) => {
         clearCopiedState();
-        setRequestedStyleId(event.target.value as CitationStyleSelection);
+        setRequestedStyleId(value as CitationStyleSelection);
     };
 
     const handleCopy = async () => {
@@ -153,18 +154,18 @@ export function CiteThisResourceSection({ resource, citationStyles = [], citatio
                     <label htmlFor={selectId} className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Citation style
                     </label>
-                    <select
-                        id={selectId}
-                        value={selectedOption.id}
-                        onChange={handleStyleChange}
-                        className="min-h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-gfz-primary focus:ring-2 focus:ring-gfz-primary/30 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                    >
-                        {options.map((option) => (
-                            <option key={option.id} value={option.id} disabled={!option.available}>
-                                {option.label}
-                            </option>
-                        ))}
-                    </select>
+                    <Select value={selectedOption.id} onValueChange={handleStyleChange}>
+                        <SelectTrigger id={selectId} className="min-h-11" data-citation-style={selectedOption.id}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent data-print="hide">
+                            {options.map((option) => (
+                                <SelectItem key={option.id} value={option.id} disabled={!option.available} data-citation-style={option.id}>
+                                    {option.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 <div className="flex items-start gap-3">

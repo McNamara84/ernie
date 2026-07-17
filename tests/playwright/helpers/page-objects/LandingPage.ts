@@ -450,7 +450,8 @@ export class LandingPage {
    * Select one of the six stable citation style IDs.
    */
   async selectCitationStyle(style: 'apa-7' | 'harvard' | 'copernicus' | 'agu' | 'gsa' | 'gfz') {
-    await this.citationStyleSelect.selectOption(style);
+    await this.citationStyleSelect.click();
+    await this.page.locator(`[role="option"][data-citation-style="${style}"]`).click();
   }
 
   /**

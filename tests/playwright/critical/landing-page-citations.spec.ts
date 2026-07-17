@@ -12,9 +12,11 @@ test.describe('Landing Page - Citation Standards', () => {
     await landingPage.verifyPageLoaded();
 
     await expect(landingPage.citationSection).toBeVisible();
-    await expect(landingPage.citationStyleSelect).toHaveValue('apa-7');
+    await expect(landingPage.citationStyleSelect).toHaveAttribute('data-citation-style', 'apa-7');
+    await expect(landingPage.citationStyleSelect).toHaveText('APA 7');
 
-    const options = landingPage.citationStyleSelect.locator('option');
+    await landingPage.citationStyleSelect.click();
+    const options = page.getByRole('option');
     await expect(options).toHaveCount(6);
     await expect(options).toHaveText([
       'APA 7',
@@ -24,6 +26,16 @@ test.describe('Landing Page - Citation Standards', () => {
       'GSA',
       'GFZ Data Services (legacy)',
     ]);
+
+    expect(await options.evaluateAll((items) => items.map((item) => item.getAttribute('data-citation-style')))).toEqual([
+      'apa-7',
+      'harvard',
+      'copernicus',
+      'agu',
+      'gsa',
+      'gfz',
+    ]);
+    await page.keyboard.press('Escape');
 
     const leftColumn = landingPage.citationSection.locator('xpath=..');
     const sectionIds = await leftColumn.locator(':scope > section').evaluateAll((sections) =>
@@ -53,7 +65,8 @@ test.describe('Landing Page - Citation Standards', () => {
 
     await expect(page.getByText('Preview Mode')).toBeVisible();
     await expect(landingPage.citationSection).toBeVisible();
-    await expect(landingPage.citationStyleSelect).toHaveValue('apa-7');
+    await expect(landingPage.citationStyleSelect).toHaveAttribute('data-citation-style', 'apa-7');
+    await expect(landingPage.citationStyleSelect).toHaveText('APA 7');
 
     const leftHeadings = await landingPage.citationSection
       .locator('xpath=..')

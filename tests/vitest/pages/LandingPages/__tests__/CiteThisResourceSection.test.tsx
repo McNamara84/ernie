@@ -1,8 +1,9 @@
 /**
  * @vitest-environment jsdom
  */
+import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CiteThisResourceSection } from '@/pages/LandingPages/components/CiteThisResourceSection';
 import type { LandingPageCitationStyle, LandingPageResource } from '@/types/landing-page';
@@ -99,6 +100,13 @@ const citationStyles: LandingPageCitationStyle[] = [
     },
 ];
 
+beforeAll(() => {
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.setPointerCapture = () => {};
+    Element.prototype.releasePointerCapture = () => {};
+    Element.prototype.scrollIntoView = () => {};
+});
+
 beforeEach(() => {
     vi.clearAllMocks();
     writeText.mockReset();
@@ -112,15 +120,37 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
+async function openCitationStyleSelect() {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+    await user.click(screen.getByRole('combobox', { name: 'Citation style' }));
+
+    return user;
+}
+
+async function chooseCitationStyle(label: string) {
+    const clipboard = navigator.clipboard;
+    const user = await openCitationStyleSelect();
+    await user.click(await screen.findByRole('option', { name: label }));
+
+    Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: clipboard,
+    });
+}
+
 describe('CiteThisResourceSection', () => {
-    it('renders all six styles in the required order and selects APA 7 by default', () => {
+    it('renders all six styles in the required order and selects APA 7 by default', async () => {
         render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
 
         expect(screen.getByRole('region', { name: 'Cite this Resource' })).toBeInTheDocument();
-        expect(screen.getByLabelText('Citation style')).toHaveValue('apa-7');
+        const trigger = screen.getByRole('combobox', { name: 'Citation style' });
+        expect(trigger).toHaveAttribute('data-citation-style', 'apa-7');
+        expect(trigger).toHaveTextContent('APA 7');
 
-        const options = screen.getAllByRole('option');
-        expect(options.map((option) => option.getAttribute('value'))).toEqual(['apa-7', 'harvard', 'copernicus', 'agu', 'gsa', 'gfz']);
+        const user = await openCitationStyleSelect();
+        const options = await screen.findAllByRole('option');
+        expect(options.map((option) => option.getAttribute('data-citation-style'))).toEqual(['apa-7', 'harvard', 'copernicus', 'agu', 'gsa', 'gfz']);
         expect(options.map((option) => option.textContent)).toEqual([
             'APA 7',
             'Harvard (Cite Them Right)',
@@ -130,16 +160,18 @@ describe('CiteThisResourceSection', () => {
             'GFZ Data Services (legacy)',
         ]);
 
+        expect(screen.getByRole('listbox')).toHaveAttribute('data-print', 'hide');
+        await user.keyboard('{Escape}');
         const content = screen.getByTestId('citation-content');
         expect(content).toHaveAttribute('data-citation-style', 'apa-7');
         expect(within(content).getByText('A Test Dataset').tagName).toBe('EM');
         expect(screen.getByRole('link', { name: 'Citation Style Language (CSL)' })).toHaveAttribute('href', 'https://citationstyles.org/');
     });
 
-    it('changes the only visible citation when a different style is selected', () => {
+    it('changes the only visible citation when a different style is selected', async () => {
         render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
 
-        fireEvent.change(screen.getByLabelText('Citation style'), { target: { value: 'harvard' } });
+        await chooseCitationStyle('Harvard (Cite Them Right)');
 
         const content = screen.getByTestId('citation-content');
         expect(content).toHaveAttribute('data-citation-style', 'harvard');
@@ -175,48 +207,60 @@ describe('CiteThisResourceSection', () => {
         expect(content.querySelector('.csl-right-inline')).toHaveTextContent('Citation');
     });
 
-    it('disables unusable official outputs and falls back to the first available style', () => {
+    it('disables unusable official outputs and falls back to the first available style', async () => {
         const stylesWithBrokenApa = citationStyles.map((style) =>
             style.id === 'apa-7' ? { ...style, available: false, html: null, text: null } : style,
         );
 
         render(<CiteThisResourceSection resource={resource} citationStyles={stylesWithBrokenApa} />);
 
-        expect(screen.getByRole('option', { name: 'APA 7' })).toBeDisabled();
-        expect(screen.getByLabelText('Citation style')).toHaveValue('harvard');
+        const trigger = screen.getByRole('combobox', { name: 'Citation style' });
+        expect(trigger).toHaveAttribute('data-citation-style', 'harvard');
+        expect(trigger).toHaveTextContent('Harvard (Cite Them Right)');
+
+        await openCitationStyleSelect();
+        expect(await screen.findByRole('option', { name: 'APA 7' })).toHaveAttribute('aria-disabled', 'true');
         expect(screen.getByTestId('citation-content')).toHaveAttribute('data-citation-style', 'harvard');
     });
 
-    it('treats an allegedly available style without both output forms as unavailable', () => {
+    it('treats an allegedly available style without both output forms as unavailable', async () => {
         const incompleteStyles = citationStyles.map((style) => (style.id === 'apa-7' ? { ...style, available: true, text: null } : style));
 
         render(<CiteThisResourceSection resource={resource} citationStyles={incompleteStyles} />);
 
-        expect(screen.getByRole('option', { name: 'APA 7' })).toBeDisabled();
-        expect(screen.getByLabelText('Citation style')).toHaveValue('harvard');
+        const trigger = screen.getByRole('combobox', { name: 'Citation style' });
+        expect(trigger).toHaveAttribute('data-citation-style', 'harvard');
+        expect(trigger).toHaveTextContent('Harvard (Cite Them Right)');
+
+        await openCitationStyleSelect();
+        expect(await screen.findByRole('option', { name: 'APA 7' })).toHaveAttribute('aria-disabled', 'true');
     });
 
-    it('falls back safely to GFZ when the official payload is absent', () => {
+    it('falls back safely to GFZ when the official payload is absent', async () => {
         render(<CiteThisResourceSection resource={resource} citationStyles={undefined} citationAuthorLimit={1} />);
 
-        expect(screen.getByLabelText('Citation style')).toHaveValue('gfz');
+        const trigger = screen.getByRole('combobox', { name: 'Citation style' });
+        expect(trigger).toHaveAttribute('data-citation-style', 'gfz');
+        expect(trigger).toHaveTextContent('GFZ Data Services (legacy)');
+
+        await openCitationStyleSelect();
         expect(
             screen
                 .getAllByRole('option')
                 .slice(0, 5)
-                .every((option) => option.hasAttribute('disabled')),
+                .every((option) => option.getAttribute('aria-disabled') === 'true'),
         ).toBe(true);
         expect(screen.getByTestId('citation-content')).toHaveTextContent(
             'Lovelace, A.; et al. (2026): A Test Dataset. GFZ Data Services. https://doi.org/10.5880/example.2026',
         );
     });
 
-    it('applies the author limit only to GFZ and leaves official output untouched', () => {
+    it('applies the author limit only to GFZ and leaves official output untouched', async () => {
         render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} citationAuthorLimit={1} />);
 
         expect(screen.getByTestId('citation-content')).toHaveTextContent('Lovelace, A., & Hopper, G.');
 
-        fireEvent.change(screen.getByLabelText('Citation style'), { target: { value: 'gfz' } });
+        await chooseCitationStyle('GFZ Data Services (legacy)');
 
         expect(screen.getByTestId('citation-content')).toHaveTextContent('Lovelace, A.; et al.');
         expect(screen.getByTestId('citation-content')).not.toHaveTextContent('Hopper, G.');
@@ -226,7 +270,7 @@ describe('CiteThisResourceSection', () => {
         writeText.mockResolvedValueOnce(undefined);
         render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
 
-        fireEvent.change(screen.getByLabelText('Citation style'), { target: { value: 'harvard' } });
+        await chooseCitationStyle('Harvard (Cite Them Right)');
         fireEvent.click(screen.getByRole('button', { name: 'Copy citation to clipboard' }));
 
         await waitFor(() => {
@@ -304,7 +348,9 @@ describe('CiteThisResourceSection', () => {
     it('marks interactive controls for print and provides 44px touch targets', () => {
         render(<CiteThisResourceSection resource={resource} citationStyles={citationStyles} />);
 
-        expect(screen.getByLabelText('Citation style').closest('[data-print="hide"]')).not.toBeNull();
+        const citationStyleSelect = screen.getByRole('combobox', { name: 'Citation style' });
+        expect(citationStyleSelect.closest('[data-print="hide"]')).not.toBeNull();
+        expect(citationStyleSelect).toHaveClass('min-h-11');
         const copyButton = screen.getByRole('button', { name: 'Copy citation to clipboard' });
         expect(copyButton).toHaveAttribute('data-print', 'hide');
         expect(copyButton).toHaveClass('min-h-11', 'min-w-11');
