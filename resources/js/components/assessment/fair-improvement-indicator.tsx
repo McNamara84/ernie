@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { type FairImprovementOpportunity, type FairImprovementSeverity } from '@/types/assessment';
 
@@ -21,8 +22,7 @@ const actorLabels = {
     administrator: 'ERNIE administrator action',
 } as const;
 
-const triggerClasses =
-    'inline-flex size-8 items-center justify-center rounded-md border text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+const triggerClasses = 'border text-sm font-bold';
 
 function formatPoints(value: number): string {
     return Number.isInteger(value) ? value.toString() : value.toFixed(2);
@@ -82,13 +82,15 @@ export function FairImprovementIndicator({ opportunity }: { opportunity: FairImp
         return (
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         className={`${triggerClasses} border-transparent text-muted-foreground hover:border-border hover:bg-muted`}
                         aria-label={opportunity.message}
                     >
                         <span aria-hidden="true">—</span>
-                    </button>
+                    </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-sm text-left whitespace-normal">
                     {opportunity.message}
@@ -100,13 +102,15 @@ export function FairImprovementIndicator({ opportunity }: { opportunity: FairImp
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <button
+                <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     className={`${triggerClasses} ${severityClasses[opportunity.severity]}`}
                     aria-label={availableLabel(opportunity)}
                 >
                     <span aria-hidden="true">{opportunity.dimension}</span>
-                </button>
+                </Button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-sm text-left whitespace-normal">
                 <AvailableTooltip opportunity={opportunity} />

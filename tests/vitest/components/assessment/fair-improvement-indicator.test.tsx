@@ -61,7 +61,7 @@ describe('FairImprovementIndicator', () => {
         expect(screen.getByRole('button')).toHaveAccessibleName(/1\.50 of 6\.50 F-UJI points.*5\.00 overall percentage points/);
     });
 
-    it('opens on keyboard focus and retains a visible focus-ring class', async () => {
+    it('uses the shared shadcn button and opens on keyboard focus', async () => {
         const user = userEvent.setup();
         render(<FairImprovementIndicator opportunity={availableOpportunity()} />);
 
@@ -69,7 +69,9 @@ describe('FairImprovementIndicator', () => {
 
         const trigger = screen.getByRole('button');
         expect(trigger).toHaveFocus();
-        expect(trigger).toHaveClass('focus-visible:ring-2');
+        expect(trigger).toHaveAttribute('data-variant', 'ghost');
+        expect(trigger).toHaveAttribute('data-size', 'icon-sm');
+        expect(trigger).toHaveClass('focus-visible:ring-[3px]');
         expect(await screen.findByRole('tooltip')).toHaveTextContent('Reusability offers the largest FAIR-score opportunity.');
     });
 
@@ -174,6 +176,8 @@ describe('FairImprovementIndicator', () => {
         render(<FairImprovementIndicator opportunity={opportunity} />);
 
         const trigger = screen.getByRole('button', { name: expectedMessage });
+        expect(trigger).toHaveAttribute('data-variant', 'ghost');
+        expect(trigger).toHaveAttribute('data-size', 'icon-sm');
         expect(trigger).toHaveTextContent('—');
 
         await user.hover(trigger);
