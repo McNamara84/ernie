@@ -216,6 +216,37 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents score-causal FAIR opportunity guidance for Resources and physical-sample IGSNs', () => {
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        expect(screen.getByText('Improvement Guidance')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return text.includes('up to three verified actions') && text.includes('require an ERNIE administrator');
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('physical-sample IGSNs use separate guidance') &&
+                    text.includes('instead of asking you to add digital-file metadata')
+                );
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('documents the admin and group leader workspace switcher', () => {
         render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
 

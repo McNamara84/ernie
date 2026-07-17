@@ -57,6 +57,11 @@ function createAxiosError(status: number, data: Record<string, unknown> = {}) {
     });
 }
 
+const completeOpportunity = {
+    status: 'complete',
+    message: 'No FAIR improvement gap was found.',
+} as const;
+
 function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPageProps {
     return {
         fujiConfigured: true,
@@ -70,6 +75,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
                 mainTitle: 'Lowest resource score',
                 score: 11.25,
                 assessedAt: '2026-05-04T09:00:00+00:00',
+                improvementOpportunity: completeOpportunity,
             },
         ],
         igsnsNeedingAttention: [
@@ -79,6 +85,7 @@ function makeProps(overrides: Partial<AssessmentPageProps> = {}): AssessmentPage
                 mainTitle: 'Lowest IGSN score',
                 score: 18.5,
                 assessedAt: '2026-05-04T10:00:00+00:00',
+                improvementOpportunity: completeOpportunity,
             },
         ],
         resourceAssessmentSummary: {
@@ -175,7 +182,7 @@ describe('Assessment page', () => {
                     resourcesNeedingAttention: [],
                     resourceAssessmentSummary: summary,
                 })}
-            />
+            />,
         );
 
         expect(screen.getByText(expectedMessage)).toBeInTheDocument();
@@ -192,10 +199,11 @@ describe('Assessment page', () => {
                             mainTitle: 'Untitled assessment target',
                             score: 9.5,
                             assessedAt: '2026-05-04T09:00:00+00:00',
+                            improvementOpportunity: completeOpportunity,
                         },
                     ],
                 })}
-            />
+            />,
         );
 
         expect(screen.getByText('N/A')).toBeInTheDocument();
@@ -342,10 +350,12 @@ describe('Assessment page', () => {
 
     it('stops polling cleanly and shows the backend message when the job is no longer found', async () => {
         mockAxiosPost.mockResolvedValueOnce({ data: { jobId: '11111111-1111-4111-8111-111111111111' } });
-        mockAxiosGet.mockRejectedValueOnce(createAxiosError(404, {
-            status: 'unknown',
-            progress: 'Job not found.',
-        }));
+        mockAxiosGet.mockRejectedValueOnce(
+            createAxiosError(404, {
+                status: 'unknown',
+                progress: 'Job not found.',
+            }),
+        );
 
         render(<AssessmentPage {...makeProps()} />);
 
@@ -365,9 +375,11 @@ describe('Assessment page', () => {
 
     it('uses the server error payload for non-404 polling failures', async () => {
         mockAxiosPost.mockResolvedValueOnce({ data: { jobId: '11111111-1111-4111-8111-111111111111' } });
-        mockAxiosGet.mockRejectedValueOnce(createAxiosError(500, {
-            error: 'Status service unavailable.',
-        }));
+        mockAxiosGet.mockRejectedValueOnce(
+            createAxiosError(500, {
+                error: 'Status service unavailable.',
+            }),
+        );
 
         render(<AssessmentPage {...makeProps()} />);
 
@@ -518,7 +530,9 @@ describe('Assessment page', () => {
     });
 
     it('keeps all check buttons enabled and shows the health message when F-UJI is unhealthy', () => {
-        render(<AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI is currently unavailable. Please try again shortly.' })} />);
+        render(
+            <AssessmentPage {...makeProps({ fujiHealthy: false, fujiStatusMessage: 'F-UJI is currently unavailable. Please try again shortly.' })} />,
+        );
 
         expect(screen.getByRole('button', { name: 'Check all' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Check Resources' })).toBeEnabled();
@@ -527,9 +541,11 @@ describe('Assessment page', () => {
     });
 
     it('still allows starting a check when F-UJI is unhealthy and surfaces the server-side 503 response', async () => {
-        mockAxiosPost.mockRejectedValueOnce(createAxiosError(503, {
-            error: 'F-UJI is currently unavailable. Please try again shortly.',
-        }));
+        mockAxiosPost.mockRejectedValueOnce(
+            createAxiosError(503, {
+                error: 'F-UJI is currently unavailable. Please try again shortly.',
+            }),
+        );
 
         render(
             <AssessmentPage
@@ -537,7 +553,7 @@ describe('Assessment page', () => {
                     fujiHealthy: false,
                     fujiStatusMessage: 'F-UJI is currently unavailable. Please try again shortly.',
                 })}
-            />
+            />,
         );
 
         await act(async () => {

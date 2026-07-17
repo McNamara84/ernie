@@ -589,9 +589,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <strong>Suggested ROR-IDs</strong> – Detects missing ROR identifiers for affiliations, institutions, and funders via
-                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR
-                                identifier to further pending creator affiliations with exactly matching <code>creatorName</code> and{' '}
-                                <code>affiliation</code> values.
+                                the ROR API v2. When you accept a creator-affiliation ROR suggestion, ERNIE can offer to apply the same ROR identifier
+                                to further pending creator affiliations with exactly matching <code>creatorName</code> and <code>affiliation</code>{' '}
+                                values.
                             </li>
                             <li>
                                 <strong>Crossref Funder ROR Suggestions</strong> – Reviews funding references with legacy Crossref Funder IDs and
@@ -651,8 +651,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 </p>
                                 <p className="mt-2">
                                     Suggested ROR-ID affiliation matches are exact. If a creator-affiliation suggestion has further pending matches
-                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE
-                                    asks whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
+                                    with the same exported <code>creatorName</code>, <code>affiliation</code>, and proposed ROR identifier, ERNIE asks
+                                    whether to accept those suggestions as well. Bulk acceptance updates only the affiliation identifier fields;
                                     creator name identifiers and affiliation labels stay unchanged.
                                 </p>
                                 <p className="mt-2">
@@ -727,8 +727,35 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>
                                 <strong>IGSNs needing your attention</strong> – the 10 lowest-scoring Physical Object records
                             </li>
+                            <li>
+                                A <strong>FAIR opportunity</strong> letter showing the dimension with the largest remaining raw F-UJI point gap:
+                                Findability, Accessibility, Interoperability, or Reusability
+                            </li>
+                            <li>
+                                A yellow-to-red opportunity scale based on how many percentage points closing that dimension could add to the overall
+                                FAIR score
+                            </li>
                             <li>Scope summaries for assessed, failed, skipped, and not yet assessed records</li>
                         </ul>
+
+                        <h4>Improvement Guidance</h4>
+                        <p>
+                            Hover over the FAIR opportunity letter, or focus it with the keyboard, to see up to three verified actions with the
+                            greatest scoring effect in that dimension. The guidance describes positive changes in ERNIE and labels actions that
+                            require an ERNIE administrator. It does not repeat F-UJI failure messages or suggest general metadata improvements that do
+                            not affect the assessed metric.
+                        </p>
+                        <p>
+                            Digital Resources and physical-sample IGSNs use separate guidance. Dataset-oriented checks for downloads, file sizes, and
+                            file formats can still contribute to an IGSN's unchanged raw F-UJI gap, but ERNIE explains that scope difference instead
+                            of asking you to add digital-file metadata to a physical sample.
+                        </p>
+                        <p>
+                            If tracked ERNIE record, landing-page, or IGSN state changed after the stored assessment, the letter keeps showing the
+                            assessed raw opportunity while the tooltip asks you to run the assessment again before it derives new actions. A neutral
+                            dash identifies either a zero-gap assessment or guidance that cannot be calculated from the stored details; its accessible
+                            explanation states which case applies.
+                        </p>
 
                         <h4>Workflow</h4>
                         <WorkflowSteps>
@@ -1985,8 +2012,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             <strong>Edit</strong> and <strong>Set up landing page</strong> appear as quick actions directly in the selection toolbar.
                             Edit opens every selected resource in the Data Editor. When multiple resources are selected and the browser blocks one or
-                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page stays
-                            visible as a quick action and reports the standard single-record message when more than one row is selected.
+                            more editor tabs, ERNIE shows a fallback dialog with direct links for only the blocked resources. Set up landing page
+                            stays visible as a quick action and reports the standard single-record message when more than one row is selected.
                         </p>
                         <p>
                             The remaining actions stay in the <strong>Actions</strong> menu so exports, DOI registration, metadata updates, related
