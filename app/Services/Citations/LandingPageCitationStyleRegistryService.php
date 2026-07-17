@@ -10,7 +10,7 @@ namespace App\Services\Citations;
  * The order is part of the Inertia contract and must stay aligned with the
  * citation-style selector in the frontend.
  */
-final class LandingPageCitationStyleRegistry
+final class LandingPageCitationStyleRegistryService
 {
     /**
      * @var list<array{id: string, label: string, filename: string, locale: string}>

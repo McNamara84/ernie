@@ -13,7 +13,7 @@ use App\Models\ResourceType;
 /**
  * Maps a Resource to the CSL-JSON item shared by all landing-page styles.
  */
-final class LandingPageCslItemMapper
+final class LandingPageCslItemMapperService
 {
     /**
      * DataCite resourceTypeGeneral to the closest unambiguous CSL item type.

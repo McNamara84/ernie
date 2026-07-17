@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Services\Citations\CitationHtmlSanitizer;
+use App\Services\Citations\CitationHtmlSanitizerService;
 
-covers(CitationHtmlSanitizer::class);
+covers(CitationHtmlSanitizerService::class);
 
 it('extracts exactly the first bibliography entry and keeps CSL typography', function () {
     $html = <<<'HTML'
@@ -14,7 +14,7 @@ it('extracts exactly the first bibliography entry and keeps CSL typography', fun
 </div>
 HTML;
 
-    $sanitized = (new CitationHtmlSanitizer)->sanitize($html);
+    $sanitized = (new CitationHtmlSanitizerService)->sanitize($html);
 
     expect($sanitized)
         ->toStartWith('<div class="csl-entry">')
@@ -33,7 +33,7 @@ it('keeps only safe HTTPS links and strips every source attribute', function () 
 </div>
 HTML;
 
-    $sanitized = (new CitationHtmlSanitizer)->sanitize($html);
+    $sanitized = (new CitationHtmlSanitizerService)->sanitize($html);
 
     expect($sanitized)
         ->toContain('<a href="https://doi.org/10.1234/example" rel="noopener noreferrer">DOI</a>')
@@ -56,7 +56,7 @@ it('translates known small caps styling to an app class and rejects arbitrary CS
 </div>
 HTML;
 
-    $sanitized = (new CitationHtmlSanitizer)->sanitize($html);
+    $sanitized = (new CitationHtmlSanitizerService)->sanitize($html);
 
     expect($sanitized)
         ->toContain('<span class="csl-small-caps">GFZ</span>')
@@ -79,7 +79,7 @@ it('drops active elements with their contents and unwraps unknown presentational
 </div>
 HTML;
 
-    $sanitized = (new CitationHtmlSanitizer)->sanitize($html);
+    $sanitized = (new CitationHtmlSanitizerService)->sanitize($html);
 
     expect($sanitized)
         ->toContain('Before')
@@ -109,7 +109,7 @@ HTML;
 }
 CSS;
 
-    $sanitized = (new CitationHtmlSanitizer)->sanitize($html, $css);
+    $sanitized = (new CitationHtmlSanitizerService)->sanitize($html, $css);
 
     expect($sanitized)
         ->toStartWith('<div class="csl-entry csl-hanging-indent csl-double-spaced">')
@@ -122,7 +122,7 @@ CSS;
 });
 
 it('derives deterministic clipboard text from sanitized visible DOM content', function () {
-    $sanitizer = new CitationHtmlSanitizer;
+    $sanitizer = new CitationHtmlSanitizerService;
     $sanitized = $sanitizer->sanitize(
         '<div class="csl-entry"><div class="csl-left-margin">[1]</div>'
         .'<div class="csl-right-inline">Müller&nbsp; et al. '
@@ -134,11 +134,11 @@ it('derives deterministic clipboard text from sanitized visible DOM content', fu
 });
 
 it('rejects processor output without a bibliography entry', function () {
-    expect(fn () => (new CitationHtmlSanitizer)->sanitize('<div class="csl-bib-body"></div>'))
+    expect(fn () => (new CitationHtmlSanitizerService)->sanitize('<div class="csl-bib-body"></div>'))
         ->toThrow(UnexpectedValueException::class, 'no bibliography entry');
 });
 
 it('rejects plaintext input without a sanitized bibliography entry', function () {
-    expect(fn () => (new CitationHtmlSanitizer)->toPlainText('<p>not a citation</p>'))
+    expect(fn () => (new CitationHtmlSanitizerService)->toPlainText('<p>not a citation</p>'))
         ->toThrow(UnexpectedValueException::class, 'no bibliography entry');
 });

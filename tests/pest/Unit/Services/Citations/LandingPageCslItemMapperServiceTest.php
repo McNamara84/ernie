@@ -11,10 +11,10 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\TitleType;
-use App\Services\Citations\LandingPageCslItemMapper;
+use App\Services\Citations\LandingPageCslItemMapperService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
-covers(LandingPageCslItemMapper::class);
+covers(LandingPageCslItemMapperService::class);
 
 /**
  * @param  list<ResourceCreator>  $creators
@@ -108,7 +108,7 @@ it('maps complete metadata and every creator in position order', function () {
         language: $language,
     );
 
-    expect((new LandingPageCslItemMapper)->map($resource))->toBe([
+    expect((new LandingPageCslItemMapperService)->map($resource))->toBe([
         'id' => '10.5880/test.abc',
         'type' => 'dataset',
         'title' => 'A deterministic dataset',
@@ -133,7 +133,7 @@ it('omits every empty optional field instead of inventing citation metadata', fu
         'version' => ' ',
     ]);
 
-    expect((new LandingPageCslItemMapper)->map($resource))->toBe([
+    expect((new LandingPageCslItemMapperService)->map($resource))->toBe([
         'id' => 'ernie-resource-77',
         'type' => 'document',
     ]);
@@ -145,7 +145,7 @@ it('normalizes bare and prefixed DOI values', function (string $input, string $e
         'doi' => $input,
     ]);
 
-    $item = (new LandingPageCslItemMapper)->map($resource);
+    $item = (new LandingPageCslItemMapperService)->map($resource);
 
     expect($item)
         ->id->toBe($expected)
@@ -167,7 +167,7 @@ it('maps DataCite resource types to explicit CSL types', function (
         resourceType: new ResourceType(['name' => $name, 'slug' => $slug]),
     );
 
-    $item = (new LandingPageCslItemMapper)->map($resource);
+    $item = (new LandingPageCslItemMapperService)->map($resource);
 
     expect($item['type'])->toBe($expectedType);
 
@@ -201,7 +201,7 @@ it('falls unknown resource types back to document while retaining their name', f
         ]),
     );
 
-    expect((new LandingPageCslItemMapper)->map($resource))
+    expect((new LandingPageCslItemMapperService)->map($resource))
         ->type->toBe('document')
         ->genre->toBe('Curated rock sample');
 });
@@ -221,7 +221,7 @@ it('maps partial personal names and discards unsupported creator models', functi
         creators: [$unsupported, $familyOnly, $givenOnly],
     );
 
-    expect((new LandingPageCslItemMapper)->map($resource)['author'])->toBe([
+    expect((new LandingPageCslItemMapperService)->map($resource)['author'])->toBe([
         ['given' => 'Cher'],
         ['family' => 'Plato'],
     ]);

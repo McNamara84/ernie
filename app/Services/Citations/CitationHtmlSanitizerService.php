@@ -18,7 +18,7 @@ use UnexpectedValueException;
  * CSL output needs a smaller typography-oriented allow-list and fixed classes
  * for its generated layout.
  */
-final class CitationHtmlSanitizer
+final class CitationHtmlSanitizerService
 {
     /**
      * Elements whose content must be removed along with the element itself.

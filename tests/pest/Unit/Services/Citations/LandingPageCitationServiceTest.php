@@ -11,10 +11,10 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\TitleType;
-use App\Services\Citations\CitationHtmlSanitizer;
+use App\Services\Citations\CitationHtmlSanitizerService;
 use App\Services\Citations\LandingPageCitationService;
-use App\Services\Citations\LandingPageCitationStyleRegistry;
-use App\Services\Citations\LandingPageCslItemMapper;
+use App\Services\Citations\LandingPageCitationStyleRegistryService;
+use App\Services\Citations\LandingPageCslItemMapperService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -201,7 +201,7 @@ it('isolates one broken style, logs structured context and restores error report
     $temporaryDirectory = storage_path('framework/testing/csl-'.Str::uuid());
     File::ensureDirectoryExists($temporaryDirectory);
 
-    foreach (LandingPageCitationStyleRegistry::DEFINITIONS as $definition) {
+    foreach (LandingPageCitationStyleRegistryService::DEFINITIONS as $definition) {
         File::copy(
             base_path('resources/data/csl/styles/'.$definition['filename']),
             $temporaryDirectory.DIRECTORY_SEPARATOR.$definition['filename'],
@@ -214,9 +214,9 @@ it('isolates one broken style, logs structured context and restores error report
     );
 
     $service = new LandingPageCitationService(
-        new LandingPageCslItemMapper,
-        new CitationHtmlSanitizer,
-        new LandingPageCitationStyleRegistry($temporaryDirectory),
+        new LandingPageCslItemMapperService,
+        new CitationHtmlSanitizerService,
+        new LandingPageCitationStyleRegistryService($temporaryDirectory),
     );
     Log::spy();
     $before = error_reporting();

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Services\Citations\LandingPageCitationStyleRegistry;
+use App\Services\Citations\LandingPageCitationStyleRegistryService;
 
-covers(LandingPageCitationStyleRegistry::class);
+covers(LandingPageCitationStyleRegistryService::class);
 
 it('exposes the five fixed styles in UI order with explicit locales', function () {
-    $styles = (new LandingPageCitationStyleRegistry)->styles();
+    $styles = (new LandingPageCitationStyleRegistryService)->styles();
 
     expect($styles)
         ->toHaveCount(5)
@@ -52,7 +52,7 @@ it('pins the expected file contents and internal IDs of all independent CSL styl
         'gsa' => ['filename' => 'the-geological-society-of-america.csl', 'csl_id' => 'http://www.zotero.org/styles/the-geological-society-of-america', 'sha256' => '2e0aaf443ae73fd81edaea5a231357e9f231a8a7d4e2632083484434ea6cab6b'],
     ];
 
-    foreach ((new LandingPageCitationStyleRegistry)->styles() as $style) {
+    foreach ((new LandingPageCitationStyleRegistryService)->styles() as $style) {
         $expected = $expectedStyles[$style['id']];
 
         expect($style['path'])->toBeFile()
@@ -74,7 +74,7 @@ it('pins the expected file contents and internal IDs of all independent CSL styl
 
 it('can resolve the same allow-list from an explicit directory', function () {
     $directory = DIRECTORY_SEPARATOR.'tmp'.DIRECTORY_SEPARATOR.'citation-styles';
-    $styles = (new LandingPageCitationStyleRegistry($directory))->styles();
+    $styles = (new LandingPageCitationStyleRegistryService($directory))->styles();
 
     expect($styles[0]['path'])->toBe($directory.DIRECTORY_SEPARATOR.'apa.csl')
         ->and($styles[4]['path'])->toBe(

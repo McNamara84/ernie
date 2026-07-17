@@ -17,9 +17,9 @@ use UnexpectedValueException;
 final class LandingPageCitationService
 {
     public function __construct(
-        private readonly LandingPageCslItemMapper $mapper,
-        private readonly CitationHtmlSanitizer $sanitizer,
-        private readonly LandingPageCitationStyleRegistry $registry,
+        private readonly LandingPageCslItemMapperService $mapper,
+        private readonly CitationHtmlSanitizerService $sanitizer,
+        private readonly LandingPageCitationStyleRegistryService $registry,
     ) {}
 
     /**
