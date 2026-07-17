@@ -29,8 +29,10 @@ test.describe('Landing Page - Citation Standards', () => {
     const sectionIds = await leftColumn.locator(':scope > section').evaluateAll((sections) =>
       sections.map((section) => section.getAttribute('data-testid') ?? section.getAttribute('aria-labelledby')),
     );
-    expect(sectionIds.indexOf('files-section')).toBeGreaterThanOrEqual(0);
-    expect(sectionIds.indexOf('citation-section')).toBeGreaterThan(sectionIds.indexOf('files-section'));
+    const filesIndex = sectionIds.indexOf('files-section');
+    const citationIndex = sectionIds.indexOf('citation-section');
+    expect(filesIndex).toBeGreaterThanOrEqual(0);
+    expect(citationIndex).toBe(filesIndex + 1);
 
     const apaText = normalizeVisibleText(await landingPage.citationContent.innerText());
     await landingPage.selectCitationStyle('harvard');
@@ -75,9 +77,8 @@ test.describe('Landing Page - Citation Standards', () => {
     expect(visibleCitation).not.toContain('DOI not available');
 
     await landingPage.copyCitation();
-    const copied = await expect
-      .poll(async () => landingPage.copiedCitationText())
-      .not.toBeNull();
+    await expect.poll(async () => landingPage.copiedCitationText()).not.toBeNull();
+    const copied = (await landingPage.copiedCitationText()) ?? '';
 
     expect(copied).not.toContain('doi.org');
     expect(copied).not.toContain('DOI not available');

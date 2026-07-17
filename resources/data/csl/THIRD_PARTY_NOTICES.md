@@ -30,4 +30,3 @@ included in `LICENSE-CC-BY-SA-3.0.txt`.
 
 The application preserves this attribution in the source distribution and
 links users of the citation module to <https://citationstyles.org/>.
-

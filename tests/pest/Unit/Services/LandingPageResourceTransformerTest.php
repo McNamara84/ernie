@@ -6,6 +6,7 @@ use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
@@ -392,7 +393,7 @@ test('transforms related identifier slugs and citation label for landing pages',
 
     $resource = new Resource;
 
-    $identifierType = new \App\Models\IdentifierType;
+    $identifierType = new IdentifierType;
     $identifierType->forceFill([
         'id' => 1,
         'name' => 'DOI',

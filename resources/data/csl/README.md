@@ -13,18 +13,21 @@ and never requires a runtime request to Zotero, DataCite, DOI.org, or a CDN.
 - License: CC BY-SA 3.0; each unmodified style retains its original authors,
   contributors, links, update timestamp, and `<rights>` metadata.
 
-| Application ID | File | Locale | Git blob | SHA-256 |
-| --- | --- | --- | --- | --- |
-| `apa-7` | `styles/apa.csl` | `en-US` | `edd25d724124cfd9abd4a017786d91098a4acc6f` | `17bc430cf931767d551a894129b3a705e1feee91090295c09674e370ccdef5d9` |
-| `harvard` | `styles/harvard-cite-them-right.csl` | `en-GB` | `903c6d2dff0195f7acb7b929126379bb49e8e263` | `6053e3448b5e7da4a814f2a8610c1bf29cc5a243c24c9e2e5c3e7cd225230df7` |
-| `copernicus` | `styles/copernicus-publications.csl` | `en-US` | `633b25f133b4984cdc8d321be13489ca9142e5ff` | `a0e16fd5f4af5c5043726cdd1b82984d1ac12d8118492c39004cc547352a3bdb` |
-| `agu` | `styles/american-geophysical-union.csl` | `en-US` | `99e67015c6932ba0518c3f4c29f4cca12204c5a5` | `2c343e722c03bbda4722edbd234ca0ae21173a3f5088bf239145df433a9a59f7` |
-| `gsa` | `styles/the-geological-society-of-america.csl` | `en-US` | `1f58384c966b2a8aa0efe47578efe9ec68e64d10` | `2e0aaf443ae73fd81edaea5a231357e9f231a8a7d4e2632083484434ea6cab6b` |
+| Application ID | File                                           | Locale  | Git blob                                   | SHA-256                                                            |
+| -------------- | ---------------------------------------------- | ------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| `apa-7`        | `styles/apa.csl`                               | `en-US` | `edd25d724124cfd9abd4a017786d91098a4acc6f` | `17bc430cf931767d551a894129b3a705e1feee91090295c09674e370ccdef5d9` |
+| `harvard`      | `styles/harvard-cite-them-right.csl`           | `en-GB` | `903c6d2dff0195f7acb7b929126379bb49e8e263` | `6053e3448b5e7da4a814f2a8610c1bf29cc5a243c24c9e2e5c3e7cd225230df7` |
+| `copernicus`   | `styles/copernicus-publications.csl`           | `en-US` | `633b25f133b4984cdc8d321be13489ca9142e5ff` | `a0e16fd5f4af5c5043726cdd1b82984d1ac12d8118492c39004cc547352a3bdb` |
+| `agu`          | `styles/american-geophysical-union.csl`        | `en-US` | `99e67015c6932ba0518c3f4c29f4cca12204c5a5` | `2c343e722c03bbda4722edbd234ca0ae21173a3f5088bf239145df433a9a59f7` |
+| `gsa`          | `styles/the-geological-society-of-america.csl` | `en-US` | `1f58384c966b2a8aa0efe47578efe9ec68e64d10` | `2e0aaf443ae73fd81edaea5a231357e9f231a8a7d4e2632083484434ea6cab6b` |
 
 The Composer dependency also installs the complete CSL styles package because
 `citeproc-php` declares it as a dependency. Application code deliberately does
 not resolve styles by package name and does not use that package as a fallback;
 it passes the absolute path of one of the five files above.
+The transitive package is pinned by `composer.lock` to version `v0.0.772`,
+source commit `5c1e6ba17b0c0127bf737bcf36355982ecbb6ff0`, under the same
+CC BY-SA 3.0 license.
 
 ## Locales
 
@@ -59,13 +62,13 @@ Published landing pages amortize the work through the versioned render cache.
 
 Installed footprint measured during the gate:
 
-| Dependency/asset | Size |
-| --- | ---: |
-| `seboettg/citeproc-php` | 1.87 MiB |
-| `seboettg/collection` | 0.26 MiB |
+| Dependency/asset                       |      Size |
+| -------------------------------------- | --------: |
+| `seboettg/citeproc-php`                |  1.87 MiB |
+| `seboettg/collection`                  |  0.26 MiB |
 | complete transitive CSL styles package | 48.21 MiB |
-| official CSL locales package | 1.58 MiB |
-| five application styles plus notices | 0.16 MiB |
+| official CSL locales package           |  1.58 MiB |
+| five application styles plus notices   |  0.16 MiB |
 
 PHP 8.5 reports four upstream implicit-nullability deprecations while loading
 the engine. Application integration masks only `E_DEPRECATED` for the narrow
@@ -82,4 +85,3 @@ To update these assets:
 4. Update the locale/engine lock only through Composer.
 5. Run the registry, parser, sanitizer, golden-output, PHP, frontend, SSR, and
    end-to-end citation tests before accepting changed output.
-

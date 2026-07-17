@@ -839,6 +839,14 @@ describe('Landing Page with Custom Template', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('sectionOrder.leftColumn', [
+                    'contact',
+                    'files',
+                    'model_description',
+                    'related_work',
+                    'dates',
+                    'citation',
+                ])
                 ->where('displayLimits.creators', 12)
                 ->where('displayLimits.contributors', 34)
                 ->where('displayLimits.citationAuthors', 8)

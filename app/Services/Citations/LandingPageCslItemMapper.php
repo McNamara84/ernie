@@ -137,6 +137,7 @@ final class LandingPageCslItemMapper
      */
     private function mapCreator(ResourceCreator $creator): ?array
     {
+        /** @var mixed $creatorable */
         $creatorable = $creator->creatorable;
 
         if ($creatorable instanceof Person) {

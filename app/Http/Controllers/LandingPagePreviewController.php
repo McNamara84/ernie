@@ -98,8 +98,7 @@ class LandingPagePreviewController extends Controller
         Resource $resource,
         LandingPageResourceTransformer $transformer,
         LandingPageCitationService $citationService
-    ): Response
-    {
+    ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
 

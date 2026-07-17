@@ -71,6 +71,7 @@ final class LandingPageCitationService
      */
     private function renderStyle(array $style, array $item): array
     {
+        [$cslItem, $markers] = $this->engineCompatibleItem($item);
         $previousErrorReporting = error_reporting();
         error_reporting($previousErrorReporting & ~E_DEPRECATED);
 
@@ -78,19 +79,20 @@ final class LandingPageCitationService
             $styleSheet = StyleSheet::loadStyleSheet($style['path']);
             $processor = new CiteProc($styleSheet, $style['locale']);
             $css = $processor->renderCssStyles();
-            $cslItem = $this->engineCompatibleItem($item);
             $bibliography = $processor->render([$cslItem], 'bibliography');
-            $html = $this->sanitizer->sanitize($bibliography, $css);
-            $text = $this->sanitizer->toPlainText($html);
-
-            if ($text === '') {
-                throw new UnexpectedValueException('The CSL processor returned an empty bibliography entry.');
-            }
-
-            return [$html, $text];
         } finally {
             error_reporting($previousErrorReporting);
         }
+
+        $bibliography = $this->restoreEngineText($bibliography, $markers);
+        $html = $this->sanitizer->sanitize($bibliography, $css);
+        $text = $this->sanitizer->toPlainText($html);
+
+        if ($text === '') {
+            throw new UnexpectedValueException('The CSL processor returned an empty bibliography entry.');
+        }
+
+        return [$html, $text];
     }
 
     /**
@@ -99,17 +101,38 @@ final class LandingPageCitationService
      * equivalent family value only to the engine-specific object graph.
      *
      * @param  array<string, mixed>  $item
+     * @return array{
+     *     object,
+     *     array{ampersand: string, less_than: string, greater_than: string}
+     * }
      */
-    private function engineCompatibleItem(array $item): object
+    private function engineCompatibleItem(array $item): array
     {
+        $markers = $this->engineTextMarkers($item);
+
+        foreach (['title', 'publisher', 'version', 'genre'] as $textKey) {
+            if (isset($item[$textKey]) && is_string($item[$textKey])) {
+                $item[$textKey] = $this->escapeEngineText($item[$textKey], $markers);
+            }
+        }
+
         if (isset($item['author']) && is_array($item['author'])) {
             foreach ($item['author'] as &$author) {
+                if (is_array($author)) {
+                    foreach (['family', 'given', 'literal'] as $nameKey) {
+                        if (isset($author[$nameKey]) && is_string($author[$nameKey])) {
+                            $author[$nameKey] = $this->escapeEngineText($author[$nameKey], $markers);
+                        }
+                    }
+                }
+
                 if (
                     is_array($author)
                     && isset($author['literal'])
                     && is_string($author['literal'])
                     && ! isset($author['family'])
                 ) {
+                    $author['given'] = '';
                     $author['family'] = $author['literal'];
                 }
             }
@@ -127,7 +150,66 @@ final class LandingPageCitationService
             throw new UnexpectedValueException('The CSL item could not be converted for the processor.');
         }
 
-        return $decoded;
+        return [$decoded, $markers];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array{ampersand: string, less_than: string, greater_than: string}
+     */
+    private function engineTextMarkers(array $item): array
+    {
+        $serializedItem = json_encode($item, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        for ($nonce = 0; ; $nonce++) {
+            $prefix = "\u{E000}{$nonce}";
+            $markers = [
+                'ampersand' => $prefix."0\u{E003}",
+                'less_than' => $prefix."1\u{E003}",
+                'greater_than' => $prefix."2\u{E003}",
+            ];
+            $collides = false;
+
+            foreach ($markers as $marker) {
+                if (str_contains($serializedItem, $marker)) {
+                    $collides = true;
+
+                    break;
+                }
+            }
+
+            if (! $collides) {
+                return $markers;
+            }
+        }
+    }
+
+    /**
+     * @param  array{ampersand: string, less_than: string, greater_than: string}  $markers
+     */
+    private function escapeEngineText(string $value, array $markers): string
+    {
+        // citeproc-php treats angle brackets in metadata as its own markup.
+        // Collision-checked placeholders survive formatting and are restored
+        // to numeric entities only after rendering, so the DOM parser receives
+        // visible text rather than executable elements.
+        return strtr($value, [
+            '&' => $markers['ampersand'],
+            '<' => $markers['less_than'],
+            '>' => $markers['greater_than'],
+        ]);
+    }
+
+    /**
+     * @param  array{ampersand: string, less_than: string, greater_than: string}  $markers
+     */
+    private function restoreEngineText(string $bibliography, array $markers): string
+    {
+        return strtr($bibliography, [
+            $markers['ampersand'] => '&#38;',
+            $markers['less_than'] => '&#60;',
+            $markers['greater_than'] => '&#62;',
+        ]);
     }
 
     /**

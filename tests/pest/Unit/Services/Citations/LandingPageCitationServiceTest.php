@@ -170,10 +170,30 @@ it('escapes hostile metadata end to end through mapper processor and sanitizer',
         expect($style)
             ->available->toBeTrue()
             ->html->toContain('&lt;')
+            ->html->toContain('&amp; Mantle')
             ->html->not->toMatch('/<\s*(?:script|img|svg|iframe)\b/i')
             ->html->not->toMatch('/<[^>]+\s(?:onerror|onload)\s*=/i')
-            ->text->toContain('<script>alert("title")</script>')
+            ->html->not->toContain('&amp;quot;')
+            ->text->not->toContain('&quot;')
+            ->text->toContain('<script>')
+            ->text->toContain('</script>')
+            ->text->toContain(' & Mantle')
             ->text->toContain('<img src=x onerror=alert(1)>');
+    }
+});
+it('preserves private-use metadata that collides with the first marker candidates', function () {
+    $privateUseMetadata = "\u{E000}00\u{E003}\u{E000}01\u{E003}\u{E000}02\u{E003}\u{E001}\u{E002}";
+    $styles = app(LandingPageCitationService::class)->format(
+        landingPageCitationServiceTestFixture(
+            titleValue: "Private {$privateUseMetadata} markers",
+        ),
+    );
+
+    foreach ($styles as $style) {
+        expect($style)
+            ->available->toBeTrue()
+            ->html->toContain($privateUseMetadata)
+            ->text->toContain($privateUseMetadata);
     }
 });
 
@@ -194,8 +214,8 @@ it('isolates one broken style, logs structured context and restores error report
     );
 
     $service = new LandingPageCitationService(
-        new LandingPageCslItemMapper(),
-        new CitationHtmlSanitizer(),
+        new LandingPageCslItemMapper,
+        new CitationHtmlSanitizer,
         new LandingPageCitationStyleRegistry($temporaryDirectory),
     );
     Log::spy();

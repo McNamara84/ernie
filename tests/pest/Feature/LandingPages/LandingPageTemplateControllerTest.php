@@ -1199,6 +1199,42 @@ describe('Seeder', function (): void {
 // ─── Update Edge Cases ───────────────────────────────────────────────────────
 
 describe('Update Edge Cases', function (): void {
+    it('updates only a display limit without persisting a normalized sparse legacy order', function (): void {
+        $storedLeftOrder = ['contact', 'files'];
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->admin->id,
+            'left_column_order' => $storedLeftOrder,
+            'creator_display_limit' => 12,
+            'contributor_display_limit' => 34,
+            'citation_author_display_limit' => 8,
+        ]);
+        $originalName = $template->name;
+        $originalRightOrder = $template->right_column_order;
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'citation_author_display_limit' => 21,
+            ])
+            ->assertOk()
+            ->assertJsonPath('template.citation_author_display_limit', 21)
+            ->assertJsonPath('template.left_column_order', [
+                'contact',
+                'files',
+                'dates',
+                'model_description',
+                'related_work',
+                'citation',
+            ]);
+
+        $template->refresh();
+
+        expect($template->name)->toBe($originalName)
+            ->and($template->right_column_order)->toBe($originalRightOrder)
+            ->and($template->left_column_order)->toBe($storedLeftOrder)
+            ->and($template->creator_display_limit)->toBe(12)
+            ->and($template->contributor_display_limit)->toBe(34)
+            ->and($template->citation_author_display_limit)->toBe(21);
+    });
     it('updates only the name without section order', function (): void {
         $template = LandingPageTemplate::factory()->create([
             'created_by' => $this->admin->id,
