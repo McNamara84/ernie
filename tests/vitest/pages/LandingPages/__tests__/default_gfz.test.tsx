@@ -623,4 +623,91 @@ describe('DefaultGfzTemplate', () => {
             expect(screen.getByText('Only methods')).toBeInTheDocument();
         });
     });
+
+    describe('citation section order', () => {
+        const resourceWithDate = {
+            ...mockResource,
+            dates: [
+                {
+                    id: 1,
+                    date_type: 'Created',
+                    date_type_slug: 'Created',
+                    date_value: '2026-01-15',
+                    start_date: null,
+                    end_date: null,
+                    date_information: null,
+                },
+            ],
+        };
+
+        const renderWithLeftOrder = (leftColumn?: string[]) => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: resourceWithDate,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: leftColumn ? { leftColumn, rightColumn: [] } : null,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+        };
+
+        it('renders the default order as Files, Cite this Resource, Dates', () => {
+            renderWithLeftOrder();
+
+            const files = screen.getByRole('heading', { name: 'Files' });
+            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const dates = screen.getByRole('heading', { name: 'Dates' });
+
+            expect(files.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(citation.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('appends citation after an old custom order that does not contain it', () => {
+            renderWithLeftOrder(['dates', 'files', 'contact', 'model_description', 'related_work']);
+
+            const dates = screen.getByRole('heading', { name: 'Dates' });
+            const files = screen.getByRole('heading', { name: 'Files' });
+            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+
+            expect(dates.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(files.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('preserves a configured custom citation position', () => {
+            renderWithLeftOrder(['citation', 'files', 'dates', 'contact', 'model_description', 'related_work']);
+
+            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const files = screen.getByRole('heading', { name: 'Files' });
+            const dates = screen.getByRole('heading', { name: 'Dates' });
+
+            expect(citation.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(files.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('passes server-rendered official citations into the module', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: resourceWithDate,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    citationStyles: [
+                        {
+                            id: 'apa-7',
+                            label: 'APA 7',
+                            available: true,
+                            html: '<div class="csl-entry"><em>Server APA citation</em></div>',
+                            text: 'Server APA citation',
+                        },
+                    ],
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(screen.getByTestId('citation-content')).toHaveAttribute('data-citation-style', 'apa-7');
+            expect(screen.getByText('Server APA citation').tagName).toBe('EM');
+        });
+    });
 });

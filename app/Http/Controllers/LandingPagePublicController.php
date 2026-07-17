@@ -10,6 +10,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\LandingPageViewCounterService;
+use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\SchemaOrgJsonLdExporter;
@@ -80,6 +81,7 @@ class LandingPagePublicController extends Controller
         LandingPageResourceTransformer $transformer,
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
+        LandingPageCitationService $citationService,
         string $doiPrefix,
         string $slug
     ): Response|RedirectResponse {
@@ -124,7 +126,7 @@ class LandingPagePublicController extends Controller
             // if they drift, we prioritize availability over strict consistency.
         }
 
-        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $previewToken);
+        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $previewToken);
     }
 
     /**
@@ -139,6 +141,7 @@ class LandingPagePublicController extends Controller
         LandingPageResourceTransformer $transformer,
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
+        LandingPageCitationService $citationService,
         int $resourceId,
         string $slug
     ): Response|RedirectResponse {
@@ -161,7 +164,7 @@ class LandingPagePublicController extends Controller
 
         abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
-        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $previewToken);
+        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $previewToken);
     }
 
     /**
@@ -232,6 +235,7 @@ class LandingPagePublicController extends Controller
         LandingPageResourceTransformer $transformer,
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
+        LandingPageCitationService $citationService,
         ?string $previewToken
     ): Response|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
@@ -283,7 +287,7 @@ class LandingPagePublicController extends Controller
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $previewToken): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $previewToken): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -336,6 +340,7 @@ class LandingPagePublicController extends Controller
                 'template' => $effectiveTemplate,
                 'props' => [
                     'resource' => $resourceData,
+                    'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
                     'isPreview' => (bool) $previewToken,
                     'schemaOrgJsonLd' => $schemaOrgJsonLd,

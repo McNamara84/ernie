@@ -1,10 +1,18 @@
 import { usePage } from '@inertiajs/react';
 import { type ReactNode, useMemo } from 'react';
 
-import type { LandingPageConfig, LandingPageDisplayLimits, LandingPageResource, LeftColumnSection, SectionOrder } from '@/types/landing-page';
+import type {
+    LandingPageCitationStyle,
+    LandingPageConfig,
+    LandingPageDisplayLimits,
+    LandingPageResource,
+    LeftColumnSection,
+    SectionOrder,
+} from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
 import { AcquisitionSection } from './components/AcquisitionSection';
+import { CiteThisResourceSection } from './components/CiteThisResourceSection';
 import { ContactSection } from './components/ContactSection';
 import { DatesSection } from './components/DatesSection';
 import { GeneralSection } from './components/GeneralSection';
@@ -16,7 +24,7 @@ import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
-import { IGSN_LEFT_COLUMN_SECTIONS, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
+import { IGSN_LEFT_COLUMN_SECTIONS, normalizeLeftColumnOrder, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
 
 /**
  * Props passed to IGSN landing page template via Inertia
@@ -31,6 +39,7 @@ interface DefaultGfzIgsnTemplatePageProps {
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
+    citationStyles?: LandingPageCitationStyle[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
@@ -49,15 +58,20 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits } =
+    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
+    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(
+        resource,
+        landingPage,
+        isPreview,
+        peopleDisplayLimits.citationAuthors,
+    );
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
-    const leftOrder = sectionOrder?.leftColumn ?? IGSN_LEFT_COLUMN_SECTIONS;
+    const leftOrder = sectionOrder?.leftColumn ? normalizeLeftColumnOrder(sectionOrder.leftColumn, 'igsn') : IGSN_LEFT_COLUMN_SECTIONS;
     const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
     const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
     const locationIndex = rightOrder.indexOf('location');
@@ -109,6 +123,14 @@ export default function DefaultGfzIgsnTemplate() {
                     dates={resource.dates || []}
                 />
             ),
+            citation: (
+                <CiteThisResourceSection
+                    key="citation"
+                    resource={resource}
+                    citationStyles={citationStyles}
+                    citationAuthorLimit={peopleDisplayLimits.citationAuthors}
+                />
+            ),
             dates: <DatesSection key="dates" dates={resource.dates || []} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
@@ -121,7 +143,7 @@ export default function DefaultGfzIgsnTemplate() {
                 />
             ),
         };
-    }, [resource, mainTitle]);
+    }, [resource, mainTitle, citationStyles, peopleDisplayLimits.citationAuthors]);
 
     return (
         <LandingPageShell

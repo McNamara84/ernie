@@ -49,6 +49,33 @@ it('caches published landing page render data', function (): void {
         ->and($calls)->toBe(1);
 });
 
+it('ignores an unversioned legacy entry and leaves it untouched', function (): void {
+    $service = new LandingPageRenderDataCacheService;
+    $landingPage = botProtectionRenderCacheLandingPage();
+    $legacyCacheKey = "landing_pages:render_data:{$landingPage->id}";
+    $versionedCacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+    $legacyPayload = ['template' => 'default_gfz', 'props' => ['legacy' => true]];
+    $calls = 0;
+    $resolver = function () use (&$calls): array {
+        $calls++;
+
+        return ['template' => 'default_gfz', 'props' => ['calls' => $calls]];
+    };
+    $cache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+
+    $cache->put($legacyCacheKey, $legacyPayload, 600);
+
+    $first = $service->remember($landingPage, $resolver);
+    $second = $service->remember($landingPage, $resolver);
+
+    expect($versionedCacheKey)->not->toBe($legacyCacheKey)
+        ->and($first)->toBe(['template' => 'default_gfz', 'props' => ['calls' => 1]])
+        ->and($second)->toBe($first)
+        ->and($calls)->toBe(1)
+        ->and($cache->get($legacyCacheKey))->toBe($legacyPayload)
+        ->and($cache->has($versionedCacheKey))->toBeTrue();
+});
+
 it('does not cache draft landing page render data', function (): void {
     $service = new LandingPageRenderDataCacheService;
     $landingPage = botProtectionRenderCacheLandingPage(published: false);
@@ -112,6 +139,21 @@ it('forgets cached render data through the tagged cache repository', function ()
     expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue()
         ->and($service->forget($landingPage))->toBeTrue()
         ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
+});
+
+it('forgets versioned render data by id without deleting a legacy entry', function (): void {
+    $service = new LandingPageRenderDataCacheService;
+    $landingPage = botProtectionRenderCacheLandingPage();
+    $legacyCacheKey = "landing_pages:render_data:{$landingPage->id}";
+    $versionedCacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+    $cache = Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags());
+
+    $cache->put($legacyCacheKey, ['template' => 'default_gfz', 'props' => ['legacy' => true]], 600);
+    $cache->put($versionedCacheKey, ['template' => 'default_gfz', 'props' => []], 600);
+
+    expect($service->forgetById($landingPage->id))->toBeTrue()
+        ->and($cache->has($versionedCacheKey))->toBeFalse()
+        ->and($cache->has($legacyCacheKey))->toBeTrue();
 });
 
 it('forgets cached render data for landing pages using a custom template without clearing same-tag schema cache', function (): void {

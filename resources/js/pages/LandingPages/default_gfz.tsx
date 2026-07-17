@@ -1,9 +1,17 @@
 import { usePage } from '@inertiajs/react';
 import { type ReactNode, useMemo } from 'react';
 
-import type { LandingPageConfig, LandingPageDisplayLimits, LandingPageResource, LeftColumnSection, SectionOrder } from '@/types/landing-page';
+import type {
+    LandingPageCitationStyle,
+    LandingPageConfig,
+    LandingPageDisplayLimits,
+    LandingPageResource,
+    LeftColumnSection,
+    SectionOrder,
+} from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
+import { CiteThisResourceSection } from './components/CiteThisResourceSection';
 import { ContactSection } from './components/ContactSection';
 import { DatesSection } from './components/DatesSection';
 import { FilesSection } from './components/FilesSection';
@@ -15,7 +23,7 @@ import { ResourceHero } from './components/ResourceHero';
 import { useSystemDarkMode } from './hooks/useSystemDarkMode';
 import { getLandingPageTemplateData } from './lib/landing-page-template-data';
 import { type MetadataSectionKey } from './lib/metadata-sections';
-import { RESOURCE_LEFT_COLUMN_SECTIONS, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
+import { normalizeLeftColumnOrder, RESOURCE_LEFT_COLUMN_SECTIONS, RIGHT_COLUMN_SECTIONS } from './lib/section-catalog';
 
 /**
  * Props passed to landing page templates via Inertia
@@ -34,6 +42,7 @@ interface DefaultGfzTemplatePageProps {
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
+    citationStyles?: LandingPageCitationStyle[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
@@ -45,16 +54,21 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 };
 
 export default function DefaultGfzTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits } =
+    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
 
     const resourceType = resource.resource_type?.name || 'Other';
-    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(resource, landingPage, isPreview, peopleDisplayLimits.citationAuthors);
+    const { status, mainTitle, subtitle, citation } = getLandingPageTemplateData(
+        resource,
+        landingPage,
+        isPreview,
+        peopleDisplayLimits.citationAuthors,
+    );
 
     const rightOrder = sectionOrder?.rightColumn ?? RIGHT_COLUMN_SECTIONS;
-    const leftOrder = sectionOrder?.leftColumn ?? RESOURCE_LEFT_COLUMN_SECTIONS;
+    const leftOrder = sectionOrder?.leftColumn ? normalizeLeftColumnOrder(sectionOrder.leftColumn, 'resource') : RESOURCE_LEFT_COLUMN_SECTIONS;
     const downloadsUnavailable = landingPage?.downloads_unavailable === true;
     const metadataOrder = rightOrder.filter((key): key is MetadataSectionKey => key !== 'location');
     const firstMetadataIndex = rightOrder.findIndex((key) => key !== 'location');
@@ -95,6 +109,14 @@ export default function DefaultGfzTemplate() {
                     additionalLinks={landingPage?.links}
                 />
             ),
+            citation: (
+                <CiteThisResourceSection
+                    key="citation"
+                    resource={resource}
+                    citationStyles={citationStyles}
+                    citationAuthorLimit={peopleDisplayLimits.citationAuthors}
+                />
+            ),
             dates: <DatesSection key="dates" dates={resource.dates || []} />,
             contact: <ContactSection key="contact" contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />,
             model_description: <ModelDescriptionSection key="model_description" relatedIdentifiers={resource.related_identifiers || []} />,
@@ -110,7 +132,7 @@ export default function DefaultGfzTemplate() {
             general: null,
             acquisition: null,
         };
-    }, [resource, landingPage, mainTitle, downloadsUnavailable]);
+    }, [resource, landingPage, mainTitle, downloadsUnavailable, citationStyles, peopleDisplayLimits.citationAuthors]);
 
     return (
         <LandingPageShell

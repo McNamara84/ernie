@@ -61,6 +61,7 @@ final class LandingPageResourceTransformer
             'fundingReferences.funderIdentifierType',
             'resourceType',
             'language',
+            'publisher',
             'igsnMetadata.parentResource.landingPage.externalDomain',
             'igsnClassifications',
         ];
@@ -72,6 +73,10 @@ final class LandingPageResourceTransformer
     public function transform(Resource $resource): array
     {
         $resourceData = $resource->toArray();
+
+        // Publisher metadata is used server-side for CSL formatting. Keep the
+        // relation object out of the stable, scalar frontend resource contract.
+        unset($resourceData['publisher']);
 
         $resourceData['titles'] = $resource->titles
             ->map(static fn (Title $title): array => [

@@ -82,6 +82,12 @@ describe('Public Landing Page Access', function () {
                 ->component('LandingPages/default_gfz')
                 ->has('resource')
                 ->has('landingPage')
+                ->has('citationStyles', 5)
+                ->where('citationStyles.0.id', 'apa-7')
+                ->where('citationStyles.1.id', 'harvard')
+                ->where('citationStyles.2.id', 'copernicus')
+                ->where('citationStyles.3.id', 'agu')
+                ->where('citationStyles.4.id', 'gsa')
                 ->where('isPreview', false)
             );
     });
@@ -314,6 +320,46 @@ describe('Landing Page Caching', function () {
         $this->get(landingPageUrl($landingPage))
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('landingPage.ftp_url', 'https://data.gfz.de/new.zip'));
+    });
+
+    test('ignores a legacy unversioned render payload and caches citation styles under the v2 key', function () {
+        config([
+            'bot_protection.enabled' => true,
+            'bot_protection.landing_cache_ttl' => 600,
+        ]);
+
+        Cache::flush();
+
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/test.public.001',
+                'slug' => 'legacy-render-cache-test',
+                'template' => 'default_gfz',
+            ]);
+
+        $tags = CacheKey::LANDING_PAGE_RENDER_DATA->tags();
+        $legacyKey = "landing_pages:render_data:{$landingPage->id}";
+        $versionedKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
+
+        Cache::tags($tags)->put($legacyKey, [
+            'template' => 'default_gfz',
+            'props' => [
+                'resource' => [],
+                'landingPage' => [],
+            ],
+        ], 600);
+
+        $this->get(landingPageUrl($landingPage))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('citationStyles', 5)
+                ->where('citationStyles.0.id', 'apa-7')
+            );
+
+        expect(Cache::tags($tags)->has($legacyKey))->toBeTrue()
+            ->and(Cache::tags($tags)->has($versionedKey))->toBeTrue();
     });
 
     test('preview token requests are not stored in the public render cache', function () {
@@ -968,7 +1014,15 @@ describe('Landing Page with Custom Template', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.landing_page_template_id', $template->id)
-                ->where('sectionOrder.leftColumn', ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates'])
+                ->where('sectionOrder.leftColumn', [
+                    'contact',
+                    'model_description',
+                    'related_work',
+                    'general',
+                    'acquisition',
+                    'dates',
+                    'citation',
+                ])
             );
     });
 

@@ -22,6 +22,7 @@ export const LEFT_SECTION_LABELS: Record<LeftColumnSection, string> = {
     files: 'Files & Downloads',
     general: 'General',
     acquisition: 'Acquisition',
+    citation: 'Cite this Resource',
     dates: 'Dates',
     contact: 'Contact Person',
     model_description: 'Model / Method Description',
@@ -38,11 +39,28 @@ export const RIGHT_COLUMN_SECTIONS: RightColumnSection[] = [
     'location',
 ];
 
-export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'dates', 'contact', 'model_description', 'related_work'];
+export const RESOURCE_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'];
 
-export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work'];
+export const IGSN_LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
+    'general',
+    'acquisition',
+    'citation',
+    'dates',
+    'contact',
+    'model_description',
+    'related_work',
+];
 
-export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = ['files', 'general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work'];
+export const LEFT_COLUMN_SECTIONS: LeftColumnSection[] = [
+    'files',
+    'general',
+    'acquisition',
+    'citation',
+    'dates',
+    'contact',
+    'model_description',
+    'related_work',
+];
 
 export function getCanonicalLeftOrder(templateType: LandingPageTemplateConfig['template_type']): LeftColumnSection[] {
     return templateType === 'igsn' ? IGSN_LEFT_COLUMN_SECTIONS : RESOURCE_LEFT_COLUMN_SECTIONS;
@@ -118,5 +136,17 @@ export function normalizeLeftColumnOrder(
     stored: readonly LeftColumnSection[],
     templateType: LandingPageTemplateConfig['template_type'],
 ): LeftColumnSection[] {
-    return normalizeOrder<LeftColumnSection>(stored, getCanonicalLeftOrder(templateType));
+    const canonical = getCanonicalLeftOrder(templateType);
+
+    if (stored.includes('citation')) {
+        return normalizeOrder<LeftColumnSection>(stored, canonical);
+    }
+
+    return [
+        ...normalizeOrder<LeftColumnSection>(
+            stored,
+            canonical.filter((key) => key !== 'citation'),
+        ),
+        'citation',
+    ];
 }

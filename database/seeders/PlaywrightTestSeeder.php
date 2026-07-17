@@ -4,9 +4,11 @@ namespace Database\Seeders;
 
 use App\Enums\UserRole;
 use App\Models\Description;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
@@ -35,6 +37,8 @@ class PlaywrightTestSeeder extends Seeder
     private const TEST_PASSWORD = 'password';
 
     private const PLAYWRIGHT_PUBLISHED_RESOURCE_DOI = '10.1234/playwright-published';
+
+    private const PLAYWRIGHT_IGSN_PREVIEW_DOI = '10.1234/playwright-igsn-preview';
 
     // Review fixture must have a DOI + an unpublished landing page to surface as publicstatus=review.
     // Avoid "review" substring in DOI to prevent Playwright :text() selectors from matching
@@ -215,7 +219,63 @@ class PlaywrightTestSeeder extends Seeder
 
         $this->ensureCompleteFixture($publishedResource);
 
-        // 2) Review resource (shown with "Review" status)
+        // 2) Physical Object with an unpublished IGSN landing-page preview.
+        // This fixture exercises the IGSN renderer without making a test DOI public.
+        $physicalObjectType = ResourceType::query()
+            ->where('slug', 'physical-object')
+            ->firstOrFail();
+        $igsnResource = Resource::query()
+            ->where('doi', self::PLAYWRIGHT_IGSN_PREVIEW_DOI)
+            ->first();
+
+        if (! $igsnResource) {
+            $igsnResource = Resource::factory()->create(array_merge($resourceAttributes, [
+                'doi' => self::PLAYWRIGHT_IGSN_PREVIEW_DOI,
+                'identifier_type' => 'IGSN',
+                'resource_type_id' => $physicalObjectType->id,
+            ]));
+
+            Title::factory()->create([
+                'resource_id' => $igsnResource->id,
+                'value' => 'Playwright: IGSN Citation Preview',
+            ]);
+
+            ResourceCreator::factory()->create([
+                'resource_id' => $igsnResource->id,
+                'position' => 1,
+            ]);
+        } elseif ($igsnResource->resource_type_id !== $physicalObjectType->id) {
+            $igsnResource->resource_type_id = $physicalObjectType->id;
+            $igsnResource->identifier_type = 'IGSN';
+            $igsnResource->save();
+        }
+
+        IgsnMetadata::query()->updateOrCreate(
+            ['resource_id' => $igsnResource->id],
+            [
+                'sample_type' => 'Rock core',
+                'material' => 'Granite',
+                'collection_method' => 'Field collection',
+                'upload_status' => IgsnMetadata::STATUS_PENDING,
+            ],
+        );
+
+        $igsnLandingPage = LandingPage::query()->firstOrNew([
+            'slug' => 'playwright-igsn-preview',
+        ]);
+        $igsnLandingPage->fill([
+            'resource_id' => $igsnResource->id,
+            'template' => 'default_gfz_igsn',
+            'is_published' => false,
+            'published_at' => null,
+            'doi_prefix' => self::PLAYWRIGHT_IGSN_PREVIEW_DOI,
+        ]);
+        $igsnLandingPage->preview_token ??= Str::random(64);
+        $igsnLandingPage->save();
+
+        $this->ensureCompleteFixture($igsnResource);
+
+        // 3) Review resource (shown with "Review" status)
         // Backend semantics: review requires BOTH DOI + landing page (is_published=false).
         // Prefer upgrading any legacy fixture with title "Playwright: Review Resource" into the canonical review fixture.
         $legacyReviewTitle = Title::query()->where('value', 'Playwright: Review Resource')->first();
@@ -269,7 +329,7 @@ class PlaywrightTestSeeder extends Seeder
 
         $this->ensureCompleteFixture($reviewResource);
 
-        // 3) Curation resource WITHOUT landing page (for "landing page required" negative cases)
+        // 4) Curation resource WITHOUT landing page (for "landing page required" negative cases)
         $noLandingPageTitle = Title::query()->where('value', 'Playwright: Curation Resource (no landing page)')->first();
         $noLandingPageResource = $noLandingPageTitle?->resource;
         if (! $noLandingPageResource) {
@@ -286,7 +346,7 @@ class PlaywrightTestSeeder extends Seeder
 
         $this->ensureCompleteFixture($noLandingPageResource);
 
-        // 4) Curation resource WITH landing page but WITHOUT DOI (used for DOI registration modal tests)
+        // 5) Curation resource WITH landing page but WITHOUT DOI (used for DOI registration modal tests)
         // Keep this last so it appears first in the /resources list (default sort: updated_at desc).
         $curationLandingPage = LandingPage::query()->where('slug', 'playwright-curation')->first();
         $curationResource = $curationLandingPage?->resource;

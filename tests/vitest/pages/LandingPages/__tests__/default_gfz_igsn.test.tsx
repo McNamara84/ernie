@@ -641,4 +641,108 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(screen.getByText('IGSN methods')).toBeInTheDocument();
         });
     });
+
+    describe('citation section order', () => {
+        const fullyVisibleResource = {
+            ...mockResource,
+            doi: '10.58050/IGSN-ORDER',
+            igsn_metadata: {
+                id: 1,
+                sample_type: 'Rock',
+                material: 'Granite',
+                collection_method: 'Drilling',
+                collection_method_description: null,
+                sample_purpose: null,
+                cruise_field_program: null,
+                parent: null,
+            },
+            igsn_classifications: [],
+            dates: [
+                {
+                    id: 1,
+                    date_type: 'Created',
+                    date_type_slug: 'Created',
+                    date_value: '2026-02-01',
+                    start_date: null,
+                    end_date: null,
+                    date_information: null,
+                },
+            ],
+        };
+
+        const renderWithLeftOrder = (leftColumn?: string[]) => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: fullyVisibleResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    sectionOrder: leftColumn ? { leftColumn, rightColumn: [] } : null,
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+        };
+
+        it('renders the default order as General, Acquisition, Cite this Resource, Dates', () => {
+            renderWithLeftOrder();
+
+            const general = screen.getByRole('heading', { name: 'General' });
+            const acquisition = screen.getByRole('heading', { name: 'Acquisition' });
+            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const dates = screen.getByRole('heading', { name: 'Dates' });
+
+            expect(general.compareDocumentPosition(acquisition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(acquisition.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(citation.compareDocumentPosition(dates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('appends citation after an old custom IGSN order that does not contain it', () => {
+            renderWithLeftOrder(['dates', 'acquisition', 'general', 'contact', 'model_description', 'related_work']);
+
+            const dates = screen.getByRole('heading', { name: 'Dates' });
+            const acquisition = screen.getByRole('heading', { name: 'Acquisition' });
+            const general = screen.getByRole('heading', { name: 'General' });
+            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+
+            expect(dates.compareDocumentPosition(acquisition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(acquisition.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(general.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('preserves a configured custom citation position for IGSN', () => {
+            renderWithLeftOrder(['general', 'citation', 'acquisition', 'dates', 'contact', 'model_description', 'related_work']);
+
+            const general = screen.getByRole('heading', { name: 'General' });
+            const citation = screen.getByRole('heading', { name: 'Cite this Resource' });
+            const acquisition = screen.getByRole('heading', { name: 'Acquisition' });
+
+            expect(general.compareDocumentPosition(citation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(citation.compareDocumentPosition(acquisition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(screen.queryByRole('heading', { name: 'Files' })).not.toBeInTheDocument();
+        });
+
+        it('passes server-rendered official citations into the IGSN module', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: fullyVisibleResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    citationStyles: [
+                        {
+                            id: 'apa-7',
+                            label: 'APA 7',
+                            available: true,
+                            html: '<div class="csl-entry"><em>IGSN APA citation</em></div>',
+                            text: 'IGSN APA citation',
+                        },
+                    ],
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzIgsnTemplate />);
+
+            expect(screen.getByTestId('citation-content')).toHaveAttribute('data-citation-style', 'apa-7');
+            expect(screen.getByText('IGSN APA citation').tagName).toBe('EM');
+        });
+    });
 });

@@ -183,6 +183,12 @@ describe('Session Preview Display', function () {
                 ->component('LandingPages/default_gfz')
                 ->has('resource')
                 ->has('landingPage')
+                ->has('citationStyles', 5)
+                ->where('citationStyles.0.id', 'apa-7')
+                ->where('citationStyles.1.id', 'harvard')
+                ->where('citationStyles.2.id', 'copernicus')
+                ->where('citationStyles.3.id', 'agu')
+                ->where('citationStyles.4.id', 'gsa')
                 ->where('isPreview', true)
             );
     });
@@ -234,6 +240,40 @@ describe('Session Preview Display', function () {
             ->where('landingPage.template', 'default_gfz')
             ->where('landingPage.ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
         );
+    });
+
+    test('doi-less preview omits DOI placeholders and resolver URLs from every official citation', function () {
+        $resource = Resource::factory()->create([
+            'created_by_user_id' => $this->user->id,
+            'doi' => null,
+        ]);
+
+        Session::put("landing_page_preview.{$resource->id}", [
+            'template' => 'default_gfz',
+            'resource_id' => $resource->id,
+        ]);
+
+        $this->get("/resources/{$resource->id}/landing-page/preview")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('citationStyles', 5)
+                ->where('citationStyles', function (array $styles): bool {
+                    foreach ($styles as $style) {
+                        if (($style['available'] ?? false) !== true) {
+                            return false;
+                        }
+
+                        $output = (string) ($style['html'] ?? '').' '.(string) ($style['text'] ?? '');
+
+                        if (str_contains($output, 'doi.org/')
+                            || str_contains($output, 'DOI not available')) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                })
+            );
     });
 
     test('returns 404 when a stale preview session contains the external template', function () {
