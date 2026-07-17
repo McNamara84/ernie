@@ -353,7 +353,7 @@ describe('Update', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         $newRightOrder = locationFirstRightColumnOrder();
-        $newLeftOrder = ['contact', 'files', 'dates', 'related_work', 'model_description'];
+        $newLeftOrder = ['contact', 'files', 'citation', 'dates', 'related_work', 'model_description'];
 
         $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -568,6 +568,21 @@ describe('Update', function (): void {
             ])
             ->assertJsonValidationErrors(['left_column_order']);
     });
+
+    it('requires citation exactly once when a left-column order is submitted', function (array $leftOrder): void {
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'left_column_order' => $leftOrder,
+            ])
+            ->assertJsonValidationErrors(['left_column_order']);
+    })->with([
+        'missing citation' => [['files', 'dates', 'contact', 'model_description', 'related_work']],
+        'duplicate citation' => [
+            ['files', 'citation', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
+        ],
+    ]);
 });
 
 // ─── Delete ──────────────────────────────────────────────────────────────────
@@ -767,9 +782,11 @@ describe('API List', function (): void {
     });
 
     it('normalizes legacy igsn left-column orders in the API list response', function (): void {
+        $storedOrder = ['contact', 'files', 'model_description', 'related_work'];
+
         $template = LandingPageTemplate::factory()->igsn()->create([
             'created_by' => $this->admin->id,
-            'left_column_order' => ['contact', 'files', 'model_description', 'related_work'],
+            'left_column_order' => $storedOrder,
         ]);
 
         $response = $this->actingAs($this->curator)
@@ -787,7 +804,9 @@ describe('API List', function (): void {
                 'general',
                 'acquisition',
                 'dates',
-            ]);
+                'citation',
+            ])
+            ->and($template->fresh()?->left_column_order)->toBe($storedOrder);
     });
 
     it('ensures both system default templates exist when listing', function (): void {
@@ -817,6 +836,72 @@ describe('API List', function (): void {
 // ─── Model ───────────────────────────────────────────────────────────────────
 
 describe('Model', function (): void {
+    it('appends citation after all other missing sections in sparse legacy orders', function (): void {
+        expect(LandingPageTemplate::normalizeLeftColumnOrder(
+            ['contact', 'files', 'unknown'],
+            LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+        ))->toBe([
+            'contact',
+            'files',
+            'dates',
+            'model_description',
+            'related_work',
+            'citation',
+        ])->and(LandingPageTemplate::normalizeLeftColumnOrder(
+            ['contact', 'general', 'files'],
+            LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+        ))->toBe([
+            'contact',
+            'general',
+            'acquisition',
+            'dates',
+            'model_description',
+            'related_work',
+            'citation',
+        ]);
+    });
+
+    it('preserves a stored citation position while filling sparse orders', function (): void {
+        expect(LandingPageTemplate::normalizeLeftColumnOrder(
+            ['contact', 'citation', 'files'],
+            LandingPageTemplate::TEMPLATE_TYPE_RESOURCE,
+        ))->toBe([
+            'contact',
+            'citation',
+            'files',
+            'dates',
+            'model_description',
+            'related_work',
+        ])->and(LandingPageTemplate::normalizeLeftColumnOrder(
+            ['citation', 'contact', 'general'],
+            LandingPageTemplate::TEMPLATE_TYPE_IGSN,
+        ))->toBe([
+            'citation',
+            'contact',
+            'general',
+            'acquisition',
+            'dates',
+            'model_description',
+            'related_work',
+        ]);
+    });
+
+    it('restores citation at the canonical position in legacy system defaults', function (): void {
+        $this->defaultTemplate->update([
+            'left_column_order' => ['files', 'dates', 'contact', 'model_description', 'related_work'],
+        ]);
+        $this->igsnDefaultTemplate->update([
+            'left_column_order' => ['general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work'],
+        ]);
+
+        LandingPageTemplate::ensureSystemTemplatesExist();
+
+        expect($this->defaultTemplate->fresh()?->left_column_order)
+            ->toBe(LandingPageTemplate::RESOURCE_LEFT_COLUMN_SECTIONS)
+            ->and($this->igsnDefaultTemplate->fresh()?->left_column_order)
+            ->toBe(LandingPageTemplate::IGSN_LEFT_COLUMN_SECTIONS);
+    });
+
     it('does not update updated_at when default template is already normalized', function (): void {
         $originalTimestamp = now()->subHour()->startOfSecond();
 
@@ -1048,7 +1133,7 @@ describe('Factory', function (): void {
 
     it('creates a template with custom section order', function (): void {
         $rightOrder = locationFirstRightColumnOrder();
-        $leftOrder = ['contact', 'files', 'dates', 'model_description', 'related_work'];
+        $leftOrder = ['contact', 'files', 'citation', 'dates', 'model_description', 'related_work'];
 
         $template = LandingPageTemplate::factory()
             ->withSectionOrder($rightOrder, $leftOrder)
@@ -1114,19 +1199,63 @@ describe('Seeder', function (): void {
 // ─── Update Edge Cases ───────────────────────────────────────────────────────
 
 describe('Update Edge Cases', function (): void {
+    it('updates only a display limit without persisting a normalized sparse legacy order', function (): void {
+        $storedLeftOrder = ['contact', 'files'];
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->admin->id,
+            'left_column_order' => $storedLeftOrder,
+            'creator_display_limit' => 12,
+            'contributor_display_limit' => 34,
+            'citation_author_display_limit' => 8,
+        ]);
+        $originalName = $template->name;
+        $originalRightOrder = $template->right_column_order;
+
+        $this->actingAs($this->admin)
+            ->putJson("/landing-pages/{$template->id}", [
+                'citation_author_display_limit' => 21,
+            ])
+            ->assertOk()
+            ->assertJsonPath('template.citation_author_display_limit', 21)
+            ->assertJsonPath('template.left_column_order', [
+                'contact',
+                'files',
+                'dates',
+                'model_description',
+                'related_work',
+                'citation',
+            ]);
+
+        $template->refresh();
+
+        expect($template->name)->toBe($originalName)
+            ->and($template->right_column_order)->toBe($originalRightOrder)
+            ->and($template->left_column_order)->toBe($storedLeftOrder)
+            ->and($template->creator_display_limit)->toBe(12)
+            ->and($template->contributor_display_limit)->toBe(34)
+            ->and($template->citation_author_display_limit)->toBe(21);
+    });
     it('updates only the name without section order', function (): void {
-        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->admin->id,
+            'left_column_order' => ['contact', 'files'],
+        ]);
         $originalRightOrder = $template->right_column_order;
         $originalLeftOrder = $template->left_column_order;
 
-        $this->actingAs($this->admin)
+        $response = $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", ['name' => 'Only Name Changed'])
             ->assertOk();
+
+        $response->assertJsonPath('template.left_column_order', [
+            'contact', 'files', 'dates', 'model_description', 'related_work', 'citation',
+        ]);
 
         $template->refresh();
 
         expect($template->name)->toBe('Only Name Changed')
             ->and($template->right_column_order)->toBe($originalRightOrder)
+            // A partial update must not persist the lazy runtime backfill.
             ->and($template->left_column_order)->toBe($originalLeftOrder);
     });
 
@@ -1187,7 +1316,7 @@ describe('Update Edge Cases', function (): void {
     it('validates left column section order completeness', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        // Only 2 of 5 required left column sections
+        // Only 2 of 6 required left column sections
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
                 'left_column_order' => ['files', 'contact'],

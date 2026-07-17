@@ -19,7 +19,7 @@ export type RightColumnSection =
 /**
  * Left column section identifiers for landing page templates.
  */
-export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'dates' | 'contact' | 'model_description' | 'related_work';
+export type LeftColumnSection = 'files' | 'general' | 'acquisition' | 'citation' | 'dates' | 'contact' | 'model_description' | 'related_work';
 
 /**
  * Section order configuration for landing page templates.
@@ -120,6 +120,29 @@ export interface LandingPageDisplayLimits {
     creators: number;
     contributors: number;
     citationAuthors: number;
+}
+
+/**
+ * Server-rendered CSL citation style identifiers available on landing pages.
+ *
+ * The GFZ legacy style is deliberately not part of this union because it is
+ * generated in the browser from the existing landing-page resource payload.
+ */
+export type LandingPageCitationStyleId = 'apa-7' | 'harvard' | 'copernicus' | 'agu' | 'gsa';
+
+/**
+ * One pre-rendered, sanitized bibliography entry.
+ *
+ * `html` is intended for the visible citation while `text` is the exact
+ * clipboard representation. Failed styles remain in the payload with
+ * `available: false` and null output fields.
+ */
+export interface LandingPageCitationStyle {
+    id: LandingPageCitationStyleId;
+    label: string;
+    available: boolean;
+    html: string | null;
+    text: string | null;
 }
 
 /**
@@ -684,6 +707,8 @@ export interface LandingPageTemplateProps {
     customLogoUrl?: string | null;
     /** Initial visible counts for creator/contributor sections */
     displayLimits?: LandingPageDisplayLimits;
+    /** Five server-rendered official CSL citation styles */
+    citationStyles?: LandingPageCitationStyle[];
 }
 
 /**

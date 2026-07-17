@@ -61,8 +61,8 @@ describe('section-catalog helpers', () => {
             'metadata_download',
             'location',
         ]);
-        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'dates', 'contact', 'model_description', 'related_work']);
-        expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual(['general', 'acquisition', 'dates', 'contact', 'model_description', 'related_work']);
+        expect(RESOURCE_LEFT_COLUMN_SECTIONS).toEqual(['files', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
+        expect(IGSN_LEFT_COLUMN_SECTIONS).toEqual(['general', 'acquisition', 'citation', 'dates', 'contact', 'model_description', 'related_work']);
     });
 
     it('normalizes right column order and expands the legacy descriptions section', () => {
@@ -101,6 +101,7 @@ describe('section-catalog helpers', () => {
             'dates',
             'model_description',
             'related_work',
+            'citation',
         ]);
         expect(normalizeLeftColumnOrder(['contact', 'general', 'files'] as never, 'igsn')).toEqual([
             'contact',
@@ -109,6 +110,47 @@ describe('section-catalog helpers', () => {
             'dates',
             'model_description',
             'related_work',
+            'citation',
+        ]);
+    });
+
+    it('preserves a stored citation position while filling other sparse legacy sections', () => {
+        expect(normalizeLeftColumnOrder(['contact', 'citation', 'files'] as never, 'resource')).toEqual([
+            'contact',
+            'citation',
+            'files',
+            'dates',
+            'model_description',
+            'related_work',
+        ]);
+        expect(normalizeLeftColumnOrder(['citation', 'contact', 'general'] as never, 'igsn')).toEqual([
+            'citation',
+            'contact',
+            'general',
+            'acquisition',
+            'dates',
+            'model_description',
+            'related_work',
+        ]);
+    });
+
+    it('appends a missing citation once after all other sparse legacy sections', () => {
+        expect(normalizeLeftColumnOrder(['contact', 'contact', 'unknown'] as never, 'resource')).toEqual([
+            'contact',
+            'files',
+            'dates',
+            'model_description',
+            'related_work',
+            'citation',
+        ]);
+        expect(normalizeLeftColumnOrder(['contact', 'files', 'unknown'] as never, 'igsn')).toEqual([
+            'contact',
+            'general',
+            'acquisition',
+            'dates',
+            'model_description',
+            'related_work',
+            'citation',
         ]);
     });
 });

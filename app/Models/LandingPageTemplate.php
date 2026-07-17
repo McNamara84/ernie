@@ -117,6 +117,7 @@ class LandingPageTemplate extends Model
      */
     public const RESOURCE_LEFT_COLUMN_SECTIONS = [
         'files',
+        'citation',
         'dates',
         'contact',
         'model_description',
@@ -131,6 +132,7 @@ class LandingPageTemplate extends Model
     public const IGSN_LEFT_COLUMN_SECTIONS = [
         'general',
         'acquisition',
+        'citation',
         'dates',
         'contact',
         'model_description',
@@ -146,6 +148,7 @@ class LandingPageTemplate extends Model
         'files',
         'general',
         'acquisition',
+        'citation',
         'dates',
         'contact',
         'model_description',
@@ -394,6 +397,9 @@ class LandingPageTemplate extends Model
      *
      * Unknown keys are dropped, duplicates are removed, and missing canonical
      * sections are appended while preserving the existing relative order.
+     * For legacy orders without `citation`, all other missing sections are
+     * appended first and `citation` is added last. An existing custom citation
+     * position remains unchanged.
      *
      * @param  array<int, string>  $order
      * @return list<string>
@@ -404,6 +410,7 @@ class LandingPageTemplate extends Model
         $canonicalSet = array_fill_keys($canonical, true);
         $seen = [];
         $normalized = [];
+        $hasStoredCitation = in_array('citation', $order, true);
 
         foreach ($order as $key) {
             if (! isset($canonicalSet[$key]) || isset($seen[$key])) {
@@ -415,9 +422,17 @@ class LandingPageTemplate extends Model
         }
 
         foreach ($canonical as $key) {
+            if ($key === 'citation' && ! $hasStoredCitation) {
+                continue;
+            }
+
             if (! isset($seen[$key])) {
                 $normalized[] = $key;
             }
+        }
+
+        if (! $hasStoredCitation) {
+            $normalized[] = 'citation';
         }
 
         return $normalized;

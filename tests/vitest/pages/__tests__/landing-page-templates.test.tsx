@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import type { Mock } from 'vitest';
@@ -76,6 +76,10 @@ const expandedLegacyLocationFirstOrder = [
 
 const routerMock = vi.hoisted(() => ({ reload: vi.fn() }));
 
+const dndContextMock = vi.hoisted(() => ({
+    handlers: [] as Array<(event: { active: { id: string }; over: { id: string } | null }) => void>,
+}));
+
 vi.mock('axios', () => {
     const post = vi.fn();
     const put = vi.fn();
@@ -112,7 +116,16 @@ vi.mock('sonner', () => ({
 // DnD mocks - simplify to avoid complex sensor setup
 vi.mock('@dnd-kit/core', () => ({
     closestCenter: vi.fn(),
-    DndContext: ({ children }: { children: React.ReactNode }) => <div data-testid="dnd-context">{children}</div>,
+    DndContext: ({
+        children,
+        onDragEnd,
+    }: {
+        children: React.ReactNode;
+        onDragEnd: (event: { active: { id: string }; over: { id: string } | null }) => void;
+    }) => {
+        dndContextMock.handlers.push(onDragEnd);
+        return <div data-testid="dnd-context">{children}</div>;
+    },
     KeyboardSensor: vi.fn(),
     PointerSensor: vi.fn(),
     useSensor: vi.fn(),
@@ -155,7 +168,7 @@ const defaultTemplate: LandingPageTemplateConfig = {
     logo_filename: null,
     logo_url: null,
     right_column_order: defaultRightOrder,
-    left_column_order: ['files', 'contact', 'model_description', 'related_work'],
+    left_column_order: ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
@@ -176,7 +189,7 @@ const customTemplate: LandingPageTemplateConfig = {
     logo_filename: 'logo.png',
     logo_url: 'http://localhost/storage/landing-page-logos/geophysics/logo.png',
     right_column_order: locationFirstRightOrder,
-    left_column_order: ['contact', 'files', 'model_description', 'related_work'],
+    left_column_order: ['contact', 'files', 'citation', 'dates', 'model_description', 'related_work'],
     creator_display_limit: 25,
     contributor_display_limit: 75,
     citation_author_display_limit: 10,
@@ -197,7 +210,7 @@ const customTemplateNoLogo: LandingPageTemplateConfig = {
     logo_filename: null,
     logo_url: null,
     right_column_order: defaultRightOrder,
-    left_column_order: ['files', 'contact', 'model_description', 'related_work'],
+    left_column_order: ['files', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
     creator_display_limit: 50,
     contributor_display_limit: 50,
     citation_author_display_limit: 50,
@@ -214,7 +227,7 @@ const defaultIgsnTemplate: LandingPageTemplateConfig = {
     name: 'Default GFZ IGSN',
     slug: 'default_gfz_igsn',
     template_type: 'igsn',
-    left_column_order: ['general', 'acquisition', 'contact', 'model_description', 'related_work'],
+    left_column_order: ['general', 'acquisition', 'citation', 'dates', 'contact', 'model_description', 'related_work'],
 };
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
@@ -226,6 +239,7 @@ import LandingPageTemplatesPage from '@/pages/landing-page-templates';
 describe('LandingPageTemplatesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        dndContextMock.handlers.length = 0;
         mockTemplates = [defaultTemplate, customTemplate, customTemplateNoLogo];
     });
 
@@ -609,6 +623,41 @@ describe('LandingPageTemplatesPage', () => {
             expect(rightEditorTitle).toBeInTheDocument();
             expect(leftEditorTitle.compareDocumentPosition(rightEditorTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
             expect(screen.getByText(/Description modules render inside one shared metadata card/i)).toBeInTheDocument();
+            expect(within(screen.getByRole('dialog')).getByText('Cite this Resource')).toBeInTheDocument();
+        });
+
+        it('reorders citation by drag-and-drop and persists it exactly once', async () => {
+            mockedAxiosPut.mockResolvedValue({ data: { message: 'Updated', template: {} } });
+            const user = userEvent.setup();
+            render(<LandingPageTemplatesPage />);
+
+            const editButtons = screen.getAllByRole('button', { name: /Edit/i });
+            await user.click(editButtons[0]);
+
+            expect(dndContextMock.handlers.length).toBeGreaterThan(0);
+
+            act(() => {
+                for (const handler of dndContextMock.handlers) {
+                    handler({
+                        active: { id: 'citation' },
+                        over: { id: 'files' },
+                    });
+                }
+            });
+
+            await user.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPut).toHaveBeenCalledWith(
+                    `/landing-pages/${customTemplate.id}`,
+                    expect.objectContaining({
+                        left_column_order: ['contact', 'citation', 'files', 'dates', 'model_description', 'related_work'],
+                    }),
+                );
+            });
+
+            const payload = mockedAxiosPut.mock.calls.at(-1)?.[1] as { left_column_order: string[] };
+            expect(payload.left_column_order.filter((key) => key === 'citation')).toHaveLength(1);
         });
 
         it('normalizes IGSN left-column sections before saving and does not expose files in the dialog', async () => {
@@ -635,6 +684,7 @@ describe('LandingPageTemplatesPage', () => {
             expect(within(dialog).queryByText('Files & Downloads')).not.toBeInTheDocument();
             expect(within(dialog).getByText('General')).toBeInTheDocument();
             expect(within(dialog).getByText('Acquisition')).toBeInTheDocument();
+            expect(within(dialog).getByText('Cite this Resource')).toBeInTheDocument();
 
             await user.click(screen.getByRole('button', { name: /Save Changes/i }));
 
@@ -642,7 +692,7 @@ describe('LandingPageTemplatesPage', () => {
                 expect(mockedAxiosPut).toHaveBeenCalledWith(
                     '/landing-pages/5',
                     expect.objectContaining({
-                        left_column_order: ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates'],
+                        left_column_order: ['contact', 'model_description', 'related_work', 'general', 'acquisition', 'dates', 'citation'],
                     }),
                 );
             });

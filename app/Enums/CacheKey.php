@@ -76,7 +76,7 @@ enum CacheKey: string
     case SCHEMA_ORG_JSONLD = 'landing_pages:schema_org_jsonld';
 
     // Published landing page render payloads
-    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data';
+    case LANDING_PAGE_RENDER_DATA = 'landing_pages:render_data:v2';
 
     // Landing page setup modal download URL suggestions
     case LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS = 'landing-page.download-url-suggestions';

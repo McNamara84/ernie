@@ -183,6 +183,12 @@ describe('Session Preview Display', function () {
                 ->component('LandingPages/default_gfz')
                 ->has('resource')
                 ->has('landingPage')
+                ->has('citationStyles', 5)
+                ->where('citationStyles.0.id', 'apa-7')
+                ->where('citationStyles.1.id', 'harvard')
+                ->where('citationStyles.2.id', 'copernicus')
+                ->where('citationStyles.3.id', 'agu')
+                ->where('citationStyles.4.id', 'gsa')
                 ->where('isPreview', true)
             );
     });
@@ -236,6 +242,40 @@ describe('Session Preview Display', function () {
         );
     });
 
+    test('doi-less preview omits DOI placeholders and resolver URLs from every official citation', function () {
+        $resource = Resource::factory()->create([
+            'created_by_user_id' => $this->user->id,
+            'doi' => null,
+        ]);
+
+        Session::put("landing_page_preview.{$resource->id}", [
+            'template' => 'default_gfz',
+            'resource_id' => $resource->id,
+        ]);
+
+        $this->get("/resources/{$resource->id}/landing-page/preview")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('citationStyles', 5)
+                ->where('citationStyles', function (iterable $styles): bool {
+                    foreach ($styles as $style) {
+                        if (($style['available'] ?? false) !== true) {
+                            return false;
+                        }
+
+                        $output = (string) ($style['html'] ?? '').' '.(string) ($style['text'] ?? '');
+
+                        if (str_contains($output, 'doi.org/')
+                            || str_contains($output, 'DOI not available')) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                })
+            );
+    });
+
     test('returns 404 when a stale preview session contains the external template', function () {
         Session::put("landing_page_preview.{$this->resource->id}", [
             'template' => 'external',
@@ -245,6 +285,37 @@ describe('Session Preview Display', function () {
         $response = $this->get("/resources/{$this->resource->id}/landing-page/preview");
 
         $response->assertStatus(404);
+    });
+
+    test('preview display normalizes a sparse legacy resource custom template section order', function () {
+        $storedOrder = ['contact', 'files', 'model_description', 'related_work'];
+        $template = LandingPageTemplate::factory()->create([
+            'created_by' => $this->user->id,
+            'left_column_order' => $storedOrder,
+        ]);
+
+        Session::put("landing_page_preview.{$this->resource->id}", [
+            'template' => 'default_gfz',
+            'landing_page_template_id' => $template->id,
+            'resource_id' => $this->resource->id,
+        ]);
+
+        $this->get("/resources/{$this->resource->id}/landing-page/preview")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('LandingPages/default_gfz')
+                ->where('landingPage.landing_page_template_id', $template->id)
+                ->where('sectionOrder.leftColumn', [
+                    'contact',
+                    'files',
+                    'model_description',
+                    'related_work',
+                    'dates',
+                    'citation',
+                ])
+            );
+
+        expect($template->fresh()?->left_column_order)->toBe($storedOrder);
     });
 
     test('preview display passes custom section order and logo for igsn custom templates', function () {
@@ -283,6 +354,15 @@ describe('Session Preview Display', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('sectionOrder.leftColumn', [
+                    'contact',
+                    'general',
+                    'acquisition',
+                    'model_description',
+                    'related_work',
+                    'dates',
+                    'citation',
+                ])
                 ->where('displayLimits.creators', 13)
                 ->where('displayLimits.contributors', 14)
                 ->where('displayLimits.citationAuthors', 15)
@@ -330,6 +410,15 @@ describe('Session Preview Display', function () {
                     ->has('rightColumn')
                     ->has('leftColumn')
                 )
+                ->where('sectionOrder.leftColumn', [
+                    'contact',
+                    'general',
+                    'acquisition',
+                    'model_description',
+                    'related_work',
+                    'dates',
+                    'citation',
+                ])
                 ->where('displayLimits.creators', 16)
                 ->where('displayLimits.contributors', 17)
                 ->where('displayLimits.citationAuthors', 18)

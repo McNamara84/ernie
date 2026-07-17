@@ -8,6 +8,7 @@ use App\Http\Requests\LandingPage\StoreLandingPagePreviewRequest;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Services\Citations\LandingPageCitationService;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -93,8 +94,11 @@ class LandingPagePreviewController extends Controller
     /**
      * Show temporary preview from session
      */
-    public function show(Resource $resource, LandingPageResourceTransformer $transformer): Response
-    {
+    public function show(
+        Resource $resource,
+        LandingPageResourceTransformer $transformer,
+        LandingPageCitationService $citationService
+    ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
 
@@ -183,6 +187,7 @@ class LandingPagePreviewController extends Controller
 
         return Inertia::render("LandingPages/{$template}", [
             'resource' => $resourceData,
+            'citationStyles' => $citationService->format($resource),
             'landingPage' => $tempLandingPage,
             'isPreview' => true,
             'sectionOrder' => $sectionOrder,

@@ -6,10 +6,12 @@ use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
+use App\Models\IdentifierType;
 use App\Models\IgsnClassification;
 use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
 use App\Models\RelatedItem;
 use App\Models\RelatedItemContributor;
@@ -65,8 +67,12 @@ test('transforms a resource into landing page payload structure', function () {
     $creator->setRelation('creatorable', $person);
     $creator->setRelation('affiliations', new EloquentCollection);
 
+    $publisher = new Publisher;
+    $publisher->forceFill(['id' => 42, 'name' => 'Actual Publisher']);
+
     $resource->setRelation('titles', new EloquentCollection([$title]));
     $resource->setRelation('creators', new EloquentCollection([$creator]));
+    $resource->setRelation('publisher', $publisher);
     $resource->setRelation('contributors', new EloquentCollection);
     $resource->setRelation('relatedIdentifiers', new EloquentCollection);
     $resource->setRelation('descriptions', new EloquentCollection);
@@ -76,6 +82,8 @@ test('transforms a resource into landing page payload structure', function () {
     $resource->setRelation('rights', new EloquentCollection);
 
     $data = $transformer->transform($resource);
+
+    expect($transformer->requiredRelations())->toContain('publisher');
 
     expect($data)
         ->toHaveKey('titles')
@@ -87,7 +95,9 @@ test('transforms a resource into landing page payload structure', function () {
         ->and($data)
         ->toHaveKey('creators')
         ->and($data['creators'][0])
-        ->toHaveKeys(['id', 'position', 'affiliations', 'creatorable']);
+        ->toHaveKeys(['id', 'position', 'affiliations', 'creatorable'])
+        ->and($data)
+        ->not->toHaveKey('publisher');
 });
 
 test('transformation is null-safe for optional relationships', function () {
@@ -383,7 +393,7 @@ test('transforms related identifier slugs and citation label for landing pages',
 
     $resource = new Resource;
 
-    $identifierType = new \App\Models\IdentifierType;
+    $identifierType = new IdentifierType;
     $identifierType->forceFill([
         'id' => 1,
         'name' => 'DOI',

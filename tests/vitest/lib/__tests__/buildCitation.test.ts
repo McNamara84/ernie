@@ -30,16 +30,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Ehrmann, H. (2024): TESTTITLE. GFZ Data Services. https://doi.org/10.5880/GFZ1243'
-        );
+        expect(citation).toBe('Ehrmann, H. (2024): TESTTITLE. GFZ Data Services. https://doi.org/10.5880/GFZ1243');
     });
 
     it('builds citation with Institution creator (new structure)', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Institution',
                         name: 'GFZ German Research Centre for Geosciences',
@@ -60,7 +57,7 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'GFZ German Research Centre for Geosciences (2023): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2023'
+            'GFZ German Research Centre for Geosciences (2023): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2023',
         );
     });
 
@@ -68,7 +65,6 @@ describe('buildCitation', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'John',
@@ -76,7 +72,6 @@ describe('buildCitation', () => {
                     },
                 },
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Jane',
@@ -97,16 +92,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Doe, J.; Smith, J. (2025): Collaborative Research. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2025'
-        );
+        expect(citation).toBe('Doe, J.; Smith, J. (2025): Collaborative Research. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2025');
     });
 
     it('handles missing year with n.d.', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -126,9 +118,7 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (n.d.): Undated Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (n.d.): Undated Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles missing creators with Unknown Creator', () => {
@@ -147,16 +137,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Unknown Creator (2024): Anonymous Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Unknown Creator (2024): Anonymous Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles Person with only family name', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         family_name: 'SingleName',
@@ -176,16 +163,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'SingleName (2024): Test. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('SingleName (2024): Test. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('falls back to old structure for backward compatibility', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     given_name: 'Legacy',
                     family_name: 'User',
                 },
@@ -203,16 +187,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'User, L. (2020): Legacy Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LEGACY'
-        );
+        expect(citation).toBe('User, L. (2020): Legacy Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LEGACY');
     });
 
     it('uses publication_year if year is not present', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -233,16 +214,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2022): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (2022): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles missing DOI with fallback message', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -257,16 +235,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2024): Test Dataset. GFZ Data Services. DOI not available'
-        );
+        expect(citation).toBe('Author, T. (2024): Test Dataset. GFZ Data Services. DOI not available');
     });
 
     it('handles missing titles with Untitled', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -282,16 +257,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles missing publisher with default GFZ Data Services', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -306,16 +278,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('uses title field over deprecated value field', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -331,16 +300,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2024): New Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (2024): New Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('falls back to title without title_type when no MainTitle', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -356,16 +322,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2024): Alternative Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (2024): Alternative Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles institution_name in old structure', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     institution_name: 'Legacy Institution',
                 },
             ],
@@ -377,16 +340,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Legacy Institution (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Legacy Institution (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles old structure with only family_name', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     family_name: 'OnlyFamily',
                 },
             ],
@@ -398,20 +358,16 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'OnlyFamily (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('OnlyFamily (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('filters out null creator entries', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     // No valid name data - should be filtered out
                 },
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Valid',
@@ -427,9 +383,7 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, V. (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, V. (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles undefined creators property', () => {
@@ -442,16 +396,13 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Unknown Creator (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Unknown Creator (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
 
     it('handles undefined titles property', () => {
         const resource: CitationResource = {
             creators: [
                 {
-                    
                     creatorable: {
                         type: 'Person',
                         given_name: 'Test',
@@ -466,9 +417,7 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource);
 
-        expect(citation).toBe(
-            'Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
-        );
+        expect(citation).toBe('Author, T. (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST');
     });
     it('limits citation creators and appends et al. when more creators exist than the configured limit', () => {
         const resource: CitationResource = {
@@ -485,9 +434,7 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource, { creatorLimit: 2 });
 
-        expect(citation).toBe(
-            'Doe, J.; Smith, J.; et al. (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026'
-        );
+        expect(citation).toBe('Doe, J.; Smith, J.; et al. (2026): Long Author Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.LONG.2026');
     });
 
     it('does not append et al. when creator count is equal to the configured limit', () => {
@@ -504,9 +451,7 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource, { creatorLimit: 2 });
 
-        expect(citation).toBe(
-            'Doe, J.; Smith, J. (2026): Exact Limit Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.EXACT.2026'
-        );
+        expect(citation).toBe('Doe, J.; Smith, J. (2026): Exact Limit Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.EXACT.2026');
     });
 
     it('applies citation creator limits after filtering invalid creator entries', () => {
@@ -524,8 +469,32 @@ describe('buildCitation', () => {
 
         const citation = buildCitation(resource, { creatorLimit: 2 });
 
-        expect(citation).toBe(
-            'Doe, J.; Smith, J. (2026): Filtered Creator Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.FILTERED.2026'
+        expect(citation).toBe('Doe, J.; Smith, J. (2026): Filtered Creator Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.FILTERED.2026');
+    });
+
+    it('can omit the DOI segment for the new citation module while preserving terminal punctuation', () => {
+        const resource: CitationResource = {
+            creators: [{ creatorable: { type: 'Person', given_name: 'Test', family_name: 'Author' } }],
+            titles: [{ title: 'Draft Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            publisher: 'GFZ Data Services',
+            doi: null,
+        };
+
+        expect(buildCitation(resource, { omitDoiWhenMissing: true })).toBe('Author, T. (2026): Draft Dataset. GFZ Data Services.');
+    });
+
+    it('keeps the DOI output unchanged when the omission option is enabled and a DOI exists', () => {
+        const resource: CitationResource = {
+            creators: [{ creatorable: { type: 'Institution', name: 'GFZ' } }],
+            titles: [{ title: 'Published Dataset', title_type: 'MainTitle' }],
+            year: 2026,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST.2026',
+        };
+
+        expect(buildCitation(resource, { omitDoiWhenMissing: true })).toBe(
+            'GFZ (2026): Published Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST.2026',
         );
     });
 });

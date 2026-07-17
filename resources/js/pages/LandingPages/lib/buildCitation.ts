@@ -35,6 +35,13 @@ interface Resource {
 
 interface BuildCitationOptions {
     creatorLimit?: number;
+    /**
+     * Omit the complete DOI segment when a DOI is not available.
+     *
+     * Defaults to false so the existing ResourceHero citation continues to
+     * show its historic DOI-unavailable placeholder.
+     */
+    omitDoiWhenMissing?: boolean;
 }
 
 function formatCreatorName(creator: Creator): string | null {
@@ -94,9 +101,14 @@ export function buildCitation(resource: Resource, options: BuildCitationOptions 
     // Extract publisher (default to GFZ Data Services)
     const publisher = resource.publisher || 'GFZ Data Services';
 
-    // Extract DOI
-    const doi = resource.doi ? `https://doi.org/${resource.doi}` : 'DOI not available';
+    const citationWithoutDoi = `${creators} (${year}): ${mainTitle}. ${publisher}.`;
+
+    if (!resource.doi && options.omitDoiWhenMissing) {
+        return citationWithoutDoi;
+    }
 
     // Build citation in format: [Creators] ([Year]): [Title]. [Publisher]. [DOI URL]
-    return `${creators} (${year}): ${mainTitle}. ${publisher}. ${doi}`;
+    const doi = resource.doi ? `https://doi.org/${resource.doi}` : 'DOI not available';
+
+    return `${citationWithoutDoi} ${doi}`;
 }

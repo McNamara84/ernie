@@ -24,6 +24,11 @@ it('generates correct cache keys with integer suffix', function () {
     expect(CacheKey::RESOURCE_COUNT->key(100))->toBe('resources:count:100');
 });
 
+it('versions landing page render data cache keys', function () {
+    expect(CacheKey::LANDING_PAGE_RENDER_DATA->key())->toBe('landing_pages:render_data:v2')
+        ->and(CacheKey::LANDING_PAGE_RENDER_DATA->key(123))->toBe('landing_pages:render_data:v2:123');
+});
+
 it('returns correct TTL for resources', function () {
     // Resource listings - 5 minutes (300 seconds)
     expect(CacheKey::RESOURCE_LIST->ttl())->toBe(300);

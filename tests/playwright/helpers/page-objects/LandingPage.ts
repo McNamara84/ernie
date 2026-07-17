@@ -4,7 +4,8 @@ import { expect, type Locator, type Page } from '@playwright/test';
  * Page Object Model for the public Landing Page
  *
  * Handles all interactions with the landing page components:
- * - Header section (title, DOI, citation)
+ * - Header section (title, DOI)
+ * - Inline citation section
  * - Abstract section
  * - Creators/Authors section
  * - Contributors section
@@ -20,8 +21,11 @@ export class LandingPage {
   // Header section
   readonly title: Locator;
   readonly doi: Locator;
-  readonly citationButton: Locator;
-  readonly citationModal: Locator;
+  readonly citationSection: Locator;
+  readonly citationStyleSelect: Locator;
+  readonly citationContent: Locator;
+  readonly citationCopyButton: Locator;
+  readonly citationDoiNote: Locator;
 
   // Abstract section
   readonly abstractSection: Locator;
@@ -69,8 +73,11 @@ export class LandingPage {
     // Header elements
     this.title = page.locator('h1').first();
     this.doi = page.locator('[data-testid="doi-badge"], a[href*="doi.org"]').first();
-    this.citationButton = page.getByRole('button', { name: /Cite|Citation/i });
-    this.citationModal = page.locator('[role="dialog"]');
+    this.citationSection = page.getByTestId('citation-section');
+    this.citationStyleSelect = this.citationSection.getByLabel('Citation style');
+    this.citationContent = this.citationSection.getByTestId('citation-content');
+    this.citationCopyButton = this.citationSection.getByRole('button', { name: 'Copy citation to clipboard' });
+    this.citationDoiNote = this.citationSection.getByTestId('citation-doi-note');
 
     // Abstract section
     this.abstractSection = page.locator('[data-testid="abstract-section"]').or(page.locator('section[aria-labelledby="heading-abstract"]'));
@@ -218,6 +225,45 @@ export class LandingPage {
     }
 
     await this.page.goto(data.public_url, { timeout: 90_000 });
+  }
+
+  /**
+   * Navigate to a token-protected semantic preview resolved by seeded slug.
+   */
+  async gotoPreview(slug: string) {
+    const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`, {
+      timeout: 60_000,
+    });
+
+    if (!response.ok()) {
+      throw new Error(`Failed to resolve landing-page preview "${slug}" (HTTP ${response.status()}).`);
+    }
+
+    const data = (await response.json()) as { preview_url?: string | null };
+
+    if (!data.preview_url) {
+      throw new Error(`Test helper returned no preview URL for landing page "${slug}".`);
+    }
+
+    if (!data.preview_url.startsWith('/') || data.preview_url.includes('://') || !data.preview_url.includes('?preview=')) {
+      throw new Error(`Test helper returned an invalid preview URL for landing page "${slug}".`);
+    }
+
+    await this.page.goto(data.preview_url, { timeout: 90_000 });
+  }
+
+  /**
+   * Install a deterministic clipboard adapter before navigating to the page.
+   */
+  async installCitationClipboardStub() {
+    await this.page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (text: string) => localStorage.setItem('__playwright_copied_citation', text),
+        },
+      });
+    });
   }
 
   /**
@@ -401,19 +447,33 @@ export class LandingPage {
   }
 
   /**
-   * Open citation modal
+   * Select one of the six stable citation style IDs.
    */
-  async openCitationModal() {
-    await this.citationButton.click();
-    await expect(this.citationModal).toBeVisible();
+  async selectCitationStyle(style: 'apa-7' | 'harvard' | 'copernicus' | 'agu' | 'gsa' | 'gfz') {
+    await this.citationStyleSelect.click();
+    await this.page.locator(`[role="option"][data-citation-style="${style}"]`).click();
   }
 
   /**
-   * Verify citation contains expected text
+   * Copy the currently visible inline citation.
+   */
+  async copyCitation() {
+    await this.citationCopyButton.click();
+  }
+
+  /**
+   * Return text received by the deterministic clipboard adapter.
+   */
+  async copiedCitationText(): Promise<string | null> {
+    return this.page.evaluate(() => localStorage.getItem('__playwright_copied_citation'));
+  }
+
+  /**
+   * Verify the inline citation contains expected text.
    */
   async verifyCitationContains(text: string) {
-    await this.openCitationModal();
-    await expect(this.citationModal).toContainText(text);
+    await expect(this.citationSection).toBeVisible();
+    await expect(this.citationContent).toContainText(text);
   }
 
   /**

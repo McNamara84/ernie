@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { LandingPageCitationStyle, LeftColumnSection } from '@/types/landing-page';
 import {
     getDefaultIgsnTemplate,
     getDefaultTemplate,
@@ -12,6 +13,28 @@ import {
 } from '@/types/landing-page';
 
 describe('Landing Page Template Registry', () => {
+    describe('citation contracts', () => {
+        it('supports citation as a left-column section', () => {
+            const section: LeftColumnSection = 'citation';
+
+            expect(section).toBe('citation');
+        });
+
+        it('defines all five official server-rendered style identifiers', () => {
+            const ids: LandingPageCitationStyle['id'][] = ['apa-7', 'harvard', 'copernicus', 'agu', 'gsa'];
+            const unavailableStyle: LandingPageCitationStyle = {
+                id: 'apa-7',
+                label: 'APA 7',
+                available: false,
+                html: null,
+                text: null,
+            };
+
+            expect(ids).toEqual(['apa-7', 'harvard', 'copernicus', 'agu', 'gsa']);
+            expect(unavailableStyle).toMatchObject({ available: false, html: null, text: null });
+        });
+    });
+
     describe('LANDING_PAGE_TEMPLATES', () => {
         it('should have default_gfz template', () => {
             expect(LANDING_PAGE_TEMPLATES).toHaveProperty('default_gfz');
