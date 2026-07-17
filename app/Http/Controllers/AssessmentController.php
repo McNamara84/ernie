@@ -8,6 +8,8 @@ use App\Enums\CacheKey;
 use App\Jobs\RunResourceAssessmentsJob;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
+use App\Services\Assessment\FairImprovementContextFactory;
+use App\Services\Assessment\FairImprovementOpportunityResolver;
 use App\Services\Assessment\FujiAssessmentService;
 use App\Services\ResourceCacheService;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +24,8 @@ class AssessmentController extends Controller
     public function __construct(
         private readonly FujiAssessmentService $fujiService,
         private readonly ResourceCacheService $resourceCache,
+        private readonly FairImprovementContextFactory $fairImprovementContextFactory,
+        private readonly FairImprovementOpportunityResolver $fairImprovementResolver,
     ) {}
 
     public function index(): Response
@@ -177,7 +181,14 @@ class AssessmentController extends Controller
     }
 
     /**
-     * @return list<array{id: int, doi: string|null, mainTitle: string, score: float, assessedAt: string|null}>
+     * @return list<array{
+     *     id: int,
+     *     doi: string|null,
+     *     mainTitle: string,
+     *     score: float,
+     *     assessedAt: string|null,
+     *     improvementOpportunity: array<string, mixed>
+     * }>
      */
     private function buildAttentionList(string $scope, ?int $physicalObjectTypeId): array
     {
@@ -185,22 +196,51 @@ class AssessmentController extends Controller
             ->join('resource_assessments', 'resource_assessments.resource_id', '=', 'resources.id')
             ->where('resource_assessments.status', ResourceAssessment::STATUS_COMPLETED)
             ->whereNotNull('resource_assessments.total_score')
-            ->with(['titles.titleType', 'resourceAssessment'])
+            ->with([
+                'titles.titleType',
+                'resourceAssessment',
+                'landingPage.externalDomain',
+                'landingPage.files',
+                'landingPage.links',
+                'igsnMetadata',
+            ])
             ->orderBy('resource_assessments.total_score')
             ->select('resources.*')
             ->limit(10)
             ->get()
-            ->map(fn (Resource $resource): array => [
-                'id' => $resource->id,
-                'doi' => $resource->doi,
-                'mainTitle' => $resource->main_title ?? 'Untitled',
-                'score' => round((float) ($resource->resourceAssessment->total_score ?? 0), 2),
-                'assessedAt' => $resource->resourceAssessment?->assessed_at?->toIso8601String(),
-            ])
+            ->map(function (Resource $resource) use ($scope): array {
+                $assessment = $resource->resourceAssessment;
+                $context = $this->fairImprovementContextFactory->fromResource(
+                    resource: $resource,
+                    assessedAt: $assessment?->assessed_at,
+                    assessedIdentifier: $assessment?->assessed_identifier,
+                );
+
+                return [
+                    'id' => $resource->id,
+                    'doi' => $resource->doi,
+                    'mainTitle' => $resource->main_title ?? 'Untitled',
+                    'score' => round((float) ($assessment->total_score ?? 0), 2),
+                    'assessedAt' => $assessment?->assessed_at?->toIso8601String(),
+                    'improvementOpportunity' => $this->fairImprovementResolver->resolve(
+                        payload: $assessment?->payload,
+                        scope: $scope,
+                        context: $context,
+                    ),
+                ];
+            })
             ->values()
             ->all();
 
-        /** @var list<array{id: int, doi: string|null, mainTitle: string, score: float, assessedAt: string|null}> $items */
+        /** @var list<array{
+         *     id: int,
+         *     doi: string|null,
+         *     mainTitle: string,
+         *     score: float,
+         *     assessedAt: string|null,
+         *     improvementOpportunity: array<string, mixed>
+         * }> $items
+         */
         return $items;
     }
 

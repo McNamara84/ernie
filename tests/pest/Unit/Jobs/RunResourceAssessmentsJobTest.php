@@ -3,13 +3,17 @@
 declare(strict_types=1);
 
 use App\Jobs\RunResourceAssessmentsJob;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Models\Title;
+use App\Services\Assessment\FujiAssessmentService;
+use App\Services\ResourceCacheService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 covers(RunResourceAssessmentsJob::class);
 
@@ -31,28 +35,63 @@ describe('handle', function (): void {
 
         $resource = Resource::factory()->withDoi('10.5880/test.001')->create();
         Title::factory()->for($resource)->create(['value' => 'Example dataset']);
-        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.001')->published()->create();
+        LandingPage::factory()->for($resource)->withDoi('10.5880/test.001')->published()->create();
 
-        Http::fake([
-            'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
-                'summary' => [
-                    'score_percent' => [
-                        'FAIR' => 41.25,
+        $payload = [
+            'metric_version' => '0.8',
+            'summary' => [
+                'score_percent' => [
+                    'FAIR' => 42.31,
+                ],
+                'score_earned' => [
+                    'F' => 3,
+                    'A' => 3,
+                    'I' => 2,
+                    'R' => 3,
+                    'FAIR' => 11,
+                ],
+                'score_total' => [
+                    'F' => 7,
+                    'A' => 7,
+                    'I' => 6,
+                    'R' => 6,
+                    'FAIR' => 26,
+                ],
+            ],
+            'results' => [[
+                'metric_identifier' => 'FsF-R1.1-01M',
+                'test_status' => 'fail',
+                'score' => [
+                    'earned' => 0,
+                    'total' => 1,
+                ],
+                'metric_tests' => [
+                    'FsF-R1.1-01M-1' => [
+                        'metric_test_score' => [
+                            'earned' => 0,
+                            'total' => 1,
+                        ],
+                        'metric_test_status' => 'fail',
                     ],
                 ],
-            ]),
+            ]],
+        ];
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response($payload),
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
 
         expect($assessment)->not->toBeNull()
             ->and($assessment?->status)->toBe(ResourceAssessment::STATUS_COMPLETED)
-            ->and((float) $assessment?->total_score)->toBe(41.25);
+            ->and((float) $assessment?->total_score)->toBe(42.31)
+            ->and($assessment?->payload)->toEqual($payload);
 
         $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
 
@@ -73,7 +112,7 @@ describe('handle', function (): void {
             'resource_type_id' => $physicalObjectType->id,
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId);
 
         Http::fake([
@@ -86,7 +125,7 @@ describe('handle', function (): void {
             ]),
         ]);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
 
@@ -100,10 +139,10 @@ describe('handle', function (): void {
         $resource = Resource::factory()->create(['doi' => null]);
         Title::factory()->for($resource)->create(['value' => 'Missing DOI resource']);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
 
@@ -115,7 +154,7 @@ describe('handle', function (): void {
     it('assesses resources with a DOI even when the landing page is still draft', function (): void {
         $resource = Resource::factory()->withDoi('10.5880/test.003')->create();
         Title::factory()->for($resource)->create(['value' => 'Draft landing page resource']);
-        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.003')->draft()->create();
+        LandingPage::factory()->for($resource)->withDoi('10.5880/test.003')->draft()->create();
 
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
@@ -127,10 +166,10 @@ describe('handle', function (): void {
             ]),
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
 
@@ -143,16 +182,16 @@ describe('handle', function (): void {
     it('marks the assessment as failed when the F-UJI request throws', function (): void {
         $resource = Resource::factory()->withDoi('10.5880/test.004')->create();
         Title::factory()->for($resource)->create(['value' => 'Failing resource']);
-        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.004')->published()->create();
+        LandingPage::factory()->for($resource)->withDoi('10.5880/test.004')->published()->create();
 
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['error' => 'Boom'], 500),
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
         $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
@@ -169,16 +208,16 @@ describe('handle', function (): void {
     it('stores a generic availability message when the F-UJI request cannot connect', function (): void {
         $resource = Resource::factory()->withDoi('10.5880/test.004a')->create();
         Title::factory()->for($resource)->create(['value' => 'Unavailable F-UJI resource']);
-        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.004a')->published()->create();
+        LandingPage::factory()->for($resource)->withDoi('10.5880/test.004a')->published()->create();
 
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::failedConnection(),
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
         $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
@@ -195,16 +234,16 @@ describe('handle', function (): void {
     it('stores a generic availability message when the F-UJI response payload is invalid', function (): void {
         $resource = Resource::factory()->withDoi('10.5880/test.004b')->create();
         Title::factory()->for($resource)->create(['value' => 'Invalid payload resource']);
-        \App\Models\LandingPage::factory()->for($resource)->withDoi('10.5880/test.004b')->published()->create();
+        LandingPage::factory()->for($resource)->withDoi('10.5880/test.004b')->published()->create();
 
         Http::fake([
             'https://fuji.test/fuji/api/v1/evaluate' => Http::response(['summary' => []], 200),
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $assessment = ResourceAssessment::query()->where('resource_id', $resource->id)->first();
         $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
@@ -219,10 +258,10 @@ describe('handle', function (): void {
     });
 
     it('completes with zero totals when the igsn scope has no physical-object type configured', function (): void {
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::IGSN_SCOPE, $jobId));
 
@@ -250,10 +289,10 @@ describe('handle', function (): void {
 
         Config::set('fuji.enabled', false);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         $status = Cache::get(RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId));
         $assessment = ResourceAssessment::query()->where('resource_id', $resourceWithAssessment->id)->sole();
@@ -277,7 +316,7 @@ describe('handle', function (): void {
         $resources = Resource::factory()->count(26)->create();
 
         foreach ($resources as $resource) {
-            \App\Models\LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->published()->create();
+            LandingPage::factory()->for($resource)->withDoi((string) $resource->doi)->published()->create();
         }
 
         Http::fake([
@@ -290,7 +329,7 @@ describe('handle', function (): void {
             ]),
         ]);
 
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $job = new class(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId) extends RunResourceAssessmentsJob
         {
             /** @var list<array{status: string, processedResources: int}> */
@@ -328,7 +367,7 @@ describe('handle', function (): void {
             }
         };
 
-        $job->handle(app(\App\Services\Assessment\FujiAssessmentService::class), app(\App\Services\ResourceCacheService::class));
+        $job->handle(app(FujiAssessmentService::class), app(ResourceCacheService::class));
 
         expect($job->statusWrites)->toHaveCount(3)
             ->and($job->statusWrites[0])->toBe([
@@ -348,7 +387,7 @@ describe('handle', function (): void {
 
 describe('constructor validation', function (): void {
     it('rejects invalid assessment scopes', function (): void {
-        expect(fn () => new RunResourceAssessmentsJob('invalid', (string) \Illuminate\Support\Str::uuid()))
+        expect(fn () => new RunResourceAssessmentsJob('invalid', (string) Str::uuid()))
             ->toThrow(InvalidArgumentException::class, 'Assessment scope is invalid.');
     });
 
@@ -360,7 +399,7 @@ describe('constructor validation', function (): void {
 
 describe('failed', function (): void {
     it('marks the cached job as failed and preserves existing metadata', function (): void {
-        $jobId = (string) \Illuminate\Support\Str::uuid();
+        $jobId = (string) Str::uuid();
         $cacheKey = RunResourceAssessmentsJob::getCacheKey(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
 
         Cache::put($cacheKey, [
@@ -369,7 +408,7 @@ describe('failed', function (): void {
         ], now()->addHour());
 
         $job = new RunResourceAssessmentsJob(RunResourceAssessmentsJob::RESOURCE_SCOPE, $jobId);
-        $job->failed(new \RuntimeException('Queue blew up.'));
+        $job->failed(new RuntimeException('Queue blew up.'));
 
         $status = Cache::get($cacheKey);
 
@@ -388,12 +427,12 @@ describe('failed', function (): void {
 
         $job = new RunResourceAssessmentsJob(
             RunResourceAssessmentsJob::RESOURCE_SCOPE,
-            (string) \Illuminate\Support\Str::uuid(),
+            (string) Str::uuid(),
             $lock->owner(),
             $lockKey,
         );
 
-        $job->failed(new \RuntimeException('Queue blew up.'));
+        $job->failed(new RuntimeException('Queue blew up.'));
 
         expect(Cache::lock($lockKey, 7200)->get())->toBeTrue();
     });

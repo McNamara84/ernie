@@ -4,13 +4,20 @@ import { RefreshCw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { FairImprovementIndicator } from '@/components/assessment/fair-improvement-indicator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { type AssessmentEntry, type AssessmentJobStatus, type AssessmentPageProps, type AssessmentScope, type AssessmentSummary } from '@/types/assessment';
+import {
+    type AssessmentEntry,
+    type AssessmentJobStatus,
+    type AssessmentPageProps,
+    type AssessmentScope,
+    type AssessmentSummary,
+} from '@/types/assessment';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -84,7 +91,7 @@ function emptyStateMessage(summary: AssessmentSummary, scope: AssessmentScope): 
     return `No ${scopeLabel(scope).toLowerCase()} currently require attention.`;
 }
 
-function AssessmentTable({ entries, summary, scope }: { entries: AssessmentEntry[]; summary: AssessmentSummary; scope: AssessmentScope }) {
+export function AssessmentTable({ entries, summary, scope }: { entries: AssessmentEntry[]; summary: AssessmentSummary; scope: AssessmentScope }) {
     if (entries.length === 0) {
         return <p className="text-sm text-muted-foreground">{emptyStateMessage(summary, scope)}</p>;
     }
@@ -95,6 +102,7 @@ function AssessmentTable({ entries, summary, scope }: { entries: AssessmentEntry
                 <TableRow>
                     <TableHead className="w-45">DOI</TableHead>
                     <TableHead>Main Title</TableHead>
+                    <TableHead className="w-28 text-center">FAIR opportunity</TableHead>
                     <TableHead className="w-27.5 text-right">Score</TableHead>
                 </TableRow>
             </TableHeader>
@@ -103,6 +111,9 @@ function AssessmentTable({ entries, summary, scope }: { entries: AssessmentEntry
                     <TableRow key={entry.id}>
                         <TableCell className="font-mono text-xs text-muted-foreground">{entry.doi ?? 'N/A'}</TableCell>
                         <TableCell className="font-medium">{entry.mainTitle}</TableCell>
+                        <TableCell className="text-center">
+                            <FairImprovementIndicator opportunity={entry.improvementOpportunity} />
+                        </TableCell>
                         <TableCell className="text-right font-semibold">{entry.score.toFixed(2)}%</TableCell>
                     </TableRow>
                 ))}
@@ -321,9 +332,7 @@ export default function Assessment({
                 {fujiAvailabilityMessage !== null && (
                     <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground">
                         <p>{fujiAvailabilityMessage}</p>
-                        {fujiStatusDetail !== null && (
-                            <p className="mt-1 text-xs opacity-75">{fujiStatusDetail}</p>
-                        )}
+                        {fujiStatusDetail !== null && <p className="mt-1 text-xs opacity-75">{fujiStatusDetail}</p>}
                     </div>
                 )}
 
@@ -344,14 +353,18 @@ export default function Assessment({
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+                        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                             <div className="space-y-1.5">
                                 <CardTitle>Resources needing your attention</CardTitle>
-                                <CardDescription>
-                                    {summaryText(resourceAssessmentSummary)}
-                                </CardDescription>
+                                <CardDescription>{summaryText(resourceAssessmentSummary)}</CardDescription>
                             </div>
-                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('resource')} disabled={!fujiConfiguredForActions} loading={states.resource.isChecking}>
+                            <LoadingButton
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCheck('resource')}
+                                disabled={!fujiConfiguredForActions}
+                                loading={states.resource.isChecking}
+                            >
                                 {states.resource.isChecking ? 'Checking...' : 'Check Resources'}
                             </LoadingButton>
                         </CardHeader>
@@ -361,14 +374,18 @@ export default function Assessment({
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-4">
+                        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
                             <div className="space-y-1.5">
                                 <CardTitle>IGSNs needing your attention</CardTitle>
-                                <CardDescription>
-                                    {summaryText(igsnAssessmentSummary)}
-                                </CardDescription>
+                                <CardDescription>{summaryText(igsnAssessmentSummary)}</CardDescription>
                             </div>
-                            <LoadingButton variant="outline" size="sm" onClick={() => handleCheck('igsn')} disabled={!fujiConfiguredForActions} loading={states.igsn.isChecking}>
+                            <LoadingButton
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCheck('igsn')}
+                                disabled={!fujiConfiguredForActions}
+                                loading={states.igsn.isChecking}
+                            >
                                 {states.igsn.isChecking ? 'Checking...' : 'Check IGSNs'}
                             </LoadingButton>
                         </CardHeader>

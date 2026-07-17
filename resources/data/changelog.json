@@ -150,6 +150,10 @@
         ],
         "improvements": [
             {
+                "title": "Score-Causal FAIR Improvement Guidance",
+                "description": "The admin Assessment dashboard now highlights the F, A, I, or R dimension with the largest raw F-UJI point gap for each listed record. A yellow-to-red indicator communicates its potential effect on the overall FAIR score, while hover and keyboard focus reveal up to three verified ERNIE actions ranked by score impact. Digital Resources and physical-sample IGSNs use distinct guidance, inapplicable file-oriented IGSN checks are explained instead of turned into misleading actions, and platform prerequisites are labelled as administrator work."
+            },
+            {
                 "title": "Strict DataCite 4.7 JSON Validation",
                 "description": "ERNIE now validates DataCite API JSON with JSON Schema Draft 2020-12, executable DataCite date and URI formats, and recursively closed object contracts. JSON exports use canonical DataCite field names and polygon/Related Item structures, while imports retain compatibility through a bounded normalizer for documented API read fields and legacy URI aliases. Unknown fields, invalid dates, and schemeless URIs are reported with their concrete JSON paths."
             },

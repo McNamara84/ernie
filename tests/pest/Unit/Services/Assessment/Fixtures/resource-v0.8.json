@@ -1,0 +1,124 @@
+{
+    "metric_version": "0.8",
+    "summary": {
+        "score_earned": {
+            "F": 1,
+            "A": 3,
+            "I": 0,
+            "R": 1,
+            "FAIR": 5
+        },
+        "score_total": {
+            "F": 7,
+            "A": 7,
+            "I": 6,
+            "R": 6,
+            "FAIR": 26
+        },
+        "score_percent": {
+            "F": 14.29,
+            "A": 42.86,
+            "I": 0,
+            "R": 16.67,
+            "FAIR": 19.23
+        }
+    },
+    "results": [
+        {
+            "metric_identifier": "FsF-F2-01M",
+            "test_status": "pass",
+            "score": {
+                "earned": 1,
+                "total": 2
+            },
+            "metric_tests": {
+                "FsF-F2-01M-2": {
+                    "metric_test_status": "pass",
+                    "metric_test_score": {
+                        "earned": 1,
+                        "total": 1
+                    }
+                },
+                "FsF-F2-01M-3": {
+                    "metric_test_status": "fail",
+                    "metric_test_score": {
+                        "earned": 0,
+                        "total": 1
+                    }
+                }
+            }
+        },
+        {
+            "metric_identifier": "FsF-F4-01M",
+            "test_status": "fail",
+            "score": {
+                "earned": 0,
+                "total": 2
+            },
+            "metric_tests": {
+                "FsF-F4-01M-1": {
+                    "metric_test_status": "fail",
+                    "metric_test_score": {
+                        "earned": 0,
+                        "total": 2
+                    }
+                }
+            }
+        },
+        {
+            "metric_identifier": "FsF-I1-01M",
+            "test_status": "fail",
+            "score": {
+                "earned": 0,
+                "total": 2
+            },
+            "metric_tests": {
+                "FsF-I1-01M-1": {
+                    "metric_test_status": "fail",
+                    "metric_test_score": {
+                        "earned": 0,
+                        "total": 2
+                    }
+                },
+                "FsF-I1-01M-2": {
+                    "metric_test_status": "fail",
+                    "metric_test_score": {
+                        "earned": 0,
+                        "total": 2
+                    }
+                }
+            }
+        },
+        {
+            "metric_identifier": "FsF-R1-01M",
+            "test_status": "pass",
+            "score": {
+                "earned": 1,
+                "total": 2
+            },
+            "metric_tests": {
+                "FsF-R1-01M-1": {
+                    "metric_test_status": "pass",
+                    "metric_test_score": {
+                        "earned": 1,
+                        "total": 1
+                    }
+                },
+                "FsF-R1-01M-2": {
+                    "metric_test_status": "fail",
+                    "metric_test_score": {
+                        "earned": 0,
+                        "total": 1
+                    }
+                },
+                "FsF-R1-01M-3": {
+                    "metric_test_status": "fail",
+                    "metric_test_score": {
+                        "earned": 0,
+                        "total": 0
+                    }
+                }
+            }
+        }
+    ]
+}

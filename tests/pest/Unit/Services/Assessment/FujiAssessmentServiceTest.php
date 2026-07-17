@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\Assessment\FujiAssessmentService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -100,24 +101,59 @@ describe('assessIdentifier', function (): void {
             ->toThrow(RuntimeException::class, 'F-UJI is not configured.');
     });
 
-    it('posts the identifier to the F-UJI evaluate endpoint and returns the FAIR percentage score', function (): void {
-        Http::fake([
-            'https://fuji.test/fuji/api/v1/evaluate' => Http::response([
-                'summary' => [
-                    'score_percent' => [
-                        'FAIR' => 72.5,
+    it('posts the identifier to the F-UJI evaluate endpoint and returns the complete assessment payload', function (): void {
+        $payload = [
+            'metric_version' => '0.8',
+            'summary' => [
+                'score_percent' => [
+                    'FAIR' => 73.08,
+                ],
+                'score_earned' => [
+                    'F' => 5,
+                    'A' => 5,
+                    'I' => 4,
+                    'R' => 5,
+                    'FAIR' => 19,
+                ],
+                'score_total' => [
+                    'F' => 7,
+                    'A' => 7,
+                    'I' => 6,
+                    'R' => 6,
+                    'FAIR' => 26,
+                ],
+            ],
+            'results' => [[
+                'metric_identifier' => 'FsF-F1-01MD',
+                'test_status' => 'pass',
+                'score' => [
+                    'earned' => 1,
+                    'total' => 1,
+                ],
+                'metric_tests' => [
+                    'FsF-F1-01MD-1' => [
+                        'metric_test_score' => [
+                            'earned' => 1,
+                            'total' => 1,
+                        ],
+                        'metric_test_status' => 'pass',
                     ],
                 ],
-                'resolved_url' => 'https://ernie.example.test/10.5880/test.001/example-dataset',
-                'request' => [
-                    'normalized_object_identifier' => '10.5880/test.001',
-                ],
-            ]),
+            ]],
+            'resolved_url' => 'https://ernie.example.test/10.5880/test.001/example-dataset',
+            'request' => [
+                'normalized_object_identifier' => '10.5880/test.001',
+            ],
+        ];
+
+        Http::fake([
+            'https://fuji.test/fuji/api/v1/evaluate' => Http::response($payload),
         ]);
 
         $result = makeFujiAssessmentService()->assessIdentifier('10.5880/test.001');
 
-        expect($result['score'])->toBe(72.5)
+        expect($result['score'])->toBe(73.08)
+            ->and($result['payload'])->toEqual($payload)
             ->and($result['resolvedUrl'])->toBe('https://ernie.example.test/10.5880/test.001/example-dataset')
             ->and($result['normalizedIdentifier'])->toBe('10.5880/test.001');
 
@@ -126,7 +162,7 @@ describe('assessIdentifier', function (): void {
                 && $request['object_identifier'] === '10.5880/test.001'
                 && $request['use_datacite'] === true
                 && $request['use_github'] === false
-                && $request->hasHeader('Authorization', ['Basic ' . base64_encode('admin:secret')]);
+                && $request->hasHeader('Authorization', ['Basic '.base64_encode('admin:secret')]);
         });
     });
 
@@ -212,7 +248,7 @@ describe('assessIdentifier', function (): void {
                 && $context['operation'] === 'assessment'
                 && $context['identifier'] === '10.5880/test.001'
                 && $context['base_url'] === 'https://fuji.test'
-                && $context['exception_class'] === Illuminate\Http\Client\ConnectionException::class
+                && $context['exception_class'] === ConnectionException::class
                 && is_string($context['error'])
             );
     });
