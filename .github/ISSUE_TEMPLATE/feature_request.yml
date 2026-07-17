@@ -11,7 +11,7 @@ body:
 
         ## Use ERNIE terms
 
-         Please write terms out and use the words shown in ERNIE. For example a digital dataset is named **Resource**, a physical sample is **IGSN**. There is a **Data Editor** and not an **Editor**. The form group **Spatial and Temporal Coverage** is not called **STC**.
+        Please use the exact terms shown in ERNIE. Do not use abbreviations. For example, a digital dataset is named **Resource**, and a physical sample is named **IGSN**.
 
   - type: textarea
     id: user-story
@@ -77,4 +77,4 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Ready for work?** This issue is created with the `DoR not met` label by default. Remove it only when the Definition of Ready is met or when a developer is mentioned for a question.
+        **Ready for work?** This issue is created with the `DoR not met` label by default. Remove it only when the Definition of Ready is met.
