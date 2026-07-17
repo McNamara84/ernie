@@ -631,6 +631,44 @@ describe('index', function () {
             ->toBe($singleRowQueryCount);
     });
 
+    it('keeps legacy assessments without an assessed identifier actionable', function () {
+        $resource = Resource::factory()->withDoi('10.5880/test.guidance.legacy')->create();
+        Title::factory()->for($resource)->create(['value' => 'Legacy guidance resource']);
+        ResourceAssessment::query()->create([
+            'resource_id' => $resource->id,
+            'status' => ResourceAssessment::STATUS_COMPLETED,
+            'total_score' => 96.15,
+            'assessed_identifier' => null,
+            'payload' => assessmentControllerFujiPayload(
+                earned: ['R' => 5],
+                results: [
+                    assessmentControllerFujiMetric(
+                        identifier: 'FsF-R1.1-01M',
+                        earned: 0,
+                        total: 1,
+                        tests: [
+                            'FsF-R1.1-01M-1' => ['earned' => 0, 'total' => 1],
+                        ],
+                    ),
+                ],
+            ),
+            'assessed_at' => now(),
+        ]);
+
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->get('/assessment')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('resourcesNeedingAttention.0.improvementOpportunity.status', 'available')
+                ->where('resourcesNeedingAttention.0.improvementOpportunity.dimension', 'R')
+                ->where('resourcesNeedingAttention.0.improvementOpportunity.requiresReassessment', false)
+                ->has('resourcesNeedingAttention.0.improvementOpportunity.suggestions', 1)
+                ->missing('resourcesNeedingAttention.0.improvementOpportunity.guidanceMessage')
+            );
+    });
+
     it('asks for reassessment when tracked ERNIE state is newer than the stored score', function () {
         $resource = Resource::factory()->withDoi('10.5880/test.guidance.stale')->create();
         Title::factory()->for($resource)->create(['value' => 'Stale guidance resource']);

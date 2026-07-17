@@ -68,6 +68,10 @@ final readonly class FairImprovementContext
         $current = $this->normalizedIdentifier($this->currentIdentifier);
         $assessed = $this->normalizedIdentifier($this->assessedIdentifier);
 
+        if ($assessed === null) {
+            return false;
+        }
+
         return $current !== $assessed;
     }
 

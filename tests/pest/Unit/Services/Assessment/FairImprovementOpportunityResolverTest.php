@@ -650,6 +650,31 @@ it('requires reassessment when the assessed identifier differs from the current 
         ->suggestions->toBe([]);
 });
 
+it('treats an unknown assessed identifier as unavailable for comparison', function (?string $assessedIdentifier): void {
+    $payload = fairPayload(
+        ['F' => 1, 'A' => 0, 'I' => 0, 'R' => 0],
+        [fairMetric('FsF-F1-01MD', 0, 1, [
+            'FsF-F1-01MD-1' => fairMetricTest(0, 1),
+        ])],
+    );
+
+    $result = fairOpportunityResolver()->resolve(
+        $payload,
+        FairImprovementOpportunityResolver::SCOPE_RESOURCE,
+        new FairImprovementContext(
+            currentIdentifier: '10.5880/example',
+            assessedIdentifier: $assessedIdentifier,
+        ),
+    );
+
+    expect($result)
+        ->requiresReassessment->toBeFalse()
+        ->and($result['suggestions'])->toHaveCount(1);
+})->with([
+    'null identifier' => [null],
+    'blank identifier' => ['  '],
+]);
+
 it('treats DOI casing and surrounding whitespace as the same assessed identifier', function (): void {
     $payload = fairPayload(
         ['F' => 1, 'A' => 0, 'I' => 0, 'R' => 0],
