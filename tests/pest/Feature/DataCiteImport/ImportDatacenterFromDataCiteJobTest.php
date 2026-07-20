@@ -15,6 +15,7 @@ use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
@@ -100,12 +101,15 @@ describe('datacenter-scoped DataCite import job', function () {
             ->once()
             ->with('ArboDat 2016')
             ->andReturn([]);
+        $streamAdvancedAfterFinalTarget = false;
         $this->importService
             ->shouldReceive('fetchAllDois')
             ->once()
-            ->andReturn((function () {
+            ->andReturn((function () use (&$streamAdvancedAfterFinalTarget) {
                 yield datacenterDoiRecord('10.5880/not-selected');
                 yield datacenterDoiRecord('10.5880/selected');
+                $streamAdvancedAfterFinalTarget = true;
+                yield datacenterDoiRecord('10.5880/after-final-target');
             })());
         $this->transformer
             ->shouldReceive('transform')
@@ -138,7 +142,141 @@ describe('datacenter-scoped DataCite import job', function () {
             ->and($resource->datacenters()->pluck('name')->sort()->values()->all())
             ->toBe(['ArboDat 2016', 'GFZ Data Services'])
             ->and(Resource::query()->where('doi', '10.5880/not-selected')->exists())
+            ->toBeFalse()
+            ->and($streamAdvancedAfterFinalTarget)
+            ->toBeFalse()
+            ->and(Resource::query()->where('doi', '10.5880/after-final-target')->exists())
             ->toBeFalse();
+    });
+
+    it('does not start the DataCite bulk stream when there are no targets', function () {
+        $this->portalService
+            ->shouldReceive('resourcesForDatacenter')
+            ->once()
+            ->with('ArboDat')
+            ->andReturn([
+                'datacenter' => [
+                    'id' => 'ArboDat',
+                    'name' => 'ArboDat 2016',
+                    'resource_count' => 0,
+                ],
+                'resources' => [],
+            ]);
+        $this->pendingImportService
+            ->shouldReceive('importablePendingDoisForDatacenter')
+            ->once()
+            ->with('ArboDat 2016')
+            ->andReturn([]);
+        $this->importService->shouldReceive('fetchAllDois')->never();
+        $this->importService->shouldReceive('fetchSingleDoi')->never();
+        $this->transformer->shouldReceive('transform')->never();
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId, null, 'ArboDat'))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}"))
+            ->toMatchArray([
+                'status' => 'completed',
+                'total' => 0,
+                'processed' => 0,
+                'imported' => 0,
+                'skipped' => 0,
+                'failed' => 0,
+            ]);
+    });
+
+    it('bulk-loads existing datacenter ids and caches newly resolved ids across resources', function () {
+        Datacenter::query()->create(['name' => 'Existing portal datacenter']);
+
+        $this->portalService
+            ->shouldReceive('resourcesForDatacenter')
+            ->once()
+            ->with('Existing')
+            ->andReturn([
+                'datacenter' => [
+                    'id' => 'Existing',
+                    'name' => 'Existing portal datacenter',
+                    'resource_count' => 2,
+                ],
+                'resources' => [
+                    '10.5880/cache-one' => [
+                        'Existing portal datacenter',
+                        'New shared datacenter',
+                    ],
+                    '10.5880/cache-two' => [
+                        'Existing portal datacenter',
+                        'New shared datacenter',
+                    ],
+                ],
+            ]);
+        $this->pendingImportService
+            ->shouldReceive('importablePendingDoisForDatacenter')
+            ->once()
+            ->with('Existing portal datacenter')
+            ->andReturn([]);
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield datacenterDoiRecord('10.5880/cache-one');
+                yield datacenterDoiRecord('10.5880/cache-two');
+            })());
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(
+                fn (array $doiRecord): Resource => Resource::factory()->create([
+                    'doi' => $doiRecord['attributes']['doi'],
+                ]),
+            );
+
+        $queries = [];
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        try {
+            $importId = Str::uuid()->toString();
+            (new ImportFromDataCiteJob($this->user->id, $importId, null, 'Existing'))
+                ->handle($this->importService, $this->transformer, $this->metaworksService);
+        } finally {
+            $queries = DB::getQueryLog();
+            DB::disableQueryLog();
+        }
+
+        $datacenterQueries = array_values(array_filter(
+            $queries,
+            static fn (array $query): bool => preg_match(
+                '/\b(?:from|into)\s+["`\[]?datacenters["`\]]?/i',
+                $query['query'],
+            ) === 1,
+        ));
+
+        $firstResourceDatacenters = Resource::query()
+            ->where('doi', '10.5880/cache-one')
+            ->firstOrFail()
+            ->datacenters()
+            ->pluck('name')
+            ->sort()
+            ->values()
+            ->all();
+        $secondResourceDatacenters = Resource::query()
+            ->where('doi', '10.5880/cache-two')
+            ->firstOrFail()
+            ->datacenters()
+            ->pluck('name')
+            ->sort()
+            ->values()
+            ->all();
+
+        expect($datacenterQueries)
+            ->toHaveCount(3)
+            ->and(Datacenter::query()->where('name', 'New shared datacenter')->count())
+            ->toBe(1)
+            ->and($firstResourceDatacenters)
+            ->toBe(['Existing portal datacenter', 'New shared datacenter'])
+            ->and($secondResourceDatacenters)
+            ->toBe(['Existing portal datacenter', 'New shared datacenter']);
     });
 
     it('does not change datacenters on resources that already exist in ERNIE', function () {

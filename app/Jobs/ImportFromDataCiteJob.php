@@ -53,6 +53,9 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     public int $tries = 1;
 
+    /** @var array<string, int> */
+    private array $portalDatacenterIds = [];
+
     /**
      * Create a new job instance.
      *
@@ -388,6 +391,8 @@ class ImportFromDataCiteJob implements ShouldQueue
 
         ksort($targets);
 
+        $this->cacheExistingPortalDatacenterIds($targets);
+
         $total = count($targets);
         $processed = 0;
         $imported = 0;
@@ -476,7 +481,11 @@ class ImportFromDataCiteJob implements ShouldQueue
 
         $scannedDataCiteRecords = 0;
 
-        foreach ($importService->fetchAllDois() as $doiRecord) {
+        $dataCiteRecords = $remainingTargets === []
+            ? []
+            : $importService->fetchAllDois();
+
+        foreach ($dataCiteRecords as $doiRecord) {
             $scannedDataCiteRecords++;
 
             if (($scannedDataCiteRecords === 1 || $scannedDataCiteRecords % 50 === 0) && $this->isCancelled()) {
@@ -524,6 +533,10 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $failedDois,
                 $total,
             );
+
+            if ($remainingTargets === []) {
+                break;
+            }
         }
 
         foreach ($remainingTargets as $doi => $portalDatacenterNames) {
@@ -1128,17 +1141,23 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     private function syncPortalDatacenters(Resource $resource, array $datacenterNames): void
     {
-        $names = array_values(array_unique(array_filter(
-            array_map(static fn (string $name): string => trim($name), $datacenterNames),
-            static fn (string $name): bool => $name !== '',
-        )));
+        $names = $this->normalizePortalDatacenterNames($datacenterNames);
 
         if ($names === []) {
             return;
         }
 
         $datacenterIds = array_map(
-            static fn (string $name): int => (int) Datacenter::firstOrCreate(['name' => $name])->id,
+            function (string $name): int {
+                if (isset($this->portalDatacenterIds[$name])) {
+                    return $this->portalDatacenterIds[$name];
+                }
+
+                $datacenterId = (int) Datacenter::firstOrCreate(['name' => $name])->id;
+                $this->portalDatacenterIds[$name] = $datacenterId;
+
+                return $datacenterId;
+            },
             $names,
         );
         $changes = $resource->datacenters()->sync($datacenterIds);
@@ -1146,6 +1165,42 @@ class ImportFromDataCiteJob implements ShouldQueue
         if (array_filter($changes)) {
             $resource->touch();
         }
+    }
+
+    /**
+     * @param  array<string, list<string>>  $targets
+     */
+    private function cacheExistingPortalDatacenterIds(array $targets): void
+    {
+        $targetDatacenterNames = [];
+
+        foreach ($targets as $datacenterNames) {
+            foreach ($datacenterNames as $datacenterName) {
+                $targetDatacenterNames[] = $datacenterName;
+            }
+        }
+
+        $names = $this->normalizePortalDatacenterNames($targetDatacenterNames);
+
+        if ($names === []) {
+            return;
+        }
+
+        foreach (Datacenter::query()->whereIn('name', $names)->get(['id', 'name']) as $datacenter) {
+            $this->portalDatacenterIds[$datacenter->name] = (int) $datacenter->id;
+        }
+    }
+
+    /**
+     * @param  list<string>  $datacenterNames
+     * @return list<string>
+     */
+    private function normalizePortalDatacenterNames(array $datacenterNames): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map(static fn (string $name): string => trim($name), $datacenterNames),
+            static fn (string $name): bool => $name !== '',
+        )));
     }
 
     private function syncDataCiteMetadataIfAllowed(Resource $resource): void
