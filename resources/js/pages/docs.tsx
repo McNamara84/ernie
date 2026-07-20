@@ -140,9 +140,10 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
 
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                             <p className="text-sm text-slate-900 dark:text-slate-100">
-                                <strong>Header Navigation:</strong> The authenticated page header keeps the main navigation visible and provides quick
-                                access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu. When a
-                                page defines breadcrumbs, ERNIE shows them directly below the header so your current location stays clear.
+                                <strong>Header Navigation:</strong> On screens narrower than 768px, the complete authenticated page header stays at
+                                the top while you scroll, so the button that opens the main sidebar remains available on long pages. Breadcrumbs and
+                                the font-size control remain visible with it. At 768px and above, the left sidebar remains available and the header
+                                continues to scroll normally.
                             </p>
                         </div>
 
