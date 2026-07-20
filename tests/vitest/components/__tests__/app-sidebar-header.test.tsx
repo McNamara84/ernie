@@ -19,9 +19,7 @@ vi.mock('@/components/breadcrumbs', () => ({
 }));
 
 vi.mock('@/components/ui/sidebar', () => ({
-    SidebarTrigger: (props: ComponentProps<'button'>) => (
-        <button data-testid="sidebar-trigger" {...props} />
-    ),
+    SidebarTrigger: (props: ComponentProps<'button'>) => <button data-testid="sidebar-trigger" {...props} />,
 }));
 
 vi.mock('@/components/font-size-quick-toggle', () => ({
@@ -33,6 +31,16 @@ vi.mock('@/hooks/use-navigation-status', () => ({
 }));
 
 describe('AppSidebarHeader', () => {
+    it('keeps the complete header sticky only below the desktop breakpoint', () => {
+        useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
+
+        render(<AppSidebarHeader breadcrumbs={[]} />);
+
+        const header = screen.getByRole('banner');
+        expect(header).toHaveAttribute('data-slot', 'app-sidebar-header');
+        expect(header).toHaveClass('sticky', 'top-0', 'z-40', 'bg-background', 'md:static', 'md:z-auto');
+    });
+
     it('renders current context and ready status', () => {
         useNavigationStatusMock.mockReturnValue({ isNavigating: false, statusText: 'Ready' });
 
@@ -59,7 +67,7 @@ describe('AppSidebarHeader', () => {
                     { title: 'Home', href: '/' },
                     { title: 'Settings', href: '/settings' },
                 ]}
-            />
+            />,
         );
         expect(screen.getByTestId('sidebar-trigger')).toBeInTheDocument();
         const breadcrumbs = screen.getByTestId('breadcrumbs');

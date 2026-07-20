@@ -150,6 +150,10 @@
         ],
         "improvements": [
             {
+                "title": "Persistent Mobile Navigation Header",
+                "description": "Authenticated pages now keep the complete header pinned to the top while scrolling on screens narrower than 768px, so the button for opening the main sidebar, breadcrumbs, and font-size control remain available on long pages. The mobile sidebar continues to open above the header, while desktop sidebar and header behavior remain unchanged."
+            },
+            {
                 "title": "Score-Causal FAIR Improvement Guidance",
                 "description": "The admin Assessment dashboard now highlights the F, A, I, or R dimension with the largest raw F-UJI point gap for each listed record. A yellow-to-red indicator communicates its potential effect on the overall FAIR score, while hover and keyboard focus reveal up to three verified ERNIE actions ranked by score impact. Digital Resources and physical-sample IGSNs use distinct guidance, inapplicable file-oriented IGSN checks are explained instead of turned into misleading actions, and platform prerequisites are labelled as administrator work."
             },

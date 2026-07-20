@@ -274,8 +274,10 @@ describe('Docs page', () => {
 
                 const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes(
-                    'The authenticated page header keeps the main navigation visible and provides quick access to Editor Settings, the changelog, the user documentation, the API documentation, and the user menu.',
+                return (
+                    text.includes('On screens narrower than 768px, the complete authenticated page header stays at the top while you scroll') &&
+                    text.includes('the button that opens the main sidebar remains available on long pages') &&
+                    text.includes('At 768px and above, the left sidebar remains available and the header continues to scroll normally')
                 );
             }),
         ).toBeInTheDocument();
