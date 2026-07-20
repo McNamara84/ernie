@@ -363,12 +363,14 @@ describe('ResourcesPage - extended', () => {
         it('shows import buttons when canImportFromDataCite is true', () => {
             renderPage({ canImportFromDataCite: true });
             expect(screen.getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import all resources from a datacenter/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
         });
 
         it('hides import buttons when canImportFromDataCite is false', () => {
             renderPage({ canImportFromDataCite: false });
             expect(screen.queryByRole('button', { name: /import all old resources/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /import all resources from a datacenter/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import old single resource/i })).not.toBeInTheDocument();
         });
 

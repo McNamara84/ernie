@@ -2085,16 +2085,29 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Import Existing GFZ Legacy Resources</h4>
                         <p>
-                            Admins and Group Leaders see two import actions to the right of the bulk toolbar on the <code>/resources</code> page:
+                            Admins and Group Leaders see three import actions to the right of the bulk toolbar on the <code>/resources</code> page:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
                             <li>
                                 <strong>Import all old Resources</strong> starts the existing background import of all GFZ DataCite resources.
                             </li>
                             <li>
+                                <strong>Import all Resources from a Datacenter</strong> loads the current datacenter list from the GFZ Data Services
+                                portal and imports resources for one selected datacenter.
+                            </li>
+                            <li>
                                 <strong>Import old single Resource</strong> opens a dialog for a single DOI.
                             </li>
                         </ul>
+                        <p>
+                            The datacenter import uses the portal assignment for visible resources. It also includes matching pending SUMARIO
+                            resources, whose datacenter is determined from the legacy databases and the established DOI rules. Pending resources
+                            without a more specific assignment remain part of the general GFZ datacenter through the existing fallback.
+                        </p>
+                        <p>
+                            Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist in
+                            ERNIE are skipped without changing their metadata or current datacenter assignments.
+                        </p>
                         <p>
                             The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}
                             <code>https://doi.org/10.5880/GFZ.OJSJ.2026.001</code>. The DOI must also exist in the GFZ legacy database before the

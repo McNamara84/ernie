@@ -50,6 +50,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | GFZ Data Services Legacy Portal
+    |--------------------------------------------------------------------------
+    |
+    | The legacy portal exposes the authoritative datacentre_facet values used
+    | to group published GFZ resources. ERNIE accesses the proxy server-side;
+    | browsers never receive raw Solr query access.
+    |
+    */
+    'legacy_portal' => [
+        'proxy_url' => env(
+            'GFZ_DATA_SERVICES_PORTAL_PROXY_URL',
+            'https://dataservices.gfz-potsdam.de/portal/proxy/proxy.php'
+        ),
+        'timeout_seconds' => (int) env('GFZ_DATA_SERVICES_PORTAL_TIMEOUT', 30),
+        'retry_times' => (int) env('GFZ_DATA_SERVICES_PORTAL_RETRY_TIMES', 3),
+        'retry_sleep_ms' => (int) env('GFZ_DATA_SERVICES_PORTAL_RETRY_SLEEP_MS', 500),
+        'page_size' => (int) env('GFZ_DATA_SERVICES_PORTAL_PAGE_SIZE', 500),
+        'datacenter_cache_ttl_seconds' => (int) env('GFZ_DATA_SERVICES_PORTAL_CACHE_TTL', 600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | DataCite Test API Configuration
     |--------------------------------------------------------------------------
     |

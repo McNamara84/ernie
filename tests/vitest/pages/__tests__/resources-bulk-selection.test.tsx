@@ -974,6 +974,7 @@ describe('ResourcesPage - bulk selection', () => {
         await waitForFilterOptionsToLoad();
 
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all old resources/i })).toBeInTheDocument();
+        expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import all resources from a datacenter/i })).toBeInTheDocument();
         expect(within(screen.getByTestId('app-layout')).getByRole('button', { name: /import old single resource/i })).toBeInTheDocument();
     });
 });

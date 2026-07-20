@@ -465,6 +465,17 @@ describe('Docs page', () => {
         expect(screen.getByText('Importing from Old Datasets')).toBeInTheDocument();
     });
 
+    it('documents the portal and legacy sources used by datacenter imports', async () => {
+        const user = userEvent.setup();
+        render(<Docs userRole="admin" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);
+
+        await user.click(screen.getByRole('tab', { name: /Datasets/i }));
+
+        expect(screen.getByText('Import all Resources from a Datacenter')).toBeInTheDocument();
+        expect(screen.getByText(/uses the portal assignment for visible resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/determined from the legacy databases and the established DOI rules/i)).toBeInTheDocument();
+    });
+
     it('shows landing pages documentation for beginner training', async () => {
         const user = userEvent.setup();
         render(<Docs userRole="beginner" editorSettings={defaultEditorSettings} dataCite={defaultDataCite} />);

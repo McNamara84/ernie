@@ -91,6 +91,50 @@ class SumarioPendingResourceImportService
     }
 
     /**
+     * @return list<string>
+     */
+    public function importablePendingDoisForDatacenter(string $datacenterName): array
+    {
+        $datacenterName = trim($datacenterName);
+
+        if ($datacenterName === '') {
+            return [];
+        }
+
+        /** @var iterable<int, OldDataset> $pendingDatasets */
+        $pendingDatasets = OldDataset::query()
+            ->where('publicstatus', 'pending')
+            ->whereNotNull('identifier')
+            ->where('identifier', '!=', '')
+            ->orderBy('id')
+            ->cursor();
+
+        $dois = [];
+        $seenDois = [];
+
+        foreach ($pendingDatasets as $oldDataset) {
+            $doi = $this->normaliseDoi((string) $oldDataset->identifier);
+
+            if ($doi === '' || isset($seenDois[$doi]) || $this->shouldSkipLegacyDoi($doi)) {
+                continue;
+            }
+
+            $seenDois[$doi] = true;
+
+            if (! in_array($datacenterName, $this->datacenterLookup->resolveDatacenterNames($doi), true)) {
+                continue;
+            }
+
+            $dois[$doi] = true;
+        }
+
+        $dois = array_keys($dois);
+        sort($dois);
+
+        return $dois;
+    }
+
+    /**
      * @return array{processed: int, imported: int, skipped: int, failed: int, skipped_dois: list<string>, failed_dois: list<array{doi: string, error: string}>}
      */
     public function importAllPending(int $userId, int $maxStoredDois = 100): array

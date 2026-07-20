@@ -648,6 +648,7 @@ function ResourcesPage({
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [showImportModal, setShowImportModal] = useState(false);
+    const [showDatacenterImportModal, setShowDatacenterImportModal] = useState(false);
     const [showSingleImportModal, setShowSingleImportModal] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [isBulkRegistering, setIsBulkRegistering] = useState(false);
@@ -1936,6 +1937,15 @@ function ResourcesPage({
                                     <Button
                                         variant="outline"
                                         size="default"
+                                        onClick={() => setShowDatacenterImportModal(true)}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <DataCiteIcon className="size-4" aria-hidden="true" />
+                                        Import all Resources from a Datacenter
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="default"
                                         onClick={() => setShowSingleImportModal(true)}
                                         className="flex items-center gap-2"
                                     >
@@ -2158,6 +2168,14 @@ function ResourcesPage({
 
             {/* Import from DataCite Modal */}
             <ImportFromDataCiteModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={handleImportSuccess} />
+
+            {/* Import old resources for one portal datacenter */}
+            <ImportFromDataCiteModal
+                isOpen={showDatacenterImportModal}
+                onClose={() => setShowDatacenterImportModal(false)}
+                onSuccess={handleImportSuccess}
+                mode="datacenter"
+            />
 
             {/* Import Single Old Resource Modal */}
             <ImportSingleOldResourceModal
