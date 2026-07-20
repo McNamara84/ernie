@@ -474,6 +474,11 @@ describe('Docs page', () => {
         expect(screen.getByText('Import all Resources from a Datacenter')).toBeInTheDocument();
         expect(screen.getByText(/uses the portal assignment for visible resources/i)).toBeInTheDocument();
         expect(screen.getByText(/determined from the legacy databases and the established DOI rules/i)).toBeInTheDocument();
+        expect(screen.getByText(/not re-imported or overwritten/i)).toBeInTheDocument();
+        expect(screen.getByText(/current datacenter assignments are preserved/i)).toBeInTheDocument();
+        expect(
+            screen.getByText(/may still enrich them with missing legacy download links or an external landing page URL from DataCite/i),
+        ).toBeInTheDocument();
     });
 
     it('shows landing pages documentation for beginner training', async () => {

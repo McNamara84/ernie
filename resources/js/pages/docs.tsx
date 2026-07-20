@@ -2105,8 +2105,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             without a more specific assignment remain part of the general GFZ datacenter through the existing fallback.
                         </p>
                         <p>
-                            Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist in
-                            ERNIE are skipped without changing their metadata or current datacenter assignments.
+                            Datacenter assignments from the portal are applied only to newly imported resources. Resources that already exist in ERNIE
+                            are not re-imported or overwritten, and their current datacenter assignments are preserved. Where applicable, the job may
+                            still enrich them with missing legacy download links or an external landing page URL from DataCite.
                         </p>
                         <p>
                             The single-resource dialog accepts either a bare DOI such as <code>10.5880/GFZ.OJSJ.2026.001</code> or a DOI URL such as{' '}

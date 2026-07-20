@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Legacy Resource Import by Datacenter",
-                "description": "Admins and Group Leaders can now import legacy resources for one current GFZ Data Services portal datacenter from the Resources page. Published assignments come from the portal facet, while matching pending SUMARIO resources continue to use the legacy databases, DOI rules, and the established general-GFZ fallback. Portal assignments are applied to newly imported resources only; existing ERNIE resources and their datacenter assignments remain unchanged."
+                "description": "Admins and Group Leaders can now import legacy resources for one current GFZ Data Services portal datacenter from the Resources page. Published assignments come from the portal facet, while matching pending SUMARIO resources continue to use the legacy databases, DOI rules, and the established general-GFZ fallback. Portal assignments are applied to newly imported resources only. Existing ERNIE resources are not overwritten and retain their datacenter assignments, but they may still be enriched with missing legacy download links or an external landing page URL from DataCite."
             },
             {
                 "title": "Admin Database Dump Exports",
