@@ -118,7 +118,12 @@ describe('datacenter import endpoints', function () {
         $this->actingAs($this->admin)
             ->postJson('/datacite/import/start-datacenter', ['datacenter_id' => 'retired'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('datacenter_id');
+            ->assertJsonPath('message', 'The selected datacenter is no longer available. Reload the list and try again.')
+            ->assertJsonValidationErrors('datacenter_id')
+            ->assertJsonPath(
+                'errors.datacenter_id.0',
+                'The selected datacenter is no longer available. Reload the list and try again.',
+            );
 
         Bus::assertNothingDispatched();
     });

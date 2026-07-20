@@ -102,6 +102,33 @@ describe('ImportFromDataCiteModal datacenter mode', () => {
         });
     });
 
+    it('shows the actionable validation message when the selected datacenter is no longer available', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const message = 'The selected datacenter is no longer available. Reload the list and try again.';
+        (axios.get as Mock).mockResolvedValueOnce({ data: { datacenters } });
+        (axios.post as Mock).mockRejectedValueOnce({
+            isAxiosError: true,
+            message: 'Request failed with status code 422',
+            response: {
+                status: 422,
+                data: {
+                    message,
+                    errors: {
+                        datacenter_id: [message],
+                    },
+                },
+            },
+        });
+
+        render(<ImportFromDataCiteModal isOpen={true} onClose={onClose} mode="datacenter" />);
+
+        await user.click(await screen.findByRole('combobox', { name: 'Datacenter' }));
+        await user.click(await screen.findByRole('option', { name: /ArboDat 2016/ }));
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText(message)).toBeInTheDocument();
+    });
+
     it('shows the upstream error and retries loading the datacenter list', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         (axios.get as Mock)
