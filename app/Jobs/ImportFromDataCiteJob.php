@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
@@ -11,6 +12,7 @@ use App\Services\DataCiteLandingPageImportService;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
+use App\Services\GfzDataServicesPortalService;
 use App\Services\LegacyLandingPageDecisionService;
 use App\Services\LegacyLandingPageImportService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
@@ -51,6 +53,9 @@ class ImportFromDataCiteJob implements ShouldQueue
      */
     public int $tries = 1;
 
+    /** @var array<string, int> */
+    private array $portalDatacenterIds = [];
+
     /**
      * Create a new job instance.
      *
@@ -63,6 +68,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         private int $userId,
         private string $importId,
         private ?string $singleDoi = null,
+        private ?string $datacenterId = null,
     ) {
         // Validate UUID format to prevent cache key collisions or unexpected behavior.
         // The importId is used as part of the cache key and must be unique.
@@ -78,6 +84,10 @@ class ImportFromDataCiteJob implements ShouldQueue
                 );
             }
         }
+
+        if ($this->singleDoi !== null && $this->datacenterId !== null) {
+            throw new \InvalidArgumentException('Single DOI and datacenter imports cannot be combined.');
+        }
     }
 
     /**
@@ -92,6 +102,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             'import_id' => $this->importId,
             'user_id' => $this->userId,
             'single_doi' => $this->singleDoi,
+            'datacenter_id' => $this->datacenterId,
         ]);
 
         $startTime = now();
@@ -99,6 +110,17 @@ class ImportFromDataCiteJob implements ShouldQueue
         try {
             if ($this->singleDoi !== null) {
                 $this->handleSingleImport($importService, $transformer, $metaworksService, $startTime->toIso8601String());
+
+                return;
+            }
+
+            if ($this->datacenterId !== null) {
+                $this->handleDatacenterImport(
+                    $importService,
+                    $transformer,
+                    $metaworksService,
+                    $startTime->toIso8601String(),
+                );
 
                 return;
             }
@@ -325,6 +347,368 @@ class ImportFromDataCiteJob implements ShouldQueue
         }
     }
 
+    private function handleDatacenterImport(
+        DataCiteImportService $importService,
+        DataCiteToResourceTransformer $transformer,
+        MetaworksDownloadUrlService $metaworksService,
+        string $startedAt,
+    ): void {
+        $datacenterId = $this->datacenterId;
+
+        if ($datacenterId === null) {
+            throw new \RuntimeException('Datacenter import requested without a datacenter.');
+        }
+
+        $portalSelection = app(GfzDataServicesPortalService::class)
+            ->resourcesForDatacenter($datacenterId);
+        $datacenter = $portalSelection['datacenter'];
+        /** @var array<string, list<string>> $targets */
+        $targets = $portalSelection['resources'];
+        $pendingImportService = app(SumarioPendingResourceImportService::class);
+        $warnings = [];
+
+        try {
+            $pendingDois = $pendingImportService
+                ->importablePendingDoisForDatacenter($datacenter['name']);
+        } catch (\Throwable $exception) {
+            $pendingDois = [];
+            $warnings[] = 'Matching SUMARIO pending resources could not be loaded.';
+
+            Log::warning('SUMARIO pending datacenter lookup failed; importing portal resources only', [
+                'import_id' => $this->importId,
+                'datacenter_id' => $datacenter['id'],
+                'error' => $exception->getMessage(),
+            ]);
+        }
+
+        foreach ($pendingDois as $pendingDoi) {
+            $normalizedDoi = $this->normalizeDoi($pendingDoi);
+
+            if ($normalizedDoi !== '' && ! array_key_exists($normalizedDoi, $targets)) {
+                $targets[$normalizedDoi] = [];
+            }
+        }
+
+        ksort($targets);
+
+        $this->cacheExistingPortalDatacenterIds($targets);
+
+        $total = count($targets);
+        $processed = 0;
+        $imported = 0;
+        $skipped = 0;
+        $failed = 0;
+        $enriched = 0;
+        /** @var list<string> $skippedDois */
+        $skippedDois = [];
+        /** @var list<string> $enrichedDois */
+        $enrichedDois = [];
+        /** @var list<array{doi: string, error: string}> $failedDois */
+        $failedDois = [];
+        $maxStoredDois = 100;
+        $metaworksUnavailable = false;
+        $remainingTargets = $targets;
+
+        $this->updateProgress([
+            'status' => 'running',
+            'total' => $total,
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'enriched' => 0,
+            'skipped_dois' => [],
+            'enriched_dois' => [],
+            'failed_dois' => [],
+            'warnings' => $warnings,
+            'datacenter' => $datacenter,
+            'started_at' => $startedAt,
+            'completed_at' => null,
+            'current_prefix' => null,
+        ]);
+
+        /**
+         * @param array{
+         *     status: 'imported'|'skipped'|'failed',
+         *     enriched: bool,
+         *     metaworks_unavailable: bool,
+         *     error: string|null
+         * } $outcome
+         */
+        $recordOutcome = function (string $doi, array $outcome) use (
+            &$imported,
+            &$skipped,
+            &$failed,
+            &$enriched,
+            &$skippedDois,
+            &$enrichedDois,
+            &$failedDois,
+            $maxStoredDois,
+        ): void {
+            if ($outcome['enriched']) {
+                $enriched++;
+
+                if (count($enrichedDois) < $maxStoredDois) {
+                    $enrichedDois[] = $doi;
+                }
+            }
+
+            if ($outcome['status'] === 'imported') {
+                $imported++;
+
+                return;
+            }
+
+            if ($outcome['status'] === 'skipped') {
+                $skipped++;
+
+                if (count($skippedDois) < $maxStoredDois) {
+                    $skippedDois[] = $doi;
+                }
+
+                return;
+            }
+
+            $failed++;
+
+            if (count($failedDois) < $maxStoredDois) {
+                $failedDois[] = [
+                    'doi' => $doi,
+                    'error' => $outcome['error'] ?? 'Import failed.',
+                ];
+            }
+        };
+
+        $scannedDataCiteRecords = 0;
+
+        $dataCiteRecords = $remainingTargets === []
+            ? []
+            : $importService->fetchAllDois();
+
+        foreach ($dataCiteRecords as $doiRecord) {
+            $scannedDataCiteRecords++;
+
+            if (($scannedDataCiteRecords === 1 || $scannedDataCiteRecords % 50 === 0) && $this->isCancelled()) {
+                break;
+            }
+
+            $rawDoi = $doiRecord['attributes']['doi'] ?? $doiRecord['id'] ?? null;
+
+            if (! is_string($rawDoi)) {
+                continue;
+            }
+
+            ['doi' => $doi, 'doiRecord' => $normalizedRecord] = $this->normalizeDoiRecord(
+                $rawDoi,
+                $doiRecord,
+            );
+
+            if (! array_key_exists($doi, $remainingTargets)) {
+                continue;
+            }
+
+            $processed++;
+            $portalDatacenterNames = $remainingTargets[$doi];
+            unset($remainingTargets[$doi]);
+
+            $outcome = $this->processDatacenterDataCiteRecord(
+                doi: $doi,
+                doiRecord: $normalizedRecord,
+                portalDatacenterNames: $portalDatacenterNames,
+                transformer: $transformer,
+                metaworksService: $metaworksService,
+                shouldLookupMetaworks: ! $metaworksUnavailable,
+            );
+            $metaworksUnavailable = $metaworksUnavailable || $outcome['metaworks_unavailable'];
+            $recordOutcome($doi, $outcome);
+
+            $this->updateProgressCounts(
+                $processed,
+                $imported,
+                $skipped,
+                $failed,
+                $enriched,
+                $skippedDois,
+                $enrichedDois,
+                $failedDois,
+                $total,
+            );
+
+            if ($remainingTargets === []) {
+                break;
+            }
+        }
+
+        foreach ($remainingTargets as $doi => $portalDatacenterNames) {
+            if ($this->isCancelled()) {
+                break;
+            }
+
+            $processed++;
+            $doiRecord = $importService->fetchSingleDoi($doi);
+
+            if ($doiRecord !== null) {
+                ['doi' => $normalizedDoi, 'doiRecord' => $normalizedRecord] = $this->normalizeDoiRecord(
+                    $doi,
+                    $doiRecord,
+                );
+                $outcome = $this->processDatacenterDataCiteRecord(
+                    doi: $normalizedDoi,
+                    doiRecord: $normalizedRecord,
+                    portalDatacenterNames: $portalDatacenterNames,
+                    transformer: $transformer,
+                    metaworksService: $metaworksService,
+                    shouldLookupMetaworks: ! $metaworksUnavailable,
+                );
+                $metaworksUnavailable = $metaworksUnavailable || $outcome['metaworks_unavailable'];
+                $recordOutcome($normalizedDoi, $outcome);
+            } else {
+                try {
+                    $pendingResult = $pendingImportService->importPendingByDoi($doi, $this->userId);
+
+                    if ($pendingResult['status'] === 'imported') {
+                        if ($portalDatacenterNames !== [] && $pendingResult['resource'] !== null) {
+                            $this->syncPortalDatacenters(
+                                $pendingResult['resource'],
+                                $portalDatacenterNames,
+                            );
+                        }
+
+                        $recordOutcome($doi, [
+                            'status' => 'imported',
+                            'enriched' => false,
+                            'metaworks_unavailable' => false,
+                            'error' => null,
+                        ]);
+                    } elseif ($pendingResult['status'] === 'skipped') {
+                        $recordOutcome($doi, [
+                            'status' => 'skipped',
+                            'enriched' => false,
+                            'metaworks_unavailable' => false,
+                            'error' => null,
+                        ]);
+                    } else {
+                        $recordOutcome($doi, [
+                            'status' => 'failed',
+                            'enriched' => false,
+                            'metaworks_unavailable' => false,
+                            'error' => $pendingResult['error']
+                                ?? 'The DOI was not found in DataCite or SUMARIO pending resources.',
+                        ]);
+                    }
+                } catch (\Throwable $exception) {
+                    Log::warning('Datacenter import fallback failed', [
+                        'doi' => $doi,
+                        'datacenter_id' => $datacenter['id'],
+                        'error' => $exception->getMessage(),
+                    ]);
+
+                    $recordOutcome($doi, [
+                        'status' => 'failed',
+                        'enriched' => false,
+                        'metaworks_unavailable' => false,
+                        'error' => 'SUMARIO pending lookup is unavailable.',
+                    ]);
+                }
+            }
+
+            $this->updateProgressCounts(
+                $processed,
+                $imported,
+                $skipped,
+                $failed,
+                $enriched,
+                $skippedDois,
+                $enrichedDois,
+                $failedDois,
+                $total,
+            );
+        }
+
+        $finalStatus = $this->determineFinalStatus();
+
+        $this->updateProgress([
+            'status' => $finalStatus,
+            'total' => $total,
+            'processed' => $processed,
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'enriched' => $enriched,
+            'skipped_dois' => $skippedDois,
+            'enriched_dois' => $enrichedDois,
+            'failed_dois' => $failedDois,
+            'warnings' => $warnings,
+            'datacenter' => $datacenter,
+            'started_at' => $startedAt,
+            'completed_at' => now()->toIso8601String(),
+            'current_prefix' => null,
+        ]);
+
+        Log::info('Datacenter DataCite import completed', [
+            'import_id' => $this->importId,
+            'datacenter_id' => $datacenter['id'],
+            'datacenter_name' => $datacenter['name'],
+            'total' => $total,
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'enriched' => $enriched,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiRecord
+     * @param  list<string>  $portalDatacenterNames
+     * @return array{
+     *     status: 'imported'|'skipped'|'failed',
+     *     enriched: bool,
+     *     metaworks_unavailable: bool,
+     *     error: string|null
+     * }
+     */
+    private function processDatacenterDataCiteRecord(
+        string $doi,
+        array $doiRecord,
+        array $portalDatacenterNames,
+        DataCiteToResourceTransformer $transformer,
+        MetaworksDownloadUrlService $metaworksService,
+        bool $shouldLookupMetaworks,
+    ): array {
+        try {
+            $result = $this->processDoiRecord(
+                doi: $doi,
+                doiRecord: $doiRecord,
+                transformer: $transformer,
+                metaworksService: $metaworksService,
+                shouldLookupMetaworks: $shouldLookupMetaworks,
+                portalDatacenterNames: $portalDatacenterNames !== []
+                    ? $portalDatacenterNames
+                    : null,
+            );
+
+            return [
+                'status' => $result['status'],
+                'enriched' => $result['enriched'],
+                'metaworks_unavailable' => $result['metaworks_unavailable'],
+                'error' => null,
+            ];
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to import datacenter DOI', [
+                'doi' => $doi,
+                'datacenter_id' => $this->datacenterId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return [
+                'status' => 'failed',
+                'enriched' => false,
+                'metaworks_unavailable' => false,
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
     private function handleSingleImport(
         DataCiteImportService $importService,
         DataCiteToResourceTransformer $transformer,
@@ -492,6 +876,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $doiRecord
+     * @param  list<string>|null  $portalDatacenterNames
      * @return array{status: 'imported'|'skipped', metaworks_unavailable: bool, enriched: bool}
      */
     private function processDoiRecord(
@@ -500,6 +885,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         DataCiteToResourceTransformer $transformer,
         MetaworksDownloadUrlService $metaworksService,
         bool $shouldLookupMetaworks = true,
+        ?array $portalDatacenterNames = null,
     ): array {
         if ($this->shouldSkipLegacyDoi($doi)) {
             Log::info('Skipping legacy DOI marked as test/delete', ['doi' => $doi]);
@@ -573,7 +959,11 @@ class ImportFromDataCiteJob implements ShouldQueue
             /** @var Resource $importedResource */
             $importedResource = $result['resource'];
 
-            $this->enrichImportedResourceFromLegacyDatabases($importedResource, $doi);
+            $this->enrichImportedResourceFromLegacyDatabases(
+                $importedResource,
+                $doi,
+                $portalDatacenterNames,
+            );
 
             $this->syncDataCiteLandingPageIfAllowed($importedResource, $doi, $preparedDoiRecord);
 
@@ -723,14 +1113,94 @@ class ImportFromDataCiteJob implements ShouldQueue
         ];
     }
 
-    private function enrichImportedResourceFromLegacyDatabases(Resource $resource, string $doi): void
-    {
+    /**
+     * @param  list<string>|null  $portalDatacenterNames
+     */
+    private function enrichImportedResourceFromLegacyDatabases(
+        Resource $resource,
+        string $doi,
+        ?array $portalDatacenterNames = null,
+    ): void {
         if (! $resource->exists) {
             return;
         }
 
         app(SumarioPmdContactEnrichmentService::class)->enrich($resource, $doi);
+
+        if ($portalDatacenterNames !== null && $portalDatacenterNames !== []) {
+            $this->syncPortalDatacenters($resource, $portalDatacenterNames);
+
+            return;
+        }
+
         app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, $doi);
+    }
+
+    /**
+     * @param  list<string>  $datacenterNames
+     */
+    private function syncPortalDatacenters(Resource $resource, array $datacenterNames): void
+    {
+        $names = $this->normalizePortalDatacenterNames($datacenterNames);
+
+        if ($names === []) {
+            return;
+        }
+
+        $datacenterIds = array_map(
+            function (string $name): int {
+                if (isset($this->portalDatacenterIds[$name])) {
+                    return $this->portalDatacenterIds[$name];
+                }
+
+                $datacenterId = (int) Datacenter::firstOrCreate(['name' => $name])->id;
+                $this->portalDatacenterIds[$name] = $datacenterId;
+
+                return $datacenterId;
+            },
+            $names,
+        );
+        $changes = $resource->datacenters()->sync($datacenterIds);
+
+        if (array_filter($changes)) {
+            $resource->touch();
+        }
+    }
+
+    /**
+     * @param  array<string, list<string>>  $targets
+     */
+    private function cacheExistingPortalDatacenterIds(array $targets): void
+    {
+        $targetDatacenterNames = [];
+
+        foreach ($targets as $datacenterNames) {
+            foreach ($datacenterNames as $datacenterName) {
+                $targetDatacenterNames[] = $datacenterName;
+            }
+        }
+
+        $names = $this->normalizePortalDatacenterNames($targetDatacenterNames);
+
+        if ($names === []) {
+            return;
+        }
+
+        foreach (Datacenter::query()->whereIn('name', $names)->get(['id', 'name']) as $datacenter) {
+            $this->portalDatacenterIds[$datacenter->name] = (int) $datacenter->id;
+        }
+    }
+
+    /**
+     * @param  list<string>  $datacenterNames
+     * @return list<string>
+     */
+    private function normalizePortalDatacenterNames(array $datacenterNames): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map(static fn (string $name): string => trim($name), $datacenterNames),
+            static fn (string $name): bool => $name !== '',
+        )));
     }
 
     private function syncDataCiteMetadataIfAllowed(Resource $resource): void
@@ -876,6 +1346,13 @@ class ImportFromDataCiteJob implements ShouldQueue
             : 'completed';
     }
 
+    private function isCancelled(): bool
+    {
+        $currentStatus = Cache::get($this->getCacheKey());
+
+        return isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled';
+    }
+
     /**
      * Handle a job failure.
      */
@@ -904,5 +1381,10 @@ class ImportFromDataCiteJob implements ShouldQueue
     public function getSingleDoi(): ?string
     {
         return $this->singleDoi;
+    }
+
+    public function getDatacenterId(): ?string
+    {
+        return $this->datacenterId;
     }
 }

@@ -8,7 +8,9 @@ import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
@@ -27,25 +29,58 @@ interface ImportProgress {
     started_at?: string;
     completed_at?: string;
     error?: string;
+    warnings?: string[];
+    datacenter?: PortalDatacenter;
+}
+
+interface PortalDatacenter {
+    id: string;
+    name: string;
+    resource_count: number;
 }
 
 interface ImportFromDataCiteModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
+    mode?: 'all' | 'datacenter';
 }
 
 type ModalState = 'confirm' | 'running' | 'completed' | 'failed';
 
-export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: ImportFromDataCiteModalProps) {
+export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess, mode = 'all' }: ImportFromDataCiteModalProps) {
+    const isDatacenterMode = mode === 'datacenter';
     const [modalState, setModalState] = useState<ModalState>('confirm');
     const [importId, setImportId] = useState<string | null>(null);
     const [progress, setProgress] = useState<ImportProgress | null>(null);
     const [isStarting, setIsStarting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [datacenters, setDatacenters] = useState<PortalDatacenter[]>([]);
+    const [selectedDatacenterId, setSelectedDatacenterId] = useState('');
+    const [isLoadingDatacenters, setIsLoadingDatacenters] = useState(false);
+    const [datacenterLoadError, setDatacenterLoadError] = useState<string | null>(null);
     const [showSkippedDois, setShowSkippedDois] = useState(false);
     const [showFailedDois, setShowFailedDois] = useState(false);
     const hasNotifiedSuccessRef = useRef(false);
+
+    const loadDatacenters = useCallback(async () => {
+        setIsLoadingDatacenters(true);
+        setDatacenterLoadError(null);
+
+        try {
+            const response = await axios.get<{ datacenters: PortalDatacenter[] }>('/datacite/import/datacenters');
+            setDatacenters(response.data.datacenters);
+        } catch (err) {
+            const message =
+                isAxiosError(err) && typeof err.response?.data?.message === 'string'
+                    ? err.response.data.message
+                    : 'The datacenter list could not be loaded. Please try again.';
+            setDatacenters([]);
+            setDatacenterLoadError(message);
+        } finally {
+            setIsLoadingDatacenters(false);
+        }
+    }, []);
 
     useEffect(() => {
         if (!isOpen) {
@@ -54,11 +89,21 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             setProgress(null);
             setIsStarting(false);
             setError(null);
+            setDatacenters([]);
+            setSelectedDatacenterId('');
+            setIsLoadingDatacenters(false);
+            setDatacenterLoadError(null);
             setShowSkippedDois(false);
             setShowFailedDois(false);
             hasNotifiedSuccessRef.current = false;
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && isDatacenterMode && modalState === 'confirm') {
+            void loadDatacenters();
+        }
+    }, [isDatacenterMode, isOpen, loadDatacenters, modalState]);
 
     useEffect(() => {
         const changedCount = (progress?.imported ?? 0) + (progress?.enriched ?? 0);
@@ -127,12 +172,22 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, [importId, modalState]);
 
     const startImport = useCallback(async () => {
+        if (isDatacenterMode && selectedDatacenterId === '') {
+            setError('Select a datacenter before starting the import.');
+
+            return;
+        }
+
         setIsStarting(true);
         setError(null);
         hasNotifiedSuccessRef.current = false;
 
         try {
-            const response = await axios.post<{ import_id: string; message: string }>('/datacite/import/start', {}, { headers: buildCsrfHeaders() });
+            const endpoint = isDatacenterMode ? '/datacite/import/start-datacenter' : '/datacite/import/start';
+            const payload = isDatacenterMode ? { datacenter_id: selectedDatacenterId } : {};
+            const response = await axios.post<{ import_id: string; message: string }>(endpoint, payload, {
+                headers: buildCsrfHeaders(),
+            });
 
             setImportId(response.data.import_id);
             setModalState('running');
@@ -149,8 +204,9 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                 failed_dois: [],
             });
 
+            const selectedDatacenter = datacenters.find((datacenter) => datacenter.id === selectedDatacenterId);
             toast.info('Import started', {
-                description: 'Fetching DOIs from DataCite...',
+                description: selectedDatacenter ? `Fetching resources for ${selectedDatacenter.name}...` : 'Fetching DOIs from DataCite...',
             });
         } catch (err) {
             console.error('Failed to start import:', err);
@@ -177,7 +233,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         } finally {
             setIsStarting(false);
         }
-    }, []);
+    }, [datacenters, isDatacenterMode, selectedDatacenterId]);
 
     const handleClose = useCallback(() => {
         onClose();
@@ -277,16 +333,21 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         </div>
     ) : null;
 
+    const selectedDatacenter = datacenters.find((datacenter) => datacenter.id === selectedDatacenterId);
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DataCiteIcon className="size-5" />
-                        Import all old Resources
+                        {isDatacenterMode ? 'Import all Resources from a Datacenter' : 'Import all old Resources'}
                     </DialogTitle>
                     <DialogDescription>
-                        {modalState === 'confirm' && 'Import all registered GFZ legacy resources from the DataCite production API into ERNIE.'}
+                        {modalState === 'confirm' &&
+                            (isDatacenterMode
+                                ? 'Import legacy resources for one GFZ Data Services datacenter into ERNIE.'
+                                : 'Import all registered GFZ legacy resources from the DataCite production API into ERNIE.')}
                         {modalState === 'running' && 'Import is in progress...'}
                         {modalState === 'completed' && 'Import completed successfully.'}
                         {modalState === 'failed' && 'Import failed.'}
@@ -296,15 +357,67 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                 <div className="py-4">
                     {modalState === 'confirm' && (
                         <div className="space-y-4">
+                            {isDatacenterMode && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="legacy-datacenter">Datacenter</Label>
+                                    <Combobox
+                                        id="legacy-datacenter"
+                                        value={selectedDatacenterId || undefined}
+                                        onChange={(value) => setSelectedDatacenterId(value ?? '')}
+                                        options={datacenters.map((datacenter) => ({
+                                            value: datacenter.id,
+                                            label: `${datacenter.name} (${datacenter.resource_count.toLocaleString()} visible)`,
+                                        }))}
+                                        placeholder={isLoadingDatacenters ? 'Loading datacenters...' : 'Select a datacenter'}
+                                        searchPlaceholder="Search datacenters..."
+                                        emptyMessage="No matching datacenter found."
+                                        disabled={isLoadingDatacenters || datacenters.length === 0}
+                                        clearable={false}
+                                    />
+
+                                    {selectedDatacenter && (
+                                        <p className="text-xs text-muted-foreground">
+                                            {selectedDatacenter.resource_count.toLocaleString()} visible portal resources; matching pending resources
+                                            are included from the legacy databases.
+                                        </p>
+                                    )}
+
+                                    {!isLoadingDatacenters && !datacenterLoadError && datacenters.length === 0 && (
+                                        <p className="text-sm text-muted-foreground">No current portal datacenters are available.</p>
+                                    )}
+
+                                    {datacenterLoadError && (
+                                        <Alert variant="destructive">
+                                            <AlertCircle className="size-4" />
+                                            <AlertTitle>Datacenter list unavailable</AlertTitle>
+                                            <AlertDescription className="space-y-3">
+                                                <p>{datacenterLoadError}</p>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => void loadDatacenters()}>
+                                                    Try again
+                                                </Button>
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </div>
+                            )}
+
                             <Alert>
                                 <Download className="size-4" />
                                 <AlertTitle>What will happen?</AlertTitle>
                                 <AlertDescription>
                                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
-                                        <li>All DOIs registered with your GFZ DataCite credentials will be fetched</li>
+                                        <li>
+                                            {isDatacenterMode
+                                                ? 'Visible resources are selected through the GFZ Data Services portal'
+                                                : 'All DOIs registered with your GFZ DataCite credentials will be fetched'}
+                                        </li>
+                                        {isDatacenterMode && (
+                                            <li>Matching pending SUMARIO resources are selected through the legacy databases and DOI rules</li>
+                                        )}
                                         <li>DOIs already in ERNIE will not be overwritten</li>
                                         <li>Missing legacy download links can be added to existing Resources</li>
                                         <li>New legacy DOIs will be imported as Resources</li>
+                                        {isDatacenterMode && <li>Portal datacenter assignments are applied only to newly imported Resources</li>}
                                         <li>You will see a summary of imported, links added, skipped, and failed DOIs after completion</li>
                                     </ul>
                                 </AlertDescription>
@@ -319,6 +432,15 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                             )}
                         </div>
                     )}
+
+                    {modalState !== 'confirm' &&
+                        progress?.warnings?.map((warning) => (
+                            <Alert key={warning} className="mb-4">
+                                <AlertCircle className="size-4" />
+                                <AlertTitle>Import warning</AlertTitle>
+                                <AlertDescription>{warning}</AlertDescription>
+                            </Alert>
+                        ))}
 
                     {modalState === 'running' && progress && (
                         <div className="space-y-4">
@@ -420,7 +542,10 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                             <Button variant="outline" onClick={handleClose}>
                                 Cancel
                             </Button>
-                            <Button onClick={startImport} disabled={isStarting}>
+                            <Button
+                                onClick={startImport}
+                                disabled={isStarting || (isDatacenterMode && (selectedDatacenterId === '' || isLoadingDatacenters))}
+                            >
                                 {isStarting ? (
                                     <>
                                         <Spinner size="sm" className="mr-2" />

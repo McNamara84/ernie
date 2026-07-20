@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StartDatacenterOldResourceImportRequest;
 use App\Http\Requests\StartSingleOldResourceImportRequest;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DoiImportEligibilityService;
+use App\Services\GfzDataServicesPortalService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,6 +52,74 @@ class DataCiteImportController extends Controller
         return response()->json([
             'import_id' => $importId,
             'message' => 'Import started successfully',
+        ]);
+    }
+
+    /**
+     * List datacenters exposed by the legacy GFZ Data Services portal.
+     */
+    public function datacenters(
+        Request $request,
+        GfzDataServicesPortalService $portalService,
+    ): JsonResponse {
+        $this->authorize('importFromDataCite', Resource::class);
+
+        try {
+            return response()->json([
+                'datacenters' => $portalService->listDatacenters(),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('GFZ Data Services datacenter lookup failed', [
+                'user_id' => $request->user()?->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'The GFZ Data Services datacenter list is currently unavailable. Please try again later.',
+            ], 503);
+        }
+    }
+
+    /**
+     * Start an import limited to one GFZ Data Services datacenter.
+     */
+    public function startDatacenter(
+        StartDatacenterOldResourceImportRequest $request,
+        GfzDataServicesPortalService $portalService,
+    ): JsonResponse {
+        $this->authorize('importFromDataCite', Resource::class);
+
+        try {
+            $datacenter = $portalService->findDatacenter($request->getDatacenterId());
+        } catch (\Throwable $exception) {
+            Log::warning('GFZ Data Services datacenter validation failed', [
+                'user_id' => $request->user()?->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'The GFZ Data Services datacenter list is currently unavailable. Please try again later.',
+            ], 503);
+        }
+
+        if ($datacenter === null) {
+            throw ValidationException::withMessages([
+                'datacenter_id' => 'The selected datacenter is no longer available. Reload the list and try again.',
+            ]);
+        }
+
+        $importId = Str::uuid()->toString();
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $this->initializeProgress(importId: $importId, total: 0);
+
+        ImportFromDataCiteJob::dispatch($user->id, $importId, null, $datacenter['id']);
+
+        return response()->json([
+            'import_id' => $importId,
+            'message' => 'Datacenter import started successfully',
         ]);
     }
 

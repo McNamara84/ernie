@@ -420,11 +420,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('resources.destroy');
 
     // DataCite Import (Admin/Group Leader only)
+    Route::get('datacite/import/datacenters', [DataCiteImportController::class, 'datacenters'])
+        ->name('datacite.import.datacenters');
+
     Route::post('datacite/import/start', [DataCiteImportController::class, 'start'])
         ->name('datacite.import.start');
 
     Route::post('datacite/import/start-single', [DataCiteImportController::class, 'startSingle'])
         ->name('datacite.import.start-single');
+
+    Route::post('datacite/import/start-datacenter', [DataCiteImportController::class, 'startDatacenter'])
+        ->name('datacite.import.start-datacenter');
 
     Route::get('datacite/import/{importId}/status', [DataCiteImportController::class, 'status'])
         ->name('datacite.import.status');
