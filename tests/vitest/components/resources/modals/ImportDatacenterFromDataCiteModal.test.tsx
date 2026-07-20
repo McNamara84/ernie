@@ -152,6 +152,8 @@ describe('ImportFromDataCiteModal datacenter mode', () => {
         expect(await screen.findByText('Import warning')).toBeInTheDocument();
         expect(screen.getByText('Matching SUMARIO pending resources could not be loaded.')).toBeInTheDocument();
         expect(screen.getByText('Import Complete')).toBeInTheDocument();
-        expect(onSuccess).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(onSuccess).toHaveBeenCalledOnce();
+        });
     });
 });

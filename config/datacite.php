@@ -61,7 +61,7 @@ return [
     'legacy_portal' => [
         'proxy_url' => env(
             'GFZ_DATA_SERVICES_PORTAL_PROXY_URL',
-            'https://dataservices.gfz-potsdam.de/portal/proxy/proxy.php'
+            'https://dataservices.gfz-potsdam.de/portal/proxy/proxy.php',
         ),
         'timeout_seconds' => (int) env('GFZ_DATA_SERVICES_PORTAL_TIMEOUT', 30),
         'retry_times' => (int) env('GFZ_DATA_SERVICES_PORTAL_RETRY_TIMES', 3),
