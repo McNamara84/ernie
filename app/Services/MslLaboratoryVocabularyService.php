@@ -162,10 +162,6 @@ class MslLaboratoryVocabularyService
             throw new \RuntimeException('MSL laboratories download must contain a JSON array.');
         }
 
-        if ($decoded === []) {
-            throw new \RuntimeException('MSL laboratories download must contain at least one laboratory.');
-        }
-
         return $this->normalizeLaboratories($decoded);
     }
 
@@ -291,12 +287,6 @@ class MslLaboratoryVocabularyService
             || ! array_is_list($payload['data'])) {
             throw new \RuntimeException(
                 'The local MSL laboratories vocabulary metadata is invalid.'
-            );
-        }
-
-        if ($payload['data'] === []) {
-            throw new \RuntimeException(
-                'The local MSL laboratories vocabulary must contain at least one laboratory.'
             );
         }
 

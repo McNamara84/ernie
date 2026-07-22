@@ -578,7 +578,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $contributors
-     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>, contactPersons: array<int, array<string, mixed>>}
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string|null>>, contactPersons: array<int, array<string, mixed>>}
      */
     private function extractContributorsAndMslLaboratories(array $contributors): array
     {
@@ -1240,7 +1240,7 @@ class UploadJsonController extends Controller
      * Extract MSL laboratory data from contributor.
      *
      * @param  array<string, mixed>  $contributor
-     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
+     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string|null}|null
      */
     private function extractMslLaboratoryFromJson(array $contributor, string $labId): ?array
     {

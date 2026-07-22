@@ -118,3 +118,17 @@ it('preserves upload fallback values for a historical unknown identifier', funct
         'affiliation_ror' => 'https://ror.org/historical',
     ]);
 });
+
+it('preserves null for a missing affiliation ROR', function (): void {
+    $this->vocabularyService->shouldReceive('getLocalPayload')
+        ->once()
+        ->andReturn($this->payload);
+
+    $result = (new MslLaboratoryService($this->vocabularyService))->enrichLaboratoryData(
+        'historical-lab',
+        'Historical Laboratory',
+        'Former University'
+    );
+
+    expect($result['affiliation_ror'])->toBeNull();
+});

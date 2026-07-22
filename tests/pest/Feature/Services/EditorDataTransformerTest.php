@@ -1722,6 +1722,7 @@ describe('transformMslLaboratories', function (): void {
 
         expect($result)->toHaveCount(2)
             ->and($result[0]['identifier'])->toBe('lab-01')
+            ->and($result[0]['affiliation_ror'])->toBeNull()
             ->and($result[1]['identifier'])->toBe('lab-42')
             ->and($result[1]['name'])->toBe('Rock Mechanics Lab')
             ->and($result[1]['affiliation_name'])->toBe('Utrecht University')

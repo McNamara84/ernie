@@ -64,4 +64,15 @@ describe('MSL laboratory schemas', () => {
         expect(mslLaboratoriesResponseSchema.safeParse({ ...valid, version: '' }).success).toBe(false);
         expect(mslLaboratoriesResponseSchema.safeParse({ ...valid, lastUpdated: '' }).success).toBe(false);
     });
+
+    it('accepts an empty vocabulary response', () => {
+        expect(
+            mslLaboratoriesResponseSchema.safeParse({
+                version: '1.1',
+                lastUpdated: '2026-07-21T12:00:00+00:00',
+                total: 0,
+                data: [],
+            }).success,
+        ).toBe(true);
+    });
 });

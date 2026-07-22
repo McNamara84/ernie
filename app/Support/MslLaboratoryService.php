@@ -77,7 +77,7 @@ class MslLaboratoryService
     }
 
     /**
-     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}
+     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string|null}
      */
     public function enrichLaboratoryData(
         string $labId,
@@ -97,7 +97,7 @@ class MslLaboratoryService
                 'identifier' => $labId,
                 'name' => $name ?? '',
                 'affiliation_name' => $affiliationName ?? '',
-                'affiliation_ror' => $affiliationRor ?? '',
+                'affiliation_ror' => $affiliationRor,
             ];
         }
 
@@ -105,7 +105,7 @@ class MslLaboratoryService
             'identifier' => $labId,
             'name' => $fromVocabulary['name'] ?: ($name ?? ''),
             'affiliation_name' => $fromVocabulary['affiliation_name'] ?: ($affiliationName ?? ''),
-            'affiliation_ror' => ($fromVocabulary['affiliation_ror'] ?? '') ?: ($affiliationRor ?? ''),
+            'affiliation_ror' => $fromVocabulary['affiliation_ror'] ?? $affiliationRor,
         ];
     }
 

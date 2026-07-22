@@ -68,7 +68,7 @@ final readonly class ContributorSectionParser
     ) {}
 
     /**
-     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>, contactPersons: array<int, array<string, mixed>>}
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string|null>>, contactPersons: array<int, array<string, mixed>>}
      */
     public function parse(XmlReader $reader): array
     {
@@ -687,7 +687,7 @@ final readonly class ContributorSectionParser
 
     /**
      * @param  array<string, mixed>  $content
-     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
+     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string|null}|null
      */
     private function extractMslLaboratory(array $content, string $labId): ?array
     {

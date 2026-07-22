@@ -781,7 +781,7 @@ class EditorDataTransformer
                     'identifier' => $institution->name_identifier ?? '',
                     'name' => $institution->name ?? '',
                     'affiliation_name' => $affiliation->name ?? '',
-                    'affiliation_ror' => $affiliation->identifier ?? '',
+                    'affiliation_ror' => $affiliation->identifier ?? null,
                     'position' => $contributor->position,
                 ];
             })

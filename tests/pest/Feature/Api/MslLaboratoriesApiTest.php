@@ -19,38 +19,41 @@ beforeEach(function (): void {
     Storage::fake('local');
 });
 
-function writeMslLaboratoriesVocabularyFixture(): void
+/** @param list<array<string, mixed>>|null $data */
+function writeMslLaboratoriesVocabularyFixture(?array $data = null): void
 {
+    $data ??= [
+        [
+            'identifier' => 'lab-001',
+            'name' => 'Rock Physics Lab',
+            'display_name' => 'Rock Physics Lab — GFZ',
+            'affiliation_name' => 'GFZ Helmholtz Centre',
+            'affiliation_ror' => 'https://ror.org/04z8jg394',
+            'scientific_domain' => 'Geosciences',
+            'country' => 'Germany',
+        ],
+        [
+            'identifier' => 'lab-002',
+            'name' => 'Independent Lab',
+            'display_name' => 'Independent Lab — Utrecht',
+            'affiliation_name' => 'Utrecht University',
+            'affiliation_ror' => null,
+            'scientific_domain' => 'Materials Science',
+            'country' => 'Netherlands',
+        ],
+    ];
+
     Storage::put('msl-laboratories.json', json_encode([
         'version' => '1.2',
         'lastUpdated' => '2026-07-21T12:00:00+00:00',
-        'total' => 2,
+        'total' => count($data),
         'source' => [
             'repository' => 'UtrechtUniversity/msl_vocabularies',
             'ref' => 'main',
             'path' => 'vocabularies/labs/1.2/laboratories.json',
             'sha' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         ],
-        'data' => [
-            [
-                'identifier' => 'lab-001',
-                'name' => 'Rock Physics Lab',
-                'display_name' => 'Rock Physics Lab — GFZ',
-                'affiliation_name' => 'GFZ Helmholtz Centre',
-                'affiliation_ror' => 'https://ror.org/04z8jg394',
-                'scientific_domain' => 'Geosciences',
-                'country' => 'Germany',
-            ],
-            [
-                'identifier' => 'lab-002',
-                'name' => 'Independent Lab',
-                'display_name' => 'Independent Lab — Utrecht',
-                'affiliation_name' => 'Utrecht University',
-                'affiliation_ror' => null,
-                'scientific_domain' => 'Materials Science',
-                'country' => 'Netherlands',
-            ],
-        ],
+        'data' => $data,
     ], JSON_THROW_ON_ERROR));
 }
 
@@ -98,6 +101,18 @@ it('returns the public wrapper and all seven laboratory fields to ELMO', functio
         ->and($response->json('data.1.affiliation_ror'))->toBeNull()
         ->and($response->json())->not->toHaveKey('source')
         ->and(json_encode($response->json(), JSON_THROW_ON_ERROR))->not->toContain('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+});
+
+it('returns a valid empty vocabulary wrapper to ELMO', function (): void {
+    writeMslLaboratoriesVocabularyFixture([]);
+    setMslLaboratoriesAvailability(false, true);
+
+    getJson(
+        '/api/v1/vocabularies/msl-laboratories',
+        ['X-API-Key' => 'test-api-key']
+    )->assertOk()
+        ->assertJsonPath('total', 0)
+        ->assertJsonPath('data', []);
 });
 
 it('returns the same public wrapper to the authenticated ERNIE editor', function (): void {

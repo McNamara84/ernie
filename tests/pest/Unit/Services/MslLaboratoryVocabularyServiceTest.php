@@ -146,7 +146,7 @@ it('rejects missing and empty required fields', function (array $laboratory, str
     ],
 ]);
 
-it('rejects malformed, non-array and empty JSON roots', function (mixed $body, string $message): void {
+it('rejects malformed and non-array JSON roots', function (mixed $body, string $message): void {
     $service = makeMslVocabularyServiceWithResponse($body);
 
     expect(fn () => $service->fetchLatest())
@@ -154,8 +154,19 @@ it('rejects malformed, non-array and empty JSON roots', function (mixed $body, s
 })->with([
     'malformed JSON' => ['{broken', 'not valid JSON'],
     'object root' => [['data' => []], 'must contain a JSON array'],
-    'empty root' => [[], 'at least one laboratory'],
 ]);
+
+it('accepts and atomically stores an empty vocabulary', function (): void {
+    $service = makeMslVocabularyServiceWithResponse([]);
+
+    $payload = $service->updateLocal();
+
+    expect($payload['total'])->toBe(0)
+        ->and($payload['data'])->toBe([])
+        ->and($service->getLocalPayload()['total'])->toBe(0)
+        ->and($service->getPublicPayload()['data'])->toBe([]);
+    Storage::assertExists('msl-laboratories.json');
+});
 
 it('preserves the previous local file when download validation fails', function (): void {
     $previous = json_encode([

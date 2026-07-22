@@ -1937,13 +1937,13 @@
                     },
                     "total": {
                         "type": "integer",
-                        "minimum": 1,
+                        "minimum": 0,
                         "description": "Total number of laboratories",
                         "example": 119
                     },
                     "data": {
                         "type": "array",
-                        "minItems": 1,
+                        "minItems": 0,
                         "description": "Validated MSL laboratory records",
                         "items": {
                             "$ref": "#/components/schemas/MslLaboratory"

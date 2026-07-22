@@ -242,7 +242,7 @@ XML;
         $mslLabs = $data['mslLaboratories'] ?? [];
         expect($mslLabs)->toHaveCount(1)
             ->and($mslLabs[0]['affiliation_name'])->toBe('')
-            ->and($mslLabs[0]['affiliation_ror'])->toBe('');
+            ->and($mslLabs[0]['affiliation_ror'])->toBeNull();
     });
 
     it('ignores hosting institution without labid', function () {
