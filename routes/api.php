@@ -77,6 +77,7 @@ Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-science-keywords'
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
+Route::middleware('ernie.api-key')->get('/v1/vocabularies/msl-laboratories', [VocabularyController::class, 'mslLaboratories']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/raid-projects', [VocabularyController::class, 'raidProjects']);
 Route::middleware('ernie.api-key')->get('/v1/vocabularies/chronostrat-timescale', [VocabularyController::class, 'chronostratTimescale']);

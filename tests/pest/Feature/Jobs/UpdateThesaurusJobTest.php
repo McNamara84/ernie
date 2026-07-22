@@ -24,6 +24,7 @@ describe('constructor validation', function () {
             ThesaurusSetting::TYPE_GEMET,
             ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
             ThesaurusSetting::TYPE_EUROSCIVOC,
+            ThesaurusSetting::TYPE_MSL_LABORATORIES,
         ];
 
         foreach ($validTypes as $type) {
@@ -188,6 +189,7 @@ describe('handle', function () {
             ThesaurusSetting::TYPE_GEMET => 'get-gemet-thesaurus',
             ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
             ThesaurusSetting::TYPE_EUROSCIVOC => 'get-euroscivoc',
+            ThesaurusSetting::TYPE_MSL_LABORATORIES => 'get-msl-laboratories',
         ];
 
         foreach ($mapping as $type => $expectedCommand) {
@@ -221,6 +223,26 @@ describe('handle', function () {
 
         $job = new UpdateThesaurusJob(ThesaurusSetting::TYPE_EUROSCIVOC, $uuid);
         $job->handle();
+    });
+
+    it('uses GitHub discovery progress message for MSL Laboratories', function () {
+        $uuid = (string) Str::uuid();
+        $cacheKey = UpdateThesaurusJob::getCacheKey($uuid);
+
+        Artisan::shouldReceive('call')
+            ->with('get-msl-laboratories')
+            ->once()
+            ->andReturnUsing(function () use ($cacheKey) {
+                expect(Cache::get($cacheKey)['progress'])
+                    ->toBe('Discovering the latest MSL Laboratories release on GitHub...');
+
+                return 0;
+            });
+
+        (new UpdateThesaurusJob(
+            ThesaurusSetting::TYPE_MSL_LABORATORIES,
+            $uuid
+        ))->handle();
     });
 
     it('uses ARDC progress message for chronostrat type', function () {

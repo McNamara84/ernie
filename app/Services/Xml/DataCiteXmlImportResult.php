@@ -25,7 +25,7 @@ final readonly class DataCiteXmlImportResult
      * @param  array<int, array<string, mixed>>  $mslKeywords
      * @param  array<int, array<string, mixed>>  $gemetKeywords
      * @param  array<int, array<string, mixed>>  $fundingReferences
-     * @param  array<int, array<string, string>>  $mslLaboratories
+     * @param  array<int, array<string, string|null>>  $mslLaboratories
      * @param  array<int, array<string, mixed>>  $relatedItems
      */
     public function __construct(

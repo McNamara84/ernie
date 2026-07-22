@@ -121,7 +121,7 @@ it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 
     expect($vocabularyKeys)->toBeArray()
-        ->toHaveCount(11)
+        ->toHaveCount(12)
         ->each->toBeInstanceOf(CacheKey::class);
 
     $expectedKeys = [
@@ -130,6 +130,7 @@ it('returns all vocabulary keys', function () {
         CacheKey::GCMD_PLATFORMS,
         CacheKey::GCMD_PROVIDERS,
         CacheKey::MSL_KEYWORDS,
+        CacheKey::MSL_LABORATORIES,
         CacheKey::PID4INST_INSTRUMENTS,
         CacheKey::RAID_PROJECTS,
         CacheKey::CHRONOSTRAT_TIMESCALE,

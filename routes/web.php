@@ -672,6 +672,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.gcmd-instruments');
     Route::get('vocabularies/msl', [VocabularyController::class, 'mslVocabulary'])
         ->name('vocabularies.msl');
+    Route::get('vocabularies/msl-laboratories', [VocabularyController::class, 'mslLaboratories'])
+        ->name('vocabularies.msl-laboratories');
     Route::get('vocabularies/pid4inst-instruments', [VocabularyController::class, 'pid4instInstruments'])
         ->name('vocabularies.pid4inst-instruments');
     Route::get('vocabularies/raid-projects', [VocabularyController::class, 'raidProjects'])
@@ -686,12 +688,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.euroscivoc');
     Route::get('vocabularies/pid-availability', [VocabularyController::class, 'pidAvailability'])
         ->name('vocabularies.pid-availability');
-    Route::get('vocabularies/msl-vocabulary-url', function () {
-        return response()->json([
-            'url' => config('msl.vocabulary_url'),
-        ]);
-    })->name('vocabularies.msl-vocabulary-url');
-
     // User Management routes (Admin & Group Leader only - Issue #379)
     Route::middleware(['can:access-users'])->prefix('users')->group(function () {
         Route::get('/', [UserController::class, 'index'])

@@ -1,75 +1,70 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { apiRequest } from '@/lib/api-client';
+import { ApiError, apiRequest } from '@/lib/api-client';
 import { apiEndpoints, queryKeys } from '@/lib/query-keys';
-import type { MSLLaboratory } from '@/types';
+import { mslLaboratoriesResponseSchema } from '@/schemas/msl-laboratory.schema';
+import type { MSLLaboratoriesResponse, MSLLaboratoryVocabularyEntry } from '@/types';
+
+interface UseMSLLaboratoriesOptions {
+    enabled?: boolean;
+}
 
 interface UseMSLLaboratoriesReturn {
-    laboratories: MSLLaboratory[] | null;
+    laboratories: MSLLaboratoryVocabularyEntry[] | null;
+    version: string | null;
+    lastUpdated: string | null;
     isLoading: boolean;
+    isUnavailable: boolean;
     error: string | null;
     refetch: () => void;
 }
 
 /**
- * Fetch the MSL vocabulary URL and then the laboratories payload.
+ * Fetch and validate the locally managed MSL laboratories vocabulary.
  *
  * Exported for prefetching and unit testing.
  */
-export async function fetchMslLaboratories(signal?: AbortSignal): Promise<MSLLaboratory[]> {
-    const { url } = await apiRequest<{ url: string }>(apiEndpoints.mslVocabularyUrl, { signal });
+export async function fetchMslLaboratories(signal?: AbortSignal): Promise<MSLLaboratoriesResponse> {
+    const payload = await apiRequest<unknown>(apiEndpoints.mslLaboratories, { signal });
+    const result = mslLaboratoriesResponseSchema.safeParse(payload);
 
-    if (typeof url !== 'string' || url.length === 0) {
-        throw new Error('Invalid vocabulary URL received from backend');
+    if (!result.success) {
+        const firstIssue = result.error.issues[0];
+        const detail = firstIssue ? `${firstIssue.path.join('.') || 'response'}: ${firstIssue.message}` : 'unknown validation error';
+        throw new Error(`Invalid MSL laboratories response: ${detail}`);
     }
 
-    // The vocabulary URL points to an external resource (Utrecht University).
-    // Use a plain `fetch` here with only simple headers so the request is
-    // treated as a CORS-simple GET and does not trigger a preflight that the
-    // third-party host would reject.
-    const response = await fetch(url, {
-        signal,
-        headers: { Accept: 'application/json' },
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch laboratories: ${response.status} ${response.statusText}`);
-    }
-
-    const data = (await response.json()) as unknown;
-
-    if (!Array.isArray(data)) {
-        throw new Error('Invalid data format: expected an array');
-    }
-
-    return data as MSLLaboratory[];
+    return result.data;
 }
 
 /**
- * Custom hook to fetch and manage MSL (Multi-Scale Laboratories) data
- * from the Utrecht University MSL Vocabularies repository.
+ * Load the MSL laboratory vocabulary from ERNIE's local endpoint.
  *
- * The vocabulary URL is fetched from the backend to ensure consistency and
- * to avoid hardcoding the external URL in the frontend bundle.
+ * A 404 is an expected unavailable state (disabled in settings or not yet
+ * downloaded) and is kept separate from operational errors.
  */
-export function useMSLLaboratories(): UseMSLLaboratoriesReturn {
+export function useMSLLaboratories({ enabled = true }: UseMSLLaboratoriesOptions = {}): UseMSLLaboratoriesReturn {
     const { data, isLoading, error, refetch } = useQuery({
         queryKey: queryKeys.msl.laboratories(),
         queryFn: ({ signal }) => fetchMslLaboratories(signal),
-        // Laboratories change rarely; cache aggressively to avoid cross-origin
-        // requests on every Editor visit. `gcTime` matches `staleTime` so the
-        // cache survives for the full freshness window even when all consumers
-        // unmount (the shorter global default would otherwise evict it first).
+        enabled,
         staleTime: 30 * 60_000,
         gcTime: 30 * 60_000,
     });
 
+    const isUnavailable = !enabled || (error instanceof ApiError && error.status === 404);
+
     return {
-        laboratories: data ?? null,
-        isLoading,
-        error: error instanceof Error ? error.message : error ? String(error) : null,
+        laboratories: data?.data ?? null,
+        version: data?.version ?? null,
+        lastUpdated: data?.lastUpdated ?? null,
+        isLoading: enabled && isLoading,
+        isUnavailable,
+        error: !enabled || isUnavailable ? null : error instanceof Error ? error.message : error ? String(error) : null,
         refetch: () => {
-            void refetch();
+            if (enabled) {
+                void refetch();
+            }
         },
     };
 }

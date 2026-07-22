@@ -50,9 +50,8 @@ describe('queryKeys', () => {
     });
 
     describe('msl', () => {
-        it('produces stable vocabulary-url and laboratories keys', () => {
-            expect(queryKeys.msl.vocabularyUrl()).toEqual(['msl', 'vocabulary-url']);
-            expect(queryKeys.msl.laboratories()).toEqual(['msl', 'laboratories']);
+        it('uses the local laboratories endpoint as its stable key', () => {
+            expect(queryKeys.msl.laboratories()).toEqual(['/vocabularies/msl-laboratories']);
         });
     });
 });
@@ -64,6 +63,6 @@ describe('apiEndpoints', () => {
         expect(typeof apiEndpoints.doiValidate).toBe('string');
         expect(apiEndpoints.doiValidate.length).toBeGreaterThan(0);
         expect(apiEndpoints.pid4instInstruments).toBe('/vocabularies/pid4inst-instruments');
-        expect(apiEndpoints.mslVocabularyUrl).toBe('/vocabularies/msl-vocabulary-url');
+        expect(apiEndpoints.mslLaboratories).toBe('/vocabularies/msl-laboratories');
     });
 });

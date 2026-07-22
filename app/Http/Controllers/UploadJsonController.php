@@ -14,10 +14,12 @@ use App\Services\DataCiteJsonImportNormalizerService;
 use App\Services\DataCiteJsonLdToJsonConverterService;
 use App\Services\JsonSchemaValidator;
 use App\Services\RelatedIdentifierTypeResolverService;
+use App\Services\RorLookupService;
 use App\Services\UploadLogService;
 use App\Services\Uploads\UploadedResourceDraftService;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\GcmdUriHelper;
+use App\Support\MslLaboratoryService;
 use App\Support\UploadError;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
@@ -87,6 +89,8 @@ class UploadJsonController extends Controller
         private readonly RelatedIdentifierTypeResolverService $relatedIdentifierTypeResolver,
         private readonly RelatedIdentifierCitationLabelService $citationLabelService,
         private readonly UploadedResourceDraftService $uploadedResourceDraftService,
+        private readonly MslLaboratoryService $mslLaboratoryService,
+        private readonly RorLookupService $rorLookupService,
     ) {}
 
     public function __invoke(UploadJsonRequest $request): JsonResponse
@@ -574,7 +578,7 @@ class UploadJsonController extends Controller
 
     /**
      * @param  array<int, array<string, mixed>>  $contributors
-     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>, contactPersons: array<int, array<string, mixed>>}
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string|null>>, contactPersons: array<int, array<string, mixed>>}
      */
     private function extractContributorsAndMslLaboratories(array $contributors): array
     {
@@ -1221,8 +1225,11 @@ class UploadJsonController extends Controller
             $scheme = $ni['nameIdentifierScheme'] ?? null;
             $value = $ni['nameIdentifier'] ?? null;
 
-            if (is_string($scheme) && stripos($scheme, 'labid') !== false && is_string($value) && $value !== '') {
-                return $value;
+            if (is_string($scheme)
+                && Str::lower(trim($scheme)) === 'labid'
+                && is_string($value)
+                && trim($value) !== '') {
+                return trim($value);
             }
         }
 
@@ -1233,20 +1240,54 @@ class UploadJsonController extends Controller
      * Extract MSL laboratory data from contributor.
      *
      * @param  array<string, mixed>  $contributor
-     * @return array{labId: string, labName: string}|null
+     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string|null}|null
      */
     private function extractMslLaboratoryFromJson(array $contributor, string $labId): ?array
     {
-        $name = $contributor['name'] ?? null;
+        $rawName = $contributor['name'] ?? null;
+        $name = is_string($rawName) ? trim($rawName) : null;
+        $affiliationName = null;
+        $affiliationRor = null;
 
-        if (! is_string($name) || trim($name) === '') {
-            return null;
+        $affiliations = $contributor['affiliation'] ?? [];
+
+        if (is_array($affiliations)) {
+            foreach ($affiliations as $affiliation) {
+                if (is_string($affiliation) && trim($affiliation) !== '') {
+                    $affiliationName = trim($affiliation);
+                    break;
+                }
+
+                if (! is_array($affiliation)) {
+                    continue;
+                }
+
+                $rawAffiliationName = $affiliation['name'] ?? null;
+                $affiliationName = is_string($rawAffiliationName)
+                    ? trim($rawAffiliationName)
+                    : null;
+
+                $rawIdentifier = $affiliation['affiliationIdentifier'] ?? null;
+                $rawScheme = $affiliation['affiliationIdentifierScheme'] ?? null;
+
+                if (is_string($rawIdentifier)
+                    && ((is_string($rawScheme) && strcasecmp($rawScheme, 'ROR') === 0)
+                        || str_contains(strtolower($rawIdentifier), 'ror.org'))) {
+                    $affiliationRor = $this->rorLookupService->canonicalise($rawIdentifier);
+                }
+
+                break;
+            }
         }
 
-        return [
-            'labId' => $labId,
-            'labName' => trim($name),
-        ];
+        $laboratory = $this->mslLaboratoryService->enrichLaboratoryData(
+            $labId,
+            $name,
+            $affiliationName,
+            $affiliationRor
+        );
+
+        return $laboratory['name'] === '' ? null : $laboratory;
     }
 
     /**

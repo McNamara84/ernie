@@ -1,4 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Calendar, CheckCircle2, Database, Pencil, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -8,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { queryKeys } from '@/lib/query-keys';
 import { getSelectAllState } from '@/lib/select-all';
 import { type SharedData } from '@/types';
 
@@ -39,6 +41,9 @@ interface UpdateCheckResult {
     remoteCount: number;
     updateAvailable: boolean;
     lastUpdated: string | null;
+    localVersion?: string | null;
+    remoteVersion?: string | null;
+    reason?: string | null;
 }
 
 interface JobStatus {
@@ -55,7 +60,7 @@ interface ThesaurusRowProps {
     thesaurus: ThesaurusData;
     onActiveChange: (type: string, isActive: boolean) => void;
     onElmoActiveChange: (type: string, isElmoActive: boolean) => void;
-    onUpdateComplete?: () => void;
+    onUpdateComplete?: (type: string) => void;
 }
 
 function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateComplete }: ThesaurusRowProps) {
@@ -73,6 +78,9 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
 
     const { auth } = usePage<SharedData>().props;
     const canManageThesauri = auth.user?.role === 'admin' || auth.user?.role === 'group_leader';
+    const isMslLaboratories = thesaurus.type === 'msl_laboratories';
+    const itemLabel = isMslLaboratories ? 'laboratories' : 'concepts';
+    const supportsManualVersioning = thesaurus.supportsVersioning && !isMslLaboratories;
 
     // Cleanup polling on unmount
     useEffect(() => {
@@ -147,7 +155,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                         // Reset check status so user can check again
                         setCheckStatus('idle');
                         setUpdateInfo(null);
-                        onUpdateComplete?.();
+                        onUpdateComplete?.(thesaurus.type);
                     }
                 }
             } catch {
@@ -278,7 +286,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                             <>
                                 <span className="flex items-center gap-1">
                                     <Database className="h-3.5 w-3.5" />
-                                    {thesaurus.conceptCount.toLocaleString()} concepts
+                                    {thesaurus.conceptCount.toLocaleString()} {itemLabel}
                                 </span>
                                 <span className="text-muted-foreground/50">•</span>
                                 <span className="flex items-center gap-1">
@@ -310,6 +318,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                             id={`thesaurus-ernie-${thesaurus.type}`}
                             checked={thesaurus.isActive}
                             onCheckedChange={(checked) => onActiveChange(thesaurus.type, checked === true)}
+                            aria-label={`${thesaurus.displayName}: ERNIE active`}
                         />
                         <Label htmlFor={`thesaurus-ernie-${thesaurus.type}`} className="text-sm font-normal">
                             ERNIE
@@ -320,6 +329,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                             id={`thesaurus-elmo-${thesaurus.type}`}
                             checked={thesaurus.isElmoActive}
                             onCheckedChange={(checked) => onElmoActiveChange(thesaurus.type, checked === true)}
+                            aria-label={`${thesaurus.displayName}: ELMO active`}
                         />
                         <Label htmlFor={`thesaurus-elmo-${thesaurus.type}`} className="text-sm font-normal">
                             ELMO
@@ -353,7 +363,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                             </Button>
                         )}
 
-                        {thesaurus.supportsVersioning && !isEditingVersion && (
+                        {supportsManualVersioning && !isEditingVersion && (
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -371,7 +381,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                     </div>
 
                     {/* Version editor */}
-                    {thesaurus.supportsVersioning && isEditingVersion && (
+                    {supportsManualVersioning && isEditingVersion && (
                         <div className="mt-3 flex flex-wrap items-start gap-2">
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
@@ -423,14 +433,22 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                                 <>
                                     <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                                     <span>
-                                        ERNIE contains {updateInfo.localCount.toLocaleString()} concepts, but {thesaurus.displayName} contains{' '}
-                                        {updateInfo.remoteCount.toLocaleString()} concepts. Would you like to update the thesaurus?
+                                        ERNIE contains {updateInfo.localCount.toLocaleString()} {itemLabel}
+                                        {updateInfo.localVersion ? ` (v${updateInfo.localVersion})` : ''}, but {thesaurus.displayName} contains{' '}
+                                        {updateInfo.remoteCount.toLocaleString()} {itemLabel}
+                                        {updateInfo.remoteVersion ? ` (v${updateInfo.remoteVersion})` : ''}. Would you like to update the thesaurus?
+                                        {isMslLaboratories && updateInfo.reason && (
+                                            <span className="mt-1 block">Update reason: {updateInfo.reason.replaceAll('_', ' ')}</span>
+                                        )}
                                     </span>
                                 </>
                             ) : (
                                 <>
                                     <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                                    <span>Thesaurus is up to date ({updateInfo.localCount.toLocaleString()} concepts)</span>
+                                    <span>
+                                        Thesaurus is up to date ({updateInfo.localCount.toLocaleString()} {itemLabel}
+                                        {updateInfo.localVersion ? `, v${updateInfo.localVersion}` : ''})
+                                    </span>
                                 </>
                             )}
                         </div>
@@ -483,18 +501,26 @@ export interface ThesaurusCardProps {
 }
 
 export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange, onBulkActiveChange, onBulkElmoActiveChange }: ThesaurusCardProps) {
+    const queryClient = useQueryClient();
     // Select-all state for ERNIE / ELMO columns
     const ernieState = getSelectAllState(thesauri.map((t) => t.isActive));
     const elmoState = getSelectAllState(thesauri.map((t) => t.isElmoActive));
 
     // Reload page data after update to get fresh data from backend
     // Using Inertia's router.reload() for smoother UX (preserves scroll position)
-    const handleUpdateComplete = useCallback(() => {
-        // Small delay to show the success message before reload
-        setTimeout(() => {
-            router.reload({ only: ['thesauri'] });
-        }, UPDATE_SUCCESS_RELOAD_DELAY_MS);
-    }, []);
+    const handleUpdateComplete = useCallback(
+        (type: string) => {
+            if (type === 'msl_laboratories') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.msl.laboratories() });
+            }
+
+            // Small delay to show the success message before reload
+            setTimeout(() => {
+                router.reload({ only: ['thesauri'] });
+            }, UPDATE_SUCCESS_RELOAD_DELAY_MS);
+        },
+        [queryClient],
+    );
 
     return (
         <div className="space-y-4" data-testid="thesaurus-card">

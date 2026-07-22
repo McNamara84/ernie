@@ -10,6 +10,7 @@ use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\withoutVite;
@@ -170,11 +171,12 @@ test('thesaurus settings are auto-created when missing', function () {
     Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
     Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
 
-    // Verify only the migration-seeded chronostrat, gemet, analytical_methods, and euroscivoc settings exist initially
-    expect(ThesaurusSetting::count())->toBe(4);
+    // Verify only migration-seeded settings exist initially.
+    expect(ThesaurusSetting::count())->toBe(5);
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_CHRONOSTRAT)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_GEMET)->exists())->toBeTrue();
     expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)->exists())->toBeTrue();
+    expect(ThesaurusSetting::where('type', ThesaurusSetting::TYPE_MSL_LABORATORIES)->exists())->toBeTrue();
 
     $this->actingAs($user);
     withoutVite();
@@ -182,8 +184,8 @@ test('thesaurus settings are auto-created when missing', function () {
     // Access the settings page - this should auto-create missing thesaurus settings
     $response = $this->get(route('settings'))->assertOk();
 
-    // Verify all seven thesaurus settings now exist (3 GCMD auto-created + 1 chronostrat + 1 gemet + 1 analytical_methods + 1 euroscivoc from migration)
-    expect(ThesaurusSetting::count())->toBe(7);
+    // Verify every centralized thesaurus definition now exists.
+    expect(ThesaurusSetting::count())->toBe(8);
 
     $this->assertDatabaseHas('thesaurus_settings', [
         'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
@@ -204,18 +206,63 @@ test('thesaurus settings are auto-created when missing', function () {
         'is_elmo_active' => true,
     ]);
 
-    // Verify thesauri are returned in the response (7 total: 3 GCMD + GEMET + Chronostrat + Analytical Methods + EuroSciVoc)
+    // Verify all thesauri are returned in the response.
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
-        ->has('thesauri', 7)
+        ->has('thesauri', 8)
         ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_PLATFORMS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_INSTRUMENTS)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_CHRONOSTRAT)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_GEMET)
             && $thesauri->contains('type', ThesaurusSetting::TYPE_ANALYTICAL_METHODS)
-            && $thesauri->contains('type', ThesaurusSetting::TYPE_EUROSCIVOC))
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_EUROSCIVOC)
+            && $thesauri->contains('type', ThesaurusSetting::TYPE_MSL_LABORATORIES))
     );
+});
+
+test('MSL Laboratories displays the local wrapper version when the setting has none', function () {
+    Storage::fake('local');
+    Storage::put('msl-laboratories.json', json_encode([
+        'version' => '1.1',
+        'lastUpdated' => '2026-07-21T12:00:00+00:00',
+        'total' => 1,
+        'source' => [
+            'repository' => 'UtrechtUniversity/msl_vocabularies',
+            'ref' => 'main',
+            'path' => 'vocabularies/labs/1.1/laboratories.json',
+            'sha' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        ],
+        'data' => [[
+            'identifier' => 'lab-001',
+            'name' => 'Rock Physics Lab',
+            'display_name' => 'Rock Physics Lab — GFZ',
+            'affiliation_name' => 'GFZ Helmholtz Centre',
+            'affiliation_ror' => null,
+            'scientific_domain' => 'Geosciences',
+            'country' => 'Germany',
+        ]],
+    ], JSON_THROW_ON_ERROR));
+    ThesaurusSetting::query()
+        ->where('type', ThesaurusSetting::TYPE_MSL_LABORATORIES)
+        ->update(['version' => null]);
+    $user = User::factory()->admin()->create();
+
+    $response = $this->actingAs($user)->get(route('settings'))->assertOk();
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('thesauri', fn ($thesauri) => $thesauri
+            ->contains(fn ($thesaurus) => $thesaurus['type'] === 'msl_laboratories'
+                && $thesaurus['version'] === '1.1'))
+    );
+
+    $this->actingAs($user)
+        ->getJson('/thesauri')
+        ->assertOk()
+        ->assertJsonFragment([
+            'type' => 'msl_laboratories',
+            'version' => '1.1',
+        ]);
 });
 
 // Issue #365: Select / Deselect All in Editor Settings

@@ -1685,40 +1685,53 @@ describe('transformFundingReferences', function (): void {
 // =========================================================================
 
 describe('transformMslLaboratories', function (): void {
-    it('extracts MSL laboratories from creators', function (): void {
+    it('extracts MSL laboratories from contributors in their stored order', function (): void {
         $lab = Institution::factory()->create([
             'name' => 'Rock Mechanics Lab',
             'name_identifier' => 'lab-42',
             'name_identifier_scheme' => 'labid',
         ]);
 
-        $creator = ResourceCreator::factory()->forInstitution($lab)->create([
+        $contributor = ResourceContributor::factory()->forInstitution($lab)->create([
             'resource_id' => $this->resource->id,
-            'position' => 1,
+            'position' => 2,
         ]);
 
         Affiliation::create([
-            'affiliatable_type' => ResourceCreator::class,
-            'affiliatable_id' => $creator->id,
+            'affiliatable_type' => ResourceContributor::class,
+            'affiliatable_id' => $contributor->id,
             'name' => 'Utrecht University',
             'identifier' => 'https://ror.org/04pp8hn57',
             'identifier_scheme' => 'ROR',
             'scheme_uri' => 'https://ror.org',
         ]);
 
-        $this->resource->load(['creators.creatorable', 'creators.affiliations']);
+        $firstLab = Institution::factory()->create([
+            'name' => 'First Laboratory',
+            'name_identifier' => 'lab-01',
+            'name_identifier_scheme' => 'labid',
+        ]);
+        ResourceContributor::factory()->forInstitution($firstLab)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $this->resource->load(['contributors.contributorable', 'contributors.affiliations']);
 
         $result = $this->transformer->transformMslLaboratories($this->resource);
 
-        expect($result)->toHaveCount(1)
-            ->and($result[0]['identifier'])->toBe('lab-42')
-            ->and($result[0]['name'])->toBe('Rock Mechanics Lab')
-            ->and($result[0]['affiliation_name'])->toBe('Utrecht University')
-            ->and($result[0]['affiliation_ror'])->toBe('https://ror.org/04pp8hn57');
+        expect($result)->toHaveCount(2)
+            ->and($result[0]['identifier'])->toBe('lab-01')
+            ->and($result[0]['affiliation_ror'])->toBeNull()
+            ->and($result[1]['identifier'])->toBe('lab-42')
+            ->and($result[1]['name'])->toBe('Rock Mechanics Lab')
+            ->and($result[1]['affiliation_name'])->toBe('Utrecht University')
+            ->and($result[1]['affiliation_ror'])->toBe('https://ror.org/04pp8hn57')
+            ->and($result[1]['position'])->toBe(2);
     });
 
     it('returns empty array when no MSL labs exist', function (): void {
-        $this->resource->load(['creators.creatorable', 'creators.affiliations']);
+        $this->resource->load(['contributors.contributorable', 'contributors.affiliations']);
 
         $result = $this->transformer->transformMslLaboratories($this->resource);
 
@@ -1727,14 +1740,42 @@ describe('transformMslLaboratories', function (): void {
 
     it('excludes non-labid institutions', function (): void {
         $institution = Institution::factory()->withRor()->create(['name' => 'Regular University']);
-        ResourceCreator::factory()->forInstitution($institution)->create([
+        ResourceContributor::factory()->forInstitution($institution)->create([
             'resource_id' => $this->resource->id,
         ]);
-        $this->resource->load(['creators.creatorable', 'creators.affiliations']);
+        $this->resource->load(['contributors.contributorable', 'contributors.affiliations']);
 
         $result = $this->transformer->transformMslLaboratories($this->resource);
 
         expect($result)->toBeEmpty();
+    });
+
+    it('does not duplicate laboratories in the regular contributors form group', function (): void {
+        $lab = Institution::factory()->create([
+            'name' => 'Rock Mechanics Lab',
+            'name_identifier' => 'lab-42',
+            'name_identifier_scheme' => 'labid',
+        ]);
+        ResourceContributor::factory()->forInstitution($lab)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 1,
+        ]);
+
+        $regularInstitution = Institution::factory()->create(['name' => 'Utrecht University']);
+        ResourceContributor::factory()->forInstitution($regularInstitution)->create([
+            'resource_id' => $this->resource->id,
+            'position' => 2,
+        ]);
+
+        $this->resource->load([
+            'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+        ]);
+
+        $result = $this->transformer->transformCreators($this->resource);
+
+        expect($result['contributors'])->toHaveCount(1)
+            ->and($result['contributors'][0]['institutionName'])->toBe('Utrecht University');
     });
 });
 

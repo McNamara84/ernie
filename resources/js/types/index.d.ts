@@ -280,7 +280,21 @@ export interface MSLLaboratory {
     identifier: string;
     name: string;
     affiliation_name: string;
-    affiliation_ror: string;
+    affiliation_ror: string | null;
+}
+
+export interface MSLLaboratoryVocabularyEntry extends MSLLaboratory {
+    display_name: string;
+    affiliation_name: string;
+    scientific_domain: string;
+    country: string;
+}
+
+export interface MSLLaboratoriesResponse {
+    version: string;
+    lastUpdated: string;
+    total: number;
+    data: MSLLaboratoryVocabularyEntry[];
 }
 
 /**

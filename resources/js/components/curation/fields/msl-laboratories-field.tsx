@@ -1,6 +1,7 @@
-import { AlertCircle, Building2, Info, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { AlertCircle, Building2, Globe2, Info, Microscope, TriangleAlert, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
+import { getValidRorUrl, toMslLaboratorySelection } from '@/components/curation/utils/msl-laboratories';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,100 +10,123 @@ import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMSLLaboratories } from '@/hooks/use-msl-laboratories';
-import type { MSLLaboratory } from '@/types';
+import type { MSLLaboratory, MSLLaboratoryVocabularyEntry } from '@/types';
 
 interface MSLLaboratoriesFieldProps {
     selectedLaboratories: MSLLaboratory[];
     onChange: (laboratories: MSLLaboratory[]) => void;
+    isVocabularyAvailable?: boolean;
 }
 
-/**
- * Extract ROR ID from full ROR URL
- * @example extractRorId('https://ror.org/04pp8hn57') => '04pp8hn57'
- */
+const ALL_FILTER_VALUE = '';
+
 function extractRorId(rorUrl: string): string {
-    if (!rorUrl) return '';
-    const match = rorUrl.match(/ror\.org\/([a-z0-9]+)/i);
-    return match?.[1] ?? rorUrl;
+    return rorUrl.replace(/^https:\/\/ror\.org\//i, '');
 }
 
-/**
- * MSL Laboratories Field Component
- *
- * Provides a searchable interface for selecting multi-scale laboratories
- * associated with EPOS datasets. Data is sourced from Utrecht University's
- * MSL Vocabularies repository.
- *
- * Features:
- * - Searchable combobox with fuzzy matching (using shadcn/ui Combobox)
- * - Card-based display of selected laboratories
- * - ROR badge links to Research Organization Registry
- * - Keyboard navigation support
- * - Error handling and retry functionality
- * - Accessibility compliant (WCAG 2.1 AA)
- */
-export default function MSLLaboratoriesField({ selectedLaboratories, onChange }: MSLLaboratoriesFieldProps) {
-    const { laboratories, isLoading, error, refetch } = useMSLLaboratories();
+export default function MSLLaboratoriesField({ selectedLaboratories, onChange, isVocabularyAvailable = true }: MSLLaboratoriesFieldProps) {
+    const { laboratories, version, lastUpdated, isLoading, isUnavailable, error, refetch } = useMSLLaboratories({
+        enabled: isVocabularyAvailable,
+    });
+    const [scientificDomain, setScientificDomain] = useState(ALL_FILTER_VALUE);
+    const [country, setCountry] = useState(ALL_FILTER_VALUE);
 
-    // Convert laboratories to ComboboxOption format
+    const vocabularyByIdentifier = useMemo(
+        () => new Map((laboratories ?? []).map((laboratory) => [laboratory.identifier, laboratory])),
+        [laboratories],
+    );
+
+    const scientificDomains = useMemo(
+        () => [...new Set((laboratories ?? []).map((laboratory) => laboratory.scientific_domain))].sort((left, right) => left.localeCompare(right)),
+        [laboratories],
+    );
+    const countries = useMemo(
+        () => [...new Set((laboratories ?? []).map((laboratory) => laboratory.country))].sort((left, right) => left.localeCompare(right)),
+        [laboratories],
+    );
+
     const comboboxOptions: ComboboxOption[] = useMemo(() => {
-        if (!laboratories) return [];
+        const selectedIds = new Set(selectedLaboratories.map((laboratory) => laboratory.identifier));
 
-        const selectedIds = new Set(selectedLaboratories.map((lab) => lab.identifier));
-        return laboratories
-            .filter((lab) => !selectedIds.has(lab.identifier))
-            .map((lab) => ({
-                value: lab.identifier,
-                label: lab.name,
-                data: {
-                    affiliation_name: lab.affiliation_name,
-                    affiliation_ror: lab.affiliation_ror,
-                    laboratory: lab,
-                },
+        return (laboratories ?? [])
+            .filter((laboratory) => !selectedIds.has(laboratory.identifier))
+            .filter((laboratory) => scientificDomain === ALL_FILTER_VALUE || laboratory.scientific_domain === scientificDomain)
+            .filter((laboratory) => country === ALL_FILTER_VALUE || laboratory.country === country)
+            .sort((left, right) => left.display_name.localeCompare(right.display_name))
+            .map((laboratory) => ({
+                value: laboratory.identifier,
+                label: laboratory.display_name,
+                keywords: [
+                    laboratory.name,
+                    laboratory.display_name,
+                    laboratory.affiliation_name,
+                    laboratory.scientific_domain,
+                    laboratory.country,
+                    laboratory.identifier,
+                ],
+                data: { laboratory },
             }));
-    }, [laboratories, selectedLaboratories]);
+    }, [country, laboratories, scientificDomain, selectedLaboratories]);
 
-    const handleSelectLaboratory = (value: string | undefined) => {
-        if (!value) return;
+    const handleSelectLaboratory = (identifier: string | undefined) => {
+        if (!identifier) return;
 
-        const laboratory = laboratories?.find((lab) => lab.identifier === value);
+        const laboratory = vocabularyByIdentifier.get(identifier);
         if (laboratory) {
-            onChange([...selectedLaboratories, laboratory]);
+            onChange([...selectedLaboratories, toMslLaboratorySelection(laboratory)]);
         }
     };
 
     const handleRemoveLaboratory = (identifier: string) => {
-        onChange(selectedLaboratories.filter((lab) => lab.identifier !== identifier));
+        onChange(selectedLaboratories.filter((laboratory) => laboratory.identifier !== identifier));
     };
+
+    const canAddLaboratories = isVocabularyAvailable && !isUnavailable;
 
     return (
         <div className="space-y-4">
-            {/* Info Banner */}
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/40">
                 <div className="flex items-start gap-2">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" aria-hidden="true" />
-                    <p className="text-sm text-blue-900">
-                        Select the multi-scale laboratories associated with this dataset. Data is sourced from the{' '}
-                        <a
-                            href="https://github.com/UtrechtUniversity/msl_vocabularies"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="ml-1 font-medium underline hover:text-blue-700"
-                        >
-                            Utrecht University MSL Vocabularies
-                        </a>
-                        .
-                    </p>
+                    <div className="space-y-1 text-sm text-blue-900 dark:text-blue-100">
+                        <p>
+                            Select the multi-scale laboratories associated with this dataset. ERNIE uses a locally managed copy of the{' '}
+                            <a
+                                href="https://github.com/UtrechtUniversity/msl_vocabularies"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium underline hover:text-blue-700"
+                            >
+                                Utrecht University MSL Vocabularies
+                            </a>
+                            .
+                        </p>
+                        {version && (
+                            <p className="text-xs">
+                                Vocabulary version {version}
+                                {lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleDateString()}` : ''}
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Error State */}
+            {!canAddLaboratories && (
+                <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Laboratory vocabulary unavailable</AlertTitle>
+                    <AlertDescription>
+                        New laboratories cannot be added right now. Existing selections remain visible and will still be saved.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {error && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Unable to load laboratory data</AlertTitle>
                     <AlertDescription className="flex items-center gap-2">
-                        <span>Please check your internet connection and try again.</span>
+                        <span>The local MSL laboratory vocabulary could not be loaded.</span>
                         <Button variant="outline" size="sm" onClick={refetch} className="ml-2 h-7 px-2">
                             Retry
                         </Button>
@@ -110,98 +134,174 @@ export default function MSLLaboratoriesField({ selectedLaboratories, onChange }:
                 </Alert>
             )}
 
-            {/* Laboratory Selection */}
-            <div className="space-y-3">
-                <Label htmlFor="msl-laboratory-search" className="text-base font-semibold">
-                    Add Laboratory
-                </Label>
+            {canAddLaboratories && (
+                <div className="space-y-3">
+                    <Label htmlFor="msl-laboratory-search" className="text-base font-semibold">
+                        Add Laboratory
+                    </Label>
 
-                {/* Combobox */}
-                <Combobox
-                    id="msl-laboratory-search"
-                    options={comboboxOptions}
-                    onChange={handleSelectLaboratory}
-                    placeholder="Search for a laboratory (e.g., TecLab, INGV, Utrecht...)"
-                    searchPlaceholder="Type to search..."
-                    emptyMessage="No laboratories found"
-                    disabled={isLoading || !!error}
-                    clearable={false}
-                    renderOption={(option) => (
-                        <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{option.label}</span>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Building2 className="h-3 w-3" />
-                                <span>{(option.data?.affiliation_name as string) || ''}</span>
-                            </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                            <Label htmlFor="msl-scientific-domain-filter" className="text-xs text-muted-foreground">
+                                Scientific domain
+                            </Label>
+                            <select
+                                id="msl-scientific-domain-filter"
+                                value={scientificDomain}
+                                onChange={(event) => setScientificDomain(event.target.value)}
+                                disabled={isLoading || !!error}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value={ALL_FILTER_VALUE}>All scientific domains</option>
+                                {scientificDomains.map((domain) => (
+                                    <option key={domain} value={domain}>
+                                        {domain}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                    )}
-                />
-            </div>
+                        <div className="space-y-1">
+                            <Label htmlFor="msl-country-filter" className="text-xs text-muted-foreground">
+                                Country
+                            </Label>
+                            <select
+                                id="msl-country-filter"
+                                value={country}
+                                onChange={(event) => setCountry(event.target.value)}
+                                disabled={isLoading || !!error}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value={ALL_FILTER_VALUE}>All countries</option>
+                                {countries.map((countryName) => (
+                                    <option key={countryName} value={countryName}>
+                                        {countryName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
 
-            {/* Loading Skeleton */}
+                    <Combobox
+                        id="msl-laboratory-search"
+                        options={comboboxOptions}
+                        onChange={handleSelectLaboratory}
+                        placeholder="Search by laboratory, institution, domain, country, or identifier"
+                        searchPlaceholder="Search laboratories..."
+                        emptyMessage="No laboratories match the current search and filters"
+                        disabled={isLoading || !!error}
+                        clearable={false}
+                        renderOption={(option) => {
+                            const laboratory = option.data?.laboratory as MSLLaboratoryVocabularyEntry;
+
+                            return (
+                                <div className="min-w-0 space-y-1">
+                                    <span className="block font-medium">{laboratory.display_name}</span>
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Building2 className="h-3 w-3" aria-hidden="true" />
+                                        <span>{laboratory.affiliation_name}</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        <Badge variant="secondary" className="text-[0.7rem]">
+                                            {laboratory.scientific_domain}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-[0.7rem]">
+                                            {laboratory.country}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            );
+                        }}
+                    />
+                </div>
+            )}
+
             {isLoading && selectedLaboratories.length === 0 && (
                 <div className="space-y-3">
                     <Skeleton className="h-32 w-full" />
                 </div>
             )}
 
-            {/* Selected Laboratories */}
             {selectedLaboratories.length > 0 && (
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-base font-semibold">Selected Laboratories ({selectedLaboratories.length})</Label>
-                    </div>
+                    <Label className="text-base font-semibold">Selected Laboratories ({selectedLaboratories.length})</Label>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                        {selectedLaboratories.map((lab) => (
-                            <Card key={lab.identifier} className="p-4">
-                                <div className="space-y-3">
-                                    {/* Laboratory Name with Remove Button */}
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h4 className="text-base leading-tight font-semibold">🔬 {lab.name}</h4>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleRemoveLaboratory(lab.identifier)}
-                                            className="h-8 w-8 p-0"
-                                            aria-label={`Remove ${lab.name}`}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
+                        {selectedLaboratories.map((selection) => {
+                            const currentEntry = vocabularyByIdentifier.get(selection.identifier);
+                            const laboratory = currentEntry ? { ...currentEntry, ...selection } : selection;
+                            const rorUrl = getValidRorUrl(selection.affiliation_ror);
+                            const isHistorical = laboratories !== null && !currentEntry;
 
-                                    {/* Affiliation Name */}
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                        <Building2 className="h-4 w-4 flex-shrink-0" />
-                                        <span>{lab.affiliation_name}</span>
-                                    </div>
-
-                                    {/* ROR Badge */}
-                                    {lab.affiliation_ror ? (
-                                        <a href={lab.affiliation_ror} target="_blank" rel="noopener noreferrer" className="inline-flex">
-                                            <Badge
-                                                variant="outline"
-                                                className="cursor-pointer text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+                            return (
+                                <Card key={selection.identifier} className="p-4">
+                                    <div className="space-y-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <h4 className="text-base leading-tight font-semibold">{currentEntry?.display_name ?? laboratory.name}</h4>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleRemoveLaboratory(selection.identifier)}
+                                                className="h-8 w-8 p-0"
+                                                aria-label={`Remove ${currentEntry?.display_name ?? selection.name} (${selection.identifier})`}
                                             >
-                                                🏛️ ROR: {extractRorId(lab.affiliation_ror)}
+                                                <X className="h-4 w-4" aria-hidden="true" />
+                                            </Button>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Building2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                                            <span>{laboratory.affiliation_name || 'Affiliation not available'}</span>
+                                        </div>
+
+                                        {currentEntry && (
+                                            <div className="flex flex-wrap gap-2">
+                                                <Badge variant="secondary">
+                                                    <Microscope className="mr-1 h-3 w-3" aria-hidden="true" />
+                                                    {currentEntry.scientific_domain}
+                                                </Badge>
+                                                <Badge variant="outline">
+                                                    <Globe2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                                                    {currentEntry.country}
+                                                </Badge>
+                                            </div>
+                                        )}
+
+                                        {rorUrl ? (
+                                            <a href={rorUrl} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="cursor-pointer text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+                                                >
+                                                    ROR: {extractRorId(rorUrl)}
+                                                </Badge>
+                                            </a>
+                                        ) : (
+                                            <Badge variant="outline" className="text-xs opacity-60">
+                                                No valid ROR ID available
                                             </Badge>
-                                        </a>
-                                    ) : (
-                                        <Badge variant="outline" className="cursor-not-allowed text-xs opacity-50">
-                                            ⚠️ No ROR ID available
-                                        </Badge>
-                                    )}
-                                </div>
-                            </Card>
-                        ))}
+                                        )}
+
+                                        {isHistorical && (
+                                            <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                                                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                                                <span>Not present in the current MSL vocabulary</span>
+                                            </div>
+                                        )}
+
+                                        <p className="text-xs break-all text-muted-foreground">
+                                            Lab ID: <code>{selection.identifier}</code>
+                                        </p>
+                                    </div>
+                                </Card>
+                            );
+                        })}
                     </div>
                 </div>
             )}
 
-            {/* Empty State */}
             {!isLoading && !error && selectedLaboratories.length === 0 && (
                 <div className="rounded-lg border border-dashed p-8 text-center">
-                    <p className="text-sm text-muted-foreground">No laboratories selected yet. Use the search above to add laboratories.</p>
+                    <p className="text-sm text-muted-foreground">No laboratories selected yet.</p>
                 </div>
             )}
         </div>

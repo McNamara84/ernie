@@ -4,6 +4,10 @@
         "date": "2026-07-13",
         "features": [
             {
+                "title": "Versioned Multi-Scale Laboratories Vocabulary",
+                "description": "Originating Multi-Scale Laboratories now use a validated local vocabulary that administrators and group leaders can update from Editor Settings. ERNIE automatically discovers the newest stable Utrecht University release, exposes the vocabulary to ELMO through a dedicated API-key-protected endpoint, and offers richer laboratory search, domain and country filters, safer exact keyword triggers, and reliable save/reload handling for current and historical laboratory selections."
+            },
+            {
                 "title": "Legacy Resource Import by Datacenter",
                 "description": "Admins and Group Leaders can now import legacy resources for one current GFZ Data Services portal datacenter from the Resources page. Published assignments come from the portal facet, while matching pending SUMARIO resources continue to use the legacy databases, DOI rules, and the established general-GFZ fallback. Portal assignments are applied to newly imported resources only. Existing ERNIE resources are not overwritten and retain their datacenter assignments, but they may still be enriched with missing legacy download links or an external landing page URL from DataCite."
             },

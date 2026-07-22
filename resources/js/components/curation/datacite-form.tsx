@@ -13,6 +13,7 @@ import {
 } from '@/components/curation/related-items-section-copy';
 import { AccordionSectionHeader, SectionHelpAction } from '@/components/curation/section-header';
 import { mapBackendErrors, type MappedError } from '@/components/curation/utils/error-field-mapper';
+import { hasMslLaboratoryTrigger } from '@/components/curation/utils/msl-laboratories';
 import { scheduleScrollToError } from '@/components/curation/utils/scroll-to-error';
 import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
@@ -501,13 +502,7 @@ export default function DataCiteForm({
             (keyword) => typeof keyword.scheme === 'string' && getVocabularyTypeFromScheme(keyword.scheme) === 'msl',
         );
 
-        if (initialFreeKeywords && initialFreeKeywords.length > 0) {
-            const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
-            const hasInitialTriggers = initialFreeKeywords.some((keyword) => triggers.some((trigger) => keyword.toLowerCase().includes(trigger)));
-            hasInitialMslTriggers.current = hasInitialTriggers || hasInitialControlledMslKeywords;
-        } else {
-            hasInitialMslTriggers.current = hasInitialControlledMslKeywords;
-        }
+        hasInitialMslTriggers.current = hasMslLaboratoryTrigger(initialFreeKeywords ?? [], hasInitialControlledMslKeywords);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<SpatialTemporalCoverageEntry[]>(() => {
@@ -829,6 +824,7 @@ export default function DataCiteForm({
         gemet: boolean;
         analytical_methods: boolean;
         euroscivoc: boolean;
+        msl_laboratories: boolean;
     }>({
         science_keywords: true,
         platforms: true,
@@ -837,6 +833,7 @@ export default function DataCiteForm({
         gemet: true,
         analytical_methods: true,
         euroscivoc: true,
+        msl_laboratories: true,
     });
     const [pid4instAvailability, setPid4instAvailability] = useState<'checking' | 'available' | 'unavailable'>('checking');
 
@@ -893,6 +890,7 @@ export default function DataCiteForm({
                     gemet: true,
                     analytical_methods: true,
                     euroscivoc: true,
+                    msl_laboratories: true,
                 };
                 try {
                     const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
@@ -906,6 +904,7 @@ export default function DataCiteForm({
                             gemet: availabilityData.gemet?.available ?? true,
                             analytical_methods: availabilityData.analytical_methods?.available ?? true,
                             euroscivoc: availabilityData.euroscivoc?.available ?? true,
+                            msl_laboratories: availabilityData.msl_laboratories?.available ?? true,
                         };
                         setThesauriAvailability(availability);
                     }
@@ -1012,18 +1011,19 @@ export default function DataCiteForm({
         return gcmdKeywords.some((kw) => getVocabularyTypeFromScheme(kw.scheme) === 'msl');
     }, [gcmdKeywords]);
 
-    // Check if MSL section should be shown based on Free Keywords or selected MSL controlled keywords
-    const shouldShowMSLSection = useMemo(() => {
-        const keywords = freeKeywords.map((k) => k.value.toLowerCase());
-        const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
-
-        return hasMslControlledKeywords || keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
+    const hasMslTrigger = useMemo(() => {
+        return hasMslLaboratoryTrigger(
+            freeKeywords.map((keyword) => keyword.value),
+            hasMslControlledKeywords,
+        );
     }, [freeKeywords, hasMslControlledKeywords]);
+
+    const shouldShowMslLaboratoriesSection = (thesauriAvailability.msl_laboratories && hasMslTrigger) || mslLaboratories.length > 0;
 
     const visibleAccordionItemValues = useMemo<CurationAccordionItemValue[]>(() => {
         return CURATION_ACCORDION_ITEM_VALUES.filter((value) => {
             if (value === 'msl-laboratories') {
-                return shouldShowMSLSection;
+                return shouldShowMslLaboratoriesSection;
             }
 
             if (value === 'used-instruments') {
@@ -1032,7 +1032,7 @@ export default function DataCiteForm({
 
             return true;
         });
-    }, [shouldShowMSLSection, shouldShowUsedInstrumentsSection]);
+    }, [shouldShowMslLaboratoriesSection, shouldShowUsedInstrumentsSection]);
 
     const visibleOpenAccordionItems = useMemo(
         () => normalizeAccordionItems(openAccordionItems, visibleAccordionItemValues),
@@ -1130,9 +1130,9 @@ export default function DataCiteForm({
         };
     }, []);
 
-    // Load MSL vocabulary when MSL section becomes visible
+    // Load the controlled MSL keyword vocabulary when an MSL trigger is present.
     useEffect(() => {
-        if (shouldShowMSLSection && gcmdVocabularies.msl.length === 0) {
+        if (hasMslTrigger && gcmdVocabularies.msl.length === 0) {
             const loadMslVocabulary = async () => {
                 try {
                     const response = await fetch('/vocabularies/msl');
@@ -1159,7 +1159,7 @@ export default function DataCiteForm({
 
             void loadMslVocabulary();
         }
-    }, [shouldShowMSLSection, gcmdVocabularies.msl.length]);
+    }, [hasMslTrigger, gcmdVocabularies.msl.length]);
 
     // Automatically open MSL section when it becomes visible
     // Also notify user with toast, scroll to section, and switch to MSL tab
@@ -1167,11 +1167,11 @@ export default function DataCiteForm({
         // Track if component is still mounted for async operations
         let isMounted = true;
 
-        if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
+        if (shouldShowMslLaboratoriesSection && !openAccordionItems.includes('msl-laboratories')) {
             updateOpenAccordionItems((prev) => [...prev, 'msl-laboratories'], { persist: false });
 
             // Only notify if this is NOT an initial data load and we haven't notified yet
-            if (!hasInitialMslTriggers.current && !hasNotifiedMslUnlock.current) {
+            if (hasMslTrigger && !hasInitialMslTriggers.current && !hasNotifiedMslUnlock.current) {
                 hasNotifiedMslUnlock.current = true;
 
                 // Show toast notification
@@ -1208,7 +1208,7 @@ export default function DataCiteForm({
                     }, 500);
                 }, 300);
             }
-        } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
+        } else if (!shouldShowMslLaboratoriesSection && openAccordionItems.includes('msl-laboratories')) {
             updateOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'), { persist: false });
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
@@ -1226,11 +1226,11 @@ export default function DataCiteForm({
                 mslAnimationTimeoutRef.current = null;
             }
         };
-    }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl, updateOpenAccordionItems]);
+    }, [hasMslTrigger, shouldShowMslLaboratoriesSection, openAccordionItems, setShouldAutoSwitchToMsl, updateOpenAccordionItems]);
 
     // MSL validation info - show recommendation when section is visible but no laboratories selected
     const mslValidationInfo = useMemo(() => {
-        if (!shouldShowMSLSection) {
+        if (!hasMslTrigger || !thesauriAvailability.msl_laboratories) {
             return null; // Section not visible, no validation needed
         }
 
@@ -1243,7 +1243,7 @@ export default function DataCiteForm({
         }
 
         return null; // Laboratories are selected, all good
-    }, [shouldShowMSLSection, mslLaboratories.length]);
+    }, [hasMslTrigger, mslLaboratories.length, thesauriAvailability.msl_laboratories]);
 
     const contributorPersonRoleNames = useMemo(() => contributorPersonRoles.map((role) => role.name), [contributorPersonRoles]);
     const contributorInstitutionRoleNames = useMemo(() => contributorInstitutionRoles.map((role) => role.name), [contributorInstitutionRoles]);
@@ -1584,17 +1584,12 @@ export default function DataCiteForm({
     }, [freeKeywords]);
 
     const mslLaboratoriesStatus = useMemo(() => {
-        // MSL section only relevant if EPOS/MSL keywords present
-        if (!shouldShowMSLSection) {
-            return 'optional-empty'; // Section hidden, not relevant
-        }
-
         if (mslLaboratories.length === 0) {
-            return 'invalid'; // Show info message (recommendation)
+            return 'optional-empty';
         }
 
         return 'valid';
-    }, [shouldShowMSLSection, mslLaboratories.length]);
+    }, [mslLaboratories.length]);
 
     const spatialTemporalCoverageStatus = useMemo(() => {
         // Spatial/temporal coverage is optional
@@ -3294,7 +3289,7 @@ export default function DataCiteForm({
                                 euroscivocVocabulary={gcmdVocabularies.euroscivoc}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
-                                showMslTab={shouldShowMSLSection}
+                                showMslTab={hasMslTrigger}
                                 showChronostratTab={thesauriAvailability.chronostratigraphy}
                                 showGemetTab={thesauriAvailability.gemet}
                                 showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
@@ -3321,7 +3316,7 @@ export default function DataCiteForm({
                         <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
                     </AccordionContent>
                 </AccordionItem>
-                {shouldShowMSLSection && (
+                {shouldShowMslLaboratoriesSection && (
                     <AccordionItem value="msl-laboratories">
                         <AccordionTrigger
                             className={SECTION_TRIGGER_CLASS_NAME}
@@ -3333,14 +3328,17 @@ export default function DataCiteForm({
                             <AccordionSectionHeader
                                 label="Originating Multi-Scale Laboratories"
                                 description="Select associated EPOS/MSL laboratories."
-                                counter={{ current: mslLaboratories.length, max: 20 }}
                                 badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>}
                                 status={renderStatusBadge(mslLaboratoriesStatus)}
                             />
                         </AccordionTrigger>
                         <AccordionContent>
                             {mslValidationInfo && <ValidationAlert severity="info" title="Recommendation" messages={[mslValidationInfo.message]} />}
-                            <MSLLaboratoriesField selectedLaboratories={mslLaboratories} onChange={setMslLaboratories} />
+                            <MSLLaboratoriesField
+                                selectedLaboratories={mslLaboratories}
+                                onChange={setMslLaboratories}
+                                isVocabularyAvailable={thesauriAvailability.msl_laboratories}
+                            />
                         </AccordionContent>
                     </AccordionItem>
                 )}

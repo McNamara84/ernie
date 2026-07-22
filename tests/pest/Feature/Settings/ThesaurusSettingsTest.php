@@ -9,6 +9,7 @@ use App\Models\Right;
 use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\ThesaurusStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -59,7 +60,7 @@ describe('ThesaurusSettingsController', function () {
         $this->actingAs($admin)
             ->getJson('/thesauri')
             ->assertOk()
-            ->assertJsonCount(7)
+            ->assertJsonCount(8)
             ->assertJsonFragment([
                 'type' => 'science_keywords',
                 'displayName' => 'Science Keywords',
@@ -83,6 +84,36 @@ describe('ThesaurusSettingsController', function () {
             ->postJson('/thesauri/science_keywords/update')
             ->assertOk()
             ->assertJsonStructure(['jobId', 'message']);
+    });
+
+    test('MSL update checks expose version and change reason fields', function () {
+        $status = Mockery::mock(ThesaurusStatusService::class);
+        $status->shouldReceive('compareWithRemote')->once()->andReturn([
+            'localCount' => 119,
+            'remoteCount' => 119,
+            'updateAvailable' => true,
+            'lastUpdated' => '2026-07-20T12:00:00+00:00',
+            'localVersion' => '1.1',
+            'remoteVersion' => '1.2',
+            'localSha' => 'old-sha',
+            'remoteSha' => 'new-sha',
+            'updateReason' => 'new_version',
+        ]);
+        $this->app->instance(ThesaurusStatusService::class, $status);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->postJson('/thesauri/msl_laboratories/check')
+            ->assertOk()
+            ->assertJson([
+                'type' => 'msl_laboratories',
+                'localCount' => 119,
+                'remoteCount' => 119,
+                'updateAvailable' => true,
+                'localVersion' => '1.1',
+                'remoteVersion' => '1.2',
+                'reason' => 'new_version',
+            ]);
     });
 
     test('admins can poll update status', function () {
@@ -220,12 +251,13 @@ describe('EditorSettings with Thesauri', function () {
         $response = $this->get(route('settings'));
 
         $response->assertInertia(fn ($assert) => $assert
-            ->has('thesauri', 7)
+            ->has('thesauri', 8)
             ->where('thesauri', fn ($thesauri) => $thesauri->contains('type', 'science_keywords')
                 && $thesauri->contains('type', 'chronostratigraphy')
                 && $thesauri->contains('type', 'gemet')
                 && $thesauri->contains('type', 'analytical_methods')
-                && $thesauri->contains('type', 'euroscivoc'))
+                && $thesauri->contains('type', 'euroscivoc')
+                && $thesauri->contains('type', 'msl_laboratories'))
         );
     });
 
@@ -294,6 +326,7 @@ describe('EditorSettings with Thesauri', function () {
                 ['type' => 'science_keywords', 'isActive' => false, 'isElmoActive' => true],
                 ['type' => 'platforms', 'isActive' => true, 'isElmoActive' => true],
                 ['type' => 'instruments', 'isActive' => true, 'isElmoActive' => false],
+                ['type' => 'msl_laboratories', 'isActive' => false, 'isElmoActive' => true],
             ],
         ])->assertRedirect();
 
@@ -311,6 +344,11 @@ describe('EditorSettings with Thesauri', function () {
             'type' => 'instruments',
             'is_active' => true,
             'is_elmo_active' => false,
+        ]);
+        $this->assertDatabaseHas('thesaurus_settings', [
+            'type' => 'msl_laboratories',
+            'is_active' => false,
+            'is_elmo_active' => true,
         ]);
     });
 });

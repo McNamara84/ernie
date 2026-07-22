@@ -10,6 +10,7 @@ use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
 use App\Models\PidSetting;
 use App\Models\ThesaurusSetting;
+use App\Services\MslLaboratoryVocabularyService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +21,8 @@ class VocabularyController extends Controller
      * Create a new controller instance.
      */
     public function __construct(
-        private readonly VocabularyCacheService $cacheService
+        private readonly VocabularyCacheService $cacheService,
+        private readonly MslLaboratoryVocabularyService $mslLaboratoryVocabularyService
     ) {}
 
     /**
@@ -84,6 +86,32 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return the locally stored MSL laboratories vocabulary.
+     */
+    public function mslLaboratories(): JsonResponse
+    {
+        if (! $this->isThesaurusActive(ThesaurusSetting::TYPE_MSL_LABORATORIES)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
+        try {
+            $payload = $this->mslLaboratoryVocabularyService->getPublicPayload();
+
+            if ($payload === null) {
+                return response()->json([
+                    'error' => 'Vocabulary file not found. Please run: php artisan get-msl-laboratories',
+                ], 404);
+            }
+
+            return response()->json($payload);
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'error' => $exception->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Generic method to retrieve a cached vocabulary file.
      */
     private function getCachedVocabulary(
@@ -142,12 +170,24 @@ class VocabularyController extends Controller
     {
         $isElmo = $this->isElmoRequest();
 
-        $thesauri = ThesaurusSetting::all()->mapWithKeys(fn (ThesaurusSetting $t) => [
-            $t->type => [
-                'available' => $isElmo ? $t->is_elmo_active : $t->is_active,
-                'displayName' => $t->display_name,
-            ],
-        ]);
+        $thesauri = ThesaurusSetting::all()->mapWithKeys(function (ThesaurusSetting $setting) use ($isElmo): array {
+            $available = $isElmo ? $setting->is_elmo_active : $setting->is_active;
+
+            if ($available && $setting->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
+                try {
+                    $available = $this->mslLaboratoryVocabularyService->getLocalPayload() !== null;
+                } catch (\RuntimeException) {
+                    $available = false;
+                }
+            }
+
+            return [
+                $setting->type => [
+                    'available' => $available,
+                    'displayName' => $setting->display_name,
+                ],
+            ];
+        });
 
         return response()->json($thesauri);
     }

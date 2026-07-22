@@ -122,6 +122,7 @@ export {
 // Resource Schemas
 // =============================================================================
 
+export { mslLaboratoriesResponseSchema, mslLaboratoryVocabularyEntrySchema } from './msl-laboratory.schema';
 export {
     type DateEntryFormData,
     dateEntrySchema,

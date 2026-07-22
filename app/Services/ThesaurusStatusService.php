@@ -23,15 +23,30 @@ use Illuminate\Support\Facades\Storage;
 class ThesaurusStatusService
 {
     use ChecksCacheTagging;
+
     private const NASA_KMS_BASE_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/';
+
+    public function __construct(
+        private readonly ?MslLaboratoryVocabularyService $mslLaboratories = null
+    ) {}
 
     /**
      * Get the local status of a thesaurus (from stored JSON file).
      *
-     * @return array{exists: bool, conceptCount: int, lastUpdated: string|null}
+     * @return array{
+     *     exists: bool,
+     *     conceptCount: int,
+     *     lastUpdated: string|null,
+     *     version?: string|null,
+     *     sourceSha?: string|null
+     * }
      */
     public function getLocalStatus(ThesaurusSetting $thesaurus): array
     {
+        if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
+            return $this->getMslLaboratoriesLocalStatus();
+        }
+
         $filePath = $thesaurus->getFilePath();
 
         if (! Storage::exists($filePath)) {
@@ -83,6 +98,10 @@ class ThesaurusStatusService
      */
     public function getRemoteConceptCount(ThesaurusSetting $thesaurus): int
     {
+        if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
+            return (int) $this->mslLaboratories()->fetchLatest()['total'];
+        }
+
         if ($thesaurus->isGcmd()) {
             return $this->getGcmdRemoteCount($thesaurus);
         }
@@ -179,12 +198,26 @@ class ThesaurusStatusService
      * NASA GCMD thesaurus. We don't trigger updates when remote < local because
      * concept deletions in NASA's vocabulary are rare and may indicate API issues.
      *
-     * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null}
+     * @return array{
+     *     localCount: int,
+     *     remoteCount: int,
+     *     updateAvailable: bool,
+     *     lastUpdated: string|null,
+     *     localVersion?: string|null,
+     *     remoteVersion?: string,
+     *     localSha?: string|null,
+     *     remoteSha?: string,
+     *     updateReason?: string|null
+     * }
      *
      * @throws \RuntimeException If the API request fails
      */
     public function compareWithRemote(ThesaurusSetting $thesaurus): array
     {
+        if ($thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
+            return $this->compareMslLaboratoriesWithRemote();
+        }
+
         $localStatus = $this->getLocalStatus($thesaurus);
         $remoteCount = $this->getRemoteConceptCount($thesaurus);
 
@@ -194,6 +227,89 @@ class ThesaurusStatusService
             'updateAvailable' => $remoteCount > $localStatus['conceptCount'],
             'lastUpdated' => $localStatus['lastUpdated'],
         ];
+    }
+
+    /**
+     * @return array{
+     *     exists: bool,
+     *     conceptCount: int,
+     *     lastUpdated: string|null,
+     *     version: string|null,
+     *     sourceSha: string|null
+     * }
+     */
+    private function getMslLaboratoriesLocalStatus(): array
+    {
+        try {
+            $payload = $this->mslLaboratories()->getLocalPayload();
+        } catch (\RuntimeException) {
+            $payload = null;
+        }
+
+        if ($payload === null) {
+            return [
+                'exists' => false,
+                'conceptCount' => 0,
+                'lastUpdated' => null,
+                'version' => null,
+                'sourceSha' => null,
+            ];
+        }
+
+        return [
+            'exists' => true,
+            'conceptCount' => (int) $payload['total'],
+            'lastUpdated' => (string) $payload['lastUpdated'],
+            'version' => (string) $payload['version'],
+            'sourceSha' => (string) $payload['source']['sha'],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     localCount: int,
+     *     remoteCount: int,
+     *     updateAvailable: bool,
+     *     lastUpdated: string|null,
+     *     localVersion: string|null,
+     *     remoteVersion: string,
+     *     localSha: string|null,
+     *     remoteSha: string,
+     *     updateReason: string|null
+     * }
+     */
+    private function compareMslLaboratoriesWithRemote(): array
+    {
+        $local = $this->getMslLaboratoriesLocalStatus();
+        $remote = $this->mslLaboratories()->fetchLatest();
+        $remoteVersion = (string) $remote['version'];
+        $remoteSha = (string) $remote['source']['sha'];
+        $reason = null;
+
+        if (! $local['exists']) {
+            $reason = 'missing_local';
+        } elseif ($local['version'] !== $remoteVersion) {
+            $reason = 'new_version';
+        } elseif ($local['sourceSha'] !== $remoteSha) {
+            $reason = 'content_changed';
+        }
+
+        return [
+            'localCount' => $local['conceptCount'],
+            'remoteCount' => (int) $remote['total'],
+            'updateAvailable' => $reason !== null,
+            'lastUpdated' => $local['lastUpdated'],
+            'localVersion' => $local['version'],
+            'remoteVersion' => $remoteVersion,
+            'localSha' => $local['sourceSha'],
+            'remoteSha' => $remoteSha,
+            'updateReason' => $reason,
+        ];
+    }
+
+    private function mslLaboratories(): MslLaboratoryVocabularyService
+    {
+        return $this->mslLaboratories ?? app(MslLaboratoryVocabularyService::class);
     }
 
     /**

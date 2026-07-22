@@ -119,6 +119,7 @@ describe('DataCiteForm', () => {
         gemet: { available: true },
         analytical_methods: { available: true },
         euroscivoc: { available: true },
+        msl_laboratories: { available: true },
     };
     const citationVocabulariesResponse = {
         resourceTypes: [],
@@ -145,6 +146,17 @@ describe('DataCiteForm', () => {
 
         if (/\/resources\/\d+\/related-items(?:\/.*)?$/.test(url)) {
             return Promise.resolve(createJsonResponse({ data: [] }));
+        }
+
+        if (url.includes('/vocabularies/msl-laboratories')) {
+            return Promise.resolve(
+                createJsonResponse({
+                    version: '1.1',
+                    lastUpdated: '2026-07-21T12:00:00+00:00',
+                    total: 0,
+                    data: [],
+                }),
+            );
         }
 
         if (url.includes('/vocabularies/msl')) {
@@ -2907,6 +2919,73 @@ describe('DataCiteForm', () => {
         expect(toast.success).toHaveBeenCalledWith('Resource stored!');
     });
 
+    it('submits more than twenty historical MSL laboratories while the vocabulary is disabled', { timeout: 60000 }, async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const historicalLaboratories = Array.from({ length: 21 }, (_, index) => ({
+            identifier: `historical-lab-${index + 1}`,
+            name: `Historical Laboratory ${index + 1}`,
+            affiliation_name: `Historical Institution ${index + 1}`,
+            affiliation_ror: null,
+        }));
+
+        global.fetch = vi.fn((input: RequestInfo | URL) => {
+            const url = input.toString();
+            if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+                return Promise.resolve(
+                    createJsonResponse({
+                        ...thesauriAvailabilityResponse,
+                        msl_laboratories: { available: false },
+                    }),
+                );
+            }
+
+            return createDefaultFetchResponse(url);
+        });
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({
+            data: { message: 'Resource stored!' },
+            status: 200,
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Historical MSL Dataset', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                availableDatacenters={availableDatacenters}
+                initialDatacenters={[1]}
+                initialMslLaboratories={historicalLaboratories}
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Laboratory vocabulary unavailable')).toBeInTheDocument();
+            expect(screen.getByText('Selected Laboratories (21)')).toBeInTheDocument();
+        });
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
+        await user.click(screen.getByRole('button', { name: /save & validate/i }));
+
+        const saveCall = getSaveAxiosCall();
+        expect(saveCall).toBeDefined();
+        const body = JSON.parse((saveCall![1] as RequestInit).body as string);
+
+        expect(body.mslLaboratories).toEqual(historicalLaboratories);
+        expect(body.mslLaboratories).toHaveLength(21);
+    });
+
     it('submits user-entered custom licenses in the payload', { timeout: 60000 }, async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -4481,7 +4560,7 @@ describe('DataCiteForm', () => {
             });
         });
 
-        it('should show toast notification when MSL keyword is added', async () => {
+        it('should not unlock the section for the old free-keyword alias MSL', async () => {
             const { toast } = await import('sonner');
 
             render(
@@ -4516,9 +4595,9 @@ describe('DataCiteForm', () => {
                 tagify.addTags(['MSL'], true, false);
             });
 
-            // Wait for toast notification
             await waitFor(() => {
-                expect(toast.info).toHaveBeenCalled();
+                expect(toast.info).not.toHaveBeenCalled();
+                expect(screen.queryByText(/Originating Multi-Scale Laboratories/i)).not.toBeInTheDocument();
             });
         });
 
@@ -4622,6 +4701,132 @@ describe('DataCiteForm', () => {
             await waitFor(() => {
                 const matches = screen.getAllByText(/Originating Multi-Scale Laboratories/i);
                 expect(matches.length).toBeGreaterThan(0);
+            });
+        });
+
+        it('accepts exact free keywords after trimming and case normalization', async () => {
+            const { toast } = await import('sonner');
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            await ensureFreeKeywordsOpen(user);
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            await act(async () => {
+                tagify.addTags(['  ePoS  '], true, false);
+            });
+
+            await waitFor(() => {
+                expect(screen.getAllByText(/Originating Multi-Scale Laboratories/i).length).toBeGreaterThan(0);
+            });
+            expect(toast.info).toHaveBeenCalledTimes(1);
+        });
+
+        it.each(['depositional', 'MSL', 'Multi Scale Laboratories', 'EPOS dataset'])(
+            'does not unlock laboratories for the non-exact free keyword %s',
+            async (keyword) => {
+                render(
+                    <DataCiteForm
+                        resourceTypes={resourceTypes}
+                        titleTypes={titleTypes}
+                        dateTypes={dateTypes}
+                        licenses={licenses}
+                        languages={languages}
+                        contributorPersonRoles={contributorPersonRoles}
+                        contributorInstitutionRoles={contributorInstitutionRoles}
+                        authorRoles={authorRoles}
+                        descriptionTypes={descriptionTypes}
+                        googleMapsApiKey="test-api-key"
+                        initialFreeKeywords={[keyword]}
+                    />,
+                );
+
+                await waitFor(() => {
+                    expect(screen.queryByText(/Originating Multi-Scale Laboratories/i)).not.toBeInTheDocument();
+                });
+            },
+        );
+
+        it('keeps an existing laboratory visible without a trigger and while the vocabulary is disabled', async () => {
+            global.fetch = vi.fn((input: RequestInfo | URL) => {
+                const url = input.toString();
+                if (url.includes('/api/v1/vocabularies/thesauri-availability')) {
+                    return Promise.resolve(
+                        createJsonResponse({
+                            ...thesauriAvailabilityResponse,
+                            msl_laboratories: { available: false },
+                        }),
+                    );
+                }
+
+                return createDefaultFetchResponse(url);
+            });
+
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialMslLaboratories={[
+                        {
+                            identifier: 'historic-lab',
+                            name: 'Historic Laboratory',
+                            affiliation_name: 'Historic Institution',
+                            affiliation_ror: null,
+                        },
+                    ]}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByText('Historic Laboratory')).toBeInTheDocument();
+            });
+            expect(screen.getByText('Laboratory vocabulary unavailable')).toBeInTheDocument();
+            expect(screen.queryByText('Add Laboratory')).not.toBeInTheDocument();
+        });
+
+        it('treats an empty triggered laboratory section as optional and has no artificial maximum', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialFreeKeywords={['EPOS']}
+                />,
+            );
+
+            await waitFor(() => {
+                const trigger = getAccordionTrigger(/Originating Multi-Scale Laboratories/i);
+                expect(within(trigger).getByLabelText('Optional section')).toBeInTheDocument();
+                expect(within(trigger).queryByText(/\/ 20/)).not.toBeInTheDocument();
             });
         });
 
@@ -4809,6 +5014,46 @@ describe('DataCiteForm', () => {
             // MSL section should disappear
             await waitFor(() => {
                 expect(screen.queryByText(/Originating Multi-Scale Laboratories/i)).not.toBeInTheDocument();
+            });
+        });
+
+        it('does not remove or hide an existing selection when its trigger is removed', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    dateTypes={dateTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    descriptionTypes={descriptionTypes}
+                    googleMapsApiKey="test-api-key"
+                    initialFreeKeywords={['EPOS']}
+                    initialMslLaboratories={[
+                        {
+                            identifier: 'historic-lab',
+                            name: 'Historic Laboratory',
+                            affiliation_name: 'Historic Institution',
+                            affiliation_ror: null,
+                        },
+                    ]}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            await ensureFreeKeywordsOpen(user);
+            const freeKeywordsInput = (await screen.findByTestId('free-keywords-input')) as TagifyEnabledInput;
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            await act(async () => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (tagify as any).removeAllTags();
+            });
+
+            await waitFor(() => {
+                expect(screen.getByText('Historic Laboratory')).toBeInTheDocument();
+                expect(screen.getAllByText(/Originating Multi-Scale Laboratories/i).length).toBeGreaterThan(0);
             });
         });
     });

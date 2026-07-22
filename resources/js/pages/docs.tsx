@@ -353,8 +353,8 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                             </li>
                             <li>
                                 <strong>Thesauri:</strong> Manage GCMD vocabularies (Science Keywords, Platforms, Instruments), ICS
-                                Chronostratigraphy, GEMET, Analytical Methods for Geochemistry and Cosmochemistry, and European Science Vocabulary
-                                (EuroSciVoc)
+                                Chronostratigraphy, GEMET, Analytical Methods for Geochemistry and Cosmochemistry, European Science Vocabulary
+                                (EuroSciVoc), and Multi-Scale Laboratories
                             </li>
                             <li>
                                 <strong>Persistent Identifiers:</strong> Manage PID registries like PID4INST (b2inst) for linking research
@@ -390,6 +390,7 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                         <ul className="list-inside list-disc space-y-1">
                             <li>Enable/disable individual thesauri for ERNIE and/or ELMO</li>
                             <li>Check for updates by comparing local vs. remote counts</li>
+                            <li>For MSL Laboratories, compare the resolved version and source revision even when the item count is unchanged</li>
                             <li>Trigger vocabulary updates with one click</li>
                             <li>Configure the vocabulary version for versioned thesauri (e.g. Analytical Methods)</li>
                         </ul>
@@ -487,6 +488,15 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
 
                         <h4>Update MSL Keywords</h4>
                         <DocsCodeBlock code="php artisan get-msl-keywords" />
+
+                        <h4>Update MSL Laboratories</h4>
+                        <DocsCodeBlock code="php artisan get-msl-laboratories" />
+                        <p className="text-sm text-muted-foreground">
+                            Resolves the newest stable version from the Utrecht University vocabulary repository, validates it, and replaces the
+                            local laboratory vocabulary only after a successful download. Run this command once after the feature is first deployed,
+                            or perform the first update from the Thesauri card in Editor Settings. Until then, the vocabulary is reported as
+                            unavailable even when its ERNIE or ELMO toggle is enabled.
+                        </p>
 
                         <h4>Backfill Related Work Citation Labels</h4>
                         <DocsCodeBlock code="php artisan related-identifiers:hydrate-citation-labels" />
@@ -825,6 +835,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </li>
                             <li>
                                 <code>/api/v1/vocabularies/raid-projects</code> - RAiD research activity identifiers
+                            </li>
+                            <li>
+                                <code>/api/v1/vocabularies/msl-laboratories</code> - Versioned Multi-Scale Laboratories vocabulary
                             </li>
                             <li>
                                 <code>/api/v1/orcid/search</code> – ORCID researcher search
@@ -1283,6 +1296,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <h4>Free Keywords</h4>
                         <p>In addition to controlled vocabularies, you can add free-form keywords for flexible tagging.</p>
+                        <p>
+                            When the exact keyword <code>EPOS</code> or <code>Multi-Scale Laboratories</code> is present, or a controlled MSL keyword
+                            is selected, the optional <strong>Originating Multi-Scale Laboratories</strong> selector becomes available if its
+                            vocabulary is enabled. Laboratories can be searched by identifier, name, affiliation, scientific domain, and country.
+                        </p>
                     </>
                 ),
             },
