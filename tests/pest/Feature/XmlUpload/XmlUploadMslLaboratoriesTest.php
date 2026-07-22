@@ -5,31 +5,47 @@ declare(strict_types=1);
 use App\Http\Controllers\UploadXmlController;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 covers(UploadXmlController::class);
 
 beforeEach(function () {
     Storage::fake('local');
-
-    // Clear MSL laboratory cache between tests so per-test Http::fake responses
-    // are not shadowed by a previous test's cached vocabulary payload.
-    Cache::forget('msl_laboratories');
+    config(['msl.laboratories_storage_path' => 'msl-laboratories.json']);
 
     $this->user = User::factory()->create();
 
-    Http::fake([
-        'raw.githubusercontent.com/*' => Http::response([
+    Storage::put('msl-laboratories.json', json_encode([
+        'version' => '1.2',
+        'lastUpdated' => '2026-07-21T12:00:00+00:00',
+        'total' => 2,
+        'source' => [
+            'repository' => 'UtrechtUniversity/msl_vocabularies',
+            'ref' => 'main',
+            'path' => 'vocabularies/labs/1.2/laboratories.json',
+            'sha' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        ],
+        'data' => [
             [
                 'identifier' => '9ba34c109b827b177aab36e0266b1643',
                 'name' => 'HelTec - Helmholtz Laboratory',
+                'display_name' => 'HelTec - Helmholtz Laboratory — GFZ German Research Centre',
                 'affiliation_name' => 'GFZ German Research Centre',
                 'affiliation_ror' => 'https://ror.org/04z8jg394',
+                'scientific_domain' => 'Geosciences',
+                'country' => 'Germany',
             ],
-        ], 200),
-    ]);
+            [
+                'identifier' => 'testlab123',
+                'name' => 'Test Laboratory',
+                'display_name' => 'Test Laboratory — Test University',
+                'affiliation_name' => 'Test University',
+                'affiliation_ror' => null,
+                'scientific_domain' => 'Materials Science',
+                'country' => 'Netherlands',
+            ],
+        ],
+    ], JSON_THROW_ON_ERROR));
 });
 
 describe('Single MSL laboratory extraction', function () {
@@ -332,17 +348,6 @@ XML;
 
         $file = UploadedFile::fake()->createWithContent('test.xml', $xmlContent);
 
-        Http::fake([
-            'raw.githubusercontent.com/*' => Http::response([
-                [
-                    'identifier' => 'testlab123',
-                    'name' => 'Test Laboratory',
-                    'affiliation_name' => 'Test University',
-                    'affiliation_ror' => 'https://ror.org/test',
-                ],
-            ], 200),
-        ]);
-
         $response = $this->actingAs($this->user)->postJson('/dashboard/upload-xml', [
             'file' => $file,
         ]);
@@ -355,6 +360,38 @@ XML;
             ->and($mslLabs[0]['identifier'])->toBe('testlab123')
             ->and($mslLabs[0]['affiliation_ror'])->toBe('https://ror.org/04z8jg394');
     });
+
+    it('canonicalizes accepted ROR affiliation forms', function (string $input, string $scheme) {
+        $xmlContent = str_replace(['__ROR__', '__SCHEME__'], [$input, $scheme], <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+    <identifier identifierType="DOI">10.1234/test</identifier>
+    <creators><creator><creatorName>Test Author</creatorName></creator></creators>
+    <titles><title>Test Dataset</title></titles>
+    <publisher>Test Publisher</publisher>
+    <publicationYear>2024</publicationYear>
+    <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+    <contributors>
+        <contributor contributorType="HostingInstitution">
+            <contributorName>Test Lab</contributorName>
+            <nameIdentifier nameIdentifierScheme=" LABID ">unknown-test-lab</nameIdentifier>
+            <affiliation affiliationIdentifier="__ROR__" affiliationIdentifierScheme="__SCHEME__">GFZ German Research Centre</affiliation>
+        </contributor>
+    </contributors>
+</resource>
+XML);
+
+        $file = UploadedFile::fake()->createWithContent('test.xml', $xmlContent);
+        $response = $this->actingAs($this->user)->postJson('/dashboard/upload-xml', ['file' => $file]);
+
+        $response->assertOk();
+        expect(getXmlUploadData($response)['mslLaboratories'][0]['affiliation_ror'])
+            ->toBe('https://ror.org/04z8jg394');
+    })->with([
+        'protocol-less URL' => ['ror.org/04z8jg394', 'ROR'],
+        'HTTP URL' => ['http://ror.org/04z8jg394', 'ROR'],
+        'bare identifier and lower-case scheme' => ['04z8jg394', 'ror'],
+    ]);
 });
 
 describe('Vocabulary enrichment', function () {

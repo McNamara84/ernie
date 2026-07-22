@@ -4,107 +4,60 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
+use App\Services\MslLaboratoryVocabularyService;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Provides identifier lookup and upload enrichment from the local MSL vocabulary.
+ *
+ * @phpstan-type Laboratory array{
+ *     identifier: string,
+ *     name: string,
+ *     display_name: string,
+ *     affiliation_name: string,
+ *     affiliation_ror: string|null,
+ *     scientific_domain: string,
+ *     country: string
+ * }
+ */
 class MslLaboratoryService
 {
-    private const CACHE_KEY = 'msl_laboratories';
-
-    private const CACHE_TTL = 86400; // 24 hours
-
-    /**
-     * Get the MSL Laboratories vocabulary URL from config
-     */
-    private function getVocabularyUrl(): string
-    {
-        return config('msl.vocabulary_url');
-    }
-
-    /**
-     * @var array<string, array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}>|null
-     */
+    /** @var array<string, Laboratory>|null */
     private ?array $laboratoriesById = null;
 
-    /**
-     * Load laboratories from GitHub, with caching
-     *
-     * @return array<string, array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}>
-     */
+    public function __construct(
+        private readonly MslLaboratoryVocabularyService $vocabularyService
+    ) {}
+
+    /** @return array<string, Laboratory> */
     private function loadLaboratories(): array
     {
         if ($this->laboratoriesById !== null) {
             return $this->laboratoriesById;
         }
 
-        // Try to get from cache first
-        $cached = Cache::get(self::CACHE_KEY);
-        if (is_array($cached)) {
-            $this->laboratoriesById = $cached;
-
-            return $cached;
-        }
-
-        $vocabularyUrl = $this->getVocabularyUrl();
-
         try {
-            $response = Http::timeout(10)->get($vocabularyUrl);
+            $payload = $this->vocabularyService->getLocalPayload();
 
-            if (! $response->successful()) {
-                Log::warning('Failed to fetch MSL laboratories', [
-                    'status' => $response->status(),
-                    'url' => $vocabularyUrl,
-                ]);
+            if ($payload === null) {
+                Log::warning('Local MSL laboratories vocabulary is not available');
                 $this->laboratoriesById = [];
 
                 return [];
             }
 
-            $laboratories = $response->json();
-
-            if ($laboratories === null) {
-                Log::error('MSL laboratories response is not valid JSON', [
-                    'url' => $vocabularyUrl,
-                    'response_body' => $response->body(),
-                ]);
-                $this->laboratoriesById = [];
-
-                return [];
-            }
-
-            if (! is_array($laboratories)) {
-                Log::error('MSL laboratories JSON is not an array');
-                $this->laboratoriesById = [];
-
-                return [];
-            }
-
-            // Index by identifier for fast lookup
             $indexed = [];
-            foreach ($laboratories as $lab) {
-                if (! is_array($lab) || ! isset($lab['identifier'])) {
-                    continue;
-                }
 
-                $indexed[$lab['identifier']] = [
-                    'identifier' => $lab['identifier'],
-                    'name' => $lab['name'] ?? '',
-                    'affiliation_name' => $lab['affiliation_name'] ?? '',
-                    'affiliation_ror' => $lab['affiliation_ror'] ?? '',
-                ];
+            foreach ($payload['data'] as $laboratory) {
+                $indexed[$laboratory['identifier']] = $laboratory;
             }
-
-            // Cache for 24 hours
-            Cache::put(self::CACHE_KEY, $indexed, self::CACHE_TTL);
 
             $this->laboratoriesById = $indexed;
 
             return $indexed;
-        } catch (\Exception $e) {
-            Log::error('Exception while fetching MSL laboratories', [
-                'error' => $e->getMessage(),
-                'url' => $vocabularyUrl,
+        } catch (\Throwable $exception) {
+            Log::error('Failed to load local MSL laboratories vocabulary', [
+                'error' => $exception->getMessage(),
             ]);
             $this->laboratoriesById = [];
 
@@ -112,38 +65,18 @@ class MslLaboratoryService
         }
     }
 
-    /**
-     * Find laboratory by identifier (labid)
-     *
-     * @param  string  $labId  The laboratory identifier
-     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
-     */
+    /** @return Laboratory|null */
     public function findByLabId(string $labId): ?array
     {
-        $laboratories = $this->loadLaboratories();
-
-        return $laboratories[$labId] ?? null;
+        return $this->loadLaboratories()[$labId] ?? null;
     }
 
-    /**
-     * Validate if a labid exists
-     *
-     * @param  string  $labId  The laboratory identifier
-     */
     public function isValidLabId(string $labId): bool
     {
-        $laboratories = $this->loadLaboratories();
-
-        return isset($laboratories[$labId]);
+        return isset($this->loadLaboratories()[$labId]);
     }
 
     /**
-     * Enrich laboratory data with information from the vocabulary
-     *
-     * @param  string  $labId  The laboratory identifier
-     * @param  string|null  $name  Laboratory name from XML (fallback)
-     * @param  string|null  $affiliationName  Affiliation name from XML (fallback)
-     * @param  string|null  $affiliationRor  ROR URL from XML (fallback)
      * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}
      */
     public function enrichLaboratoryData(
@@ -155,7 +88,6 @@ class MslLaboratoryService
         $fromVocabulary = $this->findByLabId($labId);
 
         if ($fromVocabulary === null) {
-            // Lab ID not found in vocabulary, use provided data
             Log::warning('MSL Laboratory ID not found in vocabulary', [
                 'labId' => $labId,
                 'name' => $name,
@@ -169,21 +101,17 @@ class MslLaboratoryService
             ];
         }
 
-        // Use vocabulary data, with XML data as fallback
         return [
             'identifier' => $labId,
             'name' => $fromVocabulary['name'] ?: ($name ?? ''),
             'affiliation_name' => $fromVocabulary['affiliation_name'] ?: ($affiliationName ?? ''),
-            'affiliation_ror' => $fromVocabulary['affiliation_ror'] ?: ($affiliationRor ?? ''),
+            'affiliation_ror' => ($fromVocabulary['affiliation_ror'] ?? '') ?: ($affiliationRor ?? ''),
         ];
     }
 
-    /**
-     * Clear the cached laboratories data
-     */
+    /** Forget the request-local identifier index. */
     public function clearCache(): void
     {
-        Cache::forget(self::CACHE_KEY);
         $this->laboratoriesById = null;
     }
 }

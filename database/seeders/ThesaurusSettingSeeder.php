@@ -11,42 +11,11 @@ class ThesaurusSettingSeeder extends Seeder
 {
     public function run(): void
     {
-        $thesauri = [
-            [
-                'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
-                'display_name' => 'GCMD Science Keywords',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_PLATFORMS,
-                'display_name' => 'GCMD Platforms',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
-                'display_name' => 'GCMD Instruments',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
-                'display_name' => 'ICS Chronostratigraphy',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_GEMET,
-                'display_name' => 'GEMET Thesaurus',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_ANALYTICAL_METHODS,
-                'display_name' => 'Analytical Methods for Geochemistry',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_EUROSCIVOC,
-                'display_name' => 'European Science Vocabulary (EuroSciVoc)',
-            ],
-        ];
-
-        foreach ($thesauri as $thesaurus) {
+        foreach (ThesaurusSetting::definitions() as $type => $displayName) {
             ThesaurusSetting::firstOrCreate(
-                ['type' => $thesaurus['type']],
+                ['type' => $type],
                 [
-                    'display_name' => $thesaurus['display_name'],
+                    'display_name' => $displayName,
                     'is_active' => true,
                     'is_elmo_active' => true,
                 ]

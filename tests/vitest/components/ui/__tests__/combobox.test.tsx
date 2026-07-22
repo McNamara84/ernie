@@ -67,6 +67,28 @@ describe('Combobox', () => {
 
                 expect(onChange).toHaveBeenCalledWith(undefined);
             });
+
+            it('searches optional keywords without changing the stable option value', async () => {
+                const onChange = vi.fn();
+                render(
+                    <Combobox
+                        options={[
+                            {
+                                value: 'opaque-lab-id',
+                                label: 'Rock Laboratory',
+                                keywords: ['Utrecht University', 'Geochemistry', 'Netherlands'],
+                            },
+                        ]}
+                        onChange={onChange}
+                    />,
+                );
+
+                await userEvent.click(screen.getByRole('combobox'));
+                await userEvent.type(screen.getByPlaceholderText('Search...'), 'Utrecht');
+                await userEvent.click(screen.getByRole('option', { name: 'Rock Laboratory' }));
+
+                expect(onChange).toHaveBeenCalledWith('opaque-lab-id');
+            });
         });
 
         describe('clear button', () => {
@@ -116,14 +138,7 @@ describe('Combobox', () => {
                     { value: '4', label: 'Four' },
                     { value: '5', label: 'Five' },
                 ];
-                render(
-                    <Combobox
-                        options={manyOptions}
-                        multiple
-                        values={['1', '2', '3', '4', '5']}
-                        maxDisplayItems={3}
-                    />,
-                );
+                render(<Combobox options={manyOptions} multiple values={['1', '2', '3', '4', '5']} maxDisplayItems={3} />);
                 expect(screen.getByText('+2 more')).toBeInTheDocument();
             });
 
@@ -136,14 +151,7 @@ describe('Combobox', () => {
         describe('interactions', () => {
             it('adds value to selection', async () => {
                 const onValuesChange = vi.fn();
-                render(
-                    <Combobox
-                        options={options}
-                        multiple
-                        values={['apple']}
-                        onValuesChange={onValuesChange}
-                    />,
-                );
+                render(<Combobox options={options} multiple values={['apple']} onValuesChange={onValuesChange} />);
 
                 await userEvent.click(screen.getByRole('combobox'));
                 await userEvent.click(screen.getByText('Banana'));
@@ -153,14 +161,7 @@ describe('Combobox', () => {
 
             it('removes value from selection when clicked again', async () => {
                 const onValuesChange = vi.fn();
-                render(
-                    <Combobox
-                        options={options}
-                        multiple
-                        values={['apple', 'banana']}
-                        onValuesChange={onValuesChange}
-                    />,
-                );
+                render(<Combobox options={options} multiple values={['apple', 'banana']} onValuesChange={onValuesChange} />);
 
                 await userEvent.click(screen.getByRole('combobox'));
                 await userEvent.click(screen.getByRole('option', { name: 'Apple' }));
@@ -170,14 +171,7 @@ describe('Combobox', () => {
 
             it('removes value when badge X is clicked', async () => {
                 const onValuesChange = vi.fn();
-                render(
-                    <Combobox
-                        options={options}
-                        multiple
-                        values={['apple', 'banana']}
-                        onValuesChange={onValuesChange}
-                    />,
-                );
+                render(<Combobox options={options} multiple values={['apple', 'banana']} onValuesChange={onValuesChange} />);
 
                 await userEvent.click(screen.getByLabelText('Remove Apple'));
                 expect(onValuesChange).toHaveBeenCalledWith(['banana']);
@@ -187,15 +181,7 @@ describe('Combobox', () => {
         describe('clear all', () => {
             it('clears all values when clear button is clicked', async () => {
                 const onValuesChange = vi.fn();
-                render(
-                    <Combobox
-                        options={options}
-                        multiple
-                        values={['apple', 'banana']}
-                        onValuesChange={onValuesChange}
-                        clearable
-                    />,
-                );
+                render(<Combobox options={options} multiple values={['apple', 'banana']} onValuesChange={onValuesChange} clearable />);
 
                 await userEvent.click(screen.getByLabelText('Clear selection'));
                 expect(onValuesChange).toHaveBeenCalledWith([]);
@@ -239,9 +225,7 @@ describe('Combobox', () => {
         });
 
         it('renders multiple hidden inputs for multi select', () => {
-            const { container } = render(
-                <Combobox options={options} name="fruits" multiple values={['apple', 'banana']} />,
-            );
+            const { container } = render(<Combobox options={options} name="fruits" multiple values={['apple', 'banana']} />);
             const inputs = container.querySelectorAll('input[type="hidden"]');
             expect(inputs).toHaveLength(2);
             expect(inputs[0]).toHaveAttribute('name', 'fruits[]');
@@ -256,12 +240,7 @@ describe('Combobox', () => {
 
     describe('custom rendering', () => {
         it('uses renderOption for dropdown items', async () => {
-            render(
-                <Combobox
-                    options={options}
-                    renderOption={(opt) => <span data-testid={`custom-${opt.value}`}>{opt.label.toUpperCase()}</span>}
-                />,
-            );
+            render(<Combobox options={options} renderOption={(opt) => <span data-testid={`custom-${opt.value}`}>{opt.label.toUpperCase()}</span>} />);
 
             await userEvent.click(screen.getByRole('combobox'));
             expect(screen.getByTestId('custom-apple')).toHaveTextContent('APPLE');

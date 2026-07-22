@@ -25,6 +25,7 @@ enum CacheKey: string
     case GCMD_PLATFORMS = 'vocabularies:gcmd:platforms';
     case GCMD_PROVIDERS = 'vocabularies:gcmd:providers';
     case MSL_KEYWORDS = 'vocabularies:msl:keywords';
+    case MSL_LABORATORIES = 'vocabularies:msl:laboratories';
     case PID4INST_INSTRUMENTS = 'vocabularies:pid4inst:instruments';
     case RAID_PROJECTS = 'vocabularies:raid:projects';
     case CHRONOSTRAT_TIMESCALE = 'vocabularies:chronostrat:timescale';
@@ -118,6 +119,7 @@ enum CacheKey: string
             self::GCMD_PLATFORMS,
             self::GCMD_PROVIDERS,
             self::MSL_KEYWORDS,
+            self::MSL_LABORATORIES,
             self::PID4INST_INSTRUMENTS,
             self::RAID_PROJECTS,
             self::CHRONOSTRAT_TIMESCALE,
@@ -194,6 +196,7 @@ enum CacheKey: string
             self::GCMD_PLATFORMS,
             self::GCMD_PROVIDERS,
             self::MSL_KEYWORDS,
+            self::MSL_LABORATORIES,
             self::PID4INST_INSTRUMENTS,
             self::RAID_PROJECTS,
             self::CHRONOSTRAT_TIMESCALE,
@@ -277,6 +280,7 @@ enum CacheKey: string
             self::GCMD_PLATFORMS,
             self::GCMD_PROVIDERS,
             self::MSL_KEYWORDS,
+            self::MSL_LABORATORIES,
             self::PID4INST_INSTRUMENTS,
             self::RAID_PROJECTS,
             self::CHRONOSTRAT_TIMESCALE,

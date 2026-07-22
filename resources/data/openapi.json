@@ -725,6 +725,67 @@
                 }
             }
         },
+        "/api/v1/vocabularies/msl-laboratories": {
+            "get": {
+                "tags": ["Vocabularies"],
+                "summary": "Get MSL laboratories vocabulary",
+                "description": "Returns the locally stored Originating Multi-Scale Laboratories vocabulary with version metadata. Each laboratory contains the seven fields from the canonical Utrecht University vocabulary. Internal source and Git SHA metadata are never included. Provide the API key via the `X-API-Key` header.",
+                "security": [
+                    {
+                        "ElmoApiKey": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MSL laboratories vocabulary",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MslLaboratoriesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "description": "Thesaurus is disabled or the local vocabulary file is missing",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Vocabulary file not found. Please run: php artisan get-msl-laboratories"
+                                        }
+                                    },
+                                    "required": ["error"]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "The local vocabulary file is unreadable or corrupted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "The local MSL laboratories vocabulary contains invalid JSON."
+                                        }
+                                    },
+                                    "required": ["error"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vocabularies/chronostrat-timescale": {
             "get": {
                 "tags": ["Vocabularies"],
@@ -1856,6 +1917,99 @@
                         }
                     }
                 }
+            },
+            "MslLaboratoriesResponse": {
+                "type": "object",
+                "description": "Public MSL laboratories vocabulary wrapper. Internal source and Git SHA metadata are excluded.",
+                "additionalProperties": false,
+                "properties": {
+                    "version": {
+                        "type": "string",
+                        "pattern": "^\\d+(?:\\.\\d+)+$",
+                        "description": "Resolved stable vocabulary version",
+                        "example": "1.2"
+                    },
+                    "lastUpdated": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Timestamp when the local vocabulary was last updated",
+                        "example": "2026-07-21T12:00:00+00:00"
+                    },
+                    "total": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Total number of laboratories",
+                        "example": 119
+                    },
+                    "data": {
+                        "type": "array",
+                        "minItems": 1,
+                        "description": "Validated MSL laboratory records",
+                        "items": {
+                            "$ref": "#/components/schemas/MslLaboratory"
+                        }
+                    }
+                },
+                "required": ["version", "lastUpdated", "total", "data"]
+            },
+            "MslLaboratory": {
+                "type": "object",
+                "description": "A laboratory from the canonical Originating Multi-Scale Laboratories vocabulary",
+                "additionalProperties": false,
+                "properties": {
+                    "identifier": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Stable laboratory identifier",
+                        "example": "9ba34c109b827b177aab36e0266b1643"
+                    },
+                    "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Canonical laboratory name",
+                        "example": "HelTec - Helmholtz Laboratory"
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Unique user-facing label for search and selection",
+                        "example": "HelTec - Helmholtz Laboratory — GFZ German Research Centre"
+                    },
+                    "affiliation_name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Name of the affiliated institution",
+                        "example": "GFZ German Research Centre"
+                    },
+                    "affiliation_ror": {
+                        "type": ["string", "null"],
+                        "format": "uri",
+                        "pattern": "^https://ror\\.org/[0-9A-Za-z]{9}$",
+                        "description": "ROR URL of the affiliated institution, or null when none is available",
+                        "example": "https://ror.org/04z8jg394"
+                    },
+                    "scientific_domain": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Scientific domain of the laboratory",
+                        "example": "Geosciences"
+                    },
+                    "country": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Country of the laboratory",
+                        "example": "Germany"
+                    }
+                },
+                "required": [
+                    "identifier",
+                    "name",
+                    "display_name",
+                    "affiliation_name",
+                    "affiliation_ror",
+                    "scientific_domain",
+                    "country"
+                ]
             },
             "ChronostratTimescale": {
                 "type": "object",

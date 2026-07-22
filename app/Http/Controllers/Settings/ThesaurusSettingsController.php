@@ -43,7 +43,9 @@ class ThesaurusSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
-                'version' => $thesaurus->version,
+                'version' => $thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES
+                    ? ($localStatus['version'] ?? $thesaurus->version)
+                    : $thesaurus->version,
                 'exists' => $localStatus['exists'],
                 'conceptCount' => $localStatus['conceptCount'],
                 'lastUpdated' => $localStatus['lastUpdated'],
@@ -73,14 +75,22 @@ class ThesaurusSettingsController extends Controller
         try {
             $comparison = $this->statusService->compareWithRemote($thesaurus);
 
-            return response()->json([
+            $response = [
                 'type' => $type,
                 'displayName' => $thesaurus->display_name,
                 'localCount' => $comparison['localCount'],
                 'remoteCount' => $comparison['remoteCount'],
                 'updateAvailable' => $comparison['updateAvailable'],
                 'lastUpdated' => $comparison['lastUpdated'],
-            ]);
+            ];
+
+            if ($type === ThesaurusSetting::TYPE_MSL_LABORATORIES) {
+                $response['localVersion'] = $comparison['localVersion'] ?? null;
+                $response['remoteVersion'] = $comparison['remoteVersion'] ?? null;
+                $response['reason'] = $comparison['updateReason'] ?? null;
+            }
+
+            return response()->json($response);
         } catch (\RuntimeException $e) {
             return response()->json([
                 'error' => 'Failed to check remote status: '.$e->getMessage(),

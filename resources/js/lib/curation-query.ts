@@ -199,7 +199,7 @@ export interface ResourceForCuration {
               identifier: string;
               name: string;
               affiliation_name: string;
-              affiliation_ror: string;
+              affiliation_ror: string | null;
           }[]
         | null;
 }

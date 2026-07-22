@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils';
 export interface ComboboxOption {
     value: string;
     label: string;
+    /** Additional searchable terms that do not change the stable option value. */
+    keywords?: string[];
     disabled?: boolean;
     /** Additional data to pass through */
     data?: Record<string, unknown>;
@@ -229,6 +231,7 @@ export function Combobox({
                                     <CommandItem
                                         key={option.value}
                                         value={option.value}
+                                        keywords={option.keywords}
                                         disabled={option.disabled}
                                         onSelect={() => handleSelect(option.value)}
                                     >

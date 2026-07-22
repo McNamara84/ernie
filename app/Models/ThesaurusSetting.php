@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\CacheKey;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Thesaurus settings for controlled vocabularies.
@@ -17,8 +18,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property bool $is_active
  * @property bool $is_elmo_active
  * @property string|null $version
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 #[Fillable(['type', 'display_name', 'is_active', 'is_elmo_active', 'version'])]
 class ThesaurusSetting extends Model
@@ -36,6 +37,8 @@ class ThesaurusSetting extends Model
     public const TYPE_ANALYTICAL_METHODS = 'analytical_methods';
 
     public const TYPE_EUROSCIVOC = 'euroscivoc';
+
+    public const TYPE_MSL_LABORATORIES = 'msl_laboratories';
 
     /**
      * @return array<string, string>
@@ -61,6 +64,7 @@ class ThesaurusSetting extends Model
             self::TYPE_GEMET => 'gemet-thesaurus.json',
             self::TYPE_ANALYTICAL_METHODS => 'analytical-methods.json',
             self::TYPE_EUROSCIVOC => 'euroscivoc.json',
+            self::TYPE_MSL_LABORATORIES => 'msl-laboratories.json',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -78,6 +82,7 @@ class ThesaurusSetting extends Model
             self::TYPE_GEMET => 'get-gemet-thesaurus',
             self::TYPE_ANALYTICAL_METHODS => 'get-analytical-methods',
             self::TYPE_EUROSCIVOC => 'get-euroscivoc',
+            self::TYPE_MSL_LABORATORIES => 'get-msl-laboratories',
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -111,6 +116,7 @@ class ThesaurusSetting extends Model
             self::TYPE_GEMET => CacheKey::GEMET_THESAURUS,
             self::TYPE_ANALYTICAL_METHODS => CacheKey::ANALYTICAL_METHODS,
             self::TYPE_EUROSCIVOC => CacheKey::EUROSCIVOC,
+            self::TYPE_MSL_LABORATORIES => CacheKey::MSL_LABORATORIES,
             default => throw new \InvalidArgumentException("Unknown thesaurus type: {$this->type}"),
         };
     }
@@ -134,14 +140,25 @@ class ThesaurusSetting extends Model
      */
     public static function getValidTypes(): array
     {
+        return array_keys(self::definitions());
+    }
+
+    /**
+     * Central definitions used by seeders and runtime fallback creation.
+     *
+     * @return array<string, string>
+     */
+    public static function definitions(): array
+    {
         return [
-            self::TYPE_SCIENCE_KEYWORDS,
-            self::TYPE_PLATFORMS,
-            self::TYPE_INSTRUMENTS,
-            self::TYPE_CHRONOSTRAT,
-            self::TYPE_GEMET,
-            self::TYPE_ANALYTICAL_METHODS,
-            self::TYPE_EUROSCIVOC,
+            self::TYPE_SCIENCE_KEYWORDS => 'GCMD Science Keywords',
+            self::TYPE_PLATFORMS => 'GCMD Platforms',
+            self::TYPE_INSTRUMENTS => 'GCMD Instruments',
+            self::TYPE_CHRONOSTRAT => 'ICS Chronostratigraphy',
+            self::TYPE_GEMET => 'GEMET Thesaurus',
+            self::TYPE_ANALYTICAL_METHODS => 'Analytical Methods for Geochemistry',
+            self::TYPE_EUROSCIVOC => 'European Science Vocabulary (EuroSciVoc)',
+            self::TYPE_MSL_LABORATORIES => 'MSL Laboratories',
         ];
     }
 

@@ -6,6 +6,7 @@ use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\Format;
 use App\Models\Institution;
+use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -18,7 +19,6 @@ use App\Models\Size;
 use App\Models\Subject;
 use App\Models\Title;
 use App\Models\TitleType;
-use App\Models\Language;
 use App\Services\DataCiteJsonExporter;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Support\Facades\DB;
@@ -314,6 +314,48 @@ describe('DataCiteJsonExporter - Contributors', function () {
             ->toBe(['Distributor', 'HostingInstitution'])
             ->and($contributors[0]['name'])->toBe('GFZ Potsdam')
             ->and($contributors[1]['name'])->toBe('GFZ Potsdam');
+    });
+
+    test('exports an MSL laboratory with labid and ROR affiliation', function () {
+        $resource = Resource::factory()->create();
+        $laboratory = Institution::factory()->create([
+            'name' => 'Rock Mechanics Laboratory',
+            'name_identifier' => 'lab-rock-001',
+            'name_identifier_scheme' => 'labid',
+            'scheme_uri' => null,
+        ]);
+        $contributor = ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_id' => $laboratory->id,
+            'contributorable_type' => Institution::class,
+            'position' => 1,
+        ]);
+        $contributor->affiliations()->create([
+            'name' => 'Utrecht University',
+            'identifier' => 'https://ror.org/04pp8hn57',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $contributors = $result['data']['attributes']['contributors'];
+
+        expect($contributors)->toHaveCount(1)
+            ->and($contributors[0])->toMatchArray([
+                'name' => 'Rock Mechanics Laboratory',
+                'nameType' => 'Organizational',
+                'contributorType' => 'HostingInstitution',
+                'nameIdentifiers' => [[
+                    'nameIdentifier' => 'lab-rock-001',
+                    'nameIdentifierScheme' => 'labid',
+                ]],
+                'affiliation' => [[
+                    'name' => 'Utrecht University',
+                    'affiliationIdentifier' => 'https://ror.org/04pp8hn57',
+                    'affiliationIdentifierScheme' => 'ROR',
+                    'schemeUri' => 'https://ror.org/',
+                ]],
+            ]);
     });
 });
 
@@ -624,6 +666,7 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
     });
 });
 
+use App\Models\GeoLocation;
 use App\Models\IdentifierType;
 use App\Models\IgsnMetadata;
 use App\Models\Publisher;
@@ -1708,7 +1751,7 @@ describe('DataCiteJsonExporter - canonical API contract', function () {
             'title_type_id' => $titleType->id,
             'value' => 'Polygon resource',
         ]);
-        \App\Models\GeoLocation::create([
+        GeoLocation::create([
             'resource_id' => $resource->id,
             'geo_type' => 'polygon',
             'polygon_points' => [

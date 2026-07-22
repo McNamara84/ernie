@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Xml\Sections;
 
+use App\Services\RorLookupService;
 use App\Support\MslLaboratoryService;
 use App\Support\Xml\XmlElementHelpers;
 use Illuminate\Support\Facades\Log;
@@ -63,6 +64,7 @@ final readonly class ContributorSectionParser
     public function __construct(
         private AuthorSectionParser $authorSectionParser,
         private MslLaboratoryService $mslLaboratoryService,
+        private RorLookupService $rorLookupService,
     ) {}
 
     /**
@@ -671,7 +673,7 @@ final readonly class ContributorSectionParser
         foreach ($identifierElements as $element) {
             $scheme = $element->getAttribute('nameIdentifierScheme');
 
-            if (is_string($scheme) && Str::lower($scheme) === 'labid') {
+            if (is_string($scheme) && Str::lower(trim($scheme)) === 'labid') {
                 $value = XmlElementHelpers::stringValue($element);
 
                 if (is_string($value) && trim($value) !== '') {
@@ -707,15 +709,11 @@ final readonly class ContributorSectionParser
         ]);
 
         if ($affiliationIdentifier) {
-            $isRor = ($affiliationScheme === 'ROR') ||
+            $isRor = (is_string($affiliationScheme) && strcasecmp(trim($affiliationScheme), 'ROR') === 0) ||
                      str_contains(strtolower($affiliationIdentifier), 'ror.org');
 
             if ($isRor) {
-                if (str_starts_with($affiliationIdentifier, 'http')) {
-                    $affiliationRor = $affiliationIdentifier;
-                } else {
-                    $affiliationRor = 'https://ror.org/'.$affiliationIdentifier;
-                }
+                $affiliationRor = $this->rorLookupService->canonicalise($affiliationIdentifier);
 
                 Log::debug('ROR identified and normalized', [
                     'original' => $affiliationIdentifier,

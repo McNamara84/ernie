@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -414,17 +415,48 @@ describe('JSON Upload - Geo location edge cases', function () {
 describe('JSON Upload - Contributor edge cases', function () {
     test('extracts MSL laboratory from HostingInstitution with labid', function () {
         $this->actingAs(User::factory()->create());
+        Storage::fake('local');
+        config(['msl.laboratories_storage_path' => 'msl-laboratories.json']);
+        Storage::put('msl-laboratories.json', json_encode([
+            'version' => '1.2',
+            'lastUpdated' => '2026-07-21T12:00:00+00:00',
+            'total' => 1,
+            'source' => [
+                'repository' => 'UtrechtUniversity/msl_vocabularies',
+                'ref' => 'main',
+                'path' => 'vocabularies/labs/1.2/laboratories.json',
+                'sha' => 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            ],
+            'data' => [
+                [
+                    'identifier' => 'lab-123',
+                    'name' => 'Official Rock Mechanics Lab',
+                    'display_name' => 'Official Rock Mechanics Lab — Utrecht University',
+                    'affiliation_name' => 'Utrecht University',
+                    'affiliation_ror' => null,
+                    'scientific_domain' => 'Geosciences',
+                    'country' => 'Netherlands',
+                ],
+            ],
+        ], JSON_THROW_ON_ERROR));
 
         $json = dataCiteJson(minimalAttributes([
             'contributors' => [
                 [
-                    'name' => 'Rock Mechanics Lab',
+                    'name' => 'Incomplete laboratory name',
                     'nameType' => 'Organizational',
                     'contributorType' => 'HostingInstitution',
                     'nameIdentifiers' => [
                         [
                             'nameIdentifier' => 'lab-123',
                             'nameIdentifierScheme' => 'labid',
+                        ],
+                    ],
+                    'affiliation' => [
+                        [
+                            'name' => 'Uploaded University',
+                            'affiliationIdentifier' => 'ror.org/04pp8hn57',
+                            'affiliationIdentifierScheme' => 'ROR',
                         ],
                     ],
                 ],
@@ -437,9 +469,67 @@ describe('JSON Upload - Contributor edge cases', function () {
         $data = getJsonUploadData($response);
 
         expect($data['mslLaboratories'])->toHaveCount(1);
-        expect($data['mslLaboratories'][0]['labId'])->toBe('lab-123');
-        expect($data['mslLaboratories'][0]['labName'])->toBe('Rock Mechanics Lab');
+        expect($data['mslLaboratories'][0]['identifier'])->toBe('lab-123');
+        expect($data['mslLaboratories'][0]['name'])->toBe('Official Rock Mechanics Lab');
+        expect($data['mslLaboratories'][0]['affiliation_name'])->toBe('Utrecht University');
+        expect($data['mslLaboratories'][0]['affiliation_ror'])->toBe('https://ror.org/04pp8hn57');
         expect($data['contributors'])->toHaveCount(0);
+    });
+
+    test('does not treat a name-identifier scheme containing labid as an MSL laboratory', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'contributors' => [
+                [
+                    'name' => 'Regular Hosting Institution',
+                    'nameType' => 'Organizational',
+                    'contributorType' => 'HostingInstitution',
+                    'nameIdentifiers' => [
+                        [
+                            'nameIdentifier' => 'not-a-laboratory',
+                            'nameIdentifierScheme' => 'notlabid',
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('not-labid.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+        $data = getJsonUploadData($response);
+
+        expect($data['mslLaboratories'])->toBeEmpty()
+            ->and($data['contributors'])->toHaveCount(1)
+            ->and($data['contributors'][0]['institutionName'])->toBe('Regular Hosting Institution');
+    });
+
+    test('matches a trimmed case-insensitive labid scheme exactly', function () {
+        $this->actingAs(User::factory()->create());
+
+        $json = dataCiteJson(minimalAttributes([
+            'contributors' => [
+                [
+                    'name' => 'Imported Laboratory',
+                    'nameType' => 'Organizational',
+                    'contributorType' => 'HostingInstitution',
+                    'nameIdentifiers' => [
+                        [
+                            'nameIdentifier' => '  imported-lab  ',
+                            'nameIdentifierScheme' => ' LABID ',
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+        $file = UploadedFile::fake()->createWithContent('trimmed-labid.json', $json);
+
+        $response = $this->postJson('/dashboard/upload-json', ['file' => $file]);
+        $data = getJsonUploadData($response);
+
+        expect($data['mslLaboratories'])->toHaveCount(1)
+            ->and($data['mslLaboratories'][0]['identifier'])->toBe('imported-lab')
+            ->and($data['contributors'])->toBeEmpty();
     });
 
     test('classifies institution-only roles as institutional contributors', function () {

@@ -309,6 +309,38 @@ describe('DataCiteXmlExporter - Creators & Contributors', function () {
             ->and(substr_count($xml, '<contributorName nameType="Organizational">GFZ Potsdam</contributorName>'))->toBe(2);
     });
 
+    test('exports an MSL laboratory with labid and ROR affiliation', function () {
+        $resource = Resource::factory()->create();
+        $laboratory = Institution::factory()->create([
+            'name' => 'Rock Mechanics Laboratory',
+            'name_identifier' => 'lab-rock-001',
+            'name_identifier_scheme' => 'labid',
+            'scheme_uri' => null,
+        ]);
+        $contributor = ResourceContributor::create([
+            'resource_id' => $resource->id,
+            'contributorable_id' => $laboratory->id,
+            'contributorable_type' => Institution::class,
+            'position' => 1,
+        ]);
+        $contributor->affiliations()->create([
+            'name' => 'Utrecht University',
+            'identifier' => 'https://ror.org/04pp8hn57',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<contributor contributorType="HostingInstitution">')
+            ->and($xml)->toContain('<contributorName nameType="Organizational">Rock Mechanics Laboratory</contributorName>')
+            ->and($xml)->toContain('<nameIdentifier nameIdentifierScheme="labid">lab-rock-001</nameIdentifier>')
+            ->and($xml)->toContain('affiliationIdentifier="https://ror.org/04pp8hn57"')
+            ->and($xml)->toContain('affiliationIdentifierScheme="ROR"')
+            ->and($xml)->toContain('schemeURI="https://ror.org/"')
+            ->and($xml)->toContain('>Utrecht University</affiliation>');
+    });
+
     test('exports multiple creators in correct order', function () {
         $resource = Resource::factory()->create();
 

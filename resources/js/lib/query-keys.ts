@@ -15,15 +15,13 @@ export const queryKeys = {
         resolve: (batch: readonly string[]) => ['ror', 'resolve', [...batch].sort()] as const,
     },
     doi: {
-        validate: (doi: string, excludeResourceId?: number) =>
-            [doiValidate.url(), doi, excludeResourceId ?? null] as const,
+        validate: (doi: string, excludeResourceId?: number) => [doiValidate.url(), doi, excludeResourceId ?? null] as const,
     },
     pid4inst: {
         instruments: () => ['pid4inst', 'instruments'] as const,
     },
     msl: {
-        vocabularyUrl: () => ['msl', 'vocabulary-url'] as const,
-        laboratories: () => ['msl', 'laboratories'] as const,
+        laboratories: () => [apiEndpoints.mslLaboratories] as const,
     },
 } as const;
 
@@ -37,5 +35,5 @@ export const apiEndpoints = {
     rorResolve: '/api/v1/ror-resolve',
     doiValidate: doiValidate.url(),
     pid4instInstruments: '/vocabularies/pid4inst-instruments',
-    mslVocabularyUrl: '/vocabularies/msl-vocabulary-url',
+    mslLaboratories: '/vocabularies/msl-laboratories',
 } as const;

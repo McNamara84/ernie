@@ -306,6 +306,11 @@ class EditorDataTransformer
         // Transform ResourceContributor entries to contributors format
         foreach ($resource->contributors as $contributor) {
             /** @var ResourceContributor $contributor */
+            if ($contributor->contributorable instanceof Institution
+                && $contributor->contributorable->isLaboratory()) {
+                continue;
+            }
+
             $contributorTypes = $contributor->contributorTypes;
             $hasContactPersonRole = $contributorTypes
                 ->contains(fn (ContributorType $ct): bool => $ct->slug === 'ContactPerson');
@@ -749,34 +754,35 @@ class EditorDataTransformer
     }
 
     /**
-     * Transform MSL Laboratories from creators with labid identifier scheme.
+     * Transform MSL Laboratories from contributors with labid identifier scheme.
      *
      * @return array<int, array<string, mixed>>
      */
     public function transformMslLaboratories(Resource $resource): array
     {
-        return $resource->creators
-            ->filter(function ($creator): bool {
-                if ($creator->creatorable_type === Institution::class) {
+        return $resource->contributors
+            ->sortBy('position')
+            ->filter(function ($contributor): bool {
+                if ($contributor->contributorable_type === Institution::class) {
                     /** @var Institution $institution */
-                    $institution = $creator->creatorable;
+                    $institution = $contributor->contributorable;
 
-                    return $institution->name_identifier_scheme === 'labid';
+                    return $institution->isLaboratory();
                 }
 
                 return false;
             })
-            ->map(function ($creator): array {
+            ->map(function ($contributor): array {
                 /** @var Institution $institution */
-                $institution = $creator->creatorable;
-                $affiliation = $creator->affiliations->first();
+                $institution = $contributor->contributorable;
+                $affiliation = $contributor->affiliations->first();
 
                 return [
                     'identifier' => $institution->name_identifier ?? '',
                     'name' => $institution->name ?? '',
                     'affiliation_name' => $affiliation->name ?? '',
                     'affiliation_ror' => $affiliation->identifier ?? '',
-                    'position' => $creator->position,
+                    'position' => $contributor->position,
                 ];
             })
             ->values()

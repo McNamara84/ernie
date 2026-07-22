@@ -11,6 +11,7 @@ import { authorsArraySchema, authorsWithContactSchema } from './author.schema';
 import { doiSchema, versionSchema, yearSchema } from './common.schema';
 import { contributorsArraySchema } from './contributor.schema';
 import { fundingReferencesArraySchema } from './funding-reference.schema';
+import { mslLaboratoriesArraySchema } from './msl-laboratory.schema';
 import { relatedIdentifiersArraySchema } from './related-work.schema';
 import { spatialTemporalCoveragesArraySchema } from './spatial-temporal.schema';
 
@@ -146,20 +147,13 @@ export const gcmdKeywordsArraySchema = z.array(gcmdKeywordSchema).default([]);
 
 export const freeKeywordsArraySchema = z.array(z.string()).default([]);
 
-// =============================================================================
-// MSL Laboratory Schema
-// =============================================================================
-
-export const mslLaboratorySchema = z.object({
-    identifier: z.string(),
-    name: z.string(),
-    affiliation_name: z.string(),
-    affiliation_ror: z.string(),
-});
-
-export type MslLaboratoryFormData = z.infer<typeof mslLaboratorySchema>;
-
-export const mslLaboratoriesArraySchema = z.array(mslLaboratorySchema).default([]);
+export {
+    mslLaboratoriesArraySchema,
+    mslLaboratoriesResponseSchema,
+    type MslLaboratoryFormData,
+    mslLaboratorySchema,
+    mslLaboratoryVocabularyEntrySchema,
+} from './msl-laboratory.schema';
 
 // =============================================================================
 // Main Resource Schema

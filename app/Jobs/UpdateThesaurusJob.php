@@ -167,6 +167,7 @@ class UpdateThesaurusJob implements ShouldQueue
             ThesaurusSetting::TYPE_CHRONOSTRAT, ThesaurusSetting::TYPE_ANALYTICAL_METHODS => 'Fetching data from ARDC Linked Data API...',
             ThesaurusSetting::TYPE_GEMET => 'Fetching data from GEMET REST API...',
             ThesaurusSetting::TYPE_EUROSCIVOC => 'Fetching data from EU Publications Office SPARQL endpoint...',
+            ThesaurusSetting::TYPE_MSL_LABORATORIES => 'Discovering the latest MSL Laboratories release on GitHub...',
             default => 'Fetching data from NASA KMS API...',
         };
     }

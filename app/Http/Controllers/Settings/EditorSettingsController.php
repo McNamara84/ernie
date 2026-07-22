@@ -101,7 +101,9 @@ class EditorSettingsController extends Controller
                 'displayName' => $thesaurus->display_name,
                 'isActive' => $thesaurus->is_active,
                 'isElmoActive' => $thesaurus->is_elmo_active,
-                'version' => $thesaurus->version,
+                'version' => $thesaurus->type === ThesaurusSetting::TYPE_MSL_LABORATORIES
+                    ? ($localStatus['version'] ?? $thesaurus->version)
+                    : $thesaurus->version,
                 'supportsVersioning' => $thesaurus->supportsVersioning(),
                 'exists' => $localStatus['exists'],
                 'conceptCount' => $localStatus['conceptCount'],
@@ -431,30 +433,11 @@ class EditorSettingsController extends Controller
      */
     private function ensureThesaurusSettingsExist(): void
     {
-        $thesauriConfig = [
-            [
-                'type' => ThesaurusSetting::TYPE_SCIENCE_KEYWORDS,
-                'display_name' => 'GCMD Science Keywords',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_PLATFORMS,
-                'display_name' => 'GCMD Platforms',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_INSTRUMENTS,
-                'display_name' => 'GCMD Instruments',
-            ],
-            [
-                'type' => ThesaurusSetting::TYPE_CHRONOSTRAT,
-                'display_name' => 'ICS Chronostratigraphy',
-            ],
-        ];
-
-        foreach ($thesauriConfig as $config) {
+        foreach (ThesaurusSetting::definitions() as $type => $displayName) {
             ThesaurusSetting::firstOrCreate(
-                ['type' => $config['type']],
+                ['type' => $type],
                 [
-                    'display_name' => $config['display_name'],
+                    'display_name' => $displayName,
                     'is_active' => true,
                     'is_elmo_active' => true,
                 ]

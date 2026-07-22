@@ -171,6 +171,14 @@ composer install
    npm run artisan -- spdx:sync-licenses
 ```
 
+10. Initialize the local MSL Laboratories vocabulary:
+
+```
+   npm run artisan -- get-msl-laboratories
+```
+
+   This one-time download is required after the feature is first deployed. An administrator can alternatively run the first update from the Thesauri card under Editor Settings. Until it succeeds, MSL Laboratories remains unavailable to ERNIE and ELMO even if its consumer toggles are enabled.
+
 The Docker entrypoints install missing Composer dependencies and container-local npm dependencies, run migrations, and seed baseline data when the database is empty. Host-side frontend commands still require the local `npm install` step above.
 
 For day-to-day Laravel commands, use the running app container instead of installing Composer dependencies on the host. For example:

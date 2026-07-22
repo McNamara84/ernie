@@ -518,12 +518,8 @@ export default function EditorSettings({
     const langErnieState = getSelectAllState(data.languages.map((l) => l.active));
     const langElmoState = getSelectAllState(data.languages.map((l) => l.elmo_active));
     const dtErnieState = getSelectAllState(data.dateTypes.map((d) => d.active));
-    const descTypeErnieState = getSelectAllState(
-        data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.active),
-    );
-    const descTypeElmoState = getSelectAllState(
-        data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.elmo_active),
-    );
+    const descTypeErnieState = getSelectAllState(data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.active));
+    const descTypeElmoState = getSelectAllState(data.descriptionTypes.filter((d) => d.slug !== 'Abstract').map((d) => d.elmo_active));
     const relTypeErnieState = getSelectAllState(data.relationTypes.map((r) => r.active));
     const relTypeElmoState = getSelectAllState(data.relationTypes.map((r) => r.elmo_active));
     const idTypeErnieState = getSelectAllState(data.identifierTypes.map((it) => it.active));
@@ -771,7 +767,11 @@ export default function EditorSettings({
                                                                     size="icon"
                                                                     onClick={() => handleDeleteDatacenter(dc.id)}
                                                                     disabled={dc.resources_count > 0}
-                                                                    title={dc.resources_count > 0 ? 'Cannot delete: datacenter is assigned to resources' : 'Delete datacenter'}
+                                                                    title={
+                                                                        dc.resources_count > 0
+                                                                            ? 'Cannot delete: datacenter is assigned to resources'
+                                                                            : 'Delete datacenter'
+                                                                    }
                                                                     aria-label="Delete datacenter"
                                                                 >
                                                                     <Trash2 className="size-4 text-destructive" aria-hidden="true" />
@@ -783,7 +783,7 @@ export default function EditorSettings({
                                             </Table>
                                         </div>
                                     ) : (
-                                        <p className="text-muted-foreground text-sm">
+                                        <p className="text-sm text-muted-foreground">
                                             No datacenters configured yet. Add a datacenter name above to get started.
                                         </p>
                                     )}
@@ -1265,7 +1265,7 @@ export default function EditorSettings({
                             <CardHeader>
                                 <CardTitle>Thesauri</CardTitle>
                                 <CardDescription>
-                                    Manage GCMD controlled vocabularies for scientific keywords, platforms, and instruments.
+                                    Manage controlled vocabularies for scientific keywords, platforms, instruments, and MSL laboratories.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -1291,8 +1291,8 @@ export default function EditorSettings({
                             <CardHeader>
                                 <CardTitle>Persistent Identifiers</CardTitle>
                                 <CardDescription>
-                                    Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for
-                                    research organizations.
+                                    Manage persistent identifier registries: PID4INST (b2inst) for research instruments and ROR for research
+                                    organizations.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -1317,9 +1317,7 @@ export default function EditorSettings({
                             description="Contributor types applicable to person contributors."
                             roles={data.contributorPersonRoles}
                             dataKey="contributorPersonRoles"
-                            onRoleChange={(index, field, value) =>
-                                handleContributorRoleChange('contributorPersonRoles', index, field, value)
-                            }
+                            onRoleChange={(index, field, value) => handleContributorRoleChange('contributorPersonRoles', index, field, value)}
                             onSetAll={(roles) => setData('contributorPersonRoles', roles)}
                         />
 
@@ -1329,9 +1327,7 @@ export default function EditorSettings({
                             description="Contributor types applicable to institution contributors."
                             roles={data.contributorInstitutionRoles}
                             dataKey="contributorInstitutionRoles"
-                            onRoleChange={(index, field, value) =>
-                                handleContributorRoleChange('contributorInstitutionRoles', index, field, value)
-                            }
+                            onRoleChange={(index, field, value) => handleContributorRoleChange('contributorInstitutionRoles', index, field, value)}
                             onSetAll={(roles) => setData('contributorInstitutionRoles', roles)}
                         />
 
@@ -1341,9 +1337,7 @@ export default function EditorSettings({
                             description="Contributor types applicable to both person and institution contributors."
                             roles={data.contributorBothRoles}
                             dataKey="contributorBothRoles"
-                            onRoleChange={(index, field, value) =>
-                                handleContributorRoleChange('contributorBothRoles', index, field, value)
-                            }
+                            onRoleChange={(index, field, value) => handleContributorRoleChange('contributorBothRoles', index, field, value)}
                             onSetAll={(roles) => setData('contributorBothRoles', roles)}
                         />
 
@@ -1451,9 +1445,7 @@ export default function EditorSettings({
                         <Card>
                             <CardHeader>
                                 <CardTitle>Identifier Types</CardTitle>
-                                <CardDescription>
-                                    DataCite relatedIdentifierType values with validation and detection patterns.
-                                </CardDescription>
+                                <CardDescription>DataCite relatedIdentifierType values with validation and detection patterns.</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
@@ -1609,10 +1601,16 @@ export default function EditorSettings({
                                                                                                         i === typeIndex
                                                                                                             ? {
                                                                                                                   ...it,
-                                                                                                                  patterns: it.patterns.map((p, pi) =>
-                                                                                                                      pi === patternIndex
-                                                                                                                          ? { ...p, pattern: e.target.value }
-                                                                                                                          : p,
+                                                                                                                  patterns: it.patterns.map(
+                                                                                                                      (p, pi) =>
+                                                                                                                          pi === patternIndex
+                                                                                                                              ? {
+                                                                                                                                    ...p,
+                                                                                                                                    pattern:
+                                                                                                                                        e.target
+                                                                                                                                            .value,
+                                                                                                                                }
+                                                                                                                              : p,
                                                                                                                   ),
                                                                                                               }
                                                                                                             : it,
@@ -1632,10 +1630,16 @@ export default function EditorSettings({
                                                                                                         i === typeIndex
                                                                                                             ? {
                                                                                                                   ...it,
-                                                                                                                  patterns: it.patterns.map((p, pi) =>
-                                                                                                                      pi === patternIndex
-                                                                                                                          ? { ...p, is_active: checked === true }
-                                                                                                                          : p,
+                                                                                                                  patterns: it.patterns.map(
+                                                                                                                      (p, pi) =>
+                                                                                                                          pi === patternIndex
+                                                                                                                              ? {
+                                                                                                                                    ...p,
+                                                                                                                                    is_active:
+                                                                                                                                        checked ===
+                                                                                                                                        true,
+                                                                                                                                }
+                                                                                                                              : p,
                                                                                                                   ),
                                                                                                               }
                                                                                                             : it,
@@ -1659,10 +1663,17 @@ export default function EditorSettings({
                                                                                                         i === typeIndex
                                                                                                             ? {
                                                                                                                   ...it,
-                                                                                                                  patterns: it.patterns.map((p, pi) =>
-                                                                                                                      pi === patternIndex
-                                                                                                                          ? { ...p, priority: Number(e.target.value) }
-                                                                                                                          : p,
+                                                                                                                  patterns: it.patterns.map(
+                                                                                                                      (p, pi) =>
+                                                                                                                          pi === patternIndex
+                                                                                                                              ? {
+                                                                                                                                    ...p,
+                                                                                                                                    priority: Number(
+                                                                                                                                        e.target
+                                                                                                                                            .value,
+                                                                                                                                    ),
+                                                                                                                                }
+                                                                                                                              : p,
                                                                                                                   ),
                                                                                                               }
                                                                                                             : it,
