@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\MslLaboratorySourceResolver;
+use App\Services\MslLaboratorySourceResolverService;
 use Illuminate\Support\Facades\Http;
 
-covers(MslLaboratorySourceResolver::class);
+covers(MslLaboratorySourceResolverService::class);
 
 beforeEach(function (): void {
     config()->set([
@@ -35,7 +35,7 @@ it('selects the highest stable numeric version and resolves its file metadata', 
         ]),
     ]);
 
-    $resolved = (new MslLaboratorySourceResolver)->resolveLatest();
+    $resolved = (new MslLaboratorySourceResolverService)->resolveLatest();
 
     expect($resolved)
         ->toMatchArray([
@@ -55,21 +55,21 @@ it('rejects discovery responses without a stable version directory', function ()
         ]),
     ]);
 
-    expect(fn () => (new MslLaboratorySourceResolver)->resolveLatest())
+    expect(fn () => (new MslLaboratorySourceResolverService)->resolveLatest())
         ->toThrow(RuntimeException::class, 'No stable MSL laboratories version directory');
 });
 
 it('reports directory discovery HTTP errors distinctly', function (): void {
     Http::fake(['*' => Http::response([], 503)]);
 
-    expect(fn () => (new MslLaboratorySourceResolver)->resolveLatest())
+    expect(fn () => (new MslLaboratorySourceResolverService)->resolveLatest())
         ->toThrow(RuntimeException::class, 'laboratories version discovery: HTTP 503');
 });
 
 it('wraps directory discovery connection failures with operation context', function (): void {
     Http::fake(['*' => Http::failedConnection('discovery timed out')]);
 
-    expect(fn () => (new MslLaboratorySourceResolver)->resolveLatest())
+    expect(fn () => (new MslLaboratorySourceResolverService)->resolveLatest())
         ->toThrow(RuntimeException::class, 'Failed during laboratories version discovery: discovery timed out');
 });
 
@@ -78,6 +78,6 @@ it('reports missing laboratories file metadata', function (): void {
         ->push([['type' => 'dir', 'name' => '1.1']])
         ->push(['type' => 'file', 'sha' => 'abc']);
 
-    expect(fn () => (new MslLaboratorySourceResolver)->resolveLatest())
+    expect(fn () => (new MslLaboratorySourceResolverService)->resolveLatest())
         ->toThrow(RuntimeException::class, 'file metadata for version 1.1 is incomplete');
 });

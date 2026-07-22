@@ -42,7 +42,7 @@ use Illuminate\Support\Str;
 class MslLaboratoryVocabularyService
 {
     public function __construct(
-        private readonly MslLaboratorySourceResolver $sourceResolver,
+        private readonly MslLaboratorySourceResolverService $sourceResolver,
         private readonly VocabularyCacheService $cacheService
     ) {}
 

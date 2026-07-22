@@ -9,7 +9,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /** Discovers the newest stable MSL laboratories release on GitHub. */
-class MslLaboratorySourceResolver
+class MslLaboratorySourceResolverService
 {
     /**
      * @return array{repository: string, ref: string, version: string, path: string, sha: string, download_url: string}

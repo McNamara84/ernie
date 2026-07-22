@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\MslLaboratorySourceResolver;
+use App\Services\MslLaboratorySourceResolverService;
 use App\Services\MslLaboratoryVocabularyService;
 use App\Services\VocabularyCacheService;
 use Illuminate\Support\Facades\Cache;
@@ -26,7 +26,7 @@ function mslVocabularyServiceTestLab(array $overrides = []): array
 
 function makeMslVocabularyService(array $source = []): MslLaboratoryVocabularyService
 {
-    $resolver = Mockery::mock(MslLaboratorySourceResolver::class);
+    $resolver = Mockery::mock(MslLaboratorySourceResolverService::class);
     $resolver->shouldReceive('resolveLatest')->andReturn(array_replace([
         'repository' => 'UtrechtUniversity/msl_vocabularies',
         'ref' => 'main',
@@ -291,7 +291,7 @@ it('replaces an existing local file during a second successful update', function
         'path' => 'vocabularies/labs/1.1/laboratories.json',
         'download_url' => 'https://raw.example.test/laboratories.json',
     ];
-    $resolver = Mockery::mock(MslLaboratorySourceResolver::class);
+    $resolver = Mockery::mock(MslLaboratorySourceResolverService::class);
     $resolver->shouldReceive('resolveLatest')->twice()->andReturn(
         array_replace($baseSource, [
             'version' => '1.1',
