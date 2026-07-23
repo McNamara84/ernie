@@ -59,8 +59,11 @@ final class LandingPageTemplateResolver
             }
         }
 
+        $defaultTemplate = LandingPageTemplate::existingDefaultForType($expectedType)
+            ?? LandingPageTemplate::defaultForType($expectedType);
+
         return [
-            'template' => LandingPageTemplate::defaultForType($expectedType),
+            'template' => $defaultTemplate,
             'source' => self::SOURCE_DEFAULT,
         ];
     }

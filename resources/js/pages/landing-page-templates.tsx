@@ -26,9 +26,8 @@ import {
     RIGHT_SECTION_LABELS,
 } from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { LandingPageTemplateConfig, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
+import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
 
-import type { LandingPageTemplateDatacenter } from '@/types/landing-page';
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
 const DISPLAY_LIMIT_MIN = 1;
 const DISPLAY_LIMIT_MAX = 500;

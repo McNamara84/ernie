@@ -45,7 +45,7 @@ function validResourcePayload(int $resourceTypeId, string $licenseIdentifier): a
         'descriptions' => [
             ['descriptionType' => 'abstract', 'description' => 'Test abstract.'],
         ],
-        'datacenters' => [Datacenter::first()->id],
+        'datacenter_id' => Datacenter::first()->id,
     ];
 }
 
@@ -99,7 +99,47 @@ describe('required fields', function () {
             ->postJson('/editor/resources', $data);
 
         // Should not fail on validation (may fail on other things like missing publisher)
-        $response->assertJsonMissingValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors']);
+        $response->assertJsonMissingValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors', 'datacenter_id']);
+    });
+
+    it('accepts one datacenter through the legacy array', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $datacenterId = $data['datacenter_id'];
+        unset($data['datacenter_id']);
+        $data['datacenters'] = [$datacenterId];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertJsonMissingValidationErrors(['datacenter_id', 'datacenters']);
+    });
+
+    it('rejects more than one datacenter through the legacy array', function () {
+        $secondDatacenter = Datacenter::factory()->create();
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        unset($data['datacenter_id']);
+        $data['datacenters'] = [
+            Datacenter::first()->id,
+            $secondDatacenter->id,
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenters']);
+    });
+
+    it('rejects conflicting canonical and legacy datacenter values', function () {
+        $secondDatacenter = Datacenter::factory()->create();
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['datacenters'] = [$secondDatacenter->id];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenter_id']);
     });
 });
 

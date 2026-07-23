@@ -153,7 +153,7 @@ describe('SetupLandingPageModal', () => {
                 return Promise.resolve({ data: { domains: mockDomains } });
             }
 
-            if (url === '/api/landing-page-templates') {
+            if (url.includes('/landing-page/template-options')) {
                 return Promise.resolve({ data: { templates: [] } });
             }
 
@@ -741,7 +741,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [legacyConfig.landing_page_template],
@@ -1534,7 +1534,7 @@ describe('SetupLandingPageModal', () => {
                     return Promise.resolve({ data: { domains: [] } });
                 }
 
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
 
@@ -1581,7 +1581,7 @@ describe('SetupLandingPageModal', () => {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
 
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
 
@@ -1624,7 +1624,7 @@ describe('SetupLandingPageModal', () => {
                     return Promise.resolve({ data: { domains: mockDomains } });
                 }
 
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
 
@@ -2148,7 +2148,7 @@ describe('SetupLandingPageModal', () => {
     describe('Custom Templates', () => {
         it('loads custom templates from API on open', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [
@@ -2190,7 +2190,7 @@ describe('SetupLandingPageModal', () => {
 
             await waitFor(() => {
                 expect(mockedAxiosGet).toHaveBeenCalledWith(
-                    expect.stringContaining('/api/landing-page-templates'),
+                    expect.stringContaining('/landing-page/template-options'),
                 );
             });
         });
@@ -2199,7 +2199,7 @@ describe('SetupLandingPageModal', () => {
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.reject(new Error('API error'));
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2232,7 +2232,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2272,7 +2272,7 @@ describe('SetupLandingPageModal', () => {
 
         it('renders custom templates in dropdown when loaded', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [
@@ -2324,14 +2324,14 @@ describe('SetupLandingPageModal', () => {
 
             // Custom templates section should be visible
             await waitFor(() => {
-                expect(screen.getByText('Custom Templates')).toBeInTheDocument();
+                expect(screen.getByText('Explicit Templates')).toBeInTheDocument();
                 expect(screen.getByText('Custom Geophysics')).toBeInTheDocument();
             });
         });
 
         it('selects a custom template and sets landing_page_template_id', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [
@@ -2411,7 +2411,7 @@ describe('SetupLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the save payload for Physical Object resources', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [
@@ -2498,7 +2498,7 @@ describe('SetupLandingPageModal', () => {
 
         it('keeps an igsn custom template id in the preview payload for Physical Object resources', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [
@@ -2595,7 +2595,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({
                         data: {
                             templates: [
@@ -2673,7 +2673,7 @@ describe('SetupLandingPageModal', () => {
             const onSuccess = vi.fn();
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2717,7 +2717,7 @@ describe('SetupLandingPageModal', () => {
             const onSuccess = vi.fn();
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2759,7 +2759,7 @@ describe('SetupLandingPageModal', () => {
             const { toast } = await import('sonner');
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2805,7 +2805,7 @@ describe('SetupLandingPageModal', () => {
             const { toast } = await import('sonner');
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2855,7 +2855,7 @@ describe('SetupLandingPageModal', () => {
             );
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2906,7 +2906,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -2953,7 +2953,7 @@ describe('SetupLandingPageModal', () => {
         it('prevents removal of published landing page with error toast', async () => {
             // Published config cannot be removed
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3020,7 +3020,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3059,7 +3059,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3123,7 +3123,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3179,7 +3179,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3239,7 +3239,7 @@ describe('SetupLandingPageModal', () => {
             };
 
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3286,7 +3286,7 @@ describe('SetupLandingPageModal', () => {
 
         it('resets landing_page_template_id to null on 404 (no landing page exists)', async () => {
             mockedAxiosGet.mockImplementation((url: string) => {
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve(customTemplatesResponse);
                 }
                 if (url.includes('/api/landing-page-domains')) {
@@ -3359,7 +3359,7 @@ describe('SetupLandingPageModal', () => {
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 return Promise.reject({ isAxiosError: true, response: { status: 404 } });
@@ -3477,7 +3477,7 @@ describe('SetupLandingPageModal', () => {
                 if (url.includes('/api/landing-page-domains')) {
                     return Promise.resolve({ data: { domains: [] } });
                 }
-                if (url.includes('/api/landing-page-templates')) {
+                if (url.includes('/landing-page/template-options')) {
                     return Promise.resolve({ data: { templates: [] } });
                 }
                 return new Promise(() => {});

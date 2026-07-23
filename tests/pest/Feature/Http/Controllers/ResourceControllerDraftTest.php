@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\ResourceController;
+use App\Models\Datacenter;
 use App\Models\DescriptionType;
 use App\Models\Language;
+use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
@@ -15,6 +17,7 @@ covers(ResourceController::class);
 
 beforeEach(function () {
     $this->user = User::factory()->create();
+    $this->datacenter = Datacenter::factory()->create();
     $this->resourceType = ResourceType::create([
         'name' => 'Dataset',
         'slug' => 'dataset',
@@ -57,7 +60,8 @@ describe('Draft save (Issue #548)', function () {
         expect($resource)->not->toBeNull()
             ->and($resource->publication_year)->toBeNull()
             ->and($resource->resource_type_id)->toBeNull()
-            ->and($resource->created_by_user_id)->toBe($this->user->id);
+            ->and($resource->created_by_user_id)->toBe($this->user->id)
+            ->and($resource->datacenter_id)->toBeNull();
     });
 
     it('saves a draft with partial data', function () {
@@ -85,6 +89,61 @@ describe('Draft save (Issue #548)', function () {
         $resource = Resource::latest()->first();
         expect($resource->publication_year)->toBe(2025)
             ->and($resource->creators)->toHaveCount(1);
+    });
+
+    it('saves a draft with one datacenter', function () {
+        $payload = [
+            'titles' => [
+                ['title' => 'Draft with Datacenter', 'titleType' => 'main-title'],
+            ],
+            'datacenter_id' => $this->datacenter->id,
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload);
+
+        $response->assertCreated();
+
+        $resource = Resource::latest('id')->first();
+        expect($resource)->not->toBeNull()
+            ->and($resource->datacenter_id)->toBe($this->datacenter->id);
+    });
+
+    it('accepts one datacenter through the legacy array for a draft', function () {
+        $payload = [
+            'titles' => [
+                ['title' => 'Legacy Draft Datacenter', 'titleType' => 'main-title'],
+            ],
+            'datacenters' => [$this->datacenter->id],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload);
+
+        $response->assertCreated();
+
+        $resource = Resource::latest('id')->first();
+        expect($resource)->not->toBeNull()
+            ->and($resource->datacenter_id)->toBe($this->datacenter->id);
+    });
+
+    it('rejects more than one datacenter through the legacy array for a draft', function () {
+        $secondDatacenter = Datacenter::factory()->create();
+        $payload = [
+            'titles' => [
+                ['title' => 'Draft with Multiple Datacenters', 'titleType' => 'main-title'],
+            ],
+            'datacenters' => [
+                $this->datacenter->id,
+                $secondDatacenter->id,
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenters']);
     });
 
     it('rejects draft without a Main Title', function () {
@@ -191,13 +250,13 @@ describe('Draft status in resource list (Issue #548)', function () {
             'position' => 0,
         ]);
 
-        $person = \App\Models\Person::create([
+        $person = Person::create([
             'family_name' => 'Test',
             'given_name' => 'Author',
         ]);
 
         $resource->creators()->create([
-            'creatorable_type' => \App\Models\Person::class,
+            'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => 0,
         ]);
@@ -253,8 +312,8 @@ describe('Draft filter in resource list (Issue #548)', function () {
             'position' => 0,
         ]);
         $complete->creators()->create([
-            'creatorable_type' => \App\Models\Person::class,
-            'creatorable_id' => \App\Models\Person::create(['family_name' => 'Tester'])->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => Person::create(['family_name' => 'Tester'])->id,
             'position' => 0,
         ]);
         $complete->rights()->attach($this->right->id);

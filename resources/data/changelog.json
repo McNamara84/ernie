@@ -4,6 +4,10 @@
         "date": "2026-07-13",
         "features": [
             {
+                "title": "Single Datacenter and Landing Page Template Inheritance",
+                "description": "Resources now use one datacenter assignment instead of a many-to-many selection. Validated resources require exactly one datacenter, while drafts may omit it. Admins and Group Leaders can assign regular landing page templates to datacenters, and regular resources automatically inherit that template unless a landing page explicitly selects another template. IGSN landing pages continue to use their own template flow without datacenter inheritance."
+            },
+            {
                 "title": "Versioned Multi-Scale Laboratories Vocabulary",
                 "description": "Originating Multi-Scale Laboratories now use a validated local vocabulary that administrators and group leaders can update from Editor Settings. ERNIE automatically discovers the newest stable Utrecht University release, exposes the vocabulary to ELMO through a dedicated API-key-protected endpoint, and offers richer laboratory search, domain and country filters, safer exact keyword triggers, and reliable save/reload handling for current and historical laboratory selections."
             },
@@ -121,7 +125,7 @@
             },
             {
                 "title": "Datacenter Assignment for Resources",
-                "description": "Resources can now be assigned to one or more datacenters via a new multi-select field in the Resource Information section of the Data Editor. Datacenters are managed in Editor Settings by Admins and Group Leaders. The Data Portal includes a new faceted Datacenter filter with result counts for narrowing search results by datacenter."
+                "description": "Resources can be assigned to one datacenter via a searchable single-select field in the Resource Information section of the Data Editor. Datacenters are managed in Editor Settings by Admins and Group Leaders. The Data Portal includes a faceted Datacenter filter with result counts for narrowing search results by datacenter."
             },
             {
                 "title": "Last Seen Status for Users",

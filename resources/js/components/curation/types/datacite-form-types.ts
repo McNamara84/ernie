@@ -262,8 +262,6 @@ export interface DataCiteFormProps {
     initialInstruments?: InstrumentSelection[];
     /** Initial datacenter assigned to this resource */
     initialDatacenterId?: number | null;
-    /** @deprecated Temporary compatibility for callers using the former collection prop. */
-    initialDatacenters?: number[];
     /** Available datacenters for selection */
     availableDatacenters?: { id: number; name: string }[];
     /** Optional: Whether the current user is an admin (used for DOI editing permissions) */

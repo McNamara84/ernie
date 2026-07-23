@@ -259,7 +259,6 @@ export default function DataCiteForm({
     initialRelatedItems = [],
     initialFundingReferences = [],
     initialDatacenterId = null,
-    initialDatacenters = [],
     availableDatacenters = [],
     isUserAdmin,
     activeRelationTypes,

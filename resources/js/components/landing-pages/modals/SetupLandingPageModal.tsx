@@ -407,9 +407,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         ),
         [isPhysicalObject, resource.resourcetypegeneral],
     );
-    const automaticTemplateDescription = templateOptions?.automatic_source === 'datacenter'
+    const automaticTemplateDescription = templateOptions?.automatic_source === 'datacenter' && templateOptions.automatic_template
         ? `Datacenter template: ${templateOptions.automatic_template.name}`
-        : `System default: ${templateOptions?.system_default.name ?? 'Default GFZ Data Services'}`;
+        : `System default: ${templateOptions?.system_default?.name ?? 'Default GFZ Data Services'}`;
     const importedDownloadFiles = currentConfig?.files ?? existingConfig?.files ?? [];
     const hasImportedFiles = importedDownloadFiles.length > 0;
     const currentDraftState = useMemo<PersistedLandingPageDraftState>(() => ({
@@ -469,7 +469,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
     };
 
-    const loadCustomTemplates = async () => {
+    const loadCustomTemplates = useCallback(async () => {
         try {
             const response = await axios.get<ResourceTemplateOptions>(`/resources/${resource.id}/landing-page/template-options`);
             setCustomTemplates(response.data.templates ?? []);
@@ -477,7 +477,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         } catch (error) {
             console.error('Failed to load custom templates:', error);
         }
-    };
+    }, [resource.id]);
 
     const loadDownloadUrlSuggestions = async () => {
         if (downloadUrlSuggestionsLoaded || downloadUrlSuggestionsLoading) {
@@ -540,7 +540,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             setDownloadUrlSuggestionQuery('');
             setActiveDownloadUrlSuggestionIndex(null);
         }
-    }, [applyConfigState, applyDraftState, buildDraftStateFromConfig, existingConfig, isOpen, loadLandingPageConfig, resource.id]);
+    }, [applyConfigState, applyDraftState, buildDraftStateFromConfig, existingConfig, isOpen, loadCustomTemplates, loadLandingPageConfig, resource.id]);
 
     useEffect(() => {
         if (!supportsFtpUrl || hasImportedFiles) {

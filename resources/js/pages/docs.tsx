@@ -1031,26 +1031,26 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <>
                         <h3>Assigning Datacenters</h3>
                         <p>
-                            When saving a validated (non-draft) resource, at least one datacenter must be selected. Datacenters indicate which GFZ
+                            When saving a validated (non-draft) resource, exactly one datacenter must be selected. The datacenter indicates which GFZ
                             data center or project database is responsible for storing or managing the dataset. Drafts can be saved without a
-                            datacenter assignment.
+                            datacenter assignment, but can have at most one.
                         </p>
 
-                        <h4>How to Select Datacenters</h4>
+                        <h4>How to Select a Datacenter</h4>
                         <p>
-                            In the <strong>Resource Information</strong> section of the Data Editor, click the &quot;Select datacenters...&quot;
+                            In the <strong>Resource Information</strong> section of the Data Editor, click the &quot;Select a datacenter...&quot;
                             button next to Resource Type. A searchable dropdown appears where you can:
                         </p>
                         <ul className="list-inside list-disc space-y-1">
-                            <li>Search for datacenters by typing in the search field</li>
-                            <li>Select multiple datacenters by clicking checkboxes</li>
-                            <li>Remove a selection by clicking the × on its badge or unchecking in the dropdown</li>
+                            <li>Search for a datacenter by typing in the search field</li>
+                            <li>Select one datacenter from the result list</li>
+                            <li>Change the assignment by selecting a different datacenter</li>
                         </ul>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Required:</strong> At least one datacenter must be selected before saving a validated resource. Drafts can be
-                                saved without a datacenter.
+                                <strong>Required:</strong> Exactly one datacenter must be selected before saving a validated resource. Drafts can be
+                                saved without a datacenter assignment.
                             </p>
                         </div>
 
@@ -1802,8 +1802,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <p>
                             Admins and Group Leaders can create custom landing page templates to control the layout and branding of landing pages.
                             Custom templates are cloned from the immutable <strong>Default GFZ</strong> template and allow customization of section
-                            order and header logo. In template management, the built-in Resource and IGSN defaults stay pinned at the top and are
-                            subtly highlighted so cloned templates are easier to distinguish.
+                            order and header logo. Regular templates can be assigned to any number of datacenters. A regular resource in automatic
+                            mode inherits the template assigned to its datacenter; without such an assignment, ERNIE uses the Resource system default.
+                            An explicit landing-page selection always overrides datacenter inheritance. IGSN landing pages do not inherit templates
+                            from datacenters. In template management, the built-in Resource and IGSN defaults stay pinned at the top.
                         </p>
 
                         <WorkflowSteps>
@@ -1846,16 +1848,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Use in Landing Pages">
                                 <p>
-                                    When setting up a landing page for a resource, custom templates appear in the template dropdown alongside the
-                                    built-in templates. Select a custom template to apply its layout and branding.
+                                    Assign regular templates to datacenters in template management. In the landing-page setup modal, choose{' '}
+                                    <strong>Use automatic template</strong> to inherit that assignment, or select an explicit template to override it.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
 
                         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                             <p className="text-sm text-amber-900 dark:text-amber-100">
-                                <strong>Note:</strong> The Default GFZ template cannot be modified or deleted. Custom templates that are currently in
-                                use by published landing pages are also protected from deletion.
+                                <strong>Note:</strong> Default templates only allow display-limit and datacenter-assignment changes and cannot be
+                                deleted. A custom template cannot be deleted while a landing page uses it explicitly or a datacenter inherits it.
                             </p>
                         </div>
                     </>

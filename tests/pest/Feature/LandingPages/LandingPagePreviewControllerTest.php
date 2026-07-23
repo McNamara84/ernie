@@ -161,8 +161,9 @@ describe('Session Preview Creation', function () {
         $previewResponse->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz')
-                ->where('landingPage.landing_page_template_id', null)
-                ->where('sectionOrder', null)
+                ->where('landingPage.landing_page_template_id', $deletedTemplateId)
+                ->has('sectionOrder.rightColumn')
+                ->has('sectionOrder.leftColumn')
                 ->where('customLogoUrl', null)
             );
     });
@@ -426,7 +427,7 @@ describe('Session Preview Display', function () {
             );
     });
 
-    test('preview display clears a mismatched custom template when the session renderer is normalized', function () {
+    test('preview display falls back from a mismatched custom template when the session renderer is normalized', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],
             ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
@@ -458,16 +459,17 @@ describe('Session Preview Display', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.template', 'default_gfz_igsn')
-                ->where('landingPage.landing_page_template_id', null)
+                ->where('landingPage.landing_page_template_id', $template->id)
                 ->where('customLogoUrl', null)
-                ->where('sectionOrder', null)
+                ->has('sectionOrder.rightColumn')
+                ->has('sectionOrder.leftColumn')
                 ->where('displayLimits.creators', 31)
                 ->where('displayLimits.contributors', 41)
                 ->where('displayLimits.citationAuthors', 61)
             );
     });
 
-    test('preview display ignores built-in default template ids passed as custom overrides', function () {
+    test('preview display accepts built-in default template ids as explicit overrides', function () {
         $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
         $defaultTemplate->update([
             'creator_display_limit' => 31,
@@ -487,9 +489,10 @@ describe('Session Preview Display', function () {
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz')
-                ->where('landingPage.landing_page_template_id', null)
+                ->where('landingPage.landing_page_template_id', $defaultTemplate->id)
                 ->where('customLogoUrl', null)
-                ->where('sectionOrder', null)
+                ->has('sectionOrder.rightColumn')
+                ->has('sectionOrder.leftColumn')
                 ->where('displayLimits.creators', 31)
                 ->where('displayLimits.contributors', 41)
                 ->where('displayLimits.citationAuthors', 61)

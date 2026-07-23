@@ -935,7 +935,7 @@ describe('DataCiteForm', () => {
                 authorRoles={authorRoles}
                 descriptionTypes={descriptionTypes}
                 availableDatacenters={[{ id: 1, name: longDatacenterName }]}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 googleMapsApiKey="test-api-key"
             />,
         );
@@ -948,10 +948,9 @@ describe('DataCiteForm', () => {
         expect(versionField).toHaveClass('min-w-0');
         expect(versionField).toHaveClass('md:col-span-1');
 
-        const datacenterBadge = screen.getByText(longDatacenterName).closest('[data-slot="badge"]');
-        expect(datacenterBadge).toHaveClass('max-w-full');
-        expect(datacenterBadge).toHaveClass('whitespace-normal');
-        expect(datacenterBadge).toHaveClass('wrap-break-word');
+        const selectedDatacenter = screen.getByText(longDatacenterName);
+        expect(selectedDatacenter).toHaveClass('whitespace-normal');
+        expect(selectedDatacenter).toHaveClass('wrap-break-word');
     });
 
     it('announces available author roles for accessible guidance', async () => {
@@ -2840,7 +2839,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -2961,7 +2960,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'Historical MSL Dataset', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 initialMslLaboratories={historicalLaboratories}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
@@ -3003,7 +3002,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Custom License Dataset', titleType: 'main-title' }]}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3059,7 +3058,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3094,7 +3093,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'Later License Dataset', titleType: 'main-title' }]}
                 initialLicenses={['', 'MIT']}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3136,7 +3135,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3198,7 +3197,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3252,7 +3251,7 @@ describe('DataCiteForm', () => {
                 initialLicenses={['MIT']}
                 initialResourceId=" 7 "
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3350,7 +3349,7 @@ describe('DataCiteForm', () => {
                     },
                 ]}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3437,7 +3436,7 @@ describe('DataCiteForm', () => {
                 ]}
                 initialLicenses={['MIT']}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3542,7 +3541,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'Primary Dataset', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
                 availableDatacenters={backendErrorDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3562,7 +3561,6 @@ describe('DataCiteForm', () => {
         expect(datacenterSelect.parentElement).not.toBeNull();
         expect(within(datacenterSelect.parentElement!).getByText('Selected datacenter is invalid.')).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Remove datacenter "Invalid Datacenter"' }));
         await user.click(datacenterSelect);
         await user.click(screen.getByText('Replacement Datacenter'));
 
@@ -3610,7 +3608,7 @@ describe('DataCiteForm', () => {
         await user.click(screen.getByRole('button', { name: /save & validate/i }));
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /^At least one datacenter is required\.$/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^A datacenter is required\.$/i })).toBeInTheDocument();
         });
         expect(axios.post).not.toHaveBeenCalled();
         expect(screen.getByText('Please complete all required fields before saving.')).toBeInTheDocument();
@@ -3620,7 +3618,7 @@ describe('DataCiteForm', () => {
 
         datacenterScrollSpy.mockClear();
 
-        await user.click(screen.getByRole('button', { name: /^At least one datacenter is required\.$/i }));
+        await user.click(screen.getByRole('button', { name: /^A datacenter is required\.$/i }));
 
         await waitFor(() => {
             expect(datacenterScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
@@ -3661,14 +3659,14 @@ describe('DataCiteForm', () => {
             expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
         });
         expect(datacenterSelect.parentElement).not.toBeNull();
-        expect(within(datacenterSelect.parentElement!).getByText('At least one datacenter is required.')).toBeInTheDocument();
+        expect(within(datacenterSelect.parentElement!).getByText('A datacenter is required.')).toBeInTheDocument();
 
         await user.click(datacenterSelect);
         await user.click(screen.getByText('Test Datacenter'));
 
         await waitFor(() => {
             expect(datacenterSelect).toHaveAttribute('aria-invalid', 'false');
-            expect(within(datacenterSelect.parentElement!).queryByText('At least one datacenter is required.')).not.toBeInTheDocument();
+            expect(within(datacenterSelect.parentElement!).queryByText('A datacenter is required.')).not.toBeInTheDocument();
         });
     });
 
@@ -3694,7 +3692,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
                 availableDatacenters={availableDatacenters}
@@ -3746,7 +3744,7 @@ describe('DataCiteForm', () => {
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 initialFundingReferences={[
                     {
                         id: 'funding-1',
@@ -3839,7 +3837,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                 initialLicenses={['MIT']}
                 availableDatacenters={availableDatacenters}
-                initialDatacenters={[1]}
+                initialDatacenterId={1}
                 descriptionTypes={descriptionTypes}
                 googleMapsApiKey="test-api-key"
             />,
@@ -3972,7 +3970,7 @@ describe('DataCiteForm', () => {
                     initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
-                    initialDatacenters={[1]}
+                    initialDatacenterId={1}
                     initialAuthors={[
                         {
                             type: 'person',
@@ -4016,7 +4014,7 @@ describe('DataCiteForm', () => {
                     initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
-                    initialDatacenters={[1]}
+                    initialDatacenterId={1}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
@@ -4085,7 +4083,7 @@ describe('DataCiteForm', () => {
                     initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
-                    initialDatacenters={[1]}
+                    initialDatacenterId={1}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
@@ -4141,7 +4139,7 @@ describe('DataCiteForm', () => {
                     initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
-                    initialDatacenters={[1]}
+                    initialDatacenterId={1}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                 />,
@@ -6096,7 +6094,7 @@ describe('DataCiteForm', () => {
                     initialTitles={[{ title: 'Test Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
-                    initialDatacenters={[1]}
+                    initialDatacenterId={1}
                     descriptionTypes={descriptionTypes}
                     googleMapsApiKey="test-api-key"
                     {...overrides}
@@ -6569,7 +6567,7 @@ describe('DataCiteForm', () => {
                 initialTitles: [{ title: 'Test', titleType: 'main-title' }],
                 initialLicenses: ['MIT'],
                 availableDatacenters,
-                initialDatacenters: [1],
+                initialDatacenterId: 1,
             });
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -6599,7 +6597,7 @@ describe('DataCiteForm', () => {
                 initialTitles: [{ title: 'Test', titleType: 'main-title' }],
                 initialLicenses: ['MIT'],
                 availableDatacenters,
-                initialDatacenters: [1],
+                initialDatacenterId: 1,
             });
 
             const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -6690,7 +6688,7 @@ describe('DataCiteForm', () => {
                     initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
                     initialLicenses={['MIT']}
                     availableDatacenters={availableDatacenters}
-                    initialDatacenters={[1]}
+                    initialDatacenterId={1}
                     initialRelatedWorks={[
                         {
                             id: 12,

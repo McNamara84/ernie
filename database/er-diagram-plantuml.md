@@ -262,6 +262,7 @@ entity "resources" as resources {
     doi : VARCHAR <<UK>> //DataCite #1//
     * identifier_type : VARCHAR(50) = 'DOI'
     publisher_id : BIGINT <<FK>>
+    datacenter_id : BIGINT <<FK>> <<nullable>>
     publication_year : SMALLINT //DataCite #5//
     resource_type_id : BIGINT <<FK>> //nullable//
     version : VARCHAR(50) //DataCite #15//
@@ -814,19 +815,10 @@ entity "datacenters" as datacenters {
     * **id** : BIGINT <<PK>>
     --
     * name : VARCHAR <<UK>>
+    landing_page_template_id : BIGINT <<FK>> <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
-
-entity "resource_datacenter" as resource_datacenter {
-    * **id** : BIGINT <<PK>>
-    --
-    * resource_id : BIGINT <<FK>>
-    * datacenter_id : BIGINT <<FK>>
-    created_at : TIMESTAMP
-    updated_at : TIMESTAMP
-}
-
 ' ==========================================================================
 ' LARAVEL FRAMEWORK TABLES
 ' ==========================================================================
@@ -1140,9 +1132,8 @@ resources ||--o| resource_assessments
 resources ||--o| landing_pages
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments
-resources }o--o{ datacenters
-resource_datacenter }o--|| resources
-resource_datacenter }o--|| datacenters
+resources }o--o| datacenters
+datacenters }o--o| landing_page_templates : "inherits template"
 
 ' Lookup table relationships
 resources }o--o| resource_types

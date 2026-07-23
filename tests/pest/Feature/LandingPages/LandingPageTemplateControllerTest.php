@@ -409,7 +409,7 @@ describe('Update', function (): void {
             ->putJson("/landing-pages/{$this->defaultTemplate->id}", ['name' => 'Hacked'])
             ->assertForbidden()
             ->assertJson([
-                'message' => 'Only creator, contributor, and citation author display limits can be updated on default templates.',
+                'message' => 'Only display limits and datacenter assignments can be updated on default templates.',
                 'error' => 'default_template_immutable',
             ]);
     });

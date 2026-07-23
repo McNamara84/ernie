@@ -89,7 +89,7 @@ return new class extends Migration
             ->orderBy('resources.id')
             ->chunkById(500, function ($resources): void {
                 foreach ($resources as $resource) {
-                    $assignments = DB::table('resource_datacenter')
+                    $assignments = array_values(DB::table('resource_datacenter')
                         ->join('datacenters', 'datacenters.id', '=', 'resource_datacenter.datacenter_id')
                         ->where('resource_datacenter.resource_id', $resource->id)
                         ->orderBy('resource_datacenter.id')
@@ -103,7 +103,7 @@ return new class extends Migration
                             'datacenter_id' => (int) $row->datacenter_id,
                             'datacenter_name' => (string) $row->datacenter_name,
                         ])
-                        ->all();
+                        ->all());
 
                     $this->persistAssignment((int) $resource->id, $assignments);
                 }

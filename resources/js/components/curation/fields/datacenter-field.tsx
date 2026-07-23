@@ -48,7 +48,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         className={cn('h-auto min-h-9 w-full min-w-0 justify-between font-normal', hasError && 'border-destructive')}
                         data-testid="datacenter-select"
                     >
-                        <span className="min-w-0 flex-1 text-left text-muted-foreground">
+                        <span className="min-w-0 flex-1 wrap-break-word whitespace-normal text-left text-muted-foreground">
                             {selectedOption?.name ?? 'Select a datacenter...'}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
