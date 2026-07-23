@@ -27,6 +27,20 @@ const axiosGetMock = vi.hoisted(() => vi.fn());
 const extractErrorMessageFromBlobMock = vi.hoisted(() => vi.fn());
 const parseValidationErrorFromBlobMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
+const mockUser = vi.hoisted(() => ({
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.test',
+    font_size_preference: 'regular',
+    email_verified_at: null,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    role: 'group_leader',
+    can_manage_landing_pages: true,
+    can_register_doi: true,
+    can_register_production_doi: true,
+    can_delete_published_resources: true,
+}));
 
 vi.mock('sonner', () => ({ toast: toastMock }));
 
@@ -36,19 +50,7 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: {
             auth: {
-                user: {
-                    id: 1,
-                    name: 'Test User',
-                    email: 'test@example.test',
-                    font_size_preference: 'regular',
-                    email_verified_at: null,
-                    created_at: '2024-01-01T00:00:00Z',
-                    updated_at: '2024-01-01T00:00:00Z',
-                    role: 'group_leader',
-                    can_manage_landing_pages: true,
-                    can_register_doi: true,
-                    can_register_production_doi: true,
-                },
+                user: mockUser,
             },
         },
     }),
@@ -187,6 +189,8 @@ describe('ResourcesPage - bulk selection', () => {
     let revokeObjectUrlMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
+        mockUser.role = 'group_leader';
+        mockUser.can_delete_published_resources = true;
         routerMock.delete.mockClear();
         routerMock.reload.mockClear();
         routerMock.visit.mockClear();
@@ -271,7 +275,6 @@ describe('ResourcesPage - bulk selection', () => {
                 writable: true,
             });
         }
-
     });
 
     it('renders selection checkboxes and the idle toolbar hint', async () => {
@@ -611,7 +614,9 @@ describe('ResourcesPage - bulk selection', () => {
         expect(screen.getByText(/delete 1 draft resource/i)).toBeInTheDocument();
         expect(screen.getByText(/delete 1 curation resource/i)).toBeInTheDocument();
         expect(screen.getByText(/delete 1 preview resource/i)).toBeInTheDocument();
-        expect(screen.getByTestId('resources-delete-group-published')).toHaveTextContent('1 published resource cannot be deleted');
+        expect(screen.getByText(/delete 1 published resource/i)).toBeInTheDocument();
+        expect(screen.getByTestId('resources-delete-group-published-checkbox')).not.toBeChecked();
+        expect(screen.getAllByText(/DataCite will not be changed/i)).toHaveLength(2);
         expect(screen.getByText(/preview pages will be deleted/i)).toBeInTheDocument();
 
         await userEvent.click(screen.getByTestId('resources-delete-group-review-checkbox'));
@@ -641,15 +646,40 @@ describe('ResourcesPage - bulk selection', () => {
         expect(routerMock.delete).not.toHaveBeenCalled();
     });
 
-    it('explains published-only selections without submitting deletion', async () => {
+    it('requires explicit confirmation before submitting a published-only deletion', async () => {
         render(<ResourcesPage {...buildProps([buildResource({ id: 13, publicstatus: 'published', title: 'Published A', landingPage })])} />);
 
         fireEvent.click(screen.getByTestId('resources-row-checkbox-13'));
         await clickResourceAction('resources-action-delete');
 
-        expect(screen.getByText(/no selected resources can be deleted/i)).toBeInTheDocument();
-        expect(screen.getByTestId('resources-delete-group-published')).toHaveTextContent('1 published resource cannot be deleted');
+        expect(screen.getByText(/select at least one resource group to delete/i)).toBeInTheDocument();
+        expect(screen.getByTestId('resources-delete-group-published-checkbox')).not.toBeChecked();
         expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
+        expect(routerMock.delete).not.toHaveBeenCalled();
+    });
+
+    it('submits published resources after a group leader explicitly selects the published group', async () => {
+        render(<ResourcesPage {...buildProps([buildResource({ id: 13, publicstatus: 'published', title: 'Published A', landingPage })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-13'));
+        await clickResourceAction('resources-action-delete');
+        await userEvent.click(screen.getByTestId('resources-delete-group-published-checkbox'));
+        await userEvent.click(screen.getByRole('button', { name: /^delete resource$/i }));
+
+        expect(routerMock.delete).toHaveBeenCalledWith('/resources/batch', expect.objectContaining({ data: { ids: [13] }, preserveScroll: true }));
+    });
+
+    it('keeps published resources protected for curators', async () => {
+        mockUser.role = 'curator';
+        mockUser.can_delete_published_resources = false;
+        render(<ResourcesPage {...buildProps([buildResource({ id: 13, publicstatus: 'published', title: 'Published A', landingPage })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-13'));
+        await clickResourceAction('resources-action-delete');
+
+        expect(screen.getByTestId('resources-delete-group-published')).toHaveTextContent('1 published resource cannot be deleted');
+        expect(screen.queryByTestId('resources-delete-group-published-checkbox')).not.toBeInTheDocument();
+        expect(screen.getByText(/no selected resources can be deleted/i)).toBeInTheDocument();
         expect(routerMock.delete).not.toHaveBeenCalled();
     });
 

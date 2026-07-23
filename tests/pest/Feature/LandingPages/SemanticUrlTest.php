@@ -51,7 +51,9 @@ describe('DOI-based Landing Page URLs', function () {
     test('returns 404 for non-existent DOI URL', function () {
         $response = $this->get('/10.5880/nonexistent/some-slug');
 
-        $response->assertStatus(404);
+        $response->assertStatus(404)
+            ->assertSeeText('This page is no longer available.')
+            ->assertSeeText('Explore the data portal');
     });
 
     test('returns 404 for wrong slug with correct DOI', function () {

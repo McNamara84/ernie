@@ -219,6 +219,12 @@ class AppServiceProvider extends ServiceProvider
             return $user->role === UserRole::ADMIN;
         });
 
+        // Delete published resources from the Resources page (Admin, Group Leader)
+        Gate::define('delete-published-resources', function (User $user): bool {
+            return $user->role === UserRole::ADMIN
+                || $user->role === UserRole::GROUP_LEADER;
+        });
+
         // Manage landing pages (create and update; delete is gated separately)
         Gate::define('manage-landing-pages', function (User $user): bool {
             return match ($user->role) {

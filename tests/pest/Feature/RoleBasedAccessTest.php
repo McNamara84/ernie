@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 
 /**
  * Role-based Access Control Tests (Issue #379)
@@ -424,7 +425,34 @@ describe('Gate Definitions', function () {
         expect($curator->can('access-database-dumps'))->toBeFalse();
         expect($beginner->can('access-database-dumps'))->toBeFalse();
     });
+
+    it('delete-published-resources gate allows admin and group leader', function () {
+        $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+        $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+        $beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+
+        expect($admin->can('delete-published-resources'))->toBeTrue();
+        expect($groupLeader->can('delete-published-resources'))->toBeTrue();
+        expect($curator->can('delete-published-resources'))->toBeFalse();
+        expect($beginner->can('delete-published-resources'))->toBeFalse();
+    });
 });
+
+it('shares the published-resource deletion permission with the Resources page', function (UserRole $role, bool $expected): void {
+    $user = User::factory()->create(['role' => $role]);
+
+    $this->actingAs($user)
+        ->get('/resources')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.can_delete_published_resources', $expected)
+        );
+})->with([
+    'admin' => [UserRole::ADMIN, true],
+    'group leader' => [UserRole::GROUP_LEADER, true],
+    'curator' => [UserRole::CURATOR, false],
+    'beginner' => [UserRole::BEGINNER, false],
+]);
 
 describe('Unauthenticated Access', function () {
     it('redirects to login for logs page', function () {

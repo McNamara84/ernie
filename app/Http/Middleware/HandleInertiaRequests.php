@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
                     'can_register_doi' => $request->user()->can('register-doi'),
                     'can_register_production_doi' => $request->user()->can('register-production-doi'),
                     'can_delete_logs' => $request->user()->can('delete-logs'),
+                    'can_delete_published_resources' => $request->user()->can('delete-published-resources'),
                     // Granular access permissions (Issue #379)
                     'can_access_logs' => $request->user()->can('access-logs'),
                     'can_access_old_datasets' => $request->user()->can('access-old-datasets'),

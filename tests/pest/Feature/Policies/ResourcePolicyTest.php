@@ -215,8 +215,8 @@ describe('ResourcePolicy', function () {
             expect($this->policy->delete($user, $resource))->toBeFalse();
         });
 
-        it('loads status relations only after the role check passes', function () {
-            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+        it('loads status relations only for curators', function () {
+            $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
             /** @var Resource&MockInterface $resource */
             $resource = Mockery::mock(Resource::class);
@@ -231,6 +231,20 @@ describe('ResourcePolicy', function () {
 
             expect($this->policy->delete($user, $resource))->toBeTrue();
         });
+
+        it('allows privileged roles without loading status relations', function (UserRole $role) {
+            $user = User::factory()->create(['role' => $role]);
+
+            /** @var Resource&MockInterface $resource */
+            $resource = Mockery::mock(Resource::class);
+            $resource->shouldNotReceive('loadMissing');
+            $resource->shouldNotReceive('publicStatus');
+
+            expect($this->policy->delete($user, $resource))->toBeTrue();
+        })->with([
+            'admin' => UserRole::ADMIN,
+            'group leader' => UserRole::GROUP_LEADER,
+        ]);
 
         it('allows admin to delete a draft resource', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
@@ -275,19 +289,19 @@ describe('ResourcePolicy', function () {
             expect($this->policy->delete($user, $resource))->toBeTrue();
         });
 
-        it('denies admin from deleting a published resource', function () {
+        it('allows admin to delete a published resource', function () {
             $user = User::factory()->create(['role' => UserRole::ADMIN]);
             $resource = createPublishedResourceForPolicy();
 
             expect($resource->publicStatus())->toBe('published');
-            expect($this->policy->delete($user, $resource))->toBeFalse();
+            expect($this->policy->delete($user, $resource))->toBeTrue();
         });
 
-        it('denies group leader from deleting a published resource', function () {
+        it('allows group leader to delete a published resource', function () {
             $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
             $resource = createPublishedResourceForPolicy();
 
-            expect($this->policy->delete($user, $resource))->toBeFalse();
+            expect($this->policy->delete($user, $resource))->toBeTrue();
         });
 
         it('denies curator from deleting a published resource', function () {
