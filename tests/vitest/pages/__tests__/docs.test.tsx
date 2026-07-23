@@ -568,7 +568,25 @@ describe('Docs page', () => {
 
                 const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-                return text.includes('Published resources are listed as protected and are never sent to the delete endpoint.');
+                return (
+                    text.includes('Curators can delete draft, curation, and preview resources.') &&
+                    text.includes('Admins and Group Leaders can additionally delete published resources.')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                if (element?.tagName !== 'P') {
+                    return false;
+                }
+
+                const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    text.includes('published resources require an explicit checkbox that is off by default') &&
+                    text.includes('DataCite remains unchanged') &&
+                    text.includes('Curators continue to see published resources as protected.')
+                );
             }),
         ).toBeInTheDocument();
     });

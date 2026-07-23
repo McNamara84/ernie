@@ -117,11 +117,6 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
 
         const [previewPage] = await Promise.all([context.waitForEvent('page'), previewButton.click()]);
 
-        await previewPage.waitForURL((url) => url.href !== 'about:blank', {
-            timeout: 30_000,
-            waitUntil: 'domcontentloaded',
-        });
-        // Verify the preview URL format.
         // Depending on environment/config, the preview can open either:
         // - the internal preview route: /resources/{id}/landing-page/preview
         // - semantic URL with preview token: /{doi}/{slug}?preview=... or /draft-{id}/{slug}?preview=...
@@ -130,11 +125,21 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // duplicating the exact regex from route constraints. This reduces maintenance
         // burden - if route patterns change, this test only needs updating if the
         // general URL structure changes.
-        const previewUrl = previewPage.url();
         const previewUrlRegex = new RegExp(
             // Match: /resources/N/landing-page/preview OR /10.NNNN/path/slug?preview= OR /draft-N/slug?preview=
             '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)',
         );
+
+        // Firefox can briefly expose the opener URL for the synchronously
+        // created placeholder tab. Wait for the actual preview navigation
+        // instead of treating any URL other than about:blank as final.
+        await previewPage.waitForURL((url) => previewUrlRegex.test(url.href), {
+            timeout: 30_000,
+            waitUntil: 'domcontentloaded',
+        });
+
+        // Verify the preview URL format.
+        const previewUrl = previewPage.url();
         const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
         expect(
             isValidPreviewUrl,
