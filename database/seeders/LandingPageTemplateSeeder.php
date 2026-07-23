@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use Illuminate\Database\Seeder;
 
@@ -18,6 +19,12 @@ class LandingPageTemplateSeeder extends Seeder
      */
     public function run(): void
     {
-        LandingPageTemplate::ensureSystemTemplatesExist();
+        $templates = LandingPageTemplate::ensureSystemTemplatesExist();
+
+        Datacenter::query()->firstOrCreate([
+            'name' => 'GFZ German Research Centre for Geosciences',
+        ])->forceFill([
+            'landing_page_template_id' => $templates['resource']->id,
+        ])->save();
     }
 }

@@ -82,7 +82,7 @@ final class UploadedResourceDraftService
             'fundingReferences' => $this->positionedList($payload['fundingReferences'] ?? []),
             'mslLaboratories' => $this->mslLaboratoryList($payload['mslLaboratories'] ?? []),
             'instruments' => $this->positionedList($payload['instruments'] ?? []),
-            'datacenters' => [],
+            'datacenter_id' => null,
         ];
     }
 

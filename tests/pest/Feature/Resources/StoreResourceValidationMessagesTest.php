@@ -192,7 +192,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         expect($titleErrors[0])->toStartWith('[Resource Information]');
     });
 
-    test('missing datacenters returns [Resource Information] prefix', function () {
+    test('missing datacenter returns [Resource Information] prefix', function () {
         $user = User::factory()->create();
         $resourceTypeId = seedValidationLookupTables();
 
@@ -202,9 +202,9 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
             ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors(['datacenters']);
+        $response->assertJsonValidationErrors(['datacenter_id']);
 
-        $errors = $response->json('errors.datacenters');
+        $errors = $response->json('errors.datacenter_id');
         expect($errors[0])->toStartWith('[Resource Information]');
     });
 
@@ -463,7 +463,7 @@ describe('Store Resource – Section-Prefixed Validation Messages (Issue #605)',
         expect($errors['resourceType'][0])->toStartWith('[Resource Information]');
         expect($errors['titles'][0])->toStartWith('[Resource Information]');
         expect($errors['licenses'][0])->toStartWith('[Licenses & Rights]');
-        expect($errors['datacenters'][0])->toStartWith('[Resource Information]');
+        expect($errors['datacenter_id'][0])->toStartWith('[Resource Information]');
     });
 
     test('second author position is numbered correctly as Author #2', function () {

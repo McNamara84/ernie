@@ -88,9 +88,22 @@ export interface LandingPageTemplateConfig {
     /** Number of landing pages using this template */
     landing_pages_count?: number;
 
+    /** Datacenters inheriting this template */
+    datacenters?: Array<{ id: number; name: string }>;
+
+    /** Number of datacenters inheriting this template */
+    datacenters_count?: number;
+
     /** Timestamps */
     created_at: string;
     updated_at: string;
+}
+
+export interface LandingPageTemplateDatacenter {
+    id: number;
+    name: string;
+    landing_page_template_id: number | null;
+    landing_page_template_name: string | null;
 }
 
 /**

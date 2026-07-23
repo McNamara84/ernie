@@ -89,7 +89,7 @@ describe('required fields', function () {
             ->postJson('/editor/resources', []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors', 'datacenters']);
+            ->assertJsonValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors', 'datacenter_id']);
     });
 
     it('accepts valid minimal payload', function () {

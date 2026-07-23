@@ -1,7 +1,6 @@
-import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import { useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Label } from '@/components/ui/label';
@@ -17,8 +16,8 @@ interface DatacenterFieldProps {
     id: string;
     label: string;
     options: DatacenterOption[];
-    selected: number[];
-    onChange: (selected: number[]) => void;
+    selected: number | null;
+    onChange: (selected: number | null) => void;
     className?: string;
     required?: boolean;
     hasError?: boolean;
@@ -28,15 +27,7 @@ interface DatacenterFieldProps {
 export function DatacenterField({ id, label, options, selected, onChange, className, required = false, hasError = false, errorMessage }: DatacenterFieldProps) {
     const [open, setOpen] = useState(false);
 
-    const selectedOptions = options.filter((o) => selected.includes(o.id));
-
-    const toggleOption = (optionId: number) => {
-        if (selected.includes(optionId)) {
-            onChange(selected.filter((id) => id !== optionId));
-        } else {
-            onChange([...selected, optionId]);
-        }
-    };
+    const selectedOption = options.find((option) => option.id === selected);
 
     return (
         <div className={cn('flex min-w-0 flex-col gap-2', className)}>
@@ -44,25 +35,6 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                 {label}
                 {required && <span className="ml-1 font-bold text-destructive">*</span>}
             </Label>
-            {selectedOptions.length > 0 && (
-                <div className="flex min-w-0 flex-wrap gap-1">
-                    {selectedOptions.map((option) => (
-                        <Badge key={option.id} variant="secondary" className="h-auto max-w-full items-start gap-1 whitespace-normal pr-1 text-left text-xs wrap-break-word">
-                            {option.name}
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-xs"
-                                aria-label={`Remove datacenter "${option.name}"`}
-                                className="size-4 shrink-0 rounded-sm p-0 text-muted-foreground hover:text-foreground"
-                                onClick={() => onChange(selected.filter((sid) => sid !== option.id))}
-                            >
-                                <X className="h-3 w-3" />
-                            </Button>
-                        </Badge>
-                    ))}
-                </div>
-            )}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <Button
@@ -77,9 +49,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         data-testid="datacenter-select"
                     >
                         <span className="min-w-0 flex-1 text-left text-muted-foreground">
-                            {selectedOptions.length > 0
-                                ? `${selectedOptions.length} datacenter${selectedOptions.length > 1 ? 's' : ''} selected`
-                                : 'Select datacenters...'}
+                            {selectedOption?.name ?? 'Select a datacenter...'}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
@@ -91,8 +61,15 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                             <CommandEmpty>No datacenter found.</CommandEmpty>
                             <CommandGroup>
                                 {options.map((option) => (
-                                    <CommandItem key={option.id} value={option.name} onSelect={() => toggleOption(option.id)}>
-                                        <Check className={cn('mr-2 h-4 w-4', selected.includes(option.id) ? 'opacity-100' : 'opacity-0')} />
+                                    <CommandItem
+                                        key={option.id}
+                                        value={option.name}
+                                        onSelect={() => {
+                                            onChange(option.id);
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <Check className={cn('mr-2 h-4 w-4', selected === option.id ? 'opacity-100' : 'opacity-0')} />
                                         {option.name}
                                     </CommandItem>
                                 ))}

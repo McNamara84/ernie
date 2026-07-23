@@ -200,8 +200,9 @@ class StoreDraftResourceRequest extends FormRequest
             'instruments.*.pid' => ['required', 'string', 'max:512'],
             'instruments.*.pidType' => ['required', 'string', Rule::in(['Handle', 'DOI', 'URL'])],
             'instruments.*.name' => ['required', 'string', 'max:1024'],
-            // Datacenters are optional for drafts
-            'datacenters' => ['nullable', 'array'],
+            // A datacenter is optional for drafts, but remains singular.
+            'datacenter_id' => ['nullable', 'integer', Rule::exists('datacenters', 'id')],
+            'datacenters' => ['sometimes', 'nullable', 'array', 'max:1'],
             'datacenters.*' => ['integer', 'distinct', Rule::exists('datacenters', 'id')],
         ];
     }
@@ -211,6 +212,16 @@ class StoreDraftResourceRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $legacyDatacenters = $this->input('datacenters');
+
+        if (! $this->has('datacenter_id')
+            && is_array($legacyDatacenters)
+            && count($legacyDatacenters) <= 1) {
+            $this->merge([
+                'datacenter_id' => $legacyDatacenters[0] ?? null,
+            ]);
+        }
+
         /** @var array<int, array<string, mixed>|mixed> $rawTitles */
         $rawTitles = $this->input('titles', []);
 
@@ -1027,8 +1038,10 @@ class StoreDraftResourceRequest extends FormRequest
             'instruments.*.pidType.in' => '[Used Instruments] Instrument #:position has an invalid PID type.',
 
             // Datacenters
+            'datacenter_id.integer' => '[Resource Information] The selected datacenter is invalid.',
+            'datacenter_id.exists' => '[Resource Information] The selected datacenter is invalid.',
+            'datacenters.max' => '[Resource Information] A resource can only be assigned to one datacenter.',
             'datacenters.*.exists' => '[Resource Information] Datacenter #:position is not a valid datacenter.',
-            'datacenters.*.distinct' => '[Resource Information] Datacenter #:position is a duplicate.',
         ];
     }
 
@@ -1065,6 +1078,20 @@ class StoreDraftResourceRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 $this->validateEditorDates($validator);
+            },
+            function (Validator $validator): void {
+                $legacyDatacenters = $this->input('datacenters');
+                if (! is_array($legacyDatacenters) || count($legacyDatacenters) > 1) {
+                    return;
+                }
+
+                $legacyId = isset($legacyDatacenters[0]) ? (int) $legacyDatacenters[0] : null;
+                $canonicalId = $this->input('datacenter_id');
+                $canonicalId = $canonicalId === null ? null : (int) $canonicalId;
+
+                if ($legacyId !== $canonicalId) {
+                    $validator->errors()->add('datacenter_id', '[Resource Information] The datacenter fields contain conflicting values.');
+                }
             },
             // Validate title type slugs against DB
             function (Validator $validator): void {

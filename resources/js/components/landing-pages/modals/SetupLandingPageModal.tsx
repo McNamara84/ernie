@@ -81,6 +81,16 @@ type PersistedLandingPageDraftState = {
     links: LandingPageLink[];
 };
 
+type ResourceTemplateOptions = {
+    templates: LandingPageTemplateSummary[];
+    datacenter: { id: number; name: string } | null;
+    datacenter_template: { id: number; name: string; slug: string } | null;
+    system_default: { id: number; name: string; slug: string };
+    automatic_template: { id: number; name: string; slug: string };
+    automatic_source: 'datacenter' | 'default';
+    supports_datacenter_inheritance: boolean;
+};
+
 function cloneLandingPageLinks(links: LandingPageLink[] = []): LandingPageLink[] {
     return links.map((link, index) => ({
         id: link.id,
@@ -347,6 +357,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     // Custom templates state
     const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
+    const [templateOptions, setTemplateOptions] = useState<ResourceTemplateOptions | null>(null);
 
     // Download URL suggestion state
     const [downloadUrlSuggestions, setDownloadUrlSuggestions] = useState<LandingPageDownloadUrlSuggestions>(EMPTY_DOWNLOAD_URL_SUGGESTIONS);
@@ -386,14 +397,19 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const eligibleTemplateType: 'resource' | 'igsn' = isPhysicalObject ? 'igsn' : 'resource';
     const eligibleCustomTemplates = useMemo(
         () => customTemplates.filter(
-            (ct) => !ct.is_default && (ct.template_type ?? 'resource') === eligibleTemplateType,
+            (ct) => (ct.template_type ?? 'resource') === eligibleTemplateType && (!isPhysicalObject || !ct.is_default),
         ),
-        [customTemplates, eligibleTemplateType],
+        [customTemplates, eligibleTemplateType, isPhysicalObject],
     );
     const builtInTemplateOptions = useMemo(
-        () => getTemplateOptions(resource.resourcetypegeneral),
-        [resource.resourcetypegeneral],
+        () => getTemplateOptions(resource.resourcetypegeneral).filter(
+            (option) => isPhysicalObject || option.value !== 'default_gfz',
+        ),
+        [isPhysicalObject, resource.resourcetypegeneral],
     );
+    const automaticTemplateDescription = templateOptions?.automatic_source === 'datacenter'
+        ? `Datacenter template: ${templateOptions.automatic_template.name}`
+        : `System default: ${templateOptions?.system_default.name ?? 'Default GFZ Data Services'}`;
     const importedDownloadFiles = currentConfig?.files ?? existingConfig?.files ?? [];
     const hasImportedFiles = importedDownloadFiles.length > 0;
     const currentDraftState = useMemo<PersistedLandingPageDraftState>(() => ({
@@ -455,8 +471,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const loadCustomTemplates = async () => {
         try {
-            const response = await axios.get<{ templates: LandingPageTemplateSummary[] }>('/api/landing-page-templates');
+            const response = await axios.get<ResourceTemplateOptions>(`/resources/${resource.id}/landing-page/template-options`);
             setCustomTemplates(response.data.templates ?? []);
+            setTemplateOptions(response.data);
         } catch (error) {
             console.error('Failed to load custom templates:', error);
         }
@@ -975,8 +992,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                         <div className="space-y-2">
                             <Label htmlFor="template">Landing Page Template</Label>
                             <Select
-                                value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
+                                value={
+                                    landingPageTemplateId
+                                        ? `custom:${landingPageTemplateId}`
+                                        : (!isPhysicalObject && template === 'default_gfz' ? 'automatic' : template)
+                                }
                                 onValueChange={(val) => {
+                                    if (val === 'automatic') {
+                                        setLandingPageTemplateId(null);
+                                        setTemplate('default_gfz');
+                                    } else
                                     if (val.startsWith('custom:')) {
                                         const id = Number(val.replace('custom:', ''));
                                         setLandingPageTemplateId(id);
@@ -1000,6 +1025,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    {!isPhysicalObject && (
+                                        <>
+                                            <SelectItem value="automatic">
+                                                <div className="flex flex-col">
+                                                    <span>Use automatic template</span>
+                                                    <span className="text-xs text-muted-foreground">{automaticTemplateDescription}</span>
+                                                </div>
+                                            </SelectItem>
+                                            <SelectSeparator />
+                                        </>
+                                    )}
                                     {builtInTemplateOptions.map((tmpl) => (
                                         <SelectItem key={tmpl.value} value={tmpl.value}>
                                             <div className="flex flex-col">
@@ -1012,12 +1048,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                         <>
                                             <SelectSeparator />
                                             <SelectGroup>
-                                                <SelectLabel>Custom Templates</SelectLabel>
+                                                <SelectLabel>{isPhysicalObject ? 'Custom Templates' : 'Explicit Templates'}</SelectLabel>
                                                 {eligibleCustomTemplates.map((ct) => (
                                                     <SelectItem key={`custom:${ct.id}`} value={`custom:${ct.id}`}>
                                                         <div className="flex flex-col">
                                                             <span>{ct.name}</span>
-                                                            <span className="text-xs text-muted-foreground">Custom section order{ct.logo_url ? ' & logo' : ''}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {ct.is_default
+                                                                    ? 'Explicit system default (overrides datacenter inheritance)'
+                                                                    : `Custom section order${ct.logo_url ? ' & logo' : ''}`}
+                                                            </span>
                                                         </div>
                                                     </SelectItem>
                                                 ))}

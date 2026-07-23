@@ -139,8 +139,8 @@ describe('datacenter-scoped DataCite import job', function () {
                     'resource_count' => 1,
                 ],
             ])
-            ->and($resource->datacenters()->pluck('name')->sort()->values()->all())
-            ->toBe(['ArboDat 2016', 'GFZ Data Services'])
+            ->and($resource->datacenter?->name)
+            ->toBe('ArboDat 2016')
             ->and(Resource::query()->where('doi', '10.5880/not-selected')->exists())
             ->toBeFalse()
             ->and($streamAdvancedAfterFinalTarget)
@@ -252,37 +252,29 @@ describe('datacenter-scoped DataCite import job', function () {
             ) === 1,
         ));
 
-        $firstResourceDatacenters = Resource::query()
+        $firstResourceDatacenter = Resource::query()
             ->where('doi', '10.5880/cache-one')
             ->firstOrFail()
-            ->datacenters()
-            ->pluck('name')
-            ->sort()
-            ->values()
-            ->all();
-        $secondResourceDatacenters = Resource::query()
+            ->datacenter?->name;
+        $secondResourceDatacenter = Resource::query()
             ->where('doi', '10.5880/cache-two')
             ->firstOrFail()
-            ->datacenters()
-            ->pluck('name')
-            ->sort()
-            ->values()
-            ->all();
+            ->datacenter?->name;
 
         expect($datacenterQueries)
-            ->toHaveCount(3)
+            ->toHaveCount(1)
             ->and(Datacenter::query()->where('name', 'New shared datacenter')->count())
-            ->toBe(1)
-            ->and($firstResourceDatacenters)
-            ->toBe(['Existing portal datacenter', 'New shared datacenter'])
-            ->and($secondResourceDatacenters)
-            ->toBe(['Existing portal datacenter', 'New shared datacenter']);
+            ->toBe(0)
+            ->and($firstResourceDatacenter)
+            ->toBe('Existing portal datacenter')
+            ->and($secondResourceDatacenter)
+            ->toBe('Existing portal datacenter');
     });
 
     it('does not change datacenters on resources that already exist in ERNIE', function () {
         $legacyDatacenter = Datacenter::query()->create(['name' => 'Legacy assignment']);
         $existingResource = Resource::factory()->create(['doi' => '10.5880/existing']);
-        $existingResource->datacenters()->attach($legacyDatacenter);
+        $existingResource->update(['datacenter_id' => $legacyDatacenter->id]);
 
         $this->portalService
             ->shouldReceive('resourcesForDatacenter')
@@ -323,8 +315,8 @@ describe('datacenter-scoped DataCite import job', function () {
                 'imported' => 0,
                 'skipped' => 1,
             ])
-            ->and($existingResource->fresh()->datacenters()->pluck('name')->all())
-            ->toBe(['Legacy assignment'])
+            ->and($existingResource->fresh()->datacenter?->name)
+            ->toBe('Legacy assignment')
             ->and(Datacenter::query()->where('name', 'ArboDat 2016')->exists())
             ->toBeFalse();
     });
@@ -334,7 +326,7 @@ describe('datacenter-scoped DataCite import job', function () {
             'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
         ]);
         $pendingResource = Resource::factory()->create(['doi' => '10.5880/pending-gfz']);
-        $pendingResource->datacenters()->attach($gfz);
+        $pendingResource->update(['datacenter_id' => $gfz->id]);
 
         $this->portalService
             ->shouldReceive('resourcesForDatacenter')
@@ -392,8 +384,8 @@ describe('datacenter-scoped DataCite import job', function () {
                 'imported' => 1,
                 'failed' => 0,
             ])
-            ->and($pendingResource->fresh()->datacenters()->pluck('name')->all())
-            ->toBe([LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER]);
+            ->and($pendingResource->fresh()->datacenter?->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER);
     });
 
     it('deduplicates portal and pending targets and gives the portal assignment precedence', function () {
@@ -401,7 +393,7 @@ describe('datacenter-scoped DataCite import job', function () {
             'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
         ]);
         $pendingResource = Resource::factory()->create(['doi' => '10.5880/shared']);
-        $pendingResource->datacenters()->attach($gfz);
+        $pendingResource->update(['datacenter_id' => $gfz->id]);
 
         $this->portalService
             ->shouldReceive('resourcesForDatacenter')
@@ -455,8 +447,8 @@ describe('datacenter-scoped DataCite import job', function () {
         expect($status['total'])->toBe(1)
             ->and($status['processed'])->toBe(1)
             ->and($status['imported'])->toBe(1)
-            ->and($pendingResource->fresh()->datacenters()->pluck('name')->all())
-            ->toBe(['ArboDat 2016']);
+            ->and($pendingResource->fresh()->datacenter?->name)
+            ->toBe('ArboDat 2016');
     });
 
     it('continues with portal resources and reports a warning when pending selection fails', function () {
@@ -559,8 +551,8 @@ describe('datacenter-scoped DataCite import job', function () {
                 'imported' => 1,
                 'failed' => 0,
             ])
-            ->and($resource->datacenters()->pluck('name')->all())
-            ->toBe(['Riesgos']);
+            ->and($resource->datacenter?->name)
+            ->toBe('Riesgos');
     });
 
     it('records a failure when a portal DOI exists in neither DataCite nor pending SUMARIO data', function () {

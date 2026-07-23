@@ -80,7 +80,7 @@ class EditorDataTransformer
             'fundingReferences' => $this->transformFundingReferences($resource),
             'mslLaboratories' => $this->transformMslLaboratories($resource),
             'instruments' => $this->transformInstruments($resource),
-            'initialDatacenters' => $resource->datacenters->pluck('id')->all(),
+            'initialDatacenterId' => $resource->datacenter_id,
             'landingPage' => $resource->landingPage ? [
                 'id' => $resource->landingPage->id,
                 'is_published' => $resource->landingPage->is_published,

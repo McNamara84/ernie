@@ -13,6 +13,7 @@ use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
+use App\Services\LandingPageTemplateResolver;
 use App\Services\SchemaOrgJsonLdExporter;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
@@ -82,6 +83,7 @@ class LandingPagePublicController extends Controller
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
+        LandingPageTemplateResolver $templateResolver,
         string $doiPrefix,
         string $slug
     ): Response|RedirectResponse {
@@ -126,7 +128,7 @@ class LandingPagePublicController extends Controller
             // if they drift, we prioritize availability over strict consistency.
         }
 
-        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $previewToken);
+        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $templateResolver, $previewToken);
     }
 
     /**
@@ -142,6 +144,7 @@ class LandingPagePublicController extends Controller
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
+        LandingPageTemplateResolver $templateResolver,
         int $resourceId,
         string $slug
     ): Response|RedirectResponse {
@@ -164,7 +167,7 @@ class LandingPagePublicController extends Controller
 
         abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
-        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $previewToken);
+        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $templateResolver, $previewToken);
     }
 
     /**
@@ -236,6 +239,7 @@ class LandingPagePublicController extends Controller
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
+        LandingPageTemplateResolver $templateResolver,
         ?string $previewToken
     ): Response|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
@@ -287,7 +291,7 @@ class LandingPagePublicController extends Controller
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $previewToken): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $previewToken): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -299,25 +303,16 @@ class LandingPagePublicController extends Controller
 
             $resourceData = $transformer->transform($resource);
 
-            // Build section order and logo from custom template (if set)
-            $sectionOrder = null;
-            $customLogoUrl = null;
-            $effectiveLandingPageTemplate = LandingPageController::templateSupportsCustomTemplateId($effectiveTemplate)
-                ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
-                : null;
-            $expectedTemplateType = LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug);
-            $displayLimitTemplate = $effectiveLandingPageTemplate
-                ?? LandingPageTemplate::existingDefaultForType($expectedTemplateType)
-                ?? LandingPageTemplate::defaultForType($expectedTemplateType);
-
-            if ($effectiveLandingPageTemplate !== null) {
-                $tmpl = $effectiveLandingPageTemplate;
-                $sectionOrder = [
-                    'rightColumn' => $tmpl->right_column_order,
-                    'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($tmpl->left_column_order, $tmpl->template_type),
-                ];
-                $customLogoUrl = $tmpl->logo_url;
-            }
+            $resolvedTemplate = $templateResolver->forLandingPage($resource, $landingPage);
+            $templateConfig = $resolvedTemplate['template'];
+            $sectionOrder = [
+                'rightColumn' => $templateConfig->right_column_order,
+                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder(
+                    $templateConfig->left_column_order,
+                    $templateConfig->template_type,
+                ),
+            ];
+            $customLogoUrl = $templateConfig->logo_url;
 
             // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
             $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
@@ -346,10 +341,12 @@ class LandingPagePublicController extends Controller
                     'schemaOrgJsonLd' => $schemaOrgJsonLd,
                     'sectionOrder' => $sectionOrder,
                     'customLogoUrl' => $customLogoUrl,
+                    'landingPageTemplateSource' => $resolvedTemplate['source'],
+                    'effectiveLandingPageTemplate' => $templateConfig->only(['id', 'name', 'slug']),
                     'displayLimits' => [
-                        'creators' => $displayLimitTemplate->creator_display_limit,
-                        'contributors' => $displayLimitTemplate->contributor_display_limit,
-                        'citationAuthors' => $displayLimitTemplate->citation_author_display_limit,
+                        'creators' => $templateConfig->creator_display_limit,
+                        'contributors' => $templateConfig->contributor_display_limit,
+                        'citationAuthors' => $templateConfig->citation_author_display_limit,
                     ],
                 ],
             ];

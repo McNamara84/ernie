@@ -462,6 +462,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('api/landing-page-templates', [LandingPageTemplateController::class, 'list'])
         ->name('landing-page-templates.list');
 
+    Route::get('resources/{resource}/landing-page/template-options', [LandingPageTemplateController::class, 'options'])
+        ->name('landing-page-templates.options');
+
     Route::put('resources/{resource}/landing-page', [LandingPageController::class, 'update'])
         ->name('landing-page.update');
 

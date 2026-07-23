@@ -257,13 +257,24 @@ class StoreResourceRequest extends FormRequest
             'instruments.*.pid' => ['required', 'string', 'max:512'],
             'instruments.*.pidType' => ['required', 'string', Rule::in(['Handle', 'DOI', 'URL'])],
             'instruments.*.name' => ['required', 'string', 'max:1024'],
-            'datacenters' => ['required', 'array', 'min:1'],
-            'datacenters.*' => ['required', 'integer', 'distinct', Rule::exists('datacenters', 'id')],
+            'datacenter_id' => ['required', 'integer', Rule::exists('datacenters', 'id')],
+            'datacenters' => ['sometimes', 'array', 'max:1'],
+            'datacenters.*' => ['integer', 'distinct', Rule::exists('datacenters', 'id')],
         ];
     }
 
     protected function prepareForValidation(): void
     {
+        $legacyDatacenters = $this->input('datacenters');
+
+        if (! $this->has('datacenter_id')
+            && is_array($legacyDatacenters)
+            && count($legacyDatacenters) <= 1) {
+            $this->merge([
+                'datacenter_id' => $legacyDatacenters[0] ?? null,
+            ]);
+        }
+
         /** @var array<int, array<string, mixed>|mixed> $rawTitles */
         $rawTitles = $this->input('titles', []);
 
@@ -1098,10 +1109,11 @@ class StoreResourceRequest extends FormRequest
             'titles.*.title.required' => '[Resource Information] Title #:position must not be empty.',
             'titles.*.title.max' => '[Resource Information] Title #:position exceeds the maximum length of :max characters.',
             'titles.*.titleType.required' => '[Resource Information] Title #:position must have a type.',
-            'datacenters.required' => '[Resource Information] At least one datacenter is required.',
-            'datacenters.min' => '[Resource Information] At least one datacenter is required.',
+            'datacenter_id.required' => '[Resource Information] A datacenter is required.',
+            'datacenter_id.integer' => '[Resource Information] The selected datacenter is invalid.',
+            'datacenter_id.exists' => '[Resource Information] The selected datacenter is invalid.',
+            'datacenters.max' => '[Resource Information] A resource can only be assigned to one datacenter.',
             'datacenters.*.exists' => '[Resource Information] Datacenter #:position is not a valid datacenter.',
-            'datacenters.*.distinct' => '[Resource Information] Datacenter #:position is a duplicate.',
 
             // Licenses & Rights
             'licenses.required' => '[Licenses & Rights] At least one license is required.',
@@ -1208,6 +1220,20 @@ class StoreResourceRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 $this->validateEditorDates($validator);
+            },
+            function (Validator $validator): void {
+                $legacyDatacenters = $this->input('datacenters');
+                if (! is_array($legacyDatacenters) || count($legacyDatacenters) > 1) {
+                    return;
+                }
+
+                $legacyId = isset($legacyDatacenters[0]) ? (int) $legacyDatacenters[0] : null;
+                $canonicalId = $this->input('datacenter_id');
+                $canonicalId = $canonicalId === null ? null : (int) $canonicalId;
+
+                if ($legacyId !== $canonicalId) {
+                    $validator->errors()->add('datacenter_id', '[Resource Information] The datacenter fields contain conflicting values.');
+                }
             },
             function (Validator $validator): void {
                 $licenses = $this->input('licenses', []);

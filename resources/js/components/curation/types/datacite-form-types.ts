@@ -260,7 +260,9 @@ export interface DataCiteFormProps {
     initialFundingReferences?: FundingReferenceEntry[];
     initialMslLaboratories?: MSLLaboratory[];
     initialInstruments?: InstrumentSelection[];
-    /** Initial datacenter IDs assigned to this resource */
+    /** Initial datacenter assigned to this resource */
+    initialDatacenterId?: number | null;
+    /** @deprecated Temporary compatibility for callers using the former collection prop. */
     initialDatacenters?: number[];
     /** Available datacenters for selection */
     availableDatacenters?: { id: number; name: string }[];

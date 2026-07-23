@@ -95,6 +95,7 @@ class ResourceStorageService
                 'version' => $data['version'] ?? null,
                 'language_id' => $languageId,
                 'publisher_id' => Publisher::getDefault()?->id,
+                'datacenter_id' => $data['datacenter_id'] ?? null,
             ];
 
             $isUpdate = ! empty($data['resourceId']);
@@ -133,7 +134,6 @@ class ResourceStorageService
             $this->storeRelatedItems($resource, $data, $isUpdate);
             $this->storeFundingReferences($resource, $data, $isUpdate);
             $this->storeInstruments($resource, $data, $isUpdate);
-            $this->syncDatacenters($resource, $data);
 
             return [
                 $resource->load([
@@ -147,7 +147,7 @@ class ResourceStorageService
                     'geoLocations',
                     'relatedIdentifiers',
                     'fundingReferences',
-                    'datacenters',
+                    'datacenter',
                 ]),
                 $isUpdate,
             ];
@@ -1758,36 +1758,6 @@ class ResourceStorageService
                 'instrument_name' => mb_substr($name, 0, 1024),
                 'position' => $index,
             ]);
-        }
-    }
-
-    /**
-     * Sync datacenters for a resource.
-     *
-     * Uses sync() instead of the delete-and-recreate pattern because
-     * datacenters are a simple many-to-many relationship without
-     * additional pivot data or ordering.
-     *
-     * @param  array<string, mixed>  $data
-     */
-    private function syncDatacenters(Resource $resource, array $data): void
-    {
-        if (! array_key_exists('datacenters', $data)) {
-            return;
-        }
-
-        $datacenterIds = $data['datacenters'];
-
-        if (! is_array($datacenterIds)) {
-            return;
-        }
-
-        $changes = $resource->datacenters()->sync(array_map(intval(...), $datacenterIds));
-
-        // Pivot changes don't trigger Eloquent's updated event, so touch
-        // the resource to fire the observer and invalidate portal caches.
-        if (array_filter($changes)) {
-            $resource->touch();
         }
     }
 }

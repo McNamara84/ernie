@@ -192,13 +192,23 @@ class LegacyMetaworksDatacenterLookupService
     {
         $names = $this->resolveDatacenterNames($doi);
 
-        $ids = Datacenter::query()
-            ->whereIn('name', $names)
-            ->pluck('id')
-            ->map(static fn (mixed $id): int => (int) $id)
-            ->all();
+        $specializedNames = array_values(array_filter(
+            $names,
+            static fn (string $name): bool => $name !== self::DEFAULT_DATACENTER,
+        ));
 
-        return array_values($ids);
+        $candidates = $specializedNames !== [] ? $specializedNames : $names;
+        $idsByName = Datacenter::query()
+            ->whereIn('name', $candidates)
+            ->pluck('id', 'name');
+
+        foreach ($candidates as $candidate) {
+            if ($idsByName->has($candidate)) {
+                return [(int) $idsByName->get($candidate)];
+            }
+        }
+
+        return [];
     }
 
     public function syncDatacenters(Resource $resource, string $doi): void
@@ -214,10 +224,10 @@ class LegacyMetaworksDatacenterLookupService
             return;
         }
 
-        $changes = $resource->datacenters()->sync($datacenterIds);
+        $datacenterId = $datacenterIds[0];
 
-        if (array_filter($changes)) {
-            $resource->touch();
+        if ($resource->datacenter_id !== $datacenterId) {
+            $resource->forceFill(['datacenter_id' => $datacenterId])->save();
         }
     }
 
