@@ -12,6 +12,7 @@ use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Http\Resources\ResourceListItemResource;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\DataCiteSyncService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use LogicException;
 use Throwable;
 
 class ResourceController extends Controller
@@ -328,10 +330,16 @@ class ResourceController extends Controller
      */
     private function logPublishedResourceDeletion(Request $request, string $operation, array $resources): void
     {
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            throw new LogicException('Published resource deletions require an authenticated user.');
+        }
+
         Log::warning('Published resources deleted from ERNIE', [
             'operation' => $operation,
-            'user_id' => $request->user()?->id,
-            'user_role' => $request->user()?->role->value,
+            'user_id' => $user->id,
+            'user_role' => $user->role->value,
             'resources' => $resources,
         ]);
     }
