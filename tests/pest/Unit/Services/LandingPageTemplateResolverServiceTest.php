@@ -7,12 +7,12 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
-use App\Services\LandingPageTemplateResolver;
+use App\Services\LandingPageTemplateResolverService;
 
-covers(LandingPageTemplateResolver::class);
+covers(LandingPageTemplateResolverService::class);
 
 beforeEach(function (): void {
-    $this->resolver = app(LandingPageTemplateResolver::class);
+    $this->resolver = app(LandingPageTemplateResolverService::class);
     $this->datasetType = ResourceType::query()->firstOrCreate(
         ['slug' => 'dataset'],
         ['name' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true],
@@ -35,7 +35,7 @@ it('inherits a regular template from the resource datacenter', function (): void
     $resolved = $this->resolver->automatic($resource);
 
     expect($resolved['template']->is($template))->toBeTrue()
-        ->and($resolved['source'])->toBe(LandingPageTemplateResolver::SOURCE_DATACENTER);
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_DATACENTER);
 });
 
 it('prefers an explicit custom template over the datacenter template', function (): void {
@@ -54,7 +54,7 @@ it('prefers an explicit custom template over the datacenter template', function 
     $resolved = $this->resolver->forLandingPage($resource, $landingPage);
 
     expect($resolved['template']->is($explicit))->toBeTrue()
-        ->and($resolved['source'])->toBe(LandingPageTemplateResolver::SOURCE_EXPLICIT);
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_EXPLICIT);
 });
 
 it('allows the explicit resource system default to override datacenter inheritance', function (): void {
@@ -71,7 +71,7 @@ it('allows the explicit resource system default to override datacenter inheritan
     );
 
     expect($resolved['template']->is($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]))->toBeTrue()
-        ->and($resolved['source'])->toBe(LandingPageTemplateResolver::SOURCE_EXPLICIT);
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_EXPLICIT);
 });
 
 it('uses the resource system default without a datacenter template', function (): void {
@@ -84,7 +84,7 @@ it('uses the resource system default without a datacenter template', function ()
     $resolved = $this->resolver->automatic($resource);
 
     expect($resolved['template']->is($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_RESOURCE]))->toBeTrue()
-        ->and($resolved['source'])->toBe(LandingPageTemplateResolver::SOURCE_DEFAULT);
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_DEFAULT);
 });
 
 it('ignores datacenter templates for physical object resources', function (): void {
@@ -98,5 +98,5 @@ it('ignores datacenter templates for physical object resources', function (): vo
     $resolved = $this->resolver->automatic($resource);
 
     expect($resolved['template']->is($this->defaults[LandingPageTemplate::TEMPLATE_TYPE_IGSN]))->toBeTrue()
-        ->and($resolved['source'])->toBe(LandingPageTemplateResolver::SOURCE_DEFAULT);
+        ->and($resolved['source'])->toBe(LandingPageTemplateResolverService::SOURCE_DEFAULT);
 });

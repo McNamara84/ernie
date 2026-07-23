@@ -492,6 +492,10 @@ class LandingPageTemplate extends Model
             return 'The selected built-in landing page template is not available for this resource type.';
         }
 
+        if ($template->isDefault() && $template->template_type === self::TEMPLATE_TYPE_IGSN) {
+            return 'The selected landing page template is a built-in default and cannot be used as a custom override.';
+        }
+
         $expectedTemplateType = self::expectedTemplateTypeForResource($resourceTypeSlug);
 
         if ($template->template_type === $expectedTemplateType) {

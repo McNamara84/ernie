@@ -264,7 +264,7 @@ describe('ResourceStorageService – Contributor Contact Person email/website', 
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',
             'instruments',
-            'datacenters',
+            'datacenter',
         ]));
 
         expect($editorData['authors'])->toHaveCount(1)

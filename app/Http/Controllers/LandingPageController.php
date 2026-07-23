@@ -12,7 +12,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
-use App\Services\LandingPageTemplateResolver;
+use App\Services\LandingPageTemplateResolverService;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UrlNormalizer;
 use Illuminate\Database\QueryException;
@@ -660,7 +660,7 @@ class LandingPageController extends Controller
             ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
             : null;
         $resolvedTemplate = self::templateSupportsCustomTemplateId($effectiveTemplate)
-            ? app(LandingPageTemplateResolver::class)->forLandingPage($resource, $landingPage)
+            ? app(LandingPageTemplateResolverService::class)->forLandingPage($resource, $landingPage)
             : null;
 
         $payload = $landingPage->toArray();

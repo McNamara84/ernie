@@ -14,7 +14,7 @@ use App\Models\Resource;
  * A null explicit template means "automatic": regular resources inherit from
  * their datacenter and all other resources fall back to their system default.
  */
-final class LandingPageTemplateResolver
+final class LandingPageTemplateResolverService
 {
     public const SOURCE_EXPLICIT = 'explicit';
 

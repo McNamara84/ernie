@@ -13,7 +13,7 @@ use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\LandingPageResourceTransformer;
-use App\Services\LandingPageTemplateResolver;
+use App\Services\LandingPageTemplateResolverService;
 use App\Services\SchemaOrgJsonLdExporter;
 use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
@@ -83,7 +83,7 @@ class LandingPagePublicController extends Controller
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
-        LandingPageTemplateResolver $templateResolver,
+        LandingPageTemplateResolverService $templateResolver,
         string $doiPrefix,
         string $slug
     ): Response|RedirectResponse {
@@ -144,7 +144,7 @@ class LandingPagePublicController extends Controller
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
-        LandingPageTemplateResolver $templateResolver,
+        LandingPageTemplateResolverService $templateResolver,
         int $resourceId,
         string $slug
     ): Response|RedirectResponse {
@@ -239,7 +239,7 @@ class LandingPagePublicController extends Controller
         LandingPageRenderDataCacheService $renderDataCache,
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
-        LandingPageTemplateResolver $templateResolver,
+        LandingPageTemplateResolverService $templateResolver,
         ?string $previewToken
     ): Response|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks

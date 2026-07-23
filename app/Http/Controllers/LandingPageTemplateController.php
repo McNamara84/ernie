@@ -11,7 +11,7 @@ use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\BotProtection\LandingPageRenderDataCacheService;
-use App\Services\LandingPageTemplateResolver;
+use App\Services\LandingPageTemplateResolverService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +92,7 @@ class LandingPageTemplateController extends Controller
         });
 
         $this->loadTemplateUsage($template);
+
         return response()->json([
             'message' => 'Template created successfully',
             'template' => $this->serializeTemplate($template),
@@ -326,7 +327,7 @@ class LandingPageTemplateController extends Controller
     /**
      * Return the templates and automatic inheritance context for one resource.
      */
-    public function options(Resource $resource, LandingPageTemplateResolver $resolver): JsonResponse
+    public function options(Resource $resource, LandingPageTemplateResolverService $resolver): JsonResponse
     {
         $this->authorize('view', $resource);
 

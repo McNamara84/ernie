@@ -98,7 +98,7 @@ describe('SumarioPendingResourceImportService', function () {
                     ->and($payload['doi'])->toBe('10.5880/pending.one')
                     ->and($payload['authors'][0]['isContact'])->toBeTrue()
                     ->and($payload['authors'][0]['email'])->toBe('jane@example.org')
-                    ->and($payload['datacenters'])->toBe([$datacenter->id]);
+                    ->and($payload['datacenter_id'])->toBe($datacenter->id);
 
                 return [
                     Resource::factory()->create(['doi' => $payload['doi']]),
@@ -221,7 +221,7 @@ describe('SumarioPendingResourceImportService', function () {
             ->andReturnUsing(function (array $payload, int $userId) use ($user, $arbodat): array {
                 expect($userId)->toBe($user->id)
                     ->and($payload['doi'])->toBe('10.5880/ha-arbodat_ak1')
-                    ->and($payload['datacenters'])->toBe([$arbodat->id]);
+                    ->and($payload['datacenter_id'])->toBe($arbodat->id);
 
                 return [
                     Resource::factory()->create(['doi' => $payload['doi']]),

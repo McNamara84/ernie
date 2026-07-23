@@ -10,7 +10,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\LandingPageResourceTransformer;
-use App\Services\LandingPageTemplateResolver;
+use App\Services\LandingPageTemplateResolverService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Session;
@@ -99,7 +99,7 @@ class LandingPagePreviewController extends Controller
         Resource $resource,
         LandingPageResourceTransformer $transformer,
         LandingPageCitationService $citationService,
-        LandingPageTemplateResolver $templateResolver,
+        LandingPageTemplateResolverService $templateResolver,
     ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
