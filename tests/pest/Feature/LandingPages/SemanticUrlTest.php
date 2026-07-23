@@ -48,10 +48,20 @@ describe('DOI-based Landing Page URLs', function () {
             );
     });
 
-    test('returns 404 for non-existent DOI URL', function () {
-        $response = $this->get('/10.5880/nonexistent/some-slug');
+    test('returns an English 404 page for non-existent DOI URLs regardless of the application locale', function () {
+        $originalLocale = app()->getLocale();
+        app()->setLocale('de');
 
-        $response->assertStatus(404);
+        try {
+            $response = $this->get('/10.5880/nonexistent/some-slug');
+
+            $response->assertStatus(404)
+                ->assertSee('<html lang="en">', false)
+                ->assertSeeText('This page is no longer available.')
+                ->assertSeeText('Explore the data portal');
+        } finally {
+            app()->setLocale($originalLocale);
+        }
     });
 
     test('returns 404 for wrong slug with correct DOI', function () {

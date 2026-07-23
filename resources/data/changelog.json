@@ -69,7 +69,7 @@
             },
             {
                 "title": "Batch Resource Deletion on Resources Page",
-                "description": "Admins, Group Leaders, and Curators can delete selected non-published resources from the Resources Actions menu. Draft, curation, and preview resources are grouped in the confirmation dialog and can be selected independently; preview resources include a warning that their preview landing pages will be removed. Published resources are shown as protected and are never submitted for deletion."
+                "description": "Admins, Group Leaders, and Curators can delete selected resources from the Resources Actions menu. Draft, curation, and preview resources are grouped in the confirmation dialog and can be selected independently; preview resources include a warning that their preview landing pages will be removed. Admins and Group Leaders can additionally select published resources through an explicit checkbox that is off by default. This permanently removes the resource and its landing page from ERNIE without changing DataCite, so the registered DOI URL subsequently shows ERNIE's 404 page. Published resources remain protected for Curators."
             },
             {
                 "title": "Landing Page Template Management",

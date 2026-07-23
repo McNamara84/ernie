@@ -12,17 +12,20 @@ use App\Http\Requests\StoreDraftResourceRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Http\Resources\ResourceListItemResource;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\DataCiteSyncService;
 use App\Services\Resources\DeleteAllResourcesService;
 use App\Services\Resources\ResourceQueryBuilder;
 use App\Services\ResourceStorageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use LogicException;
 use Throwable;
 
 class ResourceController extends Controller
@@ -165,14 +168,21 @@ class ResourceController extends Controller
     }
 
     /**
-     * Delete a resource that has not been published yet.
+     * Delete a resource authorized for the current user's role.
      *
      * Authorization is enforced by DestroyResourceRequest::authorize() and
-     * ResourcePolicy::delete() for admin, group leader, and curator users.
+     * ResourcePolicy::delete(). Admins and group leaders may also delete
+     * published resources, while curators remain limited to non-published ones.
      */
     public function destroy(DestroyResourceRequest $request, Resource $resource): RedirectResponse
     {
+        $publishedDeletion = $this->publishedDeletionContext($resource);
+
         $resource->delete();
+
+        if ($publishedDeletion !== null) {
+            $this->logPublishedResourceDeletion($request, 'single', [$publishedDeletion]);
+        }
 
         return redirect()
             ->route('resources')
@@ -180,7 +190,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * Delete selected resources that have not been published yet.
+     * Delete selected resources authorized for the current user's role.
      *
      * Every submitted resource is checked through ResourcePolicy::delete so
      * batch deletion cannot bypass published-resource safeguards.
@@ -196,7 +206,8 @@ class ResourceController extends Controller
         $ids = array_values(array_unique($validated['ids']));
         sort($ids, SORT_NUMERIC);
 
-        DB::transaction(function () use ($ids, $request): void {
+        /** @var array<int, array{resource_id: int, doi: string}> $publishedDeletions */
+        $publishedDeletions = DB::transaction(function () use ($ids, $request): array {
             $resources = Resource::query()
                 ->with([
                     'titles.titleType',
@@ -217,6 +228,8 @@ class ResourceController extends Controller
                 ]);
             }
 
+            $publishedDeletions = [];
+
             foreach ($ids as $id) {
                 $resource = $resources->get($id);
 
@@ -228,12 +241,17 @@ class ResourceController extends Controller
 
                 if (! ($request->user()?->can('delete', $resource) ?? false)) {
                     $message = $resource->publicStatus() === 'published'
-                        ? 'Published resources cannot be deleted.'
+                        ? 'Published resources can only be deleted by Admins and Group Leaders.'
                         : 'You do not have permission to delete the selected resources.';
 
                     throw ValidationException::withMessages([
                         'ids' => [$message],
                     ]);
+                }
+
+                $publishedDeletion = $this->publishedDeletionContext($resource);
+                if ($publishedDeletion !== null) {
+                    $publishedDeletions[] = $publishedDeletion;
                 }
             }
 
@@ -244,7 +262,13 @@ class ResourceController extends Controller
                     $resource->delete();
                 }
             }
+
+            return $publishedDeletions;
         });
+
+        if ($publishedDeletions !== []) {
+            $this->logPublishedResourceDeletion($request, 'batch', $publishedDeletions);
+        }
 
         $count = count($ids);
         $message = $count === 1
@@ -280,5 +304,43 @@ class ResourceController extends Controller
         return redirect()
             ->route('logs.index')
             ->with('success', 'All resources have been deleted successfully.');
+    }
+
+    /**
+     * Capture the identifiers needed to audit deletion of a published resource.
+     *
+     * @return array{resource_id: int, doi: string}|null
+     */
+    private function publishedDeletionContext(Resource $resource): ?array
+    {
+        $resource->loadMissing('landingPage');
+
+        if ($resource->doi === null || $resource->doi === '' || ! $resource->landingPage?->is_published) {
+            return null;
+        }
+
+        return [
+            'resource_id' => $resource->id,
+            'doi' => $resource->doi,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{resource_id: int, doi: string}>  $resources
+     */
+    private function logPublishedResourceDeletion(Request $request, string $operation, array $resources): void
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            throw new LogicException('Published resource deletions require an authenticated user.');
+        }
+
+        Log::warning('Published resources deleted from ERNIE', [
+            'operation' => $operation,
+            'user_id' => $user->id,
+            'user_role' => $user->role->value,
+            'resources' => $resources,
+        ]);
     }
 }

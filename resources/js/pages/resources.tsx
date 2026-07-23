@@ -171,7 +171,6 @@ const resolveBatchDeleteErrorMessage = (errors: Record<string, unknown> | undefi
 };
 type ResourceExportAction = Extract<ResourcesActionKey, 'export-datacite-json' | 'export-datacite-xml' | 'export-jsonld'>;
 type ResourceDeleteStatus = 'draft' | 'curation' | 'review' | 'published';
-type DeletableResourceDeleteStatus = Exclude<ResourceDeleteStatus, 'published'>;
 
 interface BlockedEditorTab {
     id: number;
@@ -185,23 +184,26 @@ const BATCH_EXPORT_FORMAT_BY_ACTION: Record<ResourceExportAction, 'datacite-json
     'export-jsonld': 'jsonld',
 };
 
-const DELETABLE_DELETE_STATUSES: DeletableResourceDeleteStatus[] = ['draft', 'curation', 'review'];
+const NON_PUBLISHED_DELETE_STATUSES: ResourceDeleteStatus[] = ['draft', 'curation', 'review'];
+const ALL_DELETE_STATUSES: ResourceDeleteStatus[] = [...NON_PUBLISHED_DELETE_STATUSES, 'published'];
 const DELETE_STATUS_LABELS: Record<ResourceDeleteStatus, string> = {
     draft: 'draft',
     curation: 'curation',
     review: 'preview',
     published: 'published',
 };
-const DELETE_STATUS_DESCRIPTIONS: Record<DeletableResourceDeleteStatus, string> = {
+const DELETE_STATUS_DESCRIPTIONS: Record<ResourceDeleteStatus, string> = {
     draft: 'Draft resources will be removed from ERNIE.',
     curation: 'Curation resources will be removed from ERNIE.',
     review: 'Preview pages for these resources will also be deleted.',
+    published: 'The resource and its public landing page will be removed from ERNIE. DataCite will not be changed.',
 };
 
-const createDefaultDeleteStatusSelection = (): Record<DeletableResourceDeleteStatus, boolean> => ({
+const createDefaultDeleteStatusSelection = (): Record<ResourceDeleteStatus, boolean> => ({
     draft: true,
     curation: true,
     review: true,
+    published: false,
 });
 
 const normalizeDeleteStatus = (resource: Resource): ResourceDeleteStatus => {
@@ -640,7 +642,9 @@ function ResourcesPage({
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
     const canRegisterDoi = auth.user?.can_register_doi ?? false;
+    const canDeletePublishedResources = auth.user?.can_delete_published_resources ?? false;
     const canDeleteResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
+    const deletableDeleteStatuses = canDeletePublishedResources ? ALL_DELETE_STATUSES : NON_PUBLISHED_DELETE_STATUSES;
 
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -1057,8 +1061,7 @@ function ResourcesPage({
     const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeletingResource, setIsDeletingResource] = useState(false);
-    const [selectedDeleteStatuses, setSelectedDeleteStatuses] =
-        useState<Record<DeletableResourceDeleteStatus, boolean>>(createDefaultDeleteStatusSelection);
+    const [selectedDeleteStatuses, setSelectedDeleteStatuses] = useState<Record<ResourceDeleteStatus, boolean>>(createDefaultDeleteStatusSelection);
     const [blockedEditorTabs, setBlockedEditorTabs] = useState<BlockedEditorTab[]>([]);
     const isDeletingResourceRef = useRef(false);
     const { vocabularies: citationVocabularies, isLoading: citationVocabulariesLoading } = useCitationVocabularies();
@@ -1084,10 +1087,10 @@ function ResourcesPage({
 
     const selectedDeletableDeleteResourceIds = useMemo(
         () =>
-            DELETABLE_DELETE_STATUSES.flatMap((status) =>
+            deletableDeleteStatuses.flatMap((status) =>
                 selectedDeleteStatuses[status] ? selectedDeleteGroups[status].map((resource) => resource.id) : [],
             ),
-        [selectedDeleteGroups, selectedDeleteStatuses],
+        [deletableDeleteStatuses, selectedDeleteGroups, selectedDeleteStatuses],
     );
     const selectedDeletableDeleteCount = selectedDeletableDeleteResourceIds.length;
     const publishedDeleteCount = selectedDeleteGroups.published.length;
@@ -1099,6 +1102,7 @@ function ResourcesPage({
             draft: selectedDeleteGroups.draft.length > 0,
             curation: selectedDeleteGroups.curation.length > 0,
             review: selectedDeleteGroups.review.length > 0,
+            published: false,
         });
         setIsDeleteDialogOpen(true);
     }, [selectedDeleteGroups]);
@@ -2246,11 +2250,21 @@ function ResourcesPage({
                     </AlertDialogHeader>
 
                     <div className="space-y-4 text-sm" data-testid="resources-delete-confirmation-groups">
-                        {publishedDeleteCount > 0 && (
+                        {publishedDeleteCount > 0 && !canDeletePublishedResources && (
                             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-destructive">
                                 You have selected {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'} for deletion. Of these,{' '}
                                 {publishedDeleteCount} {publishedDeleteCount === 1 ? 'resource cannot' : 'resources cannot'} be deleted because{' '}
                                 {publishedDeleteCount === 1 ? 'it is' : 'they are'} already registered.
+                            </div>
+                        )}
+
+                        {publishedDeleteCount > 0 && canDeletePublishedResources && (
+                            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-destructive">
+                                <p className="font-medium">Published resources require explicit confirmation.</p>
+                                <p className="mt-1">
+                                    Deleting them permanently removes their public landing pages from ERNIE. DataCite will not be changed, so their
+                                    registered DOI URLs will show the ERNIE 404 page. This action cannot be undone.
+                                </p>
                             </div>
                         )}
 
@@ -2262,7 +2276,7 @@ function ResourcesPage({
                         )}
 
                         <div className="space-y-2">
-                            {DELETABLE_DELETE_STATUSES.map((status) => {
+                            {deletableDeleteStatuses.map((status) => {
                                 const count = selectedDeleteGroups[status].length;
 
                                 if (count === 0) {
@@ -2292,15 +2306,21 @@ function ResourcesPage({
                                 );
                             })}
 
-                            {publishedDeleteCount > 0 && (
+                            {publishedDeleteCount > 0 && !canDeletePublishedResources && (
                                 <div className="rounded-md border border-muted bg-muted/40 p-3" data-testid="resources-delete-group-published">
                                     <p className="font-medium">{formatDeleteStatusCount('published', publishedDeleteCount)} cannot be deleted.</p>
-                                    <p className="mt-1 text-muted-foreground">Published resources are already registered and must remain in ERNIE.</p>
+                                    <p className="mt-1 text-muted-foreground">Published resources can only be deleted by Admins and Group Leaders.</p>
                                 </div>
                             )}
                         </div>
 
-                        {!hasAnyDeletableDeleteSelection && <p className="text-muted-foreground">No selected resources can be deleted.</p>}
+                        {!hasAnyDeletableDeleteSelection && (
+                            <p className="text-muted-foreground">
+                                {canDeletePublishedResources && publishedDeleteCount > 0
+                                    ? 'Select at least one resource group to delete.'
+                                    : 'No selected resources can be deleted.'}
+                            </p>
+                        )}
 
                         {hasAnyDeletableDeleteSelection && (
                             <p className="text-muted-foreground">

@@ -7,6 +7,7 @@ use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
+use App\Models\OaiPmhDeletedRecord;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
@@ -14,6 +15,8 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
@@ -185,15 +188,65 @@ it('allows admins to delete review resources and cascades their landing pages', 
         ->and(LandingPage::find($landingPageId))->toBeNull();
 });
 
-it('forbids admins from deleting published resources', function (): void {
+it('allows admins to delete published resources and serves the branded 404 page at the former DOI URL', function (): void {
+    Http::preventStrayRequests();
+    Log::spy();
+
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
     $resource = createPublishedResourceForDeletion();
+    $resourceId = $resource->id;
+    $landingPageId = $resource->landingPage?->id;
+    $publicUrl = $resource->landingPage?->public_url;
 
-    expect($resource->publicStatus())->toBe('published');
+    expect($resource->publicStatus())->toBe('published')
+        ->and($landingPageId)->toBeInt()
+        ->and($publicUrl)->toBeString();
 
     $this->actingAs($admin)
         ->delete(route('resources.destroy', $resource))
-        ->assertStatus(403);
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', 'Resource deleted successfully.');
+
+    expect(Resource::find($resourceId))->toBeNull()
+        ->and(LandingPage::find($landingPageId))->toBeNull()
+        ->and(OaiPmhDeletedRecord::where('doi', '10.5880/test.published.001')->exists())->toBeTrue();
+
+    $this->get($publicUrl)
+        ->assertNotFound()
+        ->assertSeeText('This page is no longer available.');
+
+    Log::shouldHaveReceived('warning')->with(
+        'Published resources deleted from ERNIE',
+        Mockery::on(fn (array $context): bool => $context['operation'] === 'single'
+            && $context['user_id'] === $admin->id
+            && $context['user_role'] === UserRole::ADMIN->value
+            && $context['resources'] === [[
+                'resource_id' => $resourceId,
+                'doi' => '10.5880/test.published.001',
+            ]])
+    )->once();
+});
+
+it('allows group leaders to delete published resources', function (): void {
+    $leader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+    $resource = createPublishedResourceForDeletion('10.5880/test.published.group-leader');
+    $landingPageId = $resource->landingPage?->id;
+
+    $this->actingAs($leader)
+        ->delete(route('resources.destroy', $resource))
+        ->assertRedirect(route('resources'));
+
+    expect(Resource::find($resource->id))->toBeNull()
+        ->and(LandingPage::find($landingPageId))->toBeNull();
+});
+
+it('forbids curators from deleting published resources', function (): void {
+    $curator = User::factory()->create(['role' => UserRole::CURATOR]);
+    $resource = createPublishedResourceForDeletion('10.5880/test.published.curator');
+
+    $this->actingAs($curator)
+        ->delete(route('resources.destroy', $resource))
+        ->assertForbidden();
 
     expect(Resource::find($resource->id))->not->toBeNull();
 });
@@ -226,6 +279,43 @@ it('allows admins to batch delete non-published resources', function (): void {
         ->and(Resource::find($review->id))->toBeNull()
         ->and(LandingPage::find($landingPageId))->toBeNull();
 });
+
+it('allows privileged roles to batch delete mixed resource statuses', function (UserRole $role): void {
+    Log::spy();
+
+    $user = User::factory()->create(['role' => $role]);
+    $draft = Resource::factory()->create(['doi' => null]);
+    $publishedDoi = '10.5880/test.published.batch.'.$role->value;
+    $published = createPublishedResourceForDeletion($publishedDoi);
+    $publishedId = $published->id;
+    $landingPageId = $published->landingPage?->id;
+
+    $this->actingAs($user)
+        ->delete(route('resources.batch-destroy'), [
+            'ids' => [$draft->id, $published->id],
+        ])
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', '2 resources deleted successfully.');
+
+    expect(Resource::find($draft->id))->toBeNull()
+        ->and(Resource::find($published->id))->toBeNull()
+        ->and(LandingPage::find($landingPageId))->toBeNull()
+        ->and(OaiPmhDeletedRecord::where('doi', $publishedDoi)->exists())->toBeTrue();
+
+    Log::shouldHaveReceived('warning')->with(
+        'Published resources deleted from ERNIE',
+        Mockery::on(fn (array $context): bool => $context['operation'] === 'batch'
+            && $context['user_id'] === $user->id
+            && $context['user_role'] === $role->value
+            && $context['resources'] === [[
+                'resource_id' => $publishedId,
+                'doi' => $publishedDoi,
+            ]])
+    )->once();
+})->with([
+    'admin' => UserRole::ADMIN,
+    'group leader' => UserRole::GROUP_LEADER,
+]);
 
 it('allows admins to batch delete a single resource from duplicate selections', function (): void {
     $admin = User::factory()->create(['role' => UserRole::ADMIN]);
@@ -270,19 +360,19 @@ it('preserves malformed batch delete ids while deduplicating valid integer ids',
     expect(Resource::find($resource->id))->not->toBeNull();
 });
 
-it('rejects batch deletion when any submitted resource is published', function (): void {
-    $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+it('rejects curator batch deletion when any submitted resource is published', function (): void {
+    $curator = User::factory()->create(['role' => UserRole::CURATOR]);
     $safeDraft = Resource::factory()->create(['doi' => null]);
     $published = createPublishedResourceForDeletion('10.5880/test.published.batch');
 
-    $this->actingAs($admin)
+    $this->actingAs($curator)
         ->from(route('resources'))
         ->delete(route('resources.batch-destroy'), [
             'ids' => [$safeDraft->id, $published->id],
         ])
         ->assertRedirect(route('resources'))
         ->assertSessionHasErrors([
-            'ids' => 'Published resources cannot be deleted.',
+            'ids' => 'Published resources can only be deleted by Admins and Group Leaders.',
         ]);
 
     expect(Resource::find($safeDraft->id))->not->toBeNull()

@@ -50,11 +50,11 @@ class ResourcePolicy
      */
     public function delete(User $user, Resource $resource): bool
     {
-        $canDeleteResources = $user->role === UserRole::ADMIN
-            || $user->role === UserRole::GROUP_LEADER
-            || $user->role === UserRole::CURATOR;
+        if ($user->role === UserRole::ADMIN || $user->role === UserRole::GROUP_LEADER) {
+            return true;
+        }
 
-        if (! $canDeleteResources) {
+        if ($user->role !== UserRole::CURATOR) {
             return false;
         }
 

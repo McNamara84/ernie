@@ -492,10 +492,10 @@ export default function Docs({ userRole, editorSettings, dataCite }: DocsProps) 
                         <h4>Update MSL Laboratories</h4>
                         <DocsCodeBlock code="php artisan get-msl-laboratories" />
                         <p className="text-sm text-muted-foreground">
-                            Resolves the newest stable version from the Utrecht University vocabulary repository, validates it, and replaces the
-                            local laboratory vocabulary only after a successful download. Run this command once after the feature is first deployed,
-                            or perform the first update from the Thesauri card in Editor Settings. Until then, the vocabulary is reported as
-                            unavailable even when its ERNIE or ELMO toggle is enabled.
+                            Resolves the newest stable version from the Utrecht University vocabulary repository, validates it, and replaces the local
+                            laboratory vocabulary only after a successful download. Run this command once after the feature is first deployed, or
+                            perform the first update from the Thesauri card in Editor Settings. Until then, the vocabulary is reported as unavailable
+                            even when its ERNIE or ELMO toggle is enabled.
                         </p>
 
                         <h4>Backfill Related Work Citation Labels</h4>
@@ -2070,15 +2070,17 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <>
                                 <h4>Delete Selected Resources (Curator and above)</h4>
                                 <p>
-                                    Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources that have not been
-                                    published. DOI and landing page data no longer block deletion by themselves: draft, curation, and preview
-                                    resources can be deleted as long as their public status is not published.
+                                    Use <strong>Delete</strong> from the <strong>Actions</strong> menu to remove selected resources. Curators can
+                                    delete draft, curation, and preview resources. Admins and Group Leaders can additionally delete published
+                                    resources.
                                 </p>
                                 <p>
                                     The confirmation dialog groups the current selection into draft, curation, preview, and published resources. You
                                     can choose which deletable groups to submit. Preview resources show an additional warning because their preview
-                                    landing pages will be removed with the resource. Published resources are listed as protected and are never sent to
-                                    the delete endpoint.
+                                    landing pages will be removed with the resource. For Admins and Group Leaders, published resources require an
+                                    explicit checkbox that is off by default. Their public landing pages are permanently removed from ERNIE while
+                                    DataCite remains unchanged, so the registered DOI URLs subsequently show ERNIE's 404 page. Curators continue to
+                                    see published resources as protected.
                                 </p>
                             </>
                         )}

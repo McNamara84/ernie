@@ -26,6 +26,7 @@ const mockUser = vi.hoisted(() => ({
     can_manage_landing_pages: true,
     can_register_doi: true,
     can_register_production_doi: true,
+    can_delete_published_resources: true,
     can_access_old_datasets: false,
     can_access_statistics: false,
     can_access_users: false,
@@ -194,6 +195,7 @@ describe('ResourcesPage - extended', () => {
             can_manage_landing_pages: true,
             can_register_doi: true,
             can_register_production_doi: true,
+            can_delete_published_resources: true,
             can_access_old_datasets: false,
             can_access_statistics: false,
             can_access_users: false,
@@ -451,13 +453,14 @@ describe('ResourcesPage - extended', () => {
             expect(screen.getByRole('alertdialog')).toBeInTheDocument();
         });
 
-        it('keeps published resources out of the submitted delete request', async () => {
+        it('keeps published resources out of the request until explicitly selected', async () => {
             renderPage({ resources: [makeResource({ id: 5, publicstatus: 'published', landingPage })] });
 
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await clickResourceAction('resources-action-delete');
 
-            expect(screen.getByText(/no selected resources can be deleted/i)).toBeInTheDocument();
+            expect(screen.getByText(/select at least one resource group to delete/i)).toBeInTheDocument();
+            expect(screen.getByTestId('resources-delete-group-published-checkbox')).not.toBeChecked();
             expect(screen.getByRole('button', { name: /delete 0 resources/i })).toBeDisabled();
             expect(routerMock.delete).not.toHaveBeenCalled();
         });
@@ -474,6 +477,7 @@ describe('ResourcesPage - extended', () => {
 
         it('hides delete action when the user lacks delete permission', async () => {
             mockUser.role = 'beginner';
+            mockUser.can_delete_published_resources = false;
             renderPage({ resources: [makeResource({ id: 5, doi: null, publicstatus: 'draft', landingPage: null })] });
             fireEvent.click(screen.getByTestId('resources-row-checkbox-5'));
             await openResourceActionsMenu();

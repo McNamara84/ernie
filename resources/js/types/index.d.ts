@@ -82,6 +82,7 @@ export interface User {
     can_register_doi?: boolean;
     can_register_production_doi?: boolean;
     can_delete_logs?: boolean;
+    can_delete_published_resources?: boolean;
     // Granular access permissions (Issue #379)
     can_access_logs?: boolean;
     can_access_old_datasets?: boolean;
