@@ -109,6 +109,26 @@ describe('Draft save (Issue #548)', function () {
             ->and($resource->datacenter_id)->toBe($this->datacenter->id);
     });
 
+    it('accepts a canonical datacenter with an empty legacy array for a draft', function () {
+        $payload = [
+            'titles' => [
+                ['title' => 'Draft with Empty Legacy Datacenters', 'titleType' => 'main-title'],
+            ],
+            'datacenter_id' => $this->datacenter->id,
+            'datacenters' => [],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload);
+
+        $response->assertCreated()
+            ->assertJsonMissingValidationErrors(['datacenter_id', 'datacenters']);
+
+        $resource = Resource::latest('id')->first();
+        expect($resource)->not->toBeNull()
+            ->and($resource->datacenter_id)->toBe($this->datacenter->id);
+    });
+
     it('accepts one datacenter through the legacy array for a draft', function () {
         $payload = [
             'titles' => [
@@ -125,6 +145,23 @@ describe('Draft save (Issue #548)', function () {
         $resource = Resource::latest('id')->first();
         expect($resource)->not->toBeNull()
             ->and($resource->datacenter_id)->toBe($this->datacenter->id);
+    });
+
+    it('rejects conflicting canonical and legacy datacenter values for a draft', function () {
+        $secondDatacenter = Datacenter::factory()->create();
+        $payload = [
+            'titles' => [
+                ['title' => 'Draft with Conflicting Datacenters', 'titleType' => 'main-title'],
+            ],
+            'datacenter_id' => $this->datacenter->id,
+            'datacenters' => [$secondDatacenter->id],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenter_id']);
     });
 
     it('rejects more than one datacenter through the legacy array for a draft', function () {

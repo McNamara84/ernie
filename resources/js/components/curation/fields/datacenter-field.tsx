@@ -1,8 +1,8 @@
-import { Check, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,17 @@ interface DatacenterFieldProps {
     errorMessage?: string;
 }
 
-export function DatacenterField({ id, label, options, selected, onChange, className, required = false, hasError = false, errorMessage }: DatacenterFieldProps) {
+export function DatacenterField({
+    id,
+    label,
+    options,
+    selected,
+    onChange,
+    className,
+    required = false,
+    hasError = false,
+    errorMessage,
+}: DatacenterFieldProps) {
     const [open, setOpen] = useState(false);
 
     const selectedOption = options.find((option) => option.id === selected);
@@ -48,7 +58,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         className={cn('h-auto min-h-9 w-full min-w-0 justify-between font-normal', hasError && 'border-destructive')}
                         data-testid="datacenter-select"
                     >
-                        <span className="min-w-0 flex-1 wrap-break-word whitespace-normal text-left text-muted-foreground">
+                        <span className="min-w-0 flex-1 text-left wrap-break-word whitespace-normal text-muted-foreground">
                             {selectedOption?.name ?? 'Select a datacenter...'}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -59,6 +69,23 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                         <CommandInput placeholder="Search datacenters..." />
                         <CommandList>
                             <CommandEmpty>No datacenter found.</CommandEmpty>
+                            {selected !== null && (
+                                <>
+                                    <CommandGroup>
+                                        <CommandItem
+                                            value="Clear selection"
+                                            onSelect={() => {
+                                                onChange(null);
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            <X className="mr-2 h-4 w-4" />
+                                            Clear selection
+                                        </CommandItem>
+                                    </CommandGroup>
+                                    <CommandSeparator />
+                                </>
+                            )}
                             <CommandGroup>
                                 {options.map((option) => (
                                     <CommandItem
@@ -78,7 +105,7 @@ export function DatacenterField({ id, label, options, selected, onChange, classN
                     </Command>
                 </PopoverContent>
             </Popover>
-            {hasError && errorMessage && <p className="text-destructive text-sm">{errorMessage}</p>}
+            {hasError && errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
         </div>
     );
 }

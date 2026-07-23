@@ -1224,11 +1224,11 @@ class StoreResourceRequest extends FormRequest
             },
             function (Validator $validator): void {
                 $legacyDatacenters = $this->input('datacenters');
-                if (! is_array($legacyDatacenters) || count($legacyDatacenters) > 1) {
+                if (! is_array($legacyDatacenters) || count($legacyDatacenters) !== 1) {
                     return;
                 }
 
-                $legacyId = isset($legacyDatacenters[0]) ? (int) $legacyDatacenters[0] : null;
+                $legacyId = (int) array_values($legacyDatacenters)[0];
                 $canonicalId = $this->input('datacenter_id');
                 $canonicalId = $canonicalId === null ? null : (int) $canonicalId;
 
