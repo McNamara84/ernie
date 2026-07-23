@@ -146,6 +146,30 @@ describe('Draft save (Issue #548)', function () {
             ->assertJsonValidationErrors(['datacenters']);
     });
 
+    it('prefixes duplicate legacy datacenter errors with the resource section for a draft', function () {
+        $payload = [
+            'titles' => [
+                ['title' => 'Draft with Duplicate Datacenter', 'titleType' => 'main-title'],
+            ],
+            'datacenters' => [
+                $this->datacenter->id,
+                $this->datacenter->id,
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenters.0']);
+
+        $errors = $response->json('errors');
+        expect($errors)->toBeArray()
+            ->and($errors['datacenters.0'][0] ?? null)
+            ->toBeString()
+            ->toStartWith('[Resource Information]');
+    });
+
     it('rejects draft without a Main Title', function () {
         $payload = [
             'titles' => [

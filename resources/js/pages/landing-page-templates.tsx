@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -158,33 +159,36 @@ function DatacenterAssignmentField({
                 {visibleOptions.map((option) => {
                     const isCanonicalGfz = option.name === 'GFZ German Research Centre for Geosciences';
                     const isProtected = isCanonicalGfz;
+                    const checkboxId = `datacenter-template-${option.id}`;
                     const assignedElsewhere =
                         option.landing_page_template_id !== null &&
                         option.landing_page_template_id !== currentTemplateId;
 
                     return (
-                        <label key={option.id} className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
-                            <input
-                                type="checkbox"
+                        <div key={option.id} className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
+                            <Checkbox
+                                id={checkboxId}
                                 className="mt-0.5 size-4"
                                 checked={selected.includes(option.id)}
                                 disabled={isProtected}
-                                onChange={() => toggle(option.id)}
+                                onCheckedChange={() => toggle(option.id)}
                             />
-                            <span>
-                                <span className="block">{option.name}</span>
-                                {isProtected && (
-                                    <span className="block text-xs text-muted-foreground">
-                                        {allowCanonicalGfz ? 'Protected system-default assignment' : 'Reserved for the resource system default'}
-                                    </span>
-                                )}
-                                {!isProtected && assignedElsewhere && (
-                                    <span className="block text-xs text-amber-700 dark:text-amber-400">
-                                        Currently assigned to {option.landing_page_template_name}; saving will move it.
-                                    </span>
-                                )}
-                            </span>
-                        </label>
+                            <Label htmlFor={checkboxId} className="flex-1 cursor-pointer items-start font-normal">
+                                <span>
+                                    <span className="block">{option.name}</span>
+                                    {isProtected && (
+                                        <span className="block text-xs text-muted-foreground">
+                                            {allowCanonicalGfz ? 'Protected system-default assignment' : 'Reserved for the resource system default'}
+                                        </span>
+                                    )}
+                                    {!isProtected && assignedElsewhere && (
+                                        <span className="block text-xs text-amber-700 dark:text-amber-400">
+                                            Currently assigned to {option.landing_page_template_name}; saving will move it.
+                                        </span>
+                                    )}
+                                </span>
+                            </Label>
+                        </div>
                     );
                 })}
                 {visibleOptions.length === 0 && <p className="p-2 text-sm text-muted-foreground">No datacenters found.</p>}

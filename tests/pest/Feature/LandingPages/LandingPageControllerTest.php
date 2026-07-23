@@ -103,7 +103,10 @@ describe('Landing Page Creation', function () {
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('landing_page.downloads_unavailable', false);
+            ->assertJsonPath('landing_page.downloads_unavailable', false)
+            ->assertJsonPath('landing_page.effective_landing_page_template_id', null)
+            ->assertJsonPath('landing_page.effective_landing_page_template', null)
+            ->assertJsonPath('landing_page.landing_page_template_source', null);
 
         expect($this->resource->fresh()->landingPage->downloads_unavailable)->toBeFalse();
     });

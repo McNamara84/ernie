@@ -1113,6 +1113,7 @@ class StoreResourceRequest extends FormRequest
             'datacenter_id.integer' => '[Resource Information] The selected datacenter is invalid.',
             'datacenter_id.exists' => '[Resource Information] The selected datacenter is invalid.',
             'datacenters.max' => '[Resource Information] A resource can only be assigned to one datacenter.',
+            'datacenters.*.distinct' => '[Resource Information] Datacenter #:position is a duplicate.',
             'datacenters.*.exists' => '[Resource Information] Datacenter #:position is not a valid datacenter.',
 
             // Licenses & Rights

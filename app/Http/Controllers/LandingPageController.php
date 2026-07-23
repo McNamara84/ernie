@@ -668,7 +668,9 @@ class LandingPageController extends Controller
         // Keep the stored override separate from the dynamically effective template.
         $payload['landing_page_template_id'] = $explicitLandingPageTemplate?->id;
         $payload['landing_page_template'] = $explicitLandingPageTemplate?->toArray();
-        $payload['effective_landing_page_template_id'] = $resolvedTemplate['template']->id ?? null;
+        $payload['effective_landing_page_template_id'] = isset($resolvedTemplate)
+            ? $resolvedTemplate['template']->id
+            : null;
         $payload['effective_landing_page_template'] = isset($resolvedTemplate)
             ? $resolvedTemplate['template']->toArray()
             : null;

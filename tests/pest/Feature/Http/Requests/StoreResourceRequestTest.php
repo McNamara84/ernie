@@ -130,6 +130,25 @@ describe('required fields', function () {
             ->assertJsonValidationErrors(['datacenters']);
     });
 
+    it('prefixes duplicate legacy datacenter errors with the resource section', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $datacenterId = $data['datacenter_id'];
+        unset($data['datacenter_id']);
+        $data['datacenters'] = [$datacenterId, $datacenterId];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data);
+
+        $response->assertUnprocessable()
+            ->assertJsonValidationErrors(['datacenters.0']);
+
+        $errors = $response->json('errors');
+        expect($errors)->toBeArray()
+            ->and($errors['datacenters.0'][0] ?? null)
+            ->toBeString()
+            ->toStartWith('[Resource Information]');
+    });
+
     it('rejects conflicting canonical and legacy datacenter values', function () {
         $secondDatacenter = Datacenter::factory()->create();
         $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
