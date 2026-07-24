@@ -38,24 +38,11 @@ const locationFirstRightOrder: LandingPageTemplateConfig['right_column_order'] =
     'metadata_download',
 ];
 
-const legacyLocationFirstRightOrder = [
-    'location',
-    'descriptions',
-    'keywords',
-] as unknown as LandingPageTemplateConfig['right_column_order'];
+const legacyLocationFirstRightOrder = ['location', 'descriptions', 'keywords'] as unknown as LandingPageTemplateConfig['right_column_order'];
 
-const middleLocationRightOrder = [
-    'abstract',
-    'location',
-    'methods',
-] as unknown as LandingPageTemplateConfig['right_column_order'];
+const middleLocationRightOrder = ['abstract', 'location', 'methods'] as unknown as LandingPageTemplateConfig['right_column_order'];
 
-const dirtyRightOrder = [
-    'unknown',
-    'abstract',
-    'abstract',
-    'location',
-] as unknown as LandingPageTemplateConfig['right_column_order'];
+const dirtyRightOrder = ['unknown', 'abstract', 'abstract', 'location'] as unknown as LandingPageTemplateConfig['right_column_order'];
 
 const expandedLegacyLocationFirstOrder = [
     'location',
@@ -406,12 +393,16 @@ describe('LandingPageTemplatesPage', () => {
                     name: 'Specialized Datacenter',
                     landing_page_template_id: null,
                     landing_page_template_name: null,
+                    igsn_landing_page_template_id: null,
+                    igsn_landing_page_template_name: null,
                 },
                 {
                     id: 11,
                     name: 'GFZ German Research Centre for Geosciences',
                     landing_page_template_id: defaultTemplate.id,
                     landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: null,
+                    igsn_landing_page_template_name: null,
                 },
             ];
             mockedAxiosPost.mockResolvedValue({ data: { message: 'Created', template: {} } });
@@ -533,6 +524,46 @@ describe('LandingPageTemplatesPage', () => {
                     name: 'IGSN Clone',
                     template_type: 'igsn',
                     datacenter_ids: [],
+                });
+            });
+        });
+
+        it('assigns a datacenter while cloning an IGSN template', async () => {
+            mockedAxiosPost.mockResolvedValue({ data: { message: 'Created', template: {} } });
+            mockTemplates = [defaultIgsnTemplate];
+            mockDatacenters = [
+                {
+                    id: 20,
+                    name: 'ICDP',
+                    landing_page_template_id: null,
+                    landing_page_template_name: null,
+                    igsn_landing_page_template_id: null,
+                    igsn_landing_page_template_name: null,
+                },
+                {
+                    id: 21,
+                    name: 'GFZ German Research Centre for Geosciences',
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                    igsn_landing_page_template_id: defaultIgsnTemplate.id,
+                    igsn_landing_page_template_name: defaultIgsnTemplate.name,
+                },
+            ];
+            const user = userEvent.setup();
+
+            render(<LandingPageTemplatesPage />);
+            await user.click(screen.getByRole('button', { name: /Clone this template/i }));
+
+            expect(screen.getByRole('checkbox', { name: /GFZ German Research Centre/i })).toBeDisabled();
+            await user.click(screen.getByRole('checkbox', { name: /ICDP/i }));
+            await user.type(screen.getByLabelText('Template Name'), 'ICDP IGSN Template');
+            await user.click(screen.getByRole('button', { name: /Clone Template/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
+                    name: 'ICDP IGSN Template',
+                    template_type: 'igsn',
+                    datacenter_ids: [20],
                 });
             });
         });
@@ -895,9 +926,7 @@ describe('LandingPageTemplatesPage', () => {
 
             // Click the Delete button in the AlertDialog
             const confirmDelete = screen.getAllByRole('button', { name: /Delete/i });
-            const alertDialogDelete = confirmDelete.find((btn) =>
-                btn.className.includes('destructive') || btn.closest('[role="alertdialog"]'),
-            );
+            const alertDialogDelete = confirmDelete.find((btn) => btn.className.includes('destructive') || btn.closest('[role="alertdialog"]'));
             if (alertDialogDelete) await user.click(alertDialogDelete);
 
             await waitFor(() => {
@@ -1092,19 +1121,23 @@ describe('LandingPageTemplatesPage', () => {
 
     describe('Creator Display', () => {
         it('shows Unknown when creator is null', () => {
-            mockTemplates = [{
-                ...customTemplateNoLogo,
-                creator: null,
-            }];
+            mockTemplates = [
+                {
+                    ...customTemplateNoLogo,
+                    creator: null,
+                },
+            ];
             render(<LandingPageTemplatesPage />);
             expect(screen.getByText(/Created by Unknown/i)).toBeInTheDocument();
         });
 
         it('shows singular page count', () => {
-            mockTemplates = [{
-                ...customTemplate,
-                landing_pages_count: 1,
-            }];
+            mockTemplates = [
+                {
+                    ...customTemplate,
+                    landing_pages_count: 1,
+                },
+            ];
             render(<LandingPageTemplatesPage />);
             expect(screen.getByText('1 page')).toBeInTheDocument();
         });

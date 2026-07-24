@@ -816,6 +816,7 @@ entity "datacenters" as datacenters {
     --
     * name : VARCHAR <<UK>>
     landing_page_template_id : BIGINT <<FK>> <<nullable>>
+    igsn_landing_page_template_id : BIGINT <<FK>> <<nullable>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
 }
@@ -1133,7 +1134,8 @@ resources ||--o| landing_pages
 resources ||--o{ alternate_identifiers
 resources ||--o{ resource_instruments
 resources }o--o| datacenters
-datacenters }o--o| landing_page_templates : "inherits template"
+datacenters }o--o| landing_page_templates : "inherits resource template"
+datacenters }o--o| landing_page_templates : "inherits IGSN template"
 
 ' Lookup table relationships
 resources }o--o| resource_types

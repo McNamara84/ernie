@@ -5,7 +5,11 @@ import { render, screen, within } from '@tests/vitest/utils/render';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock Inertia
-const { mockRouterDelete, mockRouterVisit, mockRouterReload } = vi.hoisted(() => ({ mockRouterDelete: vi.fn(), mockRouterVisit: vi.fn(), mockRouterReload: vi.fn() }));
+const { mockRouterDelete, mockRouterVisit, mockRouterReload } = vi.hoisted(() => ({
+    mockRouterDelete: vi.fn(),
+    mockRouterVisit: vi.fn(),
+    mockRouterReload: vi.fn(),
+}));
 vi.mock('@inertiajs/react', () => ({
     Head: ({ title }: { title: string }) => <title>{title}</title>,
     router: { delete: mockRouterDelete, visit: mockRouterVisit, reload: mockRouterReload },
@@ -43,19 +47,50 @@ vi.mock('@/components/igsns/status-badge', () => ({
     IgsnStatusBadge: ({ status }: { status: string }) => <span data-testid="status-badge">{status}</span>,
 }));
 vi.mock('@/components/igsns/bulk-actions-toolbar', () => ({
-    BulkActionsToolbar: ({ selectedCount, onDelete, onRegister, isRegistering }: { selectedCount: number; onDelete: () => void; onRegister?: () => void; isRegistering?: boolean }) => (
+    BulkActionsToolbar: ({
+        selectedCount,
+        onDelete,
+        onRegister,
+        isRegistering,
+    }: {
+        selectedCount: number;
+        onDelete: () => void;
+        onRegister?: () => void;
+        isRegistering?: boolean;
+    }) => (
         <div data-testid="bulk-toolbar">
             <span>{selectedCount} selected</span>
             <button onClick={onDelete}>Delete</button>
-            {onRegister && <button onClick={onRegister} disabled={isRegistering}>Register Selected</button>}
+            {onRegister && (
+                <button onClick={onRegister} disabled={isRegistering}>
+                    Register Selected
+                </button>
+            )}
         </div>
     ),
 }));
 vi.mock('@/components/igsns/igsn-filters', () => ({
-    IgsnFilters: ({ filters, onFilterChange, resultCount, totalCount }: { filters: Record<string, string | undefined>; onFilterChange: (v: Record<string, string | undefined>) => void; resultCount: number; totalCount: number }) => (
+    IgsnFilters: ({
+        filters,
+        onFilterChange,
+        resultCount,
+        totalCount,
+    }: {
+        filters: Record<string, string | undefined>;
+        onFilterChange: (v: Record<string, string | undefined>) => void;
+        resultCount: number;
+        totalCount: number;
+    }) => (
         <div data-testid="igsn-filters">
-            <input data-testid="search-field" value={filters.search || ''} onChange={(e) => onFilterChange({ ...filters, search: e.target.value })} aria-label="Search IGSNs by IGSN or title" />
-            <span data-testid="search-counts">{resultCount} / {totalCount}</span>
+            <input
+                data-testid="search-field"
+                value={filters.search || ''}
+                onChange={(e) => onFilterChange({ ...filters, search: e.target.value })}
+                aria-label="Search IGSNs by IGSN or title"
+            />
+            <span data-testid="search-counts">
+                {resultCount} / {totalCount}
+            </span>
         </div>
     ),
 }));
@@ -63,7 +98,12 @@ vi.mock('@/components/landing-pages/modals/SetupIgsnLandingPageModal', () => ({
     default: () => null,
 }));
 vi.mock('@/components/igsns/modals/ImportIgsnsModal', () => ({
-    default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div data-testid="import-all-igsns-modal">Import all modal</div> : null),
+    default: ({ isOpen, mode }: { isOpen: boolean; mode?: 'all' | 'datacenter' }) =>
+        isOpen ? (
+            <div data-testid={mode === 'datacenter' ? 'import-datacenter-igsns-modal' : 'import-all-igsns-modal'}>
+                {mode === 'datacenter' ? 'Import datacenter modal' : 'Import all modal'}
+            </div>
+        ) : null,
 }));
 vi.mock('@/components/igsns/modals/ImportSingleIgsnModal', () => ({
     default: ({ isOpen, igsnPrefix, onClose, onSuccess }: { isOpen: boolean; igsnPrefix?: string; onClose: () => void; onSuccess?: () => void }) =>
@@ -81,23 +121,25 @@ vi.mock('@/components/ui/validation-error-modal', () => ({
 
 import IgsnsPage from '@/pages/igsns/index';
 
-function createIgsn(overrides: Partial<{
-    id: number;
-    igsn: string | null;
-    title: string;
-    sample_type: string | null;
-    material: string | null;
-    collection_date: string | null;
-    latitude: number | null;
-    longitude: number | null;
-    upload_status: string;
-    upload_error_message: string | null;
-    parent_resource_id: number | null;
-    collector: string | null;
-    has_landing_page: boolean;
-    created_at: string | null;
-    updated_at: string | null;
-}> = {}) {
+function createIgsn(
+    overrides: Partial<{
+        id: number;
+        igsn: string | null;
+        title: string;
+        sample_type: string | null;
+        material: string | null;
+        collection_date: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        upload_status: string;
+        upload_error_message: string | null;
+        parent_resource_id: number | null;
+        collector: string | null;
+        has_landing_page: boolean;
+        created_at: string | null;
+        updated_at: string | null;
+    }> = {},
+) {
     return {
         id: 1,
         igsn: 'IGSN001',
@@ -118,15 +160,17 @@ function createIgsn(overrides: Partial<{
     };
 }
 
-function createPagination(overrides: Partial<{
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    has_more: boolean;
-}> = {}) {
+function createPagination(
+    overrides: Partial<{
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number | null;
+        to: number | null;
+        has_more: boolean;
+    }> = {},
+) {
     return {
         current_page: 1,
         last_page: 1,
@@ -195,11 +239,12 @@ describe('IgsnsPage', () => {
             expect(badges).toHaveLength(2);
         });
 
-        it('shows both import buttons when canImport is true', () => {
+        it('shows all three import buttons when canImport is true', () => {
             render(<IgsnsPage {...defaultProps} canImport={true} />);
 
             expect(screen.getByRole('button', { name: /import all igsns/i })).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /import single igsn/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /import by datacenter/i })).toBeInTheDocument();
         });
 
         it('hides import buttons when canImport is false', () => {
@@ -207,6 +252,7 @@ describe('IgsnsPage', () => {
 
             expect(screen.queryByRole('button', { name: /import all igsns/i })).not.toBeInTheDocument();
             expect(screen.queryByRole('button', { name: /import single igsn/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /import by datacenter/i })).not.toBeInTheDocument();
         });
 
         it('opens the single IGSN import modal', async () => {
@@ -216,6 +262,14 @@ describe('IgsnsPage', () => {
 
             expect(screen.getByTestId('import-single-igsn-modal')).toBeInTheDocument();
             expect(screen.getByTestId('import-single-igsn-modal')).toHaveAttribute('data-prefix', '10.60510');
+        });
+
+        it('opens the datacenter IGSN import modal', async () => {
+            render(<IgsnsPage {...defaultProps} canImport={true} />);
+
+            await userEvent.click(screen.getByRole('button', { name: /import by datacenter/i }));
+
+            expect(screen.getByTestId('import-datacenter-igsns-modal')).toBeInTheDocument();
         });
 
         it('wires single IGSN import modal close and success callbacks', async () => {
@@ -299,22 +353,12 @@ describe('IgsnsPage', () => {
 
     describe('load more', () => {
         it('shows Load More button when has_more is true', () => {
-            render(
-                <IgsnsPage
-                    {...defaultProps}
-                    pagination={createPagination({ has_more: true, last_page: 3 })}
-                />,
-            );
+            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: true, last_page: 3 })} />);
             expect(screen.getByText(/Load More/)).toBeInTheDocument();
         });
 
         it('hides Load More button when has_more is false', () => {
-            render(
-                <IgsnsPage
-                    {...defaultProps}
-                    pagination={createPagination({ has_more: false })}
-                />,
-            );
+            render(<IgsnsPage {...defaultProps} pagination={createPagination({ has_more: false })} />);
             expect(screen.queryByText(/Load More/)).not.toBeInTheDocument();
         });
     });
@@ -337,18 +381,32 @@ describe('IgsnsPage', () => {
 
     describe('date formatting', () => {
         it('formats a single date', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: '2024-06-15' })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, collection_date: '2024-06-15' })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
             expect(screen.getByText('2024-06-15')).toBeInTheDocument();
         });
 
         it('formats a date range with separator', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: '2024-01-01 – 2024-12-31' })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, collection_date: '2024-01-01 – 2024-12-31' })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
             expect(screen.getByText('2024-01-01')).toBeInTheDocument();
             expect(screen.getByText('2024-12-31')).toBeInTheDocument();
         });
 
         it('shows dash for null collection date', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: null })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, collection_date: null })]} pagination={createPagination({ total: 1 })} />,
+            );
             const row = screen.getByText('Rock Sample A').closest('tr')!;
             expect(within(row).getAllByText('-').length).toBeGreaterThan(0);
         });
@@ -356,25 +414,41 @@ describe('IgsnsPage', () => {
 
     describe('child IGSN indicators', () => {
         it('shows indent marker for child IGSNs', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: 5, igsn: 'CHILD001' })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, parent_resource_id: 5, igsn: 'CHILD001' })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
             expect(screen.getByText('└')).toBeInTheDocument();
         });
 
         it('applies muted background for child IGSNs', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: 5 })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: 5 })]} pagination={createPagination({ total: 1 })} />,
+            );
             const row = screen.getByText('Rock Sample A').closest('tr')!;
             expect(row.className).toContain('bg-muted');
         });
 
         it('does not show indent for parent IGSNs', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: null })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, parent_resource_id: null })]} pagination={createPagination({ total: 1 })} />,
+            );
             expect(screen.queryByText('└')).not.toBeInTheDocument();
         });
     });
 
     describe('null IGSN display', () => {
         it('shows dash when IGSN identifier is null', () => {
-            render(<IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, igsn: null, title: 'Unnamed Sample' })]} pagination={createPagination({ total: 1 })} />);
+            render(
+                <IgsnsPage
+                    {...defaultProps}
+                    igsns={[createIgsn({ id: 1, igsn: null, title: 'Unnamed Sample' })]}
+                    pagination={createPagination({ total: 1 })}
+                />,
+            );
             const row = screen.getByText('Unnamed Sample').closest('tr')!;
             // The IGSN column renders '-' via font-mono cell
             expect(within(row).getAllByText('-').length).toBeGreaterThan(0);
@@ -390,20 +464,14 @@ describe('IgsnsPage', () => {
                 expect.stringContaining('sort=title'),
                 expect.objectContaining({ preserveState: false, replace: true }),
             );
-            expect(mockRouterVisit).toHaveBeenCalledWith(
-                expect.stringContaining('direction=asc'),
-                expect.anything(),
-            );
+            expect(mockRouterVisit).toHaveBeenCalledWith(expect.stringContaining('direction=asc'), expect.anything());
         });
 
         it('toggles direction when clicking the already active sort column', async () => {
             render(<IgsnsPage {...defaultProps} sort={{ key: 'title', direction: 'asc' }} />);
             const titleSortButton = screen.getByRole('button', { name: /sort by title/i });
             await userEvent.click(titleSortButton);
-            expect(mockRouterVisit).toHaveBeenCalledWith(
-                expect.stringContaining('direction=desc'),
-                expect.anything(),
-            );
+            expect(mockRouterVisit).toHaveBeenCalledWith(expect.stringContaining('direction=desc'), expect.anything());
         });
     });
 
@@ -441,7 +509,9 @@ describe('IgsnsPage', () => {
             // Open delete dialog
             await userEvent.click(screen.getByText('Delete'));
             // Confirm deletion
-            const confirmBtn = screen.getAllByRole('button').find((btn) => btn.textContent === 'Delete' && !btn.closest('[data-testid="bulk-toolbar"]'));
+            const confirmBtn = screen
+                .getAllByRole('button')
+                .find((btn) => btn.textContent === 'Delete' && !btn.closest('[data-testid="bulk-toolbar"]'));
             expect(confirmBtn).toBeTruthy();
         });
     });
@@ -451,10 +521,7 @@ describe('IgsnsPage', () => {
             render(
                 <IgsnsPage
                     {...defaultProps}
-                    igsns={[
-                        createIgsn({ id: 1, has_landing_page: true }),
-                        createIgsn({ id: 2, has_landing_page: false }),
-                    ]}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true }), createIgsn({ id: 2, has_landing_page: false })]}
                 />,
             );
             const registerButtons = screen.getAllByRole('button', { name: /register at datacite/i });
@@ -482,11 +549,7 @@ describe('IgsnsPage', () => {
             });
 
             render(
-                <IgsnsPage
-                    {...defaultProps}
-                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
-                    pagination={createPagination({ total: 1 })}
-                />,
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, has_landing_page: true })]} pagination={createPagination({ total: 1 })} />,
             );
 
             await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
@@ -525,11 +588,7 @@ describe('IgsnsPage', () => {
             mockAxiosPost.mockRejectedValueOnce(axiosError);
 
             render(
-                <IgsnsPage
-                    {...defaultProps}
-                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
-                    pagination={createPagination({ total: 1 })}
-                />,
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, has_landing_page: true })]} pagination={createPagination({ total: 1 })} />,
             );
 
             await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
@@ -545,11 +604,7 @@ describe('IgsnsPage', () => {
             });
 
             render(
-                <IgsnsPage
-                    {...defaultProps}
-                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
-                    pagination={createPagination({ total: 1 })}
-                />,
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, has_landing_page: true })]} pagination={createPagination({ total: 1 })} />,
             );
 
             await userEvent.click(screen.getByRole('button', { name: /register at datacite/i }));
@@ -569,10 +624,7 @@ describe('IgsnsPage', () => {
             render(
                 <IgsnsPage
                     {...defaultProps}
-                    igsns={[
-                        createIgsn({ id: 1, has_landing_page: true }),
-                        createIgsn({ id: 2, has_landing_page: true }),
-                    ]}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true }), createIgsn({ id: 2, has_landing_page: true })]}
                 />,
             );
 
@@ -604,10 +656,7 @@ describe('IgsnsPage', () => {
             render(
                 <IgsnsPage
                     {...defaultProps}
-                    igsns={[
-                        createIgsn({ id: 1, has_landing_page: true }),
-                        createIgsn({ id: 2, has_landing_page: true }),
-                    ]}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true }), createIgsn({ id: 2, has_landing_page: true })]}
                 />,
             );
 
@@ -626,10 +675,7 @@ describe('IgsnsPage', () => {
             render(
                 <IgsnsPage
                     {...defaultProps}
-                    igsns={[
-                        createIgsn({ id: 1, has_landing_page: true }),
-                        createIgsn({ id: 2, has_landing_page: false }),
-                    ]}
+                    igsns={[createIgsn({ id: 1, has_landing_page: true }), createIgsn({ id: 2, has_landing_page: false })]}
                 />,
             );
 
@@ -649,11 +695,7 @@ describe('IgsnsPage', () => {
             });
 
             render(
-                <IgsnsPage
-                    {...defaultProps}
-                    igsns={[createIgsn({ id: 1, has_landing_page: true })]}
-                    pagination={createPagination({ total: 1 })}
-                />,
+                <IgsnsPage {...defaultProps} igsns={[createIgsn({ id: 1, has_landing_page: true })]} pagination={createPagination({ total: 1 })} />,
             );
 
             const checkboxes = screen.getAllByRole('checkbox');

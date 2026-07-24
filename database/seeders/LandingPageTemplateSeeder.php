@@ -22,9 +22,10 @@ class LandingPageTemplateSeeder extends Seeder
         $templates = LandingPageTemplate::ensureSystemTemplatesExist();
 
         Datacenter::query()->firstOrCreate([
-            'name' => 'GFZ German Research Centre for Geosciences',
+            'name' => Datacenter::GFZ_NAME,
         ])->forceFill([
             'landing_page_template_id' => $templates['resource']->id,
+            'igsn_landing_page_template_id' => $templates['igsn']->id,
         ])->save();
     }
 }

@@ -125,9 +125,7 @@ describe('SetupIgsnLandingPageModal', () => {
                 // Scope the title match to the testid: Radix Tooltip adds a
                 // VisuallyHidden accessibility node that would otherwise
                 // cause `getByText` to match more than one element.
-                expect(screen.getByTestId('setup-igsn-lp-modal-resource-title')).toHaveTextContent(
-                    'Rock Sample Core XYZ',
-                );
+                expect(screen.getByTestId('setup-igsn-lp-modal-resource-title')).toHaveTextContent('Rock Sample Core XYZ');
                 expect(screen.getByText(/physical sample/i)).toBeInTheDocument();
             });
         });
@@ -160,6 +158,42 @@ describe('SetupIgsnLandingPageModal', () => {
             await waitFor(() => {
                 expect(screen.getByLabelText(/Landing Page Template/i)).toBeInTheDocument();
             });
+        });
+
+        it('shows the automatic IGSN template inherited from the datacenter', async () => {
+            mockedAxiosGet.mockImplementation((url: string) => {
+                if (url.endsWith('/landing-page/template-options')) {
+                    return Promise.resolve({
+                        data: {
+                            templates: [],
+                            datacenter: { id: 9, name: 'ICDP' },
+                            datacenter_template: { id: 12, name: 'ICDP Samples', slug: 'icdp-samples' },
+                            system_default: { id: 2, name: 'Default GFZ IGSN', slug: 'default_gfz_igsn' },
+                            automatic_template: { id: 12, name: 'ICDP Samples', slug: 'icdp-samples' },
+                            automatic_source: 'datacenter',
+                            supports_datacenter_inheritance: true,
+                        },
+                    });
+                }
+
+                if (url === '/api/landing-page-templates') {
+                    return Promise.resolve({ data: { templates: [] } });
+                }
+
+                if (url === '/api/landing-page-domains/list') {
+                    return Promise.resolve({ data: { domains: [] } });
+                }
+
+                return Promise.reject({
+                    isAxiosError: true,
+                    response: { status: 404 },
+                });
+            });
+
+            render(<SetupIgsnLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            expect(await screen.findByText(/Automatic layout: Datacenter template: ICDP Samples/i)).toBeInTheDocument();
+            expect(mockedAxiosGet).toHaveBeenCalledWith('/resources/456/landing-page/template-options');
         });
 
         it('does NOT render FTP URL field', async () => {
@@ -430,14 +464,7 @@ describe('SetupIgsnLandingPageModal', () => {
                 external_url: 'https://saved.example.org/saved-sample',
             };
 
-            render(
-                <SetupIgsnLandingPageModal
-                    resource={mockResource}
-                    existingConfig={existingExternalConfig}
-                    isOpen={true}
-                    onClose={mockOnClose}
-                />,
-            );
+            render(<SetupIgsnLandingPageModal resource={mockResource} existingConfig={existingExternalConfig} isOpen={true} onClose={mockOnClose} />);
 
             await waitFor(() => {
                 expect(screen.getByLabelText(/Path/i)).toHaveValue('/saved-sample');
@@ -870,10 +897,7 @@ describe('SetupIgsnLandingPageModal', () => {
                 if (url.includes('/api/landing-page-templates')) {
                     return Promise.resolve({
                         data: {
-                            templates: [
-                                configWithBuiltInDefault.landing_page_template,
-                                mockIgsnCustomTemplate,
-                            ],
+                            templates: [configWithBuiltInDefault.landing_page_template, mockIgsnCustomTemplate],
                         },
                     });
                 }
@@ -1198,9 +1222,7 @@ describe('SetupIgsnLandingPageModal', () => {
             const footer = screen.getByTestId('setup-igsn-lp-modal-footer');
             expect(footer).toContainElement(screen.getByRole('button', { name: /^Preview$/i }));
             expect(footer).toContainElement(screen.getByRole('button', { name: /^Cancel$/i }));
-            expect(footer).toContainElement(
-                screen.getByRole('button', { name: /^(Create Preview|Create & Publish|Update|Publish)$/i }),
-            );
+            expect(footer).toContainElement(screen.getByRole('button', { name: /^(Create Preview|Create & Publish|Update|Publish)$/i }));
         });
 
         it('shows the Loading state inside the scrollable zone (footer still rendered)', () => {
@@ -1216,13 +1238,7 @@ describe('SetupIgsnLandingPageModal', () => {
         });
 
         it('applies the same accessible tooltip and layout classes for short titles', async () => {
-            render(
-                <SetupIgsnLandingPageModal
-                    resource={{ id: 1, title: 'Short sample' }}
-                    isOpen={true}
-                    onClose={mockOnClose}
-                />,
-            );
+            render(<SetupIgsnLandingPageModal resource={{ id: 1, title: 'Short sample' }} isOpen={true} onClose={mockOnClose} />);
 
             const titleEl = await screen.findByTestId('setup-igsn-lp-modal-resource-title');
             expect(titleEl).toHaveTextContent('Short sample');

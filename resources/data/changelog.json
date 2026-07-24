@@ -1,11 +1,15 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-07-13",
+        "date": "2026-07-24",
         "features": [
             {
+                "title": "IGSN Datacenter Imports and Template Inheritance",
+                "description": "New IGSNs imported from DataCite now receive their legacy IGSN portal datacenter assignment when available, including the canonical mapping from GFZ Potsdam to GFZ German Research Centre for Geosciences. Admins and Group Leaders can import one complete legacy IGSN datacenter from /igsns, while unmatched new IGSNs are reported without blocking the import and existing records remain unchanged. IGSN landing page templates can now be assigned to multiple datacenters through a dedicated IGSN template slot, with the Default GFZ IGSN template retained as the GFZ assignment and global fallback."
+            },
+            {
                 "title": "Single Datacenter and Landing Page Template Inheritance",
-                "description": "Resources now use one datacenter assignment instead of a many-to-many selection. Validated resources require exactly one datacenter, while drafts may omit it. Admins and Group Leaders can assign regular landing page templates to datacenters, and regular resources automatically inherit that template unless a landing page explicitly selects another template. IGSN landing pages continue to use their own template flow without datacenter inheritance."
+                "description": "Resources now use one datacenter assignment instead of a many-to-many selection. Validated resources require exactly one datacenter, while drafts may omit it. Admins and Group Leaders can assign regular landing page templates to datacenters, and regular resources automatically inherit that template unless a landing page explicitly selects another template. Resource and IGSN landing pages use independent datacenter template slots."
             },
             {
                 "title": "Versioned Multi-Scale Laboratories Vocabulary",

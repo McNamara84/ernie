@@ -9,6 +9,7 @@ use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
+use App\Services\LegacyIgsnPortalService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -32,6 +33,17 @@ beforeEach(function () {
 
     $this->enrichmentService = Mockery::mock(IgsnEnrichmentService::class);
     $this->app->instance(IgsnEnrichmentService::class, $this->enrichmentService);
+
+    $this->legacyPortalService = Mockery::mock(LegacyIgsnPortalService::class);
+    $this->legacyPortalService
+        ->shouldReceive('assignmentsForAllIgsns')
+        ->byDefault()
+        ->andReturn([]);
+    $this->legacyPortalService
+        ->shouldReceive('assignmentsForHandles')
+        ->byDefault()
+        ->andReturn([]);
+    $this->app->instance(LegacyIgsnPortalService::class, $this->legacyPortalService);
 });
 
 afterEach(function () {

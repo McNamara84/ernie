@@ -46,7 +46,7 @@
         {
             "name": "IGSN Imports",
             "summary": "Authenticated IGSN import operations",
-            "description": "Session-authenticated endpoints for starting IGSN imports from DataCite."
+            "description": "Session-authenticated endpoints for discovering legacy datacenter groups and starting IGSN imports from DataCite."
         }
     ],
     "security": [],
@@ -1467,6 +1467,142 @@
                 }
             }
         },
+        "/igsns/import/datacenters": {
+            "get": {
+                "tags": ["IGSN Imports"],
+                "summary": "List legacy IGSN datacenters",
+                "description": "Returns the currently available, known datacenters from the legacy GFZ IGSN portal with live resource counts. Legacy names are normalized to their canonical ERNIE datacenter names; in particular, GFZ Potsdam is returned as GFZ German Research Centre for Geosciences.",
+                "security": [
+                    {
+                        "LaravelSession": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Legacy IGSN datacenters available for grouped imports.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/LegacyIgsnDatacenterListResponse"
+                                },
+                                "example": {
+                                    "datacenters": [
+                                        {
+                                            "id": "IGSNDB.ICDP",
+                                            "name": "ICDP",
+                                            "legacy_name": "ICDP",
+                                            "resource_count": 15813
+                                        },
+                                        {
+                                            "id": "IGSNDB.GFZ",
+                                            "name": "GFZ German Research Centre for Geosciences",
+                                            "legacy_name": "GFZ Potsdam",
+                                            "resource_count": 357
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required. The request must include a valid ERNIE session."
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/ForbiddenError"
+                    },
+                    "503": {
+                        "description": "The legacy IGSN portal is temporarily unavailable.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "The legacy IGSN portal is currently unavailable. Please try again later."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/igsns/import/start-datacenter": {
+            "post": {
+                "tags": ["IGSN Imports"],
+                "summary": "Start an IGSN import for one legacy datacenter",
+                "description": "Starts an authenticated background import for all IGSNs assigned to one currently available legacy IGSN datacenter. The server verifies the submitted legacy identifier against the live portal facet before queueing the job. Only newly created IGSNs receive the datacenter assignment; existing ERNIE resources are not changed.",
+                "security": [
+                    {
+                        "LaravelSession": [],
+                        "CsrfToken": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DatacenterIgsnImportRequest"
+                            },
+                            "example": {
+                                "datacenter_id": "IGSNDB.ICDP"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Datacenter IGSN import job was queued successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IgsnImportStartResponse"
+                                },
+                                "example": {
+                                    "import_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5e",
+                                    "message": "Datacenter IGSN import started successfully"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required. The request must include a valid ERNIE session."
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/ForbiddenError"
+                    },
+                    "422": {
+                        "description": "The legacy datacenter identifier is missing, malformed, unknown, or no longer available from the portal.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationErrorResponse"
+                                },
+                                "example": {
+                                    "message": "The selected legacy IGSN datacenter is no longer available.",
+                                    "errors": {
+                                        "datacenter_id": ["The selected legacy IGSN datacenter is no longer available."]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The legacy IGSN portal is temporarily unavailable, so ERNIE could not verify the datacenter before queueing the import.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessageResponse"
+                                },
+                                "example": {
+                                    "message": "The legacy IGSN portal is currently unavailable. Please try again later."
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/igsns/import/start-single": {
             "post": {
                 "tags": ["IGSN Imports"],
@@ -1639,6 +1775,65 @@
             }
         },
         "schemas": {
+            "DatacenterIgsnImportRequest": {
+                "type": "object",
+                "description": "Payload for starting an IGSN import limited to one legacy datacenter.",
+                "properties": {
+                    "datacenter_id": {
+                        "type": "string",
+                        "description": "Legacy IGSN portal datacenter identifier selected from the datacenter list endpoint.",
+                        "pattern": "^IGSNDB\\.[A-Z0-9_-]+$",
+                        "maxLength": 100,
+                        "example": "IGSNDB.ICDP"
+                    }
+                },
+                "required": ["datacenter_id"],
+                "additionalProperties": false
+            },
+            "LegacyIgsnDatacenter": {
+                "type": "object",
+                "description": "Known legacy IGSN datacenter normalized to its canonical ERNIE name.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Stable legacy portal facet identifier.",
+                        "pattern": "^IGSNDB\\.[A-Z0-9_-]+$",
+                        "example": "IGSNDB.GFZ"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Canonical ERNIE datacenter name.",
+                        "example": "GFZ German Research Centre for Geosciences"
+                    },
+                    "legacy_name": {
+                        "type": "string",
+                        "description": "Display name used by the legacy IGSN portal.",
+                        "example": "GFZ Potsdam"
+                    },
+                    "resource_count": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Current number of IGSNs in the legacy portal facet.",
+                        "example": 357
+                    }
+                },
+                "required": ["id", "name", "legacy_name", "resource_count"],
+                "additionalProperties": false
+            },
+            "LegacyIgsnDatacenterListResponse": {
+                "type": "object",
+                "description": "Legacy datacenters currently available for grouped IGSN imports.",
+                "properties": {
+                    "datacenters": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LegacyIgsnDatacenter"
+                        }
+                    }
+                },
+                "required": ["datacenters"],
+                "additionalProperties": false
+            },
             "SingleIgsnImportRequest": {
                 "type": "object",
                 "description": "Payload for starting a single IGSN import from DataCite.",
@@ -1653,7 +1848,7 @@
             },
             "IgsnImportStartResponse": {
                 "type": "object",
-                "description": "Response returned after a single IGSN import job has been queued.",
+                "description": "Response returned after an IGSN import job has been queued.",
                 "properties": {
                     "import_id": {
                         "type": "string",

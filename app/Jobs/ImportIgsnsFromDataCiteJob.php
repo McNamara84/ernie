@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
+use App\Services\LegacyIgsnPortalService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -47,7 +49,14 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         private int $userId,
         private string $importId,
         private ?string $singleDoi = null,
+        private ?string $legacyDatacenterId = null,
     ) {
+        if ($this->singleDoi !== null && $this->legacyDatacenterId !== null) {
+            throw new \InvalidArgumentException(
+                'Single-IGSN and datacenter import modes are mutually exclusive.'
+            );
+        }
+
         if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $importId)) {
             if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $importId)) {
                 $this->importId = strtolower($importId);
@@ -64,22 +73,39 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         DataCiteToIgsnTransformer $transformer,
         IgsnEnrichmentService $enrichmentService,
         ?IgsnChildDiscoveryService $childDiscoveryService = null,
+        ?LegacyIgsnPortalService $legacyPortalService = null,
     ): void {
+        $legacyPortalService ??= app(LegacyIgsnPortalService::class);
+
         Log::info('Starting IGSN import job', [
             'import_id' => $this->importId,
             'user_id' => $this->userId,
             'single_doi' => $this->singleDoi,
+            'legacy_datacenter_id' => $this->legacyDatacenterId,
         ]);
 
         $startTime = now();
 
         try {
+            if ($this->legacyDatacenterId !== null) {
+                $this->handleDatacenterImport(
+                    importService: $importService,
+                    transformer: $transformer,
+                    enrichmentService: $enrichmentService,
+                    legacyPortalService: $legacyPortalService,
+                    startedAt: $startTime->toIso8601String(),
+                );
+
+                return;
+            }
+
             if ($this->singleDoi !== null) {
                 $this->handleSingleImport(
                     importService: $importService,
                     transformer: $transformer,
                     enrichmentService: $enrichmentService,
                     childDiscoveryService: $childDiscoveryService ?? app(IgsnChildDiscoveryService::class),
+                    legacyPortalService: $legacyPortalService,
                     startedAt: $startTime->toIso8601String(),
                 );
 
@@ -103,6 +129,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                     'enriched' => 0,
                     'skipped_dois' => [],
                     'failed_dois' => [],
+                    'unassigned' => 0,
+                    'unassigned_dois' => [],
+                    'warnings' => [],
                     'started_at' => $startTime->toIso8601String(),
                     'completed_at' => now()->toIso8601String(),
                 ]);
@@ -110,6 +139,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 return;
             }
 
+            $assignments = $legacyPortalService->assignmentsForAllIgsns();
+            $datacenterIds = $this->datacenterIdsForAssignments($assignments);
             $total = $importService->getTotalIgsnCount();
 
             $this->updateProgress([
@@ -122,6 +153,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'enriched' => 0,
                 'skipped_dois' => [],
                 'failed_dois' => [],
+                'unassigned' => 0,
+                'unassigned_dois' => [],
+                'warnings' => [],
                 'started_at' => $startTime->toIso8601String(),
                 'completed_at' => null,
             ]);
@@ -135,6 +169,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $skippedDois = [];
             /** @var array<int, array{doi: string, error: string}> */
             $failedDois = [];
+            $unassigned = 0;
+            /** @var list<string> $unassignedDois */
+            $unassignedDois = [];
+            $warnings = [];
             $maxStoredDois = 100;
 
             foreach ($importService->fetchAllIgsns() as $igsnRecord) {
@@ -167,7 +205,13 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 ['doi' => $doi, 'igsnRecord' => $igsnRecord] = $this->normalizeIgsnRecord((string) $doi, $igsnRecord);
 
                 try {
-                    $result = $this->processIgsnRecord($doi, $igsnRecord, $transformer, $enrichmentService);
+                    $result = $this->processIgsnRecord(
+                        $doi,
+                        $igsnRecord,
+                        $transformer,
+                        $enrichmentService,
+                        $datacenterIds[$doi] ?? null,
+                    );
 
                     if ($result['status'] === 'skipped') {
                         $skipped++;
@@ -180,6 +224,14 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                     }
 
                     $imported++;
+
+                    if (! $result['assigned']) {
+                        $unassigned++;
+                        if (count($unassignedDois) < $maxStoredDois) {
+                            $unassignedDois[] = $doi;
+                        }
+                        $warnings = [$this->unassignedWarning($unassigned)];
+                    }
 
                     if ($result['enriched']) {
                         $enriched++;
@@ -219,6 +271,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'enriched' => $enriched,
                 'skipped_dois' => $skippedDois,
                 'failed_dois' => $failedDois,
+                'unassigned' => $unassigned,
+                'unassigned_dois' => $unassignedDois,
+                'warnings' => $warnings,
                 'started_at' => $startTime->toIso8601String(),
                 'completed_at' => now()->toIso8601String(),
             ]);
@@ -230,6 +285,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'skipped' => $skipped,
                 'failed' => $failed,
                 'enriched' => $enriched,
+                'unassigned' => $unassigned,
                 'duration_seconds' => now()->diffInSeconds($startTime),
             ]);
 
@@ -250,11 +306,202 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         }
     }
 
+    private function handleDatacenterImport(
+        IgsnImportService $importService,
+        DataCiteToIgsnTransformer $transformer,
+        IgsnEnrichmentService $enrichmentService,
+        LegacyIgsnPortalService $legacyPortalService,
+        string $startedAt,
+    ): void {
+        if ($this->isCancelled()) {
+            $this->updateProgressKeys([
+                'status' => 'cancelled',
+                'completed_at' => now()->toIso8601String(),
+            ]);
+
+            return;
+        }
+
+        $selection = $legacyPortalService->igsnsForDatacenter((string) $this->legacyDatacenterId);
+        $targetDois = $selection['dois'];
+        $total = count($targetDois);
+
+        // The complete legacy target set is loaded before the first database write.
+        $datacenter = Datacenter::query()->firstOrCreate([
+            'name' => $selection['datacenter']['name'],
+        ]);
+
+        $this->updateProgress([
+            'status' => 'running',
+            'total' => $total,
+            'processed' => 0,
+            'imported' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+            'enriched' => 0,
+            'skipped_dois' => [],
+            'failed_dois' => [],
+            'datacenter' => $selection['datacenter'],
+            'unassigned' => 0,
+            'unassigned_dois' => [],
+            'warnings' => [],
+            'started_at' => $startedAt,
+            'completed_at' => null,
+        ]);
+
+        $processed = 0;
+        $imported = 0;
+        $skipped = 0;
+        $failed = 0;
+        $enriched = 0;
+        /** @var list<string> $skippedDois */
+        $skippedDois = [];
+        /** @var list<array{doi: string, error: string}> $failedDois */
+        $failedDois = [];
+        $maxStoredDois = 100;
+        /** @var array<string, true> $remaining */
+        $remaining = array_fill_keys($targetDois, true);
+
+        $process = function (string $doi, ?array $record) use (
+            &$processed,
+            &$imported,
+            &$skipped,
+            &$failed,
+            &$enriched,
+            &$skippedDois,
+            &$failedDois,
+            $maxStoredDois,
+            $total,
+            $datacenter,
+            $transformer,
+            $enrichmentService,
+        ): void {
+            $processed++;
+
+            if ($record === null) {
+                $failed++;
+                if (count($failedDois) < $maxStoredDois) {
+                    $failedDois[] = [
+                        'doi' => $doi,
+                        'error' => 'The legacy IGSN was not found at DataCite.',
+                    ];
+                }
+                $this->updateProgressCounts(
+                    $processed,
+                    $imported,
+                    $skipped,
+                    $failed,
+                    $enriched,
+                    $skippedDois,
+                    $failedDois,
+                    $total,
+                );
+
+                return;
+            }
+
+            ['doi' => $normalizedDoi, 'igsnRecord' => $record] = $this->normalizeIgsnRecord($doi, $record);
+
+            try {
+                $result = $this->processIgsnRecord(
+                    $normalizedDoi,
+                    $record,
+                    $transformer,
+                    $enrichmentService,
+                    $datacenter->id,
+                );
+
+                if ($result['status'] === 'skipped') {
+                    $skipped++;
+                    if (count($skippedDois) < $maxStoredDois) {
+                        $skippedDois[] = $normalizedDoi;
+                    }
+                } else {
+                    $imported++;
+                    if ($result['enriched']) {
+                        $enriched++;
+                    }
+                }
+            } catch (\Exception $exception) {
+                $failed++;
+                if (count($failedDois) < $maxStoredDois) {
+                    $failedDois[] = ['doi' => $normalizedDoi, 'error' => $exception->getMessage()];
+                }
+
+                Log::warning('Failed to import IGSN for legacy datacenter', [
+                    'doi' => $normalizedDoi,
+                    'legacy_datacenter_id' => $this->legacyDatacenterId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+
+            $this->updateProgressCounts(
+                $processed,
+                $imported,
+                $skipped,
+                $failed,
+                $enriched,
+                $skippedDois,
+                $failedDois,
+                $total,
+            );
+        };
+
+        foreach ($importService->fetchAllIgsns() as $record) {
+            if ($this->isCancelled() || $remaining === []) {
+                break;
+            }
+
+            $doi = $this->doiFromIgsnRecord($record);
+            if ($doi === null || ! isset($remaining[$doi])) {
+                continue;
+            }
+
+            unset($remaining[$doi]);
+            $process($doi, $record);
+        }
+
+        foreach (array_keys($remaining) as $doi) {
+            if ($this->isCancelled()) {
+                break;
+            }
+
+            $process($doi, $importService->fetchSingleIgsn($doi));
+        }
+
+        if (! $this->isCancelled()) {
+            $handles = array_values(array_filter(array_map(
+                fn (string $doi): ?string => IgsnIdentifier::handleFromDoi($doi),
+                $targetDois,
+            )));
+            $this->resolveParentRelationships($handles);
+        }
+
+        $this->updateProgress([
+            'status' => $this->determineFinalStatus(),
+            'total' => $total,
+            'processed' => $processed,
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'enriched' => $enriched,
+            'skipped_dois' => $skippedDois,
+            'failed_dois' => $failedDois,
+            'datacenter' => $selection['datacenter'],
+            'unassigned' => 0,
+            'unassigned_dois' => [],
+            'warnings' => [],
+            'started_at' => $startedAt,
+            'completed_at' => now()->toIso8601String(),
+        ]);
+    }
+
     private function handleSingleImport(
         IgsnImportService $importService,
         DataCiteToIgsnTransformer $transformer,
         IgsnEnrichmentService $enrichmentService,
         IgsnChildDiscoveryService $childDiscoveryService,
+        LegacyIgsnPortalService $legacyPortalService,
         string $startedAt,
     ): void {
         $requestedDoi = IgsnIdentifier::normalizeDoi((string) $this->singleDoi);
@@ -277,6 +524,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'failed_dois' => [],
                 'requested_igsn' => $requestedHandle,
                 'discovered_children' => [],
+                'unassigned' => 0,
+                'unassigned_dois' => [],
+                'warnings' => [],
                 'started_at' => $startedAt,
                 'completed_at' => now()->toIso8601String(),
             ]);
@@ -301,6 +551,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'error' => 'The requested IGSN was not found at DataCite.',
                 'requested_igsn' => $requestedHandle,
                 'discovered_children' => [],
+                'unassigned' => 0,
+                'unassigned_dois' => [],
+                'warnings' => [],
                 'started_at' => $startedAt,
                 'completed_at' => now()->toIso8601String(),
             ]);
@@ -322,6 +575,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $targetDois,
         )));
         $total = count($targetDois);
+        $assignments = $legacyPortalService->assignmentsForHandles($targetHandles);
+        $datacenterIds = $this->datacenterIdsForAssignments($assignments);
 
         $this->updateProgress([
             'status' => 'running',
@@ -335,6 +590,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'failed_dois' => [],
             'requested_igsn' => $requestedHandle,
             'discovered_children' => $childHandles,
+            'unassigned' => 0,
+            'unassigned_dois' => [],
+            'warnings' => [],
             'started_at' => $startedAt,
             'completed_at' => null,
         ]);
@@ -348,6 +606,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
         $skippedDois = [];
         /** @var array<int, array{doi: string, error: string}> */
         $failedDois = [];
+        $unassigned = 0;
+        /** @var list<string> $unassignedDois */
+        $unassignedDois = [];
+        $warnings = [];
         $maxStoredDois = 100;
 
         foreach ($targetDois as $doi) {
@@ -376,7 +638,13 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             ['doi' => $normalizedDoi, 'igsnRecord' => $igsnRecord] = $this->normalizeIgsnRecord($doi, $igsnRecord);
 
             try {
-                $result = $this->processIgsnRecord($normalizedDoi, $igsnRecord, $transformer, $enrichmentService);
+                $result = $this->processIgsnRecord(
+                    $normalizedDoi,
+                    $igsnRecord,
+                    $transformer,
+                    $enrichmentService,
+                    $datacenterIds[$normalizedDoi] ?? null,
+                );
 
                 if ($result['status'] === 'skipped') {
                     $skipped++;
@@ -389,6 +657,14 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 }
 
                 $imported++;
+                if (! $result['assigned']) {
+                    $unassigned++;
+                    if (count($unassignedDois) < $maxStoredDois) {
+                        $unassignedDois[] = $normalizedDoi;
+                    }
+                    $warnings = [$this->unassignedWarning($unassigned)];
+                }
+
                 if ($result['enriched']) {
                     $enriched++;
                 }
@@ -423,6 +699,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'failed_dois' => $failedDois,
             'requested_igsn' => $requestedHandle,
             'discovered_children' => $childHandles,
+            'unassigned' => $unassigned,
+            'unassigned_dois' => $unassignedDois,
+            'warnings' => $warnings,
             'started_at' => $startedAt,
             'completed_at' => now()->toIso8601String(),
         ]);
@@ -435,6 +714,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'skipped' => $skipped,
             'failed' => $failed,
             'enriched' => $enriched,
+            'unassigned' => $unassigned,
         ]);
     }
 
@@ -585,27 +865,33 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $igsnRecord
-     * @return array{status: 'imported'|'skipped', enriched: bool}
+     * @return array{status: 'imported'|'skipped', enriched: bool, assigned: bool}
      */
     private function processIgsnRecord(
         string $doi,
         array $igsnRecord,
         DataCiteToIgsnTransformer $transformer,
         IgsnEnrichmentService $enrichmentService,
+        ?int $datacenterId = null,
     ): array {
         try {
             if (Resource::where('doi', $doi)->exists()) {
-                return ['status' => 'skipped', 'enriched' => false];
+                return ['status' => 'skipped', 'enriched' => false, 'assigned' => false];
             }
 
-            $result = DB::transaction(function () use ($transformer, $igsnRecord) {
+            $result = DB::transaction(function () use ($transformer, $igsnRecord, $datacenterId) {
                 $resource = $transformer->transform($igsnRecord, $this->userId);
+
+                if ($datacenterId !== null) {
+                    $resource->datacenter_id = $datacenterId;
+                    $resource->save();
+                }
 
                 return ['status' => 'imported', 'resource' => $resource];
             });
         } catch (QueryException $e) {
             if ($this->isDuplicateEntry($e)) {
-                return ['status' => 'skipped', 'enriched' => false];
+                return ['status' => 'skipped', 'enriched' => false, 'assigned' => false];
             }
 
             throw $e;
@@ -627,7 +913,11 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             }
         }
 
-        return ['status' => 'imported', 'enriched' => $wasEnriched];
+        return [
+            'status' => 'imported',
+            'enriched' => $wasEnriched,
+            'assigned' => $datacenterId !== null,
+        ];
     }
 
     /**
@@ -746,6 +1036,39 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     }
 
     /**
+     * @param  array<string, string>  $assignments
+     * @return array<string, int>
+     */
+    private function datacenterIdsForAssignments(array $assignments): array
+    {
+        if ($assignments === []) {
+            return [];
+        }
+
+        $idsByName = [];
+        foreach (array_values(array_unique($assignments)) as $name) {
+            $idsByName[$name] = Datacenter::query()->firstOrCreate(['name' => $name])->id;
+        }
+
+        $idsByDoi = [];
+        foreach ($assignments as $doi => $name) {
+            if (isset($idsByName[$name])) {
+                $idsByDoi[$doi] = $idsByName[$name];
+            }
+        }
+
+        return $idsByDoi;
+    }
+
+    private function unassignedWarning(int $count): string
+    {
+        return sprintf(
+            '%d newly imported IGSN(s) could not be matched to a legacy datacenter.',
+            $count,
+        );
+    }
+
+    /**
      * @param  array<int, string>  $skippedDois
      * @param  array<int, array{doi: string, error: string}>  $failedDois
      */
@@ -833,5 +1156,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     public function getSingleDoi(): ?string
     {
         return $this->singleDoi;
+    }
+
+    public function getLegacyDatacenterId(): ?string
+    {
+        return $this->legacyDatacenterId;
     }
 }

@@ -57,15 +57,15 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             $datacenterIds = $this->input('datacenter_ids', []);
 
             if ($this->has('datacenter_ids') && is_array($datacenterIds) && $datacenterIds !== []) {
-                if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
-                    $validator->errors()->add('datacenter_ids', 'IGSN templates cannot be assigned to datacenters.');
-                }
-
                 if (! $template->isDefault()
                     && Datacenter::query()->whereKey($datacenterIds)->where('name', Datacenter::GFZ_NAME)->exists()) {
+                    $scope = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+                        ? 'IGSN'
+                        : 'resource';
+
                     $validator->errors()->add(
                         'datacenter_ids',
-                        'The canonical GFZ datacenter must remain assigned to the resource system default.',
+                        "The canonical GFZ datacenter must remain assigned to the {$scope} system default.",
                     );
                 }
             }

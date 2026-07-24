@@ -104,6 +104,8 @@ export interface LandingPageTemplateDatacenter {
     name: string;
     landing_page_template_id: number | null;
     landing_page_template_name: string | null;
+    igsn_landing_page_template_id: number | null;
+    igsn_landing_page_template_name: string | null;
 }
 
 /**

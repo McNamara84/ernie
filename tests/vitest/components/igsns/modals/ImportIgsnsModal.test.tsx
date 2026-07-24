@@ -49,42 +49,32 @@ describe('ImportIgsnsModal', () => {
     });
 
     it('renders nothing when not open', () => {
-        const { container } = render(
-            <ImportIgsnsModal isOpen={false} onClose={mockOnClose} />
-        );
+        const { container } = render(<ImportIgsnsModal isOpen={false} onClose={mockOnClose} />);
 
         expect(container).toBeEmptyDOMElement();
     });
 
     it('renders modal with title when open', () => {
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByText('Import IGSNs from DataCite')).toBeInTheDocument();
     });
 
     it('shows confirmation content in initial state', () => {
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByText('What will happen?')).toBeInTheDocument();
         expect(screen.getByText(/~38,500 IGSNs/)).toBeInTheDocument();
     });
 
     it('shows start import button', () => {
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByRole('button', { name: /start import/i })).toBeInTheDocument();
     });
 
     it('shows cancel button', () => {
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
@@ -92,9 +82,7 @@ describe('ImportIgsnsModal', () => {
     it('calls onClose when cancel button is clicked', async () => {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const cancelButton = screen.getByRole('button', { name: /cancel/i });
         await user.click(cancelButton);
@@ -108,9 +96,7 @@ describe('ImportIgsnsModal', () => {
         // Make the POST request hang
         (axios.post as Mock).mockImplementation(() => new Promise(() => {}));
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -139,9 +125,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -173,9 +157,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -207,9 +189,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -227,9 +207,7 @@ describe('ImportIgsnsModal', () => {
             response: { status: 500, data: { message: 'Server error' } },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -248,9 +226,7 @@ describe('ImportIgsnsModal', () => {
             response: { status: 403, data: {} },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -262,19 +238,13 @@ describe('ImportIgsnsModal', () => {
     });
 
     it('resets state when modal closes', async () => {
-        const { rerender } = render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        const { rerender } = render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         // Close modal
-        rerender(
-            <ImportIgsnsModal isOpen={false} onClose={mockOnClose} />
-        );
+        rerender(<ImportIgsnsModal isOpen={false} onClose={mockOnClose} />);
 
         // Reopen modal
-        rerender(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        rerender(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         // Should show confirmation state again
         expect(screen.getByText('What will happen?')).toBeInTheDocument();
@@ -303,9 +273,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -317,7 +285,7 @@ describe('ImportIgsnsModal', () => {
 
         // Close the modal via the outline Close button (not the dialog X)
         const closeButtons = screen.getAllByRole('button', { name: /^close$/i });
-        const outlineClose = closeButtons.find(btn => btn.dataset.slot === 'button');
+        const outlineClose = closeButtons.find((btn) => btn.dataset.slot === 'button');
         expect(outlineClose).toBeTruthy();
         await user.click(outlineClose!);
 
@@ -346,9 +314,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -385,9 +351,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -432,9 +396,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -470,9 +432,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -506,9 +466,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -519,7 +477,7 @@ describe('ImportIgsnsModal', () => {
 
         // Close button should be visible in completed state (outline variant, not the dialog X)
         const closeButtons = screen.getAllByRole('button', { name: /close/i });
-        const outlineClose = closeButtons.find(btn => btn.textContent === 'Close' && btn.dataset.variant === 'outline');
+        const outlineClose = closeButtons.find((btn) => btn.textContent === 'Close' && btn.dataset.variant === 'outline');
         expect(outlineClose).toBeTruthy();
     });
 
@@ -546,9 +504,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -588,9 +544,7 @@ describe('ImportIgsnsModal', () => {
             },
         });
 
-        render(
-            <ImportIgsnsModal isOpen={true} onClose={mockOnClose} />
-        );
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
 
         const startButton = screen.getByRole('button', { name: /start import/i });
         await user.click(startButton);
@@ -602,5 +556,98 @@ describe('ImportIgsnsModal', () => {
 
         // Should show processing progress in alert description
         expect(screen.getByText(/processing 10 of 50/i)).toBeInTheDocument();
+    });
+
+    it('loads datacenters and starts a grouped import for the selected value', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        (axios.get as Mock).mockResolvedValueOnce({
+            data: {
+                datacenters: [
+                    {
+                        id: 'IGSNDB.ICDP',
+                        name: 'ICDP',
+                        legacy_name: 'ICDP',
+                        resource_count: 42,
+                    },
+                ],
+            },
+        });
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'datacenter-import', message: 'Import started' },
+        });
+
+        render(<ImportIgsnsModal mode="datacenter" isOpen={true} onClose={mockOnClose} />);
+
+        expect(await screen.findByText('Import IGSNs by datacenter')).toBeInTheDocument();
+        await user.click(screen.getByRole('combobox', { name: /datacenter/i }));
+        await user.type(screen.getByPlaceholderText('Search datacenters...'), 'IGSNDB.ICDP');
+        await user.click(await screen.findByText('ICDP (42)'));
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(axios.post).toHaveBeenCalledWith(
+            '/igsns/import/start-datacenter',
+            { datacenter_id: 'IGSNDB.ICDP' },
+            { headers: { 'X-CSRF-TOKEN': 'test-token' } },
+        );
+    });
+
+    it('offers retry when loading the legacy datacenter list fails', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        (axios.get as Mock)
+            .mockRejectedValueOnce({
+                isAxiosError: true,
+                response: { data: { message: 'The legacy IGSN portal is currently unavailable.' } },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    datacenters: [
+                        {
+                            id: 'IGSNDB.GFZ',
+                            name: 'GFZ German Research Centre for Geosciences',
+                            legacy_name: 'GFZ Potsdam',
+                            resource_count: 357,
+                        },
+                    ],
+                },
+            });
+
+        render(<ImportIgsnsModal mode="datacenter" isOpen={true} onClose={mockOnClose} />);
+
+        expect(await screen.findByText('The legacy IGSN portal is currently unavailable.')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /try again/i }));
+
+        expect(await screen.findByRole('combobox', { name: /datacenter/i })).toBeEnabled();
+        expect(axios.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows explicit warnings for newly imported IGSNs without a datacenter', async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        (axios.post as Mock).mockResolvedValue({
+            data: { import_id: 'warning-import', message: 'Import started' },
+        });
+        (axios.get as Mock).mockResolvedValue({
+            data: {
+                status: 'completed',
+                total: 1,
+                processed: 1,
+                imported: 1,
+                skipped: 0,
+                failed: 0,
+                enriched: 1,
+                skipped_dois: [],
+                failed_dois: [],
+                unassigned: 1,
+                unassigned_dois: ['10.60510/unmatched'],
+                warnings: ['1 newly imported IGSN(s) could not be matched to a legacy datacenter.'],
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+            },
+        });
+
+        render(<ImportIgsnsModal isOpen={true} onClose={mockOnClose} />);
+        await user.click(screen.getByRole('button', { name: /start import/i }));
+
+        expect(await screen.findByText('Datacenter assignment warning')).toBeInTheDocument();
+        expect(screen.getByText(/could not be matched to a legacy datacenter/i)).toBeInTheDocument();
     });
 });
