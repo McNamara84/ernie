@@ -46,6 +46,7 @@ class LandingPageTemplateController extends Controller
 
         return Inertia::render('landing-page-templates', [
             'templates' => $this->serializeTemplates($templates),
+            'logoUploadConstraints' => UploadLandingPageTemplateLogoRequest::uploadConstraints(),
             'datacenters' => Datacenter::query()
                 ->orderBy('name')
                 ->with([

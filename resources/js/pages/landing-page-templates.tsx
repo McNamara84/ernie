@@ -42,10 +42,24 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing
 const DISPLAY_LIMIT_MIN = 1;
 const DISPLAY_LIMIT_MAX = 500;
 const DISPLAY_LIMIT_DEFAULT = 50;
+const logoFileSizeFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+
+interface LogoUploadConstraints {
+    minWidth: number;
+    minHeight: number;
+    recommendedWidth: number;
+    recommendedHeight: number;
+    maxWidth: number;
+    maxHeight: number;
+    aspectRatio: string;
+    maxSizeKb: number;
+    formats: string[];
+}
 
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];
     datacenters: LandingPageTemplateDatacenter[];
+    logoUploadConstraints: LogoUploadConstraints;
     [key: string]: unknown;
 }
 
@@ -205,7 +219,8 @@ function DatacenterAssignmentField({
 }
 
 export default function LandingPageTemplatesPage() {
-    const { templates, datacenters } = usePage<PageProps>().props;
+    const { templates, datacenters, logoUploadConstraints } = usePage<PageProps>().props;
+    const maxLogoSizeMb = logoFileSizeFormatter.format(logoUploadConstraints.maxSizeKb / 1024);
 
     // Clone dialog
     const [cloneOpen, setCloneOpen] = useState(false);
@@ -412,6 +427,12 @@ export default function LandingPageTemplatesPage() {
                         <p className="text-muted-foreground">
                             Manage custom templates for resource and IGSN landing pages. Clone a default template and customize section order and
                             logo.
+                        </p>
+                        <p data-testid="landing-page-logo-size-hint" className="mt-2 text-sm text-muted-foreground">
+                            Header logo: use a {logoUploadConstraints.aspectRatio} image. Recommended: {logoUploadConstraints.recommendedWidth} ×{' '}
+                            {logoUploadConstraints.recommendedHeight} px. Accepted range: {logoUploadConstraints.minWidth} ×{' '}
+                            {logoUploadConstraints.minHeight} to {logoUploadConstraints.maxWidth} × {logoUploadConstraints.maxHeight} px.{' '}
+                            {logoUploadConstraints.formats.join(', ')}, max. {maxLogoSizeMb} MB.
                         </p>
                     </div>
                     <Button onClick={() => openClone('resource')}>

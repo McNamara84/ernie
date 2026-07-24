@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests\LandingPageTemplate;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Dimensions;
 
 /**
  * Validates payloads for uploading a custom logo to a landing page template.
@@ -20,12 +22,36 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
      */
     public const MAX_LOGO_SIZE_KB = 2048;
 
+    public const MIN_LOGO_WIDTH = 960;
+
+    public const MIN_LOGO_HEIGHT = 192;
+
+    public const RECOMMENDED_LOGO_WIDTH = 1200;
+
+    public const RECOMMENDED_LOGO_HEIGHT = 240;
+
+    public const MAX_LOGO_WIDTH = 1920;
+
+    public const MAX_LOGO_HEIGHT = 384;
+
+    public const LOGO_ASPECT_RATIO = 5;
+
+    public const LOGO_ASPECT_RATIO_LABEL = '5:1';
+
     /**
-     * Allowed MIME types for logo uploads.
+     * Allowed logo upload file extensions and their user-facing labels.
      *
-     * @var list<string>
+     * The array keys configure Laravel's `mimes` rule; the values are shown in
+     * the upload guidance.
+     *
+     * @var array<string, string>
      */
-    public const ALLOWED_LOGO_MIMES = ['png', 'jpg', 'jpeg', 'webp'];
+    public const ALLOWED_LOGO_EXTENSIONS = [
+        'png' => 'PNG',
+        'jpg' => 'JPG',
+        'jpeg' => 'JPEG',
+        'webp' => 'WebP',
+    ];
 
     public function authorize(): bool
     {
@@ -33,7 +59,7 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, string>>
+     * @return array<string, list<string|Dimensions>>
      */
     public function rules(): array
     {
@@ -41,9 +67,62 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
             'logo' => [
                 'required',
                 'file',
-                'mimes:'.implode(',', self::ALLOWED_LOGO_MIMES),
+                'mimes:'.implode(',', array_keys(self::ALLOWED_LOGO_EXTENSIONS)),
                 'max:'.self::MAX_LOGO_SIZE_KB,
+                Rule::dimensions()
+                    ->minWidth(self::MIN_LOGO_WIDTH)
+                    ->minHeight(self::MIN_LOGO_HEIGHT)
+                    ->maxWidth(self::MAX_LOGO_WIDTH)
+                    ->maxHeight(self::MAX_LOGO_HEIGHT)
+                    ->ratio(self::LOGO_ASPECT_RATIO),
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'logo.dimensions' => sprintf(
+                'The header logo must use a %s aspect ratio and measure between %d x %d and %d x %d pixels. The recommended size is %d x %d pixels.',
+                self::LOGO_ASPECT_RATIO_LABEL,
+                self::MIN_LOGO_WIDTH,
+                self::MIN_LOGO_HEIGHT,
+                self::MAX_LOGO_WIDTH,
+                self::MAX_LOGO_HEIGHT,
+                self::RECOMMENDED_LOGO_WIDTH,
+                self::RECOMMENDED_LOGO_HEIGHT,
+            ),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     minWidth: int,
+     *     minHeight: int,
+     *     recommendedWidth: int,
+     *     recommendedHeight: int,
+     *     maxWidth: int,
+     *     maxHeight: int,
+     *     aspectRatio: string,
+     *     maxSizeKb: int,
+     *     formats: list<string>
+     * }
+     */
+    public static function uploadConstraints(): array
+    {
+        return [
+            'minWidth' => self::MIN_LOGO_WIDTH,
+            'minHeight' => self::MIN_LOGO_HEIGHT,
+            'recommendedWidth' => self::RECOMMENDED_LOGO_WIDTH,
+            'recommendedHeight' => self::RECOMMENDED_LOGO_HEIGHT,
+            'maxWidth' => self::MAX_LOGO_WIDTH,
+            'maxHeight' => self::MAX_LOGO_HEIGHT,
+            'aspectRatio' => self::LOGO_ASPECT_RATIO_LABEL,
+            'maxSizeKb' => self::MAX_LOGO_SIZE_KB,
+            'formats' => array_values(self::ALLOWED_LOGO_EXTENSIONS),
         ];
     }
 }
