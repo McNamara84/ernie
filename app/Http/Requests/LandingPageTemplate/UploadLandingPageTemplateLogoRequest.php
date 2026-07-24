@@ -39,11 +39,19 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
     public const LOGO_ASPECT_RATIO_LABEL = '5:1';
 
     /**
-     * Allowed MIME types for logo uploads.
+     * Allowed logo upload file extensions and their user-facing labels.
      *
-     * @var list<string>
+     * The array keys configure Laravel's `mimes` rule; the values are shown in
+     * the upload guidance.
+     *
+     * @var array<string, string>
      */
-    public const ALLOWED_LOGO_MIMES = ['png', 'jpg', 'jpeg', 'webp'];
+    public const ALLOWED_LOGO_EXTENSIONS = [
+        'png' => 'PNG',
+        'jpg' => 'JPG',
+        'jpeg' => 'JPEG',
+        'webp' => 'WebP',
+    ];
 
     public function authorize(): bool
     {
@@ -59,7 +67,7 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
             'logo' => [
                 'required',
                 'file',
-                'mimes:'.implode(',', self::ALLOWED_LOGO_MIMES),
+                'mimes:'.implode(',', array_keys(self::ALLOWED_LOGO_EXTENSIONS)),
                 'max:'.self::MAX_LOGO_SIZE_KB,
                 Rule::dimensions()
                     ->minWidth(self::MIN_LOGO_WIDTH)
@@ -114,7 +122,7 @@ class UploadLandingPageTemplateLogoRequest extends FormRequest
             'maxHeight' => self::MAX_LOGO_HEIGHT,
             'aspectRatio' => self::LOGO_ASPECT_RATIO_LABEL,
             'maxSizeKb' => self::MAX_LOGO_SIZE_KB,
-            'formats' => ['PNG', 'JPG', 'JPEG', 'WebP'],
+            'formats' => array_values(self::ALLOWED_LOGO_EXTENSIONS),
         ];
     }
 }

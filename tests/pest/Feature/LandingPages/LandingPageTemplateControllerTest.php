@@ -637,6 +637,16 @@ describe('Delete', function (): void {
 // ─── Logo Upload ─────────────────────────────────────────────────────────────
 
 describe('Logo Upload', function (): void {
+    it('derives validation extensions and display formats from one source', function (): void {
+        $request = new UploadLandingPageTemplateLogoRequest;
+        $logoRules = $request->rules()['logo'];
+
+        expect($logoRules)
+            ->toContain('mimes:'.implode(',', array_keys(UploadLandingPageTemplateLogoRequest::ALLOWED_LOGO_EXTENSIONS)))
+            ->and(UploadLandingPageTemplateLogoRequest::uploadConstraints()['formats'])
+            ->toBe(array_values(UploadLandingPageTemplateLogoRequest::ALLOWED_LOGO_EXTENSIONS));
+    });
+
     it('uploads logos at the minimum, recommended, and maximum dimensions', function (int $width, int $height): void {
         Storage::fake('public');
 
