@@ -721,7 +721,7 @@ export default function EditorSettings({
                                     Datacenters
                                 </CardTitle>
                                 <CardDescription>
-                                    Manage datacenters that can be assigned to resources. Each resource must be assigned to at least one datacenter.
+                                    Manage datacenters that can be assigned to resources. Each validated resource must be assigned to exactly one datacenter.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>

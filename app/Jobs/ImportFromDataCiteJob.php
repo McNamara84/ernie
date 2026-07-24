@@ -1147,23 +1147,19 @@ class ImportFromDataCiteJob implements ShouldQueue
             return;
         }
 
-        $datacenterIds = array_map(
-            function (string $name): int {
-                if (isset($this->portalDatacenterIds[$name])) {
-                    return $this->portalDatacenterIds[$name];
-                }
+        $selectedName = collect($names)->first(
+            static fn (string $name): bool => $name !== LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
+        ) ?? $names[0];
 
-                $datacenterId = (int) Datacenter::firstOrCreate(['name' => $name])->id;
-                $this->portalDatacenterIds[$name] = $datacenterId;
+        if (isset($this->portalDatacenterIds[$selectedName])) {
+            $datacenterId = $this->portalDatacenterIds[$selectedName];
+        } else {
+            $datacenterId = (int) Datacenter::firstOrCreate(['name' => $selectedName])->id;
+            $this->portalDatacenterIds[$selectedName] = $datacenterId;
+        }
 
-                return $datacenterId;
-            },
-            $names,
-        );
-        $changes = $resource->datacenters()->sync($datacenterIds);
-
-        if (array_filter($changes)) {
-            $resource->touch();
+        if ($resource->datacenter_id !== $datacenterId) {
+            $resource->forceFill(['datacenter_id' => $datacenterId])->save();
         }
     }
 

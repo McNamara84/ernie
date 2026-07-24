@@ -103,7 +103,10 @@ describe('Landing Page Creation', function () {
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('landing_page.downloads_unavailable', false);
+            ->assertJsonPath('landing_page.downloads_unavailable', false)
+            ->assertJsonPath('landing_page.effective_landing_page_template_id', null)
+            ->assertJsonPath('landing_page.effective_landing_page_template', null)
+            ->assertJsonPath('landing_page.landing_page_template_source', null);
 
         expect($this->resource->fresh()->landingPage->downloads_unavailable)->toBeFalse();
     });
@@ -847,7 +850,7 @@ describe('Landing Page Template Assignment', function () {
             ]);
     });
 
-    test('rejects assigning the built-in resource default template id as a custom override on create', function () {
+    test('accepts the built-in resource default template id as an explicit override on create', function () {
         $template = LandingPageTemplate::ensureDefaultTemplateExists();
 
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
@@ -857,11 +860,10 @@ describe('Landing Page Template Assignment', function () {
             'landing_page_template_id' => $template->id,
         ]);
 
-        $response->assertStatus(422)
-            ->assertJson([
-                'message' => 'The selected landing page template is a built-in default and cannot be used as a custom override.',
-                'error' => 'invalid_template_for_resource_type',
-            ]);
+        $response->assertCreated()
+            ->assertJsonPath('landing_page.landing_page_template_id', $template->id);
+
+        expect($this->resource->fresh()->landingPage?->landing_page_template_id)->toBe($template->id);
     });
 });
 

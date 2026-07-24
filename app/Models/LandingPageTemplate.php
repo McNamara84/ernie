@@ -44,6 +44,7 @@ use Illuminate\Support\Str;
  * @property-read string|null $logo_url Full URL for the logo file
  * @property-read User|null $creator The user who created this template
  * @property-read Collection<int, LandingPage> $landingPages
+ * @property-read Collection<int, Datacenter> $datacenters
  */
 class LandingPageTemplate extends Model
 {
@@ -234,6 +235,16 @@ class LandingPageTemplate extends Model
     }
 
     /**
+     * Get the datacenters that inherit this template.
+     *
+     * @return HasMany<Datacenter, $this>
+     */
+    public function datacenters(): HasMany
+    {
+        return $this->hasMany(Datacenter::class);
+    }
+
+    /**
      * Check if this is the immutable default template.
      */
     public function isDefault(): bool
@@ -246,7 +257,7 @@ class LandingPageTemplate extends Model
      */
     public function isInUse(): bool
     {
-        return $this->landingPages()->exists();
+        return $this->landingPages()->exists() || $this->datacenters()->exists();
     }
 
     /**
@@ -255,6 +266,14 @@ class LandingPageTemplate extends Model
     public function getUsageCount(): int
     {
         return $this->landingPages()->count();
+    }
+
+    /**
+     * Get the number of datacenters inheriting this template.
+     */
+    public function getDatacenterUsageCount(): int
+    {
+        return $this->datacenters()->count();
     }
 
     /**
@@ -448,7 +467,7 @@ class LandingPageTemplate extends Model
             ? $templateOrId
             : self::query()->find($templateOrId);
 
-        if ($template === null || $template->isDefault()) {
+        if ($template === null) {
             return null;
         }
 
@@ -469,7 +488,11 @@ class LandingPageTemplate extends Model
             return null;
         }
 
-        if ($template->isDefault()) {
+        if ($template->isDefault() && $template->template_type !== self::expectedTemplateTypeForResource($resourceTypeSlug)) {
+            return 'The selected built-in landing page template is not available for this resource type.';
+        }
+
+        if ($template->isDefault() && $template->template_type === self::TEMPLATE_TYPE_IGSN) {
             return 'The selected landing page template is a built-in default and cannot be used as a custom override.';
         }
 

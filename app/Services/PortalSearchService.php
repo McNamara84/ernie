@@ -267,7 +267,7 @@ class PortalSearchService
             return;
         }
 
-        $query->whereHas('datacenters', function (Builder $q) use ($datacenterNames): void {
+        $query->whereHas('datacenter', function (Builder $q) use ($datacenterNames): void {
             $q->whereIn('name', $datacenterNames);
         });
     }
@@ -324,8 +324,7 @@ class PortalSearchService
                 $results = Datacenter::query()
                     ->select('datacenters.name')
                     ->selectRaw('COUNT(DISTINCT resources.id) as resources_count')
-                    ->join('resource_datacenter', 'resource_datacenter.datacenter_id', '=', 'datacenters.id')
-                    ->join('resources', 'resources.id', '=', 'resource_datacenter.resource_id')
+                    ->join('resources', 'resources.datacenter_id', '=', 'datacenters.id')
                     ->join('landing_pages', 'landing_pages.resource_id', '=', 'resources.id')
                     ->where('landing_pages.is_published', true)
                     ->groupBy('datacenters.id', 'datacenters.name')

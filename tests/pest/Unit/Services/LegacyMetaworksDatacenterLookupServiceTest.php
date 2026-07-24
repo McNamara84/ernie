@@ -285,8 +285,8 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
 
         app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, '10.5880/gipp.sync');
 
-        expect($resource->fresh()->datacenters->pluck('name')->all())
-            ->toBe([LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER]);
+        expect($resource->fresh()->datacenter?->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER);
     });
 
     it('syncs DOI pattern datacenters onto the imported resource', function () {
@@ -294,7 +294,7 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
 
         app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, '10.5880/hA-ArboDat_AK1');
 
-        expect($resource->fresh()->datacenters->pluck('name')->all())
-            ->toBe([LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER]);
+        expect($resource->fresh()->datacenter?->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER);
     });
 });

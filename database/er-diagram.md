@@ -231,6 +231,7 @@ erDiagram
         varchar doi UK "DataCite #1"
         varchar identifier_type
         bigint publisher_id FK
+        bigint datacenter_id FK "nullable"
         smallint publication_year "DataCite #5"
         bigint resource_type_id FK "nullable"
         varchar version "DataCite #15"
@@ -744,18 +745,10 @@ erDiagram
     datacenters {
         bigint id PK
         varchar name UK
+        bigint landing_page_template_id FK "nullable"
         timestamp created_at
         timestamp updated_at
     }
-
-    resource_datacenter {
-        bigint id PK
-        bigint resource_id FK
-        bigint datacenter_id FK
-        timestamp created_at
-        timestamp updated_at
-    }
-
     %% =========================================================================
     %% LARAVEL FRAMEWORK TABLES
     %% =========================================================================
@@ -1105,9 +1098,8 @@ erDiagram
     resources ||--o{ resource_instruments : "has"
 
     %% Datacenter relationships
-    resources }o--o{ datacenters : "assigned to"
-    resource_datacenter }o--|| resources : "resource"
-    resource_datacenter }o--|| datacenters : "datacenter"
+    resources }o--o| datacenters : "assigned to"
+    datacenters }o--o| landing_page_templates : "inherits template"
 
     %% Landing page relationships
     landing_pages }o--o| landing_page_domains : "external domain"

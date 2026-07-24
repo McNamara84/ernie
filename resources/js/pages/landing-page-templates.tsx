@@ -5,13 +5,14 @@ import { CSS } from '@dnd-kit/utilities';
 import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { type ChangeEvent, useCallback, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +27,7 @@ import {
     RIGHT_SECTION_LABELS,
 } from '@/pages/LandingPages/lib/section-catalog';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import type { LandingPageTemplateConfig, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
+import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter, LeftColumnSection, RightColumnSection } from '@/types/landing-page';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing-pages' }];
 const DISPLAY_LIMIT_MIN = 1;
@@ -35,6 +36,7 @@ const DISPLAY_LIMIT_DEFAULT = 50;
 
 interface PageProps extends SharedData {
     templates: LandingPageTemplateConfig[];
+    datacenters: LandingPageTemplateDatacenter[];
     [key: string]: unknown;
 }
 
@@ -118,13 +120,91 @@ function SectionOrderEditor({
     );
 }
 
+function DatacenterAssignmentField({
+    options,
+    selected,
+    onChange,
+    currentTemplateId,
+    allowCanonicalGfz,
+}: {
+    options: LandingPageTemplateDatacenter[];
+    selected: number[];
+    onChange: (ids: number[]) => void;
+    currentTemplateId: number | null;
+    allowCanonicalGfz: boolean;
+}) {
+    const [search, setSearch] = useState('');
+    const visibleOptions = useMemo(
+        () => options.filter((option) => option.name.toLowerCase().includes(search.trim().toLowerCase())),
+        [options, search],
+    );
+
+    const toggle = (id: number) => {
+        onChange(selected.includes(id) ? selected.filter((selectedId) => selectedId !== id) : [...selected, id]);
+    };
+
+    return (
+        <div className="space-y-2">
+            <Label htmlFor="datacenter-template-search">Assigned datacenters</Label>
+            <p className="text-xs text-muted-foreground">
+                Saving moves selected datacenters from their current template. Resources without an explicit override inherit this assignment immediately.
+            </p>
+            <Input
+                id="datacenter-template-search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search datacenters..."
+            />
+            <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
+                {visibleOptions.map((option) => {
+                    const isCanonicalGfz = option.name === 'GFZ German Research Centre for Geosciences';
+                    const isProtected = isCanonicalGfz;
+                    const checkboxId = `datacenter-template-${option.id}`;
+                    const assignedElsewhere =
+                        option.landing_page_template_id !== null &&
+                        option.landing_page_template_id !== currentTemplateId;
+
+                    return (
+                        <div key={option.id} className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
+                            <Checkbox
+                                id={checkboxId}
+                                className="mt-0.5 size-4"
+                                checked={selected.includes(option.id)}
+                                disabled={isProtected}
+                                onCheckedChange={() => toggle(option.id)}
+                            />
+                            <Label htmlFor={checkboxId} className="flex-1 cursor-pointer items-start font-normal">
+                                <span>
+                                    <span className="block">{option.name}</span>
+                                    {isProtected && (
+                                        <span className="block text-xs text-muted-foreground">
+                                            {allowCanonicalGfz ? 'Protected system-default assignment' : 'Reserved for the resource system default'}
+                                        </span>
+                                    )}
+                                    {!isProtected && assignedElsewhere && (
+                                        <span className="block text-xs text-amber-700 dark:text-amber-400">
+                                            Currently assigned to {option.landing_page_template_name}; saving will move it.
+                                        </span>
+                                    )}
+                                </span>
+                            </Label>
+                        </div>
+                    );
+                })}
+                {visibleOptions.length === 0 && <p className="p-2 text-sm text-muted-foreground">No datacenters found.</p>}
+            </div>
+        </div>
+    );
+}
+
 export default function LandingPageTemplatesPage() {
-    const { templates } = usePage<PageProps>().props;
+    const { templates, datacenters } = usePage<PageProps>().props;
 
     // Clone dialog
     const [cloneOpen, setCloneOpen] = useState(false);
     const [cloneName, setCloneName] = useState('');
     const [cloneType, setCloneType] = useState<'resource' | 'igsn'>('resource');
+    const [cloneDatacenterIds, setCloneDatacenterIds] = useState<number[]>([]);
     const [cloning, setCloning] = useState(false);
 
     // Edit dialog
@@ -136,6 +216,7 @@ export default function LandingPageTemplatesPage() {
     const [editCreatorDisplayLimit, setEditCreatorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editContributorDisplayLimit, setEditContributorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
     const [editCitationAuthorDisplayLimit, setEditCitationAuthorDisplayLimit] = useState(String(DISPLAY_LIMIT_DEFAULT));
+    const [editDatacenterIds, setEditDatacenterIds] = useState<number[]>([]);
     const [saving, setSaving] = useState(false);
 
     // Delete dialog
@@ -152,6 +233,7 @@ export default function LandingPageTemplatesPage() {
     const openClone = (templateType: 'resource' | 'igsn' = 'resource') => {
         setCloneType(templateType);
         setCloneName('');
+        setCloneDatacenterIds([]);
         setCloneOpen(true);
     };
 
@@ -159,7 +241,11 @@ export default function LandingPageTemplatesPage() {
         if (!cloneName.trim()) return;
         setCloning(true);
         try {
-            await axios.post('/landing-pages', { name: cloneName.trim(), template_type: cloneType });
+            await axios.post('/landing-pages', {
+                name: cloneName.trim(),
+                template_type: cloneType,
+                datacenter_ids: cloneType === 'resource' ? cloneDatacenterIds : [],
+            });
             toast.success('Template cloned successfully');
             setCloneOpen(false);
             setCloneName('');
@@ -184,6 +270,7 @@ export default function LandingPageTemplatesPage() {
         setEditCreatorDisplayLimit(String(tmpl.creator_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditContributorDisplayLimit(String(tmpl.contributor_display_limit ?? DISPLAY_LIMIT_DEFAULT));
         setEditCitationAuthorDisplayLimit(String(tmpl.citation_author_display_limit ?? DISPLAY_LIMIT_DEFAULT));
+        setEditDatacenterIds(tmpl.datacenters?.map((datacenter) => datacenter.id) ?? []);
         setEditOpen(true);
     };
 
@@ -209,6 +296,7 @@ export default function LandingPageTemplatesPage() {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
+                      ...(editTemplate.template_type === 'resource' ? { datacenter_ids: editDatacenterIds } : {}),
                   }
                 : {
                       name: editName.trim(),
@@ -217,6 +305,7 @@ export default function LandingPageTemplatesPage() {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
+                      ...(editTemplate.template_type === 'resource' ? { datacenter_ids: editDatacenterIds } : {}),
                   };
 
             await axios.put(`/landing-pages/${editTemplate.id}`, payload);
@@ -358,6 +447,11 @@ export default function LandingPageTemplatesPage() {
                                                 {tmpl.landing_pages_count} {tmpl.landing_pages_count === 1 ? 'page' : 'pages'}
                                             </Badge>
                                         )}
+                                        {tmpl.template_type === 'resource' && (tmpl.datacenters_count ?? 0) > 0 && (
+                                            <Badge variant="outline" className="text-xs">
+                                                {tmpl.datacenters_count} {tmpl.datacenters_count === 1 ? 'datacenter' : 'datacenters'}
+                                            </Badge>
+                                        )}
                                     </div>
                                 </div>
                             </CardHeader>
@@ -400,6 +494,17 @@ export default function LandingPageTemplatesPage() {
                                         <span className="text-muted-foreground">{tmpl.citation_author_display_limit ?? DISPLAY_LIMIT_DEFAULT}</span>
                                     </div>
                                 </div>
+
+                                {tmpl.template_type === 'resource' && (tmpl.datacenters?.length ?? 0) > 0 && (
+                                    <div className="rounded-md border bg-muted/20 p-2 text-xs">
+                                        <span className="font-medium text-foreground">Assigned datacenters:</span>
+                                        <ul className="mt-1 list-inside list-disc text-muted-foreground">
+                                            {tmpl.datacenters?.map((datacenter) => (
+                                                <li key={datacenter.id}>{datacenter.name}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
 
                                 {/* Section Order Summary */}
                                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
@@ -509,6 +614,15 @@ export default function LandingPageTemplatesPage() {
                                 autoFocus
                             />
                         </div>
+                        {cloneType === 'resource' && (
+                            <DatacenterAssignmentField
+                                options={datacenters}
+                                selected={cloneDatacenterIds}
+                                onChange={setCloneDatacenterIds}
+                                currentTemplateId={null}
+                                allowCanonicalGfz={false}
+                            />
+                        )}
                     </div>
 
                     <DialogFooter className="gap-2">
@@ -593,6 +707,19 @@ export default function LandingPageTemplatesPage() {
                             </div>
                         </div>
 
+                        {editTemplate?.template_type === 'resource' && (
+                            <>
+                                <Separator />
+                                <DatacenterAssignmentField
+                                    options={datacenters}
+                                    selected={editDatacenterIds}
+                                    onChange={setEditDatacenterIds}
+                                    currentTemplateId={editTemplate.id}
+                                    allowCanonicalGfz={editTemplate.is_default}
+                                />
+                            </>
+                        )}
+
                         {!editTemplate?.is_default && (
                             <>
                                 <Separator />
@@ -650,7 +777,7 @@ export default function LandingPageTemplatesPage() {
                         <AlertDialogAction
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={handleDelete}
-                            disabled={deleting || (deleteTemplate?.landing_pages_count ?? 0) > 0}
+                            disabled={deleting || (deleteTemplate?.landing_pages_count ?? 0) > 0 || (deleteTemplate?.datacenters_count ?? 0) > 0}
                         >
                             {deleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>

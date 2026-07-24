@@ -876,7 +876,8 @@ describe('Landing Page with Custom Template', function () {
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz')
-                ->where('sectionOrder', null)
+                ->has('sectionOrder.rightColumn')
+                ->has('sectionOrder.leftColumn')
                 ->where('customLogoUrl', null)
                 ->where('displayLimits.creators', 22)
                 ->where('displayLimits.contributors', 44)
@@ -1034,7 +1035,7 @@ describe('Landing Page with Custom Template', function () {
             );
     });
 
-    test('normalizes legacy Physical Object landing pages and clears mismatched resource custom templates', function () {
+    test('normalizes legacy Physical Object landing pages and falls back from mismatched resource templates', function () {
         $physicalObjectType = ResourceType::firstOrCreate(
             ['slug' => 'physical-object'],
             ['name' => 'Physical Object', 'slug' => 'physical-object', 'is_active' => true]
@@ -1069,12 +1070,13 @@ describe('Landing Page with Custom Template', function () {
                 ->component('LandingPages/default_gfz_igsn')
                 ->where('landingPage.template', 'default_gfz_igsn')
                 ->where('landingPage.landing_page_template_id', null)
-                ->where('sectionOrder', null)
+                ->has('sectionOrder.rightColumn')
+                ->has('sectionOrder.leftColumn')
                 ->where('customLogoUrl', null)
             );
     });
 
-    test('ignores built-in default template ids in the public payload', function () {
+    test('accepts built-in default template ids as explicit overrides in the public payload', function () {
         $defaultTemplate = LandingPageTemplate::ensureDefaultTemplateExists();
 
         $landingPage = LandingPage::factory()
@@ -1092,8 +1094,9 @@ describe('Landing Page with Custom Template', function () {
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz')
-                ->where('landingPage.landing_page_template_id', null)
-                ->where('sectionOrder', null)
+                ->where('landingPage.landing_page_template_id', $defaultTemplate->id)
+                ->has('sectionOrder.rightColumn')
+                ->has('sectionOrder.leftColumn')
                 ->where('customLogoUrl', null)
             );
     });

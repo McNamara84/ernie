@@ -42,6 +42,7 @@ const SECTION_MAP: Record<string, SectionMapping> = {
     version: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     language: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     titles: { sectionId: 'resource-info', sectionName: 'Resource Information' },
+    datacenter_id: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     datacenters: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     licenses: { sectionId: 'licenses-rights', sectionName: 'Licenses & Rights' },
     customLicenses: { sectionId: 'licenses-rights', sectionName: 'Licenses & Rights' },
@@ -67,6 +68,7 @@ const SIMPLE_FIELD_MAP: Record<string, string> = {
     resourceType: '#resourceType',
     version: '#version',
     language: '#language',
+    datacenter_id: '#datacenter',
     datacenters: '#datacenter',
 };
 
@@ -170,6 +172,7 @@ function resolveFieldSelector(backendKey: string): string | null {
             case 'descriptions':
                 // Only the abstract textarea has a stable data-testid
                 return index === '0' ? '[data-testid="abstract-textarea"]' : null;
+            case 'datacenter_id':
             case 'datacenters':
                 return '#datacenter';
             case 'licenses':

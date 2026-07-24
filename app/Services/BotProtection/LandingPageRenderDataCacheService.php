@@ -65,7 +65,15 @@ class LandingPageRenderDataCacheService
                 });
             }
         } else {
-            $query->where('landing_page_template_id', $template->id);
+            $query->where(function (Builder $query) use ($template): void {
+                $query->where('landing_page_template_id', $template->id)
+                    ->orWhere(function (Builder $query) use ($template): void {
+                        $query->whereNull('landing_page_template_id')
+                            ->whereHas('resource.datacenter', function (Builder $query) use ($template): void {
+                                $query->where('landing_page_template_id', $template->id);
+                            });
+                    });
+            });
         }
 
         $query->chunkById(500, function (Collection $landingPages): void {
@@ -73,6 +81,29 @@ class LandingPageRenderDataCacheService
                 $this->forgetById((int) $landingPage->id);
             }
         }, 'landing_pages.id', 'id');
+    }
+
+    /**
+     * Forget published landing pages whose resources belong to the given datacenters.
+     *
+     * @param  list<int>  $datacenterIds
+     */
+    public function forgetForDatacenters(array $datacenterIds): void
+    {
+        $datacenterIds = array_values(array_unique(array_map('intval', $datacenterIds)));
+        if ($datacenterIds === []) {
+            return;
+        }
+
+        LandingPage::query()
+            ->select('landing_pages.id')
+            ->where('is_published', true)
+            ->whereHas('resource', fn (Builder $query) => $query->whereIn('datacenter_id', $datacenterIds))
+            ->chunkById(500, function (Collection $landingPages): void {
+                foreach ($landingPages as $landingPage) {
+                    $this->forgetById((int) $landingPage->id);
+                }
+            }, 'landing_pages.id', 'id');
     }
 
     private function shouldCache(LandingPage $landingPage): bool

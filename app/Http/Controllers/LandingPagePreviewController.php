@@ -10,6 +10,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\LandingPageResourceTransformer;
+use App\Services\LandingPageTemplateResolverService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Session;
@@ -97,7 +98,8 @@ class LandingPagePreviewController extends Controller
     public function show(
         Resource $resource,
         LandingPageResourceTransformer $transformer,
-        LandingPageCitationService $citationService
+        LandingPageCitationService $citationService,
+        LandingPageTemplateResolverService $templateResolver,
     ): Response {
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
@@ -133,27 +135,21 @@ class LandingPagePreviewController extends Controller
         $sectionOrder = null;
         $customLogoUrl = null;
         $landingPageTemplateId = LandingPageController::templateSupportsCustomTemplateId($template)
-            && is_int($previewData['landing_page_template_id'] ?? null)
-            ? $previewData['landing_page_template_id']
+            && is_numeric($previewData['landing_page_template_id'] ?? null)
+            ? (int) $previewData['landing_page_template_id']
             : null;
 
-        $templateConfig = LandingPageTemplate::resolveCustomTemplate($landingPageTemplateId, $resourceTypeSlug);
+        $resolvedTemplate = $templateResolver->resolve($resource, $landingPageTemplateId);
+        $templateConfig = $resolvedTemplate['template'];
 
-        if ($templateConfig !== null) {
-            $landingPageTemplateId = $templateConfig->id;
-            $sectionOrder = [
-                'rightColumn' => $templateConfig->right_column_order,
-                'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder($templateConfig->left_column_order, $templateConfig->template_type),
-            ];
-            $customLogoUrl = $templateConfig->logo_url;
-        } else {
-            $landingPageTemplateId = null;
-        }
-
-        $expectedTemplateType = LandingPageTemplate::expectedTemplateTypeForResource($resourceTypeSlug);
-        $displayLimitTemplate = $templateConfig
-            ?? LandingPageTemplate::existingDefaultForType($expectedTemplateType)
-            ?? LandingPageTemplate::defaultForType($expectedTemplateType);
+        $sectionOrder = [
+            'rightColumn' => $templateConfig->right_column_order,
+            'leftColumn' => LandingPageTemplate::normalizeLeftColumnOrder(
+                $templateConfig->left_column_order,
+                $templateConfig->template_type,
+            ),
+        ];
+        $customLogoUrl = $templateConfig->logo_url;
 
         $downloadsUnavailable = LandingPageController::templateSupportsDownloadsUnavailable($template)
             && ($previewData['downloads_unavailable'] ?? false) === true;
@@ -192,10 +188,12 @@ class LandingPagePreviewController extends Controller
             'isPreview' => true,
             'sectionOrder' => $sectionOrder,
             'customLogoUrl' => $customLogoUrl,
+            'landingPageTemplateSource' => $resolvedTemplate['source'],
+            'effectiveLandingPageTemplate' => $templateConfig->only(['id', 'name', 'slug']),
             'displayLimits' => [
-                'creators' => $displayLimitTemplate->creator_display_limit,
-                'contributors' => $displayLimitTemplate->contributor_display_limit,
-                'citationAuthors' => $displayLimitTemplate->citation_author_display_limit,
+                'creators' => $templateConfig->creator_display_limit,
+                'contributors' => $templateConfig->contributor_display_limit,
+                'citationAuthors' => $templateConfig->citation_author_display_limit,
             ],
         ]);
     }

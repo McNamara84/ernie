@@ -12,6 +12,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
+use App\Services\LandingPageTemplateResolverService;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UrlNormalizer;
 use Illuminate\Database\QueryException;
@@ -655,14 +656,25 @@ class LandingPageController extends Controller
 
         $resourceTypeSlug = $resource->resourceType?->slug;
         $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
-        $effectiveLandingPageTemplate = self::templateSupportsCustomTemplateId($effectiveTemplate)
+        $explicitLandingPageTemplate = self::templateSupportsCustomTemplateId($effectiveTemplate)
             ? LandingPageTemplate::resolveCustomTemplate($landingPage->landingPageTemplate, $resourceTypeSlug)
+            : null;
+        $resolvedTemplate = self::templateSupportsCustomTemplateId($effectiveTemplate)
+            ? app(LandingPageTemplateResolverService::class)->forLandingPage($resource, $landingPage)
             : null;
 
         $payload = $landingPage->toArray();
         $payload['template'] = $effectiveTemplate;
-        $payload['landing_page_template_id'] = $effectiveLandingPageTemplate?->id;
-        $payload['landing_page_template'] = $effectiveLandingPageTemplate?->toArray();
+        // Keep the stored override separate from the dynamically effective template.
+        $payload['landing_page_template_id'] = $explicitLandingPageTemplate?->id;
+        $payload['landing_page_template'] = $explicitLandingPageTemplate?->toArray();
+        $payload['effective_landing_page_template_id'] = isset($resolvedTemplate)
+            ? $resolvedTemplate['template']->id
+            : null;
+        $payload['effective_landing_page_template'] = isset($resolvedTemplate)
+            ? $resolvedTemplate['template']->toArray()
+            : null;
+        $payload['landing_page_template_source'] = $resolvedTemplate['source'] ?? null;
         $payload['ftp_url'] = self::templateSupportsFtpUrl($effectiveTemplate)
             ? $landingPage->ftp_url
             : null;

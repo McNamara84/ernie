@@ -215,11 +215,11 @@ function serializeRawRightsOnlyLicenseEntry(entry: CustomLicenseEntry): RawRight
 }
 
 function isDatacenterErrorKey(backendKey: string): boolean {
-    return backendKey === 'datacenters' || backendKey.startsWith('datacenters.');
+    return backendKey === 'datacenter_id' || backendKey === 'datacenters' || backendKey.startsWith('datacenters.');
 }
 
 function isDatacenterElementErrorKey(backendKey: string): boolean {
-    return backendKey.startsWith('datacenters.');
+    return backendKey === 'datacenter_id' || backendKey.startsWith('datacenters.');
 }
 
 export default function DataCiteForm({
@@ -258,7 +258,7 @@ export default function DataCiteForm({
     initialRelatedWorks = [],
     initialRelatedItems = [],
     initialFundingReferences = [],
-    initialDatacenters = [],
+    initialDatacenterId = null,
     availableDatacenters = [],
     isUserAdmin,
     activeRelationTypes,
@@ -535,12 +535,7 @@ export default function DataCiteForm({
         }
         return [];
     });
-    const [selectedDatacenters, setSelectedDatacenters] = useState<number[]>(() => {
-        if (initialDatacenters && initialDatacenters.length > 0) {
-            return initialDatacenters;
-        }
-        return [];
-    });
+    const [selectedDatacenterId, setSelectedDatacenterId] = useState<number | null>(initialDatacenterId);
     const [datacenterTouched, setDatacenterTouched] = useState(false);
     const [openAccordionItems, setOpenAccordionItems] = useState<CurationAccordionItemValue[]>(() =>
         normalizeAccordionItems(curationAccordionOpenItems ?? DEFAULT_OPEN_ACCORDION_ITEMS),
@@ -1461,14 +1456,14 @@ export default function DataCiteForm({
             }
         }
 
-        if (selectedDatacenters.length === 0) {
-            appendValidationMessage(errors, 'datacenters', 'At least one datacenter is required.');
+        if (selectedDatacenterId === null) {
+            appendValidationMessage(errors, 'datacenter_id', 'A datacenter is required.');
         }
 
         dateValidationIssues.forEach((issue) => appendValidationMessage(errors, 'dates', issue));
 
         return errors;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenters, titles, dateValidationIssues]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenterId, titles, dateValidationIssues]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1484,7 +1479,7 @@ export default function DataCiteForm({
         const hasYear = Boolean(form.year?.trim());
         const hasResourceType = Boolean(form.resourceType);
         const hasLanguage = Boolean(form.language);
-        const hasDatacenter = selectedDatacenters.length > 0;
+        const hasDatacenter = selectedDatacenterId !== null;
 
         // Check if DOI has validation errors (if present)
         const doiMessages = getFieldState('doi').messages;
@@ -1505,7 +1500,7 @@ export default function DataCiteForm({
             return 'invalid';
         }
         return 'valid';
-    }, [titles, form.year, form.resourceType, form.language, selectedDatacenters, getFieldState]);
+    }, [titles, form.year, form.resourceType, form.language, selectedDatacenterId, getFieldState]);
 
     const licensesStatus = useMemo(() => {
         const hasCompleteLicense = licenseEntries.some(hasLicenseEntryEvidence);
@@ -2135,7 +2130,7 @@ export default function DataCiteForm({
                 pidType: string;
                 name: string;
             }[];
-            datacenters: number[];
+            datacenter_id: number | null;
             resourceId?: number;
             rawRights: DataCiteFormProps['initialRawRights'];
         } = {
@@ -2228,7 +2223,7 @@ export default function DataCiteForm({
                 pidType: inst.pidType,
                 name: inst.name,
             })),
-            datacenters: selectedDatacenters,
+            datacenter_id: selectedDatacenterId,
         };
 
         if (resolvedResourceId !== null) {
@@ -2255,7 +2250,7 @@ export default function DataCiteForm({
         mslLaboratories,
         relatedWorks,
         resolvedResourceId,
-        selectedDatacenters,
+        selectedDatacenterId,
         spatialTemporalCoverages,
         titles,
     ]);
@@ -2406,17 +2401,17 @@ export default function DataCiteForm({
             return mappedDatacenterElementError.message;
         }
 
-        if (selectedDatacenters.length === 0) {
-            const mappedDatacenterCollectionError = mappedValidationErrors.find((error) => error.backendKey === 'datacenters');
+        if (selectedDatacenterId === null) {
+            const mappedDatacenterCollectionError = mappedValidationErrors.find((error) => error.backendKey === 'datacenter_id' || error.backendKey === 'datacenters');
             if (mappedDatacenterCollectionError) {
                 return mappedDatacenterCollectionError.message;
             }
 
-            return 'At least one datacenter is required.';
+            return 'A datacenter is required.';
         }
 
         return null;
-    }, [datacenterTouched, mappedValidationErrors, selectedDatacenters.length]);
+    }, [datacenterTouched, mappedValidationErrors, selectedDatacenterId]);
 
     const clearDatacenterValidationErrors = useCallback(() => {
         const nextMappedValidationErrors = mappedValidationErrors.filter((error) => !isDatacenterErrorKey(error.backendKey));
@@ -3063,9 +3058,9 @@ export default function DataCiteForm({
                                 id="datacenter"
                                 label="Datacenter"
                                 options={availableDatacenters}
-                                selected={selectedDatacenters}
-                                onChange={(ids) => {
-                                    setSelectedDatacenters(ids);
+                                selected={selectedDatacenterId}
+                                onChange={(id) => {
+                                    setSelectedDatacenterId(id);
                                     setDatacenterTouched(true);
                                     clearDatacenterValidationErrors();
                                 }}

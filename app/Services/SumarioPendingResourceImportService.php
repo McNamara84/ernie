@@ -243,7 +243,7 @@ class SumarioPendingResourceImportService
             createWhenEmpty: true,
         );
 
-        return $resource->fresh(['landingPage', 'datacenters']) ?? $resource;
+        return $resource->fresh(['landingPage', 'datacenter']) ?? $resource;
     }
 
     /**
@@ -272,7 +272,7 @@ class SumarioPendingResourceImportService
             'relatedIdentifiers' => $this->normaliseRelatedIdentifiers($editorData['relatedWorks'] ?? []),
             'fundingReferences' => is_array($editorData['fundingReferences'] ?? null) ? array_values($editorData['fundingReferences']) : [],
             'mslLaboratories' => is_array($editorData['mslLaboratories'] ?? null) ? array_values($editorData['mslLaboratories']) : [],
-            'datacenters' => $this->datacenterIdsForDoi($doi),
+            'datacenter_id' => $this->datacenterIdForDoi($doi),
         ];
     }
 
@@ -467,22 +467,17 @@ class SumarioPendingResourceImportService
         ))));
     }
 
-    /**
-     * @return list<int>
-     */
-    private function datacenterIdsForDoi(string $doi): array
+    private function datacenterIdForDoi(string $doi): int
     {
         $ids = $this->datacenterLookup->resolveDatacenterIds($doi);
 
         if ($ids !== []) {
-            return $ids;
+            return $ids[0];
         }
 
-        return [
-            (int) Datacenter::query()->firstOrCreate([
-                'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
-            ])->id,
-        ];
+        return (int) Datacenter::query()->firstOrCreate([
+            'name' => LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
+        ])->id;
     }
 
     private function resolveResourceTypeId(mixed $resourceType): ?int

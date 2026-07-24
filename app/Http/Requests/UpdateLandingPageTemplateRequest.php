@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Datacenter;
 use App\Models\LandingPageTemplate;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -40,6 +41,8 @@ class UpdateLandingPageTemplateRequest extends FormRequest
             'creator_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'contributor_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
             'citation_author_display_limit' => ['sometimes', 'required', 'integer', 'min:'.LandingPageTemplate::MIN_DISPLAY_LIMIT, 'max:'.LandingPageTemplate::MAX_DISPLAY_LIMIT],
+            'datacenter_ids' => ['sometimes', 'array'],
+            'datacenter_ids.*' => ['integer', 'distinct', Rule::exists('datacenters', 'id')],
         ];
     }
 
@@ -51,6 +54,22 @@ class UpdateLandingPageTemplateRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             /** @var LandingPageTemplate $template */
             $template = $this->route('landingPageTemplate');
+            $datacenterIds = $this->input('datacenter_ids', []);
+
+            if ($this->has('datacenter_ids') && is_array($datacenterIds) && $datacenterIds !== []) {
+                if ($template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
+                    $validator->errors()->add('datacenter_ids', 'IGSN templates cannot be assigned to datacenters.');
+                }
+
+                if (! $template->isDefault()
+                    && Datacenter::query()->whereKey($datacenterIds)->where('name', Datacenter::GFZ_NAME)->exists()) {
+                    $validator->errors()->add(
+                        'datacenter_ids',
+                        'The canonical GFZ datacenter must remain assigned to the resource system default.',
+                    );
+                }
+            }
+
             $allowedLeftColumnSections = LandingPageTemplate::leftColumnSectionsForTemplateType($template->template_type);
 
             // Validate right column order contains exactly all valid sections

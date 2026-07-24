@@ -260,8 +260,8 @@ export interface DataCiteFormProps {
     initialFundingReferences?: FundingReferenceEntry[];
     initialMslLaboratories?: MSLLaboratory[];
     initialInstruments?: InstrumentSelection[];
-    /** Initial datacenter IDs assigned to this resource */
-    initialDatacenters?: number[];
+    /** Initial datacenter assigned to this resource */
+    initialDatacenterId?: number | null;
     /** Available datacenters for selection */
     availableDatacenters?: { id: number; name: string }[];
     /** Optional: Whether the current user is an admin (used for DOI editing permissions) */

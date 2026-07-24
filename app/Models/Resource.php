@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $version
  * @property int|null $language_id
  * @property int|null $publisher_id
+ * @property int|null $datacenter_id
  * @property int|null $created_by_user_id
  * @property int|null $updated_by_user_id
  * @property string|null $legacy_source
@@ -62,11 +63,11 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
  * @property-read Collection<int, AlternateIdentifier> $alternateIdentifiers
  * @property-read Collection<int, ResourceInstrument> $instruments
- * @property-read Collection<int, Datacenter> $datacenters
+ * @property-read Datacenter|null $datacenter
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
-#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status'])]
+#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status'])]
 class Resource extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -278,12 +279,11 @@ class Resource extends Model
         return $relation;
     }
 
-    /** @return BelongsToMany<Datacenter, static> */
-    public function datacenters(): BelongsToMany
+    /** @return BelongsTo<Datacenter, static> */
+    public function datacenter(): BelongsTo
     {
-        /** @var BelongsToMany<Datacenter, static> $relation */
-        $relation = $this->belongsToMany(Datacenter::class, 'resource_datacenter')
-            ->withTimestamps();
+        /** @var BelongsTo<Datacenter, static> $relation */
+        $relation = $this->belongsTo(Datacenter::class);
 
         return $relation;
     }

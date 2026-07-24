@@ -6,7 +6,7 @@ import axios from 'axios';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { LandingPageTemplateConfig } from '@/types/landing-page';
+import type { LandingPageTemplateConfig, LandingPageTemplateDatacenter } from '@/types/landing-page';
 
 const defaultRightOrder: LandingPageTemplateConfig['right_column_order'] = [
     'abstract',
@@ -101,6 +101,7 @@ vi.mock('@inertiajs/react', () => ({
         props: {
             auth: { user: { can_manage_landing_page_templates: true } },
             templates: mockTemplates,
+            datacenters: mockDatacenters,
         },
     }),
 }));
@@ -231,6 +232,7 @@ const defaultIgsnTemplate: LandingPageTemplateConfig = {
 };
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
+let mockDatacenters: LandingPageTemplateDatacenter[] = [];
 
 import LandingPageTemplatesPage from '@/pages/landing-page-templates';
 
@@ -241,6 +243,7 @@ describe('LandingPageTemplatesPage', () => {
         vi.clearAllMocks();
         dndContextMock.handlers.length = 0;
         mockTemplates = [defaultTemplate, customTemplate, customTemplateNoLogo];
+        mockDatacenters = [];
     });
 
     // ─── Rendering ───────────────────────────────────────────────────────
@@ -388,7 +391,54 @@ describe('LandingPageTemplatesPage', () => {
             await user.click(screen.getByRole('button', { name: /Clone Template/i }));
 
             await waitFor(() => {
-                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'My New Template', template_type: 'resource' });
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
+                    name: 'My New Template',
+                    template_type: 'resource',
+                    datacenter_ids: [],
+                });
+            });
+        });
+
+        it('assigns selected datacenters while protecting the canonical GFZ assignment', async () => {
+            mockDatacenters = [
+                {
+                    id: 10,
+                    name: 'Specialized Datacenter',
+                    landing_page_template_id: null,
+                    landing_page_template_name: null,
+                },
+                {
+                    id: 11,
+                    name: 'GFZ German Research Centre for Geosciences',
+                    landing_page_template_id: defaultTemplate.id,
+                    landing_page_template_name: defaultTemplate.name,
+                },
+            ];
+            mockedAxiosPost.mockResolvedValue({ data: { message: 'Created', template: {} } });
+            const user = userEvent.setup();
+
+            render(<LandingPageTemplatesPage />);
+
+            await user.click(screen.getByRole('button', { name: /New Template/i }));
+
+            const specialized = screen.getByRole('checkbox', { name: /Specialized Datacenter/i });
+            const canonicalGfz = screen.getByRole('checkbox', {
+                name: /GFZ German Research Centre for Geosciences/i,
+            });
+
+            expect(specialized).toBeEnabled();
+            expect(canonicalGfz).toBeDisabled();
+
+            await user.click(specialized);
+            await user.type(screen.getByLabelText(/Template Name/i), 'Assigned Template');
+            await user.click(screen.getByRole('button', { name: /Clone Template/i }));
+
+            await waitFor(() => {
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
+                    name: 'Assigned Template',
+                    template_type: 'resource',
+                    datacenter_ids: [10],
+                });
             });
         });
 
@@ -446,7 +496,11 @@ describe('LandingPageTemplatesPage', () => {
             await user.keyboard('{Enter}');
 
             await waitFor(() => {
-                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'Enter Template', template_type: 'resource' });
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
+                    name: 'Enter Template',
+                    template_type: 'resource',
+                    datacenter_ids: [],
+                });
             });
         });
 
@@ -475,7 +529,11 @@ describe('LandingPageTemplatesPage', () => {
             await user.click(screen.getByRole('button', { name: /Clone Template/i }));
 
             await waitFor(() => {
-                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', { name: 'IGSN Clone', template_type: 'igsn' });
+                expect(mockedAxiosPost).toHaveBeenCalledWith('/landing-pages', {
+                    name: 'IGSN Clone',
+                    template_type: 'igsn',
+                    datacenter_ids: [],
+                });
             });
         });
     });
@@ -572,6 +630,7 @@ describe('LandingPageTemplatesPage', () => {
                     creator_display_limit: 35,
                     contributor_display_limit: 45,
                     citation_author_display_limit: 15,
+                    datacenter_ids: [],
                 });
             });
         });

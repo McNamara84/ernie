@@ -197,7 +197,7 @@ describe('Datacenter Deletion', function () {
     test('cannot delete a datacenter with assigned resources', function () {
         $datacenter = Datacenter::factory()->withName('Busy DC')->create();
         $resource = Resource::factory()->create();
-        $resource->datacenters()->attach($datacenter->id);
+        $resource->update(['datacenter_id' => $datacenter->id]);
 
         $response = $this->actingAs($this->admin)
             ->deleteJson("/api/datacenters/{$datacenter->id}");
