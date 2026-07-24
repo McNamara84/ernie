@@ -746,6 +746,7 @@ erDiagram
         bigint id PK
         varchar name UK
         bigint landing_page_template_id FK "nullable"
+        bigint igsn_landing_page_template_id FK "nullable"
         timestamp created_at
         timestamp updated_at
     }
@@ -1099,7 +1100,8 @@ erDiagram
 
     %% Datacenter relationships
     resources }o--o| datacenters : "assigned to"
-    datacenters }o--o| landing_page_templates : "inherits template"
+    datacenters }o--o| landing_page_templates : "inherits resource template"
+    datacenters }o--o| landing_page_templates : "inherits IGSN template"
 
     %% Landing page relationships
     landing_pages }o--o| landing_page_domains : "external domain"
