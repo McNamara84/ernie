@@ -4,6 +4,10 @@
         "date": "2026-07-24",
         "features": [
             {
+                "title": "Validated Responsive Landing Page Header Logos",
+                "description": "Landing page template management now shows the required 5:1 header-logo dimensions before upload and recommends 1200 × 240 pixels. New and replacement logos are validated server-side against the accepted 960 × 192 to 1920 × 384 pixel range, supported image formats, and the 2 MB file-size limit. Header logos now preserve their proportions on narrow mobile screens instead of being distorted."
+            },
+            {
                 "title": "IGSN Datacenter Imports and Template Inheritance",
                 "description": "New IGSNs imported from DataCite now receive their legacy IGSN portal datacenter assignment when available, including the canonical mapping from GFZ Potsdam to GFZ German Research Centre for Geosciences. Admins and Group Leaders can import one complete legacy IGSN datacenter from /igsns, while unmatched new IGSNs are reported without blocking the import and existing records remain unchanged. IGSN landing page templates can now be assigned to multiple datacenters through a dedicated IGSN template slot, with the Default GFZ IGSN template retained as the GFZ assignment and global fallback."
             },

@@ -89,6 +89,7 @@ vi.mock('@inertiajs/react', () => ({
             auth: { user: { can_manage_landing_page_templates: true } },
             templates: mockTemplates,
             datacenters: mockDatacenters,
+            logoUploadConstraints: mockLogoUploadConstraints,
         },
     }),
 }));
@@ -220,6 +221,17 @@ const defaultIgsnTemplate: LandingPageTemplateConfig = {
 
 let mockTemplates: LandingPageTemplateConfig[] = [];
 let mockDatacenters: LandingPageTemplateDatacenter[] = [];
+const mockLogoUploadConstraints = {
+    minWidth: 960,
+    minHeight: 192,
+    recommendedWidth: 1200,
+    recommendedHeight: 240,
+    maxWidth: 1920,
+    maxHeight: 384,
+    aspectRatio: '5:1',
+    maxSizeKb: 2048,
+    formats: ['PNG', 'JPG', 'JPEG', 'WebP'],
+};
 
 import LandingPageTemplatesPage from '@/pages/landing-page-templates';
 
@@ -240,6 +252,14 @@ describe('LandingPageTemplatesPage', () => {
             render(<LandingPageTemplatesPage />);
             expect(screen.getByText('Landing Pages')).toBeInTheDocument();
             expect(screen.getByText(/Manage custom templates/i)).toBeInTheDocument();
+        });
+
+        it('renders the server-provided logo upload guidance', () => {
+            render(<LandingPageTemplatesPage />);
+
+            expect(screen.getByTestId('landing-page-logo-size-hint')).toHaveTextContent(
+                'Header logo: use a 5:1 image. Recommended: 1200 × 240 px. Accepted range: 960 × 192 to 1920 × 384 px. PNG, JPG, JPEG, WebP, max. 2 MB.',
+            );
         });
 
         it('renders New Template button', () => {

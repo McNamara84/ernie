@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\CacheKey;
 use App\Http\Controllers\LandingPageTemplateController;
+use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\StoreLandingPageTemplateRequest;
 use App\Http\Requests\UpdateLandingPageTemplateRequest;
 use App\Models\LandingPage;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Storage;
 
 covers(
     LandingPageTemplateController::class,
+    UploadLandingPageTemplateLogoRequest::class,
     LandingPageTemplate::class,
     LandingPageTemplatePolicy::class,
     StoreLandingPageTemplateRequest::class,
@@ -116,6 +118,17 @@ describe('Index', function (): void {
             ->assertInertia(fn ($page) => $page
                 ->component('landing-page-templates')
                 ->has('templates', 4) // resource default + IGSN default + 2 custom
+                ->where('logoUploadConstraints', [
+                    'minWidth' => 960,
+                    'minHeight' => 192,
+                    'recommendedWidth' => 1200,
+                    'recommendedHeight' => 240,
+                    'maxWidth' => 1920,
+                    'maxHeight' => 384,
+                    'aspectRatio' => '5:1',
+                    'maxSizeKb' => 2048,
+                    'formats' => ['PNG', 'JPG', 'JPEG', 'WebP'],
+                ])
             );
     });
 
@@ -624,12 +637,13 @@ describe('Delete', function (): void {
 // ─── Logo Upload ─────────────────────────────────────────────────────────────
 
 describe('Logo Upload', function (): void {
-    it('uploads a logo to a custom template', function (): void {
+    it('uploads logos at the minimum, recommended, and maximum dimensions', function (int $width, int $height): void {
         Storage::fake('public');
 
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        $file = UploadedFile::fake()->image('logo.png', 200, 100);
+        $filename = "logo-{$width}x{$height}.png";
+        $file = UploadedFile::fake()->image($filename, $width, $height);
 
         $response = $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", [
@@ -641,15 +655,40 @@ describe('Logo Upload', function (): void {
         $template->refresh();
 
         expect($template->logo_path)->not->toBeNull()
-            ->and($template->logo_filename)->toBe('logo.png');
+            ->and($template->logo_filename)->toBe($filename);
 
         Storage::disk('public')->assertExists($template->logo_path);
-    });
+    })->with([
+        'minimum' => [960, 192],
+        'recommended' => [1200, 240],
+        'maximum' => [1920, 384],
+    ]);
+
+    it('rejects logos outside the required dimensions or aspect ratio', function (int $width, int $height): void {
+        Storage::fake('public');
+
+        $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
+        $file = UploadedFile::fake()->image("invalid-{$width}x{$height}.png", $width, $height);
+
+        $this->actingAs($this->admin)
+            ->postJson("/landing-pages/{$template->id}/logo", ['logo' => $file])
+            ->assertUnprocessable()
+            ->assertJsonPath(
+                'errors.logo.0',
+                'The header logo must use a 5:1 aspect ratio and measure between 960 x 192 and 1920 x 384 pixels. The recommended size is 1200 x 240 pixels.',
+            );
+
+        expect($template->fresh()?->logo_path)->toBeNull();
+    })->with([
+        'below minimum at five-to-one' => [955, 191],
+        'above maximum at five-to-one' => [1925, 385],
+        'wrong aspect ratio within size range' => [1200, 300],
+    ]);
 
     it('rejects logo upload for default template', function (): void {
         Storage::fake('public');
 
-        $file = UploadedFile::fake()->image('logo.png');
+        $file = UploadedFile::fake()->image('logo.png', 1200, 240);
 
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$this->defaultTemplate->id}/logo", [
@@ -677,7 +716,7 @@ describe('Logo Upload', function (): void {
 
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        $file = UploadedFile::fake()->image('huge-logo.png')->size(3000); // 3MB > 2MB limit
+        $file = UploadedFile::fake()->image('huge-logo.png', 1200, 240)->size(3000); // 3MB > 2MB limit
 
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", [
@@ -694,7 +733,7 @@ describe('Logo Upload', function (): void {
         ]);
 
         // Upload a logo first
-        $file = UploadedFile::fake()->image('logo.png', 200, 100);
+        $file = UploadedFile::fake()->image('logo.png', 1200, 240);
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", ['logo' => $file]);
 
@@ -1334,7 +1373,7 @@ describe('Delete with Logo Cleanup', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         // Upload a logo
-        $file = UploadedFile::fake()->image('logo.png', 200, 100);
+        $file = UploadedFile::fake()->image('logo.png', 1200, 240);
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", ['logo' => $file])
             ->assertOk();
@@ -1358,7 +1397,7 @@ describe('Delete with Logo Cleanup', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
         // Upload first logo
-        $file1 = UploadedFile::fake()->image('old-logo.png', 200, 100);
+        $file1 = UploadedFile::fake()->image('old-logo.png', 1200, 240);
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", ['logo' => $file1])
             ->assertOk();
@@ -1367,7 +1406,7 @@ describe('Delete with Logo Cleanup', function (): void {
         $oldLogoPath = $template->logo_path;
 
         // Upload replacement logo
-        $file2 = UploadedFile::fake()->image('new-logo.png', 300, 150);
+        $file2 = UploadedFile::fake()->image('new-logo.png', 1920, 384);
         $this->actingAs($this->admin)
             ->postJson("/landing-pages/{$template->id}/logo", ['logo' => $file2])
             ->assertOk();
@@ -1402,7 +1441,7 @@ describe('Delete with Logo Cleanup', function (): void {
     it('returns 500 when logo storage fails', function (): void {
         $template = LandingPageTemplate::factory()->create(['created_by' => $this->admin->id]);
 
-        $file = UploadedFile::fake()->image('logo.png', 200, 100);
+        $file = UploadedFile::fake()->image('logo.png', 1200, 240);
 
         // Mock Storage facade to throw exception simulating disk failure
         Storage::shouldReceive('disk')
