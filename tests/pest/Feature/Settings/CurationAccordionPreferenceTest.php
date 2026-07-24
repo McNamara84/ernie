@@ -29,7 +29,7 @@ test('allowed curation accordion item values stay in sync with frontend constant
 
 test('guests are redirected when updating curation accordion preference', function () {
     $this->put(route('curation-accordion.update'), [
-        'open_items' => ['resource-info'],
+        'open_items' => ['authors'],
     ])->assertRedirect(route('login'));
 });
 
@@ -38,13 +38,12 @@ test('authenticated users can persist curation accordion open items', function (
 
     $this->actingAs($user)
         ->put(route('curation-accordion.update'), [
-            'open_items' => ['resource-info', 'authors', 'funding-references'],
+            'open_items' => ['authors', 'funding-references'],
         ])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
     expect($user->refresh()->curation_accordion_open_items)->toBe([
-        'resource-info',
         'authors',
         'funding-references',
     ]);
@@ -52,7 +51,7 @@ test('authenticated users can persist curation accordion open items', function (
 
 test('authenticated users can persist all curation accordions as collapsed', function () {
     $user = User::factory()->create([
-        'curation_accordion_open_items' => ['resource-info'],
+        'curation_accordion_open_items' => ['authors'],
     ]);
 
     $this->actingAs($user)
@@ -71,12 +70,25 @@ test('unknown curation accordion item values are rejected', function () {
     $this->actingAs($user)
         ->from('/editor')
         ->put(route('curation-accordion.update'), [
-            'open_items' => ['resource-info', 'unknown-section'],
+            'open_items' => ['authors', 'unknown-section'],
         ])
         ->assertRedirect('/editor')
         ->assertSessionHasErrors('open_items.1');
 
     expect($user->refresh()->curation_accordion_open_items)->toBeNull();
+});
+
+test('legacy resource information values are discarded while valid accordion items are persisted', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->put(route('curation-accordion.update'), [
+            'open_items' => ['resource-info', 'authors'],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->curation_accordion_open_items)->toBe(['authors']);
 });
 
 test('duplicate curation accordion item values are rejected', function () {

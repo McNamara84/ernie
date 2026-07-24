@@ -12,8 +12,8 @@ const ACCORDION_ANIMATION_DELAY_MS = 200;
  * Resolution order:
  *  1. `fieldSelector` — a CSS selector pointing directly at the invalid field.
  *  2. Accordion section trigger — the focusable `[data-slot="accordion-trigger"]`
- *     button inside the `[data-accordion-value]` item for the given `sectionId`.
- *  3. The accordion item element itself (last resort).
+ *     button inside the `[data-accordion-value]` section for the given `sectionId`.
+ *  3. The form section element itself (for static sections or as a last resort).
  *
  * The scroll is deferred via `requestAnimationFrame` + a configurable timeout so
  * the accordion has time to finish its open animation and the target element is

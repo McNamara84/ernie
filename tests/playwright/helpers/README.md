@@ -116,7 +116,7 @@ Handles DataCite metadata form with validation (350+ lines):
 - `goto()` - Navigate to editor
 - `waitForFormLoad()` - Wait for form to be fully loaded
 - `expandAccordion(accordion)` / `collapseAccordion(accordion)` - Manage accordion state
-- `getAccordionStatusBadge(accordion)` - Get status badge (complete/incomplete/optional)
+- `getSectionStatusBadge(section)` - Get a static or accordion section status badge (complete/incomplete/optional)
 - `getFieldValidationMessages(field)` - Get validation messages for a field
 - `expectValidationError(field)` / `expectValidationSuccess(field)` - Assert field validation state (throws on failure with Playwright diagnostics)
 - `fillMainTitle(title)` / `fillYear(year)` / `fillAbstract(text)` - Fill specific fields
@@ -262,4 +262,3 @@ export class MyPage {
 - **Add methods** when new user actions are needed
 - **Deprecate methods** with JSDoc `@deprecated` before removing
 - **Keep documentation** in sync with implementation
-

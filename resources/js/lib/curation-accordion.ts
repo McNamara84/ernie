@@ -1,5 +1,4 @@
 export const CURATION_ACCORDION_ITEM_VALUES = [
-    'resource-info',
     'licenses-rights',
     'authors',
     'contributors',
@@ -17,8 +16,11 @@ export const CURATION_ACCORDION_ITEM_VALUES = [
 
 export type CurationAccordionItemValue = (typeof CURATION_ACCORDION_ITEM_VALUES)[number];
 
+export function isCurationAccordionItemValue(value: string): value is CurationAccordionItemValue {
+    return (CURATION_ACCORDION_ITEM_VALUES as readonly string[]).includes(value);
+}
+
 export const DEFAULT_OPEN_ACCORDION_ITEMS = [
-    'resource-info',
     'authors',
     'licenses-rights',
     'contributors',
