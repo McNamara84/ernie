@@ -10,6 +10,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 covers(LegacyIgsnPortalService::class, LegacyIgsnDatacenterCatalog::class);
 
@@ -38,6 +39,8 @@ function legacyIgsnFacetResponse(array $facets): array
 }
 
 it('loads normalizes sorts and caches the known IGSN datacenters', function (): void {
+    $log = Log::spy();
+
     Http::fake([
         'igsn-portal.example.test/*' => Http::response(legacyIgsnFacetResponse([
             'IGSNDB.SO273 - Sonne273' => 432,
@@ -71,6 +74,12 @@ it('loads normalizes sorts and caches the known IGSN datacenters', function (): 
     ])->and($service->listDatacenters())->toHaveCount(3);
 
     Http::assertSentCount(1);
+    $log->shouldHaveReceived('warning')
+        ->once()
+        ->with('Skipping unknown legacy IGSN datacenter facet', [
+            'facet_value' => 'IGSNDB.UNKNOWN - Unknown',
+            'resource_count' => 99,
+        ]);
     Http::assertSent(function (Request $request): bool {
         parse_str((string) $request->data()['query'], $query);
 

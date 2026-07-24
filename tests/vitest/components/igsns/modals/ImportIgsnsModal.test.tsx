@@ -580,7 +580,7 @@ describe('ImportIgsnsModal', () => {
 
         expect(await screen.findByText('Import IGSNs by datacenter')).toBeInTheDocument();
         await user.click(screen.getByRole('combobox', { name: /datacenter/i }));
-        await user.type(screen.getByPlaceholderText('Search datacenters...'), 'ICDP');
+        await user.type(screen.getByPlaceholderText('Search datacenters...'), 'IGSNDB.ICDP');
         await user.click(await screen.findByText('ICDP (42)'));
         await user.click(screen.getByRole('button', { name: /start import/i }));
 

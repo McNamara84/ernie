@@ -337,8 +337,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'a
                                         options={datacenters.map((datacenter) => ({
                                             value: datacenter.id,
                                             label: `${datacenter.name} (${datacenter.resource_count.toLocaleString()})`,
-                                            keywords:
-                                                datacenter.legacy_name === datacenter.name ? undefined : [datacenter.legacy_name, datacenter.id],
+                                            keywords: [datacenter.legacy_name, datacenter.id],
                                         }))}
                                         placeholder={isLoadingDatacenters ? 'Loading datacenters...' : 'Select a datacenter'}
                                         searchPlaceholder="Search datacenters..."

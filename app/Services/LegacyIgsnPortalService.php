@@ -201,7 +201,10 @@ class LegacyIgsnPortalService
 
             $parsed = LegacyIgsnDatacenterCatalog::parseFacetValue($facetValue);
             if ($parsed === null) {
-                Log::warning('Skipping unknown legacy IGSN datacenter facet');
+                Log::warning('Skipping unknown legacy IGSN datacenter facet', [
+                    'facet_value' => $facetValue,
+                    'resource_count' => (int) $count,
+                ]);
 
                 continue;
             }
