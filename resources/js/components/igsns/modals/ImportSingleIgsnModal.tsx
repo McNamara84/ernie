@@ -28,6 +28,9 @@ interface ImportProgress {
     failed_dois: Array<{ doi: string; error: string }>;
     requested_igsn?: string;
     discovered_children?: string[];
+    unassigned?: number;
+    unassigned_dois?: string[];
+    warnings?: string[];
     started_at?: string;
     completed_at?: string;
     error?: string;
@@ -81,12 +84,7 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
     }, [isOpen]);
 
     useEffect(() => {
-        if (
-            !isOpen ||
-            !['completed', 'cancelled'].includes(modalState) ||
-            (progress?.imported ?? 0) < 1 ||
-            hasNotifiedSuccessRef.current
-        ) {
+        if (!isOpen || !['completed', 'cancelled'].includes(modalState) || (progress?.imported ?? 0) < 1 || hasNotifiedSuccessRef.current) {
             return;
         }
 
@@ -190,6 +188,9 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                 failed_dois: [],
                 requested_igsn: normalized.handle,
                 discovered_children: [],
+                unassigned: 0,
+                unassigned_dois: [],
+                warnings: [],
             });
 
             toast.info('Single IGSN import started', {
@@ -360,6 +361,14 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                 </AlertDescription>
                             </Alert>
 
+                            {(progress.warnings ?? []).map((warning) => (
+                                <Alert key={warning} className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+                                    <AlertCircle className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                    <AlertTitle>Datacenter assignment warning</AlertTitle>
+                                    <AlertDescription>{warning}</AlertDescription>
+                                </Alert>
+                            ))}
+
                             {relatedIgsnCount > 0 && (
                                 <div className="rounded-md border p-3 text-sm">
                                     <div className="font-medium">Related IGSNs included</div>
@@ -419,7 +428,10 @@ export default function ImportSingleIgsnModal({ isOpen, igsnPrefix = '10.60510',
                                     <CollapsibleContent>
                                         <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-red-200 bg-red-50/50 p-2 dark:border-red-800 dark:bg-red-950/50">
                                             {progress.failed_dois.map(({ doi, error: failureError }, index) => (
-                                                <div key={`${index}-${doi}`} className="border-b border-red-100 py-2 last:border-0 dark:border-red-900">
+                                                <div
+                                                    key={`${index}-${doi}`}
+                                                    className="border-b border-red-100 py-2 last:border-0 dark:border-red-900"
+                                                >
                                                     <div className="font-mono text-xs">{doi}</div>
                                                     <div className="text-xs text-red-600 dark:text-red-400">{failureError}</div>
                                                 </div>

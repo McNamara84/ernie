@@ -1801,11 +1801,11 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <h3>Custom Landing Page Templates</h3>
                         <p>
                             Admins and Group Leaders can create custom landing page templates to control the layout and branding of landing pages.
-                            Custom templates are cloned from the immutable <strong>Default GFZ</strong> template and allow customization of section
-                            order and header logo. Regular templates can be assigned to any number of datacenters. A regular resource in automatic
-                            mode inherits the template assigned to its datacenter; without such an assignment, ERNIE uses the Resource system default.
-                            An explicit landing-page selection always overrides datacenter inheritance. IGSN landing pages do not inherit templates
-                            from datacenters. In template management, the built-in Resource and IGSN defaults stay pinned at the top.
+                            Custom templates are cloned from the immutable default for their Resource or IGSN type and allow customization of section
+                            order and header logo. Both template types can be assigned to any number of datacenters through independent assignment
+                            slots. A landing page in automatic mode inherits the compatible template assigned to its datacenter; without such an
+                            assignment, ERNIE uses the matching Resource or IGSN system default. An explicit landing-page selection always overrides
+                            datacenter inheritance. In template management, the built-in Resource and IGSN defaults stay pinned at the top.
                         </p>
 
                         <WorkflowSteps>
@@ -1848,8 +1848,9 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             </WorkflowSteps.Step>
                             <WorkflowSteps.Step number={5} title="Use in Landing Pages">
                                 <p>
-                                    Assign regular templates to datacenters in template management. In the landing-page setup modal, choose{' '}
-                                    <strong>Use automatic template</strong> to inherit that assignment, or select an explicit template to override it.
+                                    Assign Resource or IGSN templates to datacenters in template management. In the landing-page setup modal, choose{' '}
+                                    <strong>Use automatic template</strong> to inherit the assignment from the matching slot, or select an explicit
+                                    compatible template to override it.
                                 </p>
                             </WorkflowSteps.Step>
                         </WorkflowSteps>
@@ -2383,6 +2384,50 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             <li>When items are selected, a toolbar appears showing the selection count and available actions</li>
                             <li>The table header remains fixed while scrolling, so actions are always visible</li>
                         </ul>
+                    </>
+                ),
+            },
+            {
+                id: 'igsn-legacy-import',
+                title: 'Legacy IGSN Import',
+                icon: Database,
+                minRole: 'group_leader',
+                content: (
+                    <>
+                        <h3>Importing IGSNs from DataCite</h3>
+                        <p>
+                            Admins and Group Leaders see three import actions on <code>/igsns</code>:
+                        </p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Import all IGSNs</strong> imports the complete configured IGSN prefix.
+                            </li>
+                            <li>
+                                <strong>Import IGSNs from a Datacenter</strong> loads the current legacy IGSN portal datacenters and imports the
+                                complete selected group.
+                            </li>
+                            <li>
+                                <strong>Import single IGSN</strong> imports one sample together with discoverable parents, children, and siblings.
+                            </li>
+                        </ul>
+
+                        <h4>Datacenter Assignment</h4>
+                        <p>
+                            DataCite supplies the imported metadata. The legacy GFZ IGSN portal supplies the historical datacenter assignment. The
+                            portal name <strong>GFZ Potsdam</strong> is normalized to <strong>GFZ German Research Centre for Geosciences</strong>.
+                        </p>
+                        <p>
+                            Assignments apply only when a new IGSN is created. An IGSN that already exists in ERNIE is skipped without filling,
+                            replacing, or removing its current datacenter. If the portal responds successfully but contains no assignment for a new
+                            IGSN, the import continues, leaves the datacenter empty, and lists the IGSN in the result for manual curation.
+                        </p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Availability:</strong> ERNIE stops before creating IGSNs when the legacy portal assignment cannot be loaded.
+                                Retry the import after the portal is available again.
+                            </p>
+                        </div>
                     </>
                 ),
             },

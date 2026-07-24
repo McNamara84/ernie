@@ -22,13 +22,28 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { User as AuthUser } from '@/types';
-import { getDefaultIgsnTemplate, getIgsnTemplateOptions, type LandingPageConfig, type LandingPageDomain, type LandingPageTemplateSummary } from '@/types/landing-page';
+import {
+    getDefaultIgsnTemplate,
+    getIgsnTemplateOptions,
+    type LandingPageConfig,
+    type LandingPageDomain,
+    type LandingPageTemplateSummary,
+} from '@/types/landing-page';
 
 interface IgsnResource {
     id: number;
     doi?: string | null;
     title?: string;
     [key: string]: unknown;
+}
+
+interface IgsnTemplateOptions {
+    datacenter: { id: number; name: string } | null;
+    datacenter_template: { id: number; name: string; slug: string } | null;
+    system_default: { id: number; name: string; slug: string };
+    automatic_template: { id: number; name: string; slug: string };
+    automatic_source: 'datacenter' | 'default';
+    supports_datacenter_inheritance: boolean;
 }
 
 interface SetupIgsnLandingPageModalProps {
@@ -63,6 +78,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
     const [externalPath, setExternalPath] = useState<string>(existingConfig?.external_path ?? '');
     const [availableDomains, setAvailableDomains] = useState<LandingPageDomain[]>([]);
     const [customTemplates, setCustomTemplates] = useState<LandingPageTemplateSummary[]>([]);
+    const [templateInheritance, setTemplateInheritance] = useState<IgsnTemplateOptions | null>(null);
     const [landingPageTemplateId, setLandingPageTemplateId] = useState<number | null>(
         getHydratedLandingPageTemplateId(initialTemplate, existingConfig),
     );
@@ -98,6 +114,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
             }
             loadAvailableDomains();
             loadCustomTemplates();
+            loadTemplateInheritance();
         } else if (!isOpen) {
             // Reset state when modal closes
             setCurrentConfig(null);
@@ -107,6 +124,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
             setExternalDomainId('');
             setExternalPath('');
             setLandingPageTemplateId(null);
+            setTemplateInheritance(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [applyConfigState, existingConfig, isOpen, resource.id]);
@@ -136,6 +154,16 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
             }
 
             console.error('Failed to load custom templates:', error);
+        }
+    };
+
+    const loadTemplateInheritance = async () => {
+        try {
+            const response = await axios.get<IgsnTemplateOptions>(`/resources/${resource.id}/landing-page/template-options`);
+            setTemplateInheritance(response.data);
+        } catch (error) {
+            setTemplateInheritance(null);
+            console.error('Failed to load IGSN template inheritance context:', error);
         }
     };
 
@@ -266,14 +294,17 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
         if (!currentConfig) return false;
         const currentTemplate = getPreferredIgsnTemplate(currentConfig.template);
         const currentLandingPageTemplateId = getHydratedLandingPageTemplateId(currentTemplate, currentConfig);
-        const baseChanges = template !== currentTemplate
-            || isPublished !== (currentConfig.status === 'published')
-            || landingPageTemplateId !== currentLandingPageTemplateId;
+        const baseChanges =
+            template !== currentTemplate ||
+            isPublished !== (currentConfig.status === 'published') ||
+            landingPageTemplateId !== currentLandingPageTemplateId;
 
         if (isExternal) {
-            return baseChanges
-                || externalDomainId !== String(currentConfig.external_domain_id ?? '')
-                || externalPath !== (currentConfig.external_path ?? '');
+            return (
+                baseChanges ||
+                externalDomainId !== String(currentConfig.external_domain_id ?? '') ||
+                externalPath !== (currentConfig.external_path ?? '')
+            );
         }
 
         return baseChanges;
@@ -362,15 +393,16 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
 
     // Get IGSN-specific template options
     const templateOptions = getIgsnTemplateOptions();
+    const automaticTemplateDescription =
+        templateInheritance?.automatic_source === 'datacenter'
+            ? `Datacenter template: ${templateInheritance.automatic_template.name}`
+            : `System default: ${templateInheritance?.system_default?.name ?? 'Default GFZ IGSN'}`;
 
     const displayTitle = resource.title ?? `IGSN #${resource.id}`;
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent
-                data-testid="setup-igsn-lp-modal-content"
-                className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0"
-            >
+            <DialogContent data-testid="setup-igsn-lp-modal-content" className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0">
                 <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
                     <DialogTitle className="flex items-center gap-2">
                         <FlaskConical className="size-5" />
@@ -388,7 +420,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                                     <span
                                         data-testid="setup-igsn-lp-modal-resource-title"
                                         tabIndex={0}
-                                        className="mt-1 block line-clamp-2 wrap-break-word rounded-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                        className="mt-1 line-clamp-2 block rounded-sm font-medium wrap-break-word text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                                     >
                                         {displayTitle}
                                     </span>
@@ -396,7 +428,7 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                                 <TooltipContent
                                     data-testid="setup-igsn-lp-modal-resource-title-tooltip"
                                     side="bottom"
-                                    className="max-w-[min(32rem,calc(100vw-2rem))] wrap-break-word whitespace-normal text-left"
+                                    className="max-w-[min(32rem,calc(100vw-2rem))] text-left wrap-break-word whitespace-normal"
                                 >
                                     {displayTitle}
                                 </TooltipContent>
@@ -408,161 +440,160 @@ export default function SetupIgsnLandingPageModal({ resource, isOpen, onClose, o
                 {isLoading ? (
                     <div
                         data-testid="setup-igsn-lp-modal-scroll-area"
-                        className="flex-1 min-h-0 overflow-y-auto px-6 py-8 text-center text-muted-foreground"
+                        className="min-h-0 flex-1 overflow-y-auto px-6 py-8 text-center text-muted-foreground"
                     >
                         Loading configuration...
                     </div>
                 ) : (
-                    <div data-testid="setup-igsn-lp-modal-scroll-area" className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+                    <div data-testid="setup-igsn-lp-modal-scroll-area" className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
                         <div className="space-y-6">
-                        {/* Template Selection */}
-                        <div className="space-y-2">
-                            <Label htmlFor="template">Landing Page Template</Label>
-                            <Select
-                                value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
-                                onValueChange={(value) => {
-                                    if (value.startsWith('custom:')) {
-                                        const id = Number.parseInt(value.replace('custom:', ''), 10);
+                            {/* Template Selection */}
+                            <div className="space-y-2">
+                                <Label htmlFor="template">Landing Page Template</Label>
+                                <Select
+                                    value={landingPageTemplateId ? `custom:${landingPageTemplateId}` : template}
+                                    onValueChange={(value) => {
+                                        if (value.startsWith('custom:')) {
+                                            const id = Number.parseInt(value.replace('custom:', ''), 10);
 
-                                        if (!Number.isNaN(id)) {
-                                            setTemplate(getDefaultIgsnTemplate());
-                                            setLandingPageTemplateId(id);
+                                            if (!Number.isNaN(id)) {
+                                                setTemplate(getDefaultIgsnTemplate());
+                                                setLandingPageTemplateId(id);
+                                            }
+
+                                            return;
                                         }
 
-                                        return;
-                                    }
+                                        setTemplate(value);
+                                        setLandingPageTemplateId(null);
+                                    }}
+                                >
+                                    <SelectTrigger id="template">
+                                        <SelectValue placeholder="Select a template" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Built-in Templates</SelectLabel>
+                                            {templateOptions.map((tmpl) => (
+                                                <SelectItem key={tmpl.value} value={tmpl.value}>
+                                                    <div className="flex flex-col">
+                                                        <span>{tmpl.label}</span>
+                                                        <span className="text-xs text-muted-foreground">{tmpl.description}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
 
-                                    setTemplate(value);
-                                    setLandingPageTemplateId(null);
-                                }}
-                            >
-                                <SelectTrigger id="template">
-                                    <SelectValue placeholder="Select a template" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Built-in Templates</SelectLabel>
-                                        {templateOptions.map((tmpl) => (
-                                            <SelectItem key={tmpl.value} value={tmpl.value}>
-                                                <div className="flex flex-col">
-                                                    <span>{tmpl.label}</span>
-                                                    <span className="text-xs text-muted-foreground">{tmpl.description}</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-
-                                    {eligibleCustomTemplates.length > 0 && (
-                                        <>
-                                            <SelectSeparator />
-                                            <SelectGroup>
-                                                <SelectLabel>Custom Templates</SelectLabel>
-                                                {eligibleCustomTemplates.map((customTemplate) => (
-                                                    <SelectItem key={customTemplate.id} value={`custom:${customTemplate.id}`}>
-                                                        <div className="flex flex-col">
-                                                            <span>{customTemplate.name}</span>
-                                                            <span className="text-xs text-muted-foreground">Custom IGSN template</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectGroup>
-                                        </>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-sm text-muted-foreground">Choose the design template for your IGSN landing page</p>
-                        </div>
-
-                        {isExternal && (
-                            <ExternalLandingPageFields
-                                availableDomains={availableDomains}
-                                externalDomainId={externalDomainId}
-                                onExternalDomainIdChange={setExternalDomainId}
-                                externalPath={externalPath}
-                                onExternalPathChange={setExternalPath}
-                                computedExternalUrl={computedExternalUrl}
-                                pathExample="/sample/12345"
-                            />
-                        )}
-
-                        {/* No FTP URL field for IGSN landing pages */}
-
-                        {/* Unsaved Changes Warning */}
-                        {hasUnsavedChanges && (
-                            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
-                                You have unsaved changes. Preview will show the new configuration.
-                            </div>
-                        )}
-
-                        {/* Status Toggle */}
-                        <div className="flex items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="published" className="text-base">
-                                    Publish Landing Page
-                                </Label>
+                                        {eligibleCustomTemplates.length > 0 && (
+                                            <>
+                                                <SelectSeparator />
+                                                <SelectGroup>
+                                                    <SelectLabel>Custom Templates</SelectLabel>
+                                                    {eligibleCustomTemplates.map((customTemplate) => (
+                                                        <SelectItem key={customTemplate.id} value={`custom:${customTemplate.id}`}>
+                                                            <div className="flex flex-col">
+                                                                <span>{customTemplate.name}</span>
+                                                                <span className="text-xs text-muted-foreground">Custom IGSN template</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            </>
+                                        )}
+                                    </SelectContent>
+                                </Select>
                                 <p className="text-sm text-muted-foreground">
-                                    {currentConfig?.status === 'published'
-                                        ? 'This landing page is published. DOIs are persistent and must always resolve to a valid landing page.'
-                                        : 'Make this landing page publicly accessible'}
+                                    Choose the design template for your IGSN landing page. Automatic layout: {automaticTemplateDescription}.
                                 </p>
                             </div>
-                            <Switch
-                                id="published"
-                                checked={isPublished}
-                                onCheckedChange={setIsPublished}
-                                disabled={currentConfig?.status === 'published'}
-                            />
-                        </div>
 
-                        {/* Preview URL (if draft exists) */}
-                        {currentConfig && currentConfig.status === 'draft' && previewUrl && (
-                            <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
-                                <Label className="text-blue-900 dark:text-blue-100">Preview URL (Draft Mode)</Label>
-                                <div className="flex gap-2">
-                                    <Input readOnly value={previewUrl} className="bg-white font-mono text-xs dark:bg-gray-950" />
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => copyToClipboard(previewUrl, 'Preview URL')}
-                                        title="Copy preview URL"
-                                    >
-                                        <Copy className="size-4" />
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-blue-700 dark:text-blue-300">
-                                    Share this URL with authors for review (requires preview token)
-                                </p>
-                            </div>
-                        )}
+                            {isExternal && (
+                                <ExternalLandingPageFields
+                                    availableDomains={availableDomains}
+                                    externalDomainId={externalDomainId}
+                                    onExternalDomainIdChange={setExternalDomainId}
+                                    externalPath={externalPath}
+                                    onExternalPathChange={setExternalPath}
+                                    computedExternalUrl={computedExternalUrl}
+                                    pathExample="/sample/12345"
+                                />
+                            )}
 
-                        {/* Public URL (only if actually published in database) */}
-                        {currentConfig && currentConfig.status === 'published' && currentConfig.public_url && (
-                            <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
-                                <Label className="text-green-900 dark:text-green-100">Public URL</Label>
-                                <div className="flex gap-2">
-                                    <Input readOnly value={currentConfig.public_url} className="bg-white font-mono text-xs dark:bg-gray-950" />
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => copyToClipboard(currentConfig.public_url, 'Public URL')}
-                                        title="Copy public URL"
-                                    >
-                                        <Copy className="size-4" />
-                                    </Button>
+                            {/* No FTP URL field for IGSN landing pages */}
+
+                            {/* Unsaved Changes Warning */}
+                            {hasUnsavedChanges && (
+                                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
+                                    You have unsaved changes. Preview will show the new configuration.
                                 </div>
-                                <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
+                            )}
+
+                            {/* Status Toggle */}
+                            <div className="flex items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="published" className="text-base">
+                                        Publish Landing Page
+                                    </Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        {currentConfig?.status === 'published'
+                                            ? 'This landing page is published. DOIs are persistent and must always resolve to a valid landing page.'
+                                            : 'Make this landing page publicly accessible'}
+                                    </p>
+                                </div>
+                                <Switch
+                                    id="published"
+                                    checked={isPublished}
+                                    onCheckedChange={setIsPublished}
+                                    disabled={currentConfig?.status === 'published'}
+                                />
                             </div>
-                        )}
+
+                            {/* Preview URL (if draft exists) */}
+                            {currentConfig && currentConfig.status === 'draft' && previewUrl && (
+                                <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+                                    <Label className="text-blue-900 dark:text-blue-100">Preview URL (Draft Mode)</Label>
+                                    <div className="flex gap-2">
+                                        <Input readOnly value={previewUrl} className="bg-white font-mono text-xs dark:bg-gray-950" />
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={() => copyToClipboard(previewUrl, 'Preview URL')}
+                                            title="Copy preview URL"
+                                        >
+                                            <Copy className="size-4" />
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                                        Share this URL with authors for review (requires preview token)
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Public URL (only if actually published in database) */}
+                            {currentConfig && currentConfig.status === 'published' && currentConfig.public_url && (
+                                <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
+                                    <Label className="text-green-900 dark:text-green-100">Public URL</Label>
+                                    <div className="flex gap-2">
+                                        <Input readOnly value={currentConfig.public_url} className="bg-white font-mono text-xs dark:bg-gray-950" />
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={() => copyToClipboard(currentConfig.public_url, 'Public URL')}
+                                            title="Copy public URL"
+                                        >
+                                            <Copy className="size-4" />
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-green-700 dark:text-green-300">This landing page is publicly accessible</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
-                <DialogFooter
-                    data-testid="setup-igsn-lp-modal-footer"
-                    className="shrink-0 flex-wrap gap-2 border-t px-6 py-4"
-                >
+                <DialogFooter data-testid="setup-igsn-lp-modal-footer" className="shrink-0 flex-wrap gap-2 border-t px-6 py-4">
                     {/* Only show Remove Preview for draft landing pages */}
                     {canDeleteLandingPages && currentConfig && currentConfig.status === 'draft' && (
                         <Button type="button" variant="destructive" onClick={handleRemovePreview} disabled={isSaving} className="mr-auto">

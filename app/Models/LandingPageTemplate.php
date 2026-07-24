@@ -45,6 +45,7 @@ use Illuminate\Support\Str;
  * @property-read User|null $creator The user who created this template
  * @property-read Collection<int, LandingPage> $landingPages
  * @property-read Collection<int, Datacenter> $datacenters
+ * @property-read Collection<int, Datacenter> $igsnDatacenters
  */
 class LandingPageTemplate extends Model
 {
@@ -245,6 +246,16 @@ class LandingPageTemplate extends Model
     }
 
     /**
+     * Get the datacenters that inherit this IGSN template.
+     *
+     * @return HasMany<Datacenter, $this>
+     */
+    public function igsnDatacenters(): HasMany
+    {
+        return $this->hasMany(Datacenter::class, 'igsn_landing_page_template_id');
+    }
+
+    /**
      * Check if this is the immutable default template.
      */
     public function isDefault(): bool
@@ -257,7 +268,9 @@ class LandingPageTemplate extends Model
      */
     public function isInUse(): bool
     {
-        return $this->landingPages()->exists() || $this->datacenters()->exists();
+        return $this->landingPages()->exists()
+            || $this->datacenters()->exists()
+            || $this->igsnDatacenters()->exists();
     }
 
     /**
@@ -273,7 +286,9 @@ class LandingPageTemplate extends Model
      */
     public function getDatacenterUsageCount(): int
     {
-        return $this->datacenters()->count();
+        return $this->template_type === self::TEMPLATE_TYPE_IGSN
+            ? $this->igsnDatacenters()->count()
+            : $this->datacenters()->count();
     }
 
     /**

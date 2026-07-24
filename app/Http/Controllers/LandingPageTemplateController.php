@@ -39,21 +39,27 @@ class LandingPageTemplateController extends Controller
             ->with([
                 'creator:id,name',
                 'datacenters:id,name,landing_page_template_id',
+                'igsnDatacenters:id,name,igsn_landing_page_template_id',
             ])
-            ->withCount(['landingPages', 'datacenters'])
+            ->withCount(['landingPages', 'datacenters', 'igsnDatacenters'])
             ->get();
 
         return Inertia::render('landing-page-templates', [
             'templates' => $this->serializeTemplates($templates),
             'datacenters' => Datacenter::query()
                 ->orderBy('name')
-                ->with('landingPageTemplate:id,name')
-                ->get(['id', 'name', 'landing_page_template_id'])
+                ->with([
+                    'landingPageTemplate:id,name',
+                    'igsnLandingPageTemplate:id,name',
+                ])
+                ->get(['id', 'name', 'landing_page_template_id', 'igsn_landing_page_template_id'])
                 ->map(fn (Datacenter $datacenter): array => [
                     'id' => $datacenter->id,
                     'name' => $datacenter->name,
                     'landing_page_template_id' => $datacenter->landing_page_template_id,
                     'landing_page_template_name' => $datacenter->landingPageTemplate?->name,
+                    'igsn_landing_page_template_id' => $datacenter->igsn_landing_page_template_id,
+                    'igsn_landing_page_template_name' => $datacenter->igsnLandingPageTemplate?->name,
                 ]),
         ]);
     }
@@ -304,7 +310,10 @@ class LandingPageTemplateController extends Controller
 
         $templates = LandingPageTemplate::query()
             ->orderedForDisplay()
-            ->with('datacenters:id,name,landing_page_template_id')
+            ->with([
+                'datacenters:id,name,landing_page_template_id',
+                'igsnDatacenters:id,name,igsn_landing_page_template_id',
+            ])
             ->get([
                 'id',
                 'name',
@@ -332,15 +341,21 @@ class LandingPageTemplateController extends Controller
         $this->authorize('view', $resource);
 
         LandingPageTemplate::ensureSystemTemplatesExist();
-        $resource->loadMissing(['resourceType:id,slug', 'datacenter.landingPageTemplate']);
+        $resource->loadMissing([
+            'resourceType:id,slug',
+            'datacenter.landingPageTemplate',
+            'datacenter.igsnLandingPageTemplate',
+        ]);
         $expectedType = LandingPageTemplate::expectedTemplateTypeForResource($resource->resourceType?->slug);
-        $supportsDatacenterInheritance = $expectedType === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE;
+        $supportsDatacenterInheritance = true;
         $automatic = $resolver->automatic($resource);
         $systemDefault = LandingPageTemplate::defaultForType($expectedType);
-        $datacenterTemplate = $supportsDatacenterInheritance
-            && $resource->datacenter?->landingPageTemplate?->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE
-                ? $resource->datacenter->landingPageTemplate
-                : null;
+        $candidateDatacenterTemplate = $expectedType === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+            ? $resource->datacenter?->igsnLandingPageTemplate
+            : $resource->datacenter?->landingPageTemplate;
+        $datacenterTemplate = $candidateDatacenterTemplate?->template_type === $expectedType
+            ? $candidateDatacenterTemplate
+            : null;
 
         $templates = LandingPageTemplate::query()
             ->where('template_type', $expectedType)
@@ -388,14 +403,17 @@ class LandingPageTemplateController extends Controller
     private function serializeTemplate(LandingPageTemplate $template): array
     {
         $payload = $template->toArray();
-        $payload['datacenters'] = $template->relationLoaded('datacenters')
-            ? $template->datacenters->map(fn (Datacenter $datacenter): array => [
+        $relation = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+            ? 'igsnDatacenters'
+            : 'datacenters';
+        $payload['datacenters'] = $template->relationLoaded($relation)
+            ? $template->{$relation}->map(fn (Datacenter $datacenter): array => [
                 'id' => $datacenter->id,
                 'name' => $datacenter->name,
             ])->values()->all()
             : [];
-        $payload['datacenters_count'] = $template->getAttribute('datacenters_count')
-            ?? count($payload['datacenters']);
+        unset($payload['igsn_datacenters']);
+        $payload['datacenters_count'] = count($payload['datacenters']);
         $payload['left_column_order'] = LandingPageTemplate::normalizeLeftColumnOrder(
             $template->left_column_order,
             $template->template_type,
@@ -405,20 +423,19 @@ class LandingPageTemplateController extends Controller
     }
 
     /**
-     * Assign any number of datacenters to a regular template.
+     * Assign any number of datacenters to a template within its resource scope.
      *
      * Assigning a datacenter already used by another template moves it. The
-     * canonical GFZ assignment is always retained on the resource default.
+     * canonical GFZ assignment is always retained on each system default.
      *
      * @param  list<int>  $datacenterIds
      */
     private function syncDatacenters(LandingPageTemplate $template, array $datacenterIds): void
     {
-        if ($template->template_type !== LandingPageTemplate::TEMPLATE_TYPE_RESOURCE) {
-            return;
-        }
-
         $selectedIds = array_values(array_unique(array_map('intval', $datacenterIds)));
+        $foreignKey = $template->template_type === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+            ? 'igsn_landing_page_template_id'
+            : 'landing_page_template_id';
 
         if ($template->isDefault()) {
             $gfzId = Datacenter::query()->where('name', Datacenter::GFZ_NAME)->value('id');
@@ -428,7 +445,7 @@ class LandingPageTemplateController extends Controller
         }
 
         $currentIds = Datacenter::query()
-            ->where('landing_page_template_id', $template->id)
+            ->where($foreignKey, $template->id)
             ->pluck('id')
             ->map(fn (mixed $id): int => (int) $id)
             ->all();
@@ -439,12 +456,12 @@ class LandingPageTemplateController extends Controller
         }
 
         Datacenter::query()
-            ->where('landing_page_template_id', $template->id)
+            ->where($foreignKey, $template->id)
             ->when($selectedIds !== [], fn ($query) => $query->whereNotIn('id', $selectedIds))
-            ->update(['landing_page_template_id' => null]);
+            ->update([$foreignKey => null]);
 
         if ($selectedIds !== []) {
-            Datacenter::query()->whereKey($selectedIds)->update(['landing_page_template_id' => $template->id]);
+            Datacenter::query()->whereKey($selectedIds)->update([$foreignKey => $template->id]);
         }
 
         DB::afterCommit(
@@ -454,7 +471,13 @@ class LandingPageTemplateController extends Controller
 
     private function loadTemplateUsage(LandingPageTemplate $template): void
     {
-        $template->load(['datacenters:id,name,landing_page_template_id'])
-            ->loadCount(['landingPages', 'datacenters']);
+        $template->load([
+            'datacenters:id,name,landing_page_template_id',
+            'igsnDatacenters:id,name,igsn_landing_page_template_id',
+        ])->loadCount([
+            'landingPages',
+            'datacenters',
+            'igsnDatacenters',
+        ]);
     }
 }

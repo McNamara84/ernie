@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StartDatacenterIgsnImportRequest;
 use App\Http\Requests\StartSingleIgsnImportRequest;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\IgsnImportService;
+use App\Services\LegacyIgsnPortalService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +49,76 @@ class IgsnImportController extends Controller
         return response()->json([
             'import_id' => $importId,
             'message' => 'IGSN import started successfully',
+        ]);
+    }
+
+    /**
+     * List the legacy datacenters available for grouped IGSN imports.
+     */
+    public function datacenters(LegacyIgsnPortalService $portalService): JsonResponse
+    {
+        $this->authorize('importFromDataCite', Resource::class);
+
+        try {
+            $datacenters = $portalService->listDatacenters();
+        } catch (\RuntimeException $exception) {
+            Log::warning('Unable to load legacy IGSN datacenters', [
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'The legacy IGSN portal is currently unavailable. Please try again later.',
+            ], 503);
+        }
+
+        return response()->json(['datacenters' => $datacenters]);
+    }
+
+    /**
+     * Start an import limited to one legacy IGSN datacenter.
+     */
+    public function startDatacenter(
+        StartDatacenterIgsnImportRequest $request,
+        LegacyIgsnPortalService $portalService,
+    ): JsonResponse {
+        $this->authorize('importFromDataCite', Resource::class);
+
+        $legacyDatacenterId = $request->getDatacenterId();
+
+        try {
+            $datacenter = $portalService->findDatacenter($legacyDatacenterId);
+        } catch (\RuntimeException $exception) {
+            Log::warning('Unable to verify legacy IGSN datacenter', [
+                'legacy_datacenter_id' => $legacyDatacenterId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'The legacy IGSN portal is currently unavailable. Please try again later.',
+            ], 503);
+        }
+
+        if ($datacenter === null) {
+            throw ValidationException::withMessages([
+                'datacenter_id' => ['The selected legacy IGSN datacenter is no longer available.'],
+            ]);
+        }
+
+        $importId = Str::uuid()->toString();
+        /** @var User $user */
+        $user = $request->user();
+
+        $this->initializeProgress(
+            importId: $importId,
+            total: $datacenter['resource_count'],
+            datacenter: $datacenter,
+        );
+
+        ImportIgsnsFromDataCiteJob::dispatch($user->id, $importId, null, $legacyDatacenterId);
+
+        return response()->json([
+            'import_id' => $importId,
+            'message' => 'Datacenter IGSN import started successfully',
         ]);
     }
 
@@ -143,8 +215,12 @@ class IgsnImportController extends Controller
         return response()->json(['message' => 'Import cancelled']);
     }
 
-    private function initializeProgress(string $importId, int $total, ?string $requestedIgsn = null): void
-    {
+    /**
+     * @param  array{id: string, name: string, legacy_name: string, resource_count: int}|null  $datacenter
+     */
+    private function initializeProgress(
+        string $importId, int $total, ?string $requestedIgsn = null, ?array $datacenter = null
+    ): void {
         Cache::put("igsn_import:{$importId}", [
             'status' => 'pending',
             'total' => $total,
@@ -157,6 +233,10 @@ class IgsnImportController extends Controller
             'failed_dois' => [],
             'requested_igsn' => $requestedIgsn,
             'discovered_children' => [],
+            'datacenter' => $datacenter,
+            'unassigned' => 0,
+            'unassigned_dois' => [],
+            'warnings' => [],
             'started_at' => now()->toIso8601String(),
             'completed_at' => null,
         ], now()->addHours(24));

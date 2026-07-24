@@ -44,14 +44,14 @@ class StoreLandingPageTemplateRequest extends FormRequest
                 return;
             }
 
-            if ($this->input('template_type', LandingPageTemplate::TEMPLATE_TYPE_RESOURCE) === LandingPageTemplate::TEMPLATE_TYPE_IGSN) {
-                $validator->errors()->add('datacenter_ids', 'IGSN templates cannot be assigned to datacenters.');
-
-                return;
-            }
-
             if (Datacenter::query()->whereKey($datacenterIds)->where('name', Datacenter::GFZ_NAME)->exists()) {
-                $validator->errors()->add('datacenter_ids', 'The canonical GFZ datacenter must remain assigned to the resource system default.');
+                $type = $this->input('template_type', LandingPageTemplate::TEMPLATE_TYPE_RESOURCE);
+                $scope = $type === LandingPageTemplate::TEMPLATE_TYPE_IGSN ? 'IGSN' : 'resource';
+
+                $validator->errors()->add(
+                    'datacenter_ids',
+                    "The canonical GFZ datacenter must remain assigned to the {$scope} system default.",
+                );
             }
         });
     }

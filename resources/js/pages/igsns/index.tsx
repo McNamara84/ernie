@@ -163,6 +163,7 @@ function IgsnsPage({
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [isDatacenterImportModalOpen, setIsDatacenterImportModalOpen] = useState(false);
     const [isSingleImportModalOpen, setIsSingleImportModalOpen] = useState(false);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedIgsnForLandingPage, setSelectedIgsnForLandingPage] = useState<Igsn | null>(null);
@@ -470,9 +471,7 @@ function IgsnsPage({
             router.reload();
         } catch (error) {
             const message =
-                isAxiosError(error) && error.response?.data?.message
-                    ? (error.response.data.message as string)
-                    : 'Batch registration failed.';
+                isAxiosError(error) && error.response?.data?.message ? (error.response.data.message as string) : 'Batch registration failed.';
             toast.error(message);
         } finally {
             setIsBulkRegistering(false);
@@ -526,9 +525,7 @@ function IgsnsPage({
                         <div className="flex items-center justify-between">
                             <div>
                                 <CardTitle>Physical Samples (IGSNs)</CardTitle>
-                                <CardDescription>
-                                    Manage physical sample metadata with International Generic Sample Numbers.
-                                </CardDescription>
+                                <CardDescription>Manage physical sample metadata with International Generic Sample Numbers.</CardDescription>
                             </div>
                             {canImport && (
                                 <div className="flex flex-wrap items-center gap-2">
@@ -539,6 +536,10 @@ function IgsnsPage({
                                     <Button variant="outline" onClick={() => setIsSingleImportModalOpen(true)}>
                                         <Download className="mr-2 h-4 w-4" />
                                         Import single IGSN
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setIsDatacenterImportModalOpen(true)}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Import by datacenter
                                     </Button>
                                 </div>
                             )}
@@ -573,197 +574,194 @@ function IgsnsPage({
                             ) : (
                                 <Table containerClassName="max-h-[calc(100vh-350px)] rounded-md border">
                                     <TableHeader className="sticky top-0 z-10 bg-background">
-                                            <TableRow>
-                                                <TableHead className="w-12">
+                                        <TableRow>
+                                            <TableHead className="w-12">
+                                                <Checkbox
+                                                    checked={allSelected}
+                                                    indeterminate={someSelected}
+                                                    onCheckedChange={handleSelectAll}
+                                                    aria-label="Select all"
+                                                />
+                                            </TableHead>
+                                            <TableHead className="w-32">Actions</TableHead>
+                                            <SortableTableHeader<SortKey>
+                                                label="IGSN"
+                                                sortKey="igsn"
+                                                sortState={sortState}
+                                                onSort={handleSortChange}
+                                                className="w-48"
+                                            />
+                                            <SortableTableHeader<SortKey>
+                                                label="Title"
+                                                sortKey="title"
+                                                sortState={sortState}
+                                                onSort={handleSortChange}
+                                                className="min-w-[250px]"
+                                            />
+                                            <SortableTableHeader<SortKey>
+                                                label="Sample Type"
+                                                sortKey="sample_type"
+                                                sortState={sortState}
+                                                onSort={handleSortChange}
+                                                className="w-36"
+                                            />
+                                            <SortableTableHeader<SortKey>
+                                                label="Material"
+                                                sortKey="material"
+                                                sortState={sortState}
+                                                onSort={handleSortChange}
+                                                className="w-36"
+                                            />
+                                            <SortableTableHeader<SortKey>
+                                                label="Collection Date"
+                                                sortKey="collection_date"
+                                                sortState={sortState}
+                                                onSort={handleSortChange}
+                                                className="w-40"
+                                                defaultDirection="desc"
+                                            />
+                                            <SortableTableHeader<SortKey>
+                                                label="Status"
+                                                sortKey="upload_status"
+                                                sortState={sortState}
+                                                onSort={handleSortChange}
+                                                className="w-28"
+                                            />
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {igsns.map((igsn) => (
+                                            <TableRow
+                                                key={igsn.id}
+                                                className={igsn.parent_resource_id ? 'bg-muted/30' : ''}
+                                                data-state={selectedIds.has(igsn.id) ? 'selected' : undefined}
+                                            >
+                                                <TableCell>
                                                     <Checkbox
-                                                        checked={allSelected}
-                                                        indeterminate={someSelected}
-                                                        onCheckedChange={handleSelectAll}
-                                                        aria-label="Select all"
+                                                        checked={selectedIds.has(igsn.id)}
+                                                        onCheckedChange={(checked) => handleSelectOne(igsn.id, checked === true)}
+                                                        aria-label={`Select ${igsn.igsn || igsn.title}`}
                                                     />
-                                                </TableHead>
-                                                <TableHead className="w-32">Actions</TableHead>
-                                                <SortableTableHeader<SortKey>
-                                                    label="IGSN"
-                                                    sortKey="igsn"
-                                                    sortState={sortState}
-                                                    onSort={handleSortChange}
-                                                    className="w-48"
-                                                />
-                                                <SortableTableHeader<SortKey>
-                                                    label="Title"
-                                                    sortKey="title"
-                                                    sortState={sortState}
-                                                    onSort={handleSortChange}
-                                                    className="min-w-[250px]"
-                                                />
-                                                <SortableTableHeader<SortKey>
-                                                    label="Sample Type"
-                                                    sortKey="sample_type"
-                                                    sortState={sortState}
-                                                    onSort={handleSortChange}
-                                                    className="w-36"
-                                                />
-                                                <SortableTableHeader<SortKey>
-                                                    label="Material"
-                                                    sortKey="material"
-                                                    sortState={sortState}
-                                                    onSort={handleSortChange}
-                                                    className="w-36"
-                                                />
-                                                <SortableTableHeader<SortKey>
-                                                    label="Collection Date"
-                                                    sortKey="collection_date"
-                                                    sortState={sortState}
-                                                    onSort={handleSortChange}
-                                                    className="w-40"
-                                                    defaultDirection="desc"
-                                                />
-                                                <SortableTableHeader<SortKey>
-                                                    label="Status"
-                                                    sortKey="upload_status"
-                                                    sortState={sortState}
-                                                    onSort={handleSortChange}
-                                                    className="w-28"
-                                                />
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {igsns.map((igsn) => (
-                                                <TableRow
-                                                    key={igsn.id}
-                                                    className={igsn.parent_resource_id ? 'bg-muted/30' : ''}
-                                                    data-state={selectedIds.has(igsn.id) ? 'selected' : undefined}
-                                                >
-                                                    <TableCell>
-                                                        <Checkbox
-                                                            checked={selectedIds.has(igsn.id)}
-                                                            onCheckedChange={(checked) => handleSelectOne(igsn.id, checked === true)}
-                                                            aria-label={`Select ${igsn.igsn || igsn.title}`}
-                                                        />
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-0.5">
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        onClick={() => handleExportJson(igsn)}
-                                                                        disabled={exportingIgsns.has(igsn.id)}
-                                                                        aria-label="Export as DataCite JSON"
-                                                                    >
-                                                                        <FileJson className="size-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>Export as DataCite JSON</TooltipContent>
-                                                            </Tooltip>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        onClick={() => handleExportJsonLd(igsn)}
-                                                                        disabled={exportingJsonLdIgsns.has(igsn.id)}
-                                                                        aria-label="Export as JSON-LD"
-                                                                    >
-                                                                        <Braces className="size-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>Export as JSON-LD (Linked Data)</TooltipContent>
-                                                            </Tooltip>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="size-8"
-                                                                        onClick={() => handleSetupLandingPage(igsn)}
-                                                                        aria-label="Setup Landing Page"
-                                                                    >
-                                                                        <Globe className="size-4" />
-                                                                    </Button>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>Setup Landing Page</TooltipContent>
-                                                            </Tooltip>
-                                                            {canRegister && (
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <span tabIndex={0} className="inline-flex">
-                                                                            <Button
-                                                                                variant="ghost"
-                                                                                size="icon"
-                                                                                className="size-8"
-                                                                                onClick={() => handleRegister(igsn)}
-                                                                                disabled={
-                                                                                    !igsn.has_landing_page ||
-                                                                                    registeringIgsns.has(igsn.id)
-                                                                                }
-                                                                                aria-label={
-                                                                                    igsn.upload_status === 'registered'
-                                                                                        ? 'Update Metadata at DataCite'
-                                                                                        : 'Register at DataCite'
-                                                                                }
-                                                                            >
-                                                                                {registeringIgsns.has(igsn.id) ? (
-                                                                                    <Spinner size="sm" />
-                                                                                ) : igsn.upload_status === 'registered' ? (
-                                                                                    <RefreshCw className="size-4" />
-                                                                                ) : (
-                                                                                    <CloudUpload className="size-4" />
-                                                                                )}
-                                                                            </Button>
-                                                                        </span>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        {!igsn.has_landing_page
-                                                                            ? 'Set up a landing page first'
-                                                                            : igsn.upload_status === 'registered'
-                                                                              ? 'Update Metadata at DataCite'
-                                                                              : 'Register at DataCite'}
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="font-mono text-sm">
-                                                        {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}
-                                                        {igsn.igsn || '-'}
-                                                    </TableCell>
-                                                    <TableCell className="max-w-[350px] break-words whitespace-normal">{igsn.title}</TableCell>
-                                                    <TableCell>{igsn.sample_type || '-'}</TableCell>
-                                                    <TableCell>{igsn.material || '-'}</TableCell>
-                                                    <TableCell>
-                                                        {(() => {
-                                                            const { start, end } = formatDateRange(igsn.collection_date);
-                                                            return (
-                                                                <div className="text-sm">
-                                                                    <div>{start}</div>
-                                                                    {end && <div>{end}</div>}
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                    </TableCell>
-                                                    <TableCell>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-0.5">
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
-                                                                <span>
-                                                                    <IgsnStatusBadge status={igsn.upload_status} />
-                                                                </span>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() => handleExportJson(igsn)}
+                                                                    disabled={exportingIgsns.has(igsn.id)}
+                                                                    aria-label="Export as DataCite JSON"
+                                                                >
+                                                                    <FileJson className="size-4" />
+                                                                </Button>
                                                             </TooltipTrigger>
-                                                            {igsn.upload_error_message && (
-                                                                <TooltipContent className="max-w-xs">
-                                                                    <p className="text-destructive">{igsn.upload_error_message}</p>
-                                                                </TooltipContent>
-                                                            )}
+                                                            <TooltipContent>Export as DataCite JSON</TooltipContent>
                                                         </Tooltip>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() => handleExportJsonLd(igsn)}
+                                                                    disabled={exportingJsonLdIgsns.has(igsn.id)}
+                                                                    aria-label="Export as JSON-LD"
+                                                                >
+                                                                    <Braces className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>Export as JSON-LD (Linked Data)</TooltipContent>
+                                                        </Tooltip>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="size-8"
+                                                                    onClick={() => handleSetupLandingPage(igsn)}
+                                                                    aria-label="Setup Landing Page"
+                                                                >
+                                                                    <Globe className="size-4" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>Setup Landing Page</TooltipContent>
+                                                        </Tooltip>
+                                                        {canRegister && (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span tabIndex={0} className="inline-flex">
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="size-8"
+                                                                            onClick={() => handleRegister(igsn)}
+                                                                            disabled={!igsn.has_landing_page || registeringIgsns.has(igsn.id)}
+                                                                            aria-label={
+                                                                                igsn.upload_status === 'registered'
+                                                                                    ? 'Update Metadata at DataCite'
+                                                                                    : 'Register at DataCite'
+                                                                            }
+                                                                        >
+                                                                            {registeringIgsns.has(igsn.id) ? (
+                                                                                <Spinner size="sm" />
+                                                                            ) : igsn.upload_status === 'registered' ? (
+                                                                                <RefreshCw className="size-4" />
+                                                                            ) : (
+                                                                                <CloudUpload className="size-4" />
+                                                                            )}
+                                                                        </Button>
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    {!igsn.has_landing_page
+                                                                        ? 'Set up a landing page first'
+                                                                        : igsn.upload_status === 'registered'
+                                                                          ? 'Update Metadata at DataCite'
+                                                                          : 'Register at DataCite'}
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-mono text-sm">
+                                                    {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}
+                                                    {igsn.igsn || '-'}
+                                                </TableCell>
+                                                <TableCell className="max-w-[350px] break-words whitespace-normal">{igsn.title}</TableCell>
+                                                <TableCell>{igsn.sample_type || '-'}</TableCell>
+                                                <TableCell>{igsn.material || '-'}</TableCell>
+                                                <TableCell>
+                                                    {(() => {
+                                                        const { start, end } = formatDateRange(igsn.collection_date);
+                                                        return (
+                                                            <div className="text-sm">
+                                                                <div>{start}</div>
+                                                                {end && <div>{end}</div>}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span>
+                                                                <IgsnStatusBadge status={igsn.upload_status} />
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        {igsn.upload_error_message && (
+                                                            <TooltipContent className="max-w-xs">
+                                                                <p className="text-destructive">{igsn.upload_error_message}</p>
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
                             )}
 
                             {/* Pagination Info */}
@@ -841,15 +839,17 @@ function IgsnsPage({
                 />
             )}
 
-            <ImportIgsnsModal
-                isOpen={isImportModalOpen}
-                onClose={() => setIsImportModalOpen(false)}
-                onSuccess={() => router.reload()}
-            />
+            <ImportIgsnsModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={() => router.reload()} />
             <ImportSingleIgsnModal
                 isOpen={isSingleImportModalOpen}
                 igsnPrefix={igsnPrefix}
                 onClose={() => setIsSingleImportModalOpen(false)}
+                onSuccess={() => router.reload()}
+            />
+            <ImportIgsnsModal
+                mode="datacenter"
+                isOpen={isDatacenterImportModalOpen}
+                onClose={() => setIsDatacenterImportModalOpen(false)}
                 onSuccess={() => router.reload()}
             />
         </AppLayout>

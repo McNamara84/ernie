@@ -8,7 +8,16 @@ import { Copy, GripVertical, ImagePlus, LayoutTemplate, Pencil, Plus, Trash2, X 
 import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,11 +60,7 @@ function SortableSectionItem({ id, label }: { id: string; label: string }) {
     };
 
     return (
-        <div
-            ref={setNodeRef}
-            style={style}
-            className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm"
-        >
+        <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
             <Button
                 variant="ghost"
                 size="icon"
@@ -86,10 +91,7 @@ function SectionOrderEditor({
     onReorder: (items: string[]) => void;
     description?: string;
 }) {
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-    );
+    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
     const handleDragEnd = useCallback(
         (event: DragEndEvent) => {
@@ -126,12 +128,14 @@ function DatacenterAssignmentField({
     onChange,
     currentTemplateId,
     allowCanonicalGfz,
+    templateType,
 }: {
     options: LandingPageTemplateDatacenter[];
     selected: number[];
     onChange: (ids: number[]) => void;
     currentTemplateId: number | null;
     allowCanonicalGfz: boolean;
+    templateType: 'resource' | 'igsn';
 }) {
     const [search, setSearch] = useState('');
     const visibleOptions = useMemo(
@@ -147,7 +151,8 @@ function DatacenterAssignmentField({
         <div className="space-y-2">
             <Label htmlFor="datacenter-template-search">Assigned datacenters</Label>
             <p className="text-xs text-muted-foreground">
-                Saving moves selected datacenters from their current template. Resources without an explicit override inherit this assignment immediately.
+                Saving moves selected datacenters within this template type. Resources without an explicit override inherit this assignment
+                immediately.
             </p>
             <Input
                 id="datacenter-template-search"
@@ -159,10 +164,10 @@ function DatacenterAssignmentField({
                 {visibleOptions.map((option) => {
                     const isCanonicalGfz = option.name === 'GFZ German Research Centre for Geosciences';
                     const isProtected = isCanonicalGfz;
-                    const checkboxId = `datacenter-template-${option.id}`;
-                    const assignedElsewhere =
-                        option.landing_page_template_id !== null &&
-                        option.landing_page_template_id !== currentTemplateId;
+                    const checkboxId = `datacenter-template-${templateType}-${option.id}`;
+                    const assignedTemplateId = templateType === 'igsn' ? option.igsn_landing_page_template_id : option.landing_page_template_id;
+                    const assignedTemplateName = templateType === 'igsn' ? option.igsn_landing_page_template_name : option.landing_page_template_name;
+                    const assignedElsewhere = assignedTemplateId !== null && assignedTemplateId !== currentTemplateId;
 
                     return (
                         <div key={option.id} className="flex items-start gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/50">
@@ -178,12 +183,14 @@ function DatacenterAssignmentField({
                                     <span className="block">{option.name}</span>
                                     {isProtected && (
                                         <span className="block text-xs text-muted-foreground">
-                                            {allowCanonicalGfz ? 'Protected system-default assignment' : 'Reserved for the resource system default'}
+                                            {allowCanonicalGfz
+                                                ? 'Protected system-default assignment'
+                                                : `Reserved for the ${templateType === 'igsn' ? 'IGSN' : 'resource'} system default`}
                                         </span>
                                     )}
                                     {!isProtected && assignedElsewhere && (
                                         <span className="block text-xs text-amber-700 dark:text-amber-400">
-                                            Currently assigned to {option.landing_page_template_name}; saving will move it.
+                                            Currently assigned to {assignedTemplateName}; saving will move it.
                                         </span>
                                     )}
                                 </span>
@@ -244,7 +251,7 @@ export default function LandingPageTemplatesPage() {
             await axios.post('/landing-pages', {
                 name: cloneName.trim(),
                 template_type: cloneType,
-                datacenter_ids: cloneType === 'resource' ? cloneDatacenterIds : [],
+                datacenter_ids: cloneDatacenterIds,
             });
             toast.success('Template cloned successfully');
             setCloneOpen(false);
@@ -296,7 +303,7 @@ export default function LandingPageTemplatesPage() {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
-                      ...(editTemplate.template_type === 'resource' ? { datacenter_ids: editDatacenterIds } : {}),
+                      datacenter_ids: editDatacenterIds,
                   }
                 : {
                       name: editName.trim(),
@@ -305,7 +312,7 @@ export default function LandingPageTemplatesPage() {
                       creator_display_limit: Number.parseInt(editCreatorDisplayLimit, 10),
                       contributor_display_limit: Number.parseInt(editContributorDisplayLimit, 10),
                       citation_author_display_limit: Number.parseInt(editCitationAuthorDisplayLimit, 10),
-                      ...(editTemplate.template_type === 'resource' ? { datacenter_ids: editDatacenterIds } : {}),
+                      datacenter_ids: editDatacenterIds,
                   };
 
             await axios.put(`/landing-pages/${editTemplate.id}`, payload);
@@ -395,13 +402,7 @@ export default function LandingPageTemplatesPage() {
             <Head title="Landing Pages" />
 
             {/* Hidden file input for logo upload */}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={handleLogoFileChange}
-            />
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoFileChange} />
 
             <div className="mx-auto max-w-5xl space-y-6 p-6">
                 {/* Page Header */}
@@ -409,7 +410,8 @@ export default function LandingPageTemplatesPage() {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Landing Pages</h1>
                         <p className="text-muted-foreground">
-                            Manage custom templates for resource and IGSN landing pages. Clone a default template and customize section order and logo.
+                            Manage custom templates for resource and IGSN landing pages. Clone a default template and customize section order and
+                            logo.
                         </p>
                     </div>
                     <Button onClick={() => openClone('resource')}>
@@ -437,7 +439,9 @@ export default function LandingPageTemplatesPage() {
                                     </div>
                                     <div className="flex items-center gap-1">
                                         {tmpl.is_default && (
-                                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                                            <Badge variant="secondary" className="text-xs">
+                                                Default
+                                            </Badge>
                                         )}
                                         <Badge variant="outline" className="text-xs">
                                             {tmpl.template_type === 'igsn' ? 'IGSN' : 'Resource'}
@@ -447,7 +451,7 @@ export default function LandingPageTemplatesPage() {
                                                 {tmpl.landing_pages_count} {tmpl.landing_pages_count === 1 ? 'page' : 'pages'}
                                             </Badge>
                                         )}
-                                        {tmpl.template_type === 'resource' && (tmpl.datacenters_count ?? 0) > 0 && (
+                                        {(tmpl.datacenters_count ?? 0) > 0 && (
                                             <Badge variant="outline" className="text-xs">
                                                 {tmpl.datacenters_count} {tmpl.datacenters_count === 1 ? 'datacenter' : 'datacenters'}
                                             </Badge>
@@ -460,11 +464,7 @@ export default function LandingPageTemplatesPage() {
                                 {/* Logo Preview */}
                                 {tmpl.logo_url && (
                                     <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
-                                        <img
-                                            src={tmpl.logo_url}
-                                            alt={`${tmpl.name} logo`}
-                                            className="h-10 max-w-40 object-contain"
-                                        />
+                                        <img src={tmpl.logo_url} alt={`${tmpl.name} logo`} className="h-10 max-w-40 object-contain" />
                                         <span className="flex-1 truncate text-xs text-muted-foreground">{tmpl.logo_filename}</span>
                                         {!tmpl.is_default && (
                                             <Button
@@ -495,7 +495,7 @@ export default function LandingPageTemplatesPage() {
                                     </div>
                                 </div>
 
-                                {tmpl.template_type === 'resource' && (tmpl.datacenters?.length ?? 0) > 0 && (
+                                {(tmpl.datacenters?.length ?? 0) > 0 && (
                                     <div className="rounded-md border bg-muted/20 p-2 text-xs">
                                         <span className="font-medium text-foreground">Assigned datacenters:</span>
                                         <ul className="mt-1 list-inside list-disc text-muted-foreground">
@@ -557,7 +557,10 @@ export default function LandingPageTemplatesPage() {
                                             variant="ghost"
                                             size="sm"
                                             className="ml-auto text-destructive hover:text-destructive"
-                                            onClick={() => { setDeleteTemplate(tmpl); setDeleteOpen(true); }}
+                                            onClick={() => {
+                                                setDeleteTemplate(tmpl);
+                                                setDeleteOpen(true);
+                                            }}
                                         >
                                             <Trash2 className="mr-1.5 size-3.5" />
                                             Delete
@@ -586,7 +589,8 @@ export default function LandingPageTemplatesPage() {
                             Clone Default Template
                         </DialogTitle>
                         <DialogDescription>
-                            Create a new template based on the selected default template type (resource or IGSN). You can customize the section order and logo afterwards.
+                            Create a new template based on the selected default template type (resource or IGSN). You can customize the section order
+                            and logo afterwards.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -614,19 +618,20 @@ export default function LandingPageTemplatesPage() {
                                 autoFocus
                             />
                         </div>
-                        {cloneType === 'resource' && (
-                            <DatacenterAssignmentField
-                                options={datacenters}
-                                selected={cloneDatacenterIds}
-                                onChange={setCloneDatacenterIds}
-                                currentTemplateId={null}
-                                allowCanonicalGfz={false}
-                            />
-                        )}
+                        <DatacenterAssignmentField
+                            options={datacenters}
+                            selected={cloneDatacenterIds}
+                            onChange={setCloneDatacenterIds}
+                            currentTemplateId={null}
+                            allowCanonicalGfz={false}
+                            templateType={cloneType}
+                        />
                     </div>
 
                     <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setCloneOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setCloneOpen(false)}>
+                            Cancel
+                        </Button>
                         <LoadingButton loading={cloning} disabled={!cloneName.trim()} onClick={handleClone}>
                             Clone Template
                         </LoadingButton>
@@ -654,11 +659,7 @@ export default function LandingPageTemplatesPage() {
                             <>
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-name">Template Name</Label>
-                                    <Input
-                                        id="edit-name"
-                                        value={editName}
-                                        onChange={(e) => setEditName(e.target.value)}
-                                    />
+                                    <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
                                 </div>
 
                                 <Separator />
@@ -707,7 +708,7 @@ export default function LandingPageTemplatesPage() {
                             </div>
                         </div>
 
-                        {editTemplate?.template_type === 'resource' && (
+                        {editTemplate && (
                             <>
                                 <Separator />
                                 <DatacenterAssignmentField
@@ -716,6 +717,7 @@ export default function LandingPageTemplatesPage() {
                                     onChange={setEditDatacenterIds}
                                     currentTemplateId={editTemplate.id}
                                     allowCanonicalGfz={editTemplate.is_default}
+                                    templateType={editTemplate.template_type}
                                 />
                             </>
                         )}
@@ -749,8 +751,14 @@ export default function LandingPageTemplatesPage() {
                     </div>
 
                     <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                        <LoadingButton loading={saving} disabled={!areDisplayLimitsValid || (!editTemplate?.is_default && !editName.trim())} onClick={handleSave}>
+                        <Button variant="outline" onClick={() => setEditOpen(false)}>
+                            Cancel
+                        </Button>
+                        <LoadingButton
+                            loading={saving}
+                            disabled={!areDisplayLimitsValid || (!editTemplate?.is_default && !editName.trim())}
+                            onClick={handleSave}
+                        >
                             Save Changes
                         </LoadingButton>
                     </DialogFooter>

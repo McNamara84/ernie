@@ -72,6 +72,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | GFZ Legacy IGSN Portal
+    |--------------------------------------------------------------------------
+    |
+    | The retired IGSN catalogue exposes the authoritative datacentre_facet
+    | values used to categorize legacy physical samples.
+    |
+    */
+    'legacy_igsn_portal' => [
+        'proxy_url' => env(
+            'GFZ_IGSN_PORTAL_PROXY_URL',
+            'https://dataservices.gfz-potsdam.de/igsn/portal/proxy/proxy.php',
+        ),
+        'timeout_seconds' => (int) env('GFZ_IGSN_PORTAL_TIMEOUT', 30),
+        'retry_times' => (int) env('GFZ_IGSN_PORTAL_RETRY_TIMES', 3),
+        'retry_sleep_ms' => (int) env('GFZ_IGSN_PORTAL_RETRY_SLEEP_MS', 500),
+        'page_size' => (int) env('GFZ_IGSN_PORTAL_PAGE_SIZE', 500),
+        'datacenter_cache_ttl_seconds' => (int) env('GFZ_IGSN_PORTAL_CACHE_TTL', 600),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | DataCite Test API Configuration
     |--------------------------------------------------------------------------
     |

@@ -7,7 +7,9 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Combobox } from '@/components/ui/combobox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
@@ -22,6 +24,10 @@ interface ImportProgress {
     enriched: number;
     skipped_dois: string[];
     failed_dois: Array<{ doi: string; error: string }>;
+    unassigned?: number;
+    unassigned_dois?: string[];
+    warnings?: string[];
+    datacenter?: LegacyIgsnDatacenter | null;
     started_at?: string;
     completed_at?: string;
     error?: string;
@@ -31,11 +37,20 @@ interface ImportIgsnsModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
+    mode?: 'all' | 'datacenter';
+}
+
+interface LegacyIgsnDatacenter {
+    id: string;
+    name: string;
+    legacy_name: string;
+    resource_count: number;
 }
 
 type ModalState = 'confirm' | 'running' | 'completed' | 'cancelled' | 'failed';
 
-export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportIgsnsModalProps) {
+export default function ImportIgsnsModal({ isOpen, onClose, onSuccess, mode = 'all' }: ImportIgsnsModalProps) {
+    const isDatacenterMode = mode === 'datacenter';
     const [modalState, setModalState] = useState<ModalState>('confirm');
     const [importId, setImportId] = useState<string | null>(null);
     const [progress, setProgress] = useState<ImportProgress | null>(null);
@@ -44,6 +59,29 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
     const [error, setError] = useState<string | null>(null);
     const [showSkippedDois, setShowSkippedDois] = useState(false);
     const [showFailedDois, setShowFailedDois] = useState(false);
+    const [datacenters, setDatacenters] = useState<LegacyIgsnDatacenter[]>([]);
+    const [selectedDatacenterId, setSelectedDatacenterId] = useState('');
+    const [isLoadingDatacenters, setIsLoadingDatacenters] = useState(false);
+    const [datacenterLoadError, setDatacenterLoadError] = useState<string | null>(null);
+
+    const loadDatacenters = useCallback(async () => {
+        setIsLoadingDatacenters(true);
+        setDatacenterLoadError(null);
+
+        try {
+            const response = await axios.get<{ datacenters: LegacyIgsnDatacenter[] }>('/igsns/import/datacenters');
+            setDatacenters(response.data.datacenters);
+        } catch (requestError) {
+            const message =
+                isAxiosError(requestError) && typeof requestError.response?.data?.message === 'string'
+                    ? requestError.response.data.message
+                    : 'The legacy IGSN datacenter list could not be loaded. Please try again.';
+            setDatacenters([]);
+            setDatacenterLoadError(message);
+        } finally {
+            setIsLoadingDatacenters(false);
+        }
+    }, []);
 
     useEffect(() => {
         if (!isOpen) {
@@ -55,8 +93,18 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
             setError(null);
             setShowSkippedDois(false);
             setShowFailedDois(false);
+            setDatacenters([]);
+            setSelectedDatacenterId('');
+            setIsLoadingDatacenters(false);
+            setDatacenterLoadError(null);
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && isDatacenterMode && modalState === 'confirm') {
+            void loadDatacenters();
+        }
+    }, [isDatacenterMode, isOpen, loadDatacenters, modalState]);
 
     // Poll for progress updates
     useEffect(() => {
@@ -112,11 +160,19 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
     }, [importId, modalState]);
 
     const startImport = useCallback(async () => {
+        if (isDatacenterMode && selectedDatacenterId === '') {
+            setError('Select a datacenter before starting the import.');
+
+            return;
+        }
+
         setIsStarting(true);
         setError(null);
 
         try {
-            const response = await axios.post<{ import_id: string; message: string }>('/igsns/import/start', {}, { headers: buildCsrfHeaders() });
+            const endpoint = isDatacenterMode ? '/igsns/import/start-datacenter' : '/igsns/import/start';
+            const payload = isDatacenterMode ? { datacenter_id: selectedDatacenterId } : {};
+            const response = await axios.post<{ import_id: string; message: string }>(endpoint, payload, { headers: buildCsrfHeaders() });
 
             setImportId(response.data.import_id);
             setModalState('running');
@@ -130,10 +186,13 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                 enriched: 0,
                 skipped_dois: [],
                 failed_dois: [],
+                unassigned: 0,
+                unassigned_dois: [],
+                warnings: [],
             });
 
             toast.info('IGSN import started', {
-                description: 'Fetching IGSNs from DataCite...',
+                description: isDatacenterMode ? 'Fetching the selected datacenter IGSNs from DataCite...' : 'Fetching IGSNs from DataCite...',
             });
         } catch (err) {
             console.error('Failed to start IGSN import:', err);
@@ -158,7 +217,7 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
         } finally {
             setIsStarting(false);
         }
-    }, []);
+    }, [isDatacenterMode, selectedDatacenterId]);
 
     const handleClose = useCallback(() => {
         if (modalState === 'running') {
@@ -222,15 +281,23 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => { if (!open && modalState !== 'running') handleClose(); }}>
+        <Dialog
+            open={isOpen}
+            onOpenChange={(open) => {
+                if (!open && modalState !== 'running') handleClose();
+            }}
+        >
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Download className="size-5" />
-                        Import IGSNs from DataCite
+                        {isDatacenterMode ? 'Import IGSNs by datacenter' : 'Import IGSNs from DataCite'}
                     </DialogTitle>
                     <DialogDescription>
-                        {modalState === 'confirm' && 'Import all registered IGSNs from the DataCite production API and enrich them with legacy metadata.'}
+                        {modalState === 'confirm' &&
+                            (isDatacenterMode
+                                ? 'Import all IGSNs assigned to one datacenter in the legacy GFZ catalogue.'
+                                : 'Import all registered IGSNs from the DataCite production API and enrich them with legacy metadata.')}
                         {modalState === 'running' && 'Import is in progress...'}
                         {modalState === 'completed' && 'Import completed successfully.'}
                         {modalState === 'cancelled' && 'Import was cancelled.'}
@@ -247,14 +314,57 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                                 <AlertTitle>What will happen?</AlertTitle>
                                 <AlertDescription>
                                     <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
-                                        <li>All ~38,500 IGSNs registered at DataCite (prefix 10.60510) will be fetched</li>
+                                        <li>
+                                            {isDatacenterMode
+                                                ? 'Only IGSNs from the selected legacy datacenter will be imported'
+                                                : 'All ~38,500 IGSNs registered at DataCite (prefix 10.60510) will be fetched'}
+                                        </li>
                                         <li>IGSNs already in ERNIE will be skipped (not overwritten)</li>
-                                        <li>New IGSNs will be imported as Resources with IgsnMetadata</li>
+                                        <li>New IGSNs will be imported as Resources with IgsnMetadata and their matched datacenter</li>
                                         <li>Sample-specific metadata will be enriched from legacy sources (~94%)</li>
                                         <li>Parent-child relationships will be resolved automatically</li>
                                     </ul>
                                 </AlertDescription>
                             </Alert>
+
+                            {isDatacenterMode && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="legacy-igsn-datacenter">Datacenter</Label>
+                                    <Combobox
+                                        id="legacy-igsn-datacenter"
+                                        value={selectedDatacenterId || undefined}
+                                        onChange={(value) => setSelectedDatacenterId(value ?? '')}
+                                        options={datacenters.map((datacenter) => ({
+                                            value: datacenter.id,
+                                            label: `${datacenter.name} (${datacenter.resource_count.toLocaleString()})`,
+                                            keywords:
+                                                datacenter.legacy_name === datacenter.name ? undefined : [datacenter.legacy_name, datacenter.id],
+                                        }))}
+                                        placeholder={isLoadingDatacenters ? 'Loading datacenters...' : 'Select a datacenter'}
+                                        searchPlaceholder="Search datacenters..."
+                                        emptyMessage="No matching datacenter found."
+                                        disabled={isLoadingDatacenters || datacenters.length === 0}
+                                        clearable={false}
+                                    />
+
+                                    {!isLoadingDatacenters && !datacenterLoadError && datacenters.length === 0 && (
+                                        <p className="text-sm text-muted-foreground">No legacy IGSN datacenters are available.</p>
+                                    )}
+
+                                    {datacenterLoadError && (
+                                        <Alert variant="destructive">
+                                            <AlertCircle className="size-4" />
+                                            <AlertTitle>Datacenter list unavailable</AlertTitle>
+                                            <AlertDescription className="space-y-3">
+                                                <p>{datacenterLoadError}</p>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => void loadDatacenters()}>
+                                                    Try again
+                                                </Button>
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </div>
+                            )}
 
                             {error && (
                                 <Alert variant="destructive">
@@ -326,6 +436,14 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                                 </AlertDescription>
                             </Alert>
 
+                            {(progress.warnings ?? []).map((warning) => (
+                                <Alert key={warning} className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+                                    <AlertCircle className="size-4 text-yellow-600 dark:text-yellow-400" />
+                                    <AlertTitle>Datacenter assignment warning</AlertTitle>
+                                    <AlertDescription>{warning}</AlertDescription>
+                                </Alert>
+                            ))}
+
                             <div className="grid grid-cols-4 gap-3 text-center">
                                 <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950">
                                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">{progress.imported}</div>
@@ -378,7 +496,10 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                                     <CollapsibleContent>
                                         <div className="mt-2 max-h-40 overflow-y-auto rounded-md border border-red-200 bg-red-50/50 p-2 dark:border-red-800 dark:bg-red-950/50">
                                             {progress.failed_dois.map(({ doi, error }, index) => (
-                                                <div key={`${index}-${doi}`} className="border-b border-red-100 py-2 last:border-0 dark:border-red-900">
+                                                <div
+                                                    key={`${index}-${doi}`}
+                                                    className="border-b border-red-100 py-2 last:border-0 dark:border-red-900"
+                                                >
                                                     <div className="font-mono text-xs">{doi}</div>
                                                     <div className="text-xs text-red-600 dark:text-red-400">{error}</div>
                                                 </div>
@@ -439,7 +560,10 @@ export default function ImportIgsnsModal({ isOpen, onClose, onSuccess }: ImportI
                             <Button variant="outline" onClick={handleClose}>
                                 Cancel
                             </Button>
-                            <Button onClick={startImport} disabled={isStarting}>
+                            <Button
+                                onClick={startImport}
+                                disabled={isStarting || isLoadingDatacenters || (isDatacenterMode && selectedDatacenterId === '')}
+                            >
                                 {isStarting ? (
                                     <>
                                         <Spinner size="sm" className="mr-2" />

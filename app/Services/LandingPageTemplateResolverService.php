@@ -43,7 +43,11 @@ final class LandingPageTemplateResolverService
      */
     public function resolve(Resource $resource, LandingPageTemplate|int|null $explicitTemplate): array
     {
-        $resource->loadMissing(['resourceType:id,slug', 'datacenter.landingPageTemplate']);
+        $resource->loadMissing([
+            'resourceType:id,slug',
+            'datacenter.landingPageTemplate',
+            'datacenter.igsnLandingPageTemplate',
+        ]);
         $expectedType = LandingPageTemplate::expectedTemplateTypeForResource($resource->resourceType?->slug);
 
         $explicit = $this->findCompatible($explicitTemplate, $expectedType);
@@ -51,12 +55,12 @@ final class LandingPageTemplateResolverService
             return ['template' => $explicit, 'source' => self::SOURCE_EXPLICIT];
         }
 
-        if ($expectedType === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE) {
-            $inherited = $resource->datacenter?->landingPageTemplate;
-            if ($inherited !== null
-                && $inherited->template_type === LandingPageTemplate::TEMPLATE_TYPE_RESOURCE) {
-                return ['template' => $inherited, 'source' => self::SOURCE_DATACENTER];
-            }
+        $inherited = $expectedType === LandingPageTemplate::TEMPLATE_TYPE_IGSN
+            ? $resource->datacenter?->igsnLandingPageTemplate
+            : $resource->datacenter?->landingPageTemplate;
+
+        if ($inherited !== null && $inherited->template_type === $expectedType) {
+            return ['template' => $inherited, 'source' => self::SOURCE_DATACENTER];
         }
 
         $defaultTemplate = LandingPageTemplate::existingDefaultForType($expectedType)
