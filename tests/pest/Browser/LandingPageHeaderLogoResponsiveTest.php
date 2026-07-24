@@ -52,7 +52,17 @@ describe('Issue 1051 responsive landing page header logo', function (): void {
             ];
 
             foreach ($viewports as $viewport => [$width, $height]) {
-                $page->resize($width, $height)->wait(0.2);
+                $page->resize($width, $height);
+                $page->page()->waitForFunction(<<<'JS'
+                    () => {
+                        const logo = document.querySelector('header img[alt="GFZ Data Services"]');
+
+                        return logo instanceof HTMLImageElement
+                            && logo.complete
+                            && logo.naturalWidth > 0
+                            && logo.naturalHeight > 0;
+                    }
+                    JS);
 
                 $logoState = $page->script(<<<'JS'
                     () => {

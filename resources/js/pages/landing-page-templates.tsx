@@ -42,6 +42,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Landing Pages', href: '/landing
 const DISPLAY_LIMIT_MIN = 1;
 const DISPLAY_LIMIT_MAX = 500;
 const DISPLAY_LIMIT_DEFAULT = 50;
+const logoFileSizeFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
 interface LogoUploadConstraints {
     minWidth: number;
@@ -219,7 +220,7 @@ function DatacenterAssignmentField({
 
 export default function LandingPageTemplatesPage() {
     const { templates, datacenters, logoUploadConstraints } = usePage<PageProps>().props;
-    const maxLogoSizeMb = logoUploadConstraints.maxSizeKb / 1024;
+    const maxLogoSizeMb = logoFileSizeFormatter.format(logoUploadConstraints.maxSizeKb / 1024);
 
     // Clone dialog
     const [cloneOpen, setCloneOpen] = useState(false);
