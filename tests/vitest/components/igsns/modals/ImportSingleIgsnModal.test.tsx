@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import userEvent from '@testing-library/user-event';
-import { render, screen, waitFor } from '@tests/vitest/utils/render';
+import { act, render, screen, waitFor } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
@@ -43,6 +43,7 @@ describe('ImportSingleIgsnModal', () => {
     });
 
     afterEach(() => {
+        vi.clearAllTimers();
         vi.useRealTimers();
     });
 
@@ -259,7 +260,7 @@ describe('ImportSingleIgsnModal', () => {
             expect(screen.getByRole('button', { name: /cancel import/i })).toBeInTheDocument();
         });
 
-        expect(screen.getByText('Related IGSNs detected')).toBeInTheDocument();
+        expect(await screen.findByText('Related IGSNs detected')).toBeInTheDocument();
         expect(screen.getByText(/2 related IGSNs were discovered and added to this import/i)).toBeInTheDocument();
         expect(screen.queryByText(/Parent IGSN detected/i)).not.toBeInTheDocument();
 
@@ -286,12 +287,15 @@ describe('ImportSingleIgsnModal', () => {
         await user.click(screen.getByRole('button', { name: /start import/i }));
 
         await waitFor(() => {
+            expect(axios.post).toHaveBeenCalledOnce();
             expect(toast.error).toHaveBeenCalledWith('Session expired', {
                 description: 'Reloading page to refresh session...',
             });
         });
 
-        vi.advanceTimersByTime(1500);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1500);
+        });
 
         expect(router.reload).toHaveBeenCalledOnce();
     });
@@ -339,23 +343,21 @@ describe('ImportSingleIgsnModal', () => {
         (axios.post as Mock).mockResolvedValue({
             data: { import_id: 'single-igsn-import-123', message: 'Import started' },
         });
-        (axios.get as Mock)
-            .mockRejectedValueOnce(new Error('temporary network issue'))
-            .mockResolvedValueOnce({
-                data: {
-                    status: 'completed',
-                    total: 1,
-                    processed: 1,
-                    imported: 1,
-                    skipped: 0,
-                    failed: 0,
-                    enriched: 0,
-                    skipped_dois: [],
-                    failed_dois: [],
-                    requested_igsn: 'ICDP5052EUYY001',
-                    discovered_children: [],
-                },
-            });
+        (axios.get as Mock).mockRejectedValueOnce(new Error('temporary network issue')).mockResolvedValueOnce({
+            data: {
+                status: 'completed',
+                total: 1,
+                processed: 1,
+                imported: 1,
+                skipped: 0,
+                failed: 0,
+                enriched: 0,
+                skipped_dois: [],
+                failed_dois: [],
+                requested_igsn: 'ICDP5052EUYY001',
+                discovered_children: [],
+            },
+        });
 
         render(<ImportSingleIgsnModal isOpen={true} onClose={mockOnClose} onSuccess={mockOnSuccess} />);
 
