@@ -49,6 +49,8 @@ interface AccordionSectionHeaderProps {
     className?: string;
     /** ID for the label text (useful for aria-labelledby) */
     id?: string;
+    /** Semantic heading element for non-interactive section headers */
+    headingAs?: 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
     /** Test ID for Playwright/Vitest tests */
     'data-testid'?: string;
 }
@@ -94,19 +96,22 @@ export function AccordionSectionHeader({
     badge,
     className,
     id,
+    headingAs,
     'data-testid': dataTestId,
 }: AccordionSectionHeaderProps) {
+    const LabelElement = headingAs ?? 'span';
+
     return (
         <div className={cn('min-w-0 flex-1 space-y-1', className)} data-testid={dataTestId}>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span id={id} className="text-sm font-semibold">
+                <LabelElement id={id} className="text-sm font-semibold">
                     {label}
                     {required && (
                         <span className="ml-0.5 font-bold text-destructive" aria-label="Required">
                             *
                         </span>
                     )}
-                </span>
+                </LabelElement>
 
                 {counter && (
                     <span className="text-sm font-normal text-muted-foreground">

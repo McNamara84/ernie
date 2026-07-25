@@ -2992,15 +2992,16 @@ export default function DataCiteForm({
                 className="w-full border-b outline-none"
             >
                 <div className="flex items-start gap-1">
-                    <h3 data-slot="static-section-header" className="flex flex-1 items-start gap-4 rounded-md py-4 text-left text-sm font-medium">
+                    <div data-slot="static-section-header" className="flex flex-1 items-start gap-4 rounded-md py-4 text-left text-sm font-medium">
                         <AccordionSectionHeader
                             id="resource-info-heading"
+                            headingAs="h3"
                             label="Resource Information"
                             description="Basic metadata about your dataset including identifiers and type."
                             required
                             status={renderStatusBadge(resourceInfoStatus)}
                         />
-                    </h3>
+                    </div>
                     <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">
                         {renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
                     </div>

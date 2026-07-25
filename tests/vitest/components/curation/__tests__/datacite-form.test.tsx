@@ -562,7 +562,11 @@ describe('DataCiteForm', () => {
             const resourceSection = getResourceInfoSection();
 
             expect(screen.getAllByText('Resource Information')).toHaveLength(1);
-            expect(within(resourceSection).getByRole('heading', { level: 3, name: /Resource Information/i })).toBeInTheDocument();
+            const resourceInfoHeading = within(resourceSection).getByRole('heading', { level: 3, name: /Resource Information/i });
+            expect(resourceInfoHeading).toHaveAttribute('id', 'resource-info-heading');
+            expect(resourceInfoHeading.querySelector('div, p')).toBeNull();
+            expect(resourceInfoHeading).not.toHaveTextContent('Basic metadata about your dataset including identifiers and type.');
+            expect(resourceSection).toHaveAttribute('aria-labelledby', 'resource-info-heading');
             expect(within(resourceSection).getByText('Resource Information')).toBeInTheDocument();
             expect(within(resourceSection).getByText('Basic metadata about your dataset including identifiers and type.')).toBeInTheDocument();
             expect(within(resourceSection).getByLabelText('Required')).toBeInTheDocument();
