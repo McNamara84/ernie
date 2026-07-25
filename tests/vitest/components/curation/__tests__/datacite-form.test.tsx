@@ -3733,10 +3733,18 @@ describe('DataCiteForm', () => {
         expect(axios.post).not.toHaveBeenCalled();
 
         const authorsTrigger = getAccordionTrigger(/Authors/i);
+        const authorsScrollSpy = vi.spyOn(authorsTrigger, 'scrollIntoView');
+
+        await user.click(screen.getByRole('button', { name: /^At least one author is required\.$/i }));
+
+        await waitFor(() => {
+            expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
+            expect(authorsScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+
+        authorsScrollSpy.mockClear();
         await user.click(authorsTrigger);
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'false');
-
-        const authorsScrollSpy = vi.spyOn(authorsTrigger, 'scrollIntoView');
 
         await user.click(screen.getByRole('button', { name: /^At least one author is required\.$/i }));
 
@@ -5845,6 +5853,37 @@ describe('DataCiteForm', () => {
             const [url, data] = mockedAxios.post.mock.calls[0];
             expect(url).toBe('/editor/resources/draft');
             expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
+        });
+
+        it('shows collection-level datacenter validation errors inline when saving a draft', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Draft validation failed.',
+                        errors: {
+                            datacenters: ['The selected datacenter is invalid.'],
+                        },
+                    },
+                },
+                isAxiosError: true,
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Draft Dataset', titleType: 'main-title' }],
+                availableDatacenters,
+            });
+
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            const datacenterSelect = screen.getByTestId('datacenter-select');
+            await waitFor(() => {
+                expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
+                expect(within(datacenterSelect.parentElement!).getByText('The selected datacenter is invalid.')).toBeInTheDocument();
+            });
         });
 
         it('blocks draft save when a selected date period is incomplete', { timeout: 60000 }, async () => {

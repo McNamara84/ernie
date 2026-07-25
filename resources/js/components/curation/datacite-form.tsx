@@ -2984,558 +2984,539 @@ export default function DataCiteForm({
                     data-testid="global-validation-alert"
                 />
             )}
-            <div className="w-full">
-                <section
-                    data-testid="resource-info-section"
-                    data-accordion-value="resource-info"
-                    aria-labelledby="resource-info-heading"
-                    tabIndex={-1}
-                    className="border-b outline-none"
-                >
-                    <div className="flex items-start gap-1">
-                        <h3 data-slot="static-section-header" className="flex flex-1 items-start gap-4 rounded-md py-4 text-left text-sm font-medium">
-                            <AccordionSectionHeader
-                                id="resource-info-heading"
-                                label="Resource Information"
-                                description="Basic metadata about your dataset including identifiers and type."
-                                required
-                                status={renderStatusBadge(resourceInfoStatus)}
-                            />
-                        </h3>
-                        <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">
-                            {renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
-                        </div>
+            <section
+                data-testid="resource-info-section"
+                data-accordion-value="resource-info"
+                aria-labelledby="resource-info-heading"
+                tabIndex={-1}
+                className="w-full border-b outline-none"
+            >
+                <div className="flex items-start gap-1">
+                    <h3 data-slot="static-section-header" className="flex flex-1 items-start gap-4 rounded-md py-4 text-left text-sm font-medium">
+                        <AccordionSectionHeader
+                            id="resource-info-heading"
+                            label="Resource Information"
+                            description="Basic metadata about your dataset including identifiers and type."
+                            required
+                            status={renderStatusBadge(resourceInfoStatus)}
+                        />
+                    </h3>
+                    <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">
+                        {renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
                     </div>
-                    <div className="space-y-6 pb-4">
-                        <div className="grid gap-4 md:grid-cols-12">
-                            <InputField
-                                id="doi"
-                                label="DOI"
-                                value={form.doi || ''}
-                                onChange={(e) => handleChange('doi', e.target.value)}
-                                onBlur={(e) => {
-                                    // Trigger format validation (shows errors immediately)
-                                    handleFieldBlur('doi', e.target.value, doiValidationRules);
-                                    // Trigger async DOI validation (duplicate check)
-                                    if (e.target.value.trim()) {
-                                        validateDoi(e.target.value);
-                                    }
-                                }}
-                                validationMessages={getFieldState('doi').messages}
-                                touched={getFieldState('doi').touched}
-                                placeholder="10.xxxx/xxxxx"
-                                labelTooltip={
-                                    isDoiReadonly
-                                        ? 'DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI.'
-                                        : initialResourceId && initialDoi && isAdmin
-                                          ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
-                                          : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
+                </div>
+                <div className="space-y-6 pb-4">
+                    <div className="grid gap-4 md:grid-cols-12">
+                        <InputField
+                            id="doi"
+                            label="DOI"
+                            value={form.doi || ''}
+                            onChange={(e) => handleChange('doi', e.target.value)}
+                            onBlur={(e) => {
+                                // Trigger format validation (shows errors immediately)
+                                handleFieldBlur('doi', e.target.value, doiValidationRules);
+                                // Trigger async DOI validation (duplicate check)
+                                if (e.target.value.trim()) {
+                                    validateDoi(e.target.value);
                                 }
-                                className="md:col-span-3"
-                                readOnly={isDoiReadonly}
-                                disabled={isDoiValidating}
-                            />
-                            <InputField
-                                id="year"
-                                type="number"
-                                label="Year"
-                                value={form.year || ''}
-                                onChange={(e) => handleChange('year', e.target.value)}
-                                onValidationBlur={() => handleFieldBlur('year', form.year, yearValidationRules)}
-                                validationMessages={getFieldState('year').messages}
-                                touched={getFieldState('year').touched}
-                                placeholder="2024"
-                                className="md:col-span-1"
-                                required
-                            />
-                            <SelectField
-                                id="resourceType"
-                                label="Resource Type"
-                                value={form.resourceType || ''}
-                                onValueChange={(val) => handleChange('resourceType', val)}
-                                onValidationBlur={() => markFieldTouched('resourceType')}
-                                validationMessages={getFieldState('resourceType').messages}
-                                touched={getFieldState('resourceType').touched}
-                                options={resourceTypes.map((type) => ({
-                                    value: String(type.id),
-                                    label: type.name,
-                                }))}
-                                className="md:col-span-3"
-                                required
-                                data-testid="resource-type-select"
-                            />
-                            <DatacenterField
-                                id="datacenter"
-                                label="Datacenter"
-                                options={availableDatacenters}
-                                selected={selectedDatacenterId}
-                                onChange={(id) => {
-                                    setSelectedDatacenterId(id);
-                                    setDatacenterTouched(true);
-                                    clearDatacenterValidationErrors();
-                                }}
-                                className="min-w-0 md:col-span-3"
-                                required
-                                hasError={datacenterErrorMessage !== null}
-                                errorMessage={datacenterErrorMessage ?? undefined}
-                            />
-                            <InputField
-                                id="version"
-                                label="Version"
-                                value={form.version || ''}
-                                onChange={(e) => handleChange('version', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('version')}
-                                validationMessages={getFieldState('version').messages}
-                                touched={getFieldState('version').touched}
-                                placeholder="1.0"
-                                labelTooltip="Version number (e.g., 1.0, 2.1, 1.0.0)"
-                                maxLength={50}
-                                className="min-w-0 md:col-span-1"
-                            />
-                            <SelectField
-                                id="language"
-                                label="Language of Data"
-                                value={form.language || ''}
-                                onValueChange={(val) => handleChange('language', val)}
-                                onValidationBlur={() => markFieldTouched('language')}
-                                validationMessages={getFieldState('language').messages}
-                                touched={getFieldState('language').touched}
-                                options={languages.map((l) => ({
-                                    value: l.code,
-                                    label: l.name,
-                                }))}
-                                className="md:col-span-2"
-                                required
-                                data-testid="language-select"
-                            />
-                        </div>
-                        <div className="mt-3 space-y-4">
-                            {titles.map((entry, index) => (
-                                <TitleField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    title={entry.title}
-                                    titleType={entry.titleType}
-                                    options={titleTypes
-                                        .filter((t) => t.slug !== 'main-title' || !mainTitleUsed || entry.titleType === 'main-title')
-                                        .map((t) => ({ value: t.slug, label: t.name }))}
-                                    onTitleChange={(val) => handleTitleChange(index, 'title', val)}
-                                    onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
-                                    onAdd={addTitle}
-                                    onRemove={() => removeTitle(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddTitle(titles, MAX_TITLES)}
-                                    validationMessages={getFieldState(`title-${index}`).messages}
-                                    touched={getFieldState(`title-${index}`).touched}
-                                    onValidationBlur={() =>
-                                        handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))
-                                    }
-                                />
-                            ))}
-                        </div>
+                            }}
+                            validationMessages={getFieldState('doi').messages}
+                            touched={getFieldState('doi').touched}
+                            placeholder="10.xxxx/xxxxx"
+                            labelTooltip={
+                                isDoiReadonly
+                                    ? 'DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI.'
+                                    : initialResourceId && initialDoi && isAdmin
+                                      ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
+                                      : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
+                            }
+                            className="md:col-span-3"
+                            readOnly={isDoiReadonly}
+                            disabled={isDoiValidating}
+                        />
+                        <InputField
+                            id="year"
+                            type="number"
+                            label="Year"
+                            value={form.year || ''}
+                            onChange={(e) => handleChange('year', e.target.value)}
+                            onValidationBlur={() => handleFieldBlur('year', form.year, yearValidationRules)}
+                            validationMessages={getFieldState('year').messages}
+                            touched={getFieldState('year').touched}
+                            placeholder="2024"
+                            className="md:col-span-1"
+                            required
+                        />
+                        <SelectField
+                            id="resourceType"
+                            label="Resource Type"
+                            value={form.resourceType || ''}
+                            onValueChange={(val) => handleChange('resourceType', val)}
+                            onValidationBlur={() => markFieldTouched('resourceType')}
+                            validationMessages={getFieldState('resourceType').messages}
+                            touched={getFieldState('resourceType').touched}
+                            options={resourceTypes.map((type) => ({
+                                value: String(type.id),
+                                label: type.name,
+                            }))}
+                            className="md:col-span-3"
+                            required
+                            data-testid="resource-type-select"
+                        />
+                        <DatacenterField
+                            id="datacenter"
+                            label="Datacenter"
+                            options={availableDatacenters}
+                            selected={selectedDatacenterId}
+                            onChange={(id) => {
+                                setSelectedDatacenterId(id);
+                                setDatacenterTouched(true);
+                                clearDatacenterValidationErrors();
+                            }}
+                            className="min-w-0 md:col-span-3"
+                            required
+                            hasError={datacenterErrorMessage !== null}
+                            errorMessage={datacenterErrorMessage ?? undefined}
+                        />
+                        <InputField
+                            id="version"
+                            label="Version"
+                            value={form.version || ''}
+                            onChange={(e) => handleChange('version', e.target.value)}
+                            onValidationBlur={() => markFieldTouched('version')}
+                            validationMessages={getFieldState('version').messages}
+                            touched={getFieldState('version').touched}
+                            placeholder="1.0"
+                            labelTooltip="Version number (e.g., 1.0, 2.1, 1.0.0)"
+                            maxLength={50}
+                            className="min-w-0 md:col-span-1"
+                        />
+                        <SelectField
+                            id="language"
+                            label="Language of Data"
+                            value={form.language || ''}
+                            onValueChange={(val) => handleChange('language', val)}
+                            onValidationBlur={() => markFieldTouched('language')}
+                            validationMessages={getFieldState('language').messages}
+                            touched={getFieldState('language').touched}
+                            options={languages.map((l) => ({
+                                value: l.code,
+                                label: l.name,
+                            }))}
+                            className="md:col-span-2"
+                            required
+                            data-testid="language-select"
+                        />
                     </div>
-                </section>
-                <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
-                    <AccordionItem value="licenses-rights">
+                    <div className="mt-3 space-y-4">
+                        {titles.map((entry, index) => (
+                            <TitleField
+                                key={entry.id}
+                                id={entry.id}
+                                title={entry.title}
+                                titleType={entry.titleType}
+                                options={titleTypes
+                                    .filter((t) => t.slug !== 'main-title' || !mainTitleUsed || entry.titleType === 'main-title')
+                                    .map((t) => ({ value: t.slug, label: t.name }))}
+                                onTitleChange={(val) => handleTitleChange(index, 'title', val)}
+                                onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
+                                onAdd={addTitle}
+                                onRemove={() => removeTitle(index)}
+                                isFirst={index === 0}
+                                canAdd={canAddTitle(titles, MAX_TITLES)}
+                                validationMessages={getFieldState(`title-${index}`).messages}
+                                touched={getFieldState(`title-${index}`).touched}
+                                onValidationBlur={() =>
+                                    handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))
+                                }
+                            />
+                        ))}
+                    </div>
+                </div>
+            </section>
+            <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
+                <AccordionItem value="licenses-rights">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Licenses and Rights',
+                            'At least one license is required. Choose a license that matches your data sharing policy.',
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label="Licenses and Rights"
+                            description="Specify usage rights and restrictions for your dataset."
+                            required
+                            counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
+                            status={renderStatusBadge(licensesStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-4">
+                            {licenseEntries.map((entry, index) => {
+                                const customLicensePayloadIndex =
+                                    entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
+
+                                return (
+                                    <LicenseField
+                                        key={entry.id}
+                                        id={entry.id}
+                                        entry={entry}
+                                        options={licenses.map((l) => ({
+                                            value: l.identifier,
+                                            label: l.name,
+                                        }))}
+                                        onModeChange={(mode) => handleLicenseModeChange(index, mode)}
+                                        onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
+                                        onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
+                                        onAdd={addLicense}
+                                        onRemove={() => removeLicense(index)}
+                                        isFirst={index === 0}
+                                        canAdd={canAddLicenseEntry(licenseEntries, MAX_LICENSES)}
+                                        required={index === 0}
+                                        customNameRequired={index === 0}
+                                        customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
+                                        validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
+                                        touched={index === 0 ? getFieldState('license-0').touched : undefined}
+                                        onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
+                                        data-testid={`license-select-${index}`}
+                                        customNameTestId={
+                                            customLicensePayloadIndex !== undefined ? `custom-license-name-${customLicensePayloadIndex}` : undefined
+                                        }
+                                        customUriTestId={
+                                            customLicensePayloadIndex !== undefined ? `custom-license-uri-${customLicensePayloadIndex}` : undefined
+                                        }
+                                    />
+                                );
+                            })}
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="authors">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Authors', 'At least one author is required. Drag to reorder authors.')}
+                    >
+                        <AccordionSectionHeader
+                            label="Authors"
+                            description="People or institutions who created this work."
+                            required
+                            counter={{ current: authors.length, max: 100 }}
+                            status={renderStatusBadge(authorsStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        {/* Validation issues notification (only after save attempt — Issue #625) */}
+                        {hasAttemptedSubmit && <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />}
+                        {authorRoleNames.length > 0 && (
+                            <p id={authorRolesDescriptionId} className="mb-4 text-sm text-muted-foreground" data-testid="author-roles-availability">
+                                {`The available author ${authorRoleNames.length === 1 ? 'role is' : 'roles are'} ${authorRoleSummary}.`}
+                            </p>
+                        )}
+                        <AuthorField authors={authors} onChange={setAuthors} affiliationSuggestions={affiliationSuggestions} />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="contributors">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Contributors',
+                            'Optional. Contributors can have different roles like Editor, Data Curator, etc.',
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label="Contributors"
+                            description="Additional people who contributed to this work."
+                            counter={{ current: contributors.length, max: 100 }}
+                            status={renderStatusBadge(contributorsStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <ContributorField
+                            contributors={contributors}
+                            onChange={setContributors}
+                            affiliationSuggestions={affiliationSuggestions}
+                            personRoleOptions={contributorPersonRoleNames}
+                            institutionRoleOptions={contributorInstitutionRoleNames}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="descriptions">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Descriptions',
+                            `Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label="Descriptions"
+                            description="Detailed information about your dataset."
+                            required
+                            status={renderStatusBadge(descriptionsStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <DescriptionField
+                            descriptions={descriptions}
+                            onChange={handleDescriptionChange}
+                            availableTypes={descriptionTypes}
+                            abstractValidationMessages={getFieldMessages('abstract')}
+                            abstractTouched={getFieldState('abstract').touched}
+                            onAbstractValidationBlur={() => markFieldTouched('abstract')}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Controlled Vocabularies', 'Improves discoverability by using NASA GCMD and MSL keywords.')}
+                    >
+                        <AccordionSectionHeader
+                            label="Controlled Vocabularies"
+                            description="Select keywords from standardized vocabularies."
+                            counter={{ current: gcmdKeywords.length, max: 100 }}
+                            status={renderStatusBadge(controlledVocabulariesStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        {isLoadingVocabularies ? (
+                            <div className="py-8 text-center text-muted-foreground">Loading vocabularies...</div>
+                        ) : (
+                            <ControlledVocabulariesField
+                                scienceKeywords={gcmdVocabularies.science}
+                                platforms={gcmdVocabularies.platforms}
+                                instruments={gcmdVocabularies.instruments}
+                                mslVocabulary={gcmdVocabularies.msl}
+                                chronostratVocabulary={gcmdVocabularies.chronostratigraphy}
+                                gemetVocabulary={gcmdVocabularies.gemet}
+                                analyticalMethodsVocabulary={gcmdVocabularies.analytical_methods}
+                                euroscivocVocabulary={gcmdVocabularies.euroscivoc}
+                                selectedKeywords={gcmdKeywords}
+                                onChange={setGcmdKeywords}
+                                showMslTab={hasMslTrigger}
+                                showChronostratTab={thesauriAvailability.chronostratigraphy}
+                                showGemetTab={thesauriAvailability.gemet}
+                                showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
+                                showEuroSciVocTab={thesauriAvailability.euroscivoc}
+                                autoSwitchToMsl={shouldAutoSwitchToMsl}
+                                enabledThesauri={thesauriAvailability}
+                            />
+                        )}
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="free-keywords">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Free Keywords', 'Separate keywords with commas or press Enter.')}
+                    >
+                        <AccordionSectionHeader
+                            label="Free Keywords"
+                            description="Custom keywords for your dataset."
+                            counter={{ current: freeKeywords.length, max: 100 }}
+                            status={renderStatusBadge(freeKeywordsStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
+                    </AccordionContent>
+                </AccordionItem>
+                {shouldShowMslLaboratoriesSection && (
+                    <AccordionItem value="msl-laboratories">
                         <AccordionTrigger
                             className={SECTION_TRIGGER_CLASS_NAME}
                             actions={renderSectionActions(
-                                'Licenses and Rights',
-                                'At least one license is required. Choose a license that matches your data sharing policy.',
+                                'Originating Multi-Scale Laboratories',
+                                'Appears when EPOS/MSL keywords are detected in your dataset.',
                             )}
                         >
                             <AccordionSectionHeader
-                                label="Licenses and Rights"
-                                description="Specify usage rights and restrictions for your dataset."
-                                required
-                                counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
-                                status={renderStatusBadge(licensesStatus)}
+                                label="Originating Multi-Scale Laboratories"
+                                description="Select associated EPOS/MSL laboratories."
+                                badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>}
+                                status={renderStatusBadge(mslLaboratoriesStatus)}
                             />
                         </AccordionTrigger>
                         <AccordionContent>
-                            <div className="space-y-4">
-                                {licenseEntries.map((entry, index) => {
-                                    const customLicensePayloadIndex =
-                                        entry.mode === 'custom' ? customLicensePayloadIndexesByEntryId.get(entry.id) : undefined;
-
+                            {mslValidationInfo && <ValidationAlert severity="info" title="Recommendation" messages={[mslValidationInfo.message]} />}
+                            <MSLLaboratoriesField
+                                selectedLaboratories={mslLaboratories}
+                                onChange={setMslLaboratories}
+                                isVocabularyAvailable={thesauriAvailability.msl_laboratories}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+                )}
+                <AccordionItem value="spatial-temporal-coverage">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Spatial and Temporal Coverage',
+                            'Supports points, boxes, and polygons for geographic coverage.',
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label="Spatial and Temporal Coverage"
+                            description="Geographic and time boundaries of your dataset."
+                            counter={{ current: spatialTemporalCoverages.length, max: 50 }}
+                            status={renderStatusBadge(spatialTemporalCoverageStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <SpatialTemporalCoverageField
+                            coverages={spatialTemporalCoverages}
+                            apiKey={googleMapsApiKey}
+                            onChange={setSpatialTemporalCoverages}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="dates">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions('Dates', 'Add dates like collection period, validity, or other relevant temporal information.')}
+                    >
+                        <AccordionSectionHeader
+                            label="Dates"
+                            description="Important dates for your dataset."
+                            counter={{ current: dates.length, max: MAX_DATES }}
+                            status={renderStatusBadge(datesStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        {hasAttemptedSubmit && <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />}
+                        <div className="space-y-4">
+                            {dates.length === 0 ? (
+                                <EmptyState
+                                    icon={<Calendar className="h-8 w-8" />}
+                                    title="No dates added"
+                                    description="Add important dates like collection period, validity, or other relevant temporal information."
+                                    action={{
+                                        label: 'Add Date',
+                                        onClick: addDate,
+                                    }}
+                                    data-testid="dates-empty-state"
+                                />
+                            ) : (
+                                dates.map((entry, index) => {
+                                    const selectedDateType = dateTypeOptions.find(
+                                        (dt) => normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType),
+                                    );
                                     return (
-                                        <LicenseField
+                                        <DateField
                                             key={entry.id}
                                             id={entry.id}
-                                            entry={entry}
-                                            options={licenses.map((l) => ({
-                                                value: l.identifier,
-                                                label: l.name,
-                                            }))}
-                                            onModeChange={(mode) => handleLicenseModeChange(index, mode)}
-                                            onCatalogLicenseChange={(val) => handleCatalogLicenseChange(index, val)}
-                                            onCustomLicenseChange={(field, val) => handleCustomLicenseChange(index, field, val)}
-                                            onAdd={addLicense}
-                                            onRemove={() => removeLicense(index)}
+                                            startDate={entry.startDate}
+                                            endDate={entry.endDate}
+                                            dateType={entry.dateType}
+                                            dateMode={entry.dateMode}
+                                            startTime={entry.startTime}
+                                            endTime={entry.endTime}
+                                            startTimezone={entry.startTimezone}
+                                            endTimezone={entry.endTimezone}
+                                            dateTypeDescription={selectedDateType?.description}
+                                            options={dateTypeOptions.filter(
+                                                (dt) =>
+                                                    normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType) ||
+                                                    !dates.some((d) => normalizeDateTypeSlug(d.dateType) === normalizeDateTypeSlug(dt.value)),
+                                            )}
+                                            onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
+                                            onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
+                                            onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
+                                            onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}
+                                            onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}
+                                            onEndTimezoneChange={(val) => handleDateChange(index, 'endTimezone', val)}
+                                            onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
+                                            onDateModeChange={(val) => handleDateChange(index, 'dateMode', val)}
+                                            onAdd={addDate}
+                                            onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
-                                            canAdd={canAddLicenseEntry(licenseEntries, MAX_LICENSES)}
-                                            required={index === 0}
-                                            customNameRequired={index === 0}
-                                            customUriRequired={index === 0 && !isRawRightsOnlyLicenseEntry(entry)}
-                                            validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
-                                            touched={index === 0 ? getFieldState('license-0').touched : undefined}
-                                            onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
-                                            data-testid={`license-select-${index}`}
-                                            customNameTestId={
-                                                customLicensePayloadIndex !== undefined
-                                                    ? `custom-license-name-${customLicensePayloadIndex}`
-                                                    : undefined
-                                            }
-                                            customUriTestId={
-                                                customLicensePayloadIndex !== undefined
-                                                    ? `custom-license-uri-${customLicensePayloadIndex}`
-                                                    : undefined
-                                            }
+                                            canAdd={canAddDate(dates, MAX_DATES)}
                                         />
                                     );
-                                })}
-                            </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="authors">
-                        <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions('Authors', 'At least one author is required. Drag to reorder authors.')}
-                        >
-                            <AccordionSectionHeader
-                                label="Authors"
-                                description="People or institutions who created this work."
-                                required
-                                counter={{ current: authors.length, max: 100 }}
-                                status={renderStatusBadge(authorsStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            {/* Validation issues notification (only after save attempt — Issue #625) */}
-                            {hasAttemptedSubmit && (
-                                <ValidationAlert severity="error" title="Required fields missing" messages={authorValidationIssues} />
+                                })
                             )}
-                            {authorRoleNames.length > 0 && (
-                                <p
-                                    id={authorRolesDescriptionId}
-                                    className="mb-4 text-sm text-muted-foreground"
-                                    data-testid="author-roles-availability"
-                                >
-                                    {`The available author ${authorRoleNames.length === 1 ? 'role is' : 'roles are'} ${authorRoleSummary}.`}
-                                </p>
-                            )}
-                            <AuthorField authors={authors} onChange={setAuthors} affiliationSuggestions={affiliationSuggestions} />
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="contributors">
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="related-work" data-testid="related-work-section">
+                    <AccordionTrigger
+                        data-testid="related-work-accordion-trigger"
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Related Work',
+                            'DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them.',
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label="Related Work"
+                            description="Links to related publications and datasets."
+                            counter={{ current: relatedWorks.length, max: 100 }}
+                            status={renderStatusBadge(relatedWorkStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="related-work-accordion-content">
+                        <RelatedWorkField
+                            relatedWorks={relatedWorks}
+                            onChange={setRelatedWorks}
+                            activeRelationTypes={activeRelationTypes}
+                            activeIdentifierTypes={activeIdentifierTypes}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="citations" data-testid="citations-section">
+                    <AccordionTrigger
+                        data-testid="citations-accordion-trigger"
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(RELATED_ITEMS_SECTION_LABEL, RELATED_ITEMS_SECTION_HELP)}
+                    >
+                        <AccordionSectionHeader label={RELATED_ITEMS_SECTION_LABEL} description={RELATED_ITEMS_SECTION_DESCRIPTION} />
+                    </AccordionTrigger>
+                    <AccordionContent data-testid="citations-accordion-content">
+                        <CitationsField resourceId={resolvedResourceId} />
+                    </AccordionContent>
+                </AccordionItem>
+                {shouldShowUsedInstrumentsSection && (
+                    <AccordionItem value="used-instruments" data-testid="used-instruments-section">
                         <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions(
-                                'Contributors',
-                                'Optional. Contributors can have different roles like Editor, Data Curator, etc.',
-                            )}
-                        >
-                            <AccordionSectionHeader
-                                label="Contributors"
-                                description="Additional people who contributed to this work."
-                                counter={{ current: contributors.length, max: 100 }}
-                                status={renderStatusBadge(contributorsStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <ContributorField
-                                contributors={contributors}
-                                onChange={setContributors}
-                                affiliationSuggestions={affiliationSuggestions}
-                                personRoleOptions={contributorPersonRoleNames}
-                                institutionRoleOptions={contributorInstitutionRoleNames}
-                            />
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="descriptions">
-                        <AccordionTrigger
+                            data-testid="used-instruments-accordion-trigger"
                             className={SECTION_TRIGGER_CLASS_NAME}
                             actions={renderSectionActions(
-                                'Descriptions',
-                                `Abstract is required (${ABSTRACT_MIN_LENGTH}-${ABSTRACT_MAX_LENGTH.toLocaleString('en-US')} characters). Other description types are optional.`,
+                                'Used Instruments',
+                                'Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers.',
                             )}
                         >
                             <AccordionSectionHeader
-                                label="Descriptions"
-                                description="Detailed information about your dataset."
-                                required
-                                status={renderStatusBadge(descriptionsStatus)}
+                                label="Used Instruments"
+                                description="Research instruments used for data collection."
+                                counter={{ current: instruments.length, max: 100 }}
+                                status={renderStatusBadge(instrumentsStatus)}
                             />
                         </AccordionTrigger>
-                        <AccordionContent>
-                            <DescriptionField
-                                descriptions={descriptions}
-                                onChange={handleDescriptionChange}
-                                availableTypes={descriptionTypes}
-                                abstractValidationMessages={getFieldMessages('abstract')}
-                                abstractTouched={getFieldState('abstract').touched}
-                                onAbstractValidationBlur={() => markFieldTouched('abstract')}
-                            />
+                        <AccordionContent data-testid="used-instruments-accordion-content">
+                            <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
                         </AccordionContent>
                     </AccordionItem>
-                    <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
-                        <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions('Controlled Vocabularies', 'Improves discoverability by using NASA GCMD and MSL keywords.')}
-                        >
-                            <AccordionSectionHeader
-                                label="Controlled Vocabularies"
-                                description="Select keywords from standardized vocabularies."
-                                counter={{ current: gcmdKeywords.length, max: 100 }}
-                                status={renderStatusBadge(controlledVocabulariesStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            {isLoadingVocabularies ? (
-                                <div className="py-8 text-center text-muted-foreground">Loading vocabularies...</div>
-                            ) : (
-                                <ControlledVocabulariesField
-                                    scienceKeywords={gcmdVocabularies.science}
-                                    platforms={gcmdVocabularies.platforms}
-                                    instruments={gcmdVocabularies.instruments}
-                                    mslVocabulary={gcmdVocabularies.msl}
-                                    chronostratVocabulary={gcmdVocabularies.chronostratigraphy}
-                                    gemetVocabulary={gcmdVocabularies.gemet}
-                                    analyticalMethodsVocabulary={gcmdVocabularies.analytical_methods}
-                                    euroscivocVocabulary={gcmdVocabularies.euroscivoc}
-                                    selectedKeywords={gcmdKeywords}
-                                    onChange={setGcmdKeywords}
-                                    showMslTab={hasMslTrigger}
-                                    showChronostratTab={thesauriAvailability.chronostratigraphy}
-                                    showGemetTab={thesauriAvailability.gemet}
-                                    showAnalyticalMethodsTab={thesauriAvailability.analytical_methods}
-                                    showEuroSciVocTab={thesauriAvailability.euroscivoc}
-                                    autoSwitchToMsl={shouldAutoSwitchToMsl}
-                                    enabledThesauri={thesauriAvailability}
-                                />
-                            )}
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="free-keywords">
-                        <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions('Free Keywords', 'Separate keywords with commas or press Enter.')}
-                        >
-                            <AccordionSectionHeader
-                                label="Free Keywords"
-                                description="Custom keywords for your dataset."
-                                counter={{ current: freeKeywords.length, max: 100 }}
-                                status={renderStatusBadge(freeKeywordsStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
-                        </AccordionContent>
-                    </AccordionItem>
-                    {shouldShowMslLaboratoriesSection && (
-                        <AccordionItem value="msl-laboratories">
-                            <AccordionTrigger
-                                className={SECTION_TRIGGER_CLASS_NAME}
-                                actions={renderSectionActions(
-                                    'Originating Multi-Scale Laboratories',
-                                    'Appears when EPOS/MSL keywords are detected in your dataset.',
-                                )}
-                            >
-                                <AccordionSectionHeader
-                                    label="Originating Multi-Scale Laboratories"
-                                    description="Select associated EPOS/MSL laboratories."
-                                    badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>}
-                                    status={renderStatusBadge(mslLaboratoriesStatus)}
-                                />
-                            </AccordionTrigger>
-                            <AccordionContent>
-                                {mslValidationInfo && (
-                                    <ValidationAlert severity="info" title="Recommendation" messages={[mslValidationInfo.message]} />
-                                )}
-                                <MSLLaboratoriesField
-                                    selectedLaboratories={mslLaboratories}
-                                    onChange={setMslLaboratories}
-                                    isVocabularyAvailable={thesauriAvailability.msl_laboratories}
-                                />
-                            </AccordionContent>
-                        </AccordionItem>
-                    )}
-                    <AccordionItem value="spatial-temporal-coverage">
-                        <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions(
-                                'Spatial and Temporal Coverage',
-                                'Supports points, boxes, and polygons for geographic coverage.',
-                            )}
-                        >
-                            <AccordionSectionHeader
-                                label="Spatial and Temporal Coverage"
-                                description="Geographic and time boundaries of your dataset."
-                                counter={{ current: spatialTemporalCoverages.length, max: 50 }}
-                                status={renderStatusBadge(spatialTemporalCoverageStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            <SpatialTemporalCoverageField
-                                coverages={spatialTemporalCoverages}
-                                apiKey={googleMapsApiKey}
-                                onChange={setSpatialTemporalCoverages}
-                            />
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="dates">
-                        <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions(
-                                'Dates',
-                                'Add dates like collection period, validity, or other relevant temporal information.',
-                            )}
-                        >
-                            <AccordionSectionHeader
-                                label="Dates"
-                                description="Important dates for your dataset."
-                                counter={{ current: dates.length, max: MAX_DATES }}
-                                status={renderStatusBadge(datesStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                            {hasAttemptedSubmit && (
-                                <ValidationAlert severity="error" title="Date validation issues" messages={dateValidationIssues} />
-                            )}
-                            <div className="space-y-4">
-                                {dates.length === 0 ? (
-                                    <EmptyState
-                                        icon={<Calendar className="h-8 w-8" />}
-                                        title="No dates added"
-                                        description="Add important dates like collection period, validity, or other relevant temporal information."
-                                        action={{
-                                            label: 'Add Date',
-                                            onClick: addDate,
-                                        }}
-                                        data-testid="dates-empty-state"
-                                    />
-                                ) : (
-                                    dates.map((entry, index) => {
-                                        const selectedDateType = dateTypeOptions.find(
-                                            (dt) => normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType),
-                                        );
-                                        return (
-                                            <DateField
-                                                key={entry.id}
-                                                id={entry.id}
-                                                startDate={entry.startDate}
-                                                endDate={entry.endDate}
-                                                dateType={entry.dateType}
-                                                dateMode={entry.dateMode}
-                                                startTime={entry.startTime}
-                                                endTime={entry.endTime}
-                                                startTimezone={entry.startTimezone}
-                                                endTimezone={entry.endTimezone}
-                                                dateTypeDescription={selectedDateType?.description}
-                                                options={dateTypeOptions.filter(
-                                                    (dt) =>
-                                                        normalizeDateTypeSlug(dt.value) === normalizeDateTypeSlug(entry.dateType) ||
-                                                        !dates.some((d) => normalizeDateTypeSlug(d.dateType) === normalizeDateTypeSlug(dt.value)),
-                                                )}
-                                                onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
-                                                onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
-                                                onStartTimeChange={(val) => handleDateChange(index, 'startTime', val)}
-                                                onEndTimeChange={(val) => handleDateChange(index, 'endTime', val)}
-                                                onStartTimezoneChange={(val) => handleDateChange(index, 'startTimezone', val)}
-                                                onEndTimezoneChange={(val) => handleDateChange(index, 'endTimezone', val)}
-                                                onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
-                                                onDateModeChange={(val) => handleDateChange(index, 'dateMode', val)}
-                                                onAdd={addDate}
-                                                onRemove={() => removeDate(index)}
-                                                isFirst={index === 0}
-                                                canAdd={canAddDate(dates, MAX_DATES)}
-                                            />
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="related-work" data-testid="related-work-section">
-                        <AccordionTrigger
-                            data-testid="related-work-accordion-trigger"
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions(
-                                'Related Work',
-                                'DOIs, URLs, Handles, and other DataCite identifier types are supported. Add entries, refine citation labels, and drag cards to reorder them.',
-                            )}
-                        >
-                            <AccordionSectionHeader
-                                label="Related Work"
-                                description="Links to related publications and datasets."
-                                counter={{ current: relatedWorks.length, max: 100 }}
-                                status={renderStatusBadge(relatedWorkStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent data-testid="related-work-accordion-content">
-                            <RelatedWorkField
-                                relatedWorks={relatedWorks}
-                                onChange={setRelatedWorks}
-                                activeRelationTypes={activeRelationTypes}
-                                activeIdentifierTypes={activeIdentifierTypes}
-                            />
-                        </AccordionContent>
-                    </AccordionItem>
-                    <AccordionItem value="citations" data-testid="citations-section">
-                        <AccordionTrigger
-                            data-testid="citations-accordion-trigger"
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions(RELATED_ITEMS_SECTION_LABEL, RELATED_ITEMS_SECTION_HELP)}
-                        >
-                            <AccordionSectionHeader label={RELATED_ITEMS_SECTION_LABEL} description={RELATED_ITEMS_SECTION_DESCRIPTION} />
-                        </AccordionTrigger>
-                        <AccordionContent data-testid="citations-accordion-content">
-                            <CitationsField resourceId={resolvedResourceId} />
-                        </AccordionContent>
-                    </AccordionItem>
-                    {shouldShowUsedInstrumentsSection && (
-                        <AccordionItem value="used-instruments" data-testid="used-instruments-section">
-                            <AccordionTrigger
-                                data-testid="used-instruments-accordion-trigger"
-                                className={SECTION_TRIGGER_CLASS_NAME}
-                                actions={renderSectionActions(
-                                    'Used Instruments',
-                                    'Select instruments from the PID4INST / b2inst registry. Instruments will be linked via Handle PIDs as DataCite relatedIdentifiers.',
-                                )}
-                            >
-                                <AccordionSectionHeader
-                                    label="Used Instruments"
-                                    description="Research instruments used for data collection."
-                                    counter={{ current: instruments.length, max: 100 }}
-                                    status={renderStatusBadge(instrumentsStatus)}
-                                />
-                            </AccordionTrigger>
-                            <AccordionContent data-testid="used-instruments-accordion-content">
-                                <UsedInstrumentsField selectedInstruments={instruments} onChange={setInstruments} />
-                            </AccordionContent>
-                        </AccordionItem>
-                    )}
-                    <AccordionItem value="funding-references">
-                        <AccordionTrigger
-                            className={SECTION_TRIGGER_CLASS_NAME}
-                            actions={renderSectionActions(
-                                'Funding References',
-                                'ROR lookup available for funder identification. Include grant numbers when available.',
-                            )}
-                        >
-                            <AccordionSectionHeader
-                                label="Funding References"
-                                description="Grant and funder information."
-                                counter={{ current: fundingReferences.length, max: 50 }}
-                                status={renderStatusBadge(fundingReferencesStatus)}
-                            />
-                        </AccordionTrigger>
-                        <AccordionContent id="funding-references-section">
-                            <FundingReferenceField value={fundingReferences} onChange={setFundingReferences} />
-                        </AccordionContent>
-                    </AccordionItem>
-                </Accordion>
-            </div>
+                )}
+                <AccordionItem value="funding-references">
+                    <AccordionTrigger
+                        className={SECTION_TRIGGER_CLASS_NAME}
+                        actions={renderSectionActions(
+                            'Funding References',
+                            'ROR lookup available for funder identification. Include grant numbers when available.',
+                        )}
+                    >
+                        <AccordionSectionHeader
+                            label="Funding References"
+                            description="Grant and funder information."
+                            counter={{ current: fundingReferences.length, max: 50 }}
+                            status={renderStatusBadge(fundingReferencesStatus)}
+                        />
+                    </AccordionTrigger>
+                    <AccordionContent id="funding-references-section">
+                        <FundingReferenceField value={fundingReferences} onChange={setFundingReferences} />
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
             <ValidationAlert
                 severity="warning"
                 title="Legacy Keywords Detected"

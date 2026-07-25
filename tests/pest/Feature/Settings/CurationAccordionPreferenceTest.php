@@ -64,6 +64,35 @@ test('authenticated users can persist all curation accordions as collapsed', fun
     expect($user->refresh()->curation_accordion_open_items)->toBe([]);
 });
 
+test('omitting open items persists the default collapsed preference', function () {
+    $user = User::factory()->create([
+        'curation_accordion_open_items' => ['authors'],
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('curation-accordion.update'))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->curation_accordion_open_items)->toBe([]);
+});
+
+test('non-array open items are rejected without changing the preference', function () {
+    $user = User::factory()->create([
+        'curation_accordion_open_items' => ['authors'],
+    ]);
+
+    $this->actingAs($user)
+        ->from('/editor')
+        ->put(route('curation-accordion.update'), [
+            'open_items' => 'authors',
+        ])
+        ->assertRedirect('/editor')
+        ->assertSessionHasErrors('open_items');
+
+    expect($user->refresh()->curation_accordion_open_items)->toBe(['authors']);
+});
+
 test('unknown curation accordion item values are rejected', function () {
     $user = User::factory()->create();
 
