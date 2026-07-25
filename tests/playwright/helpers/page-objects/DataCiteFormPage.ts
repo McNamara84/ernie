@@ -138,7 +138,9 @@ export class DataCiteFormPage {
      * Returns the aria-label of the badge icon
      */
     async getSectionStatusBadge(section: Locator): Promise<string | null> {
-        const badge = section.locator('svg[aria-label]');
+        const badge = section
+            .locator('svg[aria-label="Section complete"], svg[aria-label="Section incomplete or has errors"], svg[aria-label="Optional section"]')
+            .first();
         if ((await badge.count()) === 0) {
             return null;
         }

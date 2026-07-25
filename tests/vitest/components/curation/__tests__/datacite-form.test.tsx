@@ -562,6 +562,7 @@ describe('DataCiteForm', () => {
             const resourceSection = getResourceInfoSection();
 
             expect(screen.getAllByText('Resource Information')).toHaveLength(1);
+            expect(within(resourceSection).getByRole('heading', { level: 3, name: /Resource Information/i })).toBeInTheDocument();
             expect(within(resourceSection).getByText('Resource Information')).toBeInTheDocument();
             expect(within(resourceSection).getByText('Basic metadata about your dataset including identifiers and type.')).toBeInTheDocument();
             expect(within(resourceSection).getByLabelText('Required')).toBeInTheDocument();
