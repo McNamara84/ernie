@@ -234,6 +234,8 @@ describe('DataCiteForm', () => {
         return trigger;
     };
 
+    const getResourceInfoSection = (): HTMLElement => screen.getByTestId('resource-info-section');
+
     // Helper to get author scope - assumes authors section is already open and has at least one author
     const getAuthorScope = async () => {
         const group = await screen.findByTestId('author-entries-group');
@@ -553,17 +555,25 @@ describe('DataCiteForm', () => {
             expect(saveButton.parentElement).toHaveAttribute('tabindex', '0');
         });
     });
-    describe('Consolidated accordion section headers', () => {
-        it('renders Resource Information as one visible section header with metadata in the trigger', () => {
+    describe('Consolidated form section headers', () => {
+        it('renders Resource Information as a permanently visible non-collapsible section', () => {
             renderDataCiteForm();
 
-            const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+            const resourceSection = getResourceInfoSection();
 
             expect(screen.getAllByText('Resource Information')).toHaveLength(1);
-            expect(within(resourceTrigger).getByText('Resource Information')).toBeInTheDocument();
-            expect(within(resourceTrigger).getByText('Basic metadata about your dataset including identifiers and type.')).toBeInTheDocument();
-            expect(within(resourceTrigger).getByLabelText('Required')).toBeInTheDocument();
-            expect(within(resourceTrigger).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+            const resourceInfoHeading = within(resourceSection).getByRole('heading', { level: 3, name: /Resource Information/i });
+            expect(resourceInfoHeading).toHaveAttribute('id', 'resource-info-heading');
+            expect(resourceInfoHeading.querySelector('div, p')).toBeNull();
+            expect(resourceInfoHeading).not.toHaveTextContent('Basic metadata about your dataset including identifiers and type.');
+            expect(resourceSection).toHaveAttribute('aria-labelledby', 'resource-info-heading');
+            expect(within(resourceSection).getByText('Resource Information')).toBeInTheDocument();
+            expect(within(resourceSection).getByText('Basic metadata about your dataset including identifiers and type.')).toBeInTheDocument();
+            expect(within(resourceSection).getByLabelText('Required')).toBeInTheDocument();
+            expect(within(resourceSection).getByLabelText('Section incomplete or has errors')).toBeInTheDocument();
+            expect(within(resourceSection).getByLabelText('DOI')).toBeVisible();
+            expect(resourceSection.querySelector('[data-slot="accordion-trigger"]')).toBeNull();
+            expect(resourceSection).not.toHaveAttribute('aria-expanded');
 
             const helpButton = screen.getByRole('button', { name: /Help for Resource Information/i });
             expect(helpButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
@@ -594,11 +604,11 @@ describe('DataCiteForm', () => {
         it('keeps help actions outside accordion trigger buttons', () => {
             renderDataCiteForm();
 
-            const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+            const resourceSection = getResourceInfoSection();
             const resourceHelp = screen.getByRole('button', { name: /Help for Resource Information/i });
             const licenseHelp = screen.getByRole('button', { name: /Help for Licenses and Rights/i });
 
-            expect(resourceTrigger).toHaveAttribute('data-slot', 'accordion-trigger');
+            expect(resourceSection.querySelector('[data-slot="accordion-trigger"]')).toBeNull();
             expect(resourceHelp.closest('[data-slot="accordion-trigger"]')).toBeNull();
             expect(licenseHelp.closest('[data-slot="accordion-trigger"]')).toBeNull();
         });
@@ -619,13 +629,28 @@ describe('DataCiteForm', () => {
             expect(firstCollapseAllButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
         });
 
+        it('ignores a legacy saved resource-info preference while keeping the static section visible', () => {
+            mockUsePageProps.mockReturnValue({
+                curationAccordionOpenItems: ['resource-info'],
+            });
+
+            renderDataCiteForm();
+
+            expect(getResourceInfoSection()).toBeVisible();
+            expect(within(getResourceInfoSection()).getByLabelText('DOI')).toBeVisible();
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(screen.getAllByRole('button', { name: /Expand all field groups/i }).length).toBeGreaterThan(0);
+            expect(mockRouterPut).not.toHaveBeenCalled();
+        });
+
         it('collapses every visible field group and persists an empty open item list', async () => {
             renderDataCiteForm();
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             await user.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
 
-            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getResourceInfoSection()).toBeVisible();
+            expect(within(getResourceInfoSection()).getByLabelText('DOI')).toBeVisible();
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
             expect(screen.queryAllByTestId('collapse-all-field-groups')).toHaveLength(0);
@@ -658,7 +683,7 @@ describe('DataCiteForm', () => {
 
             fireEvent.click(screen.getAllByRole('button', { name: /Collapse all field groups/i })[0]);
 
-            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getResourceInfoSection()).toBeVisible();
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'false');
             expect(mockRouterPut).toHaveBeenCalledWith(
@@ -680,24 +705,26 @@ describe('DataCiteForm', () => {
             renderDataCiteForm();
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getResourceInfoSection()).toBeVisible();
+            expect(within(getResourceInfoSection()).getByLabelText('DOI')).toBeVisible();
 
             await user.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
 
-            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'true');
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
             expect(screen.queryAllByTestId('expand-all-field-groups')).toHaveLength(0);
             expect(mockRouterPut).toHaveBeenCalledWith(
                 '/settings/curation-accordion',
                 expect.objectContaining({
-                    open_items: expect.arrayContaining(['resource-info', 'authors', 'funding-references']),
+                    open_items: expect.arrayContaining(['authors', 'funding-references']),
                 }),
                 expect.objectContaining({
                     preserveScroll: true,
                     preserveState: true,
                 }),
             );
+            const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
+            expect(payload.open_items).not.toContain('resource-info');
         });
 
         it('preserves hidden conditional field groups when expanding all visible field groups', () => {
@@ -718,11 +745,11 @@ describe('DataCiteForm', () => {
 
             fireEvent.click(screen.getAllByRole('button', { name: /Expand all field groups/i })[0]);
 
-            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'true');
             expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'true');
             expect(getAccordionTrigger(/Funding References/i)).toHaveAttribute('aria-expanded', 'true');
             const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
-            expect(payload.open_items).toEqual(expect.arrayContaining(['resource-info', 'authors', 'funding-references', 'used-instruments']));
+            expect(payload.open_items).toEqual(expect.arrayContaining(['authors', 'funding-references', 'used-instruments']));
+            expect(payload.open_items).not.toContain('resource-info');
         });
 
         it('does not include hidden conditional field groups when expanding all', async () => {
@@ -751,7 +778,7 @@ describe('DataCiteForm', () => {
 
         it('preserves hidden conditional field groups when toggling a visible field group', async () => {
             mockUsePageProps.mockReturnValue({
-                curationAccordionOpenItems: ['resource-info', 'used-instruments'],
+                curationAccordionOpenItems: ['authors', 'used-instruments'],
             });
             global.fetch = vi.fn((input: RequestInfo | URL) => {
                 const url = input.toString();
@@ -767,16 +794,17 @@ describe('DataCiteForm', () => {
             vi.useFakeTimers();
 
             try {
-                fireEvent.click(getAccordionTrigger(/Resource Information/i));
+                fireEvent.click(getAccordionTrigger(/Authors/i));
                 await advanceAccordionPreferenceDebounce();
             } finally {
                 vi.useRealTimers();
             }
 
-            expect(getAccordionTrigger(/Resource Information/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getAccordionTrigger(/Authors/i)).toHaveAttribute('aria-expanded', 'false');
+            expect(getResourceInfoSection()).toBeVisible();
             const payload = mockRouterPut.mock.calls[0][1] as { open_items: string[] };
             expect(payload.open_items).toContain('used-instruments');
-            expect(payload.open_items).not.toContain('resource-info');
+            expect(payload.open_items).not.toContain('authors');
         });
     });
 
@@ -798,8 +826,8 @@ describe('DataCiteForm', () => {
         expect(useRorAffiliations).toHaveBeenCalled();
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        // accordion sections
-        const resourceTrigger = getAccordionTrigger(/Resource Information/i);
+        // form sections
+        const resourceSection = getResourceInfoSection();
         // Use getAllByRole and filter for Authors/Contributors to avoid matching Import CSV buttons
         const authorsButtons = screen.getAllByRole('button', { name: /Authors/i });
         const authorsTrigger = authorsButtons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
@@ -811,15 +839,12 @@ describe('DataCiteForm', () => {
         const contributorsTrigger = contributorsButtons.find((btn) => btn.getAttribute('data-slot') === 'accordion-trigger');
         if (!contributorsTrigger) throw new Error('Contributors accordion trigger not found');
 
-        expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(resourceSection).toBeVisible();
+        expect(resourceSection.querySelector('[data-slot="accordion-trigger"]')).toBeNull();
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(contributorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toBeInTheDocument();
-        await user.click(resourceTrigger);
-        expect(resourceTrigger).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.queryByLabelText('DOI')).not.toBeInTheDocument();
-        await user.click(resourceTrigger);
 
         // basic fields
         expect(screen.getByLabelText('DOI')).toBeInTheDocument();
@@ -3623,6 +3648,9 @@ describe('DataCiteForm', () => {
         await waitFor(() => {
             expect(datacenterScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
         });
+        expect(getResourceInfoSection()).toBeVisible();
+        expect(getResourceInfoSection().querySelector('[data-slot="accordion-trigger"]')).toBeNull();
+        expect(mockRouterPut).not.toHaveBeenCalled();
     });
 
     it('clears the inline required datacenter error after a datacenter is selected', { timeout: 20000 }, async () => {
@@ -3709,10 +3737,18 @@ describe('DataCiteForm', () => {
         expect(axios.post).not.toHaveBeenCalled();
 
         const authorsTrigger = getAccordionTrigger(/Authors/i);
+        const authorsScrollSpy = vi.spyOn(authorsTrigger, 'scrollIntoView');
+
+        await user.click(screen.getByRole('button', { name: /^At least one author is required\.$/i }));
+
+        await waitFor(() => {
+            expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
+            expect(authorsScrollSpy).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        });
+
+        authorsScrollSpy.mockClear();
         await user.click(authorsTrigger);
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'false');
-
-        const authorsScrollSpy = vi.spyOn(authorsTrigger, 'scrollIntoView');
 
         await user.click(screen.getByRole('button', { name: /^At least one author is required\.$/i }));
 
@@ -5821,6 +5857,37 @@ describe('DataCiteForm', () => {
             const [url, data] = mockedAxios.post.mock.calls[0];
             expect(url).toBe('/editor/resources/draft');
             expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
+        });
+
+        it('shows collection-level datacenter validation errors inline when saving a draft', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+
+            mockedAxios.post.mockRejectedValue({
+                response: {
+                    status: 422,
+                    data: {
+                        message: 'Draft validation failed.',
+                        errors: {
+                            datacenters: ['The selected datacenter is invalid.'],
+                        },
+                    },
+                },
+                isAxiosError: true,
+            });
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Draft Dataset', titleType: 'main-title' }],
+                availableDatacenters,
+            });
+
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            const datacenterSelect = screen.getByTestId('datacenter-select');
+            await waitFor(() => {
+                expect(datacenterSelect).toHaveAttribute('aria-invalid', 'true');
+                expect(within(datacenterSelect.parentElement!).getByText('The selected datacenter is invalid.')).toBeInTheDocument();
+            });
         });
 
         it('blocks draft save when a selected date period is incomplete', { timeout: 60000 }, async () => {

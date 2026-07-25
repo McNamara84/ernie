@@ -187,12 +187,7 @@ describe('SectionHeader', () => {
 
     describe('Layout', () => {
         it('should align label and actions in a row', () => {
-            const { container } = render(
-                <SectionHeader
-                    label="Test"
-                    actions={<Button size="sm">Action</Button>}
-                />,
-            );
+            const { container } = render(<SectionHeader label="Test" actions={<Button size="sm">Action</Button>} />);
 
             const flexContainer = container.querySelector('.flex.items-center.justify-between');
             expect(flexContainer).toBeInTheDocument();
@@ -227,8 +222,28 @@ describe('AccordionSectionHeader', () => {
         render(<AccordionSectionHeader label="Related Items" />);
 
         expect(screen.getByText('Related Items')).toBeInTheDocument();
+        expect(screen.queryByRole('heading')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Required')).not.toBeInTheDocument();
         expect(screen.queryByText(/\(/)).not.toBeInTheDocument();
+    });
+
+    it('renders only the label as the requested semantic heading', () => {
+        render(
+            <AccordionSectionHeader
+                id="resource-info-heading"
+                headingAs="h3"
+                label="Resource Information"
+                description="Basic metadata about the dataset."
+                required
+            />,
+        );
+
+        const heading = screen.getByRole('heading', { level: 3, name: /Resource Information/i });
+
+        expect(heading).toHaveAttribute('id', 'resource-info-heading');
+        expect(heading.querySelector('div, p')).toBeNull();
+        expect(heading).not.toHaveTextContent('Basic metadata about the dataset.');
+        expect(screen.getByText('Basic metadata about the dataset.').tagName).toBe('P');
     });
 });
 

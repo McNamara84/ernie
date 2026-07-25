@@ -10,12 +10,13 @@ use Illuminate\Validation\Rule;
 
 class UpdateCurationAccordionRequest extends FormRequest
 {
+    private const LEGACY_NON_COLLAPSIBLE_ITEM = 'resource-info';
+
     /**
      * Keep in sync with resources/js/lib/curation-accordion.ts.
      * CurationAccordionPreferenceTest compares the backend list with the frontend constants.
      */
     public const ALLOWED_OPEN_ITEMS = [
-        'resource-info',
         'licenses-rights',
         'authors',
         'contributors',
@@ -46,7 +47,21 @@ class UpdateCurationAccordionRequest extends FormRequest
     {
         if (! $this->has('open_items')) {
             $this->merge(['open_items' => []]);
+
+            return;
         }
+
+        $openItems = $this->input('open_items');
+        if (! is_array($openItems)) {
+            return;
+        }
+
+        $this->merge([
+            'open_items' => array_values(array_filter(
+                $openItems,
+                static fn (mixed $item): bool => $item !== self::LEGACY_NON_COLLAPSIBLE_ITEM,
+            )),
+        ]);
     }
 
     /**

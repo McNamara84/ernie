@@ -242,7 +242,7 @@ describe('HandleInertiaRequests', function () {
 
     it('shares curationAccordionOpenItems from authenticated user', function () {
         $user = User::factory()->create([
-            'curation_accordion_open_items' => ['resource-info', 'authors'],
+            'curation_accordion_open_items' => ['authors', 'funding-references'],
         ]);
         $middleware = new HandleInertiaRequests;
         $request = Request::create('/test');
@@ -250,7 +250,7 @@ describe('HandleInertiaRequests', function () {
 
         $shared = $middleware->share($request);
 
-        expect($shared['curationAccordionOpenItems'])->toBe(['resource-info', 'authors']);
+        expect($shared['curationAccordionOpenItems'])->toBe(['authors', 'funding-references']);
     });
 
     it('shares appUrl and baseUrl', function () {

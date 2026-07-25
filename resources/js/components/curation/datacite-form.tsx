@@ -26,7 +26,7 @@ import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS } from '@/lib/curation-accordion';
+import { CURATION_ACCORDION_ITEM_VALUES, DEFAULT_OPEN_ACCORDION_ITEMS, isCurationAccordionItemValue } from '@/lib/curation-accordion';
 import { buildDateTime, hasValidDateValue, parseDateTime } from '@/lib/date-utils';
 import { resources } from '@/routes';
 import { store, storeDraft } from '@/routes/editor/resources';
@@ -2376,9 +2376,10 @@ export default function DataCiteForm({
                 setFieldErrors(fieldErrors);
             }
 
-            // Auto-open accordion sections that have errors
+            // Auto-open collapsible sections that have errors. Resource Information is always visible.
             const sectionsWithErrors = [...new Set(mapped.map((e) => e.sectionId))];
-            updateOpenAccordionItems((prev) => [...new Set([...prev, ...sectionsWithErrors])] as CurationAccordionItemValue[], { persist: false });
+            const accordionSectionsWithErrors = sectionsWithErrors.filter(isCurationAccordionItemValue);
+            updateOpenAccordionItems((prev) => [...new Set([...prev, ...accordionSectionsWithErrors])], { persist: false });
 
             // Scroll to first errored field/section after accordion opens
             if (sectionsWithErrors.length > 0) {
@@ -2402,7 +2403,9 @@ export default function DataCiteForm({
         }
 
         if (selectedDatacenterId === null) {
-            const mappedDatacenterCollectionError = mappedValidationErrors.find((error) => error.backendKey === 'datacenter_id' || error.backendKey === 'datacenters');
+            const mappedDatacenterCollectionError = mappedValidationErrors.find(
+                (error) => error.backendKey === 'datacenter_id' || error.backendKey === 'datacenters',
+            );
             if (mappedDatacenterCollectionError) {
                 return mappedDatacenterCollectionError.message;
             }
@@ -2944,12 +2947,13 @@ export default function DataCiteForm({
     // Handle click on an error in the ClickableValidationAlert (Issue #605)
     const handleErrorClick = useCallback(
         (error: MappedError) => {
-            // 1. Open the accordion section
-            updateOpenAccordionItems(
-                (prev) =>
-                    prev.includes(error.sectionId as CurationAccordionItemValue) ? prev : [...prev, error.sectionId as CurationAccordionItemValue],
-                { persist: false },
-            );
+            // 1. Open collapsible sections. Resource Information is a permanently visible section.
+            const accordionSectionId = error.sectionId;
+            if (isCurationAccordionItemValue(accordionSectionId)) {
+                updateOpenAccordionItems((prev) => (prev.includes(accordionSectionId) ? prev : [...prev, accordionSectionId]), {
+                    persist: false,
+                });
+            }
 
             // 2. Scroll to field or section after DOM update (wait for accordion animation)
             scheduleScrollToError(error.fieldSelector, error.sectionId);
@@ -2980,151 +2984,158 @@ export default function DataCiteForm({
                     data-testid="global-validation-alert"
                 />
             )}
-            <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
-                <AccordionItem value="resource-info">
-                    <AccordionTrigger
-                        className={SECTION_TRIGGER_CLASS_NAME}
-                        actions={renderSectionActions(
-                            'Resource Information',
-                            'Required fields: Year, Resource Type, Main Title, Language, Datacenter',
-                        )}
-                    >
+            <section
+                data-testid="resource-info-section"
+                data-accordion-value="resource-info"
+                aria-labelledby="resource-info-heading"
+                tabIndex={-1}
+                className="w-full border-b outline-none"
+            >
+                <div className="flex items-start gap-1">
+                    <div data-slot="static-section-header" className="flex flex-1 items-start gap-4 rounded-md py-4 text-left text-sm font-medium">
                         <AccordionSectionHeader
+                            id="resource-info-heading"
+                            headingAs="h3"
                             label="Resource Information"
                             description="Basic metadata about your dataset including identifiers and type."
                             required
                             status={renderStatusBadge(resourceInfoStatus)}
                         />
-                    </AccordionTrigger>
-                    <AccordionContent className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-12">
-                            <InputField
-                                id="doi"
-                                label="DOI"
-                                value={form.doi || ''}
-                                onChange={(e) => handleChange('doi', e.target.value)}
-                                onBlur={(e) => {
-                                    // Trigger format validation (shows errors immediately)
-                                    handleFieldBlur('doi', e.target.value, doiValidationRules);
-                                    // Trigger async DOI validation (duplicate check)
-                                    if (e.target.value.trim()) {
-                                        validateDoi(e.target.value);
-                                    }
-                                }}
-                                validationMessages={getFieldState('doi').messages}
-                                touched={getFieldState('doi').touched}
-                                placeholder="10.xxxx/xxxxx"
-                                labelTooltip={
-                                    isDoiReadonly
-                                        ? 'DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI.'
-                                        : initialResourceId && initialDoi && isAdmin
-                                          ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
-                                          : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
+                    </div>
+                    <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">
+                        {renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
+                    </div>
+                </div>
+                <div className="space-y-6 pb-4">
+                    <div className="grid gap-4 md:grid-cols-12">
+                        <InputField
+                            id="doi"
+                            label="DOI"
+                            value={form.doi || ''}
+                            onChange={(e) => handleChange('doi', e.target.value)}
+                            onBlur={(e) => {
+                                // Trigger format validation (shows errors immediately)
+                                handleFieldBlur('doi', e.target.value, doiValidationRules);
+                                // Trigger async DOI validation (duplicate check)
+                                if (e.target.value.trim()) {
+                                    validateDoi(e.target.value);
                                 }
-                                className="md:col-span-3"
-                                readOnly={isDoiReadonly}
-                                disabled={isDoiValidating}
+                            }}
+                            validationMessages={getFieldState('doi').messages}
+                            touched={getFieldState('doi').touched}
+                            placeholder="10.xxxx/xxxxx"
+                            labelTooltip={
+                                isDoiReadonly
+                                    ? 'DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI.'
+                                    : initialResourceId && initialDoi && isAdmin
+                                      ? 'As an administrator, you can edit this DOI. Be careful when changing registered DOIs.'
+                                      : 'Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx'
+                            }
+                            className="md:col-span-3"
+                            readOnly={isDoiReadonly}
+                            disabled={isDoiValidating}
+                        />
+                        <InputField
+                            id="year"
+                            type="number"
+                            label="Year"
+                            value={form.year || ''}
+                            onChange={(e) => handleChange('year', e.target.value)}
+                            onValidationBlur={() => handleFieldBlur('year', form.year, yearValidationRules)}
+                            validationMessages={getFieldState('year').messages}
+                            touched={getFieldState('year').touched}
+                            placeholder="2024"
+                            className="md:col-span-1"
+                            required
+                        />
+                        <SelectField
+                            id="resourceType"
+                            label="Resource Type"
+                            value={form.resourceType || ''}
+                            onValueChange={(val) => handleChange('resourceType', val)}
+                            onValidationBlur={() => markFieldTouched('resourceType')}
+                            validationMessages={getFieldState('resourceType').messages}
+                            touched={getFieldState('resourceType').touched}
+                            options={resourceTypes.map((type) => ({
+                                value: String(type.id),
+                                label: type.name,
+                            }))}
+                            className="md:col-span-3"
+                            required
+                            data-testid="resource-type-select"
+                        />
+                        <DatacenterField
+                            id="datacenter"
+                            label="Datacenter"
+                            options={availableDatacenters}
+                            selected={selectedDatacenterId}
+                            onChange={(id) => {
+                                setSelectedDatacenterId(id);
+                                setDatacenterTouched(true);
+                                clearDatacenterValidationErrors();
+                            }}
+                            className="min-w-0 md:col-span-3"
+                            required
+                            hasError={datacenterErrorMessage !== null}
+                            errorMessage={datacenterErrorMessage ?? undefined}
+                        />
+                        <InputField
+                            id="version"
+                            label="Version"
+                            value={form.version || ''}
+                            onChange={(e) => handleChange('version', e.target.value)}
+                            onValidationBlur={() => markFieldTouched('version')}
+                            validationMessages={getFieldState('version').messages}
+                            touched={getFieldState('version').touched}
+                            placeholder="1.0"
+                            labelTooltip="Version number (e.g., 1.0, 2.1, 1.0.0)"
+                            maxLength={50}
+                            className="min-w-0 md:col-span-1"
+                        />
+                        <SelectField
+                            id="language"
+                            label="Language of Data"
+                            value={form.language || ''}
+                            onValueChange={(val) => handleChange('language', val)}
+                            onValidationBlur={() => markFieldTouched('language')}
+                            validationMessages={getFieldState('language').messages}
+                            touched={getFieldState('language').touched}
+                            options={languages.map((l) => ({
+                                value: l.code,
+                                label: l.name,
+                            }))}
+                            className="md:col-span-2"
+                            required
+                            data-testid="language-select"
+                        />
+                    </div>
+                    <div className="mt-3 space-y-4">
+                        {titles.map((entry, index) => (
+                            <TitleField
+                                key={entry.id}
+                                id={entry.id}
+                                title={entry.title}
+                                titleType={entry.titleType}
+                                options={titleTypes
+                                    .filter((t) => t.slug !== 'main-title' || !mainTitleUsed || entry.titleType === 'main-title')
+                                    .map((t) => ({ value: t.slug, label: t.name }))}
+                                onTitleChange={(val) => handleTitleChange(index, 'title', val)}
+                                onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
+                                onAdd={addTitle}
+                                onRemove={() => removeTitle(index)}
+                                isFirst={index === 0}
+                                canAdd={canAddTitle(titles, MAX_TITLES)}
+                                validationMessages={getFieldState(`title-${index}`).messages}
+                                touched={getFieldState(`title-${index}`).touched}
+                                onValidationBlur={() =>
+                                    handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))
+                                }
                             />
-                            <InputField
-                                id="year"
-                                type="number"
-                                label="Year"
-                                value={form.year || ''}
-                                onChange={(e) => handleChange('year', e.target.value)}
-                                onValidationBlur={() => handleFieldBlur('year', form.year, yearValidationRules)}
-                                validationMessages={getFieldState('year').messages}
-                                touched={getFieldState('year').touched}
-                                placeholder="2024"
-                                className="md:col-span-1"
-                                required
-                            />
-                            <SelectField
-                                id="resourceType"
-                                label="Resource Type"
-                                value={form.resourceType || ''}
-                                onValueChange={(val) => handleChange('resourceType', val)}
-                                onValidationBlur={() => markFieldTouched('resourceType')}
-                                validationMessages={getFieldState('resourceType').messages}
-                                touched={getFieldState('resourceType').touched}
-                                options={resourceTypes.map((type) => ({
-                                    value: String(type.id),
-                                    label: type.name,
-                                }))}
-                                className="md:col-span-3"
-                                required
-                                data-testid="resource-type-select"
-                            />
-                            <DatacenterField
-                                id="datacenter"
-                                label="Datacenter"
-                                options={availableDatacenters}
-                                selected={selectedDatacenterId}
-                                onChange={(id) => {
-                                    setSelectedDatacenterId(id);
-                                    setDatacenterTouched(true);
-                                    clearDatacenterValidationErrors();
-                                }}
-                                className="min-w-0 md:col-span-3"
-                                required
-                                hasError={datacenterErrorMessage !== null}
-                                errorMessage={datacenterErrorMessage ?? undefined}
-                            />
-                            <InputField
-                                id="version"
-                                label="Version"
-                                value={form.version || ''}
-                                onChange={(e) => handleChange('version', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('version')}
-                                validationMessages={getFieldState('version').messages}
-                                touched={getFieldState('version').touched}
-                                placeholder="1.0"
-                                labelTooltip="Version number (e.g., 1.0, 2.1, 1.0.0)"
-                                maxLength={50}
-                                className="min-w-0 md:col-span-1"
-                            />
-                            <SelectField
-                                id="language"
-                                label="Language of Data"
-                                value={form.language || ''}
-                                onValueChange={(val) => handleChange('language', val)}
-                                onValidationBlur={() => markFieldTouched('language')}
-                                validationMessages={getFieldState('language').messages}
-                                touched={getFieldState('language').touched}
-                                options={languages.map((l) => ({
-                                    value: l.code,
-                                    label: l.name,
-                                }))}
-                                className="md:col-span-2"
-                                required
-                                data-testid="language-select"
-                            />
-                        </div>
-                        <div className="mt-3 space-y-4">
-                            {titles.map((entry, index) => (
-                                <TitleField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    title={entry.title}
-                                    titleType={entry.titleType}
-                                    options={titleTypes
-                                        .filter((t) => t.slug !== 'main-title' || !mainTitleUsed || entry.titleType === 'main-title')
-                                        .map((t) => ({ value: t.slug, label: t.name }))}
-                                    onTitleChange={(val) => handleTitleChange(index, 'title', val)}
-                                    onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
-                                    onAdd={addTitle}
-                                    onRemove={() => removeTitle(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddTitle(titles, MAX_TITLES)}
-                                    validationMessages={getFieldState(`title-${index}`).messages}
-                                    touched={getFieldState(`title-${index}`).touched}
-                                    onValidationBlur={() =>
-                                        handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))
-                                    }
-                                />
-                            ))}
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
+                        ))}
+                    </div>
+                </div>
+            </section>
+            <Accordion type="multiple" value={visibleOpenAccordionItems} onValueChange={handleAccordionValueChange} className="w-full">
                 <AccordionItem value="licenses-rights">
                     <AccordionTrigger
                         className={SECTION_TRIGGER_CLASS_NAME}

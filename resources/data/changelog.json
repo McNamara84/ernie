@@ -4,6 +4,10 @@
         "date": "2026-07-24",
         "features": [
             {
+                "title": "Always-Visible Resource Information",
+                "description": "Resource Information now remains permanently visible in the Data Editor without an accordion toggle, so curators can identify the resource at a glance while working across multiple tabs. Individual and bulk expand/collapse controls, including each user's saved accordion state, continue to apply to all other field groups."
+            },
+            {
                 "title": "Validated Responsive Landing Page Header Logos",
                 "description": "Landing page template management now shows the required 5:1 header-logo dimensions before upload and recommends 1200 × 240 pixels. New and replacement logos are validated server-side against the accepted 960 × 192 to 1920 × 384 pixel range, supported image formats, and the 2 MB file-size limit. Header logos now preserve their proportions on narrow mobile screens instead of being distorted."
             },
