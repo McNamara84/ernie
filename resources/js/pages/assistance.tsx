@@ -4,6 +4,7 @@ import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucid
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { ResourceReview } from '@/components/assistance/resource-review';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1135,13 +1136,15 @@ function DateTypeSuggestionCard({
     const isAmbiguous = metadata?.is_ambiguous === true || isHint || confidence === 'low';
     const evidenceUrl = typeof metadata?.evidence_url === 'string' ? metadata.evidence_url : null;
     const hintLabel = String(suggestion.suggested_label ?? suggestion.suggested_value ?? 'DateType hint').replace(/^Hint:\s*/i, '');
-    const displayLabel = isHint ? hintLabel : suggestionKind === 'correction'
-        ? String(suggestion.suggested_label ?? 'DateType correction')
-        : dateTypeDisplayLabel(
-              targetDateType,
-              String(suggestion.suggested_value ?? ''),
-              String(suggestion.suggested_label ?? 'DateType suggestion'),
-          );
+    const displayLabel = isHint
+        ? hintLabel
+        : suggestionKind === 'correction'
+          ? String(suggestion.suggested_label ?? 'DateType correction')
+          : dateTypeDisplayLabel(
+                targetDateType,
+                String(suggestion.suggested_value ?? ''),
+                String(suggestion.suggested_label ?? 'DateType suggestion'),
+            );
 
     return (
         <div
@@ -1154,22 +1157,22 @@ function DateTypeSuggestionCard({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
-                            {isHint ? (
-                                <Badge className="bg-orange-600 text-white">
-                                    <AlertTriangle className="mr-1 h-3 w-3" />
-                                    Hint
-                                </Badge>
-                            ) : suggestionKind === 'correction' ? (
-                                <Badge className="bg-black text-white">
-                                    <RefreshCw className="mr-1 h-3 w-3" />
-                                    Correction
-                                </Badge>
-                            ) : (
-                                <Badge className="bg-black text-white">
-                                    <Plus className="mr-1 h-3 w-3" />
-                                    Addition
-                                </Badge>
-                            )}
+                        {isHint ? (
+                            <Badge className="bg-orange-600 text-white">
+                                <AlertTriangle className="mr-1 h-3 w-3" />
+                                Hint
+                            </Badge>
+                        ) : suggestionKind === 'correction' ? (
+                            <Badge className="bg-black text-white">
+                                <RefreshCw className="mr-1 h-3 w-3" />
+                                Correction
+                            </Badge>
+                        ) : (
+                            <Badge className="bg-black text-white">
+                                <Plus className="mr-1 h-3 w-3" />
+                                Addition
+                            </Badge>
+                        )}
 
                         {targetDateType && (
                             <Badge variant="secondary" className="text-xs">
@@ -1177,16 +1180,10 @@ function DateTypeSuggestionCard({
                             </Badge>
                         )}
 
-                        {confidence && (
-                            <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>
-                                {confidenceLabel(confidence)}
-                            </Badge>
-                        )}
+                        {confidence && <Badge className={`text-xs ${confidenceBadgeColor(confidence)}`}>{confidenceLabel(confidence)}</Badge>}
 
                         {isAmbiguous && (
-                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">
-                                Manual review
-                            </Badge>
+                            <Badge className="bg-orange-50 text-orange-600 dark:border-orange-400 dark:text-orange-400">Manual review</Badge>
                         )}
 
                         {collectedDatesCount !== null && geoLocationsCount !== null && (
@@ -1196,9 +1193,7 @@ function DateTypeSuggestionCard({
                         )}
                     </div>
 
-                    <p className="text-sm font-medium">
-                        {displayLabel}
-                    </p>
+                    <p className="text-sm font-medium">{displayLabel}</p>
 
                     {evidence && <p className="text-xs text-muted-foreground">{evidence}</p>}
                     {(sourceUrl || evidenceUrl || schemaOrgField) && (
@@ -1218,7 +1213,6 @@ function DateTypeSuggestionCard({
                     )}
                     <p className="text-xs text-muted-foreground">
                         Discovered: {suggestion.discovered_at ? new Date(suggestion.discovered_at).toLocaleDateString() : '—'}
-
                     </p>
                 </div>
 
@@ -1239,8 +1233,7 @@ function DateTypeSuggestionCard({
         </div>
     );
 }
-function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string,): string 
-{
+function dateTypeDisplayLabel(targetType: unknown, value: string, fallbackLabel: string): string {
     if (typeof targetType !== 'string') {
         return fallbackLabel;
     }
@@ -1476,15 +1469,24 @@ function useSectionState(manifests: AssistantManifest[]) {
 
 // ── Main page component ──────────────────────────────────────────────
 
-export default function AssistancePage({ sections, manifests }: AssistancePageProps) {
+export default function AssistancePage({ sections, manifests, allAssistantResources, pendingCounts }: AssistancePageProps) {
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
 
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
-    const [pendingRorBulkMatch, setPendingRorBulkMatch] = useState<RorAffiliationBulkMatch | null>(null);
+    const [rorBulkMatchQueue, setRorBulkMatchQueue] = useState<RorAffiliationBulkMatch[]>([]);
+    const pendingRorBulkMatch = rorBulkMatchQueue[0] ?? null;
     const [isAcceptingRorBulkMatch, setIsAcceptingRorBulkMatch] = useState(false);
 
     const reloadAssistanceSections = useCallback(() => {
-        router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
+        router.reload({
+            only: allAssistantResources
+                ? ['sections', 'allAssistantResources', 'pendingCounts', 'pendingAssistanceTotalCount']
+                : ['sections', 'pendingAssistanceTotalCount'],
+        });
+    }, [allAssistantResources]);
+
+    const enqueueRorBulkMatches = useCallback((matches: RorAffiliationBulkMatch[]) => {
+        setRorBulkMatchQueue((current) => [...current, ...matches.filter((match) => match.available && match.count > 0)]);
     }, []);
 
     const scrollToAssistantResults = useCallback((assistantId: string) => {
@@ -1663,7 +1665,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
 
                 const bulkMatch = data.bulk_affiliation_match;
                 if (data.success && manifest.id === 'ror-suggestion' && bulkMatch?.available === true && bulkMatch.count > 0) {
-                    setPendingRorBulkMatch(bulkMatch);
+                    enqueueRorBulkMatches([bulkMatch]);
                     return;
                 }
 
@@ -1674,7 +1676,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 removeProcessingId(manifest.id, suggestionId);
             }
         },
-        [addProcessingId, reloadAssistanceSections, removeProcessingId],
+        [addProcessingId, enqueueRorBulkMatches, reloadAssistanceSections, removeProcessingId],
     );
 
     const handleAcceptRorBulkMatch = useCallback(async () => {
@@ -1693,8 +1695,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 toast.warning(data.message);
             }
 
-            setPendingRorBulkMatch(null);
-            reloadAssistanceSections();
+            setRorBulkMatchQueue((current) => current.slice(1));
+            if (rorBulkMatchQueue.length <= 1) reloadAssistanceSections();
         } catch (error) {
             const isAxiosBulkAcceptError = axios.isAxiosError(error);
 
@@ -1705,20 +1707,20 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
             }
 
             if (isAxiosBulkAcceptError && error.response?.status === 422) {
-                setPendingRorBulkMatch(null);
+                setRorBulkMatchQueue((current) => current.slice(1));
                 reloadAssistanceSections();
             }
         } finally {
             setIsAcceptingRorBulkMatch(false);
         }
-    }, [pendingRorBulkMatch, reloadAssistanceSections]);
+    }, [pendingRorBulkMatch, reloadAssistanceSections, rorBulkMatchQueue.length]);
 
     const handleDeclineRorBulkMatch = useCallback(() => {
         if (isAcceptingRorBulkMatch) return;
 
-        setPendingRorBulkMatch(null);
-        reloadAssistanceSections();
-    }, [isAcceptingRorBulkMatch, reloadAssistanceSections]);
+        setRorBulkMatchQueue((current) => current.slice(1));
+        if (rorBulkMatchQueue.length <= 1) reloadAssistanceSections();
+    }, [isAcceptingRorBulkMatch, reloadAssistanceSections, rorBulkMatchQueue.length]);
 
     const handleDecline = useCallback(
         async (manifest: AssistantManifest, suggestionId: number) => {
@@ -1804,15 +1806,8 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                 );
             case 'size-format-suggestion':
                 return <SizeFormatSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
-                case 'date-type-suggestion':
-                return (
-                    <DateTypeSuggestionCard
-                        suggestion={item}
-                        onAccept={onAccept}
-                        onDecline={onDecline}
-                        isProcessing={isProcessing}
-                    />
-                );
+            case 'date-type-suggestion':
+                return <DateTypeSuggestionCard suggestion={item} onAccept={onAccept} onDecline={onDecline} isProcessing={isProcessing} />;
             case 'description-segmentation':
                 return (
                     <DescriptionSegmentationSuggestionCard
@@ -1849,7 +1844,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         isProcessing={isProcessing}
                     />
                 );
-            default: 
+            default:
                 // Generic card for future student modules
                 return (
                     <div className="bg-card p-2 sm:p-3">
@@ -1873,7 +1868,6 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         </div>
                     </div>
                 );
-
         }
     }
 
@@ -1918,159 +1912,179 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                     );
                 })}
 
-                {/* Section cards — one per assistant, ordered by sortOrder */}
-                {manifests.map((manifest) => {
-                    const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
-                    const state = states[manifest.id];
+                {allAssistantResources && (
+                    <ResourceReview
+                        allAssistantResources={allAssistantResources}
+                        sections={sections}
+                        manifests={manifests}
+                        pendingCounts={pendingCounts}
+                        checking={Object.fromEntries(manifests.map((manifest) => [manifest.id, states[manifest.id]?.isChecking ?? false]))}
+                        onCheck={handleCheck}
+                        onReload={reloadAssistanceSections}
+                        onRorFollowUps={enqueueRorBulkMatches}
+                        renderSuggestion={renderCard}
+                    />
+                )}
 
-                    if (!sectionData) return null;
+                {/* Kept temporarily as a compatibility render path for legacy page fixtures. */}
+                {manifests
+                    .filter(() => allAssistantResources === undefined)
+                    .map((manifest) => {
+                        const sectionData = sections[manifest.id] as PaginatedData<BaseSuggestionItem> | undefined;
+                        const state = states[manifest.id];
 
-                    // Group items by resource
-                    const grouped = sectionData.data.reduce<
-                        Record<number, { resourceId: number; doi: string; title: string; items: BaseSuggestionItem[] }>
-                    >((groups, item) => {
-                        const resourceId = item.resource_id;
-                        const itemDoi = normalizedResourceHeaderValue(item.resource_doi);
-                        const itemTitle = normalizedResourceHeaderValue(item.resource_title);
+                        if (!sectionData) return null;
 
-                        if (!groups[resourceId]) {
-                            groups[resourceId] = {
-                                resourceId,
-                                doi: itemDoi,
-                                title: itemTitle,
-                                items: [],
-                            };
-                        } else {
-                            groups[resourceId].doi = firstNonEmptyResourceHeaderValue(groups[resourceId].doi, itemDoi);
-                            groups[resourceId].title = firstNonEmptyResourceHeaderValue(groups[resourceId].title, itemTitle);
-                        }
+                        // Group items by resource
+                        const grouped = sectionData.data.reduce<
+                            Record<number, { resourceId: number; doi: string; title: string; items: BaseSuggestionItem[] }>
+                        >((groups, item) => {
+                            const resourceId = item.resource_id;
+                            const itemDoi = normalizedResourceHeaderValue(item.resource_doi);
+                            const itemTitle = normalizedResourceHeaderValue(item.resource_title);
 
-                        groups[resourceId].items.push(item);
-                        return groups;
-                    }, {});
+                            if (!groups[resourceId]) {
+                                groups[resourceId] = {
+                                    resourceId,
+                                    doi: itemDoi,
+                                    title: itemTitle,
+                                    items: [],
+                                };
+                            } else {
+                                groups[resourceId].doi = firstNonEmptyResourceHeaderValue(groups[resourceId].doi, itemDoi);
+                                groups[resourceId].title = firstNonEmptyResourceHeaderValue(groups[resourceId].title, itemTitle);
+                            }
 
-                    return (
-                        <Card key={manifest.id}>
-                            <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="min-w-0 space-y-1.5">
-                                    <CardTitle className="break-words">{manifest.name}</CardTitle>
-                                    <CardDescription>
-                                        {sectionData.total > 0
-                                            ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
-                                            : manifest.emptyState.description}
-                                    </CardDescription>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="min-h-8 max-w-full self-start whitespace-normal text-left sm:self-auto"
-                                    onClick={() => handleCheck(manifest)}
-                                    disabled={state?.isChecking ?? false}
+                            groups[resourceId].items.push(item);
+                            return groups;
+                        }, {});
+
+                        return (
+                            <Card key={manifest.id}>
+                                <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="min-w-0 space-y-1.5">
+                                        <CardTitle className="break-words">{manifest.name}</CardTitle>
+                                        <CardDescription>
+                                            {sectionData.total > 0
+                                                ? `${sectionData.total} pending suggestion(s). ${manifest.description}`
+                                                : manifest.emptyState.description}
+                                        </CardDescription>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="min-h-8 max-w-full self-start text-left whitespace-normal sm:self-auto"
+                                        onClick={() => handleCheck(manifest)}
+                                        disabled={state?.isChecking ?? false}
+                                    >
+                                        {state?.isChecking ? (
+                                            <>
+                                                <Spinner size="sm" className="mr-2" />
+                                                Checking {manifest.name}...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <RefreshCw className="mr-2 h-4 w-4" />
+                                                Check {manifest.name}
+                                            </>
+                                        )}
+                                    </Button>
+                                </CardHeader>
+                                <CardContent
+                                    id={'assistance-results-' + manifest.id}
+                                    data-testid={'assistance-results-' + manifest.id}
+                                    className="scroll-mt-24"
                                 >
-                                    {state?.isChecking ? (
-                                        <>
-                                            <Spinner size="sm" className="mr-2" />
-                                            Checking {manifest.name}...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <RefreshCw className="mr-2 h-4 w-4" />
-                                            Check {manifest.name}
-                                        </>
-                                    )}
-                                </Button>
-                            </CardHeader>
-                            <CardContent
-                                id={'assistance-results-' + manifest.id}
-                                data-testid={'assistance-results-' + manifest.id}
-                                className="scroll-mt-24"
-                            >
-                                {Object.keys(grouped).length > 0 ? (
-                                    <div className="space-y-4">
-                                        {Object.entries(grouped).map(([resourceKey, group]) => {
-                                            const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
-                                            const resourceTitle = group.title === '' ? 'Untitled' : group.title;
+                                    {Object.keys(grouped).length > 0 ? (
+                                        <div className="space-y-4">
+                                            {Object.entries(grouped).map(([resourceKey, group]) => {
+                                                const resourceLabel = group.doi === '' ? `Resource #${group.resourceId}` : group.doi;
+                                                const resourceTitle = group.title === '' ? 'Untitled' : group.title;
 
-                                            return (
-                                                <Card key={resourceKey} data-testid={`resource-card-${manifest.id}-${group.resourceId}`}>
-                                                    <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
-                                                        <div className="min-w-0 space-y-1">
-                                                            <CardTitle className="text-base">
-                                                                <Link
-                                                                    href={resourceEditorUrl(group.resourceId)}
-                                                                    className="font-mono break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                                                    title={`Open ${resourceLabel} in editor`}
-                                                                >
-                                                                    {resourceLabel}
-                                                                </Link>
-                                                            </CardTitle>
-                                                            <CardDescription>{resourceTitle}</CardDescription>
-                                                        </div>
-                                                        <Badge variant="secondary" className="shrink-0 text-xs">
-                                                            {group.items.length} suggestion(s)
-                                                        </Badge>
-                                                    </CardHeader>
-                                                    <CardContent className="p-0">
-                                                        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
-                                                            <span>Suggestion</span>
-                                                            <span>Actions</span>
-                                                        </div>
-                                                        <ul
-                                                            aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
-                                                            className="divide-y"
-                                                        >
-                                                            {group.items.map((item) => (
-                                                                <li
-                                                                    key={item.id as number}
-                                                                    className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-2 sm:p-3"
-                                                                >
-                                                                    <div className="min-w-0 [&_.suggestion-card-actions]:hidden">
-                                                                        {renderCard(manifest, item, state?.processingIds.has(item.id as number) ?? false)}
-                                                                    </div>
-                                                                    {renderSuggestionActions(
-                                                                        manifest,
-                                                                        item,
-                                                                        state?.processingIds.has(item.id as number) ?? false,
-                                                                    )}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </CardContent>
-                                                </Card>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                                        <div className="text-4xl">&#10003;</div>
-                                        <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
-                                        <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
-                                    </div>
-                                )}
-
-                                {sectionData.last_page > 1 && (
-                                    <div className="mt-6 flex items-center justify-between border-t pt-4">
-                                        <p className="text-sm text-muted-foreground">
-                                            Showing {sectionData.from ?? 0}–{sectionData.to ?? 0} of {sectionData.total}
-                                        </p>
-                                        <div className="flex gap-1">
-                                            {sectionData.links.map((link, index) => (
-                                                <Button
-                                                    key={link.url ?? `${manifest.id}-${link.label}-${index}`}
-                                                    variant={link.active ? 'default' : 'outline'}
-                                                    size="sm"
-                                                    disabled={!link.url}
-                                                    onClick={() => link.url && handlePagination(manifest.id, link.url)}
-                                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                                />
-                                            ))}
+                                                return (
+                                                    <Card key={resourceKey} data-testid={`resource-card-${manifest.id}-${group.resourceId}`}>
+                                                        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 border-b bg-muted/30 py-4">
+                                                            <div className="min-w-0 space-y-1">
+                                                                <CardTitle className="text-base">
+                                                                    <Link
+                                                                        href={resourceEditorUrl(group.resourceId)}
+                                                                        className="font-mono break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                                        title={`Open ${resourceLabel} in editor`}
+                                                                    >
+                                                                        {resourceLabel}
+                                                                    </Link>
+                                                                </CardTitle>
+                                                                <CardDescription>{resourceTitle}</CardDescription>
+                                                            </div>
+                                                            <Badge variant="secondary" className="shrink-0 text-xs">
+                                                                {group.items.length} suggestion(s)
+                                                            </Badge>
+                                                        </CardHeader>
+                                                        <CardContent className="p-0">
+                                                            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground uppercase">
+                                                                <span>Suggestion</span>
+                                                                <span>Actions</span>
+                                                            </div>
+                                                            <ul
+                                                                aria-label={`Suggestions from ${manifest.name} for ${resourceLabel}`}
+                                                                className="divide-y"
+                                                            >
+                                                                {group.items.map((item) => (
+                                                                    <li
+                                                                        key={item.id as number}
+                                                                        className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-2 sm:p-3"
+                                                                    >
+                                                                        <div className="min-w-0 [&_.suggestion-card-actions]:hidden">
+                                                                            {renderCard(
+                                                                                manifest,
+                                                                                item,
+                                                                                state?.processingIds.has(item.id as number) ?? false,
+                                                                            )}
+                                                                        </div>
+                                                                        {renderSuggestionActions(
+                                                                            manifest,
+                                                                            item,
+                                                                            state?.processingIds.has(item.id as number) ?? false,
+                                                                        )}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })}
                                         </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                                            <div className="text-4xl">&#10003;</div>
+                                            <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
+                                            <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
+                                        </div>
+                                    )}
+
+                                    {sectionData.last_page > 1 && (
+                                        <div className="mt-6 flex items-center justify-between border-t pt-4">
+                                            <p className="text-sm text-muted-foreground">
+                                                Showing {sectionData.from ?? 0}–{sectionData.to ?? 0} of {sectionData.total}
+                                            </p>
+                                            <div className="flex gap-1">
+                                                {sectionData.links.map((link, index) => (
+                                                    <Button
+                                                        key={link.url ?? `${manifest.id}-${link.label}-${index}`}
+                                                        variant={link.active ? 'default' : 'outline'}
+                                                        size="sm"
+                                                        disabled={!link.url}
+                                                        onClick={() => link.url && handlePagination(manifest.id, link.url)}
+                                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
             </div>
 
             <Dialog

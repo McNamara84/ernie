@@ -51,6 +51,26 @@ interface AssistantContract
     public function loadSuggestions(int $perPage): LengthAwarePaginator;
 
     /**
+     * List resources that currently have pending suggestions for this assistant.
+     *
+     * @return list<array{resource_id: int, resource_created_at: string}>
+     */
+    public function listPendingResources(): array;
+
+    /**
+     * Load every pending suggestion for the supplied resources.
+     *
+     * @param  list<int>  $resourceIds
+     * @return list<array<string, mixed>>
+     */
+    public function loadSuggestionsForResources(array $resourceIds): array;
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getSuggestionForReview(int $id): ?array;
+
+    /**
      * Count the number of pending suggestions.
      */
     public function countPending(): int;
@@ -83,5 +103,8 @@ interface AssistantContract
     /**
      * Decline a suggestion by its ID, recording who declined and why.
      */
-    public function declineSuggestion(int $id, User $user, ?string $reason): void;
+    /**
+     * @return array{success: bool, message: string}
+     */
+    public function declineSuggestion(int $id, User $user, ?string $reason): array;
 }

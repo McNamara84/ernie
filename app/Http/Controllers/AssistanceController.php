@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
+use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Models\User;
+use App\Services\Assistance\AssistanceReviewService;
 use App\Services\Assistance\AssistantRegistrar;
+use App\Services\Assistance\BatchSuggestionActionService;
+use App\Services\Assistance\BatchSuggestionValidationException;
 use App\Services\RorDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +30,8 @@ class AssistanceController extends Controller
 {
     public function __construct(
         private readonly AssistantRegistrar $registrar,
+        private readonly AssistanceReviewService $reviewService,
+        private readonly BatchSuggestionActionService $batchActionService,
         private readonly RorDiscoveryService $rorDiscoveryService,
     ) {}
 
@@ -35,19 +41,16 @@ class AssistanceController extends Controller
     public function index(Request $request): Response
     {
         $perPage = max(1, min((int) $request->input('per_page', 25), 100));
-
-        $sections = [];
         $manifests = [];
 
         foreach ($this->registrar->getAll() as $assistant) {
-            $manifest = $assistant->getManifest();
-            $manifests[] = $manifest->toArray();
-
-            $sections[$manifest->id] = $assistant->loadSuggestions($perPage)->withQueryString();
+            $manifests[] = $assistant->getManifest()->toArray();
         }
 
+        $review = $this->reviewService->build($request, $perPage);
+
         return Inertia::render('assistance', [
-            'sections' => $sections,
+            ...$review,
             'manifests' => $manifests,
         ]);
     }
@@ -140,6 +143,44 @@ class AssistanceController extends Controller
         return response()->json($result);
     }
 
+    public function batchAccept(BatchSuggestionsRequest $request): JsonResponse
+    {
+        return $this->batchAction($request, 'accept');
+    }
+
+    public function batchDecline(BatchSuggestionsRequest $request): JsonResponse
+    {
+        return $this->batchAction($request, 'decline');
+    }
+
+    /**
+     * @param  'accept'|'decline'  $action
+     */
+    private function batchAction(BatchSuggestionsRequest $request, string $action): JsonResponse
+    {
+        $validated = $request->validated();
+
+        /** @var User $user */
+        $user = $request->user();
+
+        try {
+            $result = $this->batchActionService->execute(
+                action: $action,
+                resourceId: (int) $validated['resource_id'],
+                selections: $validated['suggestions'],
+                user: $user,
+                reason: isset($validated['reason']) ? (string) $validated['reason'] : null,
+            );
+        } catch (BatchSuggestionValidationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return response()->json($result);
+    }
+
     /**
      * Accept further exact creator-affiliation matches for an accepted ROR suggestion.
      */
@@ -172,9 +213,9 @@ class AssistanceController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $assistant->declineSuggestion($suggestion, $user, $request->input('reason'));
+        $result = $assistant->declineSuggestion($suggestion, $user, $request->input('reason'));
 
-        return response()->json(['success' => true]);
+        return response()->json($result);
     }
 
     /**

@@ -55,6 +55,49 @@ class Assistant extends AbstractAssistant
             ->paginate(perPage: $perPage, pageName: 'ror_page');
     }
 
+    #[\Override]
+    public function listPendingResources(): array
+    {
+        return SuggestedRor::query()
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
+            ->selectRaw('suggested_rors.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
+            ->groupBy('suggested_rors.resource_id')
+            ->orderByDesc('resource_created_at')
+            ->orderByDesc('suggested_rors.resource_id')
+            ->get()
+            ->map(fn (SuggestedRor $suggestion): array => [
+                'resource_id' => (int) $suggestion->resource_id,
+                'resource_created_at' => (string) $suggestion->getAttribute('resource_created_at'),
+            ])
+            ->values()
+            ->all();
+    }
+
+    #[\Override]
+    public function loadSuggestionsForResources(array $resourceIds): array
+    {
+        if ($resourceIds === []) {
+            return [];
+        }
+
+        $suggestions = SuggestedRor::query()
+            ->with(['resource.titles.titleType'])
+            ->whereIn('suggested_rors.resource_id', $resourceIds)
+            ->join('resources', 'suggested_rors.resource_id', '=', 'resources.id')
+            ->select('suggested_rors.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_rors.similarity_score')
+            ->orderByDesc('suggested_rors.id')
+            ->get();
+
+        $this->affiliationPersonNames = $this->loadAffiliationPersonNames($suggestions);
+
+        return $suggestions
+            ->map(fn (SuggestedRor $suggestion): array => $this->present($suggestion))
+            ->values()
+            ->all();
+    }
+
     /**
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
@@ -65,7 +108,7 @@ class Assistant extends AbstractAssistant
         $this->affiliationPersonNames = $this->loadAffiliationPersonNames($paginator->getCollection());
 
         return $paginator->through(
-            fn (Model $model) => $this->transform($model),
+            fn (Model $model) => $this->present($model),
         );
     }
 
@@ -93,6 +136,16 @@ class Assistant extends AbstractAssistant
             'existing_identifier_type' => $suggestion->existing_identifier_type,
             'discovered_at' => $suggestion->discovered_at->toIso8601String(),
         ];
+    }
+
+    #[\Override]
+    protected function reviewMetadata(Model $suggestion, array $item): array
+    {
+        /** @var SuggestedRor $suggestion */
+        $metadata = parent::reviewMetadata($suggestion, $item);
+        $metadata['exclusive_target_key'] = $this->getId().':'.$suggestion->entity_type.':'.$suggestion->entity_id;
+
+        return $metadata;
     }
 
     #[\Override]

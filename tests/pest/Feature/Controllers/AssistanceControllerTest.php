@@ -3,16 +3,19 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AssistanceController;
+use App\Models\AssistantSuggestion;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceCreator;
 use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
+use App\Models\SuggestedOrcid;
 use App\Models\SuggestedRor;
 use App\Models\User;
 use App\Services\Assistance\AssistantRegistrar;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 covers(AssistanceController::class);
 
@@ -41,6 +44,8 @@ describe('index', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('assistance')
                 ->has('sections')
+                ->has('allAssistantResources')
+                ->has('pendingCounts')
                 ->has('manifests')
             );
     });
@@ -83,7 +88,7 @@ describe('index', function () {
             ->get('/assistance')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('sections.ror-suggestion.data.0.person_name', 'Curie, Marie')
+                ->where('sections.ror-suggestion.data.0.suggestions.0.person_name', 'Curie, Marie')
             );
     });
 
@@ -125,7 +130,57 @@ describe('index', function () {
             ->get('/assistance')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('sections.ror-suggestion.data.0.person_name', 'Einstein, Albert')
+                ->where('sections.ror-suggestion.data.0.suggestions.0.person_name', 'Einstein, Albert')
+            );
+    });
+
+    it('paginates complete resources and merges assistants in the all-assistants view', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $newerResource = Resource::factory()->create(['created_at' => now()]);
+        $olderResource = Resource::factory()->create(['created_at' => now()->subDay()]);
+
+        foreach ([1, 2] as $index) {
+            AssistantSuggestion::create([
+                'assistant_id' => 'date-type-suggestion',
+                'resource_id' => $newerResource->id,
+                'target_type' => 'date_type',
+                'target_id' => $newerResource->id,
+                'suggested_value' => 'Date '.$index,
+                'suggested_label' => 'Date '.$index,
+                'discovered_at' => now(),
+            ]);
+        }
+
+        AssistantSuggestion::create([
+            'assistant_id' => 'size-format-suggestion',
+            'resource_id' => $newerResource->id,
+            'target_type' => 'format',
+            'target_id' => $newerResource->id,
+            'suggested_value' => 'text/csv',
+            'suggested_label' => 'CSV',
+            'discovered_at' => now(),
+        ]);
+        AssistantSuggestion::create([
+            'assistant_id' => 'date-type-suggestion',
+            'resource_id' => $olderResource->id,
+            'target_type' => 'date_type',
+            'target_id' => $olderResource->id,
+            'suggested_value' => 'Older date',
+            'suggested_label' => 'Older date',
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance?per_page=1')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('sections.date-type-suggestion.total', 2)
+                ->where('sections.date-type-suggestion.data.0.resource_id', $newerResource->id)
+                ->has('sections.date-type-suggestion.data.0.suggestions', 2)
+                ->where('allAssistantResources.total', 2)
+                ->has('allAssistantResources.data.0.suggestions', 3)
+                ->where('pendingCounts.date-type-suggestion', 3)
+                ->where('pendingCounts.size-format-suggestion', 1)
             );
     });
 
@@ -182,7 +237,7 @@ describe('check', function () {
 describe('status', function () {
     it('returns cached job status', function () {
         $user = User::factory()->create(['role' => 'admin']);
-        $jobId = \Illuminate\Support\Str::uuid()->toString();
+        $jobId = Str::uuid()->toString();
 
         $registrar = app(AssistantRegistrar::class);
         $assistant = $registrar->get('relation-suggestion');
@@ -208,7 +263,7 @@ describe('status', function () {
 
     it('returns 404 when job not found in cache', function () {
         $user = User::factory()->create(['role' => 'admin']);
-        $jobId = \Illuminate\Support\Str::uuid()->toString();
+        $jobId = Str::uuid()->toString();
 
         $this->actingAs($user)
             ->get("/assistance/check/relation-suggestion/{$jobId}/status")
@@ -237,14 +292,124 @@ describe('accept', function () {
 // =========================================================================
 
 describe('decline', function () {
-    it('returns success for non-existent suggestion', function () {
+    it('returns failure for non-existent suggestion', function () {
         $user = User::factory()->create(['role' => 'admin']);
 
         // Non-existent suggestion declines silently
         $this->actingAs($user)
             ->post('/assistance/relations/99999/decline', ['reason' => 'Not relevant'])
             ->assertOk()
-            ->assertJson(['success' => true]);
+            ->assertJson(['success' => false]);
+    });
+});
+
+describe('batch suggestions', function () {
+    it('declines multiple resource-scoped suggestions through their assistants', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create();
+        $suggestions = collect([1, 2])->map(fn (int $index) => AssistantSuggestion::create([
+            'assistant_id' => 'date-type-suggestion',
+            'resource_id' => $resource->id,
+            'target_type' => 'date_type',
+            'target_id' => $resource->id,
+            'suggested_value' => 'Hint '.$index,
+            'suggested_label' => 'Hint '.$index,
+            'metadata' => ['suggestion_kind' => 'hint'],
+            'discovered_at' => now(),
+        ]));
+
+        $this->actingAs($user)
+            ->postJson('/assistance/suggestions/batch/decline', [
+                'resource_id' => $resource->id,
+                'suggestions' => $suggestions->map(fn (AssistantSuggestion $suggestion) => [
+                    'assistant_id' => 'date-type-suggestion',
+                    'suggestion_id' => $suggestion->id,
+                ])->all(),
+                'reason' => 'Reviewed together',
+            ])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'processed_count' => 2,
+                'success_count' => 2,
+                'failure_count' => 0,
+            ])
+            ->assertJsonCount(2, 'results');
+
+        expect(AssistantSuggestion::whereKey($suggestions->pluck('id'))->exists())->toBeFalse();
+    });
+
+    it('rejects accepting a decline-only date hint without mutating it', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create();
+        $suggestion = AssistantSuggestion::create([
+            'assistant_id' => 'date-type-suggestion',
+            'resource_id' => $resource->id,
+            'target_type' => 'date_type',
+            'target_id' => $resource->id,
+            'suggested_value' => 'Review the imported dates',
+            'suggested_label' => 'Review the imported dates',
+            'metadata' => ['suggestion_kind' => 'hint'],
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/assistance/suggestions/batch/accept', [
+                'resource_id' => $resource->id,
+                'suggestions' => [[
+                    'assistant_id' => 'date-type-suggestion',
+                    'suggestion_id' => $suggestion->id,
+                ]],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'At least one selected suggestion can only be declined.');
+
+        expect($suggestion->fresh())->not->toBeNull();
+    });
+
+    it('rejects accepting two ORCID alternatives for the same person before either is mutated', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create();
+        $suggestions = collect(['0000-0001-5109-3700', '0000-0002-1825-0097'])->map(
+            fn (string $orcid, int $index) => SuggestedOrcid::create([
+                'resource_id' => $resource->id,
+                'person_id' => $person->id,
+                'suggested_orcid' => $orcid,
+                'similarity_score' => 0.9 - ($index * 0.1),
+                'candidate_first_name' => 'Jane',
+                'candidate_last_name' => 'Doe',
+                'candidate_affiliations' => [],
+                'source_context' => 'creator',
+                'discovered_at' => now(),
+            ]),
+        );
+
+        $this->actingAs($user)
+            ->postJson('/assistance/suggestions/batch/accept', [
+                'resource_id' => $resource->id,
+                'suggestions' => $suggestions->map(fn (SuggestedOrcid $suggestion) => [
+                    'assistant_id' => 'orcid-suggestion',
+                    'suggestion_id' => $suggestion->id,
+                ])->all(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Only one alternative per target can be accepted.');
+
+        expect(SuggestedOrcid::whereKey($suggestions->pluck('id'))->count())->toBe(2);
+    });
+
+    it('validates the resource and non-empty bounded selection payload', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->postJson('/assistance/suggestions/batch/accept', [
+                'resource_id' => 0,
+                'suggestions' => [],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['resource_id', 'suggestions']);
     });
 });
 

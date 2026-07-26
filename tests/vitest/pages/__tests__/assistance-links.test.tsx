@@ -7,6 +7,7 @@ import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
+    AssistanceResourceGroup,
     BaseSuggestionItem,
     PaginatedData,
     SuggestedCrossrefFunderRorItem,
@@ -824,22 +825,19 @@ describe('RelationSuggestionCard - DOI link', () => {
         expect(within(screen.getByRole('listitem')).queryByRole('link')).not.toBeInTheDocument();
     });
 
-    it.each(['not-a-doi', 'https://doi.org/not-a-doi'])(
-        'keeps an invalid DOI value as plain text: %s',
-        (identifier) => {
-            const suggestion = makeRelationSuggestion({ identifier });
+    it.each(['not-a-doi', 'https://doi.org/not-a-doi'])('keeps an invalid DOI value as plain text: %s', (identifier) => {
+        const suggestion = makeRelationSuggestion({ identifier });
 
-            render(
-                <AssistancePage
-                    sections={{ 'relation-suggestion': paginated([suggestion]) }}
-                    manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
-                />,
-            );
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
 
-            expect(screen.getByText(identifier)).toBeInTheDocument();
-            expect(screen.queryByRole('link', { name: identifier })).not.toBeInTheDocument();
-        },
-    );
+        expect(screen.getByText(identifier)).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: identifier })).not.toBeInTheDocument();
+    });
 });
 
 describe('OrcidSuggestionCard – ORCID link', () => {
@@ -2005,6 +2003,101 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
+
+    it('queues multiple ROR follow-up dialogs returned by one resource batch', async () => {
+        const manifest = makeManifest('ror-suggestion', 'rors', 'ROR Suggestions');
+        const ror = makeRorSuggestion({ id: 960 });
+        const item = {
+            ...ror,
+            assistant_id: manifest.id,
+            review: {
+                assistant_id: manifest.id,
+                assistant_name: manifest.name,
+                route_prefix: manifest.routePrefix,
+                can_accept: true,
+                can_decline: true,
+                exclusive_target_key: null,
+                label: ror.suggested_name,
+            },
+        } as unknown as BaseSuggestionItem;
+        const group: AssistanceResourceGroup = {
+            resource_id: ror.resource_id,
+            resource_doi: ror.resource_doi,
+            resource_title: ror.resource_title,
+            suggestion_count: 1,
+            suggestions: [item],
+        };
+        const page: PaginatedData<AssistanceResourceGroup> = {
+            data: [group],
+            current_page: 1,
+            last_page: 1,
+            per_page: 25,
+            total: 1,
+            from: 1,
+            to: 1,
+            links: [],
+        };
+        mockedAxiosPost.mockResolvedValueOnce({
+            data: {
+                success: true,
+                action: 'accept',
+                resource_id: ror.resource_id,
+                resource_label: ror.resource_doi,
+                processed_count: 1,
+                success_count: 1,
+                failure_count: 0,
+                message: 'Accepted.',
+                synced_dois: [],
+                results: [
+                    {
+                        assistant_id: manifest.id,
+                        assistant_name: manifest.name,
+                        suggestion_id: ror.id,
+                        label: ror.suggested_name,
+                        success: true,
+                        message: 'Accepted.',
+                        synced_dois: [],
+                    },
+                ],
+                follow_ups: [
+                    {
+                        available: true,
+                        count: 1,
+                        bulk_token: 'first',
+                        creator_name: 'Doe, Jane',
+                        affiliation: 'GFZ',
+                        suggested_ror_id: ror.suggested_ror_id,
+                    },
+                    {
+                        available: true,
+                        count: 2,
+                        bulk_token: 'second',
+                        creator_name: 'Roe, Jane',
+                        affiliation: 'AWI',
+                        suggested_ror_id: ror.suggested_ror_id,
+                    },
+                ],
+            },
+        });
+        const user = userEvent.setup();
+
+        render(<AssistancePage allAssistantResources={page} sections={{ [manifest.id]: page }} manifests={[manifest]} />);
+        await user.click(screen.getByRole('checkbox', { name: `Select ${manifest.name}: ${ror.suggested_name}` }));
+        await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+        const firstDialog = await screen.findByRole('dialog');
+        expect(firstDialog).toHaveTextContent('There is 1 further creator affiliation');
+        mockedRouterReload.mockClear();
+        await user.click(within(firstDialog).getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => expect(screen.getByRole('dialog')).toHaveTextContent('There are 2 further creator affiliations'));
+        expect(mockedRouterReload).not.toHaveBeenCalled();
+        await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Decline' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(mockedRouterReload).toHaveBeenCalledWith({
+            only: ['sections', 'allAssistantResources', 'pendingCounts', 'pendingAssistanceTotalCount'],
+        });
+    });
 });
 
 describe('DescriptionSegmentationSuggestionCard - description split preview', () => {
@@ -2184,10 +2277,7 @@ describe('DateTypeSuggestionCard - DateType preview', () => {
         expect(screen.getByText('High confidence')).toBeInTheDocument();
         expect(screen.getByText('schema.org field: datePublished')).toBeInTheDocument();
 
-        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute(
-            'href',
-            'https://dataservices.gfz.de/example-dataset',
-        );
+        expect(screen.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://dataservices.gfz.de/example-dataset');
 
         expect(screen.getByRole('link', { name: 'Open schema.org' })).toHaveAttribute(
             'href',
