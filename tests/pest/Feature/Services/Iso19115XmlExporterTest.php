@@ -914,13 +914,21 @@ test('pinned validation manifest is complete and every asset hash matches', func
         expect($entry)->toBeArray()
             ->and($entry['path'] ?? null)->toBeString()
             ->and($entry['source'] ?? null)->toBeString()
-            ->and($entry['sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/');
+            ->and($entry['sha256'] ?? null)->toMatch('/^[a-f0-9]{64}$/')
+            ->and($entry['bytes'] ?? null)->toBeInt();
 
         $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $entry['path']);
         expect($relativePath)->not->toContain('..');
         $assetPath = $packageRoot.DIRECTORY_SEPARATOR.$relativePath;
-        expect(is_file($assetPath))->toBeTrue()
-            ->and(hash_file('sha256', $assetPath))->toBe($entry['sha256']);
+        expect(is_file($assetPath))->toBeTrue("Pinned validation asset is missing: {$entry['path']}")
+            ->and(hash_file('sha256', $assetPath))->toBe(
+                $entry['sha256'],
+                "Pinned validation asset hash mismatch: {$entry['path']}",
+            )
+            ->and(filesize($assetPath))->toBe(
+                $entry['bytes'],
+                "Pinned validation asset size mismatch: {$entry['path']}",
+            );
         $manifestPaths[] = str_replace('\\', '/', $entry['path']);
     }
 
