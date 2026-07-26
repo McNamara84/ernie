@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    version="2023">
+    <!--
+        Aggregation schema for the concrete substitution groups emitted by
+        ERNIE. The official mdb.xsd intentionally imports only the abstract
+        base modules, so validating an instance requires importing every
+        concrete namespace used by the profile.
+    -->
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/mdb/1.3"
+        schemaLocation="isotc211/19115/-1/mdb/1.3.0/mdb.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/mcc/1.3"
+        schemaLocation="isotc211/19115/-1/mcc/1.3.0/mcc.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/cit/1.3"
+        schemaLocation="isotc211/19115/-1/cit/1.3.0/cit.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/mri/1.3"
+        schemaLocation="isotc211/19115/-1/mri/1.3.0/mri.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/gex/1.3"
+        schemaLocation="isotc211/19115/-1/gex/1.3.0/gex.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/mco/1.3"
+        schemaLocation="isotc211/19115/-1/mco/1.3.0/mco.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/mrd/1.3"
+        schemaLocation="isotc211/19115/-1/mrd/1.3.0/mrd.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19115/-1/lan/1.3"
+        schemaLocation="isotc211/19115/-1/lan/1.3.0/lan.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19103/-/gco/1.2"
+        schemaLocation="isotc211/19103/-/gco/1.2.0/gco.xsd"/>
+    <xs:import namespace="https://schemas.isotc211.org/19103/-/gcx/1.2"
+        schemaLocation="isotc211/19103/-/gcx/1.2.0/gcx.xsd"/>
+</xs:schema>

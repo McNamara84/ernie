@@ -79,6 +79,86 @@ function parseIso19115(string $xml): array
     return [$document, $xpath];
 }
 
+/**
+ * @return list<string>
+ */
+function iso19115ReachableSchemaPaths(string $packageRoot): array
+{
+    $canonicalRoot = realpath($packageRoot);
+    if ($canonicalRoot === false) {
+        throw new RuntimeException('ISO 19115 schema package root is missing.');
+    }
+
+    $pending = [$canonicalRoot.DIRECTORY_SEPARATOR.'ernie-profile.xsd'];
+    $seen = [];
+    $remotePrefixes = [
+        'https://schemas.isotc211.org/' => 'isotc211/',
+        'http://schemas.isotc211.org/' => 'isotc211/',
+        'https://schemas.opengis.net/' => 'opengis/',
+        'http://schemas.opengis.net/' => 'opengis/',
+    ];
+    $exactRemotePaths = [
+        'http://www.w3.org/1999/xlink.xsd' => 'w3c/1999/xlink.xsd',
+        'https://www.w3.org/1999/xlink.xsd' => 'w3c/1999/xlink.xsd',
+        'http://www.w3.org/2001/xml.xsd' => 'w3c/2001/xml.xsd',
+        'https://www.w3.org/2001/xml.xsd' => 'w3c/2001/xml.xsd',
+    ];
+
+    while ($pending !== []) {
+        $schemaPath = realpath((string) array_pop($pending));
+        if ($schemaPath === false) {
+            throw new RuntimeException('The ISO 19115 schema dependency closure is incomplete.');
+        }
+        if (! str_starts_with($schemaPath, $canonicalRoot.DIRECTORY_SEPARATOR)) {
+            throw new RuntimeException('An ISO 19115 schema dependency resolves outside the pinned package.');
+        }
+
+        $relativePath = str_replace('\\', '/', substr($schemaPath, strlen($canonicalRoot) + 1));
+        if (isset($seen[$relativePath])) {
+            continue;
+        }
+        $seen[$relativePath] = true;
+
+        $document = new DOMDocument;
+        if (! $document->load($schemaPath, LIBXML_NONET)) {
+            throw new RuntimeException("Failed to parse pinned schema {$relativePath}.");
+        }
+        $xpath = new DOMXPath($document);
+        $xpath->registerNamespace('xs', 'http://www.w3.org/2001/XMLSchema');
+        $dependencies = $xpath->query('//xs:import[@schemaLocation] | //xs:include[@schemaLocation] | //xs:redefine[@schemaLocation]');
+        if ($dependencies === false) {
+            throw new RuntimeException("Failed to inspect pinned schema {$relativePath}.");
+        }
+
+        foreach ($dependencies as $dependency) {
+            if (! $dependency instanceof DOMElement) {
+                continue;
+            }
+            $location = $dependency->getAttribute('schemaLocation');
+            $mappedPath = $exactRemotePaths[$location] ?? null;
+            foreach ($remotePrefixes as $remotePrefix => $localPrefix) {
+                if (str_starts_with($location, $remotePrefix)) {
+                    $mappedPath = $localPrefix.substr($location, strlen($remotePrefix));
+                    break;
+                }
+            }
+
+            if ($mappedPath !== null) {
+                $pending[] = $canonicalRoot.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $mappedPath);
+            } elseif (preg_match('~^https?://~', $location) === 1) {
+                throw new RuntimeException("Unmapped remote schema dependency: {$location}");
+            } else {
+                $pending[] = dirname($schemaPath).DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $location);
+            }
+        }
+    }
+
+    $reachable = array_keys($seen);
+    sort($reachable);
+
+    return $reachable;
+}
+
 test('exports deterministic ISO 19115-3 XML with current namespaces and schema', function () {
     [$resource, $exporter] = iso19115Resource(['doi' => '10.5880/test.iso.001']);
 
@@ -824,8 +904,10 @@ test('pinned validation manifest is complete and every asset hash matches', func
     $manifest = json_decode((string) file_get_contents($manifestPath), true, flags: JSON_THROW_ON_ERROR);
     expect($manifest['isoTc211Commit'] ?? null)
         ->toBe('973b2d578265657246404a1889c544c8d8374c9b')
+        ->and($manifest['selection'] ?? null)
+        ->toBe('Transitive xs:import/xs:include/xs:redefine closure rooted at ernie-profile.xsd, plus validation metadata')
         ->and($manifest['files'] ?? null)->toBeArray()
-        ->and(count($manifest['files']))->toBeGreaterThan(500);
+        ->and(count($manifest['files']))->toBeGreaterThan(100);
 
     $manifestPaths = [];
     foreach ($manifest['files'] as $entry) {
@@ -859,4 +941,17 @@ test('pinned validation manifest is complete and every asset hash matches', func
 
     sort($manifestPaths);
     expect($manifestPaths)->toBe($inventory);
+
+    $schemaInventory = array_values(array_filter(
+        $inventory,
+        fn (string $path): bool => str_ends_with($path, '.xsd'),
+    ));
+    $nonSchemaInventory = array_values(array_diff($inventory, $schemaInventory));
+
+    expect(iso19115ReachableSchemaPaths($packageRoot))->toBe($schemaInventory)
+        ->and($nonSchemaInventory)->toBe([
+            'ATTRIBUTION.md',
+            'catalog.xml',
+            'ernie-profile-schematron.xsl',
+        ]);
 });
