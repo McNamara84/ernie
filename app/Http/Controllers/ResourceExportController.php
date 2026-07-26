@@ -11,6 +11,9 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteLinkedDataExporter;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
+use App\Services\Iso19115\Iso19115ResourceProfileService;
+use App\Services\Iso19115\Iso19115XmlExporter;
+use App\Services\Iso19115\Iso19115XmlValidator;
 use App\Services\JsonSchemaValidator;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -109,5 +112,60 @@ class ResourceExportController extends Controller
             'Content-Type' => 'application/ld+json',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Export a resource as ISO 19115-3:2023 XML.
+     */
+    public function exportIso19115(
+        ExportResourceRequest $request,
+        Resource $resource,
+        Iso19115ResourceProfileService $profile,
+        Iso19115XmlExporter $exporter,
+        Iso19115XmlValidator $validator,
+    ): SymfonyResponse {
+        if (! $profile->supports($resource)) {
+            return response()->json([
+                'message' => 'ISO 19115-3 is not available for this resource type.',
+            ], 422);
+        }
+
+        try {
+            $xml = $exporter->export($resource);
+            $validation = $validator->validate($xml);
+
+            if (! $validation->isValid()) {
+                Log::error('ISO 19115-3 XML export failed validation', [
+                    'resource_id' => $resource->id,
+                    'errors' => $validation->errors,
+                ]);
+
+                return response()->json([
+                    'message' => 'ISO 19115-3 XML export validation failed.',
+                    'errors' => $validation->errors,
+                ], 422);
+            }
+
+            $timestamp = now()->format('YmdHis');
+            $filename = "resource-{$resource->id}-{$timestamp}-iso-19115-3.xml";
+            $headers = [
+                'Content-Type' => (string) config('iso19115.media_type'),
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ];
+            if ($validation->warnings !== []) {
+                $headers['X-ISO19115-Validation-Warnings'] = base64_encode(implode("\n", $validation->warnings));
+            }
+
+            return response($xml, 200, $headers);
+        } catch (\Throwable $exception) {
+            Log::error('ISO 19115-3 XML export failed', [
+                'resource_id' => $resource->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to export ISO 19115-3 XML.',
+            ], 500);
+        }
     }
 }

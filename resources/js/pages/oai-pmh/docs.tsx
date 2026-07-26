@@ -18,6 +18,7 @@ interface Props {
     baseUrl: string;
     adminEmail: string;
     metadataFormats: Record<string, MetadataFormat>;
+    isoEligibleResourceTypeSlugs: string[];
     resourceTypeSlugs: string[];
     identifierPrefix: string;
     pageSize: number;
@@ -45,7 +46,13 @@ function CopyButton({ text }: { text: string }) {
             onClick={handleCopy}
             aria-label={copied ? 'Copied to clipboard' : 'Copy to clipboard'}
         >
-            {copied ? <span className="text-xs text-green-600" aria-hidden="true">✓</span> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? (
+                <span className="text-xs text-green-600" aria-hidden="true">
+                    ✓
+                </span>
+            ) : (
+                <Copy className="h-3.5 w-3.5" />
+            )}
         </Button>
     );
 }
@@ -53,13 +60,22 @@ function CopyButton({ text }: { text: string }) {
 function ExampleUrl({ url }: { url: string }) {
     return (
         <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-            <code className="flex-1 break-all text-sm">{url}</code>
+            <code className="flex-1 text-sm break-all">{url}</code>
             <CopyButton text={url} />
         </div>
     );
 }
 
-export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resourceTypeSlugs, identifierPrefix, pageSize, tokenTtlHours }: Props) {
+export default function OaiPmhDocs({
+    baseUrl,
+    adminEmail,
+    metadataFormats,
+    isoEligibleResourceTypeSlugs,
+    resourceTypeSlugs,
+    identifierPrefix,
+    pageSize,
+    tokenTtlHours,
+}: Props) {
     const exampleSetSpec = resourceTypeSlugs.includes('dataset')
         ? 'resourcetype:dataset'
         : resourceTypeSlugs.length > 0
@@ -96,7 +112,10 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     <CardContent>
                         <ExampleUrl url={baseUrl} />
                         <p className="mt-2 text-sm text-muted-foreground">
-                            Contact: <a href={`mailto:${adminEmail}`} className="text-primary underline">{adminEmail}</a>
+                            Contact:{' '}
+                            <a href={`mailto:${adminEmail}`} className="text-primary underline">
+                                {adminEmail}
+                            </a>
                         </p>
                     </CardContent>
                 </Card>
@@ -118,34 +137,54 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                             </TableHeader>
                             <TableBody>
                                 <TableRow>
-                                    <TableCell><Badge variant="secondary">Identify</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">Identify</Badge>
+                                    </TableCell>
                                     <TableCell>Information about the repository</TableCell>
                                     <TableCell className="text-muted-foreground">None</TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell><Badge variant="secondary">ListMetadataFormats</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">ListMetadataFormats</Badge>
+                                    </TableCell>
                                     <TableCell>Supported metadata formats (optionally per record)</TableCell>
-                                    <TableCell className="text-muted-foreground">None (optional: <code>identifier</code>)</TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                        None (optional: <code>identifier</code>)
+                                    </TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell><Badge variant="secondary">ListSets</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">ListSets</Badge>
+                                    </TableCell>
                                     <TableCell>Available set structure for selective harvesting</TableCell>
                                     <TableCell className="text-muted-foreground">None</TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell><Badge variant="secondary">ListIdentifiers</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">ListIdentifiers</Badge>
+                                    </TableCell>
                                     <TableCell>Record headers only (identifier, datestamp, sets)</TableCell>
-                                    <TableCell><code>metadataPrefix</code></TableCell>
+                                    <TableCell>
+                                        <code>metadataPrefix</code>
+                                    </TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell><Badge variant="secondary">ListRecords</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">ListRecords</Badge>
+                                    </TableCell>
                                     <TableCell>Full metadata records with headers</TableCell>
-                                    <TableCell><code>metadataPrefix</code></TableCell>
+                                    <TableCell>
+                                        <code>metadataPrefix</code>
+                                    </TableCell>
                                 </TableRow>
                                 <TableRow>
-                                    <TableCell><Badge variant="secondary">GetRecord</Badge></TableCell>
+                                    <TableCell>
+                                        <Badge variant="secondary">GetRecord</Badge>
+                                    </TableCell>
                                     <TableCell>A single record by its unique identifier</TableCell>
-                                    <TableCell><code>identifier</code>, <code>metadataPrefix</code></TableCell>
+                                    <TableCell>
+                                        <code>identifier</code>, <code>metadataPrefix</code>
+                                    </TableCell>
                                 </TableRow>
                             </TableBody>
                         </Table>
@@ -156,9 +195,9 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                 <Card>
                     <CardHeader>
                         <CardTitle>Metadata Formats</CardTitle>
-                        <CardDescription>Two metadata formats are available for harvesting</CardDescription>
+                        <CardDescription>{Object.keys(metadataFormats).length} metadata formats are available for harvesting</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -170,10 +209,23 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                             <TableBody>
                                 {Object.entries(metadataFormats).map(([prefix, format]) => (
                                     <TableRow key={prefix}>
-                                        <TableCell><code>{prefix}</code></TableCell>
-                                        <TableCell>{prefix === 'oai_dc' ? 'Dublin Core (mandatory)' : 'DataCite Kernel 4.7'}</TableCell>
                                         <TableCell>
-                                            <a href={format.schema} target="_blank" rel="noreferrer" className="text-primary underline break-all text-sm">
+                                            <code>{prefix}</code>
+                                        </TableCell>
+                                        <TableCell>
+                                            {prefix === 'oai_dc'
+                                                ? 'Dublin Core (mandatory)'
+                                                : prefix === 'oai_datacite'
+                                                  ? 'DataCite Kernel 4.7'
+                                                  : 'ISO 19115-3:2023 (selective)'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <a
+                                                href={format.schema}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-sm break-all text-primary underline"
+                                            >
                                                 {format.schema}
                                             </a>
                                         </TableCell>
@@ -181,6 +233,21 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                                 ))}
                             </TableBody>
                         </Table>
+                        {isoEligibleResourceTypeSlugs.length > 0 && (
+                            <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
+                                <p>
+                                    <code>iso19115_3</code> is exposed selectively. Use <code>ListMetadataFormats</code> with an identifier to
+                                    discover whether a specific record supports it.
+                                </p>
+                                <div className="flex flex-wrap gap-2" aria-label="ISO 19115-3 eligible resource types">
+                                    {isoEligibleResourceTypeSlugs.map((slug) => (
+                                        <Badge key={slug} variant="outline">
+                                            {slug}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -198,15 +265,15 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {resourceTypeSlugs.map((slug) => (
-                                    <Badge key={slug} variant="outline">resourcetype:{slug}</Badge>
+                                    <Badge key={slug} variant="outline">
+                                        resourcetype:{slug}
+                                    </Badge>
                                 ))}
                             </div>
                         </div>
                         <div>
                             <h4 className="mb-2 font-medium">Publication Year Sets</h4>
-                            <p className="mb-2 text-sm text-muted-foreground">
-                                Filter by publication year.
-                            </p>
+                            <p className="mb-2 text-sm text-muted-foreground">Filter by publication year.</p>
                             <div className="flex flex-wrap gap-2">
                                 <Badge variant="outline">year:2023</Badge>
                                 <Badge variant="outline">year:2024</Badge>
@@ -225,7 +292,7 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     </CardHeader>
                     <CardContent>
                         <Tabs defaultValue="identify" className="w-full">
-                            <TabsList className="mb-4 flex flex-wrap h-auto gap-1">
+                            <TabsList className="mb-4 flex h-auto flex-wrap gap-1">
                                 <TabsTrigger value="identify">Identify</TabsTrigger>
                                 <TabsTrigger value="formats">ListMetadataFormats</TabsTrigger>
                                 <TabsTrigger value="sets">ListSets</TabsTrigger>
@@ -256,7 +323,9 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm">Filter by set and date range:</p>
-                                    <ExampleUrl url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${exampleSetSpec}&from=2024-01-01&until=2024-12-31`} />
+                                    <ExampleUrl
+                                        url={`${baseUrl}?verb=ListIdentifiers&metadataPrefix=oai_dc&set=${exampleSetSpec}&from=2024-01-01&until=2024-12-31`}
+                                    />
                                 </div>
                             </TabsContent>
 
@@ -269,11 +338,17 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                                     <p className="text-sm">Harvest DataCite XML for datasets only:</p>
                                     <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${exampleSetSpec}`} />
                                 </div>
+                                <div className="space-y-2">
+                                    <p className="text-sm">Harvest compatible records as ISO 19115-3:2023 XML:</p>
+                                    <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=iso19115_3`} />
+                                </div>
                             </TabsContent>
 
                             <TabsContent value="getrecord" className="space-y-2">
                                 <p className="text-sm">Retrieve a single record by its OAI identifier:</p>
-                                <ExampleUrl url={`${baseUrl}?verb=GetRecord&identifier=${identifierPrefix}:10.5880/GFZ.1.2.2024.001&metadataPrefix=oai_dc`} />
+                                <ExampleUrl
+                                    url={`${baseUrl}?verb=GetRecord&identifier=${identifierPrefix}:10.5880/GFZ.1.2.2024.001&metadataPrefix=oai_dc`}
+                                />
                             </TabsContent>
                         </Tabs>
                     </CardContent>
@@ -287,14 +362,14 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <p>
-                            When a <code>ListRecords</code> or <code>ListIdentifiers</code> response contains more than <strong>{pageSize} records</strong>,
-                            the response includes a <code>&lt;resumptionToken&gt;</code> element.
+                            When a <code>ListRecords</code> or <code>ListIdentifiers</code> response contains more than{' '}
+                            <strong>{pageSize} records</strong>, the response includes a <code>&lt;resumptionToken&gt;</code> element.
                         </p>
                         <p>To retrieve the next page, send a new request with the token as the exclusive parameter:</p>
                         <ExampleUrl url={`${baseUrl}?verb=ListRecords&resumptionToken=<token_value>`} />
                         <p className="text-muted-foreground">
-                            Tokens expire after <strong>{tokenTtlHours} hours</strong>. An empty <code>&lt;resumptionToken&gt;</code> element
-                            (with no text content) signals the end of the result set.
+                            Tokens expire after <strong>{tokenTtlHours} hours</strong>. An empty <code>&lt;resumptionToken&gt;</code> element (with no
+                            text content) signals the end of the result set.
                         </p>
                     </CardContent>
                 </Card>
@@ -309,22 +384,20 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                         <div>
                             <h4 className="mb-1 font-medium">Date-based Harvesting</h4>
                             <p className="text-muted-foreground">
-                                Use <code>from</code> and <code>until</code> parameters to harvest records modified within a date range.
-                                Both parameters accept dates in <code>YYYY-MM-DD</code> or <code>YYYY-MM-DDThh:mm:ssZ</code> format.
+                                Use <code>from</code> and <code>until</code> parameters to harvest records modified within a date range. Both
+                                parameters accept dates in <code>YYYY-MM-DD</code> or <code>YYYY-MM-DDThh:mm:ssZ</code> format.
                             </p>
                         </div>
                         <div>
                             <h4 className="mb-1 font-medium">Set-based Harvesting</h4>
                             <p className="text-muted-foreground">
-                                Use the <code>set</code> parameter to harvest only records belonging to a specific set.
-                                For example, <code>set={exampleSetSpec}</code> harvests only dataset records.
+                                Use the <code>set</code> parameter to harvest only records belonging to a specific set. For example,{' '}
+                                <code>set={exampleSetSpec}</code> harvests only dataset records.
                             </p>
                         </div>
                         <div>
                             <h4 className="mb-1 font-medium">Combining Filters</h4>
-                            <p className="text-muted-foreground">
-                                Date and set filters can be combined for targeted harvesting:
-                            </p>
+                            <p className="text-muted-foreground">Date and set filters can be combined for targeted harvesting:</p>
                             <ExampleUrl url={`${baseUrl}?verb=ListRecords&metadataPrefix=oai_datacite&set=${exampleSetSpec}&from=2024-01-01`} />
                         </div>
                     </CardContent>
@@ -338,14 +411,13 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <p>
-                            This repository uses <strong>persistent</strong> deleted record tracking.
-                            When a record is deleted or depublished, it remains permanently in the OAI-PMH responses
-                            with a <code>status=&quot;deleted&quot;</code> attribute in the header.
+                            This repository uses <strong>persistent</strong> deleted record tracking. When a record is deleted or depublished, it
+                            remains permanently in the OAI-PMH responses with a <code>status=&quot;deleted&quot;</code> attribute in the header.
                         </p>
                         <p>
-                            Deleted records appear in <code>ListRecords</code> and <code>ListIdentifiers</code> responses
-                            and can be individually retrieved via <code>GetRecord</code>. They do not include metadata,
-                            only the header with identifier, datestamp, and set memberships.
+                            Deleted records appear in <code>ListRecords</code> and <code>ListIdentifiers</code> responses and can be individually
+                            retrieved via <code>GetRecord</code>. They do not include metadata, only the header with identifier, datestamp, and set
+                            memberships.
                         </p>
                     </CardContent>
                 </Card>
@@ -357,10 +429,20 @@ export default function OaiPmhDocs({ baseUrl, adminEmail, metadataFormats, resou
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         <ul className="list-inside list-disc space-y-2 text-muted-foreground">
-                            <li>Use incremental harvesting with <code>from</code> dates to avoid re-harvesting unchanged records.</li>
-                            <li>Prefer <code>oai_datacite</code> format for richer metadata (DataCite Kernel 4.7).</li>
+                            <li>
+                                Use incremental harvesting with <code>from</code> dates to avoid re-harvesting unchanged records.
+                            </li>
+                            <li>
+                                Prefer <code>oai_datacite</code> format for richer metadata (DataCite Kernel 4.7).
+                            </li>
+                            <li>
+                                Use <code>iso19115_3</code> for ISO-compatible resource types and check per-record availability with{' '}
+                                <code>ListMetadataFormats</code>.
+                            </li>
                             <li>Implement retry logic for rate limiting (HTTP 429); back off and retry after the indicated delay.</li>
-                            <li>Respect the <code>resumptionToken</code> expiration; do not cache tokens beyond {tokenTtlHours} hours.</li>
+                            <li>
+                                Respect the <code>resumptionToken</code> expiration; do not cache tokens beyond {tokenTtlHours} hours.
+                            </li>
                             <li>Process deleted records to remove or flag previously harvested entries.</li>
                         </ul>
                     </CardContent>

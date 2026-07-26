@@ -5,6 +5,7 @@ import type {
     LandingPageCitationStyle,
     LandingPageConfig,
     LandingPageDisplayLimits,
+    LandingPageMetadataLink,
     LandingPageResource,
     LeftColumnSection,
     SectionOrder,
@@ -40,6 +41,7 @@ interface DefaultGfzIgsnTemplatePageProps {
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
     citationStyles?: LandingPageCitationStyle[];
+    metadataLinks?: LandingPageMetadataLink[];
     /** Inertia PageProps requires index signature for dynamic SSR props */
     [key: string]: unknown;
 }
@@ -58,7 +60,7 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
+    const { resource, landingPage, isPreview, schemaOrgJsonLd, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -90,13 +92,14 @@ export default function DefaultGfzIgsnTemplate() {
                     subjects={resource.subjects || []}
                     resourceId={resource.id}
                     jsonLdExportUrl={jsonLdExportUrl}
+                    metadataLinks={metadataLinks}
                     sectionOrder={metadataOrder}
                     displayLimits={peopleDisplayLimits}
                 />
             ),
             location: <LocationSection key="location" geoLocations={resource.geo_locations || []} isDark={isDark} />,
         };
-    }, [resource, landingPage, isDark, metadataOrder, peopleDisplayLimits]);
+    }, [resource, landingPage, isDark, metadataOrder, peopleDisplayLimits, metadataLinks]);
 
     const leftSectionRegistry = useMemo((): Record<LeftColumnSection, ReactNode> => {
         return {
@@ -151,6 +154,7 @@ export default function DefaultGfzIgsnTemplate() {
             isDark={isDark}
             mainAriaLabel="Sample details"
             schemaOrgJsonLd={schemaOrgJsonLd}
+            metadataLinks={metadataLinks}
             customLogoUrl={customLogoUrl}
             hero={
                 <ResourceHero resourceType="IGSN" status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} useIgsnIcon={true} />

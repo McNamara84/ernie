@@ -60,6 +60,8 @@ describe('Services', function () {
             'App\Services\MslKeywordTransformer',
             'App\Services\OldDatasetKeywordTransformer',
             'App\Services\DataCiteXmlValidator',
+            'App\Services\Iso19115\Iso19115XmlExporter',
+            'App\Services\Iso19115\Iso19115XmlValidator',
             'App\Services\DataCiteServiceInterface',
             'App\Services\Traits\DataCiteExporterHelpers',
             'App\Services\OldDatasetEditorLoader',

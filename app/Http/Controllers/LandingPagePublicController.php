@@ -12,6 +12,7 @@ use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
+use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
 use App\Services\SchemaOrgJsonLdExporter;
@@ -21,7 +22,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
-use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 /**
@@ -84,9 +84,10 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageMetadataLinkService $metadataLinkService,
         string $doiPrefix,
         string $slug
-    ): Response|RedirectResponse {
+    ): HttpResponse|RedirectResponse {
         // Validate slug format using shared helper method (defense in depth)
         $this->validateSlugFormat($slug, ['doi_prefix_length' => strlen($doiPrefix)]);
 
@@ -128,7 +129,17 @@ class LandingPagePublicController extends Controller
             // if they drift, we prioritize availability over strict consistency.
         }
 
-        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $templateResolver, $previewToken);
+        return $this->renderLandingPage(
+            $request,
+            $landingPage,
+            $transformer,
+            $renderDataCache,
+            $viewCounter,
+            $citationService,
+            $templateResolver,
+            $metadataLinkService,
+            $previewToken,
+        );
     }
 
     /**
@@ -145,9 +156,10 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageMetadataLinkService $metadataLinkService,
         int $resourceId,
         string $slug
-    ): Response|RedirectResponse {
+    ): HttpResponse|RedirectResponse {
         // Validate slug format using shared helper method (defense in depth)
         $this->validateSlugFormat($slug, ['resource_id' => $resourceId]);
 
@@ -167,7 +179,17 @@ class LandingPagePublicController extends Controller
 
         abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
-        return $this->renderLandingPage($request, $landingPage, $transformer, $renderDataCache, $viewCounter, $citationService, $templateResolver, $previewToken);
+        return $this->renderLandingPage(
+            $request,
+            $landingPage,
+            $transformer,
+            $renderDataCache,
+            $viewCounter,
+            $citationService,
+            $templateResolver,
+            $metadataLinkService,
+            $previewToken,
+        );
     }
 
     /**
@@ -177,7 +199,7 @@ class LandingPagePublicController extends Controller
     public function showLegacy(
         LandingPageResourceTransformer $transformer,
         int $resourceId
-    ): Response|RedirectResponse {
+    ): RedirectResponse {
         $landingPage = LandingPage::where('resource_id', $resourceId)->first();
 
         abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
@@ -240,8 +262,9 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageMetadataLinkService $metadataLinkService,
         ?string $previewToken
-    ): Response|RedirectResponse {
+    ): HttpResponse|RedirectResponse {
         // Normalize preview token: treat empty string as null for consistent checks
         $previewToken = $this->normalizePreviewToken($previewToken);
 
@@ -291,7 +314,7 @@ class LandingPagePublicController extends Controller
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $previewToken): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $metadataLinkService, $previewToken): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -337,6 +360,7 @@ class LandingPagePublicController extends Controller
                     'resource' => $resourceData,
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
+                    'metadataLinks' => $metadataLinkService->for($resource, $landingPage),
                     'isPreview' => (bool) $previewToken,
                     'schemaOrgJsonLd' => $schemaOrgJsonLd,
                     'sectionOrder' => $sectionOrder,
@@ -356,7 +380,18 @@ class LandingPagePublicController extends Controller
             ? $renderDataCache->remember($landingPage, $buildRenderData)
             : $buildRenderData();
 
-        return Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
+        $response = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props'])
+            ->toResponse($request);
+        $metadataLinks = $renderData['props']['metadataLinks'] ?? [];
+
+        $linkHeader = is_array($metadataLinks)
+            ? $metadataLinkService->toHttpLinkHeader($metadataLinks)
+            : null;
+        if ($linkHeader !== null) {
+            $response->headers->set('Link', $linkHeader, false);
+        }
+
+        return $response;
     }
 
     /**

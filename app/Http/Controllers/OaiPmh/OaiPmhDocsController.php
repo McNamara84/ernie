@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\OaiPmh;
 
 use App\Http\Controllers\Controller;
+use App\Services\Iso19115\Iso19115ResourceProfileService;
 use App\Services\OaiPmh\OaiPmhSetService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -15,7 +16,7 @@ use Inertia\Response;
  */
 class OaiPmhDocsController extends Controller
 {
-    public function index(OaiPmhSetService $setService): Response
+    public function index(OaiPmhSetService $setService, Iso19115ResourceProfileService $isoProfile): Response
     {
         $activeSets = $setService->listSets();
 
@@ -33,10 +34,17 @@ class OaiPmhDocsController extends Controller
                 ->all();
         }
 
+        /** @var array<string, array{schema: string, namespace: string}> $metadataFormats */
+        $metadataFormats = config('oaipmh.metadata_formats', []);
+        if (! $isoProfile->isEnabled()) {
+            unset($metadataFormats['iso19115_3']);
+        }
+
         return Inertia::render('oai-pmh/docs', [
             'baseUrl' => config('oaipmh.base_url'),
             'adminEmail' => config('oaipmh.admin_email'),
-            'metadataFormats' => config('oaipmh.metadata_formats'),
+            'metadataFormats' => $metadataFormats,
+            'isoEligibleResourceTypeSlugs' => $isoProfile->isEnabled() ? $isoProfile->eligibleResourceTypeSlugs() : [],
             'resourceTypeSlugs' => $resourceTypeSlugs,
             'identifierPrefix' => config('oaipmh.identifier_prefix'),
             'pageSize' => (int) config('oaipmh.page_size', 100),

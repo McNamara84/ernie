@@ -1,0 +1,674 @@
+{
+    "profile": "ISO 19115-3:2023 / ISO 19115-1 mdb 1.3.0",
+    "generatedAt": "2026-07-25",
+    "isoTc211Commit": "973b2d578265657246404a1889c544c8d8374c9b",
+    "selection": "Transitive xs:import/xs:include/xs:redefine closure rooted at ernie-profile.xsd, plus validation metadata",
+    "files": [
+        {
+            "path": "catalog.xml",
+            "source": "repository://catalog.xml",
+            "sha256": "201eb57c62b56eb0f69bd3fb9c820cd29174787b76c7a61f95d6322d8096f6a5",
+            "bytes": 998
+        },
+        {
+            "path": "ernie-profile.xsd",
+            "source": "repository://ernie-profile.xsd",
+            "sha256": "85180d4203b94b30afb7c48be57aded2811a3b94c7812d0e38caa40c5243d52d",
+            "bytes": 1807
+        },
+        {
+            "path": "ernie-profile-schematron.xsl",
+            "source": "repository://ernie-profile-schematron.xsl",
+            "sha256": "b1d2fe49404a1caa034d1d27faba93fc297c48bb65f9a46d7a54a4972617ded8",
+            "bytes": 5986
+        },
+        {
+            "path": "isotc211/19103/-/gco/1.2.0/baseTypes.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19103/-/gco/1.2.0/baseTypes.xsd",
+            "sha256": "00b6639412cc1f6f6b42909f4cacea3097b6c62ad60bf6fa11a02d239ff4bc34",
+            "bytes": 41579
+        },
+        {
+            "path": "isotc211/19103/-/gco/1.2.0/gco.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19103/-/gco/1.2.0/gco.xsd",
+            "sha256": "fba426973e1dfea14209799a89bd62a47835aaf7dbd5864e5a0b352e945479a3",
+            "bytes": 1535
+        },
+        {
+            "path": "isotc211/19103/-/gcx/1.2.0/extendedTypes.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19103/-/gcx/1.2.0/extendedTypes.xsd",
+            "sha256": "da6a10ec273bff5ac3e5c79393faa724b2eba2ebe56fe2ea4ceeefa31a7c833f",
+            "bytes": 7968
+        },
+        {
+            "path": "isotc211/19103/-/gcx/1.2.0/gcx.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19103/-/gcx/1.2.0/gcx.xsd",
+            "sha256": "40e52d79be55d886d4152ae0d55630f9a8fde4e66702c75a0a1fd721388de573",
+            "bytes": 709
+        },
+        {
+            "path": "isotc211/19110/-/fcc/2.2.0/abstract.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19110/-/fcc/2.2.0/abstract.xsd",
+            "sha256": "aa1a97d6151c725597edd687e86f3557a4223d026085075cfacd91fc0e801eda",
+            "bytes": 2060
+        },
+        {
+            "path": "isotc211/19110/-/fcc/2.2.0/fcc.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19110/-/fcc/2.2.0/fcc.xsd",
+            "sha256": "b5bd2233bb313f393d734ef0bde796929661e434d3afb13f6a836a582b0b750b",
+            "bytes": 457
+        },
+        {
+            "path": "isotc211/19111/-/rbc/3.1.0/rbc.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19111/-/rbc/3.1.0/rbc.xsd",
+            "sha256": "cd29c7110a462625054084f23340e3baa3b32f560427974f30c95c6f1201b141",
+            "bytes": 709
+        },
+        {
+            "path": "isotc211/19111/-/rbc/3.1.0/rbcStubs.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19111/-/rbc/3.1.0/rbcStubs.xsd",
+            "sha256": "8a44ed5a9f8e90a681eab6af465356c494c82a7ded21872d9dacca820cb32148",
+            "bytes": 8534
+        },
+        {
+            "path": "isotc211/19115/-1/cit/1.3.0/cit.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/cit/1.3.0/cit.xsd",
+            "sha256": "3bfdecf7c4381391344bf492e2ab9cfd8d2692faeb235eed8b37ef233accaadb",
+            "bytes": 562
+        },
+        {
+            "path": "isotc211/19115/-1/cit/1.3.0/citation.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/cit/1.3.0/citation.xsd",
+            "sha256": "5f7636fc6a508a83a7dc28f6124ce96c29f95ae17b1077b69b2efc8cf26523c3",
+            "bytes": 28410
+        },
+        {
+            "path": "isotc211/19115/-1/gex/1.3.0/extent.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/gex/1.3.0/extent.xsd",
+            "sha256": "7501e2b433c4e62b1c18aee9008b8874d362ced147795a3e32ebe707c840b7a9",
+            "bytes": 15029
+        },
+        {
+            "path": "isotc211/19115/-1/gex/1.3.0/gex.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/gex/1.3.0/gex.xsd",
+            "sha256": "97cca55a3eb2ca7a2a901d6af59e9217068503dd240b3100e4ce10f203879ac5",
+            "bytes": 823
+        },
+        {
+            "path": "isotc211/19115/-1/lan/1.3.0/lan.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/lan/1.3.0/lan.xsd",
+            "sha256": "5b0149b75f790e62533a9d2194f3fe236ba8cdb536c9c33735cc5a615f34a160",
+            "bytes": 745
+        },
+        {
+            "path": "isotc211/19115/-1/lan/1.3.0/language.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/lan/1.3.0/language.xsd",
+            "sha256": "2cad07b01be4bdf10aafd2ca4200683edd877a326c1e32a3f00ce7841df7d3e5",
+            "bytes": 8115
+        },
+        {
+            "path": "isotc211/19115/-1/mcc/1.3.0/AbstractCommonClasses.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mcc/1.3.0/AbstractCommonClasses.xsd",
+            "sha256": "f92725d46086b076946b458422b453cdedbc0c8c1dc54cf94676addfd9422fef",
+            "bytes": 15030
+        },
+        {
+            "path": "isotc211/19115/-1/mcc/1.3.0/commonClasses.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mcc/1.3.0/commonClasses.xsd",
+            "sha256": "c908cbb80111b6196008707835189ee98cff166a437f35588314f4bec154570b",
+            "bytes": 12559
+        },
+        {
+            "path": "isotc211/19115/-1/mcc/1.3.0/mcc.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mcc/1.3.0/mcc.xsd",
+            "sha256": "49649f0bc175a0ba650b6da9c2588ea170893b5a8b16670bcbae03612af6ed8f",
+            "bytes": 752
+        },
+        {
+            "path": "isotc211/19115/-1/mco/1.3.0/constraints.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mco/1.3.0/constraints.xsd",
+            "sha256": "4fbe62c6f3f147c79a98d7935532a10eb3a43060444c397a28e7f16734f861e3",
+            "bytes": 11553
+        },
+        {
+            "path": "isotc211/19115/-1/mco/1.3.0/mco.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mco/1.3.0/mco.xsd",
+            "sha256": "948500b3af4a648b3780582b3c162e3b29d1bd3631184a6427c43c748a7cbe17",
+            "bytes": 795
+        },
+        {
+            "path": "isotc211/19115/-1/mda/1.3.0/mda.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mda/1.3.0/mda.xsd",
+            "sha256": "f1a93aa8f440ce5412be2573a20fcb7bf047d7206820aa15c8fafd50b46b17bd",
+            "bytes": 794
+        },
+        {
+            "path": "isotc211/19115/-1/mda/1.3.0/metadataApplication.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mda/1.3.0/metadataApplication.xsd",
+            "sha256": "c0fe7953d2686237ead50ec4e7be0c474b782e92496619b50c087bc328b48406",
+            "bytes": 8931
+        },
+        {
+            "path": "isotc211/19115/-1/mdb/1.3.0/mdb.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mdb/1.3.0/mdb.xsd",
+            "sha256": "caf7583192c099a4dfb4f378326612be0fddb5e6e8ce64ff120a334264a2a5cf",
+            "bytes": 450
+        },
+        {
+            "path": "isotc211/19115/-1/mdb/1.3.0/metadataBase.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mdb/1.3.0/metadataBase.xsd",
+            "sha256": "8f168f05370893c5d11f71f98a8c82466b4715e872e48602b6554784b1e36024",
+            "bytes": 10000
+        },
+        {
+            "path": "isotc211/19115/-1/mrc/1.3.0/content.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mrc/1.3.0/content.xsd",
+            "sha256": "9c160f7d07020fbc4793119697bb16e15ca31504ea5930da24e89549deaf78a1",
+            "bytes": 25162
+        },
+        {
+            "path": "isotc211/19115/-1/mrc/1.3.0/mrc.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mrc/1.3.0/mrc.xsd",
+            "sha256": "8ca73107ad4f4d8e5b73b43fcd5e85ae183481bbd6832348bce936ce00e80510",
+            "bytes": 1337
+        },
+        {
+            "path": "isotc211/19115/-1/mrd/1.3.0/distribution.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mrd/1.3.0/distribution.xsd",
+            "sha256": "20a6e429231bfe00bfbb707f435808e68abeeb714fd56cda9d4c96700c917adb",
+            "bytes": 15617
+        },
+        {
+            "path": "isotc211/19115/-1/mrd/1.3.0/mrd.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mrd/1.3.0/mrd.xsd",
+            "sha256": "a29105bd5efd1070285e41c23487349946bc993248e9aa74b136c40d88a6cff5",
+            "bytes": 690
+        },
+        {
+            "path": "isotc211/19115/-1/mri/1.3.0/identification.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mri/1.3.0/identification.xsd",
+            "sha256": "88a40517c9e4e021fa5eb3c518cd7dca3bc5980f30da6c3b0b9b51d60a0ed520",
+            "bytes": 32168
+        },
+        {
+            "path": "isotc211/19115/-1/mri/1.3.0/mri.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/mri/1.3.0/mri.xsd",
+            "sha256": "a5845aa29c0d4cd5f2cb509eb1c7153bf1f622660c47c5f143f1448c58248f11",
+            "bytes": 1016
+        },
+        {
+            "path": "isotc211/19115/-1/msr/1.3.0/msr.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/msr/1.3.0/msr.xsd",
+            "sha256": "6dd3375c5c3e37ce049449d45c91d3fe606b1e34a7312de1dac7e3485a5d8948",
+            "bytes": 1143
+        },
+        {
+            "path": "isotc211/19115/-1/msr/1.3.0/spatialRepresentation.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-1/msr/1.3.0/spatialRepresentation.xsd",
+            "sha256": "f77e797df1f9bfe6087c50d7ce1d19724fd8d45b7283e1f91c22ca8e6ce72ec5",
+            "bytes": 21946
+        },
+        {
+            "path": "isotc211/19115/-2/mac/2.2.0/acquisitionInformationImagery.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-2/mac/2.2.0/acquisitionInformationImagery.xsd",
+            "sha256": "e5b8237a1d551a1fcdb2b98221f4478abd6c2bd66fcf1142718a08e91312b9fc",
+            "bytes": 57667
+        },
+        {
+            "path": "isotc211/19115/-2/mac/2.2.0/mac.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-2/mac/2.2.0/mac.xsd",
+            "sha256": "87f759c65a5a71ec51ea90d5af4e7097949f6b4db3aa1acaf9e1cc24326f3419",
+            "bytes": 495
+        },
+        {
+            "path": "isotc211/19115/-2/mrc/2.2.0/contentInformationImagery.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-2/mrc/2.2.0/contentInformationImagery.xsd",
+            "sha256": "e542bb9758f493bf21da6eb357a9f7570fc788cf1675fc5c1ab63bfb97f26b6c",
+            "bytes": 10540
+        },
+        {
+            "path": "isotc211/19115/-2/msr/2.2.0/spatialRepresentationImagery.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19115/-2/msr/2.2.0/spatialRepresentationImagery.xsd",
+            "sha256": "2561fc299a06bb1331c0589d300d869a1fdf92891f645828612785fb6e1961fd",
+            "bytes": 8025
+        },
+        {
+            "path": "isotc211/19136/-1/gmw/1.1.0/gmlWrapperTypes.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19136/-1/gmw/1.1.0/gmlWrapperTypes.xsd",
+            "sha256": "3d05fe266d2e3a26493fa64e03da5119d52fd4d160836895445c0ab7c8c03d68",
+            "bytes": 7477
+        },
+        {
+            "path": "isotc211/19136/-1/gmw/1.1.0/gmw.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19136/-1/gmw/1.1.0/gmw.xsd",
+            "sha256": "e51c838f465836f2aff55c6ba466035077085c352cd89796f25f372a8aec2cd4",
+            "bytes": 1819
+        },
+        {
+            "path": "isotc211/19139/-/cat/1.2.0/cat.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19139/-/cat/1.2.0/cat.xsd",
+            "sha256": "cd2345022707766dcd73d2842567ea0a759efd80d5b6bc97267bccbb0929889c",
+            "bytes": 1042
+        },
+        {
+            "path": "isotc211/19139/-/cat/1.2.0/catalogues.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19139/-/cat/1.2.0/catalogues.xsd",
+            "sha256": "fad487775368a9fa5e5bed78e29854df491caf2374a1b8e8a302d7edf7010784",
+            "bytes": 4024
+        },
+        {
+            "path": "isotc211/19139/-/cat/1.2.0/codelistItem.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19139/-/cat/1.2.0/codelistItem.xsd",
+            "sha256": "5f31401d3cfd2a4b2cfff4ff4075965db56e8cd758c8c3d3873520ac4465e82d",
+            "bytes": 2921
+        },
+        {
+            "path": "isotc211/19139/-/cat/1.2.0/crsItem.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19139/-/cat/1.2.0/crsItem.xsd",
+            "sha256": "b68eb3341d5124a067dcd83cc536b149e777a0fd0505716064d76892d7b48e01",
+            "bytes": 9620
+        },
+        {
+            "path": "isotc211/19139/-/cat/1.2.0/uomItem.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19139/-/cat/1.2.0/uomItem.xsd",
+            "sha256": "c931d803059454c7c49ef804372274047d00eb3bc51b8b8d17ef6c7e5b68a148",
+            "bytes": 2399
+        },
+        {
+            "path": "isotc211/19157/-/dqc/1.2.0/abstract.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19157/-/dqc/1.2.0/abstract.xsd",
+            "sha256": "d2035a02603cf94dfdbf6e37e2e86e9a716a54cefaf96e5df5bccd73e3562da1",
+            "bytes": 1934
+        },
+        {
+            "path": "isotc211/19157/-/dqc/1.2.0/dqc.xsd",
+            "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19157/-/dqc/1.2.0/dqc.xsd",
+            "sha256": "bdf1eb422ec769d3a7465e7ab1c638e57e025844988b34c98c47b77d55624f0b",
+            "bytes": 1022
+        },
+        {
+            "path": "opengis/gml/3.2.1/basicTypes.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/basicTypes.xsd",
+            "sha256": "2e37d858bd5be1307892add40826632e4e16d5c44b032ba668c510f09588da5c",
+            "bytes": 14905
+        },
+        {
+            "path": "opengis/gml/3.2.1/coordinateOperations.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/coordinateOperations.xsd",
+            "sha256": "d9a96671453711b98301d8f796ba1bb47990b7ab4ea83e8a1803c27110bbc434",
+            "bytes": 33344
+        },
+        {
+            "path": "opengis/gml/3.2.1/coordinateReferenceSystems.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/coordinateReferenceSystems.xsd",
+            "sha256": "0b38a6d9a82b698307215be446cfbec18682f1edcdbdf531d0e9fadb88e3017e",
+            "bytes": 18420
+        },
+        {
+            "path": "opengis/gml/3.2.1/coordinateSystems.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/coordinateSystems.xsd",
+            "sha256": "50658a9b0cd0e8887dab3a54d0e66ea9d74e7737ac15b87fb3a88f6d578c884b",
+            "bytes": 18701
+        },
+        {
+            "path": "opengis/gml/3.2.1/coverage.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/coverage.xsd",
+            "sha256": "8861ca287202f3da462b3d78c71065dc78b3d24ac37304297601bd6599e8362f",
+            "bytes": 20827
+        },
+        {
+            "path": "opengis/gml/3.2.1/datums.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/datums.xsd",
+            "sha256": "a5ac13d8015f8d9c0947e5ad614c482a0f2c632d168f87c631d953273bdeb30d",
+            "bytes": 15923
+        },
+        {
+            "path": "opengis/gml/3.2.1/deprecatedTypes.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/deprecatedTypes.xsd",
+            "sha256": "cd02f14a1f83be529cb5d7ba8ce6a4089ebf26dcb3e287e4b81488cb6bf6dd5b",
+            "bytes": 34674
+        },
+        {
+            "path": "opengis/gml/3.2.1/dictionary.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/dictionary.xsd",
+            "sha256": "fb5f633e6b441ed19bd17433e28efedfb7a335bdbde04b4e5383582a763beae5",
+            "bytes": 7137
+        },
+        {
+            "path": "opengis/gml/3.2.1/direction.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/direction.xsd",
+            "sha256": "fed7bb5e0fcc13b78add0bdb4b603a278452b70617a207ee084d2427daa17011",
+            "bytes": 4161
+        },
+        {
+            "path": "opengis/gml/3.2.1/dynamicFeature.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/dynamicFeature.xsd",
+            "sha256": "457e07361d175c8c344d20fbed203f051b07dc13f7c637576247872fcf294c43",
+            "bytes": 6807
+        },
+        {
+            "path": "opengis/gml/3.2.1/feature.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/feature.xsd",
+            "sha256": "aa8434aa6b38fe00ab9dd1a1e84c9288b4828484c783c04c8caf4ea5650ecb07",
+            "bytes": 5584
+        },
+        {
+            "path": "opengis/gml/3.2.1/geometryAggregates.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/geometryAggregates.xsd",
+            "sha256": "d1cb25b4e923d06c44d6930ced39848ea0e938e197f95a8794e73692d0ff425b",
+            "bytes": 11523
+        },
+        {
+            "path": "opengis/gml/3.2.1/geometryBasic0d1d.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/geometryBasic0d1d.xsd",
+            "sha256": "b1f9e4c1714546cd1df6f03f459926c3714f6b4346bba58de7950eddedcc7d6c",
+            "bytes": 18929
+        },
+        {
+            "path": "opengis/gml/3.2.1/geometryBasic2d.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/geometryBasic2d.xsd",
+            "sha256": "2fc0914ecd7ca02d41ec090d8202e754d67e40890d8846382e7e25446bf4b181",
+            "bytes": 6625
+        },
+        {
+            "path": "opengis/gml/3.2.1/geometryComplexes.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/geometryComplexes.xsd",
+            "sha256": "26e936aa53efe6e56bbcadd5528967c2b9ac2b08b869252703c757e7ffb9711c",
+            "bytes": 5824
+        },
+        {
+            "path": "opengis/gml/3.2.1/geometryPrimitives.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/geometryPrimitives.xsd",
+            "sha256": "ddde612ddaa13fe8313ac5e0d70090d52459c83777e394b3d3917a205469b2af",
+            "bytes": 42649
+        },
+        {
+            "path": "opengis/gml/3.2.1/gml.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/gml.xsd",
+            "sha256": "eb1e652fdc10fa70352c3fc554cd3bfacc5a863e964a4e64c76f25c762b80a3f",
+            "bytes": 1076
+        },
+        {
+            "path": "opengis/gml/3.2.1/gmlBase.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/gmlBase.xsd",
+            "sha256": "36825875b089ee8f69f42103d31ce52f6eb9489d2f40e11516495f7c152cc79d",
+            "bytes": 12756
+        },
+        {
+            "path": "opengis/gml/3.2.1/grids.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/grids.xsd",
+            "sha256": "c317678414da9a28e0be87bb1544b875875746bc219aa0b7f6c31f32efd0c5f0",
+            "bytes": 4132
+        },
+        {
+            "path": "opengis/gml/3.2.1/measures.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/measures.xsd",
+            "sha256": "3faae40533a200b6999278678ef43c90a508fd7f8ded474f50475b4c3f19f152",
+            "bytes": 3104
+        },
+        {
+            "path": "opengis/gml/3.2.1/observation.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/observation.xsd",
+            "sha256": "514b7489b2aeaf58303e24c0180cba92654f2201e87a6aa7c2fe8e1c73ceff99",
+            "bytes": 5530
+        },
+        {
+            "path": "opengis/gml/3.2.1/referenceSystems.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/referenceSystems.xsd",
+            "sha256": "5bbeb1210ead8b6fba6516c4a5b9e80c1b811b48ec9f3293bbaaa5346aeec0e8",
+            "bytes": 4680
+        },
+        {
+            "path": "opengis/gml/3.2.1/temporal.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/temporal.xsd",
+            "sha256": "e6336faf79732dd8cc79b4f18595a4ccf93ab9d7c55e9f6517b79f4f44572fdd",
+            "bytes": 15598
+        },
+        {
+            "path": "opengis/gml/3.2.1/temporalReferenceSystems.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/temporalReferenceSystems.xsd",
+            "sha256": "f7671997af4fbd098ff53db1f025df3d1a678f707560a9bca83ca54d4ef61e7c",
+            "bytes": 12679
+        },
+        {
+            "path": "opengis/gml/3.2.1/temporalTopology.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/temporalTopology.xsd",
+            "sha256": "ee8fd1e816cb41746c16443e47a0206f71ab77a621d49778dc565a9d6eff4352",
+            "bytes": 7795
+        },
+        {
+            "path": "opengis/gml/3.2.1/topology.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/topology.xsd",
+            "sha256": "aa4e2db656a1dfad2fe50c23cccf5ab0f3bba5894087dca75e7bd25faf31ba12",
+            "bytes": 22790
+        },
+        {
+            "path": "opengis/gml/3.2.1/units.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/units.xsd",
+            "sha256": "b3e2b8f364b9b844dccc0d8314f9c6c952db5155bccfe7316a1742a63dcc29fe",
+            "bytes": 12283
+        },
+        {
+            "path": "opengis/gml/3.2.1/valueObjects.xsd",
+            "source": "https://schemas.opengis.net/gml/3.2.1/valueObjects.xsd",
+            "sha256": "ddf0c234b66363f596492f59b92e307d2d7d864a122c28abc32bcdf87ce7485e",
+            "bytes": 11438
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gco/basicTypes.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gco/basicTypes.xsd",
+            "sha256": "5ac7545eedc0ebea9ee2788197ffc54eb32797cfde015239f33400f8527ff7f4",
+            "bytes": 22050
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gco/gco.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gco/gco.xsd",
+            "sha256": "bc3ea300204f6b99e696976aeb32207d604295f8e4c1d397cf5bb7b9e59bdabf",
+            "bytes": 1159
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gco/gcoBase.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gco/gcoBase.xsd",
+            "sha256": "bc6ef613238a37d0cfcdcbb43df751de7c81ebe46e67b185bae477f530b3f9ab",
+            "bytes": 4087
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/applicationSchema.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/applicationSchema.xsd",
+            "sha256": "bd5b9f294f42dbe0d78e7f760fae008fb061c8a23d6c45b34bef0bf1427b1ed5",
+            "bytes": 3188
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/citation.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/citation.xsd",
+            "sha256": "dfdef7355c21e8780cb3d50b28dd6d4c556ef83a1082c3059fffe41e357ba97d",
+            "bytes": 15521
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/constraints.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/constraints.xsd",
+            "sha256": "b1f9c2971bbd1bf641f23a82ec87c0728bc19446b86ad490b5d3e917b096193e",
+            "bytes": 6555
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/content.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/content.xsd",
+            "sha256": "e2c31ad9e56c6682f137b200db430b11ea89ee667379615c6498c4267c129eda",
+            "bytes": 11423
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/dataQuality.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/dataQuality.xsd",
+            "sha256": "a1c97293e7966bf67ad4635894a5479c3e3f7044ad6253d3e87b74b3c34739cb",
+            "bytes": 30936
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/distribution.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/distribution.xsd",
+            "sha256": "1759a0d820644e07ed442b8385a87585cf62c68a7a257dcff109fb469109bb28",
+            "bytes": 11736
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/extent.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/extent.xsd",
+            "sha256": "a1e35e7730774fd7c4229699ade5cd29a8449997452d6a017f8a797f2a0a8c41",
+            "bytes": 11372
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/freeText.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/freeText.xsd",
+            "sha256": "79fcacb8fe5d0000fce05bef5e6430c61af9c151edf50542de4f4d90f4d1d306",
+            "bytes": 7160
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/gmd.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/gmd.xsd",
+            "sha256": "62c01b7ac3a6d283a2ea4ac72891bc1b912ff43016367b8df30ec7a8dfa583b1",
+            "bytes": 1170
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/identification.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/identification.xsd",
+            "sha256": "a9cbc54f0774b804a7e49e0713502d49ed051e2ad43d138b7ba840b7868ea937",
+            "bytes": 19751
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/maintenance.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/maintenance.xsd",
+            "sha256": "49e16597d6ce1bf039db46ac6d4c0069b2c6297bfc8da3fdb28a4d2e717766f9",
+            "bytes": 6026
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/metadataApplication.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/metadataApplication.xsd",
+            "sha256": "215e4f0e39b73c98c30e2c799b3c47448b420b481bed91087f983faf42074b6c",
+            "bytes": 9332
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/metadataEntity.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/metadataEntity.xsd",
+            "sha256": "e780e56e534c58140df94625293f535827b966a662b01014802288c349f31a3a",
+            "bytes": 5877
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/metadataExtension.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/metadataExtension.xsd",
+            "sha256": "2a59d200fbd0cf1229f908fa5ddfee71c7b2be273d6f2d9402e386390e2d1012",
+            "bytes": 6429
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/portrayalCatalogue.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/portrayalCatalogue.xsd",
+            "sha256": "e8b1086c78ef4474be9091839d3fa9aee3d9481c465fe5aa4372e2e2d3c2090a",
+            "bytes": 2664
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/referenceSystem.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/referenceSystem.xsd",
+            "sha256": "320bf5301f0fc40fc028a5428133ee66ed2b5b99ea5b74544ebf0642a1083f06",
+            "bytes": 5723
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gmd/spatialRepresentation.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gmd/spatialRepresentation.xsd",
+            "sha256": "3e4d2886b7816e1bc67fa23d82201e473162c5110aa6e6bd34478ad606c0b73c",
+            "bytes": 13926
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gsr/gsr.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gsr/gsr.xsd",
+            "sha256": "5066cfe4d0488b89cf7a15a990cd2e05f3dcdbb11c95df1ec73a1e714101161d",
+            "bytes": 1180
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gsr/spatialReferencing.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gsr/spatialReferencing.xsd",
+            "sha256": "19dcdbf1fcc296598dd5def55338bdf604e2ddd62358f7a3a9caa62bd7a6833b",
+            "bytes": 2166
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gss/geometry.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gss/geometry.xsd",
+            "sha256": "fabf3df4d5d7098944494e4932426e4bfd7d56d73ac535edfcf5ef67292ad767",
+            "bytes": 2700
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gss/gss.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gss/gss.xsd",
+            "sha256": "1cb5492d7cb110ced0d46e8bc858dc3b340e1350b0b16f99772318c7df4d3906",
+            "bytes": 1166
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gts/gts.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gts/gts.xsd",
+            "sha256": "bef7c0ed6e63cd2be4b54defe994125783491a4a750c675cd28ca01382c9b273",
+            "bytes": 1173
+        },
+        {
+            "path": "opengis/iso/19139/20070417/gts/temporalObjects.xsd",
+            "source": "https://schemas.opengis.net/iso/19139/20070417/gts/temporalObjects.xsd",
+            "sha256": "22d2c593d31cd6c91e245bebd44240bd89046cc45c8e7f3a79b22442d9ee2595",
+            "bytes": 2787
+        },
+        {
+            "path": "opengis/sweCommon/2.0/advanced_encodings.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/advanced_encodings.xsd",
+            "sha256": "e43e4389db77745bf1cc3f77b34848ae6d80a4eaa858495f4d010be93906d76d",
+            "bytes": 9509
+        },
+        {
+            "path": "opengis/sweCommon/2.0/basic_types.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/basic_types.xsd",
+            "sha256": "464159ff9c1ab62b256820101235d6a617c05247293ce24d4875a47c3345f4d6",
+            "bytes": 6497
+        },
+        {
+            "path": "opengis/sweCommon/2.0/block_components.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/block_components.xsd",
+            "sha256": "3266f7122339a0e841cdad7670d2ff2a58b10deaee2519ba290791b227c01d88",
+            "bytes": 8431
+        },
+        {
+            "path": "opengis/sweCommon/2.0/choice_components.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/choice_components.xsd",
+            "sha256": "60ad376c212dce189709cd03c54f0cfa812c35dcbec639c779c5037807e791cd",
+            "bytes": 2913
+        },
+        {
+            "path": "opengis/sweCommon/2.0/record_components.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/record_components.xsd",
+            "sha256": "d91c2ec20a83694031b45a8e59b90277f18e39a06a238fd4e50ac9c2b95e68f9",
+            "bytes": 5012
+        },
+        {
+            "path": "opengis/sweCommon/2.0/simple_components.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/simple_components.xsd",
+            "sha256": "b525c555562d52c21ae8cf44f6b63a7bb57ed29104c4cc961d6e3e50f2d981be",
+            "bytes": 28076
+        },
+        {
+            "path": "opengis/sweCommon/2.0/simple_encodings.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/simple_encodings.xsd",
+            "sha256": "e16a622be67ffd98df4aaa3b7e5eaf4afc115c616640cebc19e2480a0ee49142",
+            "bytes": 4698
+        },
+        {
+            "path": "opengis/sweCommon/2.0/swe.xsd",
+            "source": "https://schemas.opengis.net/sweCommon/2.0/swe.xsd",
+            "sha256": "3430bc58124d9a349b90bbc85a5499609837b82842a567d4cbc515dedef491e7",
+            "bytes": 897
+        },
+        {
+            "path": "w3c/1999/xlink.xsd",
+            "source": "https://www.w3.org/1999/xlink.xsd",
+            "sha256": "4f4ff6a0d61d7b9b7d4d50a1693ebb5532e0a5bcd63bcc00a1b18798d8a1d083",
+            "bytes": 8052
+        },
+        {
+            "path": "w3c/2001/xml.xsd",
+            "source": "https://www.w3.org/2001/xml.xsd",
+            "sha256": "61960fb3131e38022caad5360e2f33a3382578ab3c80cd58bd74320ede61b20c",
+            "bytes": 8836
+        }
+    ]
+}

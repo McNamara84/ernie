@@ -64,6 +64,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->configureIso19115XmlCatalog();
+
         // Register model observers
         Resource::observe(ResourceObserver::class);
         ResourceAssessment::observe(ResourceAssessmentObserver::class);
@@ -85,6 +87,32 @@ class AppServiceProvider extends ServiceProvider
         Queue::route(UpdateThesaurusJob::class, queue: 'vocabularies');
         Queue::route(CreateDatabaseDumpJob::class, queue: 'database-dumps');
         Queue::route(DiscoverRelationsJob::class, queue: 'default');
+    }
+
+    /**
+     * Register the pinned XML catalog before any library can initialize
+     * libxml's process-wide catalog cache.
+     */
+    private function configureIso19115XmlCatalog(): void
+    {
+        $catalogPath = config('iso19115.validation.catalog');
+        if (! is_string($catalogPath) || ! is_file($catalogPath)) {
+            return;
+        }
+
+        $configuredCatalogs = getenv('XML_CATALOG_FILES');
+        $catalogs = is_string($configuredCatalogs)
+            ? preg_split('/\s+/', trim($configuredCatalogs), -1, PREG_SPLIT_NO_EMPTY)
+            : [];
+        if (! is_array($catalogs)) {
+            $catalogs = [];
+        }
+
+        if (! in_array($catalogPath, $catalogs, true)) {
+            array_unshift($catalogs, $catalogPath);
+        }
+
+        putenv('XML_CATALOG_FILES='.implode(' ', $catalogs));
     }
 
     /**

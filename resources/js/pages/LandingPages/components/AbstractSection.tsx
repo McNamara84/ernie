@@ -4,6 +4,7 @@ import type {
     LandingPageDescription,
     LandingPageDisplayLimits,
     LandingPageFundingReference,
+    LandingPageMetadataLink,
     LandingPageSubject,
 } from '@/types/landing-page';
 
@@ -25,6 +26,7 @@ interface AbstractSectionProps {
     resourceId: number;
     /** Public JSON-LD export URL for landing pages (avoids auth-protected routes) */
     jsonLdExportUrl?: string;
+    metadataLinks?: LandingPageMetadataLink[];
     sectionOrder?: MetadataSectionKey[];
     displayLimits?: LandingPageDisplayLimits;
 }
@@ -43,6 +45,7 @@ export function AbstractSection({
     subjects,
     resourceId,
     jsonLdExportUrl,
+    metadataLinks,
     sectionOrder = ['descriptions', 'creators', 'contributors', 'funders', 'keywords', 'metadata_download'],
     displayLimits = { creators: 50, contributors: 50, citationAuthors: 50 },
 }: AbstractSectionProps) {
@@ -64,7 +67,14 @@ export function AbstractSection({
                 case 'keywords':
                     return <KeywordsSection key="keywords" subjects={subjects} />;
                 case 'metadata_download':
-                    return <DownloadMetadataSection key="metadata_download" resourceId={resourceId} jsonLdExportUrl={jsonLdExportUrl} />;
+                    return (
+                        <DownloadMetadataSection
+                            key="metadata_download"
+                            resourceId={resourceId}
+                            jsonLdExportUrl={jsonLdExportUrl}
+                            metadataLinks={metadataLinks}
+                        />
+                    );
                 default:
                     return null;
             }
@@ -77,9 +87,7 @@ export function AbstractSection({
 
     return (
         <LandingPageCard data-testid="metadata-section">
-            <div className="[&>*:first-child]:mt-0">
-                {renderedSections}
-            </div>
+            <div className="[&>*:first-child]:mt-0">{renderedSections}</div>
         </LandingPageCard>
     );
 }

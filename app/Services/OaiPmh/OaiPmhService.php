@@ -7,6 +7,8 @@ namespace App\Services\OaiPmh;
 use App\Models\OaiPmhDeletedRecord;
 use App\Models\Resource;
 use App\Services\DataCiteXmlExporter;
+use App\Services\Iso19115\Iso19115ResourceProfileService;
+use App\Services\Iso19115\Iso19115XmlExporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -61,6 +63,8 @@ class OaiPmhService
         private readonly OaiPmhSetService $setService,
         private readonly OaiPmhResumptionTokenService $tokenService,
         private readonly DataCiteXmlExporter $dataCiteExporter,
+        private readonly Iso19115ResourceProfileService $isoProfile,
+        private readonly Iso19115XmlExporter $isoExporter,
     ) {}
 
     /**
@@ -136,7 +140,7 @@ class OaiPmhService
 
         $sampleId = $sampleResource !== null
             ? $this->buildOaiIdentifier($sampleResource->doi)
-            : config('oaipmh.identifier_prefix') . ':10.5880/example';
+            : config('oaipmh.identifier_prefix').':10.5880/example';
 
         return $this->xmlBuilder
             ->createEnvelope('Identify')
@@ -150,29 +154,40 @@ class OaiPmhService
     private function listMetadataFormats(Request $request): string
     {
         $identifier = $request->input('identifier');
+        $formats = $this->metadataFormats();
 
         if ($identifier !== null) {
             if (! is_string($identifier)) {
                 return $this->errorResponse('badArgument', 'The identifier argument must be a single value', 'ListMetadataFormats');
             }
 
-            // Validate the identifier exists
             $doi = $this->extractDoiFromIdentifier($identifier);
-            if ($doi === null || ! $this->resourceExists($doi)) {
-                // Check deleted records too
-                if ($doi === null || ! OaiPmhDeletedRecord::where('doi', $doi)->exists()) {
-                    return $this->errorResponse(
-                        'idDoesNotExist',
-                        'The identifier does not exist in this repository',
-                        'ListMetadataFormats',
-                        ['identifier' => $identifier],
-                    );
-                }
+            if ($doi === null) {
+                return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+            }
+
+            $resource = $this->buildHarvestableQuery()
+                ->with('resourceType')
+                ->where('doi', $doi)
+                ->first();
+            $deletedRecord = $resource === null
+                ? OaiPmhDeletedRecord::query()->where('doi', $doi)->first()
+                : null;
+
+            if ($resource === null && $deletedRecord === null) {
+                return $this->unknownIdentifierResponse('ListMetadataFormats', $identifier);
+            }
+
+            if (
+                array_key_exists('iso19115_3', $formats)
+                && ! (
+                    ($resource !== null && $this->isoProfile->supports($resource))
+                    || ($deletedRecord !== null && $this->isoProfile->supportsDeletedRecord($deletedRecord))
+                )
+            ) {
+                unset($formats['iso19115_3']);
             }
         }
-
-        /** @var array<string, array{schema: string, namespace: string}> $formats */
-        $formats = config('oaipmh.metadata_formats', []);
 
         return $this->xmlBuilder
             ->createEnvelope('ListMetadataFormats', $identifier !== null ? ['identifier' => $identifier] : [])
@@ -262,6 +277,10 @@ class OaiPmhService
         // Check for deleted record first
         $deletedRecord = OaiPmhDeletedRecord::where('doi', $doi)->first();
         if ($deletedRecord !== null) {
+            if ($this->isIsoMetadataPrefix($metadataPrefix) && ! $this->isoProfile->supportsDeletedRecord($deletedRecord)) {
+                return $this->cannotDisseminateForIdentifier($metadataPrefix, $identifier);
+            }
+
             $builder = $this->xmlBuilder->createEnvelope('GetRecord', $requestAttrs);
             $container = $builder->beginGetRecord();
             $builder->addDeletedRecord(
@@ -283,6 +302,10 @@ class OaiPmhService
                 'GetRecord',
                 $requestAttrs,
             );
+        }
+
+        if ($this->isIsoMetadataPrefix($metadataPrefix) && ! $this->isoProfile->supports($resource)) {
+            return $this->cannotDisseminateForIdentifier($metadataPrefix, $identifier);
         }
 
         $builder = $this->xmlBuilder->createEnvelope('GetRecord', $requestAttrs);
@@ -335,6 +358,15 @@ class OaiPmhService
             $from = $token->from_date;
             $until = $token->until_date;
             $cursor = $token->cursor;
+
+            if (! $this->isValidMetadataPrefix($metadataPrefix)) {
+                return $this->errorResponse(
+                    'badResumptionToken',
+                    'The metadata format stored in this resumption token is no longer supported',
+                    $verb,
+                    ['resumptionToken' => $resumptionToken],
+                );
+            }
 
             $requestAttrs = ['resumptionToken' => $resumptionToken];
         } else {
@@ -411,6 +443,10 @@ class OaiPmhService
             ->orderByRaw('CASE WHEN landing_pages.published_at > resources.updated_at THEN landing_pages.published_at ELSE resources.updated_at END')
             ->orderBy('resources.id');
 
+        if ($this->isIsoMetadataPrefix($metadataPrefix)) {
+            $this->isoProfile->applyToResourceQuery($query);
+        }
+
         $totalCount = $query->count();
 
         // Also count deleted records matching the filters
@@ -420,6 +456,10 @@ class OaiPmhService
 
         if ($setSpec !== null) {
             $deletedQuery->whereJsonContains('sets', $setSpec);
+        }
+
+        if ($this->isIsoMetadataPrefix($metadataPrefix)) {
+            $this->isoProfile->applyToDeletedRecordQuery($deletedQuery);
         }
 
         $deletedCount = $deletedQuery->count();
@@ -616,21 +656,11 @@ class OaiPmhService
     }
 
     /**
-     * Check if a resource with the given DOI exists and is published.
-     */
-    private function resourceExists(string $doi): bool
-    {
-        return $this->buildHarvestableQuery()
-            ->where('doi', $doi)
-            ->exists();
-    }
-
-    /**
      * Build the OAI identifier from a DOI.
      */
     private function buildOaiIdentifier(?string $doi): string
     {
-        return config('oaipmh.identifier_prefix') . ':' . ($doi ?? 'unknown');
+        return config('oaipmh.identifier_prefix').':'.($doi ?? 'unknown');
     }
 
     /**
@@ -658,7 +688,7 @@ class OaiPmhService
      */
     private function extractDoiFromIdentifier(string $identifier): ?string
     {
-        $prefix = config('oaipmh.identifier_prefix') . ':';
+        $prefix = config('oaipmh.identifier_prefix').':';
 
         if (! str_starts_with($identifier, $prefix)) {
             return null;
@@ -677,6 +707,7 @@ class OaiPmhService
         return match ($metadataPrefix) {
             'oai_dc' => $this->buildDublinCoreXml($resource),
             'oai_datacite' => $this->buildDataCiteXml($resource),
+            'iso19115_3' => $this->isoExporter->export($resource),
             default => '',
         };
     }
@@ -745,6 +776,7 @@ class OaiPmhService
                 'igsnMetadata',
                 'instruments',
             ],
+            'iso19115_3' => $this->isoProfile->requiredRelations(),
             default => ['resourceType'],
         };
     }
@@ -754,10 +786,52 @@ class OaiPmhService
      */
     private function isValidMetadataPrefix(string $prefix): bool
     {
-        /** @var array<string, mixed> $formats */
+        return array_key_exists($prefix, $this->metadataFormats());
+    }
+
+    private function isIsoMetadataPrefix(string $prefix): bool
+    {
+        return $prefix === 'iso19115_3';
+    }
+
+    /**
+     * Metadata formats currently exposed by the repository.
+     *
+     * @return array<string, array{schema: string, namespace: string}>
+     */
+    private function metadataFormats(): array
+    {
+        /** @var array<string, array{schema: string, namespace: string}> $formats */
         $formats = config('oaipmh.metadata_formats', []);
 
-        return array_key_exists($prefix, $formats);
+        if (! $this->isoProfile->isEnabled()) {
+            unset($formats['iso19115_3']);
+        }
+
+        return $formats;
+    }
+
+    private function unknownIdentifierResponse(string $verb, string $identifier): string
+    {
+        return $this->errorResponse(
+            'idDoesNotExist',
+            'The identifier does not exist in this repository',
+            $verb,
+            ['identifier' => $identifier],
+        );
+    }
+
+    private function cannotDisseminateForIdentifier(string $metadataPrefix, string $identifier): string
+    {
+        return $this->errorResponse(
+            'cannotDisseminateFormat',
+            "The metadata format '{$metadataPrefix}' is not available for this identifier",
+            'GetRecord',
+            [
+                'identifier' => $identifier,
+                'metadataPrefix' => $metadataPrefix,
+            ],
+        );
     }
 
     /**
