@@ -457,6 +457,39 @@ describe('DefaultGfzTemplate', () => {
             expect(document.body.textContent).toContain(scriptContent);
         });
 
+        it('renders canonical metadata discovery links including ISO describedby', () => {
+            mockUsePage.mockReturnValue({
+                props: {
+                    resource: mockResource,
+                    landingPage: mockLandingPage,
+                    isPreview: false,
+                    metadataLinks: [
+                        {
+                            format: 'datacite-xml',
+                            standard: 'DataCite',
+                            label: 'DataCite XML',
+                            url: 'https://example.com/metadata/datacite.xml',
+                            mediaType: 'application/xml',
+                            profile: null,
+                        },
+                        {
+                            format: 'iso19115-3',
+                            standard: 'ISO 19115-3',
+                            label: 'ISO 19115-3:2023 XML',
+                            url: 'https://example.com/metadata/iso-19115-3.xml',
+                            mediaType: 'application/xml',
+                            profile: 'https://schemas.isotc211.org/19115/-1/mdb/1.3',
+                        },
+                    ],
+                },
+            } as unknown as ReturnType<typeof usePage>);
+
+            render(<DefaultGfzTemplate />);
+
+            expect(document.querySelector('link[rel="alternate"]')).toHaveAttribute('href', 'https://example.com/metadata/datacite.xml');
+            expect(document.querySelector('link[rel="describedby"]')).toHaveAttribute('href', 'https://example.com/metadata/iso-19115-3.xml');
+        });
+
         it('does not render JSON-LD script tag when schemaOrgJsonLd is not provided', () => {
             mockUsePage.mockReturnValue({
                 props: {

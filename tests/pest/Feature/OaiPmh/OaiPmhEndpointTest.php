@@ -47,7 +47,7 @@ function createOaiPmhResource(array $attributes = []): Resource
  */
 function oaiId(string $doi): string
 {
-    return config('oaipmh.identifier_prefix') . ':' . $doi;
+    return config('oaipmh.identifier_prefix').':'.$doi;
 }
 
 // ===================================================================
@@ -83,7 +83,7 @@ test('Identify includes sample identifier when published resources exist', funct
 // Verb: ListMetadataFormats
 // ===================================================================
 
-test('ListMetadataFormats returns oai_dc and oai_datacite', function () {
+test('ListMetadataFormats returns all repository metadata formats', function () {
     $response = $this->get('/oai-pmh?verb=ListMetadataFormats');
 
     $response->assertStatus(200);
@@ -95,7 +95,8 @@ test('ListMetadataFormats returns oai_dc and oai_datacite', function () {
     }
 
     expect($prefixes)->toContain('oai_dc')
-        ->and($prefixes)->toContain('oai_datacite');
+        ->and($prefixes)->toContain('oai_datacite')
+        ->and($prefixes)->toContain('iso19115_3');
 });
 
 test('ListMetadataFormats with valid identifier returns formats', function () {
@@ -107,11 +108,11 @@ test('ListMetadataFormats with valid identifier returns formats', function () {
     $response->assertStatus(200);
     $xml = simplexml_load_string($response->getContent());
 
-    expect(count($xml->ListMetadataFormats->metadataFormat))->toBe(2);
+    expect(count($xml->ListMetadataFormats->metadataFormat))->toBe(3);
 });
 
 test('ListMetadataFormats with unknown identifier returns idDoesNotExist', function () {
-    $response = $this->get('/oai-pmh?verb=ListMetadataFormats&identifier=' . oaiId('10.9999/nonexistent'));
+    $response = $this->get('/oai-pmh?verb=ListMetadataFormats&identifier='.oaiId('10.9999/nonexistent'));
 
     $response->assertStatus(200);
     $xml = simplexml_load_string($response->getContent());
@@ -136,7 +137,7 @@ test('ListSets returns resource type and year sets', function () {
         $specs[] = (string) $set->setSpec;
     }
 
-    expect($specs)->toContain('resourcetype:' . $resource->resourceType->slug)
+    expect($specs)->toContain('resourcetype:'.$resource->resourceType->slug)
         ->and($specs)->toContain('year:2024');
 });
 
@@ -278,7 +279,7 @@ test('ListIdentifiers returns headers without metadata', function () {
 test('GetRecord returns a single record', function () {
     createOaiPmhResource(['doi' => '10.5880/single.2024.001']);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/single.2024.001') . '&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier='.oaiId('10.5880/single.2024.001').'&metadataPrefix=oai_dc');
 
     $response->assertStatus(200);
     $content = $response->getContent();
@@ -288,7 +289,7 @@ test('GetRecord returns a single record', function () {
 });
 
 test('GetRecord with nonexistent identifier returns idDoesNotExist', function () {
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.9999/nonexistent') . '&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier='.oaiId('10.9999/nonexistent').'&metadataPrefix=oai_dc');
 
     $xml = simplexml_load_string($response->getContent());
 
@@ -303,7 +304,7 @@ test('GetRecord for deleted record returns status deleted', function () {
         'sets' => ['resourcetype:dataset'],
     ]);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/deleted.001') . '&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier='.oaiId('10.5880/deleted.001').'&metadataPrefix=oai_dc');
 
     $content = $response->getContent();
 
@@ -319,7 +320,7 @@ test('GetRecord without identifier returns badArgument', function () {
 });
 
 test('GetRecord without metadataPrefix returns badArgument', function () {
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/test') . '');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier='.oaiId('10.5880/test').'');
 
     $xml = simplexml_load_string($response->getContent());
 
@@ -656,7 +657,7 @@ test('datestamp reflects published_at when it is newer than updated_at', functio
         'published_at' => $publishedAt,
     ]);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/datestamp.2024.001') . '&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier='.oaiId('10.5880/datestamp.2024.001').'&metadataPrefix=oai_dc');
 
     $content = $response->getContent();
 
@@ -676,7 +677,7 @@ test('datestamp reflects updated_at when it is newer than published_at', functio
         'published_at' => Carbon::parse('2024-01-01 00:00:00'),
     ]);
 
-    $response = $this->get('/oai-pmh?verb=GetRecord&identifier=' . oaiId('10.5880/datestamp.2024.002') . '&metadataPrefix=oai_dc');
+    $response = $this->get('/oai-pmh?verb=GetRecord&identifier='.oaiId('10.5880/datestamp.2024.002').'&metadataPrefix=oai_dc');
 
     $content = $response->getContent();
 

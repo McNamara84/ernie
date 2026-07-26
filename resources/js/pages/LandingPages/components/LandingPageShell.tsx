@@ -1,6 +1,8 @@
 import { Head } from '@inertiajs/react';
 import type { ReactNode } from 'react';
 
+import type { LandingPageMetadataLink } from '@/types/landing-page';
+
 import { BackToTopButton } from './BackToTopButton';
 import { DarkModeImage } from './DarkModeImage';
 import { LandingPageToaster } from './LandingPageToaster';
@@ -10,6 +12,7 @@ interface LandingPageShellProps {
     isDark: boolean;
     mainAriaLabel: string;
     schemaOrgJsonLd?: Record<string, unknown>;
+    metadataLinks?: LandingPageMetadataLink[];
     customLogoUrl?: string | null;
     hero: ReactNode;
     metadataSection: ReactNode;
@@ -23,6 +26,7 @@ export function LandingPageShell({
     isDark,
     mainAriaLabel,
     schemaOrgJsonLd,
+    metadataLinks = [],
     customLogoUrl,
     hero,
     metadataSection,
@@ -34,9 +38,17 @@ export function LandingPageShell({
 
     return (
         <>
-            {schemaOrgJsonLd && (
+            {(schemaOrgJsonLd || metadataLinks.length > 0) && (
                 <Head>
-                    <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>
+                    {schemaOrgJsonLd && <script type="application/ld+json">{JSON.stringify(schemaOrgJsonLd)}</script>}
+                    {metadataLinks.map((metadataLink) => (
+                        <link
+                            key={metadataLink.format}
+                            rel={metadataLink.format === 'iso19115-3' ? 'describedby' : 'alternate'}
+                            href={metadataLink.url}
+                            type={metadataLink.mediaType}
+                        />
+                    ))}
                 </Head>
             )}
             <div data-landing-page className="min-h-screen bg-gfz-primary pt-6 dark:bg-gray-950">

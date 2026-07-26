@@ -15,11 +15,11 @@ return [
 
     'repository_name' => 'ERNIE – GFZ Data Publication Repository',
 
-    'base_url' => env('APP_URL', 'https://ernie.gfz.de') . '/oai-pmh',
+    'base_url' => env('APP_URL', 'https://ernie.gfz.de').'/oai-pmh',
 
     'admin_email' => 'datapub@gfz.de',
 
-    'identifier_prefix' => env('OAI_IDENTIFIER_PREFIX', 'oai:' . (parse_url((string) env('APP_URL', 'https://ernie.gfz.de'), PHP_URL_HOST) ?: 'ernie.gfz.de')),
+    'identifier_prefix' => env('OAI_IDENTIFIER_PREFIX', 'oai:'.(parse_url((string) env('APP_URL', 'https://ernie.gfz.de'), PHP_URL_HOST) ?: 'ernie.gfz.de')),
 
     'deleted_record' => 'persistent',
 
@@ -41,6 +41,10 @@ return [
         'oai_datacite' => [
             'schema' => 'https://schema.datacite.org/meta/kernel-4.7/metadata.xsd',
             'namespace' => 'http://datacite.org/schema/kernel-4',
+        ],
+        'iso19115_3' => [
+            'schema' => 'https://schemas.isotc211.org/19115/-1/mdb/1.3.0/mdb.xsd',
+            'namespace' => 'https://schemas.isotc211.org/19115/-1/mdb/1.3',
         ],
     ],
 ];

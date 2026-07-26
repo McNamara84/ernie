@@ -707,6 +707,18 @@ export interface LandingPageResource {
 }
 
 /**
+ * Canonical, anonymously retrievable metadata representation.
+ */
+export interface LandingPageMetadataLink {
+    format: 'datacite-xml' | 'datacite-json' | 'datacite-jsonld' | 'iso19115-3';
+    standard: 'DataCite' | 'ISO 19115-3';
+    label: string;
+    url: string;
+    mediaType: string;
+    profile: string | null;
+}
+
+/**
  * Props passed to landing page templates via Inertia
  */
 export interface LandingPageTemplateProps {
@@ -724,6 +736,8 @@ export interface LandingPageTemplateProps {
     displayLimits?: LandingPageDisplayLimits;
     /** Five server-rendered official CSL citation styles */
     citationStyles?: LandingPageCitationStyle[];
+    /** Public metadata downloads and discovery targets */
+    metadataLinks?: LandingPageMetadataLink[];
 }
 
 /**

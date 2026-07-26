@@ -30,6 +30,7 @@ use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\PortalSearchAnalyticsController;
+use App\Http\Controllers\PublicMetadataExportController;
 use App\Http\Controllers\RelatedItemController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
@@ -142,7 +143,26 @@ Route::get('landing-page-downloads/{landingPage}/files/{landingPageFile}', [Land
 // only the final segment as the slug. The slug pattern '[a-z0-9-]+' ensures it
 // cannot contain slashes, so the slug is always unambiguous.
 
-// JSON-LD download for published landing pages (must be defined BEFORE the catch-all show route)
+// Canonical metadata downloads for published landing pages.
+// These routes must be defined BEFORE the catch-all show route.
+Route::prefix('{doiPrefix}/{slug}/metadata')
+    ->middleware('throttle:public-landing-jsonld')
+    ->where([
+        'doiPrefix' => '10\.[0-9]+/[a-zA-Z0-9._/-]+',
+        'slug' => '[a-z0-9-]+',
+    ])
+    ->group(function (): void {
+        Route::get('datacite.xml', [PublicMetadataExportController::class, 'dataCiteXml'])
+            ->name('landing-page.metadata.datacite-xml');
+        Route::get('datacite.json', [PublicMetadataExportController::class, 'dataCiteJson'])
+            ->name('landing-page.metadata.datacite-json');
+        Route::get('datacite.jsonld', [PublicMetadataExportController::class, 'dataCiteJsonLd'])
+            ->name('landing-page.metadata.datacite-jsonld');
+        Route::get('iso-19115-3.xml', [PublicMetadataExportController::class, 'iso19115'])
+            ->name('landing-page.metadata.iso19115-3');
+    });
+
+// Legacy JSON-LD download route retained for backwards compatibility.
 Route::get('{doiPrefix}/{slug}/jsonld', [LandingPagePublicController::class, 'exportJsonLd'])
     ->middleware('throttle:public-landing-jsonld')
     ->name('landing-page.export-jsonld')
@@ -363,6 +383,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('resources/{resource}/export-jsonld', [ResourceExportController::class, 'exportJsonLd'])
         ->name('resources.export-jsonld');
+
+    Route::get('resources/{resource}/export-iso-19115-3', [ResourceExportController::class, 'exportIso19115'])
+        ->name('resources.export-iso-19115-3');
 
     Route::post('resources/{resource}/register-doi', [ResourceDoiRegistrationController::class, 'registerDoi'])
         ->name('resources.register-doi');

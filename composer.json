@@ -13,6 +13,7 @@
     ],
     "license": "GPL-3.0-or-later",
     "require": {
+        "ext-xsl": "*",
         "php": "^8.4",
         "inertiajs/inertia-laravel": "^3.1.0",
         "laravel/framework": "^13.0",

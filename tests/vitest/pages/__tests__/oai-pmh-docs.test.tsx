@@ -23,7 +23,12 @@ const defaultProps = {
             schema: 'https://schema.datacite.org/meta/kernel-4.7/metadata.xsd',
             namespace: 'http://datacite.org/schema/kernel-4',
         },
+        iso19115_3: {
+            schema: 'https://schemas.isotc211.org/19115/-1/mdb/1.3.0/mdb.xsd',
+            namespace: 'https://schemas.isotc211.org/19115/-1/mdb/1.3',
+        },
     },
+    isoEligibleResourceTypeSlugs: ['dataset', 'physical-object', 'software'],
     resourceTypeSlugs: ['collection', 'dataset', 'image', 'physical-object', 'software', 'text'],
     identifierPrefix: 'oai:ernie.gfz.de',
     pageSize: 100,
@@ -58,6 +63,14 @@ describe('OaiPmhDocs', () => {
         render(<OaiPmhDocs {...defaultProps} />);
         expect(screen.getAllByText('oai_dc').length).toBeGreaterThanOrEqual(1);
         expect(screen.getAllByText('oai_datacite').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('iso19115_3').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText('ISO 19115-3:2023 (selective)')).toBeInTheDocument();
+    });
+
+    it('documents the selectively eligible ISO resource types', () => {
+        render(<OaiPmhDocs {...defaultProps} />);
+        const eligibleTypes = screen.getByLabelText('ISO 19115-3 eligible resource types');
+        expect(eligibleTypes).toHaveTextContent('datasetphysical-objectsoftware');
     });
 
     it('renders section headings', () => {
