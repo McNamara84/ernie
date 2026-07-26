@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Building2, Check, Plus,RefreshCw, User, X } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { LoadingButton } from '@/components/ui/loading-button';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/app-layout';
+import { resolveIdentifierUrl } from '@/pages/LandingPages/lib/resolveIdentifierUrl';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -96,6 +97,8 @@ function SuggestionCard({
     onDecline: (id: number) => void;
     isProcessing: boolean;
 }) {
+    const identifierUrl = suggestion.identifier_type === 'DOI' ? resolveIdentifierUrl(suggestion.identifier, 'DOI') : null;
+
     return (
         <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
@@ -107,7 +110,18 @@ function SuggestionCard({
                         <Badge variant="secondary" className="text-xs">
                             {suggestion.identifier_type}
                         </Badge>
-                        <span className="font-mono text-sm break-all">{suggestion.identifier}</span>
+                        {identifierUrl !== null ? (
+                            <a
+                                href={identifierUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono text-sm break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                            >
+                                {suggestion.identifier}
+                            </a>
+                        ) : (
+                            <span className="font-mono text-sm break-all">{suggestion.identifier}</span>
+                        )}
                     </div>
 
                     {suggestion.source_title && <p className="text-sm font-medium text-foreground">&quot;{suggestion.source_title}&quot;</p>}
@@ -236,36 +250,94 @@ function entityTypeBadgeColor(type: SuggestedRorItem['entity_type']): string {
     }
 }
 
-const RIGHTS_FIELD_LABELS: Record<string, string> = {
-    rights: 'rights',
-    rights_uri: 'rightsURI',
-    rights_identifier: 'rightsIdentifier',
-    rights_identifier_scheme: 'rightsIdentifierScheme',
-    scheme_uri: 'schemeURI',
-    language: 'lang',
-    source: 'source',
-};
+const RIGHTS_FIELDS = [
+    { key: 'rights', label: 'rights' },
+    { key: 'rights_uri', label: 'rightsURI' },
+    { key: 'rights_identifier', label: 'rightsIdentifier' },
+    { key: 'rights_identifier_scheme', label: 'rightsIdentifierScheme' },
+    { key: 'scheme_uri', label: 'schemeURI' },
+    { key: 'language', label: 'lang' },
+    { key: 'source', label: 'source' },
+] as const;
 
-function RightsMetadataBlock({ title, values }: { title: string; values: Record<string, string> | undefined }) {
-    const entries = Object.entries(RIGHTS_FIELD_LABELS)
-        .map(([key, label]) => [label, values?.[key]] as const)
-        .filter(([, value]) => typeof value === 'string' && value.trim() !== '');
+function rightsMetadataValue(values: Record<string, string> | undefined, key: string): string | null {
+    const value = values?.[key];
 
+    return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
+function EmptyRightsMetadataBlock({ title }: { title: string }) {
     return (
         <div className="min-w-0 rounded-md border bg-muted/20 p-3">
             <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase">{title}</p>
-            {entries.length > 0 ? (
-                <dl className="space-y-1 text-xs">
-                    {entries.map(([label, value]) => (
-                        <div key={label} className="grid grid-cols-[9.5rem_minmax(0,1fr)] gap-2">
-                            <dt className="text-muted-foreground">{label}</dt>
-                            <dd className="font-mono break-words text-foreground">{value}</dd>
-                        </div>
-                    ))}
-                </dl>
-            ) : (
-                <p className="text-xs text-muted-foreground">No metadata captured.</p>
-            )}
+            <p className="text-xs text-muted-foreground">No metadata captured.</p>
+        </div>
+    );
+}
+
+function RightsMetadataComparison({
+    current,
+    proposed,
+}: {
+    current: Record<string, string> | undefined;
+    proposed: Record<string, string> | undefined;
+}) {
+    const rows = RIGHTS_FIELDS.map(({ key, label }) => ({
+        key,
+        label,
+        current: rightsMetadataValue(current, key),
+        proposed: rightsMetadataValue(proposed, key),
+    })).filter((row) => row.current !== null || row.proposed !== null);
+
+    if (rows.length === 0) {
+        return (
+            <div className="grid gap-3 xl:grid-cols-2">
+                <EmptyRightsMetadataBlock title="Current imported rights" />
+                <EmptyRightsMetadataBlock title="Proposed SPDX metadata" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-w-0 overflow-hidden rounded-md border bg-muted/20 text-xs">
+            <div className="grid grid-cols-2 bg-muted/40 font-semibold text-muted-foreground uppercase xl:grid-cols-[9.5rem_minmax(0,1fr)_minmax(0,1fr)]">
+                <span aria-hidden="true" className="hidden px-3 py-2 xl:block" />
+                <span className="px-3 py-2">Current imported rights</span>
+                <span className="border-l px-3 py-2">Proposed SPDX metadata</span>
+            </div>
+            <dl>
+                {rows.map((row) => (
+                    <div
+                        key={row.key}
+                        data-testid={'rights-metadata-row-' + row.key}
+                        className="grid grid-cols-2 border-t xl:grid-cols-[9.5rem_minmax(0,1fr)_minmax(0,1fr)]"
+                    >
+                        <dt className="col-span-2 bg-muted/20 px-3 py-2 font-medium text-muted-foreground xl:col-span-1">{row.label}</dt>
+                        <dd
+                            data-testid={'rights-metadata-' + row.key + '-current'}
+                            aria-label={'Current imported rights ' + row.label + ': ' + (row.current ?? 'Not provided')}
+                            className={
+                                row.current === null
+                                    ? 'px-3 py-2 font-mono break-words text-muted-foreground'
+                                    : 'px-3 py-2 font-mono break-words text-foreground'
+                            }
+                        >
+                            {row.current ?? '—'}
+                        </dd>
+                        <dd
+                            data-testid={'rights-metadata-' + row.key + '-proposed'}
+                            aria-label={'Proposed SPDX metadata ' + row.label + ': ' + (row.proposed ?? 'Not provided')}
+                            className={
+                                row.proposed === null
+                                    ? 'border-l px-3 py-2 font-mono break-words text-muted-foreground'
+                                    : 'border-l px-3 py-2 font-mono break-words text-foreground'
+                            }
+                        >
+                            {row.proposed ?? '—'}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
         </div>
     );
 }
@@ -301,10 +373,7 @@ function SpdxRightsSuggestionCard({
                         <span className="font-mono text-sm break-all">{suggestion.suggested_value}</span>
                     </div>
 
-                    <div className="grid gap-3 xl:grid-cols-2">
-                        <RightsMetadataBlock title="Current imported rights" values={metadata?.current} />
-                        <RightsMetadataBlock title="Proposed SPDX metadata" values={metadata?.proposed} />
-                    </div>
+                    <RightsMetadataComparison current={metadata?.current} proposed={metadata?.proposed} />
 
                     <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
                         <div className="flex gap-2">
@@ -1417,6 +1486,28 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
     const reloadAssistanceSections = useCallback(() => {
         router.reload({ only: ['sections', 'pendingAssistanceTotalCount'] });
     }, []);
+
+    const scrollToAssistantResults = useCallback((assistantId: string) => {
+        requestAnimationFrame(() => {
+            document.getElementById('assistance-results-' + assistantId)?.scrollIntoView({ block: 'start' });
+        });
+    }, []);
+
+    const handlePagination = useCallback(
+        (assistantId: string, url: string) => {
+            router.get(
+                url,
+                {},
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    onSuccess: () => scrollToAssistantResults(assistantId),
+                },
+            );
+        },
+        [scrollToAssistantResults],
+    );
+
     // ── Polling logic ────────────────────────────────────────────────
 
     const stopPolling = useCallback(
@@ -1782,7 +1873,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                         </div>
                     </div>
                 );
-            
+
         }
     }
 
@@ -1889,7 +1980,11 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                     )}
                                 </Button>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent
+                                id={'assistance-results-' + manifest.id}
+                                data-testid={'assistance-results-' + manifest.id}
+                                className="scroll-mt-24"
+                            >
                                 {Object.keys(grouped).length > 0 ? (
                                     <div className="space-y-4">
                                         {Object.entries(grouped).map(([resourceKey, group]) => {
@@ -1965,7 +2060,7 @@ export default function AssistancePage({ sections, manifests }: AssistancePagePr
                                                     variant={link.active ? 'default' : 'outline'}
                                                     size="sm"
                                                     disabled={!link.url}
-                                                    onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                                    onClick={() => link.url && handlePagination(manifest.id, link.url)}
                                                     dangerouslySetInnerHTML={{ __html: link.label }}
                                                 />
                                             ))}
