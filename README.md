@@ -10,6 +10,8 @@ ERNIE is a metadata curation system for research datasets at GFZ Helmholtz Centr
 ## Key Capabilities
 
 - DataCite metadata curation for DOI-ready dataset records
+- Selective ISO 19115-3:2023 exports
+- OAI-PMH harvesting
 - IGSN workflows with CSV import and hierarchical sample relationships
 - Public landing pages and DOI-oriented publication views
 - Search and discovery workflows for published resources
