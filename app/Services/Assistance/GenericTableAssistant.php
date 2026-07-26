@@ -81,7 +81,9 @@ abstract class GenericTableAssistant extends AbstractAssistant
             ->get()
             ->map(fn (AssistantSuggestion $suggestion): array => [
                 'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at' => (string) $suggestion->getAttribute('resource_created_at'),
+                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                    (string) $suggestion->getAttribute('resource_created_at'),
+                ),
             ])
             ->all());
     }

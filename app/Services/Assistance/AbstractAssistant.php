@@ -6,6 +6,8 @@ namespace App\Services\Assistance;
 
 use App\Enums\CacheKey;
 use App\Models\User;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -204,6 +206,14 @@ abstract class AbstractAssistant implements AssistantContract
         $this->forgetTotalPendingCount();
 
         return ['success' => true, 'message' => 'Suggestion declined.'];
+    }
+
+    /**
+     * Normalize database datetime values to the numeric review contract.
+     */
+    protected function resourceCreatedAtTimestamp(string $createdAt): int
+    {
+        return (new DateTimeImmutable($createdAt, new DateTimeZone('UTC')))->getTimestamp();
     }
 
     /**

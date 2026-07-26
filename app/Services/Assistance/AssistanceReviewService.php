@@ -39,7 +39,7 @@ final class AssistanceReviewService
                 $resourceId = $resource['resource_id'];
                 $existing = $allResources[$resourceId] ?? null;
 
-                if ($existing === null || strcmp($resource['resource_created_at'], $existing['resource_created_at']) > 0) {
+                if ($existing === null || $resource['resource_created_at_timestamp'] > $existing['resource_created_at_timestamp']) {
                     $allResources[$resourceId] = $resource;
                 }
             }
@@ -74,13 +74,13 @@ final class AssistanceReviewService
     }
 
     /**
-     * @param  list<array{resource_id: int, resource_created_at: string}>  $resources
-     * @return list<array{resource_id: int, resource_created_at: string}>
+     * @param  list<array{resource_id: int, resource_created_at_timestamp: int}>  $resources
+     * @return list<array{resource_id: int, resource_created_at_timestamp: int}>
      */
     private function sortResources(array $resources): array
     {
         usort($resources, static function (array $left, array $right): int {
-            $dateOrder = strcmp($right['resource_created_at'], $left['resource_created_at']);
+            $dateOrder = $right['resource_created_at_timestamp'] <=> $left['resource_created_at_timestamp'];
 
             return $dateOrder !== 0
                 ? $dateOrder
@@ -91,7 +91,7 @@ final class AssistanceReviewService
     }
 
     /**
-     * @param  list<array{resource_id: int, resource_created_at: string}>  $resources
+     * @param  list<array{resource_id: int, resource_created_at_timestamp: int}>  $resources
      * @param  array<string, AssistantContract>  $assistants
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */

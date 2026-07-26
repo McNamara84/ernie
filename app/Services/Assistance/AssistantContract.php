@@ -53,7 +53,10 @@ interface AssistantContract
     /**
      * List resources that currently have pending suggestions for this assistant.
      *
-     * @return list<array{resource_id: int, resource_created_at: string}>
+     * The creation time is a Unix timestamp in seconds. Using a numeric value
+     * keeps resource ordering independent of database-specific datetime formats.
+     *
+     * @return list<array{resource_id: int, resource_created_at_timestamp: int}>
      */
     public function listPendingResources(): array;
 

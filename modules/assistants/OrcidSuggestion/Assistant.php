@@ -96,7 +96,7 @@ class Assistant extends AbstractAssistant
     #[\Override]
     public function listPendingResources(): array
     {
-        return SuggestedOrcid::query()
+        return array_values(SuggestedOrcid::query()
             ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
             ->selectRaw('suggested_orcids.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
             ->groupBy('suggested_orcids.resource_id')
@@ -105,10 +105,11 @@ class Assistant extends AbstractAssistant
             ->get()
             ->map(fn (SuggestedOrcid $suggestion): array => [
                 'resource_id' => (int) $suggestion->resource_id,
-                'resource_created_at' => (string) $suggestion->getAttribute('resource_created_at'),
+                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                    (string) $suggestion->getAttribute('resource_created_at'),
+                ),
             ])
-            ->values()
-            ->all();
+            ->all());
     }
 
     #[\Override]
