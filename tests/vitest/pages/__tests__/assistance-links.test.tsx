@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
-import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import { toast } from 'sonner';
 import type { Mock } from 'vitest';
@@ -12,6 +12,7 @@ import type {
     SuggestedCrossrefFunderRorItem,
     SuggestedDescriptionSegmentationItem,
     SuggestedOrcidItem,
+    SuggestedRelationItem,
     SuggestedRorItem,
     SuggestedSpdxRightsItem,
     SuggestedSubjectMetadataEnrichmentItem,
@@ -49,6 +50,7 @@ vi.mock('axios', () => {
 });
 
 const mockedAxiosPost = axios.post as Mock;
+const mockedRouterGet = router.get as Mock;
 const mockedRouterReload = router.reload as Mock;
 const mockedToastWarning = toast.warning as Mock;
 
@@ -84,6 +86,7 @@ const BULK_TOKEN_DECLINE = '00000000-0000-4000-8000-000000000956';
 
 beforeEach(() => {
     mockedAxiosPost.mockReset();
+    mockedRouterGet.mockReset();
     mockedRouterReload.mockReset();
     mockedToastWarning.mockReset();
 });
@@ -103,6 +106,27 @@ function makeOrcidSuggestion(overrides: Partial<SuggestedOrcidItem> = {}): Sugge
         candidate_first_name: 'Jane',
         candidate_last_name: 'Doe',
         candidate_affiliations: ['GFZ Helmholtz Centre Potsdam'],
+        discovered_at: '2024-06-15T10:00:00+00:00',
+        ...overrides,
+    };
+}
+
+function makeRelationSuggestion(overrides: Partial<SuggestedRelationItem> = {}): SuggestedRelationItem {
+    return {
+        id: 11,
+        resource_id: 10,
+        resource_doi: '10.5880/test.2024.001',
+        resource_title: 'Test Resource',
+        identifier: '10.1234/suggested-resource',
+        identifier_type: 'DOI',
+        identifier_type_name: 'DOI',
+        relation_type: 'IsSupplementTo',
+        relation_type_name: 'Is supplement to',
+        source: 'scholexplorer',
+        source_title: 'Suggested related resource',
+        source_type: 'Dataset',
+        source_publisher: 'Example publisher',
+        source_publication_date: '2024',
         discovered_at: '2024-06-15T10:00:00+00:00',
         ...overrides,
     };
@@ -465,7 +489,7 @@ function makeManifest(id: string, routePrefix: string, name: string) {
     };
 }
 
-function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
+function paginated<T>(data: T[], overrides: Partial<PaginatedData<BaseSuggestionItem>> = {}): PaginatedData<BaseSuggestionItem> {
     return {
         data: data as unknown as BaseSuggestionItem[],
         current_page: 1,
@@ -475,6 +499,7 @@ function paginated<T>(data: T[]): PaginatedData<BaseSuggestionItem> {
         from: data.length > 0 ? 1 : null,
         to: data.length > 0 ? data.length : null,
         links: [],
+        ...overrides,
     };
 }
 
@@ -650,6 +675,173 @@ describe('Assistance resource header links', () => {
     });
 });
 
+describe('Assistance pagination scrolling', () => {
+    it('scrolls to the results of the assistant whose page was changed', async () => {
+        const user = userEvent.setup();
+        const firstAssistantId = 'first-test-assistant';
+        const secondAssistantId = 'second-test-assistant';
+
+        render(
+            <AssistancePage
+                sections={{
+                    [firstAssistantId]: paginated([makeSizeFormatSuggestion({ id: 301, resource_id: 301 })], {
+                        last_page: 2,
+                        links: [{ url: '/assistance?first_test_page=2', label: 'Next', active: false }],
+                    }),
+                    [secondAssistantId]: paginated([makeSizeFormatSuggestion({ id: 302, resource_id: 302 })], {
+                        last_page: 2,
+                        links: [{ url: '/assistance?second_test_page=2', label: 'Next', active: false }],
+                    }),
+                }}
+                manifests={[
+                    makeManifest(firstAssistantId, 'first-test', 'First Test Assistant'),
+                    makeManifest(secondAssistantId, 'second-test', 'Second Test Assistant'),
+                ]}
+            />,
+        );
+
+        const firstTarget = screen.getByTestId('assistance-results-' + firstAssistantId);
+        const secondTarget = screen.getByTestId('assistance-results-' + secondAssistantId);
+        const firstScrollSpy = vi.spyOn(firstTarget, 'scrollIntoView');
+        const secondScrollSpy = vi.spyOn(secondTarget, 'scrollIntoView');
+        const animationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+            callback(0);
+            return 1;
+        });
+
+        await user.click(screen.getAllByRole('button', { name: 'Next' })[1]);
+
+        expect(mockedRouterGet).toHaveBeenCalledWith(
+            '/assistance?second_test_page=2',
+            {},
+            expect.objectContaining({
+                preserveState: true,
+                preserveScroll: true,
+                onSuccess: expect.any(Function),
+            }),
+        );
+
+        const navigationOptions = mockedRouterGet.mock.calls[0]?.[2] as { onSuccess?: () => void };
+        navigationOptions.onSuccess?.();
+
+        expect(animationFrameSpy).toHaveBeenCalledOnce();
+        expect(secondScrollSpy).toHaveBeenCalledWith({ block: 'start' });
+        expect(firstScrollSpy).not.toHaveBeenCalled();
+
+        animationFrameSpy.mockRestore();
+    });
+
+    it('does not navigate or scroll for a disabled pagination link', async () => {
+        const user = userEvent.setup();
+        const assistantId = 'disabled-pagination-assistant';
+
+        render(
+            <AssistancePage
+                sections={{
+                    [assistantId]: paginated([makeSizeFormatSuggestion({ id: 303, resource_id: 303 })], {
+                        last_page: 2,
+                        links: [{ url: null, label: 'Previous', active: false }],
+                    }),
+                }}
+                manifests={[makeManifest(assistantId, 'disabled-pagination', 'Disabled Pagination Assistant')]}
+            />,
+        );
+
+        const scrollSpy = vi.spyOn(screen.getByTestId('assistance-results-' + assistantId), 'scrollIntoView');
+        const previousButton = screen.getByRole('button', { name: 'Previous' });
+
+        expect(previousButton).toBeDisabled();
+        await user.click(previousButton);
+
+        expect(mockedRouterGet).not.toHaveBeenCalled();
+        expect(scrollSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('RelationSuggestionCard - DOI link', () => {
+    it('renders a suggested DOI as a secure resolver link in a new tab', () => {
+        const suggestion = makeRelationSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        const link = screen.getByRole('link', { name: suggestion.identifier });
+
+        expect(link).toHaveAttribute('href', 'https://doi.org/10.1234/suggested-resource');
+        expect(link).toHaveAttribute('target', '_blank');
+        expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+        expect(link).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+        expect(link).toHaveClass('text-primary', 'underline');
+    });
+
+    it('normalizes an existing DOI resolver URL instead of prefixing it twice', () => {
+        const suggestion = makeRelationSuggestion({
+            identifier: 'https://dx.doi.org/10.1234/already-resolved',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByRole('link', { name: suggestion.identifier })).toHaveAttribute('href', 'https://doi.org/10.1234/already-resolved');
+    });
+
+    it('keeps identifiers of other types as plain text', () => {
+        const suggestion = makeRelationSuggestion({
+            identifier: 'ark:/12345/example',
+            identifier_type: 'ARK',
+            identifier_type_name: 'ARK',
+        });
+
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        expect(screen.getByText('ark:/12345/example')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'ark:/12345/example' })).not.toBeInTheDocument();
+    });
+
+    it('does not create a link for an empty DOI value', () => {
+        const suggestion = makeRelationSuggestion({ identifier: '   ' });
+
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        expect(within(screen.getByRole('listitem')).queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it.each(['not-a-doi', 'https://doi.org/not-a-doi'])(
+        'keeps an invalid DOI value as plain text: %s',
+        (identifier) => {
+            const suggestion = makeRelationSuggestion({ identifier });
+
+            render(
+                <AssistancePage
+                    sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                    manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+                />,
+            );
+
+            expect(screen.getByText(identifier)).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: identifier })).not.toBeInTheDocument();
+        },
+    );
+});
+
 describe('OrcidSuggestionCard – ORCID link', () => {
     it('renders the suggested ORCID as a clickable link', () => {
         const suggestion = makeOrcidSuggestion();
@@ -807,6 +999,88 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         expect(screen.getByText('https://spdx.org/licenses/')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'SPDX reference' })).toHaveAttribute('href', 'https://spdx.org/licenses/CC-BY-4.0.html');
         expect(screen.getByText(/Clicking Accept links only this rights statement/)).toBeInTheDocument();
+    });
+
+    it('aligns current and proposed metadata using one ordered set of field rows', () => {
+        const suggestion = makeSpdxRightsSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const rowIds = screen.getAllByTestId(/^rights-metadata-row-/).map((row) => row.getAttribute('data-testid'));
+
+        expect(rowIds).toEqual([
+            'rights-metadata-row-rights',
+            'rights-metadata-row-rights_uri',
+            'rights-metadata-row-rights_identifier',
+            'rights-metadata-row-rights_identifier_scheme',
+            'rights-metadata-row-scheme_uri',
+            'rights-metadata-row-language',
+            'rights-metadata-row-source',
+        ]);
+    });
+
+    it('shows proposed-only values opposite a subdued current placeholder', () => {
+        const suggestion = makeSpdxRightsSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const currentCell = screen.getByTestId('rights-metadata-rights_identifier-current');
+        const proposedCell = screen.getByTestId('rights-metadata-rights_identifier-proposed');
+
+        expect(currentCell).toHaveTextContent('—');
+        expect(currentCell).toHaveClass('text-muted-foreground');
+        expect(currentCell).toHaveAccessibleName(/Not provided/);
+        expect(proposedCell).toHaveTextContent('CC-BY-4.0');
+        expect(proposedCell).toHaveClass('text-foreground');
+    });
+
+    it('shows current-only values opposite a subdued proposed placeholder', () => {
+        const suggestion = makeSpdxRightsSuggestion();
+
+        render(
+            <AssistancePage
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
+            />,
+        );
+
+        const currentCell = screen.getByTestId('rights-metadata-source-current');
+        const proposedCell = screen.getByTestId('rights-metadata-source-proposed');
+
+        expect(currentCell).toHaveTextContent('datacite-import');
+        expect(proposedCell).toHaveTextContent('—');
+        expect(proposedCell).toHaveClass('text-muted-foreground');
+        expect(proposedCell).toHaveAccessibleName(/Not provided/);
+    });
+
+    it('omits fields that are empty on both sides', () => {
+        const suggestion = makeSpdxRightsSuggestion({
+            metadata: {
+                current: { rights: 'Legacy rights', rights_uri: '   ' },
+                proposed: { rights: 'Proposed rights' },
+            },
+        });
+
+        render(
+            <AssistancePage
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
+            />,
+        );
+
+        expect(screen.getByTestId('rights-metadata-row-rights')).toBeInTheDocument();
+        expect(screen.queryByTestId('rights-metadata-row-rights_uri')).not.toBeInTheDocument();
+        expect(screen.queryByText('rightsURI')).not.toBeInTheDocument();
     });
 
     it('shows empty metadata fallbacks when SPDX suggestion metadata is absent', () => {

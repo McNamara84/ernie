@@ -67,6 +67,13 @@ describe('resolveIdentifierUrl', () => {
         expect(resolveIdentifierUrl('\t', 'URL')).toBeNull();
     });
 
+    it.each(['not-a-doi', '10.123/no-sufficient-registrant-code', 'https://doi.org/not-a-doi'])(
+        'returns null for invalid DOI value: %s',
+        (identifier) => {
+            expect(resolveIdentifierUrl(identifier, 'DOI')).toBeNull();
+        },
+    );
+
     it('returns null for dangerous URL schemes (javascript:)', () => {
         expect(resolveIdentifierUrl('javascript:alert(1)', 'URL')).toBeNull();
     });
@@ -88,6 +95,12 @@ describe('resolveIdentifierUrl', () => {
     });
 
     describe('DOI URL normalization', () => {
+        it('strips doi: prefix from DOI', () => {
+            expect(resolveIdentifierUrl('doi:10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
+                'https://doi.org/10.5880/GFZ.1.1.2024.002',
+            );
+        });
+
         it('strips https://doi.org/ prefix from DOI', () => {
             expect(resolveIdentifierUrl('https://doi.org/10.5880/GFZ.1.1.2024.002', 'DOI')).toBe(
                 'https://doi.org/10.5880/GFZ.1.1.2024.002',
@@ -164,6 +177,10 @@ describe('normalizeDoiKey', () => {
 
     it('strips http://doi.org/ prefix', () => {
         expect(normalizeDoiKey('http://doi.org/10.5880/GFZ.1.1.2024.002')).toBe('10.5880/GFZ.1.1.2024.002');
+    });
+
+    it('strips doi: prefix', () => {
+        expect(normalizeDoiKey('doi: 10.5880/GFZ.1.1.2024.002')).toBe('10.5880/GFZ.1.1.2024.002');
     });
 
     it('trims whitespace', () => {
