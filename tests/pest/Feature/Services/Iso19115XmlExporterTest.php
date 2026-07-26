@@ -928,6 +928,9 @@ test('pinned validation manifest is complete and every asset hash matches', func
             ->and(filesize($assetPath))->toBe(
                 $entry['bytes'],
                 "Pinned validation asset size mismatch: {$entry['path']}",
+            )
+            ->and(str_contains((string) file_get_contents($assetPath), "\r"))->toBeFalse(
+                "Pinned validation asset contains a carriage return: {$entry['path']}",
             );
         $manifestPaths[] = str_replace('\\', '/', $entry['path']);
     }

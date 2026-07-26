@@ -49,8 +49,8 @@
         {
             "path": "isotc211/19110/-/fcc/2.2.0/abstract.xsd",
             "source": "https://raw.githubusercontent.com/ISO-TC211/schemas/973b2d578265657246404a1889c544c8d8374c9b/19110/-/fcc/2.2.0/abstract.xsd",
-            "sha256": "58b3cb1a9f757f16b2d5bf43730bb9f41dc6c5b85606cb8601a1947e9cd34b0c",
-            "bytes": 2062
+            "sha256": "aa1a97d6151c725597edd687e86f3557a4223d026085075cfacd91fc0e801eda",
+            "bytes": 2060
         },
         {
             "path": "isotc211/19110/-/fcc/2.2.0/fcc.xsd",
