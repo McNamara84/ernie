@@ -23,7 +23,7 @@ final class BatchSuggestionsRequest extends FormRequest
             'suggestions' => ['required', 'array', 'min:1', 'max:250'],
             'suggestions.*.assistant_id' => ['required', 'string', 'max:64'],
             'suggestions.*.suggestion_id' => ['required', 'integer', 'min:1'],
-            'reason' => ['nullable', 'string', 'max:1000'],
+            'reason' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

@@ -75,7 +75,11 @@ it('BatchSuggestionsRequest authorizes users and bounds resource-scoped selectio
         ], $rules)->fails())->toBeTrue()
         ->and(Validator::make([
             ...$valid,
-            'reason' => str_repeat('x', 1001),
+            'reason' => str_repeat('x', 255),
+        ], $rules)->fails())->toBeFalse()
+        ->and(Validator::make([
+            ...$valid,
+            'reason' => str_repeat('x', 256),
         ], $rules)->fails())->toBeTrue();
 });
 
