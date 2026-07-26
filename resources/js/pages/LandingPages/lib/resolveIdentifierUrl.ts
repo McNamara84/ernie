@@ -1,3 +1,5 @@
+import { validateDOIFormat } from '@/lib/doi-validation';
+
 /**
  * Resolves an identifier to its full URL based on the identifier type.
  *
@@ -20,7 +22,7 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
     switch (identifierType) {
         case 'DOI': {
             const doi = normalizeDoiKey(id);
-            return doi ? `https://doi.org/${doi}` : null;
+            return validateDOIFormat(doi).isValid ? `https://doi.org/${doi}` : null;
         }
         case 'URL':
             return isSafeHttpUrl(id) ? id : null;

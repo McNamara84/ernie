@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
-import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
 import { toast } from 'sonner';
 import type { Mock } from 'vitest';
@@ -823,6 +823,23 @@ describe('RelationSuggestionCard - DOI link', () => {
 
         expect(within(screen.getByRole('listitem')).queryByRole('link')).not.toBeInTheDocument();
     });
+
+    it.each(['not-a-doi', 'https://doi.org/not-a-doi'])(
+        'keeps an invalid DOI value as plain text: %s',
+        (identifier) => {
+            const suggestion = makeRelationSuggestion({ identifier });
+
+            render(
+                <AssistancePage
+                    sections={{ 'relation-suggestion': paginated([suggestion]) }}
+                    manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+                />,
+            );
+
+            expect(screen.getByText(identifier)).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: identifier })).not.toBeInTheDocument();
+        },
+    );
 });
 
 describe('OrcidSuggestionCard – ORCID link', () => {

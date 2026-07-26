@@ -67,6 +67,13 @@ describe('resolveIdentifierUrl', () => {
         expect(resolveIdentifierUrl('\t', 'URL')).toBeNull();
     });
 
+    it.each(['not-a-doi', '10.123/no-sufficient-registrant-code', 'https://doi.org/not-a-doi'])(
+        'returns null for invalid DOI value: %s',
+        (identifier) => {
+            expect(resolveIdentifierUrl(identifier, 'DOI')).toBeNull();
+        },
+    );
+
     it('returns null for dangerous URL schemes (javascript:)', () => {
         expect(resolveIdentifierUrl('javascript:alert(1)', 'URL')).toBeNull();
     });
