@@ -69,6 +69,47 @@ abstract class GenericTableAssistant extends AbstractAssistant
     }
 
     #[\Override]
+    public function listPendingResources(): array
+    {
+        return array_values(AssistantSuggestion::query()
+            ->where('assistant_id', $this->getId())
+            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
+            ->selectRaw('assistant_suggestions.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
+            ->groupBy('assistant_suggestions.resource_id')
+            ->orderByDesc('resource_created_at')
+            ->orderByDesc('assistant_suggestions.resource_id')
+            ->get()
+            ->map(fn (AssistantSuggestion $suggestion): array => [
+                'resource_id' => (int) $suggestion->resource_id,
+                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                    (string) $suggestion->getAttribute('resource_created_at'),
+                ),
+            ])
+            ->all());
+    }
+
+    #[\Override]
+    public function loadSuggestionsForResources(array $resourceIds): array
+    {
+        if ($resourceIds === []) {
+            return [];
+        }
+
+        return array_values(AssistantSuggestion::query()
+            ->where('assistant_id', $this->getId())
+            ->whereIn('assistant_suggestions.resource_id', $resourceIds)
+            ->with('resource')
+            ->join('resources', 'assistant_suggestions.resource_id', '=', 'resources.id')
+            ->select('assistant_suggestions.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('assistant_suggestions.discovered_at')
+            ->orderByDesc('assistant_suggestions.id')
+            ->get()
+            ->map(fn (AssistantSuggestion $suggestion): array => $this->present($suggestion))
+            ->all());
+    }
+
+    #[\Override]
     protected function transform(Model $suggestion): array
     {
         /** @var AssistantSuggestion $suggestion */

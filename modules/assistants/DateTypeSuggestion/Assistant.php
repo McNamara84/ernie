@@ -9,6 +9,7 @@ use App\Services\Assistance\GenericTableAssistant;
 use App\Services\DateType\DateTypeAcceptanceService;
 use App\Services\DateType\DateTypeDiscoveryService;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 
 final class Assistant extends GenericTableAssistant
 {
@@ -56,7 +57,7 @@ final class Assistant extends GenericTableAssistant
             onProgress: $onProgress,
         );
     }
-    
+
     /**
      * Apply the suggestion when a curator clicks "Accept".
      *
@@ -66,5 +67,19 @@ final class Assistant extends GenericTableAssistant
     protected function applyAccepted(AssistantSuggestion $suggestion): array
     {
         return $this->acceptanceService->accept($suggestion);
+    }
+
+    #[\Override]
+    protected function reviewMetadata(Model $suggestion, array $item): array
+    {
+        /** @var AssistantSuggestion $suggestion */
+        $metadata = parent::reviewMetadata($suggestion, $item);
+        $suggestionMetadata = $suggestion->metadata;
+
+        if (is_array($suggestionMetadata) && ($suggestionMetadata['suggestion_kind'] ?? null) === 'hint') {
+            $metadata['can_accept'] = false;
+        }
+
+        return $metadata;
     }
 }

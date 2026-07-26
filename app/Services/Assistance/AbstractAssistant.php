@@ -6,6 +6,8 @@ namespace App\Services\Assistance;
 
 use App\Enums\CacheKey;
 use App\Models\User;
+use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -98,8 +100,82 @@ abstract class AbstractAssistant implements AssistantContract
     public function loadSuggestions(int $perPage): LengthAwarePaginator
     {
         return $this->query($perPage)->through(
-            fn (Model $model) => $this->transform($model),
+            fn (Model $model) => $this->present($model),
         );
+    }
+
+    /**
+     * Add assistant identity and action capabilities to a transformed item.
+     *
+     * @return array<string, mixed>
+     */
+    protected function present(Model $suggestion): array
+    {
+        return $this->presentTransformed($suggestion, $this->transform($suggestion));
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    protected function presentTransformed(Model $suggestion, array $item): array
+    {
+        $metadata = $this->reviewMetadata($suggestion, $item);
+
+        $item['assistant_id'] = $this->getId();
+        $item['review'] = [
+            'assistant_id' => $this->getId(),
+            'assistant_name' => $this->getName(),
+            'route_prefix' => $this->getManifest()->routePrefix,
+            'can_accept' => $metadata['can_accept'],
+            'can_decline' => $metadata['can_decline'],
+            'exclusive_target_key' => $metadata['exclusive_target_key'],
+            'label' => $metadata['label'],
+        ];
+
+        return $item;
+    }
+
+    /**
+     * Describe how a suggestion participates in the shared review workflow.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array{can_accept: bool, can_decline: bool, exclusive_target_key: string|null, label: string}
+     */
+    protected function reviewMetadata(Model $suggestion, array $item): array
+    {
+        return [
+            'can_accept' => true,
+            'can_decline' => true,
+            'exclusive_target_key' => null,
+            'label' => $this->reviewLabel($item, (int) $suggestion->getKey()),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function reviewLabel(array $item, int $id): string
+    {
+        foreach (['suggested_label', 'suggested_value', 'identifier', 'suggested_orcid', 'suggested_name'] as $key) {
+            $value = $item[$key] ?? null;
+
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+        }
+
+        return 'Suggestion #'.$id;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getSuggestionForReview(int $id): ?array
+    {
+        $suggestion = $this->findById($id);
+
+        return $suggestion === null ? null : $this->present($suggestion);
     }
 
     public function acceptSuggestion(int $id): array
@@ -117,17 +193,27 @@ abstract class AbstractAssistant implements AssistantContract
         return $result;
     }
 
-    public function declineSuggestion(int $id, User $user, ?string $reason): void
+    public function declineSuggestion(int $id, User $user, ?string $reason): array
     {
         $suggestion = $this->findById($id);
 
         if ($suggestion === null) {
-            return;
+            return ['success' => false, 'message' => 'Suggestion not found.'];
         }
 
         $this->decline($suggestion, $user, $reason);
 
         $this->forgetTotalPendingCount();
+
+        return ['success' => true, 'message' => 'Suggestion declined.'];
+    }
+
+    /**
+     * Normalize database datetime values to the numeric review contract.
+     */
+    protected function resourceCreatedAtTimestamp(string $createdAt): int
+    {
+        return (new DateTimeImmutable($createdAt, new DateTimeZone('UTC')))->getTimestamp();
     }
 
     /**

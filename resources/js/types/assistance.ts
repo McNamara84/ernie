@@ -47,7 +47,27 @@ export interface BaseSuggestionItem {
     resource_doi: string;
     resource_title: string;
     discovered_at: string;
+    assistant_id?: string;
+    review?: SuggestionReviewMetadata;
     [key: string]: unknown;
+}
+
+export interface SuggestionReviewMetadata {
+    assistant_id: string;
+    assistant_name: string;
+    route_prefix: string;
+    can_accept: boolean;
+    can_decline: boolean;
+    exclusive_target_key: string | null;
+    label: string;
+}
+
+export interface AssistanceResourceGroup {
+    resource_id: number;
+    resource_doi: string;
+    resource_title: string;
+    suggestion_count: number;
+    suggestions: BaseSuggestionItem[];
 }
 
 export interface SpdxRightsSuggestionMetadata {
@@ -279,8 +299,34 @@ export interface SuggestedDescriptionSegmentationItem extends BaseSuggestionItem
     metadata: DescriptionSegmentationSuggestionMetadata | null;
 }
 export interface AssistancePageProps {
-    sections: Record<string, PaginatedData<BaseSuggestionItem>>;
+    sections: Record<string, PaginatedData<AssistanceResourceGroup> | PaginatedData<BaseSuggestionItem>>;
+    allAssistantResources?: PaginatedData<AssistanceResourceGroup>;
+    pendingCounts?: Record<string, number>;
     manifests: AssistantManifest[];
+}
+
+export interface BatchSuggestionResult {
+    assistant_id: string;
+    assistant_name: string;
+    suggestion_id: number;
+    label: string;
+    success: boolean;
+    message: string;
+    synced_dois: string[];
+}
+
+export interface BatchSuggestionResponse {
+    success: boolean;
+    action: 'accept' | 'decline';
+    resource_id: number;
+    resource_label: string;
+    processed_count: number;
+    success_count: number;
+    failure_count: number;
+    message: string;
+    synced_dois: string[];
+    follow_ups: RorAffiliationBulkMatch[];
+    results: BatchSuggestionResult[];
 }
 
 export interface SuggestedOrcidItem {
@@ -315,6 +361,11 @@ export interface AcceptResponse {
     synced_dois?: string[];
     replaced_identifier?: string | null;
     bulk_affiliation_match?: RorAffiliationBulkMatch | null;
+    message: string;
+}
+
+export interface DeclineResponse {
+    success: boolean;
     message: string;
 }
 

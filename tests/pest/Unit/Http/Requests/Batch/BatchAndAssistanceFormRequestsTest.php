@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
+use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Batch\DestroyIgsnsRequest;
 use App\Http\Requests\Batch\ExportResourcesRequest;
@@ -19,6 +20,7 @@ uses(RefreshDatabase::class);
 
 covers(
     AcceptRorAffiliationMatchesRequest::class,
+    BatchSuggestionsRequest::class,
     DeclineSuggestionRequest::class,
     DestroyIgsnsRequest::class,
     RegisterResourcesRequest::class,
@@ -49,6 +51,36 @@ it('DeclineSuggestionRequest authorizes only authenticated users', function (): 
     expect(Validator::make([], $rules)->fails())->toBeFalse();
     expect(Validator::make(['reason' => str_repeat('x', 256)], $rules)->fails())->toBeTrue();
     expect(Validator::make(['reason' => 'too long?'], $rules)->fails())->toBeFalse();
+});
+
+it('BatchSuggestionsRequest authorizes users and bounds resource-scoped selections', function (): void {
+    $request = new BatchSuggestionsRequest;
+    expect($request->authorize())->toBeFalse();
+
+    $request->setUserResolver(fn () => User::factory()->create());
+    expect($request->authorize())->toBeTrue();
+
+    $rules = $request->rules();
+    $valid = [
+        'resource_id' => 10,
+        'suggestions' => [['assistant_id' => 'ror-suggestion', 'suggestion_id' => 20]],
+        'reason' => 'Reviewed as a resource batch.',
+    ];
+
+    expect(Validator::make($valid, $rules)->fails())->toBeFalse()
+        ->and(Validator::make(['resource_id' => 0, 'suggestions' => []], $rules)->fails())->toBeTrue()
+        ->and(Validator::make([
+            'resource_id' => 10,
+            'suggestions' => array_fill(0, 251, ['assistant_id' => 'test', 'suggestion_id' => 1]),
+        ], $rules)->fails())->toBeTrue()
+        ->and(Validator::make([
+            ...$valid,
+            'reason' => str_repeat('x', 255),
+        ], $rules)->fails())->toBeFalse()
+        ->and(Validator::make([
+            ...$valid,
+            'reason' => str_repeat('x', 256),
+        ], $rules)->fails())->toBeTrue();
 });
 
 it('DestroyIgsnsRequest authorizes only admins', function (): void {

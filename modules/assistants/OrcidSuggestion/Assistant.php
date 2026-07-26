@@ -56,7 +56,7 @@ class Assistant extends AbstractAssistant
             $person = $s->person;
             $personAffiliations = $affiliationCache[$s->person_id] ?? [];
 
-            return [
+            $item = [
                 'id' => $s->id,
                 'resource_id' => $s->resource_id,
                 'resource_doi' => $s->resource->doi ?? '',
@@ -72,6 +72,8 @@ class Assistant extends AbstractAssistant
                 'candidate_affiliations' => $s->candidate_affiliations ?? [],
                 'discovered_at' => $s->discovered_at->toIso8601String(),
             ];
+
+            return $this->presentTransformed($s, $item);
         });
     }
 
@@ -89,6 +91,57 @@ class Assistant extends AbstractAssistant
             ->orderByDesc('enrichable_counts.enrichable_count')
             ->orderByDesc('suggested_orcids.similarity_score')
             ->paginate(perPage: $perPage, pageName: 'orcid_page');
+    }
+
+    #[\Override]
+    public function listPendingResources(): array
+    {
+        return array_values(SuggestedOrcid::query()
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
+            ->selectRaw('suggested_orcids.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
+            ->groupBy('suggested_orcids.resource_id')
+            ->orderByDesc('resource_created_at')
+            ->orderByDesc('suggested_orcids.resource_id')
+            ->get()
+            ->map(fn (SuggestedOrcid $suggestion): array => [
+                'resource_id' => (int) $suggestion->resource_id,
+                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                    (string) $suggestion->getAttribute('resource_created_at'),
+                ),
+            ])
+            ->all());
+    }
+
+    #[\Override]
+    public function loadSuggestionsForResources(array $resourceIds): array
+    {
+        if ($resourceIds === []) {
+            return [];
+        }
+
+        $suggestions = SuggestedOrcid::query()
+            ->with(['resource.titles.titleType', 'person'])
+            ->whereIn('suggested_orcids.resource_id', $resourceIds)
+            ->join('resources', 'suggested_orcids.resource_id', '=', 'resources.id')
+            ->select('suggested_orcids.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_orcids.similarity_score')
+            ->orderByDesc('suggested_orcids.id')
+            ->get();
+
+        /** @var array<int, int> $personIds */
+        $personIds = $suggestions->pluck('person_id')->unique()->values()->all();
+        $affiliationCache = $this->service->loadPersonAffiliations($personIds);
+
+        return $suggestions
+            ->map(function (SuggestedOrcid $suggestion) use ($affiliationCache): array {
+                $item = $this->transform($suggestion);
+                $item['person_affiliations'] = $affiliationCache[$suggestion->person_id] ?? [];
+
+                return $this->presentTransformed($suggestion, $item);
+            })
+            ->values()
+            ->all();
     }
 
     #[\Override]
@@ -111,6 +164,16 @@ class Assistant extends AbstractAssistant
             'candidate_affiliations' => $suggestion->candidate_affiliations ?? [],
             'discovered_at' => $suggestion->discovered_at->toIso8601String(),
         ];
+    }
+
+    #[\Override]
+    protected function reviewMetadata(Model $suggestion, array $item): array
+    {
+        /** @var SuggestedOrcid $suggestion */
+        $metadata = parent::reviewMetadata($suggestion, $item);
+        $metadata['exclusive_target_key'] = $this->getId().':person:'.$suggestion->person_id;
+
+        return $metadata;
     }
 
     #[\Override]

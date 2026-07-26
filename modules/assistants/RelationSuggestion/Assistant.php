@@ -44,6 +44,46 @@ class Assistant extends AbstractAssistant
     }
 
     #[\Override]
+    public function listPendingResources(): array
+    {
+        return array_values(SuggestedRelation::query()
+            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
+            ->selectRaw('suggested_relations.resource_id AS resource_id, MAX(resources.created_at) AS resource_created_at')
+            ->groupBy('suggested_relations.resource_id')
+            ->orderByDesc('resource_created_at')
+            ->orderByDesc('suggested_relations.resource_id')
+            ->get()
+            ->map(fn (SuggestedRelation $suggestion): array => [
+                'resource_id' => (int) $suggestion->resource_id,
+                'resource_created_at_timestamp' => $this->resourceCreatedAtTimestamp(
+                    (string) $suggestion->getAttribute('resource_created_at'),
+                ),
+            ])
+            ->all());
+    }
+
+    #[\Override]
+    public function loadSuggestionsForResources(array $resourceIds): array
+    {
+        if ($resourceIds === []) {
+            return [];
+        }
+
+        return SuggestedRelation::query()
+            ->with(['resource.titles.titleType', 'identifierType', 'relationType'])
+            ->whereIn('suggested_relations.resource_id', $resourceIds)
+            ->join('resources', 'suggested_relations.resource_id', '=', 'resources.id')
+            ->select('suggested_relations.*')
+            ->orderByDesc('resources.created_at')
+            ->orderByDesc('suggested_relations.discovered_at')
+            ->orderByDesc('suggested_relations.id')
+            ->get()
+            ->map(fn (SuggestedRelation $suggestion): array => $this->present($suggestion))
+            ->values()
+            ->all();
+    }
+
+    #[\Override]
     protected function transform(Model $suggestion): array
     {
         /** @var SuggestedRelation $suggestion */
