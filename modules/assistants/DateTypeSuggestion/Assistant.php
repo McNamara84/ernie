@@ -74,8 +74,9 @@ final class Assistant extends GenericTableAssistant
     {
         /** @var AssistantSuggestion $suggestion */
         $metadata = parent::reviewMetadata($suggestion, $item);
+        $suggestionMetadata = $suggestion->metadata;
 
-        if (($suggestion->metadata['suggestion_kind'] ?? null) === 'hint') {
+        if (is_array($suggestionMetadata) && ($suggestionMetadata['suggestion_kind'] ?? null) === 'hint') {
             $metadata['can_accept'] = false;
         }
 
