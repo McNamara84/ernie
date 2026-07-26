@@ -92,6 +92,38 @@ beforeEach(() => {
 });
 
 describe('resource-oriented assistance review', () => {
+    it('does not misclassify a legacy suggestion with an assistant-specific suggestions field', () => {
+        const item: BaseSuggestionItem = {
+            ...suggestion(1, 'Legacy candidate'),
+            suggestions: ['assistant-specific evidence'],
+        };
+        const legacyPage: PaginatedData<BaseSuggestionItem> = {
+            data: [item],
+            current_page: 1,
+            last_page: 1,
+            per_page: 25,
+            total: 1,
+            from: 1,
+            to: 1,
+            links: [],
+        };
+
+        render(
+            <ResourceReview
+                sections={{ [manifest.id]: legacyPage }}
+                manifests={[manifest]}
+                checking={{ [manifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={(_manifest, suggestionItem) => <p>{String(suggestionItem.suggested_label)}</p>}
+            />,
+        );
+
+        expect(screen.getByText('Legacy candidate')).toBeInTheDocument();
+        expect(screen.getByRole('checkbox', { name: 'Select Test assistant: Legacy candidate' })).toBeInTheDocument();
+    });
+
     it('uses Inertia navigation for the internal resource editor link', () => {
         renderReview([suggestion(1, 'Normal candidate')]);
 

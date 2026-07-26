@@ -65,10 +65,14 @@ function fallbackReview(item: BaseSuggestionItem, manifest: AssistantManifest): 
     };
 }
 
+function isResourceGroup(item: AssistanceResourceGroup | BaseSuggestionItem): item is AssistanceResourceGroup {
+    return Array.isArray(item.suggestions) && typeof item.suggestion_count === 'number';
+}
+
 function normalizeSection(section: SectionData, manifest: AssistantManifest): PaginatedData<AssistanceResourceGroup> {
     const first = section.data[0];
 
-    if (first && 'suggestions' in first) {
+    if (first && isResourceGroup(first)) {
         return section as PaginatedData<AssistanceResourceGroup>;
     }
 
