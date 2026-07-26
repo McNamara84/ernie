@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-07-24",
+        "date": "2026-07-27",
         "features": [
+            {
+                "title": "ISO 19115-3 Metadata Export and OAI-PMH Support",
+                "description": "Published resources with compatible DataCite resource types now expose ISO 19115-3:2023 XML metadata through canonical landing page download links, HTML and HTTP describedby discovery, and the OAI-PMH iso19115_3 metadata prefix. Dataset, Physical Object, Collection, Model, Instrument, Service, Software, Computational Notebook, Workflow, Interactive Resource, and suitable Image records are supported. Existing DataCite metadata representations remain available, while eligible landing pages display a neutral ISO 19115-3 metadata badge."
+            },
             {
                 "title": "Always-Visible Resource Information",
                 "description": "Resource Information now remains permanently visible in the Data Editor without an accordion toggle, so curators can identify the resource at a glance while working across multiple tabs. Individual and bulk expand/collapse controls, including each user's saved accordion state, continue to apply to all other field groups."
