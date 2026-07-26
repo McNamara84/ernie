@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\BatchSuggestionValidationException;
 use App\Models\User;
 use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\BatchSuggestionActionService;
-use App\Services\Assistance\BatchSuggestionValidationException;
 
 covers(BatchSuggestionActionService::class, BatchSuggestionValidationException::class);
 

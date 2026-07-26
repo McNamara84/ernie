@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\BatchSuggestionValidationException;
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
 use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
@@ -11,7 +12,6 @@ use App\Models\User;
 use App\Services\Assistance\AssistanceReviewService;
 use App\Services\Assistance\AssistantRegistrar;
 use App\Services\Assistance\BatchSuggestionActionService;
-use App\Services\Assistance\BatchSuggestionValidationException;
 use App\Services\RorDiscoveryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

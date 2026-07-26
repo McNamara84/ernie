@@ -275,12 +275,13 @@ it('exposes size and format suggestion preview metadata', function () {
         ->assertInertia(fn ($page) => $page
             ->component('assistance')
             ->has('sections.size-format-suggestion.data', 1)
-            ->where('sections.size-format-suggestion.data.0.suggested_value', 'application/zip')
-            ->where('sections.size-format-suggestion.data.0.suggested_label', 'FORMAT: application/zip')
-            ->where('sections.size-format-suggestion.data.0.metadata.inferred_value', 'application/zip')
-            ->where('sections.size-format-suggestion.data.0.metadata.source_url', 'https://datapub.gfz.de/download/10.5880/TEST.SIZEFORMAT')
-            ->where('sections.size-format-suggestion.data.0.metadata.probe_method', 'DIRECTORY_LISTING')
-            ->where('sections.size-format-suggestion.data.0.metadata.evidence', 'File extension detected from download listing.')
+            ->has('sections.size-format-suggestion.data.0.suggestions', 1)
+            ->where('sections.size-format-suggestion.data.0.suggestions.0.suggested_value', 'application/zip')
+            ->where('sections.size-format-suggestion.data.0.suggestions.0.suggested_label', 'FORMAT: application/zip')
+            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.inferred_value', 'application/zip')
+            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.source_url', 'https://datapub.gfz.de/download/10.5880/TEST.SIZEFORMAT')
+            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.probe_method', 'DIRECTORY_LISTING')
+            ->where('sections.size-format-suggestion.data.0.suggestions.0.metadata.evidence', 'File extension detected from download listing.')
         );
 });
 

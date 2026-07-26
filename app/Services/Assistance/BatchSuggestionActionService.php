@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Assistance;
 
+use App\Exceptions\BatchSuggestionValidationException;
 use App\Models\User;
 use Throwable;
 
