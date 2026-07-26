@@ -5,12 +5,6 @@
     "selection": "Transitive xs:import/xs:include/xs:redefine closure rooted at ernie-profile.xsd, plus validation metadata",
     "files": [
         {
-            "path": "ATTRIBUTION.md",
-            "source": "repository://ATTRIBUTION.md",
-            "sha256": "c83dc63020744bdd89772487fe56c518bed18cd3531638469adb7191c63c390a",
-            "bytes": 1936
-        },
-        {
             "path": "catalog.xml",
             "source": "repository://catalog.xml",
             "sha256": "201eb57c62b56eb0f69bd3fb9c820cd29174787b76c7a61f95d6322d8096f6a5",

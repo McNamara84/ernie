@@ -950,7 +950,6 @@ test('pinned validation manifest is complete and every asset hash matches', func
 
     expect(iso19115ReachableSchemaPaths($packageRoot))->toBe($schemaInventory)
         ->and($nonSchemaInventory)->toBe([
-            'ATTRIBUTION.md',
             'catalog.xml',
             'ernie-profile-schematron.xsl',
         ]);
