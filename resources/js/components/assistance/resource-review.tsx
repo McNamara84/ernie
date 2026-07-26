@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import { Check, RefreshCw, X } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { editor as editorRoute } from '@/routes';
 import {
     type AssistanceResourceGroup,
     type AssistantManifest,
@@ -252,12 +253,13 @@ export function ResourceReview({
                 <CardHeader className="gap-4 border-b bg-muted/30 py-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 space-y-1">
                         <CardTitle className="text-base">
-                            <a
-                                href={`/editor?resourceId=${group.resource_id}`}
-                                className="font-mono break-all text-primary underline underline-offset-4"
+                            <Link
+                                href={editorRoute({ query: { resourceId: group.resource_id } }).url}
+                                className="font-mono break-all text-primary underline underline-offset-4 hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                title={`Open ${resourceLabel} in editor`}
                             >
                                 {resourceLabel}
-                            </a>
+                            </Link>
                         </CardTitle>
                         <CardDescription>{resourceTitle}</CardDescription>
                     </div>

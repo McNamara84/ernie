@@ -22,6 +22,7 @@ import {
     type BaseSuggestionItem,
     type BulkRorAffiliationAcceptResponse,
     type CheckStatusResponse,
+    type DeclineResponse,
     type PaginatedData,
     type RorAffiliationBulkMatch,
     type SuggestedCrossrefFunderRorItem,
@@ -1727,8 +1728,14 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
             addProcessingId(manifest.id, suggestionId);
 
             try {
-                await axios.post(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
-                toast.info('Suggestion declined.');
+                const { data } = await axios.post<DeclineResponse>(`/assistance/${manifest.routePrefix}/${suggestionId}/decline`);
+
+                if (data.success) {
+                    toast.info(data.message);
+                } else {
+                    toast.warning(data.message);
+                }
+
                 reloadAssistanceSections();
             } catch {
                 toast.error('Failed to decline suggestion.');

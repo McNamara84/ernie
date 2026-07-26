@@ -364,6 +364,11 @@ export interface AcceptResponse {
     message: string;
 }
 
+export interface DeclineResponse {
+    success: boolean;
+    message: string;
+}
+
 export interface RorAffiliationBulkMatch {
     available: boolean;
     count: number;

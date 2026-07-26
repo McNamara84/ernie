@@ -53,6 +53,7 @@ vi.mock('axios', () => {
 const mockedAxiosPost = axios.post as Mock;
 const mockedRouterGet = router.get as Mock;
 const mockedRouterReload = router.reload as Mock;
+const mockedToastInfo = toast.info as Mock;
 const mockedToastWarning = toast.warning as Mock;
 
 // ── Import component under test (after mocks) ───────────────────────
@@ -89,6 +90,7 @@ beforeEach(() => {
     mockedAxiosPost.mockReset();
     mockedRouterGet.mockReset();
     mockedRouterReload.mockReset();
+    mockedToastInfo.mockReset();
     mockedToastWarning.mockReset();
 });
 
@@ -1103,7 +1105,9 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         const suggestion = makeSpdxRightsSuggestion({ id: 42 });
         const user = userEvent.setup();
 
-        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'SPDX suggestion accepted.' } }).mockResolvedValueOnce({ data: {} });
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'SPDX suggestion accepted.' } })
+            .mockResolvedValueOnce({ data: { success: true, message: 'Suggestion declined.' } });
 
         render(
             <AssistancePage
@@ -1123,6 +1127,29 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/spdx-rights/42/decline');
+            expect(mockedToastInfo).toHaveBeenCalledWith('Suggestion declined.');
+        });
+    });
+
+    it('shows the backend message when declining a stale suggestion fails', async () => {
+        const suggestion = makeSpdxRightsSuggestion({ id: 43 });
+        const user = userEvent.setup();
+
+        mockedAxiosPost.mockResolvedValueOnce({ data: { success: false, message: 'Suggestion not found.' } });
+
+        render(
+            <AssistancePage
+                sections={{ [SPDX_ASSISTANT_ID]: paginated([suggestion]) }}
+                manifests={[makeManifest(SPDX_ASSISTANT_ID, SPDX_ROUTE_PREFIX, SPDX_ASSISTANT_NAME)]}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() => {
+            expect(mockedToastWarning).toHaveBeenCalledWith('Suggestion not found.');
+            expect(mockedToastInfo).not.toHaveBeenCalled();
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
         });
     });
 });
@@ -1258,7 +1285,9 @@ describe('SizeFormatSuggestionCard - size and format preview', () => {
         const suggestion = makeSizeFormatSuggestion({ id: 77 });
         const user = userEvent.setup();
 
-        mockedAxiosPost.mockResolvedValueOnce({ data: { success: true, message: 'Format applied.' } }).mockResolvedValueOnce({ data: {} });
+        mockedAxiosPost
+            .mockResolvedValueOnce({ data: { success: true, message: 'Format applied.' } })
+            .mockResolvedValueOnce({ data: { success: true, message: 'Suggestion declined.' } });
 
         render(
             <AssistancePage
@@ -1433,7 +1462,7 @@ describe('CrossrefFunderRorSuggestionCard - identifier normalization preview', (
 
         mockedAxiosPost
             .mockResolvedValueOnce({ data: { success: true, message: 'Funding reference identifier normalized to ROR.' } })
-            .mockResolvedValueOnce({ data: {} });
+            .mockResolvedValueOnce({ data: { success: true, message: 'Suggestion declined.' } });
 
         render(
             <AssistancePage
@@ -1504,7 +1533,7 @@ describe('SubjectMetadataEnrichmentCard - DataCite Subject preview', () => {
 
         mockedAxiosPost
             .mockResolvedValueOnce({ data: { success: true, message: 'Subject metadata enrichment applied.' } })
-            .mockResolvedValueOnce({ data: {} });
+            .mockResolvedValueOnce({ data: { success: true, message: 'Suggestion declined.' } });
 
         render(
             <AssistancePage
@@ -2138,7 +2167,7 @@ describe('DescriptionSegmentationSuggestionCard - description split preview', ()
 
         mockedAxiosPost
             .mockResolvedValueOnce({ data: { success: true, message: 'Description segmentation applied.' } })
-            .mockResolvedValueOnce({ data: {} });
+            .mockResolvedValueOnce({ data: { success: true, message: 'Suggestion declined.' } });
 
         render(
             <AssistancePage

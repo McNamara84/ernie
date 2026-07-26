@@ -1,13 +1,21 @@
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import axios from 'axios';
+import type { AnchorHTMLAttributes } from 'react';
 import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResourceReview } from '@/components/assistance/resource-review';
 import type { AssistanceResourceGroup, AssistantManifest, BaseSuggestionItem, PaginatedData } from '@/types/assistance';
 
-vi.mock('@inertiajs/react', () => ({ router: { get: vi.fn() } }));
+vi.mock('@inertiajs/react', () => ({
+    Link: ({ children, href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
+        <a href={href} data-inertia-link="true" {...props}>
+            {children}
+        </a>
+    ),
+    router: { get: vi.fn() },
+}));
 vi.mock('axios', () => ({ default: { post: vi.fn(), isAxiosError: vi.fn(() => false) } }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }));
 
@@ -84,6 +92,16 @@ beforeEach(() => {
 });
 
 describe('resource-oriented assistance review', () => {
+    it('uses Inertia navigation for the internal resource editor link', () => {
+        renderReview([suggestion(1, 'Normal candidate')]);
+
+        const link = screen.getByRole('link', { name: '10.1234/test' });
+
+        expect(link).toHaveAttribute('href', '/editor?resourceId=10');
+        expect(link).toHaveAttribute('data-inertia-link', 'true');
+        expect(link).toHaveClass('focus-visible:ring-2');
+    });
+
     it('defaults to all assistants and persists the selected view', async () => {
         const user = userEvent.setup();
         renderReview([suggestion(1, 'Normal candidate')]);
