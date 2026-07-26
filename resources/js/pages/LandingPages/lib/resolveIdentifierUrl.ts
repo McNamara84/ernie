@@ -48,14 +48,15 @@ export function resolveIdentifierUrl(identifier: string, identifierType: string)
 }
 
 /**
- * Strips common DOI resolver URL prefixes and trims whitespace,
+ * Strips common DOI resolver URL and doi: prefixes and trims whitespace,
  * returning the bare DOI. Exported so callers can normalize DOI keys
  * consistently (deduplication, cache keys, display text).
  */
 export function normalizeDoiKey(value: string): string {
     return value
         .trim()
-        .replace(/^https?:\/\/(dx\.)?doi\.org\/?/i, '');
+        .replace(/^https?:\/\/(dx\.)?doi\.org\/?/i, '')
+        .replace(/^doi:\s*/i, '');
 }
 
 /** Strips the Handle resolver URL prefix, returning the bare handle. */
