@@ -156,7 +156,7 @@ it('forgets versioned render data by id without deleting a legacy entry', functi
         ->and($cache->has($legacyCacheKey))->toBeTrue();
 });
 
-it('forgets cached render data for landing pages using a custom template without clearing same-tag schema cache', function (): void {
+it('forgets cached render data only for landing pages using a custom template', function (): void {
     $service = new LandingPageRenderDataCacheService;
     $template = LandingPageTemplate::factory()->create();
     $otherTemplate = LandingPageTemplate::factory()->create();
@@ -171,21 +171,17 @@ it('forgets cached render data for landing pages using a custom template without
 
     $affectedRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($affectedLandingPage->id);
     $unaffectedRenderKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($unaffectedLandingPage->id);
-    $schemaOrgKey = CacheKey::SCHEMA_ORG_JSONLD->key($affectedLandingPage->resource_id);
 
     Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($affectedRenderKey, ['template' => 'default_gfz', 'props' => []], 600);
     Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($unaffectedRenderKey, ['template' => 'default_gfz', 'props' => []], 600);
-    Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->put($schemaOrgKey, ['@context' => 'https://schema.org'], 600);
 
     expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($affectedRenderKey))->toBeTrue()
-        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue()
-        ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgKey))->toBeTrue();
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue();
 
     $service->forgetForTemplate($template);
 
     expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($affectedRenderKey))->toBeFalse()
-        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue()
-        ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgKey))->toBeTrue();
+        ->and(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($unaffectedRenderKey))->toBeTrue();
 });
 
 it('forgets cached render data for default-template pages without clearing matching custom-template pages', function (): void {

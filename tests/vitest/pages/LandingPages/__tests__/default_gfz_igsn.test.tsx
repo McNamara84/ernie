@@ -548,7 +548,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             expect(acquisition.compareDocumentPosition(general) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
 
-        it('embeds schema.org JSON-LD when provided', () => {
+        it('does not duplicate server-rendered schema.org JSON-LD when a legacy prop is provided', () => {
             mockUsePage.mockReturnValue({
                 props: {
                     resource: mockResource,
@@ -561,7 +561,7 @@ describe('DefaultGfzIgsnTemplate', () => {
             render(<DefaultGfzIgsnTemplate />);
 
             const script = document.querySelector('script[type="application/ld+json"]');
-            expect(script?.textContent).toContain('"@type":"Dataset"');
+            expect(script).not.toBeInTheDocument();
         });
 
         it('falls back to "published" status when landingPage has no status and not in preview', () => {

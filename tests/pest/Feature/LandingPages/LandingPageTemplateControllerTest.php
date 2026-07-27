@@ -469,12 +469,9 @@ describe('Update', function (): void {
         ]);
 
         $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA->key($landingPage->id);
-        $schemaOrgCacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
         Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->put($cacheKey, ['template' => 'default_gfz', 'props' => []], 600);
-        Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->put($schemaOrgCacheKey, ['@context' => 'https://schema.org'], 600);
 
-        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue()
-            ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgCacheKey))->toBeTrue();
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeTrue();
 
         $this->actingAs($this->admin)
             ->putJson("/landing-pages/{$template->id}", [
@@ -484,8 +481,7 @@ describe('Update', function (): void {
             ])
             ->assertOk();
 
-        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse()
-            ->and(Cache::tags(CacheKey::SCHEMA_ORG_JSONLD->tags())->has($schemaOrgCacheKey))->toBeTrue();
+        expect(Cache::tags(CacheKey::LANDING_PAGE_RENDER_DATA->tags())->has($cacheKey))->toBeFalse();
     });
 
     it('does not forget cached public landing page render data for empty template updates', function (): void {

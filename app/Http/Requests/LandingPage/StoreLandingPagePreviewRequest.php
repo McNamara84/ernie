@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\LandingPage;
 
 use App\Http\Controllers\LandingPageController;
+use App\Models\LandingPageLink;
 use App\Rules\SafeUrl;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -41,6 +42,7 @@ class StoreLandingPagePreviewRequest extends FormRequest
             $rules['links'] = ['nullable', 'array', 'max:10'];
             $rules['links.*.url'] = ['required', new SafeUrl, 'max:2048'];
             $rules['links.*.label'] = ['required', 'string', 'max:255'];
+            $rules['links.*.kind'] = ['sometimes', 'string', Rule::in(LandingPageLink::KINDS)];
             $rules['links.*.position'] = ['required', 'integer', 'min:0', 'max:9', 'distinct'];
         }
 

@@ -238,6 +238,9 @@ export interface LandingPageLink {
     /** Curator-defined display text */
     label: string;
 
+    /** Machine-readable role; omitted only by legacy cached client data */
+    kind?: 'related' | 'download' | 'repository';
+
     /** Display order (drag-and-drop) */
     position: number;
 }

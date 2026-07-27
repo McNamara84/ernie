@@ -6,9 +6,10 @@ use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceType;
+use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
 
-covers(LandingPagePublicController::class, LandingPageMetadataLinkService::class);
+covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class, LandingPageMetadataLinkService::class);
 
 /**
  * @return array{0: Resource, 1: LandingPage}
@@ -34,12 +35,20 @@ function landingPageForMetadataDiscovery(string $resourceTypeSlug = 'dataset', b
     return [$resource->refresh(), $landingPage];
 }
 
+function completeLandingPageLinkHeader(Resource $resource, LandingPage $landingPage): ?string
+{
+    $machineMetadata = app(LandingPageMachineMetadataService::class)->for($resource, $landingPage);
+
+    return app(LandingPageMetadataLinkService::class)->toSignpostingHttpLinkHeader(
+        $machineMetadata['signpostingLinks'] ?? [],
+    );
+}
+
 test('eligible landing pages expose canonical metadata links and ISO describedby header', function () {
     [$resource, $landingPage] = landingPageForMetadataDiscovery();
     $metadataBaseUrl = url($landingPage->getPublicPath().'/metadata');
     $isoUrl = "{$metadataBaseUrl}/iso-19115-3.xml";
-    $linkService = app(LandingPageMetadataLinkService::class);
-    $linkHeader = $linkService->toHttpLinkHeader($linkService->for($resource, $landingPage));
+    $linkHeader = completeLandingPageLinkHeader($resource, $landingPage);
 
     $this->get($landingPage->getPublicPath())
         ->assertOk()
@@ -48,8 +57,10 @@ test('eligible landing pages expose canonical metadata links and ISO describedby
             ->has('metadataLinks', 4)
             ->where('metadataLinks.0.format', 'datacite-xml')
             ->where('metadataLinks.0.url', "{$metadataBaseUrl}/datacite.xml")
+            ->where('metadataLinks.0.mediaType', 'application/vnd.datacite.datacite+xml')
             ->where('metadataLinks.1.format', 'datacite-json')
             ->where('metadataLinks.1.url', "{$metadataBaseUrl}/datacite.json")
+            ->where('metadataLinks.1.mediaType', 'application/vnd.datacite.datacite+json')
             ->where('metadataLinks.2.format', 'datacite-jsonld')
             ->where('metadataLinks.2.url', "{$metadataBaseUrl}/datacite.jsonld")
             ->where('metadataLinks.3.format', 'iso19115-3')
@@ -61,8 +72,7 @@ test('eligible landing pages expose canonical metadata links and ISO describedby
 
 test('excluded resource types retain DataCite links without advertising ISO metadata', function () {
     [$resource, $landingPage] = landingPageForMetadataDiscovery('project');
-    $linkService = app(LandingPageMetadataLinkService::class);
-    $linkHeader = $linkService->toHttpLinkHeader($linkService->for($resource, $landingPage));
+    $linkHeader = completeLandingPageLinkHeader($resource, $landingPage);
 
     $this->get($landingPage->getPublicPath())
         ->assertOk()
@@ -80,8 +90,7 @@ test('excluded resource types retain DataCite links without advertising ISO meta
 test('ISO feature flag removes discovery without affecting DataCite representations', function () {
     [$resource, $landingPage] = landingPageForMetadataDiscovery();
     config(['iso19115.enabled' => false]);
-    $linkService = app(LandingPageMetadataLinkService::class);
-    $linkHeader = $linkService->toHttpLinkHeader($linkService->for($resource, $landingPage));
+    $linkHeader = completeLandingPageLinkHeader($resource, $landingPage);
 
     $this->get($landingPage->getPublicPath())
         ->assertOk()
@@ -123,4 +132,18 @@ test('HTTP metadata link serialization rejects unsafe URLs and escapes quoted pa
             .'profile="https://example.org/profileignored"',
         )
         ->and($service->toHttpLinkHeader([$unsafeLink]))->toBeNull();
+});
+
+test('complete Signposting serialization preserves order and rejects header injection', function () {
+    $service = app(LandingPageMetadataLinkService::class);
+    $links = [
+        ['rel' => 'cite-as', 'href' => 'https://doi.org/10.5880/test', 'type' => null, 'profile' => null],
+        ['rel' => 'item', 'href' => 'https://example.org/data.zip', 'type' => 'application/zip', 'profile' => null],
+        ['rel' => 'item', 'href' => "https://example.org/bad.zip>\r\nX-Test: injected", 'type' => 'application/zip', 'profile' => null],
+    ];
+
+    expect($service->toSignpostingHttpLinkHeader($links))->toBe(
+        '<https://doi.org/10.5880/test>; rel="cite-as", '
+        .'<https://example.org/data.zip>; rel="item"; type="application/zip"',
+    );
 });

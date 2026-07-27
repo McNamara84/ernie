@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\LandingPage;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Services\SchemaOrgJsonLdExporter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -232,7 +236,7 @@ describe('dates', function () {
     it('maps Issued date to datePublished', function () {
         $resource = createSchemaOrgResource();
 
-        $issuedType = \App\Models\DateType::where('slug', 'Issued')->first();
+        $issuedType = DateType::where('slug', 'Issued')->first();
         $resource->dates()->create([
             'date_value' => '2025-06-01',
             'date_type_id' => $issuedType?->id,
@@ -246,7 +250,7 @@ describe('dates', function () {
     it('maps Created date to dateCreated', function () {
         $resource = createSchemaOrgResource();
 
-        $createdType = \App\Models\DateType::where('slug', 'Created')->first();
+        $createdType = DateType::where('slug', 'Created')->first();
         $resource->dates()->create([
             'date_value' => '2025-01-15',
             'date_type_id' => $createdType?->id,
@@ -260,7 +264,7 @@ describe('dates', function () {
     it('maps Updated date to dateModified', function () {
         $resource = createSchemaOrgResource();
 
-        $updatedType = \App\Models\DateType::where('slug', 'Updated')->first();
+        $updatedType = DateType::where('slug', 'Updated')->first();
         $resource->dates()->create([
             'date_value' => '2025-07-01',
             'date_type_id' => $updatedType?->id,
@@ -274,7 +278,7 @@ describe('dates', function () {
     it('maps single Collected date to temporalCoverage with open end', function () {
         $resource = createSchemaOrgResource();
 
-        $collectedType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedType = DateType::where('slug', 'Collected')->first();
         $resource->dates()->create([
             'date_value' => '2024-01-01',
             'date_type_id' => $collectedType?->id,
@@ -288,7 +292,7 @@ describe('dates', function () {
     it('maps date range Collected to temporalCoverage as-is', function () {
         $resource = createSchemaOrgResource();
 
-        $collectedType = \App\Models\DateType::where('slug', 'Collected')->first();
+        $collectedType = DateType::where('slug', 'Collected')->first();
         $resource->dates()->create([
             'date_value' => '2024-01-01/2024-12-31',
             'date_type_id' => $collectedType?->id,
@@ -349,7 +353,7 @@ describe('license', function () {
     it('transforms rights with SPDX scheme to license URI', function () {
         $resource = createSchemaOrgResource();
 
-        $right = \App\Models\Right::firstOrCreate(
+        $right = Right::firstOrCreate(
             ['identifier' => 'CC-BY-4.0'],
             [
                 'name' => 'Creative Commons Attribution 4.0 International',
@@ -462,6 +466,61 @@ describe('output is valid JSON-LD', function () {
         $json = json_encode($result, JSON_PRETTY_PRINT);
         expect($json)->not->toBeFalse();
         expect(json_decode($json, true))->toBe($result);
+    });
+});
+
+describe('landing page content', function () {
+    it('adds canonical landing page URL and Dataset distributions', function () {
+        $resource = createSchemaOrgResource();
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'doi_prefix' => $resource->doi,
+            'slug' => 'schema-org-content',
+        ]);
+
+        $result = $this->exporter->export($resource, $landingPage, [
+            'mimeType' => 'application/zip',
+            'contentLinks' => [
+                ['url' => 'https://downloads.example.org/data.zip', 'mimeType' => 'application/zip'],
+            ],
+            'repositories' => [],
+        ]);
+
+        expect($result['url'])->toBe(url($landingPage->getPublicPath()))
+            ->and($result['distribution'])->toBe([
+                [
+                    '@type' => 'DataDownload',
+                    'contentUrl' => 'https://downloads.example.org/data.zip',
+                    'encodingFormat' => 'application/zip',
+                ],
+            ]);
+    });
+
+    it('uses software types repository and downloadUrl for Software resources', function () {
+        $softwareType = ResourceType::firstOrCreate(
+            ['slug' => 'software'],
+            ['name' => 'Software', 'is_active' => true],
+        );
+        $resource = createSchemaOrgResource();
+        $resource->update(['resource_type_id' => $softwareType->id]);
+        $landingPage = LandingPage::factory()->published()->create([
+            'resource_id' => $resource->id,
+            'doi_prefix' => $resource->doi,
+            'slug' => 'schema-org-software',
+        ]);
+
+        $result = $this->exporter->export($resource->fresh(), $landingPage, [
+            'mimeType' => 'application/zip',
+            'contentLinks' => [
+                ['url' => 'https://downloads.example.org/source.zip', 'mimeType' => 'application/zip'],
+            ],
+            'repositories' => ['https://git.example.org/source'],
+        ]);
+
+        expect($result['@type'])->toBe(['SoftwareSourceCode', 'SoftwareApplication'])
+            ->and($result['codeRepository'])->toBe('https://git.example.org/source')
+            ->and($result['downloadUrl'])->toBe('https://downloads.example.org/source.zip')
+            ->and($result)->not->toHaveKey('distribution');
     });
 });
 

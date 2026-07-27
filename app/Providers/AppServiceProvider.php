@@ -11,12 +11,18 @@ use App\Jobs\ImportFromDataCiteJob;
 use App\Jobs\UpdatePidJob;
 use App\Jobs\UpdateThesaurusJob;
 use App\Listeners\MarkContactMessageAsSent;
+use App\Models\Format;
 use App\Models\LandingPage;
+use App\Models\LandingPageFile;
+use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Models\ResourceAssessment;
 use App\Models\ResourceType;
 use App\Models\Subject;
 use App\Models\User;
+use App\Observers\FormatObserver;
+use App\Observers\LandingPageFileObserver;
+use App\Observers\LandingPageLinkObserver;
 use App\Observers\LandingPageObserver;
 use App\Observers\ResourceAssessmentObserver;
 use App\Observers\ResourceObserver;
@@ -71,6 +77,9 @@ class AppServiceProvider extends ServiceProvider
         ResourceAssessment::observe(ResourceAssessmentObserver::class);
         ResourceType::observe(ResourceTypeObserver::class);
         LandingPage::observe(LandingPageObserver::class);
+        Format::observe(FormatObserver::class);
+        LandingPageFile::observe(LandingPageFileObserver::class);
+        LandingPageLink::observe(LandingPageLinkObserver::class);
         Subject::observe(SubjectObserver::class);
         Event::listen(MessageSent::class, MarkContactMessageAsSent::class);
 

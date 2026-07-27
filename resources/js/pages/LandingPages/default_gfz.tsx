@@ -39,7 +39,6 @@ interface DefaultGfzTemplatePageProps {
     resource: LandingPageResource;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
-    schemaOrgJsonLd?: Record<string, unknown>;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -56,7 +55,7 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
 };
 
 export default function DefaultGfzTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
+    const { resource, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -142,8 +141,6 @@ export default function DefaultGfzTemplate() {
             isPreview={isPreview}
             isDark={isDark}
             mainAriaLabel="Dataset details"
-            schemaOrgJsonLd={schemaOrgJsonLd}
-            metadataLinks={metadataLinks}
             customLogoUrl={customLogoUrl}
             hero={<ResourceHero resourceType={resourceType} status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} />}
             metadataSection={rightSectionRegistry.metadata}

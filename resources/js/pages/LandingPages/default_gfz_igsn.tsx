@@ -36,7 +36,6 @@ interface DefaultGfzIgsnTemplatePageProps {
     resource: LandingPageResource;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
-    schemaOrgJsonLd?: Record<string, unknown>;
     sectionOrder?: SectionOrder | null;
     customLogoUrl?: string | null;
     displayLimits?: LandingPageDisplayLimits;
@@ -60,7 +59,7 @@ const DEFAULT_DISPLAY_LIMITS: LandingPageDisplayLimits = {
  * with IGSN-specific General and Acquisition modules in the left column.
  */
 export default function DefaultGfzIgsnTemplate() {
-    const { resource, landingPage, isPreview, schemaOrgJsonLd, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
+    const { resource, landingPage, isPreview, metadataLinks, sectionOrder, customLogoUrl, displayLimits, citationStyles } =
         usePage<DefaultGfzIgsnTemplatePageProps>().props;
     const isDark = useSystemDarkMode();
     const peopleDisplayLimits = displayLimits ?? DEFAULT_DISPLAY_LIMITS;
@@ -153,8 +152,6 @@ export default function DefaultGfzIgsnTemplate() {
             isPreview={isPreview}
             isDark={isDark}
             mainAriaLabel="Sample details"
-            schemaOrgJsonLd={schemaOrgJsonLd}
-            metadataLinks={metadataLinks}
             customLogoUrl={customLogoUrl}
             hero={
                 <ResourceHero resourceType="IGSN" status={status} mainTitle={mainTitle} subtitle={subtitle} citation={citation} useIgsnIcon={true} />
