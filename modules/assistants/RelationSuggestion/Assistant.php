@@ -141,6 +141,10 @@ class Assistant extends AbstractAssistant
         /** @var SuggestedRelation $suggestion */
         $relationTypeId = $input['relation_type_id'] ?? null;
 
+        if (is_string($relationTypeId)) {
+            $relationTypeId = filter_var($relationTypeId, FILTER_VALIDATE_INT);
+        }
+
         if ($relationTypeId !== null && ! is_int($relationTypeId)) {
             return [
                 'success' => false,

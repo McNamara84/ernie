@@ -15,6 +15,7 @@ use App\Services\RelationDiscoveryService;
 use App\Services\ScholExplorerService;
 use Database\Seeders\IdentifierTypeSeeder;
 use Database\Seeders\RelationTypeSeeder;
+use Modules\Assistants\RelationSuggestion\Assistant as RelationSuggestionAssistant;
 
 beforeEach(function (): void {
     test()->seed(IdentifierTypeSeeder::class);
@@ -71,6 +72,51 @@ it('stores an active override instead of the suggested relation type', function 
         ->and($stored->relation_type_id)->toBe($overrideType->id)
         ->and($stored->relation_type_id)->not->toBe($suggestedType->id)
         ->and(SuggestedRelation::find($suggestion->id))->toBeNull();
+});
+
+it('normalizes a validated numeric-string override before accepting', function (): void {
+    $resource = Resource::factory()->create();
+    $suggestedType = RelationType::query()->where('slug', 'Cites')->firstOrFail();
+    $overrideType = RelationType::query()->where('slug', 'References')->firstOrFail();
+    $suggestion = relationAcceptanceSuggestion($resource, $suggestedType, '10.5880/override.2026.string');
+    $service = Mockery::mock(RelationDiscoveryService::class);
+    $service->shouldReceive('acceptRelation')
+        ->once()
+        ->with(
+            Mockery::on(fn (SuggestedRelation $candidate): bool => $candidate->is($suggestion)),
+            $overrideType->id,
+        )
+        ->andReturn([
+            'success' => true,
+            'datacite_synced' => false,
+            'message' => 'Accepted with override.',
+        ]);
+
+    $result = (new RelationSuggestionAssistant($service))->acceptSuggestion(
+        $suggestion->id,
+        ['relation_type_id' => (string) $overrideType->id],
+    );
+
+    expect($result['success'])->toBeTrue();
+});
+
+it('still rejects a non-integer string override before calling the service', function (): void {
+    $resource = Resource::factory()->create();
+    $suggestedType = RelationType::query()->where('slug', 'Cites')->firstOrFail();
+    $suggestion = relationAcceptanceSuggestion($resource, $suggestedType, '10.5880/override.2026.invalid-string');
+    $service = Mockery::mock(RelationDiscoveryService::class);
+    $service->shouldNotReceive('acceptRelation');
+
+    $result = (new RelationSuggestionAssistant($service))->acceptSuggestion(
+        $suggestion->id,
+        ['relation_type_id' => '42.5'],
+    );
+
+    expect($result)->toMatchArray([
+        'success' => false,
+        'datacite_synced' => false,
+        'message' => 'The selected relation type is invalid.',
+    ])->and(SuggestedRelation::find($suggestion->id))->not->toBeNull();
 });
 
 it('rejects an inactive override without mutating the suggestion', function (): void {

@@ -98,6 +98,7 @@ it('acceptance requests allow only active relation type overrides', function ():
     $rules = $request->rules();
     expect(Validator::make([], $rules)->fails())->toBeFalse()
         ->and(Validator::make(['relation_type_id' => $active->id], $rules)->fails())->toBeFalse()
+        ->and(Validator::make(['relation_type_id' => (string) $active->id], $rules)->fails())->toBeFalse()
         ->and(Validator::make(['relation_type_id' => $inactive->id], $rules)->fails())->toBeTrue()
         ->and(Validator::make(['relation_type_id' => 999999], $rules)->fails())->toBeTrue()
         ->and(Validator::make(['relation_type_id' => 'Cites'], $rules)->fails())->toBeTrue();
@@ -111,6 +112,9 @@ it('acceptance requests allow only active relation type overrides', function ():
             'relation_type_id' => $active->id,
         ]],
     ];
+    expect(Validator::make($payload, $batchRules)->fails())->toBeFalse();
+
+    $payload['suggestions'][0]['relation_type_id'] = (string) $active->id;
     expect(Validator::make($payload, $batchRules)->fails())->toBeFalse();
 
     $payload['suggestions'][0]['relation_type_id'] = $inactive->id;
