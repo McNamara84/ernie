@@ -586,7 +586,7 @@ describe('DataCiteXmlExporter - Descriptions', function () {
             ->and($xml)->toContain('Methodology used in data collection.</description>');
     });
 
-    test('exports plain text descriptions when landing page html exists', function () {
+    test('exports real datacite break elements while excluding landing page html', function () {
         $resource = Resource::factory()->create();
 
         $abstractType = DescriptionType::firstOrCreate(
@@ -596,15 +596,24 @@ describe('DataCiteXmlExporter - Descriptions', function () {
 
         Description::create([
             'resource_id' => $resource->id,
-            'value' => 'Plain XML description.',
-            'landing_page_html' => '<p>Plain <strong>XML</strong> description.</p>',
+            'value' => 'First line.'.PHP_EOL.PHP_EOL.'Second line.',
+            'landing_page_html' => '<p>First <strong>line</strong>.</p><p>Second line.</p>',
             'description_type_id' => $abstractType->id,
         ]);
 
         $xml = $this->exporter->export($resource);
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+        $descriptionElement = $dom->getElementsByTagName('description')->item(0);
+        $breakElement = $dom->getElementsByTagName('br')->item(0);
 
-        expect($xml)->toContain('Plain XML description.</description>')
-            ->and($xml)->not->toContain('<strong>XML</strong>');
+        expect($dom->getElementsByTagName('br')->length)->toBe(2)
+            ->and($breakElement?->namespaceURI)->toBe('http://datacite.org/schema/kernel-4')
+            ->and($descriptionElement?->getAttribute('xml:lang'))->toBe('en')
+            ->and($xml)->toContain('First line.<br/><br/>Second line.</description>')
+            ->and($xml)->not->toContain('&lt;br&gt;')
+            ->and($xml)->not->toContain('<p>')
+            ->and($xml)->not->toContain('<strong>');
     });
 });
 

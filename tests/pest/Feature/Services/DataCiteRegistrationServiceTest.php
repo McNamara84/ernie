@@ -1,12 +1,29 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteRegistrationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+
+function attachDataCiteMultilineDescription(Resource $resource): void
+{
+    $type = DescriptionType::firstOrCreate(
+        ['slug' => 'Abstract'],
+        ['name' => 'Abstract', 'is_active' => true]
+    );
+
+    Description::create([
+        'resource_id' => $resource->id,
+        'value' => 'First line.'.PHP_EOL.PHP_EOL.'Second line.',
+        'landing_page_html' => '<p>First <strong>line</strong>.</p><p>Second line.</p>',
+        'description_type_id' => $type->id,
+    ]);
+}
 
 uses(RefreshDatabase::class);
 
@@ -58,6 +75,8 @@ test('registerDoi generates new doi with correct format', function () {
 });
 
 test('registerDoi sends correct payload to datacite api', function () {
+    attachDataCiteMultilineDescription($this->resource);
+
     Http::fake([
         '*datacite.org/*' => Http::response([
             'data' => [
@@ -76,10 +95,14 @@ test('registerDoi sends correct payload to datacite api', function () {
     expect($result)->toBeArray();
 
     Http::assertSent(function ($request) {
+        $body = json_decode($request->body(), true);
+
         return str_contains($request->url(), 'api.test.datacite.org/dois')
             && $request->method() === 'POST'
             && $request->hasHeader('Content-Type', 'application/vnd.api+json')
-            && $request->hasHeader('Authorization');
+            && $request->hasHeader('Authorization')
+            && $body['data']['attributes']['descriptions'][0]['description'] === 'First line.<br><br>Second line.'
+            && ! str_contains($body['data']['attributes']['descriptions'][0]['description'], '<strong>');
     });
 });
 
@@ -137,6 +160,7 @@ test('registerDoi includes event publish parameter', function () {
 
 test('updateMetadata sends put request to correct endpoint', function () {
     $this->resource->update(['doi' => '10.83279/existing']);
+    attachDataCiteMultilineDescription($this->resource);
 
     Http::fake([
         '*datacite.org/*' => Http::response([
@@ -157,9 +181,11 @@ test('updateMetadata sends put request to correct endpoint', function () {
     Http::assertSent(function ($request) {
         // DOI is now URL-encoded in the path
         $expectedEncodedDoi = urlencode('10.83279/existing');
+        $body = json_decode($request->body(), true);
 
         return str_contains($request->url(), $expectedEncodedDoi)
-            && $request->method() === 'PUT';
+            && $request->method() === 'PUT'
+            && $body['data']['attributes']['descriptions'][0]['description'] === 'First line.<br><br>Second line.';
     });
 });
 

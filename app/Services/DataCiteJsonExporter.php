@@ -670,7 +670,7 @@ class DataCiteJsonExporter
 
         foreach ($resource->descriptions as $description) {
             $descriptionData = [
-                'description' => $description->value,
+                'description' => $this->dataCiteDescriptionMapper()->toJsonValue($description->value),
                 'descriptionType' => $description->descriptionType->slug ?? 'Other',
             ];
 

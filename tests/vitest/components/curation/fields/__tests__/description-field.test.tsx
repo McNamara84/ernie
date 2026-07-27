@@ -54,7 +54,8 @@ describe('DescriptionField', () => {
         const notice = screen.getByRole('alert');
 
         expect(notice).toHaveTextContent(/Landing pages support a limited HTML subset in descriptions/i);
-        expect(notice).toHaveTextContent(/DataCite, XML, JSON, and JSON-LD exports/i);
+        expect(notice).toHaveTextContent(/DataCite JSON and XML retain line breaks as <br>/i);
+        expect(notice).toHaveTextContent(/all other formatting remains landing-page only/i);
     });
 
     it('renders Abstract textarea with placeholder', () => {

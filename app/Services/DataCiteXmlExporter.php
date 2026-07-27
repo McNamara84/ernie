@@ -1222,7 +1222,7 @@ class DataCiteXmlExporter
         $descriptions = $this->dom->createElement('descriptions');
 
         foreach ($resource->descriptions as $description) {
-            $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->value));
+            $descriptionElement = $this->dom->createElement('description');
             $descriptionElement->setAttribute('descriptionType', $description->descriptionType->slug ?? 'Abstract');
 
             if ($resource->language) {
@@ -1238,6 +1238,16 @@ class DataCiteXmlExporter
                     'xml:lang',
                     'en'
                 );
+            }
+
+            foreach ($this->dataCiteDescriptionMapper()->segments($description->value) as $index => $segment) {
+                if ($index > 0) {
+                    $descriptionElement->appendChild($this->dom->createElement('br'));
+                }
+
+                if ($segment !== '') {
+                    $descriptionElement->appendChild($this->dom->createTextNode($segment));
+                }
             }
 
             $descriptions->appendChild($descriptionElement);

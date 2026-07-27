@@ -400,7 +400,7 @@ describe('DataCiteJsonExporter - Descriptions', function () {
         expect($descriptions[0]['descriptionType'])->toBeIn(['Methods', 'methods']);
     });
 
-    test('exports plain text descriptions even when landing page html exists', function () {
+    test('exports datacite breaks while excluding landing page html', function () {
         $resource = Resource::factory()->create();
         $abstractType = DescriptionType::firstOrCreate(
             ['slug' => 'Abstract'],
@@ -409,15 +409,16 @@ describe('DataCiteJsonExporter - Descriptions', function () {
 
         Description::create([
             'resource_id' => $resource->id,
-            'value' => 'Plain export description.',
-            'landing_page_html' => '<p>Plain <strong>export</strong> description.</p>',
+            'value' => 'First paragraph.'.PHP_EOL.PHP_EOL.'Second paragraph.',
+            'landing_page_html' => '<p>First <strong>paragraph</strong>.</p><p>Second paragraph.</p>',
             'description_type_id' => $abstractType->id,
         ]);
 
         $result = $this->exporter->export($resource);
         $descriptions = $result['data']['attributes']['descriptions'];
 
-        expect($descriptions[0]['description'])->toBe('Plain export description.')
+        expect($descriptions[0]['description'])->toBe('First paragraph.<br><br>Second paragraph.')
+            ->and($descriptions[0]['description'])->not->toContain('<p>')
             ->and($descriptions[0]['description'])->not->toContain('<strong>');
     });
 });
