@@ -103,22 +103,14 @@ export function PortalFilters({
     if (isCollapsed) {
         return (
             <div className="flex h-full flex-col items-center border-r bg-muted/30 py-4">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onToggleCollapse}
-                    className="mb-4"
-                    aria-label="Expand filters"
-                >
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse} className="mb-4" aria-label="Expand filters">
                     <ChevronRight className="h-4 w-4" />
                 </Button>
                 <div className="flex flex-col items-center gap-4">
                     <Filter className="h-5 w-5 text-muted-foreground" />
                     <Search className="h-5 w-5 text-muted-foreground" />
                 </div>
-                {hasActiveFilters && (
-                    <div className="mt-4 h-2 w-2 rounded-full bg-primary" title="Filters active" />
-                )}
+                {hasActiveFilters && <div className="mt-4 h-2 w-2 rounded-full bg-primary" title="Filters active" />}
             </div>
         );
     }
@@ -131,15 +123,20 @@ export function PortalFilters({
                     <Filter className="h-4 w-4" />
                     <span className="font-semibold">Filters</span>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onToggleCollapse}
-                    aria-label="Collapse filters"
-                >
+                <Button variant="ghost" size="icon" onClick={onToggleCollapse} aria-label="Collapse filters">
                     <ChevronLeft className="h-4 w-4" />
                 </Button>
             </div>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+                <div className="shrink-0 border-b px-4 py-3">
+                    <Button variant="outline" size="sm" onClick={onClearFilters} className="w-full">
+                        <X className="mr-2 h-4 w-4" />
+                        Clear All Filters
+                    </Button>
+                </div>
+            )}
 
             <ScrollArea className="flex-1">
                 <div className="space-y-6 p-4">
@@ -150,14 +147,14 @@ export function PortalFilters({
                         </Label>
                         <form onSubmit={handleSearchSubmit} className="flex gap-2">
                             <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     id="portal-search"
                                     type="text"
                                     placeholder="Search datasets..."
                                     value={searchInput}
                                     onChange={(e) => setSearchInput(e.target.value)}
-                                    className="pl-9 pr-8"
+                                    className="pr-8 pl-9"
                                 />
                                 {searchInput && (
                                     <Button
@@ -165,7 +162,7 @@ export function PortalFilters({
                                         variant="ghost"
                                         size="icon"
                                         onClick={handleClearSearch}
-                                        className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2"
+                                        className="absolute top-1/2 right-2 h-6 w-6 -translate-y-1/2"
                                         aria-label="Clear search"
                                     >
                                         <X className="h-3 w-3" />
@@ -176,9 +173,7 @@ export function PortalFilters({
                                 Search
                             </Button>
                         </form>
-                        <p className="text-xs text-muted-foreground">
-                            Search in titles, authors, DOIs, descriptions, and keywords
-                        </p>
+                        <p className="text-xs text-muted-foreground">Search in titles, authors, DOIs, descriptions, and keywords</p>
                     </div>
 
                     {/* Keyword Filter */}
@@ -231,19 +226,6 @@ export function PortalFilters({
                             onSelectionChange={onDatacenterChange}
                         />
                     </div>
-
-                    {/* Clear Filters */}
-                    {hasActiveFilters && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={onClearFilters}
-                            className="w-full"
-                        >
-                            <X className="mr-2 h-4 w-4" />
-                            Clear All Filters
-                        </Button>
-                    )}
                 </div>
             </ScrollArea>
 
