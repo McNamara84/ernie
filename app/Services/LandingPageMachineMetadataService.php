@@ -28,7 +28,6 @@ final class LandingPageMachineMetadataService
 
     /**
      * @return array{
-     *     jsonLd: array<string, mixed>,
      *     jsonLdJson: string,
      *     dublinCore: list<array{name: string, content: string}>,
      *     signpostingLinks: list<array{rel: string, href: string, type: string|null, profile: string|null}>,
@@ -56,7 +55,6 @@ final class LandingPageMachineMetadataService
         );
 
         return [
-            'jsonLd' => $jsonLd,
             'jsonLdJson' => json_encode($jsonLd, self::JSON_FLAGS),
             'dublinCore' => $this->dublinCore($attributes, $jsonLd, $license, $landingPage),
             'signpostingLinks' => $signpostingLinks,

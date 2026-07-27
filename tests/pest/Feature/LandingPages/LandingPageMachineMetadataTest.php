@@ -70,6 +70,19 @@ function decodedEmbeddedSchemaOrg(string $html): array
     return $decoded;
 }
 
+test('machine metadata contract exposes encoded JSON-LD without caching the source array', function () {
+    [$resource, $landingPage] = machineMetadataLandingPage();
+
+    $metadata = app(LandingPageMachineMetadataService::class)->for($resource, $landingPage);
+
+    expect($metadata)
+        ->toBeArray()
+        ->toHaveKeys(['jsonLdJson', 'dublinCore', 'signpostingLinks', 'metadataLinks'])
+        ->not->toHaveKey('jsonLd')
+        ->and(json_decode($metadata['jsonLdJson'], true, 512, JSON_THROW_ON_ERROR))
+        ->toBeArray();
+});
+
 test('raw dataset HTML and GET HEAD responses expose complete machine metadata', function () {
     [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
         'ftp_url' => 'https://downloads.example.org/fallback.zip',
