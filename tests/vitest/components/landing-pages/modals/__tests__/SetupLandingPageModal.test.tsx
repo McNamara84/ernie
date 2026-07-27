@@ -1565,11 +1565,14 @@ describe('SetupLandingPageModal', () => {
             await user.click(screen.getByRole('button', { name: /add link/i }));
             await user.type(screen.getByPlaceholderText(/display text/i), 'Project Website');
             await user.type(screen.getByPlaceholderText('https://...'), 'https://example.org/project');
+            await user.click(screen.getByRole('combobox', { name: 'Link role' }));
+            await user.click(await screen.findByRole('option', { name: 'Source repository' }));
 
             await waitFor(() => {
                 const persistedDraft = JSON.parse(window.sessionStorage.getItem('setup-landing-page-modal:draft:123') ?? '{}');
 
                 expect(persistedDraft.downloadsUnavailable).toBe(true);
+                expect(persistedDraft.links).toEqual([expect.objectContaining({ kind: 'repository' })]);
             });
 
             rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
@@ -1582,6 +1585,7 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByRole('checkbox', { name: /no data available for download/i })).toBeChecked();
             expect(screen.getByDisplayValue('Project Website')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/project')).toBeInTheDocument();
+            expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Source repository');
         });
 
         it('clears persisted unsaved values after a successful save', async () => {
@@ -1759,6 +1763,35 @@ describe('SetupLandingPageModal', () => {
 
             expect(ftpInput.value).toBe(mockExistingConfig.ftp_url);
             expect(screen.queryByDisplayValue('Invalid persisted link')).not.toBeInTheDocument();
+        });
+
+        it('defaults invalid persisted link roles to related', async () => {
+            window.sessionStorage.setItem(
+                'setup-landing-page-modal:draft:123',
+                JSON.stringify({
+                    template: 'default_gfz',
+                    ftpUrl: '',
+                    downloadsUnavailable: false,
+                    isPublished: false,
+                    externalDomainId: '',
+                    externalPath: '',
+                    landingPageTemplateId: null,
+                    links: [
+                        {
+                            label: 'Manipulated role',
+                            url: 'https://example.org/manipulated',
+                            kind: 'unsupported',
+                            position: 0,
+                        },
+                    ],
+                }),
+            );
+            mockModalGetRequests({ landingPage: null });
+
+            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            expect(await screen.findByDisplayValue('Manipulated role')).toBeInTheDocument();
+            expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Related page');
         });
 
         it('clears a persisted draft after removing a preview and reopens with empty defaults', async () => {

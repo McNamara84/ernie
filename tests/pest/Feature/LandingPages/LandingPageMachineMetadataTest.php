@@ -12,6 +12,7 @@ use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Title;
 use App\Services\LandingPageMachineMetadataService;
+use App\Services\SchemaOrgJsonLdExporter;
 
 covers(LandingPagePublicController::class, LandingPageMachineMetadataService::class);
 
@@ -199,4 +200,20 @@ test('JSON-LD encoding cannot be terminated by metadata containing script markup
         ->and($html)->not->toContain('</script><script>alert(1)</script>')
         ->and($html)->toContain('\u003C/script\u003E')
         ->and($jsonLd['name'])->toBe($dangerousTitle);
+});
+
+test('invalid UTF-8 metadata is substituted instead of failing public rendering', function () {
+    [, $landingPage] = machineMetadataLandingPage();
+    $schemaOrgExporter = Mockery::mock(SchemaOrgJsonLdExporter::class);
+    $schemaOrgExporter->shouldReceive('export')->once()->andReturn([
+        '@context' => 'https://schema.org',
+        '@type' => 'Dataset',
+        'name' => "Invalid \xB1 title",
+    ]);
+    $this->app->instance(SchemaOrgJsonLdExporter::class, $schemaOrgExporter);
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+
+    expect($jsonLd['name'])->toBe("Invalid \u{FFFD} title");
 });

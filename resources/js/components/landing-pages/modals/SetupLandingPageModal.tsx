@@ -91,13 +91,17 @@ type ResourceTemplateOptions = {
     supports_datacenter_inheritance: boolean;
 };
 
+function isLandingPageLinkKind(value: unknown): value is NonNullable<LandingPageLink['kind']> {
+    return value === 'related' || value === 'download' || value === 'repository';
+}
+
 function cloneLandingPageLinks(links: LandingPageLink[] = []): LandingPageLink[] {
     return links.map((link, index) => ({
         id: link.id,
         _clientId: link._clientId,
         url: link.url,
         label: link.label,
-        kind: link.kind ?? 'related',
+        kind: isLandingPageLinkKind(link.kind) ? link.kind : 'related',
         position: typeof link.position === 'number' ? link.position : index,
     }));
 }
@@ -153,6 +157,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null): Persisted
                       _clientId: typeof candidate._clientId === 'string' ? candidate._clientId : undefined,
                       url: typeof candidate.url === 'string' ? candidate.url : '',
                       label: typeof candidate.label === 'string' ? candidate.label : '',
+                      kind: isLandingPageLinkKind(candidate.kind) ? candidate.kind : 'related',
                       position: typeof candidate.position === 'number' ? candidate.position : index,
                   } satisfies LandingPageLink;
               })

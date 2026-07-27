@@ -10,6 +10,7 @@ use App\Models\Resource;
 final class LandingPageMachineMetadataService
 {
     private const JSON_FLAGS = JSON_THROW_ON_ERROR
+        | JSON_INVALID_UTF8_SUBSTITUTE
         | JSON_HEX_TAG
         | JSON_HEX_AMP
         | JSON_HEX_APOS
