@@ -146,11 +146,7 @@ describe('PortalFilters', () => {
             const onThesaurusKeywordsChange = vi.fn();
 
             render(
-                <PortalFilters
-                    {...defaultProps}
-                    thesaurusFacets={defaultThesaurusFacets}
-                    onThesaurusKeywordsChange={onThesaurusKeywordsChange}
-                />,
+                <PortalFilters {...defaultProps} thesaurusFacets={defaultThesaurusFacets} onThesaurusKeywordsChange={onThesaurusKeywordsChange} />,
             );
 
             await user.click(screen.getByLabelText('Select thesaurus keyword EARTH SCIENCE'));
@@ -204,14 +200,7 @@ describe('PortalFilters', () => {
             const user = userEvent.setup();
             const onSearchChange = vi.fn();
             const filters: PortalFiltersType = { ...defaultFilters, query: 'existing query' };
-            render(
-                <PortalFilters
-                    {...defaultProps}
-                    filters={filters}
-                    onSearchChange={onSearchChange}
-                    hasActiveFilters={true}
-                />,
-            );
+            render(<PortalFilters {...defaultProps} filters={filters} onSearchChange={onSearchChange} hasActiveFilters={true} />);
 
             // Find the clear X button next to search input (the one in the input container)
             const clearButton = screen.getByRole('button', { name: /clear search/i });
@@ -250,6 +239,41 @@ describe('PortalFilters', () => {
             expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument();
         });
 
+        it('keeps the clear filters action above and outside the scrollable controls', () => {
+            render(<PortalFilters {...defaultProps} hasActiveFilters={true} />);
+
+            const clearButton = screen.getByRole('button', { name: /clear all/i });
+            const searchInput = screen.getByPlaceholderText(/search datasets/i);
+            const actionRow = clearButton.parentElement;
+
+            expect(actionRow).toHaveClass('shrink-0', 'border-b');
+            expect(clearButton.closest('[data-slot="scroll-area"]')).toBeNull();
+            expect(searchInput.closest('[data-slot="scroll-area"]')).toBeInTheDocument();
+            expect(clearButton.compareDocumentPosition(searchInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        });
+
+        it('preserves the existing filter order below the clear action', () => {
+            render(<PortalFilters {...defaultProps} hasActiveFilters={true} />);
+
+            const orderedControls = [
+                screen.getByPlaceholderText(/search datasets/i),
+                screen.getByText('Free Keywords'),
+                screen.getByText('Thesaurus Keywords'),
+                screen.getByText('Temporal Filter'),
+                screen.getByText('Geographic Filter'),
+                screen.getByText('Resource Type'),
+                screen.getByText('Datacenter'),
+            ];
+
+            for (const [index, control] of orderedControls.entries()) {
+                const nextControl = orderedControls[index + 1];
+
+                if (nextControl) {
+                    expect(control.compareDocumentPosition(nextControl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+                }
+            }
+        });
+
         it('does not show clear filters button when hasActiveFilters is false', () => {
             render(<PortalFilters {...defaultProps} hasActiveFilters={false} />);
 
@@ -277,6 +301,16 @@ describe('PortalFilters', () => {
 
             // Toggle button should be visible
             expect(screen.getByRole('button', { name: /expand filters/i })).toBeInTheDocument();
+            expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        });
+
+        it('exposes active filters as a named status without showing the clear action', () => {
+            render(<PortalFilters {...defaultProps} isCollapsed={true} hasActiveFilters={true} />);
+
+            const activeFiltersStatus = screen.getByRole('status', { name: 'Filters active' });
+
+            expect(activeFiltersStatus).toHaveAttribute('title', 'Filters active');
+            expect(screen.queryByRole('button', { name: /clear all/i })).not.toBeInTheDocument();
         });
 
         it('calls onToggleCollapse when collapsed sidebar button is clicked', async () => {
