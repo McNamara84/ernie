@@ -69,7 +69,7 @@
                             type="{{ $link['type'] }}"
                         @endif
                         @if(is_string($link['profile'] ?? null) && $link['profile'] !== '')
-                            profile="{{ $link['profile'] }}"
+                            data-profile="{{ $link['profile'] }}"
                         @endif
                     >
                 @endif

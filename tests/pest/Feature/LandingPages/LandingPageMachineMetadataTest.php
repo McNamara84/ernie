@@ -122,6 +122,7 @@ test('raw dataset HTML and GET HEAD responses expose complete machine metadata',
         ->toContain('<https://schema.org/Dataset>; rel="type"')
         ->toContain('<https://schema.org/AboutPage>; rel="type"')
         ->toContain('rel="describedby"; type="application/vnd.datacite.datacite+xml"')
+        ->toContain('profile="'.config('iso19115.profile').'"')
         ->toContain('<https://spdx.org/licenses/CC-BY-4.0>; rel="license"')
         ->toContain('<https://downloads.example.org/article.pdf>; rel="item"; type="application/pdf"')
         ->and($html)->toContain('name="DC.identifier"')
@@ -133,7 +134,9 @@ test('raw dataset HTML and GET HEAD responses expose complete machine metadata',
         ->toContain('name="DC.type"')
         ->toContain('rel="cite-as"')
         ->toContain('rel="describedby"')
-        ->toContain('rel="item"');
+        ->toContain('rel="item"')
+        ->toContain('data-profile="'.e(config('iso19115.profile')).'"')
+        ->not->toContain(' profile="'.e(config('iso19115.profile')).'"');
 
     $response->assertInertia(fn ($page) => $page
         ->missing('schemaOrgJsonLd')
