@@ -315,6 +315,7 @@ export interface AssistancePageProps {
     sections: Record<string, PaginatedData<AssistanceResourceGroup> | PaginatedData<BaseSuggestionItem>>;
     allAssistantResources?: PaginatedData<AssistanceResourceGroup>;
     pendingCounts?: Record<string, number>;
+    assistanceCollapsedAssistantIds?: string[] | null;
     manifests: AssistantManifest[];
     relationTypes?: AssistanceRelationTypeOption[];
 }

@@ -1,9 +1,10 @@
 import { Link, router } from '@inertiajs/react';
 import axios from 'axios';
-import { Check, RefreshCw, X } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { Check, ChevronsDown, ChevronsUp, RefreshCw, X } from 'lucide-react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,8 @@ import {
 } from '@/types/assistance';
 
 const VIEW_STORAGE_KEY = 'assistance.review-view';
+const ASSISTANCE_ACCORDION_PREFERENCE_URL = '/settings/assistance-accordion';
+const ASSISTANCE_ACCORDION_PREFERENCE_DELAY_MS = 400;
 
 function initialReviewView(): 'all' | 'assistant' {
     if (typeof window === 'undefined') return 'all';
@@ -34,13 +37,23 @@ function initialReviewView(): 'all' | 'assistant' {
     }
 }
 
+function normalizeCollapsedAssistantIds(ids: readonly string[] | null | undefined, manifests: AssistantManifest[]): string[] {
+    const collapsed = new Set(ids ?? []);
+
+    return manifests.map((manifest) => manifest.id).filter((id) => collapsed.has(id));
+}
+
+function equalStringArrays(left: readonly string[], right: readonly string[]): boolean {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 type SectionData = PaginatedData<AssistanceResourceGroup> | PaginatedData<BaseSuggestionItem>;
 
 interface ResourceReviewProps {
     allAssistantResources?: PaginatedData<AssistanceResourceGroup>;
     sections: Record<string, SectionData>;
     manifests: AssistantManifest[];
-    pendingCounts?: Record<string, number>;
+    assistanceCollapsedAssistantIds?: string[] | null;
     checking: Record<string, boolean>;
     onCheck: (manifest: AssistantManifest) => void;
     onReload: () => void;
@@ -123,7 +136,7 @@ export function ResourceReview({
     allAssistantResources,
     sections,
     manifests,
-    pendingCounts,
+    assistanceCollapsedAssistantIds,
     checking,
     onCheck,
     onReload,
@@ -133,6 +146,12 @@ export function ResourceReview({
 }: ResourceReviewProps) {
     const manifestsById = useMemo(() => new Map(manifests.map((manifest) => [manifest.id, manifest])), [manifests]);
     const [activeView, setActiveView] = useState<'all' | 'assistant'>(initialReviewView);
+    const savedCollapsedAssistantIds = useMemo(
+        () => normalizeCollapsedAssistantIds(assistanceCollapsedAssistantIds, manifests),
+        [assistanceCollapsedAssistantIds, manifests],
+    );
+    const [collapsedAssistantIds, setCollapsedAssistantIds] = useState<string[]>(savedCollapsedAssistantIds);
+    const preferenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [selected, setSelected] = useState<Set<string>>(() => new Set());
     const [processingResources, setProcessingResources] = useState<Set<number>>(() => new Set());
 
@@ -158,6 +177,83 @@ export function ResourceReview({
             return next.size === current.size ? current : next;
         });
     }, [availableIdentities]);
+
+    useEffect(() => {
+        setCollapsedAssistantIds((current) => (equalStringArrays(current, savedCollapsedAssistantIds) ? current : savedCollapsedAssistantIds));
+    }, [savedCollapsedAssistantIds]);
+
+    const persistCollapsedAssistantIds = useCallback((ids: readonly string[], immediate = false) => {
+        const persist = () => {
+            preferenceTimeoutRef.current = null;
+            router.put(
+                ASSISTANCE_ACCORDION_PREFERENCE_URL,
+                { collapsed_assistant_ids: [...ids] },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    only: ['assistanceCollapsedAssistantIds'],
+                    onError: () => toast.error('Failed to save the assistant display preference.'),
+                },
+            );
+        };
+
+        if (preferenceTimeoutRef.current !== null) {
+            clearTimeout(preferenceTimeoutRef.current);
+            preferenceTimeoutRef.current = null;
+        }
+
+        if (immediate) {
+            persist();
+            return;
+        }
+
+        preferenceTimeoutRef.current = setTimeout(persist, ASSISTANCE_ACCORDION_PREFERENCE_DELAY_MS);
+    }, []);
+
+    const updateCollapsedAssistantIds = useCallback(
+        (ids: readonly string[], immediate = false) => {
+            const normalized = normalizeCollapsedAssistantIds(ids, manifests);
+            setCollapsedAssistantIds(normalized);
+            persistCollapsedAssistantIds(normalized, immediate);
+        },
+        [manifests, persistCollapsedAssistantIds],
+    );
+
+    const openAssistantIds = useMemo(() => {
+        const collapsed = new Set(collapsedAssistantIds);
+
+        return manifests.map((manifest) => manifest.id).filter((id) => !collapsed.has(id));
+    }, [collapsedAssistantIds, manifests]);
+    const allAssistantsCollapsed = manifests.length > 0 && collapsedAssistantIds.length === manifests.length;
+    const allAssistantsExpanded = collapsedAssistantIds.length === 0;
+
+    const changeOpenAssistantIds = useCallback(
+        (ids: string[]) => {
+            const open = new Set(ids);
+            updateCollapsedAssistantIds(manifests.map((manifest) => manifest.id).filter((id) => !open.has(id)));
+        },
+        [manifests, updateCollapsedAssistantIds],
+    );
+
+    const collapseAllAssistants = useCallback(() => {
+        updateCollapsedAssistantIds(
+            manifests.map((manifest) => manifest.id),
+            true,
+        );
+    }, [manifests, updateCollapsedAssistantIds]);
+
+    const expandAllAssistants = useCallback(() => {
+        updateCollapsedAssistantIds([], true);
+    }, [updateCollapsedAssistantIds]);
+
+    useEffect(() => {
+        return () => {
+            if (preferenceTimeoutRef.current !== null) {
+                clearTimeout(preferenceTimeoutRef.current);
+                preferenceTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     const changeView = (value: string) => {
         const nextView = value === 'assistant' ? 'assistant' : 'all';
@@ -383,42 +479,76 @@ export function ResourceReview({
         );
     };
 
-    const renderSection = (sectionKey: string, data: PaginatedData<AssistanceResourceGroup>, manifest?: AssistantManifest) => {
-        const pendingCount = manifest
-            ? (pendingCounts?.[manifest.id] ?? data.data.reduce((sum, group) => sum + group.suggestion_count, 0))
-            : undefined;
-        const title = manifest?.name ?? 'All assistants';
-        const description = manifest
-            ? `${pendingCount} pending suggestion(s). ${manifest.description}`
-            : 'Review every pending suggestion for each resource in one place.';
-
+    const renderAllAssistantsSection = (sectionKey: string, data: PaginatedData<AssistanceResourceGroup>) => {
         return (
             <Card key={sectionKey}>
                 <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1.5">
-                        <CardTitle>{title}</CardTitle>
-                        <CardDescription>{description}</CardDescription>
+                        <CardTitle>All assistants</CardTitle>
+                        <CardDescription>Review every pending suggestion for each resource in one place.</CardDescription>
                     </div>
-                    {manifest && (
-                        <Button variant="outline" size="sm" disabled={checking[manifest.id]} onClick={() => onCheck(manifest)}>
-                            {checking[manifest.id] ? <Spinner size="sm" className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                            Check {manifest.name}
-                        </Button>
-                    )}
                 </CardHeader>
                 <CardContent id={`assistance-results-${sectionKey}`} data-testid={`assistance-results-${sectionKey}`}>
                     {data.data.length > 0 ? (
-                        <div className="space-y-4">{data.data.map((group) => renderResource(group, sectionKey, manifest))}</div>
+                        <div className="space-y-4">{data.data.map((group) => renderResource(group, sectionKey))}</div>
                     ) : (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
                             <div className="text-4xl">&#10003;</div>
-                            <p className="mt-2 text-lg font-medium">{manifest?.emptyState.title ?? 'No pending suggestions'}</p>
-                            <p className="text-sm text-muted-foreground">{manifest?.emptyState.description ?? 'All resources have been reviewed.'}</p>
+                            <p className="mt-2 text-lg font-medium">No pending suggestions</p>
+                            <p className="text-sm text-muted-foreground">All resources have been reviewed.</p>
                         </div>
                     )}
                     {renderPagination(data, sectionKey)}
                 </CardContent>
             </Card>
+        );
+    };
+
+    const renderAssistantSection = (manifest: AssistantManifest) => {
+        const data = normalizedSections[manifest.id];
+        const isOpen = openAssistantIds.includes(manifest.id);
+        const datasetLabel = `${data.total} ${data.total === 1 ? 'dataset' : 'datasets'} with suggestions`;
+
+        return (
+            <AccordionItem
+                key={manifest.id}
+                value={manifest.id}
+                className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
+                data-testid={`assistant-section-${manifest.id}`}
+            >
+                <AccordionTrigger
+                    className="px-6 py-6 hover:no-underline"
+                    aria-label={`${manifest.name}, ${datasetLabel}`}
+                    actions={
+                        isOpen ? (
+                            <Button variant="outline" size="sm" className="mr-6" disabled={checking[manifest.id]} onClick={() => onCheck(manifest)}>
+                                {checking[manifest.id] ? <Spinner size="sm" className="mr-2" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                Check {manifest.name}
+                            </Button>
+                        ) : undefined
+                    }
+                >
+                    <span className="flex flex-col gap-1.5">
+                        <span className="text-base leading-none font-semibold tracking-tight">{manifest.name}</span>
+                        <span className="text-sm font-normal text-muted-foreground">{datasetLabel}</span>
+                        {isOpen && <span className="text-sm font-normal text-muted-foreground">{manifest.description}</span>}
+                    </span>
+                </AccordionTrigger>
+                <AccordionContent className="px-6 pb-6">
+                    <div id={`assistance-results-${manifest.id}`} data-testid={`assistance-results-${manifest.id}`}>
+                        {data.data.length > 0 ? (
+                            <div className="space-y-4">{data.data.map((group) => renderResource(group, manifest.id, manifest))}</div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <div className="text-4xl">&#10003;</div>
+                                <p className="mt-2 text-lg font-medium">{manifest.emptyState.title}</p>
+                                <p className="text-sm text-muted-foreground">{manifest.emptyState.description}</p>
+                            </div>
+                        )}
+                        {renderPagination(data, manifest.id)}
+                    </div>
+                </AccordionContent>
+            </AccordionItem>
         );
     };
 
@@ -428,9 +558,33 @@ export function ResourceReview({
                 <TabsTrigger value="all">All assistants</TabsTrigger>
                 <TabsTrigger value="assistant">By assistant</TabsTrigger>
             </TabsList>
-            <TabsContent value="all">{renderSection('all', allResources)}</TabsContent>
+            <TabsContent value="all">{renderAllAssistantsSection('all', allResources)}</TabsContent>
             <TabsContent value="assistant" className="space-y-6">
-                {manifests.map((manifest) => renderSection(manifest.id, normalizedSections[manifest.id], manifest))}
+                <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={manifests.length === 0 || allAssistantsCollapsed}
+                        onClick={collapseAllAssistants}
+                    >
+                        <ChevronsUp className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Collapse all
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={manifests.length === 0 || allAssistantsExpanded}
+                        onClick={expandAllAssistants}
+                    >
+                        <ChevronsDown className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Expand all
+                    </Button>
+                </div>
+                <Accordion type="multiple" value={openAssistantIds} onValueChange={changeOpenAssistantIds} className="space-y-6">
+                    {manifests.map(renderAssistantSection)}
+                </Accordion>
             </TabsContent>
         </Tabs>
     );
