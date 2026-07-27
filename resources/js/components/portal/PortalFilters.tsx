@@ -110,7 +110,9 @@ export function PortalFilters({
                     <Filter className="h-5 w-5 text-muted-foreground" />
                     <Search className="h-5 w-5 text-muted-foreground" />
                 </div>
-                {hasActiveFilters && <div className="mt-4 h-2 w-2 rounded-full bg-primary" title="Filters active" />}
+                {hasActiveFilters && (
+                    <div role="status" aria-label="Filters active" className="mt-4 h-2 w-2 rounded-full bg-primary" title="Filters active" />
+                )}
             </div>
         );
     }

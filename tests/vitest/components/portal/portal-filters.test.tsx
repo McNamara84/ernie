@@ -301,12 +301,15 @@ describe('PortalFilters', () => {
 
             // Toggle button should be visible
             expect(screen.getByRole('button', { name: /expand filters/i })).toBeInTheDocument();
+            expect(screen.queryByRole('status')).not.toBeInTheDocument();
         });
 
-        it('shows only the active indicator when filters are active', () => {
+        it('exposes active filters as a named status without showing the clear action', () => {
             render(<PortalFilters {...defaultProps} isCollapsed={true} hasActiveFilters={true} />);
 
-            expect(screen.getByTitle('Filters active')).toBeInTheDocument();
+            const activeFiltersStatus = screen.getByRole('status', { name: 'Filters active' });
+
+            expect(activeFiltersStatus).toHaveAttribute('title', 'Filters active');
             expect(screen.queryByRole('button', { name: /clear all/i })).not.toBeInTheDocument();
         });
 
