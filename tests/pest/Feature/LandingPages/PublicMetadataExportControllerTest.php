@@ -46,13 +46,13 @@ test('serves all canonical public metadata representations for a published landi
 
     $this->get("{$base}/datacite.xml")
         ->assertOk()
-        ->assertHeader('Content-Type', 'application/xml; charset=UTF-8')
+        ->assertHeader('Content-Type', 'application/vnd.datacite.datacite+xml; charset=UTF-8')
         ->assertHeader('Content-Disposition', 'attachment; filename="metadata-test-datacite.xml"')
         ->assertSee('http://datacite.org/schema/kernel-4', escape: false);
 
     $this->get("{$base}/datacite.json")
         ->assertOk()
-        ->assertHeader('Content-Type', 'application/json; charset=UTF-8')
+        ->assertHeader('Content-Type', 'application/vnd.datacite.datacite+json; charset=UTF-8')
         ->assertHeader('Content-Disposition', 'attachment; filename="metadata-test-datacite.json"')
         ->assertJsonPath('data.type', 'dois');
 

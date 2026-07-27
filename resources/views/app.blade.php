@@ -49,6 +49,33 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        @if(isset($landingPageMachineMetadata) && is_array($landingPageMachineMetadata))
+            @if(is_string($landingPageMachineMetadata['jsonLdJson'] ?? null))
+                <script type="application/ld+json">{!! $landingPageMachineMetadata['jsonLdJson'] !!}</script>
+            @endif
+
+            @foreach(($landingPageMachineMetadata['dublinCore'] ?? []) as $meta)
+                @if(is_array($meta) && is_string($meta['name'] ?? null) && is_string($meta['content'] ?? null))
+                    <meta name="{{ $meta['name'] }}" content="{{ $meta['content'] }}">
+                @endif
+            @endforeach
+
+            @foreach(($landingPageMachineMetadata['signpostingLinks'] ?? []) as $link)
+                @if(is_array($link) && is_string($link['rel'] ?? null) && is_string($link['href'] ?? null))
+                    <link
+                        rel="{{ $link['rel'] }}"
+                        href="{{ $link['href'] }}"
+                        @if(is_string($link['type'] ?? null) && $link['type'] !== '')
+                            type="{{ $link['type'] }}"
+                        @endif
+                        @if(is_string($link['profile'] ?? null) && $link['profile'] !== '')
+                            profile="{{ $link['profile'] }}"
+                        @endif
+                    >
+                @endif
+            @endforeach
+        @endif
+
         <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
         <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
         <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">

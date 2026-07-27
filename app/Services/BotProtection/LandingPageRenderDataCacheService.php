@@ -17,8 +17,8 @@ class LandingPageRenderDataCacheService
     use ChecksCacheTagging;
 
     /**
-     * @param  Closure(): array{template: string, props: array<string, mixed>}  $resolver
-     * @return array{template: string, props: array<string, mixed>}
+     * @param  Closure(): array{template: string, props: array<string, mixed>, viewData?: array<string, mixed>}  $resolver
+     * @return array{template: string, props: array<string, mixed>, viewData?: array<string, mixed>}
      */
     public function remember(LandingPage $landingPage, Closure $resolver): array
     {
@@ -28,7 +28,7 @@ class LandingPageRenderDataCacheService
 
         $cacheKey = CacheKey::LANDING_PAGE_RENDER_DATA;
 
-        /** @var array{template: string, props: array<string, mixed>} */
+        /** @var array{template: string, props: array<string, mixed>, viewData?: array<string, mixed>} */
         return $this->getCacheInstance($cacheKey->tags())
             ->remember($cacheKey->key($landingPage->id), $cacheKey->ttl(), $resolver);
     }

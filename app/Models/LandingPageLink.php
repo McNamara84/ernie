@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * An additional link associated with a landing page.
@@ -18,14 +19,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $landing_page_id
  * @property string $url
  * @property string $label
+ * @property string $kind
  * @property int $position
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read LandingPage $landingPage
  */
-#[Fillable(['landing_page_id', 'url', 'label', 'position'])]
+#[Fillable(['landing_page_id', 'url', 'label', 'kind', 'position'])]
 class LandingPageLink extends Model
 {
+    public const KIND_RELATED = 'related';
+
+    public const KIND_DOWNLOAD = 'download';
+
+    public const KIND_REPOSITORY = 'repository';
+
+    /** @var list<string> */
+    public const KINDS = [
+        self::KIND_RELATED,
+        self::KIND_DOWNLOAD,
+        self::KIND_REPOSITORY,
+    ];
+
     /**
      * The attributes that should be cast.
      *

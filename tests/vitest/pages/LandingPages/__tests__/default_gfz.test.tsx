@@ -437,8 +437,8 @@ describe('DefaultGfzTemplate', () => {
         });
     });
 
-    describe('Schema.org JSON-LD', () => {
-        it('renders JSON-LD script tag when schemaOrgJsonLd is provided', () => {
+    describe('server-owned machine metadata', () => {
+        it('does not duplicate JSON-LD client-side when a legacy prop is provided', () => {
             const schemaOrgJsonLd = { '@context': 'https://schema.org', '@type': 'Dataset', name: 'Test' };
 
             mockUsePage.mockReturnValue({
@@ -452,12 +452,10 @@ describe('DefaultGfzTemplate', () => {
 
             render(<DefaultGfzTemplate />);
 
-            // The Head component renders children directly in our mock
-            const scriptContent = JSON.stringify(schemaOrgJsonLd);
-            expect(document.body.textContent).toContain(scriptContent);
+            expect(document.querySelector('script[type="application/ld+json"]')).not.toBeInTheDocument();
         });
 
-        it('renders canonical metadata discovery links including ISO describedby', () => {
+        it('does not duplicate canonical metadata discovery links in the React head', () => {
             mockUsePage.mockReturnValue({
                 props: {
                     resource: mockResource,
@@ -486,8 +484,9 @@ describe('DefaultGfzTemplate', () => {
 
             render(<DefaultGfzTemplate />);
 
-            expect(document.querySelector('link[rel="alternate"]')).toHaveAttribute('href', 'https://example.com/metadata/datacite.xml');
-            expect(document.querySelector('link[rel="describedby"]')).toHaveAttribute('href', 'https://example.com/metadata/iso-19115-3.xml');
+            expect(document.querySelector('link[rel="alternate"]')).not.toBeInTheDocument();
+            expect(document.querySelector('link[rel="describedby"]')).not.toBeInTheDocument();
+            expect(screen.getByText('Download Metadata')).toBeInTheDocument();
         });
 
         it('does not render JSON-LD script tag when schemaOrgJsonLd is not provided', () => {

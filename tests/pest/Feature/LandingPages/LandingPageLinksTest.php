@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\LandingPageController;
 use App\Models\LandingPage;
+use App\Models\LandingPageDomain;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -28,8 +29,8 @@ describe('Landing Page Links - Store', function () {
             'template' => 'default_gfz',
             'status' => 'draft',
             'links' => [
-                ['url' => 'https://gitlab.com/example/repo', 'label' => 'GitLab Repository', 'position' => 0],
-                ['url' => 'https://example.com/project', 'label' => 'Project Website', 'position' => 1],
+                ['url' => 'https://gitlab.com/example/repo', 'label' => 'GitLab Repository', 'kind' => 'repository', 'position' => 0],
+                ['url' => 'https://example.com/project', 'label' => 'Project Website', 'kind' => 'download', 'position' => 1],
             ],
         ]);
 
@@ -39,8 +40,10 @@ describe('Landing Page Links - Store', function () {
         expect($landingPage->links)->toHaveCount(2);
         expect($landingPage->links[0]->label)->toBe('GitLab Repository');
         expect($landingPage->links[0]->url)->toBe('https://gitlab.com/example/repo');
+        expect($landingPage->links[0]->kind)->toBe(LandingPageLink::KIND_REPOSITORY);
         expect($landingPage->links[0]->position)->toBe(0);
         expect($landingPage->links[1]->label)->toBe('Project Website');
+        expect($landingPage->links[1]->kind)->toBe(LandingPageLink::KIND_DOWNLOAD);
         expect($landingPage->links[1]->position)->toBe(1);
     });
 
@@ -54,6 +57,30 @@ describe('Landing Page Links - Store', function () {
 
         $landingPage = $this->resource->fresh()->landingPage;
         expect($landingPage->links)->toHaveCount(0);
+    });
+
+    test('defaults legacy link payloads without a kind to related', function () {
+        $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'status' => 'draft',
+            'links' => [
+                ['url' => 'https://example.com/project', 'label' => 'Project', 'position' => 0],
+            ],
+        ])->assertCreated();
+
+        expect($this->resource->fresh()->landingPage->links->sole()->kind)
+            ->toBe(LandingPageLink::KIND_RELATED);
+    });
+
+    test('rejects unknown machine-readable link kinds', function () {
+        $this->postJson("/resources/{$this->resource->id}/landing-page", [
+            'template' => 'default_gfz',
+            'status' => 'draft',
+            'links' => [
+                ['url' => 'https://example.com/project', 'label' => 'Project', 'kind' => 'guessed', 'position' => 0],
+            ],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('links.0.kind');
     });
 
     test('limits links to 10 per landing page', function () {
@@ -123,7 +150,7 @@ describe('Landing Page Links - Store', function () {
     });
 
     test('does not accept links for external templates', function () {
-        $domain = \App\Models\LandingPageDomain::factory()->create();
+        $domain = LandingPageDomain::factory()->create();
 
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'external',
@@ -183,7 +210,7 @@ describe('Landing Page Links - Update', function () {
     });
 
     test('clears links when switching to external template', function () {
-        $domain = \App\Models\LandingPageDomain::factory()->create();
+        $domain = LandingPageDomain::factory()->create();
 
         $landingPage = LandingPage::factory()->draft()->create([
             'resource_id' => $this->resource->id,

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\CacheKey;
 use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
@@ -12,11 +11,10 @@ use App\Services\BotProtection\LandingPageRenderDataCacheService;
 use App\Services\BotProtection\LandingPageViewCounterService;
 use App\Services\Citations\LandingPageCitationService;
 use App\Services\DataCiteLinkedDataExporter;
+use App\Services\LandingPageMachineMetadataService;
 use App\Services\LandingPageMetadataLinkService;
 use App\Services\LandingPageResourceTransformer;
 use App\Services\LandingPageTemplateResolverService;
-use App\Services\SchemaOrgJsonLdExporter;
-use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,8 +30,6 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class LandingPagePublicController extends Controller
 {
-    use ChecksCacheTagging;
-
     /**
      * Regex pattern for valid slug characters.
      * Must match the route constraint in web.php.
@@ -84,6 +80,7 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
         string $doiPrefix,
         string $slug
@@ -137,6 +134,7 @@ class LandingPagePublicController extends Controller
             $viewCounter,
             $citationService,
             $templateResolver,
+            $machineMetadataService,
             $metadataLinkService,
             $previewToken,
         );
@@ -156,6 +154,7 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
         int $resourceId,
         string $slug
@@ -187,6 +186,7 @@ class LandingPagePublicController extends Controller
             $viewCounter,
             $citationService,
             $templateResolver,
+            $machineMetadataService,
             $metadataLinkService,
             $previewToken,
         );
@@ -262,6 +262,7 @@ class LandingPagePublicController extends Controller
         LandingPageViewCounterService $viewCounter,
         LandingPageCitationService $citationService,
         LandingPageTemplateResolverService $templateResolver,
+        LandingPageMachineMetadataService $machineMetadataService,
         LandingPageMetadataLinkService $metadataLinkService,
         ?string $previewToken
     ): HttpResponse|RedirectResponse {
@@ -314,7 +315,7 @@ class LandingPagePublicController extends Controller
             $viewCounter->record($request, $landingPage);
         }
 
-        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $metadataLinkService, $previewToken): array {
+        $buildRenderData = function () use ($landingPage, $transformer, $citationService, $templateResolver, $machineMetadataService, $previewToken): array {
             // Load resource with all necessary relationships
             $resource = Resource::with($transformer->requiredRelations())
                 ->findOrFail($landingPage->resource_id);
@@ -337,14 +338,9 @@ class LandingPagePublicController extends Controller
             ];
             $customLogoUrl = $templateConfig->logo_url;
 
-            // Generate Schema.org JSON-LD for inline SEO embedding (cached per resource)
-            $cacheKey = CacheKey::SCHEMA_ORG_JSONLD->key($resource->id);
-            $schemaOrgJsonLd = $this->getCacheInstance(CacheKey::SCHEMA_ORG_JSONLD->tags())
-                ->remember($cacheKey, CacheKey::SCHEMA_ORG_JSONLD->ttl(), function () use ($resource): array {
-                    $exporter = new SchemaOrgJsonLdExporter;
-
-                    return $exporter->export($resource);
-                });
+            $machineMetadata = $previewToken === null
+                ? $machineMetadataService->for($resource, $landingPage)
+                : null;
 
             $landingPageData = $this->applyDownloadsUnavailableDisplayPolicy(
                 LandingPageController::serializeLandingPagePayload($resource, $landingPage)
@@ -360,9 +356,8 @@ class LandingPagePublicController extends Controller
                     'resource' => $resourceData,
                     'citationStyles' => $citationService->format($resource),
                     'landingPage' => $landingPageData,
-                    'metadataLinks' => $metadataLinkService->for($resource, $landingPage),
+                    'metadataLinks' => $machineMetadata['metadataLinks'] ?? [],
                     'isPreview' => (bool) $previewToken,
-                    'schemaOrgJsonLd' => $schemaOrgJsonLd,
                     'sectionOrder' => $sectionOrder,
                     'customLogoUrl' => $customLogoUrl,
                     'landingPageTemplateSource' => $resolvedTemplate['source'],
@@ -373,6 +368,9 @@ class LandingPagePublicController extends Controller
                         'citationAuthors' => $templateConfig->citation_author_display_limit,
                     ],
                 ],
+                'viewData' => $machineMetadata === null
+                    ? []
+                    : ['landingPageMachineMetadata' => $machineMetadata],
             ];
         };
 
@@ -380,12 +378,20 @@ class LandingPagePublicController extends Controller
             ? $renderDataCache->remember($landingPage, $buildRenderData)
             : $buildRenderData();
 
-        $response = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props'])
-            ->toResponse($request);
-        $metadataLinks = $renderData['props']['metadataLinks'] ?? [];
+        $inertiaResponse = Inertia::render("LandingPages/{$renderData['template']}", $renderData['props']);
+        $viewData = $renderData['viewData'] ?? [];
+        if ($viewData !== []) {
+            $inertiaResponse->withViewData($viewData);
+        }
 
-        $linkHeader = is_array($metadataLinks)
-            ? $metadataLinkService->toHttpLinkHeader($metadataLinks)
+        $response = $inertiaResponse->toResponse($request);
+        $machineMetadata = is_array($viewData['landingPageMachineMetadata'] ?? null)
+            ? $viewData['landingPageMachineMetadata']
+            : [];
+        $signpostingLinks = $machineMetadata['signpostingLinks'] ?? [];
+
+        $linkHeader = is_array($signpostingLinks)
+            ? $metadataLinkService->toSignpostingHttpLinkHeader($signpostingLinks)
             : null;
         if ($linkHeader !== null) {
             $response->headers->set('Link', $linkHeader, false);

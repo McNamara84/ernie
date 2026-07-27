@@ -26,7 +26,11 @@ class PublicMetadataExportController extends Controller
         [$resource] = $this->resolvePublishedResource($doiPrefix, $slug);
         $xml = app(DataCiteXmlExporter::class)->export($resource);
 
-        return $this->xmlDownload($xml, "{$slug}-datacite.xml");
+        return $this->xmlDownload(
+            $xml,
+            "{$slug}-datacite.xml",
+            'application/vnd.datacite.datacite+xml',
+        );
     }
 
     public function dataCiteJson(string $doiPrefix, string $slug): JsonResponse
@@ -35,7 +39,7 @@ class PublicMetadataExportController extends Controller
         $json = app(DataCiteJsonExporter::class)->export($resource);
 
         return response()->json($json, Response::HTTP_OK, [
-            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Type' => 'application/vnd.datacite.datacite+json; charset=UTF-8',
             'Content-Disposition' => $this->attachment("{$slug}-datacite.json"),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
@@ -101,10 +105,10 @@ class PublicMetadataExportController extends Controller
         return [$resource, $landingPage];
     }
 
-    private function xmlDownload(string $xml, string $filename): Response
+    private function xmlDownload(string $xml, string $filename, string $mediaType = 'application/xml'): Response
     {
         return response($xml, Response::HTTP_OK, [
-            'Content-Type' => 'application/xml; charset=UTF-8',
+            'Content-Type' => $mediaType.'; charset=UTF-8',
             'Content-Disposition' => $this->attachment($filename),
         ]);
     }

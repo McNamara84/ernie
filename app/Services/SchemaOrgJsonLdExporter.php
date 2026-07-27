@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Support\OrcidNormalizer;
 
@@ -36,28 +37,34 @@ class SchemaOrgJsonLdExporter
     ];
 
     /**
-     * Export a Resource as Schema.org Dataset JSON-LD.
+     * Export a Resource as Schema.org JSON-LD.
      *
+     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string}>, repositories: list<string>}|null  $content
      * @return array<string, mixed>
      */
-    public function export(Resource $resource): array
+    public function export(Resource $resource, ?LandingPage $landingPage = null, ?array $content = null): array
     {
         $jsonExporter = new DataCiteJsonExporter;
         $dataCiteJson = $jsonExporter->export($resource);
         $attributes = $dataCiteJson['data']['attributes'];
 
+        $isSoftware = $resource->resourceType?->slug === 'software';
         $jsonLd = [
             '@context' => 'https://schema.org/',
-            '@type' => 'Dataset',
+            '@type' => $isSoftware ? ['SoftwareSourceCode', 'SoftwareApplication'] : 'Dataset',
             'isAccessibleForFree' => true,
         ];
 
         // @id and url from DOI
         if (isset($attributes['doi'])) {
-            $doiUrl = 'https://doi.org/' . $attributes['doi'];
+            $doiUrl = 'https://doi.org/'.$attributes['doi'];
             $jsonLd['@id'] = $doiUrl;
             $jsonLd['url'] = $doiUrl;
             $jsonLd['identifier'] = $this->buildDoiIdentifier($attributes['doi']);
+        }
+
+        if ($landingPage !== null) {
+            $jsonLd['url'] = url($landingPage->getPublicPath());
         }
 
         // Name from main title
@@ -100,6 +107,10 @@ class SchemaOrgJsonLdExporter
             $jsonLd['license'] = $this->transformLicense($attributes['rightsList']);
         }
 
+        if ($content !== null) {
+            $this->applyLandingPageContent($jsonLd, $content, $isSoftware);
+        }
+
         // Spatial coverage
         if (! empty($attributes['geoLocations'])) {
             $spatial = $this->transformSpatialCoverage($attributes['geoLocations']);
@@ -135,6 +146,50 @@ class SchemaOrgJsonLdExporter
     }
 
     /**
+     * @param  array<string, mixed>  $jsonLd
+     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string}>, repositories: list<string>}  $content
+     */
+    private function applyLandingPageContent(array &$jsonLd, array $content, bool $isSoftware): void
+    {
+        $contentUrls = array_map(
+            static fn (array $link): string => $link['url'],
+            $content['contentLinks'],
+        );
+
+        if ($isSoftware) {
+            if ($content['repositories'] !== []) {
+                $jsonLd['codeRepository'] = $this->singleOrList($content['repositories']);
+            }
+
+            if ($contentUrls !== []) {
+                $jsonLd['downloadUrl'] = $this->singleOrList($contentUrls);
+            }
+
+            return;
+        }
+
+        if ($content['contentLinks'] !== []) {
+            $jsonLd['distribution'] = array_map(
+                static fn (array $link): array => [
+                    '@type' => 'DataDownload',
+                    'contentUrl' => $link['url'],
+                    'encodingFormat' => $link['mimeType'],
+                ],
+                $content['contentLinks'],
+            );
+        }
+    }
+
+    /**
+     * @param  list<string>  $values
+     * @return string|list<string>
+     */
+    private function singleOrList(array $values): string|array
+    {
+        return count($values) === 1 ? $values[0] : $values;
+    }
+
+    /**
      * Build a PropertyValue identifier for the DOI (ESIP recommendation).
      *
      * @return array<string, string>
@@ -142,11 +197,11 @@ class SchemaOrgJsonLdExporter
     private function buildDoiIdentifier(string $doi): array
     {
         return [
-            '@id' => 'https://doi.org/' . $doi,
+            '@id' => 'https://doi.org/'.$doi,
             '@type' => 'PropertyValue',
             'propertyID' => 'https://registry.identifiers.org/registry/doi',
-            'value' => 'doi:' . $doi,
-            'url' => 'https://doi.org/' . $doi,
+            'value' => 'doi:'.$doi,
+            'url' => 'https://doi.org/'.$doi,
         ];
     }
 
@@ -262,7 +317,7 @@ class SchemaOrgJsonLdExporter
                         '@id' => $orcidUrl,
                         '@type' => 'PropertyValue',
                         'propertyID' => 'https://registry.identifiers.org/registry/orcid',
-                        'value' => 'orcid:' . OrcidNormalizer::extractBareId($ni['nameIdentifier']),
+                        'value' => 'orcid:'.OrcidNormalizer::extractBareId($ni['nameIdentifier']),
                         'url' => $orcidUrl,
                     ];
                     break;
@@ -353,7 +408,7 @@ class SchemaOrgJsonLdExporter
         }
 
         // Single date becomes open-ended range
-        return $dateValue . '/..';
+        return $dateValue.'/..';
     }
 
     /**
@@ -407,7 +462,7 @@ class SchemaOrgJsonLdExporter
             if (! empty($rights['schemeUri'])) {
                 $spdxUri = rtrim($rights['schemeUri'], '/');
                 if (! empty($rights['rightsIdentifier'])) {
-                    $spdxUri .= '/' . $rights['rightsIdentifier'];
+                    $spdxUri .= '/'.$rights['rightsIdentifier'];
                 }
                 $uris[] = $spdxUri;
             }
@@ -473,7 +528,7 @@ class SchemaOrgJsonLdExporter
                     ),
                 ));
                 $pairs = array_map(
-                    fn (array $p): string => $p['pointLatitude'] . ' ' . $p['pointLongitude'],
+                    fn (array $p): string => $p['pointLatitude'].' '.$p['pointLongitude'],
                     $points
                 );
                 $place['geo'] = [
@@ -574,11 +629,11 @@ class SchemaOrgJsonLdExporter
                         // canonical resolver URL so we never emit
                         // `https://doi.org/https://doi.org/...`.
                         $bareDoi = $this->stripDoiPrefix($idVal);
-                        $entry['@id'] = 'https://doi.org/' . $this->encodeDoiPath($bareDoi);
+                        $entry['@id'] = 'https://doi.org/'.$this->encodeDoiPath($bareDoi);
                         $entry['identifier'] = [
                             '@type' => 'PropertyValue',
                             'propertyID' => 'https://registry.identifiers.org/registry/doi',
-                            'value' => 'doi:' . $bareDoi,
+                            'value' => 'doi:'.$bareDoi,
                         ];
                     } elseif ($idType === 'URL') {
                         $entry['url'] = $idVal;
@@ -632,17 +687,17 @@ class SchemaOrgJsonLdExporter
             // Bibliographic details
             $bibParts = [];
             if (isset($ri['volume'])) {
-                $bibParts[] = 'Vol. ' . $ri['volume'];
+                $bibParts[] = 'Vol. '.$ri['volume'];
             }
             if (isset($ri['issue'])) {
-                $bibParts[] = 'Issue ' . $ri['issue'];
+                $bibParts[] = 'Issue '.$ri['issue'];
             }
             if (isset($ri['firstPage'])) {
                 $pages = (string) $ri['firstPage'];
                 if (isset($ri['lastPage'])) {
-                    $pages .= '-' . (string) $ri['lastPage'];
+                    $pages .= '-'.(string) $ri['lastPage'];
                 }
-                $bibParts[] = 'pp. ' . $pages;
+                $bibParts[] = 'pp. '.$pages;
             }
             if ($bibParts !== []) {
                 $entry['description'] = implode(', ', $bibParts);
