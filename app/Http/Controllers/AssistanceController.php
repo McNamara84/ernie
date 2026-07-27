@@ -6,8 +6,10 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\BatchSuggestionValidationException;
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
+use App\Http\Requests\Assistance\AcceptSuggestionRequest;
 use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
+use App\Models\RelationType;
 use App\Models\User;
 use App\Services\Assistance\AssistanceReviewService;
 use App\Services\Assistance\AssistantRegistrar;
@@ -52,7 +54,40 @@ class AssistanceController extends Controller
         return Inertia::render('assistance', [
             ...$review,
             'manifests' => $manifests,
+            'relationTypes' => $this->relationTypeOptions(),
         ]);
+    }
+
+    /**
+     * @return list<array{id: int, name: string, slug: string, usage_count: int, is_most_used: bool}>
+     */
+    private function relationTypeOptions(): array
+    {
+        $ranked = RelationType::query()
+            ->select(['relation_types.id', 'relation_types.name', 'relation_types.slug'])
+            ->active()
+            ->withCount('relatedIdentifiers')
+            ->orderByDesc('related_identifiers_count')
+            ->orderBy('name')
+            ->get();
+
+        $mostUsed = $ranked->take(5);
+        $mostUsedIds = array_fill_keys($mostUsed->pluck('id')->all(), true);
+        $remaining = $ranked->skip(5)
+            ->sortBy(fn (RelationType $type): string => mb_strtolower($type->name))
+            ->values();
+
+        return array_values($mostUsed
+            ->concat($remaining)
+            ->map(fn (RelationType $type): array => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'slug' => $type->slug,
+                'usage_count' => (int) $type->getAttribute('related_identifiers_count'),
+                'is_most_used' => isset($mostUsedIds[$type->id]),
+            ])
+            ->values()
+            ->all());
     }
 
     /**
@@ -129,7 +164,7 @@ class AssistanceController extends Controller
     /**
      * Accept a suggestion from any assistant.
      */
-    public function accept(Request $request, int $suggestion): JsonResponse
+    public function accept(AcceptSuggestionRequest $request, int $suggestion): JsonResponse
     {
         $assistantId = $request->route('assistantId');
         $assistant = $this->registrar->get((string) $assistantId);
@@ -138,7 +173,7 @@ class AssistanceController extends Controller
             return response()->json(['error' => 'Unknown assistant.'], 404);
         }
 
-        $result = $assistant->acceptSuggestion($suggestion);
+        $result = $assistant->acceptSuggestion($suggestion, $request->validated());
 
         return response()->json($result);
     }

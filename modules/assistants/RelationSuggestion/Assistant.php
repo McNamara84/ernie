@@ -95,6 +95,7 @@ class Assistant extends AbstractAssistant
             'identifier' => $suggestion->identifier,
             'identifier_type' => $suggestion->identifierType->slug ?? '',
             'identifier_type_name' => $suggestion->identifierType->name ?? '',
+            'relation_type_id' => $suggestion->relation_type_id,
             'relation_type' => $suggestion->relationType->slug ?? '',
             'relation_type_name' => $suggestion->relationType->name ?? '',
             'source' => $suggestion->source,
@@ -129,6 +130,30 @@ class Assistant extends AbstractAssistant
     {
         /** @var SuggestedRelation $suggestion */
         return $this->service->acceptRelation($suggestion);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    #[\Override]
+    protected function acceptWithInput(Model $suggestion, array $input): array
+    {
+        /** @var SuggestedRelation $suggestion */
+        $relationTypeId = $input['relation_type_id'] ?? null;
+
+        if (is_string($relationTypeId)) {
+            $relationTypeId = filter_var($relationTypeId, FILTER_VALIDATE_INT);
+        }
+
+        if ($relationTypeId !== null && ! is_int($relationTypeId)) {
+            return [
+                'success' => false,
+                'datacite_synced' => false,
+                'message' => 'The selected relation type is invalid.',
+            ];
+        }
+
+        return $this->service->acceptRelation($suggestion, $relationTypeId);
     }
 
     #[\Override]

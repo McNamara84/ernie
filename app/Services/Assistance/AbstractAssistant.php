@@ -63,6 +63,17 @@ abstract class AbstractAssistant implements AssistantContract
     abstract protected function accept(Model $suggestion): array;
 
     /**
+     * Apply assistant-specific acceptance input before accepting a suggestion.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    protected function acceptWithInput(Model $suggestion, array $input): array
+    {
+        return $this->accept($suggestion);
+    }
+
+    /**
      * Record a declined suggestion so it won't be suggested again.
      */
     abstract protected function decline(Model $suggestion, User $user, ?string $reason): void;
@@ -178,7 +189,7 @@ abstract class AbstractAssistant implements AssistantContract
         return $suggestion === null ? null : $this->present($suggestion);
     }
 
-    public function acceptSuggestion(int $id): array
+    public function acceptSuggestion(int $id, array $input = []): array
     {
         $suggestion = $this->findById($id);
 
@@ -186,7 +197,7 @@ abstract class AbstractAssistant implements AssistantContract
             return ['success' => false, 'message' => 'Suggestion not found.'];
         }
 
-        $result = $this->accept($suggestion);
+        $result = $this->acceptWithInput($suggestion, $input);
 
         $this->forgetTotalPendingCount();
 

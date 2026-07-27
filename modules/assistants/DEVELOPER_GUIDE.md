@@ -390,7 +390,7 @@ classDiagram
         +dispatchDiscovery(jobId, lockOwner) void
         +getJobStatusCacheKey(jobId) string
         +getLockKey() string
-        +acceptSuggestion(id) array
+        +acceptSuggestion(id, input = []) array
         +declineSuggestion(id, user, reason) void
     }
 
@@ -402,9 +402,10 @@ classDiagram
         #transform(model)* array
         #findById(id)* Model
         #accept(model)* array
+        #acceptWithInput(model, input) array
         #decline(model, user, reason)* void
         +loadSuggestions(perPage) LengthAwarePaginator
-        +acceptSuggestion(id) array
+        +acceptSuggestion(id, input = []) array
         +declineSuggestion(id, user, reason) void
     }
 
@@ -528,7 +529,7 @@ sequenceDiagram
     Page->>Ctrl: POST /assistance/{prefix}/{id}/accept
     Ctrl->>Reg: get(assistantId)
     Reg-->>Ctrl: Assistant instance
-    Ctrl->>Asst: acceptSuggestion(id)
+    Ctrl->>Asst: acceptSuggestion(id, optional input)
     Asst->>DB: Update entity + delete suggestion
     Asst-->>Ctrl: { success: true, message: "..." }
     Ctrl-->>Page: JSON response

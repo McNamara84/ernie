@@ -18,6 +18,7 @@ import {
     type BatchSuggestionResponse,
     type PaginatedData,
     type RorAffiliationBulkMatch,
+    type SuggestionAcceptanceInput,
     type SuggestionReviewMetadata,
 } from '@/types/assistance';
 
@@ -45,6 +46,7 @@ interface ResourceReviewProps {
     onReload: () => void;
     onRorFollowUps: (matches: RorAffiliationBulkMatch[]) => void;
     renderSuggestion: (manifest: AssistantManifest, item: BaseSuggestionItem, processing: boolean) => ReactNode;
+    acceptanceInputs?: Record<string, SuggestionAcceptanceInput>;
 }
 
 function fallbackReview(item: BaseSuggestionItem, manifest: AssistantManifest): SuggestionReviewMetadata {
@@ -127,6 +129,7 @@ export function ResourceReview({
     onReload,
     onRorFollowUps,
     renderSuggestion,
+    acceptanceInputs = {},
 }: ResourceReviewProps) {
     const manifestsById = useMemo(() => new Map(manifests.map((manifest) => [manifest.id, manifest])), [manifests]);
     const [activeView, setActiveView] = useState<'all' | 'assistant'>(initialReviewView);
@@ -199,10 +202,15 @@ export function ResourceReview({
         try {
             const { data } = await axios.post<BatchSuggestionResponse>(`/assistance/suggestions/batch/${action}`, {
                 resource_id: group.resource_id,
-                suggestions: items.map((item) => ({
-                    assistant_id: item.review?.assistant_id ?? item.assistant_id,
-                    suggestion_id: item.id,
-                })),
+                suggestions: items.map((item) => {
+                    const acceptanceInput = action === 'accept' ? acceptanceInputs[identity(item)] : undefined;
+
+                    return {
+                        assistant_id: item.review?.assistant_id ?? item.assistant_id,
+                        suggestion_id: item.id,
+                        ...(acceptanceInput ?? {}),
+                    };
+                }),
             });
             const details = data.results.map((result) => `${result.assistant_name}: ${result.label} — ${result.message}`).join('\n');
 

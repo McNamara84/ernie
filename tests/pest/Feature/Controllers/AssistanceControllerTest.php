@@ -4,13 +4,20 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AssistanceController;
 use App\Models\AssistantSuggestion;
+use App\Models\DismissedRelation;
+use App\Models\IdentifierType;
 use App\Models\Person;
+use App\Models\RelatedIdentifier;
+use App\Models\RelatedItem;
+use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\SuggestedOrcid;
+use App\Models\SuggestedRelation;
 use App\Models\SuggestedRor;
 use App\Models\User;
+use App\Services\Assistance\AssistantContract;
 use App\Services\Assistance\AssistantRegistrar;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -47,6 +54,106 @@ describe('index', function () {
                 ->has('allAssistantResources')
                 ->has('pendingCounts')
                 ->has('manifests')
+            );
+    });
+
+    it('orders active relation type options by related identifier usage and exposes relation type IDs on suggestions', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $resource = Resource::factory()->create();
+        $identifierType = IdentifierType::create([
+            'name' => 'DOI',
+            'slug' => 'DOI',
+            'is_active' => true,
+        ]);
+        $relationTypes = collect([
+            ['name' => 'Zulu Unused', 'slug' => 'ZuluUnused', 'count' => 0],
+            ['name' => 'Has Part', 'slug' => 'HasPart', 'count' => 2],
+            ['name' => 'Cites', 'slug' => 'Cites', 'count' => 5],
+            ['name' => 'Alpha Unused', 'slug' => 'AlphaUnused', 'count' => 0],
+            ['name' => 'Documents', 'slug' => 'Documents', 'count' => 3],
+            ['name' => 'Compiles', 'slug' => 'Compiles', 'count' => 1],
+            ['name' => 'References', 'slug' => 'References', 'count' => 4],
+        ])->mapWithKeys(function (array $definition) use ($resource, $identifierType): array {
+            $type = RelationType::create([
+                'name' => $definition['name'],
+                'slug' => $definition['slug'],
+                'is_active' => true,
+            ]);
+
+            for ($position = 1; $position <= $definition['count']; $position++) {
+                RelatedIdentifier::create([
+                    'resource_id' => $resource->id,
+                    'identifier' => "10.1234/{$definition['slug']}.{$position}",
+                    'identifier_type_id' => $identifierType->id,
+                    'relation_type_id' => $type->id,
+                    'position' => $position,
+                ]);
+            }
+
+            return [$definition['slug'] => $type];
+        });
+
+        $inactive = RelationType::create([
+            'name' => 'Inactive Popular',
+            'slug' => 'InactivePopular',
+            'is_active' => false,
+        ]);
+        foreach (range(1, 8) as $position) {
+            RelatedIdentifier::create([
+                'resource_id' => $resource->id,
+                'identifier' => "10.1234/inactive.{$position}",
+                'identifier_type_id' => $identifierType->id,
+                'relation_type_id' => $inactive->id,
+                'position' => $position + 20,
+            ]);
+            RelatedItem::create([
+                'resource_id' => $resource->id,
+                'related_item_type' => 'Dataset',
+                'relation_type_id' => $relationTypes['ZuluUnused']->id,
+                'position' => $position,
+            ]);
+            SuggestedRelation::create([
+                'resource_id' => $resource->id,
+                'identifier' => "10.1234/open-suggestion.{$position}",
+                'identifier_type_id' => $identifierType->id,
+                'relation_type_id' => $relationTypes['ZuluUnused']->id,
+                'source' => 'scholexplorer',
+                'discovered_at' => now(),
+            ]);
+            DismissedRelation::create([
+                'resource_id' => $resource->id,
+                'identifier' => "10.1234/dismissed.{$position}",
+                'relation_type_id' => $relationTypes['ZuluUnused']->id,
+                'dismissed_by' => $user->id,
+            ]);
+        }
+
+        $suggestion = SuggestedRelation::create([
+            'resource_id' => $resource->id,
+            'identifier' => '10.1234/suggested',
+            'identifier_type_id' => $identifierType->id,
+            'relation_type_id' => $relationTypes['Cites']->id,
+            'source' => 'scholexplorer',
+            'discovered_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('relationTypes', 7)
+                ->where('relationTypes.0.slug', 'Cites')
+                ->where('relationTypes.0.usage_count', 5)
+                ->where('relationTypes.0.is_most_used', true)
+                ->where('relationTypes.1.slug', 'References')
+                ->where('relationTypes.2.slug', 'Documents')
+                ->where('relationTypes.3.slug', 'HasPart')
+                ->where('relationTypes.4.slug', 'Compiles')
+                ->where('relationTypes.5.slug', 'AlphaUnused')
+                ->where('relationTypes.5.is_most_used', false)
+                ->where('relationTypes.6.slug', 'ZuluUnused')
+                ->where('sections.relation-suggestion.data.0.suggestions.0.id', $suggestion->id)
+                ->where('sections.relation-suggestion.data.0.suggestions.0.relation_type_id', $relationTypes['Cites']->id)
             );
     });
 
@@ -284,6 +391,30 @@ describe('accept', function () {
             ->post('/assistance/relations/99999/accept')
             ->assertOk()
             ->assertJson(['success' => false]);
+    });
+
+    it('forwards a validated active relation type override to the assistant', function () {
+        $user = User::factory()->create(['role' => 'admin']);
+        $relationType = RelationType::create([
+            'name' => 'References',
+            'slug' => 'References',
+            'is_active' => true,
+        ]);
+        $registrar = new AssistantRegistrar;
+        $assistant = Mockery::mock(AssistantContract::class);
+        $assistant->shouldReceive('getId')->once()->andReturn('relation-suggestion');
+        $assistant->shouldReceive('countPending')->andReturn(0);
+        $assistant->shouldReceive('acceptSuggestion')
+            ->once()
+            ->with(123, ['relation_type_id' => $relationType->id])
+            ->andReturn(['success' => true, 'message' => 'Accepted with override.']);
+        $registrar->register($assistant);
+        app()->instance(AssistantRegistrar::class, $registrar);
+
+        $this->actingAs($user)
+            ->postJson('/assistance/relations/123/accept', ['relation_type_id' => $relationType->id])
+            ->assertOk()
+            ->assertJson(['success' => true, 'message' => 'Accepted with override.']);
     });
 });
 
