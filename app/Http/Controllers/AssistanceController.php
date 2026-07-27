@@ -43,17 +43,24 @@ class AssistanceController extends Controller
     public function index(Request $request): Response
     {
         $perPage = max(1, min((int) $request->input('per_page', 25), 100));
+        $assistants = $this->registrar->getAll();
         $manifests = [];
 
-        foreach ($this->registrar->getAll() as $assistant) {
+        foreach ($assistants as $assistant) {
             $manifests[] = $assistant->getManifest()->toArray();
         }
 
         $review = $this->reviewService->build($request, $perPage);
+        $user = $request->user();
+        $savedCollapsedAssistantIds = $user instanceof User ? $user->assistance_collapsed_assistant_ids : null;
+        $collapsedAssistantIds = is_array($savedCollapsedAssistantIds)
+            ? array_values(array_intersect(array_keys($assistants), $savedCollapsedAssistantIds))
+            : null;
 
         return Inertia::render('assistance', [
             ...$review,
             'manifests' => $manifests,
+            'assistanceCollapsedAssistantIds' => $collapsedAssistantIds,
             'relationTypes' => $this->relationTypeOptions(),
         ]);
     }

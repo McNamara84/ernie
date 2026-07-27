@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DatacenterController;
 use App\Http\Controllers\LandingPageDomainController;
+use App\Http\Controllers\Settings\AssistanceAccordionController;
 use App\Http\Controllers\Settings\CurationAccordionController;
 use App\Http\Controllers\Settings\EditorSettingsController;
 use App\Http\Controllers\Settings\FontSizeController;
@@ -39,6 +40,7 @@ Route::middleware('auth')->group(function () {
 
     Route::put('settings/font-size', [FontSizeController::class, 'update'])->name('font-size.update');
     Route::put('settings/curation-accordion', [CurationAccordionController::class, 'update'])->name('curation-accordion.update');
+    Route::put('settings/assistance-accordion', [AssistanceAccordionController::class, 'update'])->name('assistance-accordion.update');
 
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');

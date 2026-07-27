@@ -1486,7 +1486,13 @@ function useSectionState(manifests: AssistantManifest[]) {
 
 // ── Main page component ──────────────────────────────────────────────
 
-export default function AssistancePage({ sections, manifests, allAssistantResources, pendingCounts, relationTypes = [] }: AssistancePageProps) {
+export default function AssistancePage({
+    sections,
+    manifests,
+    allAssistantResources,
+    assistanceCollapsedAssistantIds,
+    relationTypes = [],
+}: AssistancePageProps) {
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
     const [acceptanceInputs, setAcceptanceInputs] = useState<Record<string, SuggestionAcceptanceInput>>({});
 
@@ -1990,7 +1996,7 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
                         allAssistantResources={allAssistantResources}
                         sections={sections}
                         manifests={manifests}
-                        pendingCounts={pendingCounts}
+                        assistanceCollapsedAssistantIds={assistanceCollapsedAssistantIds}
                         checking={Object.fromEntries(manifests.map((manifest) => [manifest.id, states[manifest.id]?.isChecking ?? false]))}
                         onCheck={handleCheck}
                         onReload={reloadAssistanceSections}

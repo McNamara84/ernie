@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor } from '@tests/vitest/utils/render';
 import axios from 'axios';
@@ -14,7 +15,7 @@ vi.mock('@inertiajs/react', () => ({
             {children}
         </a>
     ),
-    router: { get: vi.fn() },
+    router: { get: vi.fn(), put: vi.fn() },
 }));
 vi.mock('axios', () => ({ default: { post: vi.fn(), isAxiosError: vi.fn(() => false) } }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }));
@@ -57,7 +58,11 @@ function page(group: AssistanceResourceGroup): PaginatedData<AssistanceResourceG
     return { data: [group], current_page: 1, last_page: 1, per_page: 25, total: 1, from: 1, to: 1, links: [] };
 }
 
-function renderReview(items: BaseSuggestionItem[], acceptanceInputs: Record<string, SuggestionAcceptanceInput> = {}) {
+function renderReview(
+    items: BaseSuggestionItem[],
+    acceptanceInputs: Record<string, SuggestionAcceptanceInput> = {},
+    options: { collapsedAssistantIds?: string[] | null; total?: number; lastPage?: number } = {},
+) {
     const group: AssistanceResourceGroup = {
         resource_id: 10,
         resource_doi: '10.1234/test',
@@ -66,6 +71,8 @@ function renderReview(items: BaseSuggestionItem[], acceptanceInputs: Record<stri
         suggestions: items,
     };
     const data = page(group);
+    data.total = options.total ?? data.total;
+    data.last_page = options.lastPage ?? data.last_page;
     const onReload = vi.fn();
     const onRorFollowUps = vi.fn();
 
@@ -74,7 +81,7 @@ function renderReview(items: BaseSuggestionItem[], acceptanceInputs: Record<stri
             allAssistantResources={data}
             sections={{ [manifest.id]: data }}
             manifests={[manifest]}
-            pendingCounts={{ [manifest.id]: items.length }}
+            assistanceCollapsedAssistantIds={options.collapsedAssistantIds}
             checking={{ [manifest.id]: false }}
             onCheck={vi.fn()}
             onReload={onReload}
@@ -171,7 +178,7 @@ describe('resource-oriented assistance review', () => {
         await user.click(screen.getByRole('tab', { name: 'By assistant' }));
 
         expect(window.localStorage.getItem('assistance.review-view')).toBe('assistant');
-        expect(screen.getByRole('heading', { name: manifest.name })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' })).toBeInTheDocument();
     });
 
     it('restores a valid preference and ignores invalid stored values', () => {
@@ -183,6 +190,147 @@ describe('resource-oriented assistance review', () => {
         window.localStorage.setItem('assistance.review-view', 'invalid');
         renderReview([suggestion(1, 'Invalid stored view candidate')]);
         expect(screen.getByRole('tab', { name: 'All assistants' })).toHaveAttribute('data-state', 'active');
+    });
+
+    it('opens every Assistant by default and uses resource terminology for the total and pagination', async () => {
+        const user = userEvent.setup();
+        renderReview([suggestion(1, 'First candidate'), suggestion(2, 'Second candidate')], {}, { total: 7, lastPage: 2 });
+
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        const trigger = screen.getByRole('button', { name: 'Test assistant, 7 resources with suggestions' });
+        expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText('7 resources with suggestions')).toBeInTheDocument();
+        expect(screen.getByText('Showing 1–1 of 7 resources')).toBeInTheDocument();
+        expect(screen.queryByText(/2 pending suggestion/)).not.toBeInTheDocument();
+        expect(screen.getByText(manifest.description)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: `Check ${manifest.name}` })).toBeInTheDocument();
+    });
+
+    it('restores a collapsed Assistant with only its name, resource total, and trigger visible', async () => {
+        const user = userEvent.setup();
+        renderReview([suggestion(1, 'Stored collapsed candidate')], {}, { collapsedAssistantIds: [manifest.id] });
+
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        const trigger = screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' });
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByText(manifest.name)).toBeInTheDocument();
+        expect(screen.getByText('1 resource with suggestions')).toBeInTheDocument();
+        expect(screen.queryByText(manifest.description)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `Check ${manifest.name}` })).not.toBeInTheDocument();
+        expect(screen.queryByTestId(`assistance-results-${manifest.id}`)).not.toBeInTheDocument();
+    });
+
+    it('persists an individual Assistant toggle after the preference debounce', async () => {
+        const user = userEvent.setup();
+        renderReview([suggestion(1, 'Toggle candidate')]);
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        await user.click(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' }));
+
+        await waitFor(() =>
+            expect(vi.mocked(router.put)).toHaveBeenCalledWith(
+                '/settings/assistance-accordion',
+                { collapsed_assistant_ids: [manifest.id] },
+                expect.objectContaining({
+                    preserveScroll: true,
+                    preserveState: true,
+                    only: ['assistanceCollapsedAssistantIds'],
+                }),
+            ),
+        );
+    });
+
+    it('collapses and expands all Assistants immediately with matching disabled states', async () => {
+        const user = userEvent.setup();
+        renderReview([suggestion(1, 'Bulk toggle candidate')]);
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        const collapseAll = screen.getByRole('button', { name: 'Collapse all' });
+        const expandAll = screen.getByRole('button', { name: 'Expand all' });
+        expect(collapseAll).toBeEnabled();
+        expect(expandAll).toBeDisabled();
+
+        await user.click(collapseAll);
+
+        expect(vi.mocked(router.put)).toHaveBeenLastCalledWith(
+            '/settings/assistance-accordion',
+            { collapsed_assistant_ids: [manifest.id] },
+            expect.any(Object),
+        );
+        expect(collapseAll).toBeDisabled();
+        expect(expandAll).toBeEnabled();
+
+        await user.click(expandAll);
+
+        expect(vi.mocked(router.put)).toHaveBeenLastCalledWith('/settings/assistance-accordion', { collapsed_assistant_ids: [] }, expect.any(Object));
+        expect(collapseAll).toBeEnabled();
+        expect(expandAll).toBeDisabled();
+    });
+
+    it('reports profile persistence failures without blocking the local accordion state', async () => {
+        const user = userEvent.setup();
+        renderReview([suggestion(1, 'Failed persistence candidate')]);
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        await user.click(screen.getByRole('button', { name: 'Collapse all' }));
+        const options = vi.mocked(router.put).mock.calls.at(-1)?.[2];
+        options?.onError?.({});
+
+        expect(toast.error).toHaveBeenCalledWith('Failed to save the assistant display preference.');
+        expect(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' })).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('keeps newly registered Assistants expanded when they are absent from the stored collapsed IDs', async () => {
+        const user = userEvent.setup();
+        const newManifest: AssistantManifest = {
+            ...manifest,
+            id: 'new-assistant',
+            name: 'New assistant',
+            description: 'Reviews newly supported metadata.',
+            routePrefix: 'new-assistant',
+            emptyState: { title: 'No new work', description: 'The new assistant has nothing pending.' },
+        };
+        const existingGroup: AssistanceResourceGroup = {
+            resource_id: 10,
+            resource_doi: '10.1234/test',
+            resource_title: 'Test resource',
+            suggestion_count: 1,
+            suggestions: [suggestion(1, 'Existing candidate')],
+        };
+        const existingPage = page(existingGroup);
+        const newPage: PaginatedData<AssistanceResourceGroup> = {
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            per_page: 25,
+            total: 0,
+            from: null,
+            to: null,
+            links: [],
+        };
+
+        render(
+            <ResourceReview
+                allAssistantResources={existingPage}
+                sections={{ [manifest.id]: existingPage, [newManifest.id]: newPage }}
+                manifests={[manifest, newManifest]}
+                assistanceCollapsedAssistantIds={[manifest.id]}
+                checking={{ [manifest.id]: false, [newManifest.id]: false }}
+                onCheck={vi.fn()}
+                onReload={vi.fn()}
+                onRorFollowUps={vi.fn()}
+                renderSuggestion={(_manifest, item) => <p>{String(item.suggested_label)}</p>}
+            />,
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'By assistant' }));
+
+        expect(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' })).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: 'New assistant, 0 resources with suggestions' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByText(newManifest.description)).toBeInTheDocument();
+        expect(screen.getByText(newManifest.emptyState.title)).toBeInTheDocument();
     });
 
     it('selects only compatible single candidates and blocks accepting decline-only hints', async () => {

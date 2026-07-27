@@ -54,6 +54,24 @@ describe('index', function () {
                 ->has('allAssistantResources')
                 ->has('pendingCounts')
                 ->has('manifests')
+                ->where('assistanceCollapsedAssistantIds', null)
+            );
+    });
+
+    it('exposes only registered collapsed Assistant IDs from the user profile', function () {
+        /** @var AssistantRegistrar $registrar */
+        $registrar = app(AssistantRegistrar::class);
+        $assistantId = (string) array_key_first($registrar->getAll());
+        $user = User::factory()->create([
+            'role' => 'admin',
+            'assistance_collapsed_assistant_ids' => [$assistantId, 'removed-assistant'],
+        ]);
+
+        $this->actingAs($user)
+            ->get('/assistance')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('assistanceCollapsedAssistantIds', [$assistantId])
             );
     });
 

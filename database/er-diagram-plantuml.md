@@ -193,6 +193,7 @@ entity "users" as users {
     remember_token : VARCHAR
     * font_size_preference : VARCHAR = 'regular'
     curation_accordion_open_items : JSON <<nullable>>
+    assistance_collapsed_assistant_ids : JSON <<nullable>>
     * role : VARCHAR = 'curator'
     * is_active : BOOLEAN = true
     deactivated_at : TIMESTAMP
