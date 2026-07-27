@@ -507,7 +507,7 @@ export function ResourceReview({
     const renderAssistantSection = (manifest: AssistantManifest) => {
         const data = normalizedSections[manifest.id];
         const isOpen = openAssistantIds.includes(manifest.id);
-        const datasetLabel = `${data.total} ${data.total === 1 ? 'dataset' : 'datasets'} with suggestions`;
+        const resourceLabel = `${data.total} ${data.total === 1 ? 'resource' : 'resources'} with suggestions`;
 
         return (
             <AccordionItem
@@ -518,7 +518,7 @@ export function ResourceReview({
             >
                 <AccordionTrigger
                     className="px-6 py-6 hover:no-underline"
-                    aria-label={`${manifest.name}, ${datasetLabel}`}
+                    aria-label={`${manifest.name}, ${resourceLabel}`}
                     actions={
                         isOpen ? (
                             <Button variant="outline" size="sm" className="mr-6" disabled={checking[manifest.id]} onClick={() => onCheck(manifest)}>
@@ -530,7 +530,7 @@ export function ResourceReview({
                 >
                     <span className="flex flex-col gap-1.5">
                         <span className="text-base leading-none font-semibold tracking-tight">{manifest.name}</span>
-                        <span className="text-sm font-normal text-muted-foreground">{datasetLabel}</span>
+                        <span className="text-sm font-normal text-muted-foreground">{resourceLabel}</span>
                         {isOpen && <span className="text-sm font-normal text-muted-foreground">{manifest.description}</span>}
                     </span>
                 </AccordionTrigger>

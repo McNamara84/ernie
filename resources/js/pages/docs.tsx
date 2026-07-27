@@ -590,7 +590,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
 
                         <p>
                             In the <strong>By assistant</strong> view, each assistant section can be collapsed independently. A collapsed section
-                            shows the assistant name and the number of datasets with suggestions; it deliberately does not show the usually larger
+                            shows the assistant name and the number of resources with suggestions; it deliberately does not show the usually larger
                             number of individual suggestions. Use <strong>Collapse all</strong> or <strong>Expand all</strong> to change every
                             assistant section at once. ERNIE saves these section states in your user profile and restores them the next time you open
                             Assistance, including on another browser or device.

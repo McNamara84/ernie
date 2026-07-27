@@ -61,7 +61,7 @@ function page(group: AssistanceResourceGroup): PaginatedData<AssistanceResourceG
 function renderReview(
     items: BaseSuggestionItem[],
     acceptanceInputs: Record<string, SuggestionAcceptanceInput> = {},
-    options: { collapsedAssistantIds?: string[] | null; total?: number } = {},
+    options: { collapsedAssistantIds?: string[] | null; total?: number; lastPage?: number } = {},
 ) {
     const group: AssistanceResourceGroup = {
         resource_id: 10,
@@ -72,6 +72,7 @@ function renderReview(
     };
     const data = page(group);
     data.total = options.total ?? data.total;
+    data.last_page = options.lastPage ?? data.last_page;
     const onReload = vi.fn();
     const onRorFollowUps = vi.fn();
 
@@ -177,7 +178,7 @@ describe('resource-oriented assistance review', () => {
         await user.click(screen.getByRole('tab', { name: 'By assistant' }));
 
         expect(window.localStorage.getItem('assistance.review-view')).toBe('assistant');
-        expect(screen.getByRole('button', { name: 'Test assistant, 1 dataset with suggestions' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' })).toBeInTheDocument();
     });
 
     it('restores a valid preference and ignores invalid stored values', () => {
@@ -191,15 +192,16 @@ describe('resource-oriented assistance review', () => {
         expect(screen.getByRole('tab', { name: 'All assistants' })).toHaveAttribute('data-state', 'active');
     });
 
-    it('opens every Assistant by default and shows the resource total instead of the suggestion count', async () => {
+    it('opens every Assistant by default and uses resource terminology for the total and pagination', async () => {
         const user = userEvent.setup();
-        renderReview([suggestion(1, 'First candidate'), suggestion(2, 'Second candidate')], {}, { total: 7 });
+        renderReview([suggestion(1, 'First candidate'), suggestion(2, 'Second candidate')], {}, { total: 7, lastPage: 2 });
 
         await user.click(screen.getByRole('tab', { name: 'By assistant' }));
 
-        const trigger = screen.getByRole('button', { name: 'Test assistant, 7 datasets with suggestions' });
+        const trigger = screen.getByRole('button', { name: 'Test assistant, 7 resources with suggestions' });
         expect(trigger).toHaveAttribute('aria-expanded', 'true');
-        expect(screen.getByText('7 datasets with suggestions')).toBeInTheDocument();
+        expect(screen.getByText('7 resources with suggestions')).toBeInTheDocument();
+        expect(screen.getByText('Showing 1–1 of 7 resources')).toBeInTheDocument();
         expect(screen.queryByText(/2 pending suggestion/)).not.toBeInTheDocument();
         expect(screen.getByText(manifest.description)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: `Check ${manifest.name}` })).toBeInTheDocument();
@@ -211,10 +213,10 @@ describe('resource-oriented assistance review', () => {
 
         await user.click(screen.getByRole('tab', { name: 'By assistant' }));
 
-        const trigger = screen.getByRole('button', { name: 'Test assistant, 1 dataset with suggestions' });
+        const trigger = screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' });
         expect(trigger).toHaveAttribute('aria-expanded', 'false');
         expect(screen.getByText(manifest.name)).toBeInTheDocument();
-        expect(screen.getByText('1 dataset with suggestions')).toBeInTheDocument();
+        expect(screen.getByText('1 resource with suggestions')).toBeInTheDocument();
         expect(screen.queryByText(manifest.description)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `Check ${manifest.name}` })).not.toBeInTheDocument();
         expect(screen.queryByTestId(`assistance-results-${manifest.id}`)).not.toBeInTheDocument();
@@ -225,7 +227,7 @@ describe('resource-oriented assistance review', () => {
         renderReview([suggestion(1, 'Toggle candidate')]);
         await user.click(screen.getByRole('tab', { name: 'By assistant' }));
 
-        await user.click(screen.getByRole('button', { name: 'Test assistant, 1 dataset with suggestions' }));
+        await user.click(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' }));
 
         await waitFor(() =>
             expect(vi.mocked(router.put)).toHaveBeenCalledWith(
@@ -277,7 +279,7 @@ describe('resource-oriented assistance review', () => {
         options?.onError?.({});
 
         expect(toast.error).toHaveBeenCalledWith('Failed to save the assistant display preference.');
-        expect(screen.getByRole('button', { name: 'Test assistant, 1 dataset with suggestions' })).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' })).toHaveAttribute('aria-expanded', 'false');
     });
 
     it('keeps newly registered Assistants expanded when they are absent from the stored collapsed IDs', async () => {
@@ -325,8 +327,8 @@ describe('resource-oriented assistance review', () => {
 
         await user.click(screen.getByRole('tab', { name: 'By assistant' }));
 
-        expect(screen.getByRole('button', { name: 'Test assistant, 1 dataset with suggestions' })).toHaveAttribute('aria-expanded', 'false');
-        expect(screen.getByRole('button', { name: 'New assistant, 0 datasets with suggestions' })).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: 'Test assistant, 1 resource with suggestions' })).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: 'New assistant, 0 resources with suggestions' })).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByText(newManifest.description)).toBeInTheDocument();
         expect(screen.getByText(newManifest.emptyState.title)).toBeInTheDocument();
     });
