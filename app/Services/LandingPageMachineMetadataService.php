@@ -19,7 +19,7 @@ final class LandingPageMachineMetadataService
 
     public function __construct(
         private readonly LandingPageContentLinkService $contentLinkService,
-        private readonly LandingPageLicenseResolver $licenseResolver,
+        private readonly LandingPageLicenseResolverService $licenseResolver,
         private readonly LandingPageMetadataLinkService $metadataLinkService,
         private readonly SchemaOrgJsonLdExporter $schemaOrgExporter,
         private readonly DataCiteJsonExporter $dataCiteExporter,

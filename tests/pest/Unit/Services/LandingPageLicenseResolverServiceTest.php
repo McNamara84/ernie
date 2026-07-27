@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Services\LandingPageLicenseResolver;
+use App\Services\LandingPageLicenseResolverService;
 
-covers(LandingPageLicenseResolver::class);
+covers(LandingPageLicenseResolverService::class);
 
 test('prefers the first valid SPDX license over earlier rights URIs', function () {
     $rightsList = [
@@ -18,7 +18,7 @@ test('prefers the first valid SPDX license over earlier rights URIs', function (
         ],
     ];
 
-    expect(app(LandingPageLicenseResolver::class)->resolve($rightsList))
+    expect(app(LandingPageLicenseResolverService::class)->resolve($rightsList))
         ->toBe('https://spdx.org/licenses/CC-BY-4.0');
 });
 
@@ -29,12 +29,12 @@ test('falls back to the first valid rights URI in stable order', function () {
         ['rights' => 'Second valid', 'rightsUri' => 'https://example.org/license-b'],
     ];
 
-    expect(app(LandingPageLicenseResolver::class)->resolve($rightsList))
+    expect(app(LandingPageLicenseResolverService::class)->resolve($rightsList))
         ->toBe('https://example.org/license-a');
 });
 
 test('returns null when no safe HTTP license URI exists', function () {
-    expect(app(LandingPageLicenseResolver::class)->resolve([
+    expect(app(LandingPageLicenseResolverService::class)->resolve([
         ['rights' => 'Text only'],
         ['rights' => 'Local file', 'rightsUri' => 'file:///tmp/license'],
         ['rights' => 'Script', 'rightsUri' => 'javascript:alert(1)'],

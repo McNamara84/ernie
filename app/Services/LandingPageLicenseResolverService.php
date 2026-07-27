@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-final class LandingPageLicenseResolver
+final class LandingPageLicenseResolverService
 {
     /** @param array<int, mixed> $rightsList */
     public function resolve(array $rightsList): ?string
