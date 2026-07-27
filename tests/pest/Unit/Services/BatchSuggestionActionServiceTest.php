@@ -79,6 +79,34 @@ it('executes a validated batch and returns complete per-item feedback', function
         ->and($result['results'][1]['message'])->toBe('Stale suggestion.');
 });
 
+it('forwards a relation type override only when accepting', function (): void {
+    [$registrar, $assistant] = registerBatchAssistant([
+        1 => reviewSuggestion(1, 10),
+        2 => reviewSuggestion(2, 10),
+        3 => reviewSuggestion(3, 10),
+    ]);
+    $user = new User;
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(1, ['relation_type_id' => 42])->andReturn([
+        'success' => true, 'message' => 'Accepted with first override.',
+    ]);
+    $assistant->shouldReceive('acceptSuggestion')->once()->with(2, ['relation_type_id' => 43])->andReturn([
+        'success' => true, 'message' => 'Accepted with second override.',
+    ]);
+    $assistant->shouldReceive('declineSuggestion')->once()->with(3, $user, null)->andReturn([
+        'success' => true,
+        'message' => 'Declined.',
+    ]);
+
+    $service = new BatchSuggestionActionService($registrar);
+    $service->execute('accept', 10, [
+        ['assistant_id' => 'test-assistant', 'suggestion_id' => 1, 'relation_type_id' => 42],
+        ['assistant_id' => 'test-assistant', 'suggestion_id' => 2, 'relation_type_id' => 43],
+    ], $user);
+    $service->execute('decline', 10, [[
+        'assistant_id' => 'test-assistant', 'suggestion_id' => 3, 'relation_type_id' => 42,
+    ]], $user);
+});
+
 it('allows multiple exclusive alternatives to be declined', function (): void {
     [$registrar, $assistant] = registerBatchAssistant([
         1 => reviewSuggestion(1, 10, 'person:5'),

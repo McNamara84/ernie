@@ -99,9 +99,10 @@ interface AssistantContract
     /**
      * Accept a suggestion by its ID and apply the enrichment.
      *
+     * @param  array<string, mixed>  $input  Optional assistant-specific acceptance input
      * @return array<string, mixed> Result data (e.g. success status, message)
      */
-    public function acceptSuggestion(int $id): array;
+    public function acceptSuggestion(int $id, array $input = []): array;
 
     /**
      * Decline a suggestion by its ID, recording who declined and why.

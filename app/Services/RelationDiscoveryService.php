@@ -241,19 +241,28 @@ class RelationDiscoveryService
      *
      * @return array{success: bool, datacite_synced: bool, message: string}
      */
-    public function acceptRelation(SuggestedRelation $suggestion): array
+    public function acceptRelation(SuggestedRelation $suggestion, ?int $relationTypeId = null): array
     {
+        if ($relationTypeId !== null && ! RelationType::query()->active()->whereKey($relationTypeId)->exists()) {
+            return [
+                'success' => false,
+                'datacite_synced' => false,
+                'message' => 'The selected relation type is not available.',
+            ];
+        }
+
+        $effectiveRelationTypeId = $relationTypeId ?? $suggestion->relation_type_id;
         $resource = $suggestion->resource;
         $alreadyExists = RelatedIdentifier::where('resource_id', $resource->id)
             ->where('identifier', $suggestion->identifier)
-            ->where('relation_type_id', $suggestion->relation_type_id)
+            ->where('relation_type_id', $effectiveRelationTypeId)
             ->exists();
 
         $citationLabel = $alreadyExists
             ? null
             : $this->resolveAcceptedSuggestionCitationLabel($suggestion);
 
-        DB::transaction(function () use ($suggestion, $resource, $citationLabel) {
+        DB::transaction(function () use ($suggestion, $resource, $citationLabel, $effectiveRelationTypeId) {
             Resource::query()
                 ->whereKey($resource->getKey())
                 ->lockForUpdate()
@@ -261,7 +270,7 @@ class RelationDiscoveryService
 
             $existingRelation = RelatedIdentifier::where('resource_id', $resource->id)
                 ->where('identifier', $suggestion->identifier)
-                ->where('relation_type_id', $suggestion->relation_type_id)
+                ->where('relation_type_id', $effectiveRelationTypeId)
                 ->lockForUpdate()
                 ->first();
 
@@ -279,7 +288,7 @@ class RelationDiscoveryService
                 'resource_id' => $resource->id,
                 'identifier' => $suggestion->identifier,
                 'identifier_type_id' => $suggestion->identifier_type_id,
-                'relation_type_id' => $suggestion->relation_type_id,
+                'relation_type_id' => $effectiveRelationTypeId,
                 'citation_label' => $citationLabel,
                 'source' => RelatedIdentifier::SOURCE_RELATION_SUGGESTION_ASSISTANT,
                 'position' => $maxPosition + 1,

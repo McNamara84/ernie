@@ -4,6 +4,7 @@ import { AlertTriangle, Building2, Check, Plus, RefreshCw, User, X } from 'lucid
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { RelationTypeSelect } from '@/components/assistance/relation-type-select';
 import { ResourceReview } from '@/components/assistance/resource-review';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { type BreadcrumbItem } from '@/types';
 import {
     type AcceptResponse,
     type AssistancePageProps,
+    type AssistanceResourceGroup,
     type AssistantManifest,
     type BaseSuggestionItem,
     type BulkRorAffiliationAcceptResponse,
@@ -32,6 +34,7 @@ import {
     type SuggestedRorItem,
     type SuggestedSpdxRightsItem,
     type SuggestedSubjectMetadataEnrichmentItem,
+    type SuggestionAcceptanceInput,
 } from '@/types/assistance';
 import { validateORCID } from '@/utils/validation-rules';
 
@@ -93,22 +96,35 @@ function SuggestionCard({
     onAccept,
     onDecline,
     isProcessing,
+    relationTypes,
+    acceptanceInput,
+    onAcceptanceInputChange,
 }: {
     suggestion: SuggestedRelationItem;
-    onAccept: (id: number) => void;
+    onAccept: (id: number, input?: SuggestionAcceptanceInput) => void;
     onDecline: (id: number) => void;
     isProcessing: boolean;
+    relationTypes: NonNullable<AssistancePageProps['relationTypes']>;
+    acceptanceInput: SuggestionAcceptanceInput;
+    onAcceptanceInputChange: (input: SuggestionAcceptanceInput) => void;
 }) {
     const identifierUrl = suggestion.identifier_type === 'DOI' ? resolveIdentifierUrl(suggestion.identifier, 'DOI') : null;
+    const selectedRelationTypeId = acceptanceInput.relation_type_id ?? suggestion.relation_type_id;
 
     return (
         <div className="bg-card p-2 sm:p-3">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="font-mono text-xs">
-                            {suggestion.relation_type_name}
-                        </Badge>
+                        <RelationTypeSelect
+                            suggestion={suggestion}
+                            options={relationTypes}
+                            value={selectedRelationTypeId}
+                            disabled={isProcessing}
+                            onValueChange={(relationTypeId) =>
+                                onAcceptanceInputChange(relationTypeId === suggestion.relation_type_id ? {} : { relation_type_id: relationTypeId })
+                            }
+                        />
                         <Badge variant="secondary" className="text-xs">
                             {suggestion.identifier_type}
                         </Badge>
@@ -141,7 +157,7 @@ function SuggestionCard({
                         <X className="mr-1 h-4 w-4" />
                         Decline
                     </Button>
-                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id)}>
+                    <Button size="sm" disabled={isProcessing} onClick={() => onAccept(suggestion.id, acceptanceInput)}>
                         <Check className="mr-1 h-4 w-4" />
                         Accept
                     </Button>
@@ -1470,8 +1486,48 @@ function useSectionState(manifests: AssistantManifest[]) {
 
 // ── Main page component ──────────────────────────────────────────────
 
-export default function AssistancePage({ sections, manifests, allAssistantResources, pendingCounts }: AssistancePageProps) {
+export default function AssistancePage({ sections, manifests, allAssistantResources, pendingCounts, relationTypes = [] }: AssistancePageProps) {
     const { states, patch, addProcessingId, removeProcessingId, pollingRefs } = useSectionState(manifests);
+    const [acceptanceInputs, setAcceptanceInputs] = useState<Record<string, SuggestionAcceptanceInput>>({});
+
+    useEffect(() => {
+        const available = new Set<string>();
+
+        for (const manifest of manifests) {
+            const section = sections[manifest.id];
+
+            for (const entry of section?.data ?? []) {
+                const group = entry as AssistanceResourceGroup;
+                const items =
+                    Array.isArray(group.suggestions) && typeof group.suggestion_count === 'number'
+                        ? group.suggestions
+                        : [entry as BaseSuggestionItem];
+
+                for (const item of items) {
+                    available.add(`${item.review?.assistant_id ?? item.assistant_id ?? manifest.id}:${item.id}`);
+                }
+            }
+        }
+
+        setAcceptanceInputs((current) => {
+            const next = Object.fromEntries(Object.entries(current).filter(([key]) => available.has(key)));
+
+            return Object.keys(next).length === Object.keys(current).length ? current : next;
+        });
+    }, [manifests, sections]);
+
+    const changeAcceptanceInput = useCallback((identity: string, input: SuggestionAcceptanceInput) => {
+        setAcceptanceInputs((current) => {
+            if (Object.keys(input).length === 0) {
+                if (!(identity in current)) return current;
+                const next = { ...current };
+                delete next[identity];
+                return next;
+            }
+
+            return { ...current, [identity]: input };
+        });
+    }, []);
 
     const isAnyChecking = Object.values(states).some((s) => s.isChecking);
     const [rorBulkMatchQueue, setRorBulkMatchQueue] = useState<RorAffiliationBulkMatch[]>([]);
@@ -1481,8 +1537,8 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
     const reloadAssistanceSections = useCallback(() => {
         router.reload({
             only: allAssistantResources
-                ? ['sections', 'allAssistantResources', 'pendingCounts', 'pendingAssistanceTotalCount']
-                : ['sections', 'pendingAssistanceTotalCount'],
+                ? ['sections', 'allAssistantResources', 'pendingCounts', 'relationTypes', 'pendingAssistanceTotalCount']
+                : ['sections', 'relationTypes', 'pendingAssistanceTotalCount'],
         });
     }, [allAssistantResources]);
 
@@ -1652,11 +1708,13 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
     // ── Accept / Decline ─────────────────────────────────────────────
 
     const handleAccept = useCallback(
-        async (manifest: AssistantManifest, suggestionId: number) => {
+        async (manifest: AssistantManifest, suggestionId: number, input: SuggestionAcceptanceInput = {}) => {
             addProcessingId(manifest.id, suggestionId);
 
             try {
-                const { data } = await axios.post<AcceptResponse>(`/assistance/${manifest.routePrefix}/${suggestionId}/accept`);
+                const url = `/assistance/${manifest.routePrefix}/${suggestionId}/accept`;
+                const response = Object.keys(input).length > 0 ? await axios.post<AcceptResponse>(url, input) : await axios.post<AcceptResponse>(url);
+                const { data } = response;
 
                 if (data.success) {
                     toast.success(data.message);
@@ -1751,6 +1809,8 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
     function renderSuggestionActions(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
         const isDateTypeHint = manifest.id === 'date-type-suggestion' && isRecord(item.metadata) && item.metadata.suggestion_kind === 'hint';
         const descriptionSegmentationTestId = manifest.id === 'description-segmentation' ? 'description-segmentation' : null;
+        const suggestionIdentity = `${item.review?.assistant_id ?? item.assistant_id ?? manifest.id}:${item.id}`;
+        const acceptanceInput = acceptanceInputs[suggestionIdentity] ?? {};
 
         return (
             <div className="flex flex-wrap justify-end gap-2">
@@ -1769,7 +1829,7 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
                         size="sm"
                         disabled={isProcessing}
                         data-testid={descriptionSegmentationTestId ? `${descriptionSegmentationTestId}-accept-${item.id}` : undefined}
-                        onClick={() => handleAccept(manifest, item.id)}
+                        onClick={() => handleAccept(manifest, item.id, acceptanceInput)}
                     >
                         <Check className="mr-1 h-4 w-4" />
                         Accept
@@ -1780,8 +1840,11 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
     }
 
     function renderCard(manifest: AssistantManifest, item: BaseSuggestionItem, isProcessing: boolean) {
-        const onAccept = (id: number) => handleAccept(manifest, id);
+        const suggestionIdentity = `${item.review?.assistant_id ?? item.assistant_id ?? manifest.id}:${item.id}`;
+        const acceptanceInput = acceptanceInputs[suggestionIdentity] ?? {};
+        const onAccept = (id: number, input: SuggestionAcceptanceInput = {}) => handleAccept(manifest, id, input);
         const onDecline = (id: number) => handleDecline(manifest, id);
+        const onAcceptanceInputChange = (input: SuggestionAcceptanceInput) => changeAcceptanceInput(suggestionIdentity, input);
 
         switch (manifest.id) {
             case 'relation-suggestion':
@@ -1791,6 +1854,9 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
                         onAccept={onAccept}
                         onDecline={onDecline}
                         isProcessing={isProcessing}
+                        relationTypes={relationTypes}
+                        acceptanceInput={acceptanceInput}
+                        onAcceptanceInputChange={onAcceptanceInputChange}
                     />
                 );
             case 'orcid-suggestion':
@@ -1930,6 +1996,7 @@ export default function AssistancePage({ sections, manifests, allAssistantResour
                         onReload={reloadAssistanceSections}
                         onRorFollowUps={enqueueRorBulkMatches}
                         renderSuggestion={renderCard}
+                        acceptanceInputs={acceptanceInputs}
                     />
                 )}
 

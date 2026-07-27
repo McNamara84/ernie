@@ -76,6 +76,10 @@
                 "description": "A new Related Item Manager allows curators to add detailed inline metadata for related works directly to a resource, using DataCite Metadata Schema 4.7 relatedItem. A new Quote icon on the /resources page opens a modal to create, edit, reorder, and delete related items per resource. Each related item captures full bibliographic metadata: resource type, relation type, titles (with MainTitle/Subtitle/TranslatedTitle/AlternativeTitle), creators and contributors with ORCID/ROR affiliations, publication year, volume, issue, pages, publisher, edition, identifier (DOI, ISBN, URL, etc.). DOIs can be auto-filled via a Crossref lookup (30 requests/minute), and related items can be previewed as APA or IEEE citations with one-click copy. Related items are included in DataCite XML, JSON, JSON-LD, and Schema.org exports; imported from DataCite JSON; parsed from XML uploads; and displayed on the public landing page next to plain related identifiers with an 'Inline metadata' badge. Administrators can inspect and curate related items via the curation form's new Related Items accordion."
             },
             {
+                "title": "Selectable Relation Types for Assistance Suggestions",
+                "description": "Group Leaders reviewing Relation Suggestions can now change the proposed DataCite relation type before accepting it. The selector highlights the five relation types currently used most often in ERNIE, keeps all other active types available alphabetically, and applies the chosen type consistently for individual and resource-batch acceptance."
+            },
+            {
                 "title": "Repository-Curated Related Identifiers",
                 "description": "Related identifiers accepted through the Relation Suggestions assistance tool now keep their repository-curation provenance. The Data Editor highlights these entries with a clear assistance-tool note, while landing pages display them in a separate 'Added by repository curation' section below the initially supplied related identifiers."
             },

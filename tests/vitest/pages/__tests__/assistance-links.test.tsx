@@ -124,6 +124,7 @@ function makeRelationSuggestion(overrides: Partial<SuggestedRelationItem> = {}):
         identifier_type: 'DOI',
         identifier_type_name: 'DOI',
         relation_type: 'IsSupplementTo',
+        relation_type_id: 1,
         relation_type_name: 'Is supplement to',
         source: 'scholexplorer',
         source_title: 'Suggested related resource',
@@ -1149,7 +1150,7 @@ describe('SpdxRightsSuggestionCard - SPDX preview', () => {
         await waitFor(() => {
             expect(mockedToastWarning).toHaveBeenCalledWith('Suggestion not found.');
             expect(mockedToastInfo).not.toHaveBeenCalled();
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
         });
     });
 });
@@ -1773,7 +1774,7 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(1, '/assistance/rors/954/accept');
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -1832,7 +1833,7 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(2, '/assistance/rors/bulk-affiliation-accept', {
                 bulk_token: BULK_TOKEN_MATCH,
             });
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
         });
     });
 
@@ -1939,7 +1940,7 @@ describe('RorSuggestionCard – ROR link', () => {
             expect(mockedAxiosPost).toHaveBeenNthCalledWith(3, '/assistance/rors/bulk-affiliation-accept', {
                 bulk_token: BULK_TOKEN_RETRY,
             });
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -1990,7 +1991,7 @@ describe('RorSuggestionCard – ROR link', () => {
                 bulk_token: BULK_TOKEN_EXPIRED,
             });
             expect(mockedToastWarning).toHaveBeenCalledWith('Bulk ROR acceptance token is invalid or has expired.');
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -2028,7 +2029,7 @@ describe('RorSuggestionCard – ROR link', () => {
 
         await waitFor(() => {
             expect(mockedAxiosPost).toHaveBeenCalledTimes(1);
-            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'pendingAssistanceTotalCount'] });
+            expect(mockedRouterReload).toHaveBeenCalledWith({ only: ['sections', 'relationTypes', 'pendingAssistanceTotalCount'] });
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         });
     });
@@ -2124,7 +2125,7 @@ describe('RorSuggestionCard – ROR link', () => {
         await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Decline' }));
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(mockedRouterReload).toHaveBeenCalledWith({
-            only: ['sections', 'allAssistantResources', 'pendingCounts', 'pendingAssistanceTotalCount'],
+            only: ['sections', 'allAssistantResources', 'pendingCounts', 'relationTypes', 'pendingAssistanceTotalCount'],
         });
     });
 });

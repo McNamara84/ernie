@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\UserRole;
 use App\Http\Requests\Assistance\AcceptRorAffiliationMatchesRequest;
+use App\Http\Requests\Assistance\AcceptSuggestionRequest;
 use App\Http\Requests\Assistance\BatchSuggestionsRequest;
 use App\Http\Requests\Assistance\DeclineSuggestionRequest;
 use App\Http\Requests\Batch\DestroyIgsnsRequest;
 use App\Http\Requests\Batch\ExportResourcesRequest;
 use App\Http\Requests\Batch\RegisterIgsnsRequest;
 use App\Http\Requests\Batch\RegisterResourcesRequest;
+use App\Models\RelationType;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,6 +22,7 @@ uses(RefreshDatabase::class);
 
 covers(
     AcceptRorAffiliationMatchesRequest::class,
+    AcceptSuggestionRequest::class,
     BatchSuggestionsRequest::class,
     DeclineSuggestionRequest::class,
     DestroyIgsnsRequest::class,
@@ -81,6 +84,37 @@ it('BatchSuggestionsRequest authorizes users and bounds resource-scoped selectio
             ...$valid,
             'reason' => str_repeat('x', 256),
         ], $rules)->fails())->toBeTrue();
+});
+
+it('acceptance requests allow only active relation type overrides', function (): void {
+    $active = RelationType::create(['name' => 'Cites', 'slug' => 'Cites', 'is_active' => true]);
+    $inactive = RelationType::create(['name' => 'References', 'slug' => 'References', 'is_active' => false]);
+
+    $request = new AcceptSuggestionRequest;
+    expect($request->authorize())->toBeFalse();
+    $request->setUserResolver(fn () => User::factory()->create());
+    expect($request->authorize())->toBeTrue();
+
+    $rules = $request->rules();
+    expect(Validator::make([], $rules)->fails())->toBeFalse()
+        ->and(Validator::make(['relation_type_id' => $active->id], $rules)->fails())->toBeFalse()
+        ->and(Validator::make(['relation_type_id' => $inactive->id], $rules)->fails())->toBeTrue()
+        ->and(Validator::make(['relation_type_id' => 999999], $rules)->fails())->toBeTrue()
+        ->and(Validator::make(['relation_type_id' => 'Cites'], $rules)->fails())->toBeTrue();
+
+    $batchRules = (new BatchSuggestionsRequest)->rules();
+    $payload = [
+        'resource_id' => 10,
+        'suggestions' => [[
+            'assistant_id' => 'relation-suggestion',
+            'suggestion_id' => 20,
+            'relation_type_id' => $active->id,
+        ]],
+    ];
+    expect(Validator::make($payload, $batchRules)->fails())->toBeFalse();
+
+    $payload['suggestions'][0]['relation_type_id'] = $inactive->id;
+    expect(Validator::make($payload, $batchRules)->fails())->toBeTrue();
 });
 
 it('DestroyIgsnsRequest authorizes only admins', function (): void {

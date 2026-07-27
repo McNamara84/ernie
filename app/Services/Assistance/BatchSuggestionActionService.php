@@ -21,7 +21,7 @@ final class BatchSuggestionActionService
     ) {}
 
     /**
-     * @param  list<array{assistant_id: string, suggestion_id: int}>  $selections
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int}>  $selections
      * @return array<string, mixed>
      */
     public function execute(
@@ -44,10 +44,13 @@ final class BatchSuggestionActionService
             $assistant = $selection['assistant'];
             $suggestion = $selection['suggestion'];
             $suggestionId = $selection['suggestion_id'];
+            $acceptanceInput = $selection['acceptance_input'];
 
             try {
                 $result = $action === 'accept'
-                    ? $assistant->acceptSuggestion($suggestionId)
+                    ? ($acceptanceInput === []
+                        ? $assistant->acceptSuggestion($suggestionId)
+                        : $assistant->acceptSuggestion($suggestionId, $acceptanceInput))
                     : $assistant->declineSuggestion($suggestionId, $user, $reason);
             } catch (Throwable $exception) {
                 report($exception);
@@ -116,8 +119,8 @@ final class BatchSuggestionActionService
      * leave a partially processed selection behind.
      *
      * @param  'accept'|'decline'  $action
-     * @param  list<array{assistant_id: string, suggestion_id: int}>  $selections
-     * @return list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int}>
+     * @param  list<array{assistant_id: string, suggestion_id: int, relation_type_id?: int}>  $selections
+     * @return list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int, acceptance_input: array<string, mixed>}>
      */
     private function resolveSelection(string $action, int $resourceId, array $selections): array
     {
@@ -176,6 +179,9 @@ final class BatchSuggestionActionService
                 'assistant' => $assistant,
                 'suggestion' => $suggestion,
                 'suggestion_id' => $suggestionId,
+                'acceptance_input' => isset($selection['relation_type_id'])
+                    ? ['relation_type_id' => $selection['relation_type_id']]
+                    : [],
             ];
         }
 
@@ -183,7 +189,7 @@ final class BatchSuggestionActionService
     }
 
     /**
-     * @param  list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int}>  $resolved
+     * @param  list<array{assistant: AssistantContract, suggestion: array<string, mixed>, suggestion_id: int, acceptance_input: array<string, mixed>}>  $resolved
      */
     private function resourceLabel(array $resolved, int $resourceId): string
     {

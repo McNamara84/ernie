@@ -6,6 +6,7 @@ export interface SuggestedRelationItem {
     identifier: string;
     identifier_type: string;
     identifier_type_name: string;
+    relation_type_id: number;
     relation_type: string;
     relation_type_name: string;
     source: 'scholexplorer' | 'datacite_event_data';
@@ -14,6 +15,18 @@ export interface SuggestedRelationItem {
     source_publisher: string | null;
     source_publication_date: string | null;
     discovered_at: string;
+}
+
+export interface AssistanceRelationTypeOption {
+    id: number;
+    name: string;
+    slug: string;
+    usage_count: number;
+    is_most_used: boolean;
+}
+
+export interface SuggestionAcceptanceInput {
+    relation_type_id?: number;
 }
 
 export interface PaginatedData<T> {
@@ -303,6 +316,7 @@ export interface AssistancePageProps {
     allAssistantResources?: PaginatedData<AssistanceResourceGroup>;
     pendingCounts?: Record<string, number>;
     manifests: AssistantManifest[];
+    relationTypes?: AssistanceRelationTypeOption[];
 }
 
 export interface BatchSuggestionResult {

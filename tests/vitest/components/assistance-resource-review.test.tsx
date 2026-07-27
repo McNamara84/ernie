@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResourceReview } from '@/components/assistance/resource-review';
-import type { AssistanceResourceGroup, AssistantManifest, BaseSuggestionItem, PaginatedData } from '@/types/assistance';
+import type { AssistanceResourceGroup, AssistantManifest, BaseSuggestionItem, PaginatedData, SuggestionAcceptanceInput } from '@/types/assistance';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ children, href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) => (
@@ -57,7 +57,7 @@ function page(group: AssistanceResourceGroup): PaginatedData<AssistanceResourceG
     return { data: [group], current_page: 1, last_page: 1, per_page: 25, total: 1, from: 1, to: 1, links: [] };
 }
 
-function renderReview(items: BaseSuggestionItem[]) {
+function renderReview(items: BaseSuggestionItem[], acceptanceInputs: Record<string, SuggestionAcceptanceInput> = {}) {
     const group: AssistanceResourceGroup = {
         resource_id: 10,
         resource_doi: '10.1234/test',
@@ -80,14 +80,42 @@ function renderReview(items: BaseSuggestionItem[]) {
             onReload={onReload}
             onRorFollowUps={onRorFollowUps}
             renderSuggestion={(_manifest, item) => <p>{String(item.suggested_label)}</p>}
+            acceptanceInputs={acceptanceInputs}
         />,
     );
 
     return { onReload, onRorFollowUps, unmount: rendered.unmount };
 }
 
+function memoryStorage(): Storage {
+    const values = new Map<string, string>();
+
+    return {
+        get length() {
+            return values.size;
+        },
+        clear: () => values.clear(),
+        getItem: (key) => values.get(key) ?? null,
+        key: (index) => [...values.keys()][index] ?? null,
+        removeItem: (key) => {
+            values.delete(key);
+        },
+        setItem: (key, value) => {
+            values.set(key, value);
+        },
+    };
+}
+
 beforeEach(() => {
     vi.clearAllMocks();
+
+    if (window.localStorage === undefined) {
+        Object.defineProperty(window, 'localStorage', {
+            configurable: true,
+            value: memoryStorage(),
+        });
+    }
+
     window.localStorage.clear();
 });
 
@@ -260,5 +288,47 @@ describe('resource-oriented assistance review', () => {
             expect(onRorFollowUps).toHaveBeenCalledWith([followUp]);
             expect(onReload).toHaveBeenCalledOnce();
         });
+    });
+
+    it('never sends an acceptance override when declining a selection', async () => {
+        const user = userEvent.setup();
+        vi.mocked(axios.post).mockResolvedValueOnce({
+            data: {
+                success: true,
+                action: 'decline',
+                resource_id: 10,
+                resource_label: '10.1234/test',
+                processed_count: 1,
+                success_count: 1,
+                failure_count: 0,
+                message: '1 suggestion(s) declined.',
+                synced_dois: [],
+                follow_ups: [],
+                results: [
+                    {
+                        assistant_id: manifest.id,
+                        assistant_name: manifest.name,
+                        suggestion_id: 1,
+                        label: 'Normal candidate',
+                        success: true,
+                        message: 'Declined.',
+                        synced_dois: [],
+                    },
+                ],
+            },
+        });
+        renderReview([suggestion(1, 'Normal candidate')], {
+            [`${manifest.id}:1`]: { relation_type_id: 42 },
+        });
+
+        await user.click(screen.getByRole('checkbox', { name: 'Select Test assistant: Normal candidate' }));
+        await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+        await waitFor(() =>
+            expect(axios.post).toHaveBeenCalledWith('/assistance/suggestions/batch/decline', {
+                resource_id: 10,
+                suggestions: [{ assistant_id: manifest.id, suggestion_id: 1 }],
+            }),
+        );
     });
 });
