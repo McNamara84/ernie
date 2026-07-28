@@ -384,6 +384,10 @@
         ],
         "fixes": [
             {
+                "title": "Precision-Aware Date Plausibility Hints",
+                "description": "The Date Type Assistant now treats year-only and year-month values as calendar intervals when checking chronological plausibility. Overlaps with more precise dates no longer produce false 'occurs after' hints, while definitively reversed dates continue to be flagged for review."
+            },
+            {
                 "title": "Responsive Resource Information Layout",
                 "description": "The Data Editor now keeps its basic Resource Information fields proportional across screen sizes: one compact row on large desktops, two balanced rows at medium widths, and full-width stacked controls on mobile. Language of Data no longer sits alone in a mostly empty row on wide screens."
             },

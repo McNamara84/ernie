@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Models\DateType;
-use App\Models\GeoLocation;
-use App\Models\ResourceDate;
 use App\Models\AssistantDismissed;
 use App\Models\AssistantSuggestion;
+use App\Models\DateType;
+use App\Models\GeoLocation;
 use App\Models\Resource;
+use App\Models\ResourceDate;
 use App\Models\User;
 use App\Services\Assistance\AssistantManifest;
 use App\Services\DateType\DateTypeDiscoveryService;
@@ -76,8 +76,7 @@ function createDateTypeSuggestion(
 
 function dateType(string $slug): DateType
 {
-    return DateType::FirstOrCreate
-    (
+    return DateType::FirstOrCreate(
         ['slug' => $slug],
         ['name' => $slug, 'is_active' => true],
     );
@@ -85,8 +84,7 @@ function dateType(string $slug): DateType
 
 function createDate(Resource $resource, string $type, string $value): ResourceDate
 {
-    return ResourceDate::create
-    ([
+    return ResourceDate::create([
         'resource_id' => $resource->id,
         'date_type_id' => dateType($type)->id,
         'date_value' => $value,
@@ -590,14 +588,13 @@ it('keeps collected to coverage corrections pending when the Coverage DateType i
         ->and($collectedDate->fresh()->date_type_id)->toBe($collectedType->id);
 });
 
-it('records declined date type suggestions and does not rediscover the same suggestion', function () 
-{
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+it('records declined date type suggestions and does not rediscover the same suggestion', function () {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
-            return 
+            return
             [
                 [
                     'suggestion_kind' => 'addition',
@@ -610,7 +607,6 @@ it('records declined date type suggestions and does not rediscover the same sugg
                 ],
             ];
         }
-
     });
 
     $resource = Resource::factory()->create(['doi' => '10.5880/test.2026.816']);
@@ -644,7 +640,8 @@ it('records declined date type suggestions and does not rediscover the same sugg
 });
 
 it('discovers and stores a created suggestion from schema.org metadata', function (): void {
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
+    {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -673,7 +670,7 @@ it('discovers and stores a created suggestion from schema.org metadata', functio
         ->where('assistant_id', $assistant->getId())
         ->where('resource_id', $resource->id)
         ->sole();
-    
+
     expect($count)->toBe(1)
         ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Created'))
         ->and($suggestion->target_id)->toBe($resource->id)
@@ -687,7 +684,8 @@ it('discovers and stores a created suggestion from schema.org metadata', functio
 });
 
 it('discovers and stores a issued suggestion from schema.org metadata', function (): void {
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
+    {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -716,7 +714,7 @@ it('discovers and stores a issued suggestion from schema.org metadata', function
         ->where('assistant_id', $assistant->getId())
         ->where('resource_id', $resource->id)
         ->sole();
-    
+
     expect($count)->toBe(1)
         ->and($suggestion->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Issued'))
         ->and($suggestion->target_id)->toBe($resource->id)
@@ -730,7 +728,8 @@ it('discovers and stores a issued suggestion from schema.org metadata', function
 });
 
 it('discovers and stores created and issued suggestion from schema.org metadata', function (): void {
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
+    {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
         {
@@ -774,7 +773,7 @@ it('discovers and stores created and issued suggestion from schema.org metadata'
         ])
         ->orderBy('suggested_label')
         ->get();
-    
+
     expect($suggestion)->toHaveCount(2)
         ->and($suggestion[0]->target_type)->toBe(DateTypeDiscoveryService::targetTypeForDateType('Created'))
         ->and($suggestion[0]->target_id)->toBe($resource->id)
@@ -794,9 +793,8 @@ it('discovers and stores created and issued suggestion from schema.org metadata'
         ->and($suggestion[1]->metadata['source_url'])->toBe('https://dataservices.gfz.de/test-dataset');
 });
 
-it('does not store schema.org skip results during discovery', function (): void 
-{
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+it('does not store schema.org skip results during discovery', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -812,8 +810,7 @@ it('does not store schema.org skip results during discovery', function (): void
         }
     });
 
-    $resource = Resource::factory()->create
-    ([
+    $resource = Resource::factory()->create([
         'doi' => '10.5880/test.2026.816',
     ]);
 
@@ -828,9 +825,8 @@ it('does not store schema.org skip results during discovery', function (): void
             ->exists())->toBeFalse();
 });
 
-it('does not discover created suggestions when Created already exists', function (): void 
-{
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+it('does not discover created suggestions when Created already exists', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -867,9 +863,8 @@ it('does not discover created suggestions when Created already exists', function
             ->exists())->toBeFalse();
 });
 
-it('does not discover issued suggestions when Issued already exists', function (): void 
-{
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+it('does not discover issued suggestions when Issued already exists', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -906,9 +901,8 @@ it('does not discover issued suggestions when Issued already exists', function (
             ->exists())->toBeFalse();
 });
 
-it('discovers collected to coverage correction when collected date and geolocation counts match', function (): void 
-{
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+it('discovers collected to coverage correction when collected date and geolocation counts match', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -952,7 +946,7 @@ it('discovers collected to coverage correction when collected date and geolocati
 });
 
 it('stores plausibility hint suggestions', function (): void {
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -990,8 +984,46 @@ it('stores plausibility hint suggestions', function (): void {
         ->and($suggestion->metadata['source_url'])->toBe('https://doi.org/10.5880/test.2026.816');
 });
 
+it('does not store a plausibility hint for the overlapping partial year from issue 1034', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
+    {
+        #[Override]
+        public function loadAllowedSchemaorg(string $doi): array
+        {
+            return [];
+        }
+    });
+
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/gfz.2.6.2023.010',
+    ]);
+
+    ResourceDate::create([
+        'resource_id' => $resource->id,
+        'date_type_id' => dateType('Collected')->id,
+        'date_value' => null,
+        'start_date' => '2011-01-01',
+        'end_date' => '2023-05-01',
+    ]);
+    createDate($resource, 'Created', '2023');
+
+    $assistant = app(Assistant::class);
+
+    $count = $assistant->runDiscovery(function (string $message): void {});
+
+    $hasPlausibilityHint = AssistantSuggestion::query()
+        ->where('assistant_id', $assistant->getId())
+        ->where('resource_id', $resource->id)
+        ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+        ->where('suggested_value', 'like', '%occurs after%')
+        ->exists();
+
+    expect($count)->toBe(0)
+        ->and($hasPlausibilityHint)->toBeFalse();
+});
+
 it('stores multiple plausibility hint suggestions for the same date type', function (): void {
-    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService 
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
     {
         #[Override]
         public function loadAllowedSchemaorg(string $doi): array
@@ -1006,8 +1038,7 @@ it('stores multiple plausibility hint suggestions for the same date type', funct
 
     createDate($resource, 'Collected', '2015-01-01');
     createDate($resource, 'Collected', '2017-01-01');
-    ResourceDate::create
-    ([
+    ResourceDate::create([
         'resource_id' => $resource->id,
         'date_type_id' => dateType('Collected')->id,
         'date_value' => null,
