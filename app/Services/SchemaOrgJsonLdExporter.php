@@ -45,7 +45,7 @@ class SchemaOrgJsonLdExporter
     public function export(Resource $resource, ?LandingPage $landingPage = null, ?array $content = null): array
     {
         $jsonExporter = new DataCiteJsonExporter;
-        $dataCiteJson = $jsonExporter->export($resource);
+        $dataCiteJson = $jsonExporter->export($resource, serializeDescriptionsForDataCite: false);
         $attributes = $dataCiteJson['data']['attributes'];
 
         $isSoftware = $resource->resourceType?->slug === 'software';
@@ -261,7 +261,7 @@ class SchemaOrgJsonLdExporter
     {
         foreach ($descriptions as $desc) {
             if (($desc['descriptionType'] ?? '') === 'Abstract') {
-                return $desc['description'];
+                return (string) $desc['description'];
             }
         }
 

@@ -24,7 +24,7 @@ class DataCiteLinkedDataExporter
     public function export(Resource $resource): array
     {
         $jsonExporter = new DataCiteJsonExporter;
-        $dataCiteJson = $jsonExporter->export($resource);
+        $dataCiteJson = $jsonExporter->export($resource, serializeDescriptionsForDataCite: false);
         $attributes = $dataCiteJson['data']['attributes'];
 
         $jsonLd = [

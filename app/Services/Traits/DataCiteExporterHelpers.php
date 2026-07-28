@@ -12,6 +12,7 @@ use App\Models\Person;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
+use App\Services\DataCite\Mapping\DataCiteDescriptionMappingService;
 use App\Services\DataCite\Mapping\DataCiteFundingReferenceMappingService;
 use App\Services\DataCite\Mapping\DataCitePartyMappingService;
 
@@ -23,6 +24,11 @@ use App\Services\DataCite\Mapping\DataCitePartyMappingService;
  */
 trait DataCiteExporterHelpers
 {
+    protected function dataCiteDescriptionMapper(): DataCiteDescriptionMappingService
+    {
+        return app(DataCiteDescriptionMappingService::class);
+    }
+
     protected function dataCitePartyMapper(): DataCitePartyMappingService
     {
         return app(DataCitePartyMappingService::class);

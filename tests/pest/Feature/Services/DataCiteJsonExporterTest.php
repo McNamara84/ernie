@@ -400,7 +400,7 @@ describe('DataCiteJsonExporter - Descriptions', function () {
         expect($descriptions[0]['descriptionType'])->toBeIn(['Methods', 'methods']);
     });
 
-    test('exports plain text descriptions even when landing page html exists', function () {
+    test('exports datacite breaks while excluding landing page html', function () {
         $resource = Resource::factory()->create();
         $abstractType = DescriptionType::firstOrCreate(
             ['slug' => 'Abstract'],
@@ -409,16 +409,39 @@ describe('DataCiteJsonExporter - Descriptions', function () {
 
         Description::create([
             'resource_id' => $resource->id,
-            'value' => 'Plain export description.',
-            'landing_page_html' => '<p>Plain <strong>export</strong> description.</p>',
+            'value' => 'First paragraph.'.PHP_EOL.PHP_EOL.'Second paragraph.',
+            'landing_page_html' => '<p>First <strong>paragraph</strong>.</p><p>Second paragraph.</p>',
             'description_type_id' => $abstractType->id,
         ]);
 
         $result = $this->exporter->export($resource);
         $descriptions = $result['data']['attributes']['descriptions'];
 
-        expect($descriptions[0]['description'])->toBe('Plain export description.')
+        expect($descriptions[0]['description'])->toBe('First paragraph.<br><br>Second paragraph.')
+            ->and($descriptions[0]['description'])->not->toContain('<p>')
             ->and($descriptions[0]['description'])->not->toContain('<strong>');
+    });
+
+    test('escapes tag-like plain text while preserving comparison operators', function () {
+        $resource = Resource::factory()->create();
+        $abstractType = DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract']
+        );
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Math x < 5.'.chr(10).'<strong>bold</strong> and <script>alert(1)</script>.',
+            'description_type_id' => $abstractType->id,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $description = $result['data']['attributes']['descriptions'][0]['description'];
+
+        expect($description)
+            ->toBe('Math x < 5.<br>&lt;strong>bold&lt;/strong> and &lt;script>alert(1)&lt;/script>.')
+            ->and($description)->not->toContain('<strong>')
+            ->and($description)->not->toContain('<script>');
     });
 });
 

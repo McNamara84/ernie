@@ -153,9 +153,9 @@ export default function DescriptionField({
         <div className="space-y-4">
             <Alert className="bg-muted/40">
                 <AlertDescription>
-                    Landing pages support a limited HTML subset in descriptions: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;,
-                    &lt;ul&gt;, &lt;ol&gt;, &lt;li&gt;, &lt;a&gt;, &lt;sub&gt;, &lt;sup&gt;, and &lt;code&gt;. ERNIE stores a plain-text version
-                    for DataCite, XML, JSON, and JSON-LD exports.
+                    Landing pages support a limited HTML subset in descriptions: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;,
+                    &lt;ol&gt;, &lt;li&gt;, &lt;a&gt;, &lt;sub&gt;, &lt;sup&gt;, and &lt;code&gt;. DataCite JSON and XML retain line breaks as
+                    &lt;br&gt;; all other formatting remains landing-page only. JSON-LD and Schema.org outputs remain plain text.
                 </AlertDescription>
             </Alert>
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DescriptionType)}>
