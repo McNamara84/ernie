@@ -245,7 +245,7 @@ describe('RelationDiscoveryService', function (): void {
                 'relatedItemType' => ' JournalArticle ',
             ]));
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [],
             [relationDiscoveryPayload(['identifier' => $relatedDoi])],
             $citationLookupService,
@@ -253,7 +253,7 @@ describe('RelationDiscoveryService', function (): void {
 
         $suggestion = SuggestedRelation::query()->sole();
 
-        expect($newCount)->toBe(1)
+        expect($result)->toBe(['created' => 1, 'updated' => 0])
             ->and($suggestion->source)->toBe('datacite_event_data')
             ->and($suggestion->source_type)->toBe('JournalArticle');
     });
@@ -269,7 +269,7 @@ describe('RelationDiscoveryService', function (): void {
                 'relatedItemType' => 'Dataset',
             ]));
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [relationDiscoveryPayload(['identifier' => $relatedDoi])],
             [],
             $citationLookupService,
@@ -277,7 +277,7 @@ describe('RelationDiscoveryService', function (): void {
 
         $suggestion = SuggestedRelation::query()->sole();
 
-        expect($newCount)->toBe(1)
+        expect($result)->toBe(['created' => 1, 'updated' => 0])
             ->and($suggestion->source)->toBe('scholexplorer')
             ->and($suggestion->source_type)->toBe('Dataset');
     });
@@ -287,7 +287,7 @@ describe('RelationDiscoveryService', function (): void {
         $citationLookupService = Mockery::mock(CitationLookupService::class);
         $citationLookupService->shouldNotReceive('lookup');
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [relationDiscoveryPayload([
                 'identifier' => '10.5880/related.2026.103',
                 'source_type' => ' Dataset ',
@@ -296,7 +296,7 @@ describe('RelationDiscoveryService', function (): void {
             $citationLookupService,
         )->discoverAll();
 
-        expect($newCount)->toBe(1)
+        expect($result)->toBe(['created' => 1, 'updated' => 0])
             ->and(SuggestedRelation::query()->sole()->source_type)->toBe('Dataset');
     });
 
@@ -350,15 +350,24 @@ describe('RelationDiscoveryService', function (): void {
                 'relatedItemType' => 'Dataset',
             ]));
 
-        $newCount = relationDiscoveryServiceFor(
+        $progress = [];
+        $result = relationDiscoveryServiceFor(
             [relationDiscoveryPayload(['identifier' => $relatedDoi])],
             [],
             $citationLookupService,
-        )->discoverAll();
+        )->discoverAll(function (int $processed, int $total, int $created, int $updated) use (&$progress): void {
+            $progress = compact('processed', 'total', 'created', 'updated');
+        });
 
         $refreshedSuggestion = $existingSuggestion->fresh();
 
-        expect($newCount)->toBe(0)
+        expect($result)->toBe(['created' => 0, 'updated' => 1])
+            ->and($progress)->toBe([
+                'processed' => 1,
+                'total' => 1,
+                'created' => 0,
+                'updated' => 1,
+            ])
             ->and(SuggestedRelation::query()->count())->toBe(1)
             ->and($refreshedSuggestion)->not->toBeNull()
             ->and($refreshedSuggestion?->id)->toBe($existingSuggestion->id)
@@ -381,13 +390,13 @@ describe('RelationDiscoveryService', function (): void {
         $citationLookupService = Mockery::mock(CitationLookupService::class);
         $citationLookupService->shouldNotReceive('lookup');
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [relationDiscoveryPayload(['identifier' => $relatedDoi])],
             [],
             $citationLookupService,
         )->discoverAll();
 
-        expect($newCount)->toBe(0)
+        expect($result)->toBe(['created' => 0, 'updated' => 0])
             ->and($existingSuggestion->fresh()?->source_type)->toBe('Dataset');
     });
 
@@ -396,7 +405,7 @@ describe('RelationDiscoveryService', function (): void {
         $citationLookupService = Mockery::mock(CitationLookupService::class);
         $citationLookupService->shouldNotReceive('lookup');
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [],
             [relationDiscoveryPayload([
                 'identifier' => 'https://example.org/related-resource',
@@ -406,7 +415,7 @@ describe('RelationDiscoveryService', function (): void {
             $citationLookupService,
         )->discoverAll();
 
-        expect($newCount)->toBe(1)
+        expect($result)->toBe(['created' => 1, 'updated' => 0])
             ->and(SuggestedRelation::query()->sole()->source_type)->toBeNull();
     });
 
@@ -419,13 +428,13 @@ describe('RelationDiscoveryService', function (): void {
             ->with($relatedDoi)
             ->andReturn($lookupResult);
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [relationDiscoveryPayload(['identifier' => $relatedDoi])],
             [],
             $citationLookupService,
         )->discoverAll();
 
-        expect($newCount)->toBe(1)
+        expect($result)->toBe(['created' => 1, 'updated' => 0])
             ->and(SuggestedRelation::query()->sole()->source_type)->toBeNull();
     })->with([
         'not found' => fn (): CitationLookupResult => CitationLookupResult::notFound('datacite'),
@@ -449,13 +458,13 @@ describe('RelationDiscoveryService', function (): void {
         $citationLookupService = Mockery::mock(CitationLookupService::class);
         $citationLookupService->shouldNotReceive('lookup');
 
-        $newCount = relationDiscoveryServiceFor(
+        $result = relationDiscoveryServiceFor(
             [relationDiscoveryPayload(['identifier' => $relatedDoi])],
             [],
             $citationLookupService,
         )->discoverAll();
 
-        expect($newCount)->toBe(0)
+        expect($result)->toBe(['created' => 0, 'updated' => 0])
             ->and(SuggestedRelation::query()->count())->toBe(0);
     });
 
@@ -464,9 +473,9 @@ describe('RelationDiscoveryService', function (): void {
         $citationLookupService = Mockery::mock(CitationLookupService::class);
         $citationLookupService->shouldNotReceive('lookup');
 
-        $newCount = relationDiscoveryServiceFor([], [], $citationLookupService)->discoverAll();
+        $result = relationDiscoveryServiceFor([], [], $citationLookupService)->discoverAll();
 
-        expect($newCount)->toBe(0)
+        expect($result)->toBe(['created' => 0, 'updated' => 0])
             ->and(SuggestedRelation::query()->count())->toBe(0);
     });
 });

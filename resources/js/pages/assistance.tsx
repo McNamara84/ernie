@@ -49,6 +49,35 @@ function sourceLabel(source: string): string {
     return source === 'scholexplorer' ? 'ScholExplorer' : 'DataCite Event Data';
 }
 
+function normalizedResultCount(value: unknown): number {
+    const count = Number(value ?? 0);
+
+    return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+export function completionFeedback(manifest: AssistantManifest, status: CheckStatusResponse): { message: string; hasResults: boolean } {
+    const created = normalizedResultCount(status.newSuggestionsFound ?? status.newRelationsFound ?? status.newOrcidsFound ?? status.newRorsFound);
+    const updated = normalizedResultCount(status.updatedRelations);
+
+    let label: string;
+    if (created > 0 && updated > 0) {
+        label =
+            manifest.statusLabels.completed_with_results_and_updates ??
+            `${manifest.name} completed: {count} new suggestion(s) found; {updated} existing suggestion(s) enriched.`;
+    } else if (updated > 0) {
+        label = manifest.statusLabels.completed_with_updates ?? `${manifest.name} completed: {updated} existing suggestion(s) enriched.`;
+    } else if (created > 0) {
+        label = manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`;
+    } else {
+        label = manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`;
+    }
+
+    return {
+        message: label.replace('{count}', String(created)).replace('{updated}', String(updated)),
+        hasResults: created > 0 || updated > 0,
+    };
+}
+
 function similarityColor(score: number): string {
     if (score >= 0.8) return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
     if (score >= 0.5) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
@@ -1605,24 +1634,12 @@ export default function AssistancePage({
                         pollingRefs.current[id] = null;
                         patch(id, { isChecking: false, progress: '' });
 
-                        // Pick correct label and interpolate {count}
-                        const found =
-                            (status as Record<string, unknown>).newSuggestionsFound ??
-                            (status as Record<string, unknown>).newRelationsFound ??
-                            (status as Record<string, unknown>).newOrcidsFound ??
-                            (status as Record<string, unknown>).newRorsFound ??
-                            0;
-                        const count = Number(found);
-                        const label =
-                            count > 0
-                                ? (manifest.statusLabels.completed_with_results ?? `${manifest.name} completed: {count} new suggestion(s) found.`)
-                                : (manifest.statusLabels.completed_empty ?? `${manifest.name} completed: No new suggestions found.`);
-                        const message = label.replace('{count}', String(count));
+                        const feedback = completionFeedback(manifest, status);
 
-                        if (count > 0) {
-                            toast.success(message);
+                        if (feedback.hasResults) {
+                            toast.success(feedback.message);
                         } else {
-                            toast.info(message);
+                            toast.info(feedback.message);
                         }
                         reloadAssistanceSections();
                     } else if (status.status === 'failed') {

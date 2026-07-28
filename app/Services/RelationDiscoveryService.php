@@ -37,10 +37,10 @@ class RelationDiscoveryService
     /**
      * Discover new relations for all resources with registered DOIs.
      *
-     * @param  callable(int $processed, int $total): void|null  $progressCallback
-     * @return int Number of newly discovered suggestions
+     * @param  callable(int $processed, int $total, int $created, int $updated): void|null  $progressCallback
+     * @return array{created: int, updated: int}
      */
-    public function discoverAll(?callable $progressCallback = null): int
+    public function discoverAll(?callable $progressCallback = null): array
     {
         $total = Resource::whereNotNull('doi')
             ->where('doi', '!=', '')
@@ -114,7 +114,7 @@ class RelationDiscoveryService
 
                     $processed++;
                     if ($progressCallback !== null) {
-                        $progressCallback($processed, $total);
+                        $progressCallback($processed, $total, $newCount, $updatedCount);
                     }
                 }
             });
@@ -129,7 +129,7 @@ class RelationDiscoveryService
             $this->invalidateAssistanceCache();
         }
 
-        return $newCount;
+        return ['created' => $newCount, 'updated' => $updatedCount];
     }
 
     /**

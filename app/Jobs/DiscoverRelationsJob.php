@@ -76,20 +76,22 @@ class DiscoverRelationsJob implements ShouldQueue
             'totalDois' => 0,
             'processedDois' => 0,
             'newRelationsFound' => 0,
+            'updatedRelations' => 0,
             'startedAt' => $startedAt,
         ], now()->addHours(2));
 
         try {
             $lastTotal = 0;
 
-            $newCount = $service->discoverAll(function (int $processed, int $total) use ($cacheKey, $startedAt, &$lastTotal) {
+            $result = $service->discoverAll(function (int $processed, int $total, int $created, int $updated) use ($cacheKey, $startedAt, &$lastTotal) {
                 $lastTotal = $total;
                 Cache::put($cacheKey, [
                     'status' => 'running',
                     'progress' => "Checking DOI {$processed} of {$total}...",
                     'totalDois' => $total,
                     'processedDois' => $processed,
-                    'newRelationsFound' => 0,
+                    'newRelationsFound' => $created,
+                    'updatedRelations' => $updated,
                     'startedAt' => $startedAt,
                 ], now()->addHours(2));
             });
@@ -99,14 +101,16 @@ class DiscoverRelationsJob implements ShouldQueue
                 'progress' => 'Discovery completed.',
                 'totalDois' => $lastTotal,
                 'processedDois' => $lastTotal,
-                'newRelationsFound' => $newCount,
+                'newRelationsFound' => $result['created'],
+                'updatedRelations' => $result['updated'],
                 'startedAt' => $startedAt,
                 'completedAt' => now()->toIso8601String(),
             ], now()->addHours(2));
 
             Log::info('DiscoverRelationsJob completed', [
                 'jobId' => $this->jobId,
-                'newRelationsFound' => $newCount,
+                'newRelationsFound' => $result['created'],
+                'updatedRelations' => $result['updated'],
             ]);
         } catch (\Exception $e) {
             Log::error('DiscoverRelationsJob failed', [

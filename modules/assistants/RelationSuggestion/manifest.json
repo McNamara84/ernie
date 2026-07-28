@@ -12,6 +12,8 @@
     "status_labels": {
         "checking": "Starting relation discovery...",
         "completed_with_results": "Relation discovery completed: {count} new suggestion(s) found.",
+        "completed_with_updates": "Relation discovery completed: {updated} existing suggestion(s) enriched.",
+        "completed_with_results_and_updates": "Relation discovery completed: {count} new suggestion(s) found; {updated} existing suggestion(s) enriched.",
         "completed_empty": "Relation discovery completed: No new suggestions found.",
         "failed": "Relation discovery failed: {error}",
         "already_running": "A relation discovery job is already running."
