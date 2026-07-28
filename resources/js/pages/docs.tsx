@@ -621,6 +621,12 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                 detection
                             </li>
                             <li>
+                                <strong>Date Type Suggestions</strong> - Discovers missing Created and Issued dates, identifies possible corrections
+                                from Collected to Coverage, and flags definitively implausible date-type chronology. Year-only and year-month values
+                                are compared conservatively, so overlaps with more precise dates do not create hints. ISO date-times with timezone
+                                offsets are compared as absolute instants.
+                            </li>
+                            <li>
                                 <strong>SPDX Rights Suggestions</strong> – Reviews imported rights statements and proposes SPDX-backed license
                                 metadata before export
                             </li>
