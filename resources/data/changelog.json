@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-07-27",
+        "date": "2026-07-28",
         "features": [
+            {
+                "title": "Resource Types for Relation Suggestions",
+                "description": "Relation Suggestions now display the suggested target resource's DataCite resource type as a clear badge. Missing DOI resource types are resolved through the existing citation lookup during discovery, including pending suggestions that can be enriched later."
+            },
             {
                 "title": "ISO 19115-3 Metadata Export and OAI-PMH Support",
                 "description": "Published resources with compatible DataCite resource types now expose ISO 19115-3:2023 XML metadata through canonical landing page download links, HTML and HTTP describedby discovery, and the OAI-PMH iso19115_3 metadata prefix. Dataset, Physical Object, Collection, Model, Instrument, Service, Software, Computational Notebook, Workflow, Interactive Resource, and suitable Image records are supported. Existing DataCite metadata representations remain available, while eligible landing pages display a neutral ISO 19115-3 metadata badge."

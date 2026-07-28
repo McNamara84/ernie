@@ -367,6 +367,11 @@ export interface CheckStatusResponse {
     error?: string;
     startedAt?: string;
     completedAt?: string;
+    newSuggestionsFound?: number;
+    newRelationsFound?: number;
+    updatedRelations?: number;
+    newOrcidsFound?: number;
+    newRorsFound?: number;
     [key: string]: unknown;
 }
 

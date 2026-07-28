@@ -55,14 +55,16 @@ describe('handle', function () {
                 // While running, cache should show running status
                 $cached = Cache::get($cacheKey);
                 expect($cached)->toBeArray()
-                    ->and($cached['status'])->toBe('running');
+                    ->and($cached['status'])->toBe('running')
+                    ->and($cached['newRelationsFound'])->toBe(0)
+                    ->and($cached['updatedRelations'])->toBe(0);
 
                 // Simulate progress callback
                 if ($callback !== null) {
-                    $callback(1, 3);
+                    $callback(1, 3, 2, 1);
                 }
 
-                return 5;
+                return ['created' => 5, 'updated' => 2];
             });
 
         $job = new DiscoverRelationsJob($uuid);
@@ -72,6 +74,7 @@ describe('handle', function () {
         expect($cached)->toBeArray()
             ->and($cached['status'])->toBe('completed')
             ->and($cached['newRelationsFound'])->toBe(5)
+            ->and($cached['updatedRelations'])->toBe(2)
             ->and($cached['startedAt'])->toBeString()
             ->and($cached['completedAt'])->toBeString();
     });
@@ -84,15 +87,17 @@ describe('handle', function () {
         $service->shouldReceive('discoverAll')
             ->once()
             ->andReturnUsing(function (?callable $callback) use ($cacheKey) {
-                $callback(2, 5);
+                $callback(2, 5, 1, 3);
 
                 $cached = Cache::get($cacheKey);
                 expect($cached['status'])->toBe('running')
                     ->and($cached['processedDois'])->toBe(2)
                     ->and($cached['totalDois'])->toBe(5)
+                    ->and($cached['newRelationsFound'])->toBe(1)
+                    ->and($cached['updatedRelations'])->toBe(3)
                     ->and($cached['progress'])->toBe('Checking DOI 2 of 5...');
 
-                return 0;
+                return ['created' => 1, 'updated' => 3];
             });
 
         $job = new DiscoverRelationsJob($uuid);
@@ -127,11 +132,11 @@ describe('handle', function () {
         $service->shouldReceive('discoverAll')
             ->once()
             ->andReturnUsing(function (?callable $callback) {
-                $callback(1, 10);
-                $callback(2, 10);
-                $callback(10, 10);
+                $callback(1, 10, 1, 0);
+                $callback(2, 10, 1, 1);
+                $callback(10, 10, 2, 1);
 
-                return 3;
+                return ['created' => 2, 'updated' => 1];
             });
 
         $job = new DiscoverRelationsJob($uuid);
@@ -184,6 +189,7 @@ describe('failed', function () {
             'totalDois' => 10,
             'processedDois' => 3,
             'newRelationsFound' => 0,
+            'updatedRelations' => 0,
             'startedAt' => '2026-03-28T00:00:00+00:00',
         ], now()->addHours(2));
 

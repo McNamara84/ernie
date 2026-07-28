@@ -12,6 +12,7 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
 use App\Models\User;
+use App\Services\Citations\CitationLookupService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,6 +29,7 @@ class RelationDiscoveryService
     public function __construct(
         private readonly ScholExplorerService $scholExplorerService,
         private readonly DataCiteEventDataService $dataCiteEventDataService,
+        private readonly CitationLookupService $citationLookupService,
         private readonly DataCiteSyncService $dataCiteSyncService,
         private readonly RelatedIdentifierCitationLabelService $relatedIdentifierCitationLabelService,
     ) {}
@@ -35,10 +37,10 @@ class RelationDiscoveryService
     /**
      * Discover new relations for all resources with registered DOIs.
      *
-     * @param  callable(int $processed, int $total): void|null  $progressCallback
-     * @return int Number of newly discovered suggestions
+     * @param  callable(int $processed, int $total, int $created, int $updated): void|null  $progressCallback
+     * @return array{created: int, updated: int}
      */
-    public function discoverAll(?callable $progressCallback = null): int
+    public function discoverAll(?callable $progressCallback = null): array
     {
         $total = Resource::whereNotNull('doi')
             ->where('doi', '!=', '')
@@ -46,6 +48,7 @@ class RelationDiscoveryService
 
         $processed = 0;
         $newCount = 0;
+        $updatedCount = 0;
 
         // Pre-fetch lookups
         $identifierTypeLookup = IdentifierType::pluck('id', 'slug')->all();
@@ -60,6 +63,7 @@ class RelationDiscoveryService
                 $total,
                 &$processed,
                 &$newCount,
+                &$updatedCount,
                 $progressCallback,
             ) {
                 $resourceIds = $resources->pluck('id')->all();
@@ -77,10 +81,12 @@ class RelationDiscoveryService
                     ->map(fn ($items) => $items->map(fn (DismissedRelation $dr) => mb_strtolower($dr->identifier) . '|' . $dr->relation_type_id)->all())
                     ->all();
 
-                $suggestedKeys = SuggestedRelation::whereIn('resource_id', $resourceIds)
-                    ->get(['resource_id', 'identifier', 'relation_type_id'])
+                $pendingSuggestions = SuggestedRelation::whereIn('resource_id', $resourceIds)
+                    ->get(['id', 'resource_id', 'identifier', 'relation_type_id', 'source_type'])
                     ->groupBy('resource_id')
-                    ->map(fn ($items) => $items->map(fn (SuggestedRelation $sr) => mb_strtolower($sr->identifier) . '|' . $sr->relation_type_id)->all())
+                    ->map(fn ($items) => $items->mapWithKeys(fn (SuggestedRelation $sr) => [
+                        mb_strtolower($sr->identifier).'|'.$sr->relation_type_id => $sr,
+                    ])->all())
                     ->all();
 
                 foreach ($resources as $resource) {
@@ -91,21 +97,24 @@ class RelationDiscoveryService
                     $knownSet = array_flip(array_merge(
                         $existingKeys[$resourceId] ?? [],
                         $dismissedKeys[$resourceId] ?? [],
-                        $suggestedKeys[$resourceId] ?? [],
+                        array_keys($pendingSuggestions[$resourceId] ?? []),
                     ));
 
                     $relations = $this->discoverForDoi($doi);
-                    $newCount += $this->storeNewSuggestions(
+                    $counts = $this->storeNewSuggestions(
                         $resourceId,
                         $relations,
                         $identifierTypeLookup,
                         $relationTypeLookup,
                         $knownSet,
+                        $pendingSuggestions[$resourceId] ?? [],
                     );
+                    $newCount += $counts['created'];
+                    $updatedCount += $counts['updated'];
 
                     $processed++;
                     if ($progressCallback !== null) {
-                        $progressCallback($processed, $total);
+                        $progressCallback($processed, $total, $newCount, $updatedCount);
                     }
                 }
             });
@@ -113,13 +122,14 @@ class RelationDiscoveryService
         Log::info('Relation discovery completed', [
             'total_dois' => $total,
             'new_suggestions' => $newCount,
+            'updated_suggestions' => $updatedCount,
         ]);
 
-        if ($newCount > 0) {
+        if ($newCount > 0 || $updatedCount > 0) {
             $this->invalidateAssistanceCache();
         }
 
-        return $newCount;
+        return ['created' => $newCount, 'updated' => $updatedCount];
     }
 
     /**
@@ -164,12 +174,12 @@ class RelationDiscoveryService
     /**
      * Store new suggestions, filtering out known relations using pre-loaded set.
      *
-     * @param  int  $resourceId
-     * @param  array<int, array<string, mixed>>  $relations
+     * @param  array<int, array{identifier: string, identifier_type: string, relation_type: string, source: string, source_title: string|null, source_type: mixed, source_publisher: string|null, source_publication_date: string|null}>  $relations
      * @param  array<string, int>  $identifierTypeLookup
      * @param  array<string, int>  $relationTypeLookup
      * @param  array<string, true|int>  $knownSet  Pre-loaded set of known relation keys
-     * @return int Number of newly stored suggestions
+     * @param  array<string, SuggestedRelation>  $pendingSuggestions
+     * @return array{created: int, updated: int}
      */
     private function storeNewSuggestions(
         int $resourceId,
@@ -177,12 +187,14 @@ class RelationDiscoveryService
         array $identifierTypeLookup,
         array $relationTypeLookup,
         array $knownSet,
-    ): int {
+        array $pendingSuggestions,
+    ): array {
         if (empty($relations)) {
-            return 0;
+            return ['created' => 0, 'updated' => 0];
         }
 
         $newCount = 0;
+        $updatedCount = 0;
 
         foreach ($relations as $relation) {
             $relationTypeId = $relationTypeLookup[$relation['relation_type']] ?? null;
@@ -198,9 +210,27 @@ class RelationDiscoveryService
                 continue;
             }
 
-            $key = mb_strtolower((string) $relation['identifier']) . '|' . $relationTypeId;
+            $key = mb_strtolower((string) $relation['identifier']).'|'.$relationTypeId;
+            $existingPendingSuggestion = $pendingSuggestions[$key] ?? null;
+            $pendingHasSourceType = $this->normalizeSourceType($existingPendingSuggestion?->source_type) !== null;
 
-            if (isset($knownSet[$key])) {
+            if ($existingPendingSuggestion === null && isset($knownSet[$key])) {
+                continue;
+            }
+
+            if ($existingPendingSuggestion !== null && $pendingHasSourceType) {
+                continue;
+            }
+
+            $sourceType = $this->resolveRelationSourceType($relation);
+
+            if ($existingPendingSuggestion !== null) {
+                if ($sourceType !== null) {
+                    $existingPendingSuggestion->source_type = $sourceType;
+                    $existingPendingSuggestion->save();
+                    $updatedCount++;
+                }
+
                 continue;
             }
 
@@ -214,7 +244,7 @@ class RelationDiscoveryService
                     'identifier_type_id' => $identifierTypeId,
                     'source' => $relation['source'],
                     'source_title' => $relation['source_title'] ?? null,
-                    'source_type' => $relation['source_type'] ?? null,
+                    'source_type' => $sourceType,
                     'source_publisher' => $relation['source_publisher'] ?? null,
                     'source_publication_date' => $relation['source_publication_date'] ?? null,
                     'discovered_at' => now(),
@@ -230,7 +260,38 @@ class RelationDiscoveryService
             }
         }
 
-        return $newCount;
+        return ['created' => $newCount, 'updated' => $updatedCount];
+    }
+
+    /**
+     * @param  array{identifier: string, identifier_type: string, source_type: mixed}  $relation
+     */
+    private function resolveRelationSourceType(array $relation): ?string
+    {
+        $sourceType = $this->normalizeSourceType($relation['source_type'] ?? null);
+
+        if ($sourceType !== null || $relation['identifier_type'] !== 'DOI') {
+            return $sourceType;
+        }
+
+        $result = $this->citationLookupService->lookup($relation['identifier']);
+
+        if (! $result->found || ! is_array($result->data)) {
+            return null;
+        }
+
+        return $this->normalizeSourceType($result->data['relatedItemType'] ?? null);
+    }
+
+    private function normalizeSourceType(mixed $sourceType): ?string
+    {
+        if (! is_string($sourceType)) {
+            return null;
+        }
+
+        $sourceType = trim($sourceType);
+
+        return $sourceType !== '' ? $sourceType : null;
     }
 
     /**

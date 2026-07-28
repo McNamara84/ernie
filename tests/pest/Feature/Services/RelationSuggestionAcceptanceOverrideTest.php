@@ -7,6 +7,7 @@ use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\SuggestedRelation;
+use App\Services\Citations\CitationLookupService;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteEventDataService;
 use App\Services\DataCiteSyncResult;
@@ -33,6 +34,7 @@ function relationAcceptanceService(
     return new RelationDiscoveryService(
         Mockery::mock(ScholExplorerService::class),
         Mockery::mock(DataCiteEventDataService::class),
+        Mockery::mock(CitationLookupService::class),
         $syncService,
         $citationLabelService,
     );

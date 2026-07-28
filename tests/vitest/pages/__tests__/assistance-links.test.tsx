@@ -61,7 +61,7 @@ const mockedToastWarning = toast.warning as Mock;
 // The card components are not exported individually, so we render the
 // full page with minimal props and assert on the rendered output.
 // We import the default export (AssistancePage).
-import AssistancePage from '@/pages/assistance';
+import AssistancePage, { completionFeedback } from '@/pages/assistance';
 
 // ── Fixtures ─────────────────────────────────────────────────────────
 
@@ -484,6 +484,8 @@ function makeManifest(id: string, routePrefix: string, name: string) {
         statusLabels: {
             checking: 'Starting...',
             completed_with_results: '{count} found.',
+            completed_with_updates: '{updated} enriched.',
+            completed_with_results_and_updates: '{count} found, {updated} enriched.',
             completed_empty: 'No results.',
             failed: 'Failed.',
             already_running: 'Already running.',
@@ -759,6 +761,59 @@ describe('Assistance pagination scrolling', () => {
 
         expect(mockedRouterGet).not.toHaveBeenCalled();
         expect(scrollSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('relation discovery completion feedback', () => {
+    const manifest = makeManifest('relation-suggestion', 'relations', 'Relation Suggestions');
+
+    it.each([
+        {
+            status: { status: 'completed' as const, newRelationsFound: 2, updatedRelations: 0 },
+            expected: { message: '2 found.', hasResults: true },
+        },
+        {
+            status: { status: 'completed' as const, newRelationsFound: 0, updatedRelations: 3 },
+            expected: { message: '3 enriched.', hasResults: true },
+        },
+        {
+            status: { status: 'completed' as const, newRelationsFound: 2, updatedRelations: 3 },
+            expected: { message: '2 found, 3 enriched.', hasResults: true },
+        },
+        {
+            status: { status: 'completed' as const, newRelationsFound: 0, updatedRelations: 0 },
+            expected: { message: 'No results.', hasResults: false },
+        },
+    ])('reports created and enriched suggestions for $status', ({ status, expected }) => {
+        expect(completionFeedback(manifest, status)).toEqual(expected);
+    });
+});
+
+describe('RelationSuggestionCard - resource type', () => {
+    it('renders a trimmed resource type as an outlined badge', () => {
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([makeRelationSuggestion({ source_type: ' Dataset ' })]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        const badge = screen.getByTestId('relation-resource-type');
+
+        expect(badge).toHaveTextContent('Dataset');
+        expect(badge).toHaveAttribute('data-slot', 'badge');
+        expect(badge).toHaveAttribute('data-variant', 'outline');
+    });
+
+    it.each([null, '', '   '])('does not render a resource type badge for %p', (sourceType) => {
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([makeRelationSuggestion({ source_type: sourceType })]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByTestId('relation-resource-type')).not.toBeInTheDocument();
     });
 });
 
