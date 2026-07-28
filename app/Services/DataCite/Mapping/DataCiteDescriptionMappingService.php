@@ -34,14 +34,6 @@ final class DataCiteDescriptionMappingService
         return implode('<br>', $segments);
     }
 
-    /**
-     * Restore canonical line breaks for non-DataCite derivative formats.
-     */
-    public function fromJsonValue(string $description): string
-    {
-        return str_replace('<br>', chr(10), $description);
-    }
-
     private function escapeTagLikeLessThan(string $description): string
     {
         return preg_replace('/<(?=\/?[A-Za-z]|[!?])/', '&lt;', $description) ?? $description;

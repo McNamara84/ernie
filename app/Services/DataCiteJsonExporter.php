@@ -42,9 +42,10 @@ class DataCiteJsonExporter
      * Export a Resource to DataCite JSON format
      *
      * @param  Resource  $resource  The resource to export
+     * @param  bool  $serializeDescriptionsForDataCite  Whether descriptions should use DataCite-safe markup
      * @return array<string, mixed> The DataCite JSON structure
      */
-    public function export(Resource $resource): array
+    public function export(Resource $resource, bool $serializeDescriptionsForDataCite = true): array
     {
         // Load only missing relationships to honor caller's eager-loading
         $resource->loadMissing($this->getRequiredRelations());
@@ -52,7 +53,7 @@ class DataCiteJsonExporter
         return [
             'data' => [
                 'type' => 'dois',
-                'attributes' => $this->buildAttributes($resource),
+                'attributes' => $this->buildAttributes($resource, $serializeDescriptionsForDataCite),
             ],
         ];
     }
@@ -62,7 +63,7 @@ class DataCiteJsonExporter
      *
      * @return array<string, mixed>
      */
-    private function buildAttributes(Resource $resource): array
+    private function buildAttributes(Resource $resource, bool $serializeDescriptionsForDataCite): array
     {
         $attributes = [
             'titles' => $this->buildTitles($resource),
@@ -86,7 +87,7 @@ class DataCiteJsonExporter
             $attributes['subjects'] = $subjects;
         }
 
-        if ($descriptions = $this->buildDescriptions($resource)) {
+        if ($descriptions = $this->buildDescriptions($resource, $serializeDescriptionsForDataCite)) {
             $attributes['descriptions'] = $descriptions;
         }
 
@@ -664,13 +665,15 @@ class DataCiteJsonExporter
      *
      * @return array<int, array<string, mixed>>|null
      */
-    private function buildDescriptions(Resource $resource): ?array
+    private function buildDescriptions(Resource $resource, bool $serializeForDataCite): ?array
     {
         $descriptions = [];
 
         foreach ($resource->descriptions as $description) {
             $descriptionData = [
-                'description' => $this->dataCiteDescriptionMapper()->toJsonValue($description->value),
+                'description' => $serializeForDataCite
+                    ? $this->dataCiteDescriptionMapper()->toJsonValue($description->value)
+                    : $description->value,
                 'descriptionType' => $description->descriptionType->slug ?? 'Other',
             ];
 

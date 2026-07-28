@@ -256,12 +256,12 @@ describe('descriptions', function () {
         expect($desc['attrs']['descriptionType'])->toBe('Abstract');
     });
 
-    it('keeps linked data description line breaks as plain text', function () {
+    it('preserves the exact canonical linked data description text', function () {
         $resource = createResourceWithTitle();
 
         $abstractType = DescriptionType::where('slug', 'Abstract')->first();
         $resource->descriptions()->create([
-            'value' => 'JSON-LD first line'.chr(10).chr(10).'second line',
+            'value' => 'JSON-LD first line'.chr(10).chr(10).'<strong>literal</strong> &lt;encoded>',
             'landing_page_html' => '<p>JSON-LD <strong>first</strong> line</p><p>second line</p>',
             'description_type_id' => $abstractType?->id,
         ]);
@@ -269,9 +269,9 @@ describe('descriptions', function () {
         $result = $this->exporter->export($resource->fresh());
         $desc = $result['descriptions']['description'];
 
-        expect($desc['value'])->toBe('JSON-LD first line'.chr(10).chr(10).'second line')
-            ->and($desc['value'])->not->toContain('<br>')
-            ->and($desc['value'])->not->toContain('<strong>');
+        expect($desc['value'])
+            ->toBe('JSON-LD first line'.chr(10).chr(10).'<strong>literal</strong> &lt;encoded>')
+            ->and($desc['value'])->not->toContain('<br>');
     });
 });
 
