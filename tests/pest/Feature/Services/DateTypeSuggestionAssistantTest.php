@@ -76,7 +76,7 @@ function createDateTypeSuggestion(
 
 function dateType(string $slug): DateType
 {
-    return DateType::FirstOrCreate(
+    return DateType::firstOrCreate(
         ['slug' => $slug],
         ['name' => $slug, 'is_active' => true],
     );
@@ -1006,6 +1006,38 @@ it('does not store a plausibility hint for the overlapping partial year from iss
         'end_date' => '2023-05-01',
     ]);
     createDate($resource, 'Created', '2023');
+
+    $assistant = app(Assistant::class);
+
+    $count = $assistant->runDiscovery(function (string $message): void {});
+
+    $hasPlausibilityHint = AssistantSuggestion::query()
+        ->where('assistant_id', $assistant->getId())
+        ->where('resource_id', $resource->id)
+        ->where('target_type', DateTypeDiscoveryService::TARGET_TYPE)
+        ->where('suggested_value', 'like', '%occurs after%')
+        ->exists();
+
+    expect($count)->toBe(0)
+        ->and($hasPlausibilityHint)->toBeFalse();
+});
+
+it('does not store a plausibility hint for chronologically ordered zoned date-times', function (): void {
+    app()->instance(DateTypeSchemaorgExtractionService::class, new class extends DateTypeSchemaorgExtractionService
+    {
+        #[Override]
+        public function loadAllowedSchemaorg(string $doi): array
+        {
+            return [];
+        }
+    });
+
+    $resource = Resource::factory()->create([
+        'doi' => '10.5880/test.zoned-date-times',
+    ]);
+
+    createDate($resource, 'Collected', '2024-01-01T00:30:00+02:00');
+    createDate($resource, 'Created', '2023-12-31T23:00:00Z');
 
     $assistant = app(Assistant::class);
 

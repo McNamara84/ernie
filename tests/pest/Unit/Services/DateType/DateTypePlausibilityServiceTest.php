@@ -242,6 +242,68 @@ it('does not report the issue 1034 range as after a containing partial year', fu
     expect($warnings)->toBe([]);
 });
 
+it('does not report chronologically ordered date-time boundaries with different representations', function (
+    string $earlierValue,
+    string $laterValue,
+) {
+    $warnings = $this->plausibilityService->hint([
+        'Collected' => [$earlierValue],
+        'Created' => [$laterValue],
+    ]);
+
+    expect($warnings)->toBe([]);
+})->with([
+    'lexically later value is an earlier instant' => ['2024-01-01T00:30:00+02:00', '2023-12-31T23:00:00Z'],
+    'equivalent instants use different offsets' => ['2024-01-01T01:00:00+01:00', '2024-01-01T00:00:00Z'],
+    'equivalent local times use optional seconds' => ['2024-01-01T00:30:00', '2024-01-01T00:30'],
+    'fractional seconds use decimal commas' => ['2024-01-01T00:00:00,400Z', '2024-01-01T01:00:00,500+01:00'],
+    'earlier range end is an earlier instant' => [
+        '2023-12-30T00:00:00Z/2024-01-01T00:30:00+02:00',
+        '2023-12-31T23:00:00Z',
+    ],
+]);
+
+it('reports chronologically reversed date-time boundaries across timezone offsets', function (
+    string $earlierValue,
+    string $laterValue,
+) {
+    $warnings = $this->plausibilityService->hint([
+        'Collected' => [$earlierValue],
+        'Created' => [$laterValue],
+    ]);
+
+    expect($warnings)->toHaveCount(1)
+        ->and($warnings[0]['message'])->toBe(sprintf(
+            'Collected (%s) occurs after Created (%s). Please check whether the date values or date types are assigned correctly.',
+            $earlierValue,
+            $laterValue,
+        ));
+})->with([
+    'lexically earlier value is a later instant' => ['2023-12-31T23:30:00Z', '2024-01-01T00:00:00+02:00'],
+    'same local date has reversed offset instants' => ['2024-01-01T00:30:00-02:00', '2024-01-01T01:00:00Z'],
+    'fractional seconds use decimal commas' => ['2024-01-01T00:00:00,500Z', '2024-01-01T01:00:00,400+01:00'],
+    'timezone offset omits the colon' => ['2023-12-31T23:30:00Z', '2024-01-01T00:00:00+0200'],
+    'later range start is an earlier instant' => [
+        '2023-12-31T23:30:00Z',
+        '2024-01-01T00:00:00+02:00/2024-01-02T00:00:00+02:00',
+    ],
+]);
+
+it('ignores normalized date-times that cannot be parsed as instants', function (
+    string $earlierValue,
+    string $laterValue,
+) {
+    $warnings = $this->plausibilityService->hint([
+        'Collected' => [$earlierValue],
+        'Created' => [$laterValue],
+    ]);
+
+    expect($warnings)->toBe([]);
+})->with([
+    'invalid earlier time' => ['2024-01-01T25:00:00Z', '2024-01-01T00:00:00Z'],
+    'invalid later timezone offset' => ['2024-01-01T00:00:00Z', '2024-01-01T00:00:00+25:00'],
+]);
+
 it('does not report overlapping mixed-precision boundaries as implausible', function (
     string $earlierValue,
     string $laterValue,

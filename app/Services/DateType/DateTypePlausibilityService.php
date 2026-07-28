@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\DateType;
 
+use DateMalformedStringException;
 use DateTimeImmutable;
 
 final class DateTypePlausibilityService
@@ -87,6 +88,17 @@ final class DateTypePlausibilityService
         $earlierEnd = str_contains($normalizedEarlier, '/') ? explode('/', $normalizedEarlier, 2)[1] : $normalizedEarlier;
         $laterStart = str_contains($normalizedLater, '/') ? explode('/', $normalizedLater, 2)[0] : $normalizedLater;
 
+        if ($this->hasTimeComponent($earlierEnd) && $this->hasTimeComponent($laterStart)) {
+            $earlierInstant = $this->parseDateTimeInstant($earlierEnd);
+            $laterInstant = $this->parseDateTimeInstant($laterStart);
+
+            if ($earlierInstant === null || $laterInstant === null) {
+                return false;
+            }
+
+            return $earlierInstant > $laterInstant;
+        }
+
         if (! $this->hasReducedPrecision($earlierEnd) && ! $this->hasReducedPrecision($laterStart)) {
             return $earlierEnd > $laterStart;
         }
@@ -99,6 +111,20 @@ final class DateTypePlausibilityService
         }
 
         return $earlierBounds['earliest'] > $laterBounds['latest'];
+    }
+
+    private function hasTimeComponent(string $value): bool
+    {
+        return preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/', $value) === 1;
+    }
+
+    private function parseDateTimeInstant(string $value): ?DateTimeImmutable
+    {
+        try {
+            return new DateTimeImmutable(str_replace(',', '.', $value));
+        } catch (DateMalformedStringException) {
+            return null;
+        }
     }
 
     private function hasReducedPrecision(string $value): bool
