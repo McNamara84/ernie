@@ -945,7 +945,7 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('textbox', { name: /Title/ })).toHaveLength(1);
     });
 
-    it('gives the datacenter field more grid width and keeps long selected datacenter badges wrapped', () => {
+    it('uses responsive resource information spans and keeps long selected datacenter badges wrapped', () => {
         const longDatacenterName = 'DEKORP - German Continental Seismic Reflection Program';
 
         render(
@@ -965,13 +965,25 @@ describe('DataCiteForm', () => {
             />,
         );
 
+        const doiField = screen.getByLabelText('DOI').parentElement;
+        expect(doiField).toHaveClass('md:col-span-4', 'xl:col-span-3');
+
+        const yearField = screen.getByLabelText('Year', { exact: false }).parentElement;
+        expect(yearField).toHaveClass('md:col-span-2', 'xl:col-span-1');
+
+        const resourceTypeField = screen.getByTestId('resource-type-select').parentElement;
+        expect(resourceTypeField).toHaveClass('min-w-0', 'md:col-span-6', 'xl:col-span-2');
+
         const datacenterField = screen.getByTestId('datacenter-select').parentElement;
         expect(datacenterField).toHaveClass('min-w-0');
-        expect(datacenterField).toHaveClass('md:col-span-3');
+        expect(datacenterField).toHaveClass('md:col-span-6', 'xl:col-span-3');
 
         const versionField = screen.getByLabelText('Version').parentElement;
         expect(versionField).toHaveClass('min-w-0');
-        expect(versionField).toHaveClass('md:col-span-1');
+        expect(versionField).toHaveClass('md:col-span-2', 'xl:col-span-1');
+
+        const languageField = screen.getByTestId('language-select').parentElement;
+        expect(languageField).toHaveClass('min-w-0', 'md:col-span-4', 'xl:col-span-2');
 
         const selectedDatacenter = screen.getByText(longDatacenterName);
         expect(selectedDatacenter).toHaveClass('whitespace-normal');

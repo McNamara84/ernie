@@ -384,6 +384,10 @@
         ],
         "fixes": [
             {
+                "title": "Responsive Resource Information Layout",
+                "description": "The Data Editor now keeps its basic Resource Information fields proportional across screen sizes: one compact row on large desktops, two balanced rows at medium widths, and full-width stacked controls on mobile. Language of Data no longer sits alone in a mostly empty row on wide screens."
+            },
+            {
                 "title": "Preserved DataCite Description Line Breaks",
                 "description": "DataCite registration, metadata updates, and JSON/XML exports now preserve logical description line breaks using DataCite's allowed <br> representation. JSON API payloads emit literal <br> markers and XML exports emit real <br/> child elements, while all other landing-page HTML remains excluded. Existing resources require no migration."
             },
