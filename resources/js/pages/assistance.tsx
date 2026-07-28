@@ -110,6 +110,7 @@ function SuggestionCard({
 }) {
     const identifierUrl = suggestion.identifier_type === 'DOI' ? resolveIdentifierUrl(suggestion.identifier, 'DOI') : null;
     const selectedRelationTypeId = acceptanceInput.relation_type_id ?? suggestion.relation_type_id;
+    const sourceType = suggestion.source_type?.trim() ?? '';
 
     return (
         <div className="bg-card p-2 sm:p-3">
@@ -146,11 +147,16 @@ function SuggestionCard({
 
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {suggestion.source_publisher && <span>Publisher: {suggestion.source_publisher}</span>}
-                        {suggestion.source_type && <span>Type: {suggestion.source_type}</span>}
                         <span>Source: {sourceLabel(suggestion.source)}</span>
                         <span>Discovered: {new Date(suggestion.discovered_at).toLocaleDateString()}</span>
                     </div>
                 </div>
+
+                {sourceType !== '' && (
+                    <Badge data-testid="relation-resource-type" variant="outline" className="min-w-24 shrink-0 justify-center self-center">
+                        {sourceType}
+                    </Badge>
+                )}
 
                 <div hidden className="suggestion-card-actions flex shrink-0 gap-2">
                     <Button variant="outline" size="sm" disabled={isProcessing} onClick={() => onDecline(suggestion.id)}>

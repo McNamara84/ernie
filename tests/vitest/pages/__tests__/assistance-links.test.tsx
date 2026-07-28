@@ -762,6 +762,34 @@ describe('Assistance pagination scrolling', () => {
     });
 });
 
+describe('RelationSuggestionCard - resource type', () => {
+    it('renders a trimmed resource type as an outlined badge', () => {
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([makeRelationSuggestion({ source_type: ' Dataset ' })]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        const badge = screen.getByTestId('relation-resource-type');
+
+        expect(badge).toHaveTextContent('Dataset');
+        expect(badge).toHaveAttribute('data-slot', 'badge');
+        expect(badge).toHaveAttribute('data-variant', 'outline');
+    });
+
+    it.each([null, '', '   '])('does not render a resource type badge for %p', (sourceType) => {
+        render(
+            <AssistancePage
+                sections={{ 'relation-suggestion': paginated([makeRelationSuggestion({ source_type: sourceType })]) }}
+                manifests={[makeManifest('relation-suggestion', 'relations', 'Relation Suggestions')]}
+            />,
+        );
+
+        expect(screen.queryByTestId('relation-resource-type')).not.toBeInTheDocument();
+    });
+});
+
 describe('RelationSuggestionCard - DOI link', () => {
     it('renders a suggested DOI as a secure resolver link in a new tab', () => {
         const suggestion = makeRelationSuggestion();

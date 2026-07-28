@@ -317,6 +317,17 @@ describe('DataCite attribute transformation', function () {
         expect($data['relatedItemType'])->toBe('Text');
     });
 
+    it('preserves DataCite 4.7 resource types', function (string $resourceTypeGeneral) {
+        $data = runDataCiteFallback([
+            'types' => ['resourceTypeGeneral' => $resourceTypeGeneral],
+        ]);
+
+        expect($data['relatedItemType'])->toBe($resourceTypeGeneral);
+    })->with([
+        'poster' => 'Poster',
+        'presentation' => 'Presentation',
+    ]);
+
     it('skips non-array creators', function () {
         $data = runDataCiteFallback([
             'creators' => ['not-a-creator', ['name' => 'Valid']],
