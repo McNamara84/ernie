@@ -215,19 +215,20 @@ describe('descriptions', function () {
         expect($result)->not->toHaveKey('description');
     });
 
-    it('keeps schema org description plain text when landing page html exists', function () {
+    it('keeps schema org description line breaks as plain text', function () {
         $resource = createSchemaOrgResource();
 
         $abstractType = DescriptionType::where('slug', 'Abstract')->first();
         $resource->descriptions()->create([
-            'value' => 'Schema.org plain text abstract',
-            'landing_page_html' => '<p>Schema.org <strong>formatted</strong> abstract</p>',
+            'value' => 'Schema.org first line'.chr(10).chr(10).'second line',
+            'landing_page_html' => '<p>Schema.org <strong>first</strong> line</p><p>second line</p>',
             'description_type_id' => $abstractType?->id,
         ]);
 
         $result = $this->exporter->export($resource->fresh());
 
-        expect($result['description'])->toBe('Schema.org plain text abstract')
+        expect($result['description'])->toBe('Schema.org first line'.chr(10).chr(10).'second line')
+            ->and($result['description'])->not->toContain('<br>')
             ->and($result['description'])->not->toContain('<strong>');
     });
 });

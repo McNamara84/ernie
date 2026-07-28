@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\DataCite\Mapping\DataCiteDescriptionMappingService;
 use App\Support\OrcidNormalizer;
 
 /**
@@ -19,6 +20,10 @@ use App\Support\OrcidNormalizer;
  */
 class SchemaOrgJsonLdExporter
 {
+    public function __construct(
+        private readonly DataCiteDescriptionMappingService $descriptionMapper = new DataCiteDescriptionMappingService,
+    ) {}
+
     /**
      * Controlled vocabulary subject schemes that should be emitted as Schema.org DefinedTerm.
      *
@@ -261,7 +266,7 @@ class SchemaOrgJsonLdExporter
     {
         foreach ($descriptions as $desc) {
             if (($desc['descriptionType'] ?? '') === 'Abstract') {
-                return $desc['description'];
+                return $this->descriptionMapper->fromJsonValue((string) $desc['description']);
             }
         }
 

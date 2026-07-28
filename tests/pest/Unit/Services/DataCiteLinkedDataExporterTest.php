@@ -256,20 +256,21 @@ describe('descriptions', function () {
         expect($desc['attrs']['descriptionType'])->toBe('Abstract');
     });
 
-    it('keeps linked data descriptions plain text when landing page html exists', function () {
+    it('keeps linked data description line breaks as plain text', function () {
         $resource = createResourceWithTitle();
 
         $abstractType = DescriptionType::where('slug', 'Abstract')->first();
         $resource->descriptions()->create([
-            'value' => 'Plain JSON-LD description',
-            'landing_page_html' => '<p>Plain <strong>JSON-LD</strong> description</p>',
+            'value' => 'JSON-LD first line'.chr(10).chr(10).'second line',
+            'landing_page_html' => '<p>JSON-LD <strong>first</strong> line</p><p>second line</p>',
             'description_type_id' => $abstractType?->id,
         ]);
 
         $result = $this->exporter->export($resource->fresh());
         $desc = $result['descriptions']['description'];
 
-        expect($desc['value'])->toBe('Plain JSON-LD description')
+        expect($desc['value'])->toBe('JSON-LD first line'.chr(10).chr(10).'second line')
+            ->and($desc['value'])->not->toContain('<br>')
             ->and($desc['value'])->not->toContain('<strong>');
     });
 });

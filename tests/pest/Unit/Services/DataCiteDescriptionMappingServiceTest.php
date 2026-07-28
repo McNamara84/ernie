@@ -30,6 +30,18 @@ it('retains consecutive leading and trailing line breaks', function (): void {
         ->and($this->mapper->toJsonValue($description))->toBe('<br>First<br><br>Second<br>');
 });
 
+it('restores datacite json break markers as canonical line breaks', function (): void {
+    expect($this->mapper->fromJsonValue('First<br><br>Second'))
+        ->toBe('First'.chr(10).chr(10).'Second');
+});
+
+it('escapes tag-like less-than signs without changing comparisons', function (): void {
+    $description = 'Use <strong>bold</strong> and <script>alert(1)</script>, but x < 5.';
+
+    expect($this->mapper->toJsonValue($description))
+        ->toBe('Use &lt;strong>bold&lt;/strong> and &lt;script>alert(1)&lt;/script>, but x < 5.');
+});
+
 it('preserves unicode and plain-text symbols', function (): void {
     $description = "Temperatur < 5 °C & Schnee\n第二行";
 

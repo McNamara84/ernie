@@ -26,6 +26,24 @@ final class DataCiteDescriptionMappingService
      */
     public function toJsonValue(string $description): string
     {
-        return implode('<br>', $this->segments($description));
+        $segments = array_map(
+            fn (string $segment): string => $this->escapeTagLikeLessThan($segment),
+            $this->segments($description),
+        );
+
+        return implode('<br>', $segments);
+    }
+
+    /**
+     * Restore canonical line breaks for non-DataCite derivative formats.
+     */
+    public function fromJsonValue(string $description): string
+    {
+        return str_replace('<br>', chr(10), $description);
+    }
+
+    private function escapeTagLikeLessThan(string $description): string
+    {
+        return preg_replace('/<(?=\/?[A-Za-z]|[!?])/', '&lt;', $description) ?? $description;
     }
 }

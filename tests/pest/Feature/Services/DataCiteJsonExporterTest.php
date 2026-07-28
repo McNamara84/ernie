@@ -421,6 +421,28 @@ describe('DataCiteJsonExporter - Descriptions', function () {
             ->and($descriptions[0]['description'])->not->toContain('<p>')
             ->and($descriptions[0]['description'])->not->toContain('<strong>');
     });
+
+    test('escapes tag-like plain text while preserving comparison operators', function () {
+        $resource = Resource::factory()->create();
+        $abstractType = DescriptionType::firstOrCreate(
+            ['slug' => 'Abstract'],
+            ['name' => 'Abstract']
+        );
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'Math x < 5.'.chr(10).'<strong>bold</strong> and <script>alert(1)</script>.',
+            'description_type_id' => $abstractType->id,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $description = $result['data']['attributes']['descriptions'][0]['description'];
+
+        expect($description)
+            ->toBe('Math x < 5.<br>&lt;strong>bold&lt;/strong> and &lt;script>alert(1)&lt;/script>.')
+            ->and($description)->not->toContain('<strong>')
+            ->and($description)->not->toContain('<script>');
+    });
 });
 
 describe('DataCiteJsonExporter - Resource Types', function () {

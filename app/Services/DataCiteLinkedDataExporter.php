@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Resource;
+use App\Services\DataCite\Mapping\DataCiteDescriptionMappingService;
 
 /**
  * Transforms DataCite JSON export into DataCite Linked Data JSON-LD format.
@@ -16,6 +17,10 @@ use App\Models\Resource;
  */
 class DataCiteLinkedDataExporter
 {
+    public function __construct(
+        private readonly DataCiteDescriptionMappingService $descriptionMapper = new DataCiteDescriptionMappingService,
+    ) {}
+
     /**
      * Export a Resource as DataCite Linked Data JSON-LD.
      *
@@ -568,7 +573,9 @@ class DataCiteLinkedDataExporter
                 'lang' => $desc['lang'] ?? null,
             ]);
 
-            $result = ['value' => $desc['description']];
+            $result = [
+                'value' => $this->descriptionMapper->fromJsonValue((string) $desc['description']),
+            ];
             if (! empty($attrs)) {
                 $result['attrs'] = $attrs;
             }
