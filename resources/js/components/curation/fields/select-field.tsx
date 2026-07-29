@@ -2,7 +2,7 @@ import { type HTMLAttributes } from 'react';
 
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,8 @@ interface SelectFieldProps {
     className?: string;
     hideLabel?: boolean;
     required?: boolean;
+    clearable?: boolean;
+    clearLabel?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     triggerClassName?: string;
     'data-testid'?: string;
@@ -45,6 +47,8 @@ export function SelectField({
     className,
     hideLabel = false,
     required = false,
+    clearable = false,
+    clearLabel = 'Clear selection',
     containerProps,
     triggerClassName,
     'data-testid': dataTestId,
@@ -71,9 +75,11 @@ export function SelectField({
     // Only use aria-label when label is hidden; otherwise use aria-labelledby
     const ariaProps = hideLabel ? { 'aria-label': label } : { 'aria-labelledby': labelId };
 
+    const clearValue = `__clear-${id}__`;
+
     // Handle value change with optional blur callback
     const handleValueChange = (newValue: string) => {
-        onValueChange(newValue);
+        onValueChange(newValue === clearValue ? '' : newValue);
         // Call validation blur after value changes (select acts like blur)
         if (onValidationBlur) {
             // Small delay to ensure state updates
@@ -132,6 +138,12 @@ export function SelectField({
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
                 <SelectContent>
+                    {clearable && value && (
+                        <>
+                            <SelectItem value={clearValue}>{clearLabel}</SelectItem>
+                            <SelectSeparator />
+                        </>
+                    )}
                     {options.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
                             {option.label}

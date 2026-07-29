@@ -2,6 +2,25 @@
 
 use App\Services\OldDatasetEditorLoader;
 
+describe('language mapping', function () {
+    it('normalizes explicit legacy language codes', function () {
+        $loader = new OldDatasetEditorLoader;
+        $method = (new ReflectionClass($loader))->getMethod('mapLanguage');
+
+        expect($method->invoke($loader, 'DE'))->toBe('de')
+            ->and($method->invoke($loader, ' en '))->toBe('en');
+    });
+
+    it('keeps missing legacy languages empty', function () {
+        $loader = new OldDatasetEditorLoader;
+        $method = (new ReflectionClass($loader))->getMethod('mapLanguage');
+
+        expect($method->invoke($loader, null))->toBe('')
+            ->and($method->invoke($loader, ''))->toBe('')
+            ->and($method->invoke($loader, '   '))->toBe('');
+    });
+});
+
 // Tests that don't require database connection - test license mapping logic
 describe('license mapping', function () {
     it('maps CC BY 4.0 license correctly', function () {

@@ -133,6 +133,19 @@ describe('Resource Schemas', () => {
             expect(result.success).toBe(true);
         });
 
+        it('accepts omitted and empty optional resource languages', () => {
+            const resourceWithoutLanguage = {
+                resourceType: 'Dataset',
+                titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
+                authors: [{ id: '1', type: 'person' as const, firstName: 'Jane', lastName: 'Doe' }],
+                contributors: [],
+                licenses: [{ id: '1', license: 'CC-BY-4.0' }],
+            };
+
+            expect(resourceSchema.safeParse(resourceWithoutLanguage).success).toBe(true);
+            expect(resourceSchema.safeParse({ ...resourceWithoutLanguage, language: '' }).success).toBe(true);
+        });
+
         it('requires resource type', () => {
             const result = resourceSchema.safeParse({
                 resourceType: '',

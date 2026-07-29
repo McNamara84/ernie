@@ -1255,6 +1255,14 @@ describe('DataCiteXmlExporter - Version & Language', function () {
         expect($xml)->toContain('<language>');
     });
 
+    test('omits language when not set', function () {
+        $resource = Resource::factory()->create(['language_id' => null]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->not->toContain('<language>');
+    });
+
     test('skips version when not set', function () {
         $resource = Resource::factory()->create(['version' => null]);
 
