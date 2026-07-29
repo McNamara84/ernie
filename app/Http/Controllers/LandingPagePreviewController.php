@@ -71,6 +71,26 @@ class LandingPagePreviewController extends Controller
         // Only include links for templates that support them.
         // Note: external templates already returned early above, so we only check IGSN here.
         $isLinksTemplate = ! in_array($validated['template'], LandingPageController::IGSN_ONLY_TEMPLATES, true);
+        $previewFiles = [];
+        if (is_array($validated['files'] ?? null) && $resource->landingPage !== null) {
+            $filesById = $resource->landingPage->files()
+                ->whereIn('id', collect($validated['files'])->pluck('id')->filter()->all())
+                ->get()
+                ->keyBy('id');
+
+            foreach ($validated['files'] as $fileData) {
+                $file = $filesById->get((int) $fileData['id']);
+                if ($file === null) {
+                    continue;
+                }
+
+                $previewFiles[] = [
+                    ...$file->toArray(),
+                    'format_id' => $fileData['format_id'] ?? null,
+                    'size_id' => $fileData['size_id'] ?? null,
+                ];
+            }
+        }
 
         Session::put($sessionKey, [
             'template' => $validated['template'],
@@ -80,10 +100,17 @@ class LandingPagePreviewController extends Controller
             'ftp_url' => LandingPageController::templateSupportsFtpUrl($validated['template'])
                 ? ($validated['ftp_url'] ?? null)
                 : null,
+            'ftp_format_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
+                ? ($validated['ftp_format_id'] ?? null)
+                : null,
+            'ftp_size_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
+                ? ($validated['ftp_size_id'] ?? null)
+                : null,
             'downloads_unavailable' => LandingPageController::templateSupportsDownloadsUnavailable($validated['template'])
                 ? ($validated['downloads_unavailable'] ?? false)
                 : false,
             'links' => $isLinksTemplate ? ($validated['links'] ?? []) : [],
+            'files' => $previewFiles,
             'resource_id' => $resource->id,
         ]);
 
@@ -172,8 +199,10 @@ class LandingPagePreviewController extends Controller
             'template' => $template,
             'landing_page_template_id' => $landingPageTemplateId,
             'ftp_url' => $ftpUrl,
+            'ftp_format_id' => $previewData['ftp_format_id'] ?? null,
+            'ftp_size_id' => $previewData['ftp_size_id'] ?? null,
             'downloads_unavailable' => $downloadsUnavailable,
-            'files' => [],
+            'files' => is_array($previewData['files'] ?? null) ? $previewData['files'] : [],
             'links' => $links,
             'status' => 'preview',
             'preview_token' => null,

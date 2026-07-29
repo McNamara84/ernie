@@ -211,6 +211,8 @@ export interface LandingPageFile {
 
     /** Download URL */
     url: string;
+    format_id?: number | null;
+    size_id?: number | null;
 
     /** Public tracked redirect URL used only on published landing pages */
     tracked_url?: string | null;
@@ -240,6 +242,8 @@ export interface LandingPageLink {
 
     /** Machine-readable role; omitted only by legacy cached client data */
     kind?: 'related' | 'download' | 'repository';
+    format_id?: number | null;
+    size_id?: number | null;
 
     /** Display order (drag-and-drop) */
     position: number;
@@ -268,6 +272,8 @@ export interface LandingPageConfig {
 
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
+    ftp_format_id?: number | null;
+    ftp_size_id?: number | null;
 
     /** Whether the generated landing page should hide the Files section */
     downloads_unavailable?: boolean;
@@ -322,6 +328,8 @@ export interface LandingPageConfig {
 
     /** Additional download links added by curators */
     links?: LandingPageLink[];
+    available_formats?: Array<{ id: number; value: string }>;
+    available_sizes?: Array<{ id: number; label: string; content_size: string }>;
 }
 
 /**

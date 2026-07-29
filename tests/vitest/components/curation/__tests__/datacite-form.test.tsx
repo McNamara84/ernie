@@ -991,6 +991,9 @@ describe('DataCiteForm', () => {
         const resourceTypeField = screen.getByTestId('resource-type-select').parentElement;
         expect(resourceTypeField).toHaveClass('min-w-0', 'md:col-span-6', 'xl:col-span-2');
 
+        const accessLevelField = screen.getByTestId('access-level-select').parentElement;
+        expect(accessLevelField).toHaveClass('min-w-0', 'md:col-span-6', 'xl:col-span-2');
+
         const datacenterField = screen.getByTestId('datacenter-select').parentElement;
         expect(datacenterField).toHaveClass('min-w-0');
         expect(datacenterField).toHaveClass('md:col-span-6', 'xl:col-span-3');
@@ -2967,6 +2970,7 @@ describe('DataCiteForm', () => {
         expect(body).toMatchObject({
             year: 2024,
             resourceType: 1,
+            accessLevel: 'open',
             language: '',
             titles: [
                 {

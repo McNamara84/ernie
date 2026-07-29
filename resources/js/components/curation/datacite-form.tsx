@@ -45,6 +45,7 @@ import {
 } from '@/utils/validation-rules';
 
 import AuthorField, { type AuthorEntry } from './fields/author';
+import { AccessLevelField } from './fields/access-level-field';
 import { CitationsField } from './fields/citations-field';
 import ContributorField, { type ContributorEntry } from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
@@ -64,6 +65,7 @@ import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import UsedInstrumentsField from './fields/used-instruments-field';
 import {
+    type AccessLevel,
     type CustomLicenseEntry,
     type DataCiteFormData,
     type DataCiteFormProps,
@@ -240,6 +242,7 @@ export default function DataCiteForm({
     initialVersion = '',
     initialLanguage = '',
     initialResourceType = '',
+    initialAccessLevel = 'open',
     initialTitles = [],
     initialLicenses = [],
     initialRawRights = [],
@@ -301,6 +304,7 @@ export default function DataCiteForm({
         resourceType: initialResourceType,
         version: initialVersion,
         language: resolveInitialLanguageCode(languages, initialLanguage),
+        accessLevel: initialAccessLevel,
     });
 
     const [titles, setTitles] = useState<TitleEntry[]>(() => {
@@ -1377,6 +1381,17 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'resourceType', 'Resource Type is required.');
         }
 
+        if (!form.accessLevel) {
+            appendValidationMessage(errors, 'accessLevel', 'Access Level is required.');
+        }
+
+        if (
+            form.accessLevel === 'embargoed' &&
+            !dates.some((date) => date.dateType === 'available' && Boolean(date.startDate?.trim()))
+        ) {
+            appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires an Available date.');
+        }
+
         if (!licenseEntries.some(hasLicenseEntryEvidence)) {
             appendValidationMessage(errors, 'licenses', 'At least one License is required.');
         }
@@ -1446,7 +1461,7 @@ export default function DataCiteForm({
         dateValidationIssues.forEach((issue) => appendValidationMessage(errors, 'dates', issue));
 
         return errors;
-    }, [authors, descriptions, form.resourceType, form.year, licenseEntries, selectedDatacenterId, titles, dateValidationIssues]);
+    }, [authors, dates, descriptions, form.accessLevel, form.resourceType, form.year, licenseEntries, selectedDatacenterId, titles, dateValidationIssues]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1461,6 +1476,7 @@ export default function DataCiteForm({
         const hasMainTitle = Boolean(mainTitleEntry?.title.trim());
         const hasYear = Boolean(form.year?.trim());
         const hasResourceType = Boolean(form.resourceType);
+        const hasAccessLevel = Boolean(form.accessLevel);
         const hasDatacenter = selectedDatacenterId !== null;
 
         // Check if DOI has validation errors (if present)
@@ -1475,14 +1491,14 @@ export default function DataCiteForm({
         const versionMessages = getFieldState('version').messages;
         const hasVersionError = versionMessages.some((msg) => msg.severity === 'error');
 
-        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasDatacenter;
+        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasAccessLevel && hasDatacenter;
         const hasErrors = hasDoiError || hasYearError || hasVersionError;
 
         if (!allRequiredPresent || hasErrors) {
             return 'invalid';
         }
         return 'valid';
-    }, [titles, form.year, form.resourceType, selectedDatacenterId, getFieldState]);
+    }, [titles, form.year, form.resourceType, form.accessLevel, selectedDatacenterId, getFieldState]);
 
     const licensesStatus = useMemo(() => {
         const hasCompleteLicense = licenseEntries.some(hasLicenseEntryEvidence);
@@ -2044,6 +2060,7 @@ export default function DataCiteForm({
             doi: string | null;
             year: number | null;
             resourceType: number | null;
+            accessLevel: AccessLevel;
             version: string | null;
             language: string;
             titles: { title: string; titleType: string; language?: string | null }[];
@@ -2111,6 +2128,7 @@ export default function DataCiteForm({
             doi: form.doi?.trim() || null,
             year: form.year ? Number(form.year) : null,
             resourceType: form.resourceType ? Number(form.resourceType) : null,
+            accessLevel: form.accessLevel,
             version: form.version?.trim() || null,
             language: form.language,
             titles: titles.map((entry) => ({
@@ -2211,6 +2229,7 @@ export default function DataCiteForm({
         dates,
         descriptions,
         form.doi,
+        form.accessLevel,
         form.language,
         form.resourceType,
         form.version,
@@ -3037,6 +3056,13 @@ export default function DataCiteForm({
                             className="min-w-0 md:col-span-6 xl:col-span-2"
                             required
                             data-testid="resource-type-select"
+                        />
+                        <AccessLevelField
+                            value={form.accessLevel}
+                            onChange={(value) => handleChange('accessLevel', value)}
+                            onBlur={() => markFieldTouched('accessLevel')}
+                            validationMessages={getFieldState('accessLevel').messages}
+                            touched={getFieldState('accessLevel').touched}
                         />
                         <DatacenterField
                             id="datacenter"

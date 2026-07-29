@@ -39,7 +39,7 @@ class SchemaOrgJsonLdExporter
     /**
      * Export a Resource as Schema.org JSON-LD.
      *
-     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string}>, repositories: list<string>}|null  $content
+     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string, contentSize: string|null}>, repositories: list<string>}|null  $content
      * @return array<string, mixed>
      */
     public function export(Resource $resource, ?LandingPage $landingPage = null, ?array $content = null): array
@@ -52,8 +52,12 @@ class SchemaOrgJsonLdExporter
         $jsonLd = [
             '@context' => 'https://schema.org/',
             '@type' => $isSoftware ? ['SoftwareSourceCode', 'SoftwareApplication'] : 'Dataset',
-            'isAccessibleForFree' => true,
         ];
+
+        if ($resource->access_level !== null) {
+            $jsonLd['conditionsOfAccess'] = $resource->access_level->label();
+            $jsonLd['isAccessibleForFree'] = $resource->access_level->isAccessibleForFree();
+        }
 
         // @id and url from DOI
         if (isset($attributes['doi'])) {
@@ -104,7 +108,17 @@ class SchemaOrgJsonLdExporter
 
         // License
         if (! empty($attributes['rightsList'])) {
-            $jsonLd['license'] = $this->transformLicense($attributes['rightsList']);
+            $licenses = array_values(array_filter(
+                $attributes['rightsList'],
+                static fn (mixed $rights): bool => ! is_array($rights)
+                    || \App\Enums\AccessLevel::fromCoarUri(
+                        is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
+                    ) === null,
+            ));
+
+            if ($licenses !== []) {
+                $jsonLd['license'] = $this->transformLicense($licenses);
+            }
         }
 
         if ($content !== null) {
@@ -147,12 +161,28 @@ class SchemaOrgJsonLdExporter
 
     /**
      * @param  array<string, mixed>  $jsonLd
-     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string}>, repositories: list<string>}  $content
+     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string, contentSize: string|null}>, repositories: list<string>}  $content
      */
     private function applyLandingPageContent(array &$jsonLd, array $content, bool $isSoftware): void
     {
         $contentUrls = array_map(
             static fn (array $link): string => $link['url'],
+            $content['contentLinks'],
+        );
+        $downloads = array_map(
+            static function (array $link): array {
+                $download = [
+                    '@type' => 'DataDownload',
+                    'contentUrl' => $link['url'],
+                    'encodingFormat' => $link['mimeType'],
+                ];
+
+                if ($link['contentSize'] !== null) {
+                    $download['contentSize'] = $link['contentSize'];
+                }
+
+                return $download;
+            },
             $content['contentLinks'],
         );
 
@@ -163,20 +193,14 @@ class SchemaOrgJsonLdExporter
 
             if ($contentUrls !== []) {
                 $jsonLd['downloadUrl'] = $this->singleOrList($contentUrls);
+                $jsonLd['associatedMedia'] = $downloads;
             }
 
             return;
         }
 
         if ($content['contentLinks'] !== []) {
-            $jsonLd['distribution'] = array_map(
-                static fn (array $link): array => [
-                    '@type' => 'DataDownload',
-                    'contentUrl' => $link['url'],
-                    'encodingFormat' => $link['mimeType'],
-                ],
-                $content['contentLinks'],
-            );
+            $jsonLd['distribution'] = $downloads;
         }
     }
 

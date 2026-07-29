@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AccessLevel;
 use App\Enums\UserRole;
 use App\Models\Description;
 use App\Models\IgsnMetadata;
@@ -385,6 +386,10 @@ class PlaywrightTestSeeder extends Seeder
 
     private function ensureCompleteFixture(Resource $resource): void
     {
+        if ($resource->access_level === null) {
+            $resource->update(['access_level' => AccessLevel::OPEN]);
+        }
+
         if (! $resource->rights()->exists()) {
             $license = Right::query()->where('identifier', 'CC-BY-4.0')->first()
                 ?? Right::factory()->ccBy4()->create();

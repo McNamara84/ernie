@@ -274,6 +274,22 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('hydrates the exact primary download format and digital size selectors', async () => {
+            const descriptorConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                ftp_format_id: 7,
+                ftp_size_id: 8,
+                available_formats: [{ id: 7, value: 'application/zip' }],
+                available_sizes: [{ id: 8, label: '2 MiB', content_size: '2097152' }],
+            };
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: descriptorConfig } });
+
+            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            expect(await screen.findByTestId('primary-download-format')).toHaveTextContent('application/zip');
+            expect(screen.getByTestId('primary-download-size')).toHaveTextContent('2 MiB');
+        });
+
         it('hydrates the downloads unavailable checkbox from existing configuration', async () => {
             mockedAxiosGet.mockResolvedValue({
                 data: {

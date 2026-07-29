@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\AccessLevel;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\ContributorType;
 use App\Models\RelatedIdentifier;
@@ -53,6 +54,7 @@ class StoreResourceRequest extends FormRequest
             ],
             'year' => ['required', 'integer', 'between:1000,9999'],
             'resourceType' => ['required', 'integer', Rule::exists('resource_types', 'id')],
+            'accessLevel' => ['required', Rule::enum(AccessLevel::class)],
             'version' => ['nullable', 'string', 'max:50'],
             'language' => ['nullable', 'string', Rule::exists('languages', 'code')],
             'titles' => ['required', 'array', 'min:1'],
@@ -1100,6 +1102,8 @@ class StoreResourceRequest extends FormRequest
             'resourceType.required' => '[Resource Information] Resource Type is required.',
             'resourceType.integer' => '[Resource Information] Resource Type must be a valid selection.',
             'resourceType.exists' => '[Resource Information] The selected Resource Type is invalid.',
+            'accessLevel.required' => '[Resource Information] An access level is required.',
+            'accessLevel.enum' => '[Resource Information] The selected access level is invalid.',
             'version.max' => '[Resource Information] Version exceeds the maximum length of :max characters.',
             'language.exists' => '[Resource Information] The selected Language is invalid.',
             'doi.unique' => '[Resource Information] This DOI is already in use by another resource.',
@@ -1221,6 +1225,25 @@ class StoreResourceRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 $this->validateEditorDates($validator);
+            },
+            function (Validator $validator): void {
+                if ($this->input('accessLevel') !== AccessLevel::EMBARGOED->value) {
+                    return;
+                }
+
+                $dates = $this->input('dates', []);
+                $hasAvailableDate = is_array($dates) && collect($dates)->contains(
+                    static fn (mixed $date): bool => is_array($date)
+                        && Str::kebab((string) ($date['dateType'] ?? '')) === 'available'
+                        && trim((string) ($date['startDate'] ?? '')) !== '',
+                );
+
+                if (! $hasAvailableDate) {
+                    $validator->errors()->add(
+                        'accessLevel',
+                        '[Resource Information] Embargoed access requires an Available date.',
+                    );
+                }
             },
             function (Validator $validator): void {
                 $legacyDatacenters = $this->input('datacenters');

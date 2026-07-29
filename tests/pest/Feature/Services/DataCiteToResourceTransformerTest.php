@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Models\ContributorType;
 use App\Models\Institution;
 use App\Models\Language;
@@ -133,6 +134,55 @@ XML;
         expect($pendingInputs)->toHaveCount(1)
             ->and($pendingInputs->first()->rightsText)->toBe('CC BY 4.0')
             ->and($pendingInputs->first()->rightsIdentifier)->toBeNull();
+    });
+    it('imports COAR access separately from license statements', function (): void {
+        $user = User::factory()->create();
+        $resource = (new DataCiteToResourceTransformer)->transform([
+            'attributes' => [
+                'doi' => '10.5880/access-import.2026.001',
+                'publicationYear' => 2026,
+                'titles' => [['title' => 'Access import']],
+                'creators' => [['name' => 'Tester, Ada', 'nameType' => 'Personal']],
+                'rightsList' => [
+                    [
+                        'rights' => 'Open access',
+                        'rightsUri' => 'https://purl.org/coar/access_right/c_abf2',
+                    ],
+                    [
+                        'rights' => 'Community License',
+                        'rightsUri' => 'https://example.test/license',
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->access_level)->toBe(AccessLevel::OPEN)
+            ->and($resource->resourceRights()->count())->toBe(1)
+            ->and($resource->resourceRights()->sole()->rights_uri)->toBe('https://example.test/license');
+    });
+
+    it('leaves conflicting COAR access statements unresolved and logs the conflict', function (): void {
+        Log::spy();
+        $user = User::factory()->create();
+        $resource = (new DataCiteToResourceTransformer)->transform([
+            'attributes' => [
+                'doi' => '10.5880/access-import.2026.002',
+                'publicationYear' => 2026,
+                'titles' => [['title' => 'Conflicting access import']],
+                'creators' => [['name' => 'Tester, Ada', 'nameType' => 'Personal']],
+                'rightsList' => [
+                    ['rightsUri' => 'http://purl.org/coar/access_right/c_abf2'],
+                    ['rightsUri' => 'http://purl.org/coar/access_right/c_16ec'],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->access_level)->toBeNull()
+            ->and($resource->resourceRights()->count())->toBe(0);
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'Conflicting COAR')
+                && $context['access_levels'] === ['open', 'restricted']);
     });
 });
 

@@ -20,12 +20,14 @@ use Illuminate\Support\Carbon;
  * @property string $url
  * @property string $label
  * @property string $kind
+ * @property int|null $format_id
+ * @property int|null $size_id
  * @property int $position
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read LandingPage $landingPage
  */
-#[Fillable(['landing_page_id', 'url', 'label', 'kind', 'position'])]
+#[Fillable(['landing_page_id', 'url', 'label', 'kind', 'format_id', 'size_id', 'position'])]
 class LandingPageLink extends Model
 {
     public const KIND_RELATED = 'related';
@@ -58,5 +60,17 @@ class LandingPageLink extends Model
     public function landingPage(): BelongsTo
     {
         return $this->belongsTo(LandingPage::class);
+    }
+
+    /** @return BelongsTo<Format, $this> */
+    public function format(): BelongsTo
+    {
+        return $this->belongsTo(Format::class);
+    }
+
+    /** @return BelongsTo<Size, $this> */
+    public function size(): BelongsTo
+    {
+        return $this->belongsTo(Size::class);
     }
 }

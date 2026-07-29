@@ -17,12 +17,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $landing_page_id
  * @property string $url
+ * @property int|null $format_id
+ * @property int|null $size_id
  * @property int $position
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read LandingPage $landingPage
  */
-#[Fillable(['landing_page_id', 'url', 'position'])]
+#[Fillable(['landing_page_id', 'url', 'format_id', 'size_id', 'position'])]
 class LandingPageFile extends Model
 {
     /**
@@ -42,5 +44,17 @@ class LandingPageFile extends Model
     public function landingPage(): BelongsTo
     {
         return $this->belongsTo(LandingPage::class);
+    }
+
+    /** @return BelongsTo<Format, $this> */
+    public function format(): BelongsTo
+    {
+        return $this->belongsTo(Format::class);
+    }
+
+    /** @return BelongsTo<Size, $this> */
+    public function size(): BelongsTo
+    {
+        return $this->belongsTo(Size::class);
     }
 }

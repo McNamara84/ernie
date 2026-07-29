@@ -39,6 +39,7 @@ const SECTION_MAP: Record<string, SectionMapping> = {
     doi: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     year: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     resourceType: { sectionId: 'resource-info', sectionName: 'Resource Information' },
+    accessLevel: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     version: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     language: { sectionId: 'resource-info', sectionName: 'Resource Information' },
     titles: { sectionId: 'resource-info', sectionName: 'Resource Information' },
@@ -66,6 +67,7 @@ const SIMPLE_FIELD_MAP: Record<string, string> = {
     doi: '#doi',
     year: '#year',
     resourceType: '#resourceType',
+    accessLevel: '#accessLevel',
     version: '#version',
     language: '#language',
     datacenter_id: '#datacenter',
@@ -79,6 +81,7 @@ const FIELD_ID_MAP: Record<string, string> = {
     doi: 'doi',
     year: 'year',
     resourceType: 'resourceType',
+    accessLevel: 'accessLevel',
     version: 'version',
     language: 'language',
 };

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
 use App\Models\ContributorType;
 use App\Models\IgsnMetadata;
 use App\Models\Institution;
@@ -801,6 +802,27 @@ class DataCiteJsonExporter
             }
 
             $rightsList[] = $rightsData;
+        }
+
+        if ($resource->access_level !== null) {
+            $accessUri = $resource->access_level->coarUri();
+            $alreadyPresent = collect($rightsList)->contains(
+                static fn (array $rights): bool => isset($rights['rightsUri'])
+                    && strcasecmp(
+                        preg_replace('#^https://#i', 'http://', $rights['rightsUri']) ?? '',
+                        $accessUri,
+                    ) === 0,
+            );
+
+            if (! $alreadyPresent) {
+                $rightsList[] = [
+                    'rights' => $resource->access_level->label(),
+                    'rightsUri' => $accessUri,
+                    'rightsIdentifier' => $resource->access_level->coarIdentifier(),
+                    'rightsIdentifierScheme' => AccessLevel::coarScheme(),
+                    'schemeUri' => AccessLevel::coarSchemeUri(),
+                ];
+            }
         }
 
         return ! empty($rightsList) ? $rightsList : null;

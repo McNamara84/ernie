@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Enums\UserRole;
 use App\Models\Description;
 use App\Models\DescriptionType;
@@ -19,6 +20,7 @@ function createNonDraftResourceForPolicy(): Resource
 {
     $resource = Resource::factory()->create([
         'doi' => null,
+        'access_level' => AccessLevel::OPEN,
     ]);
 
     $titleType = TitleType::firstOrCreate([

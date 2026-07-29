@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccessLevel;
 use App\Models\DateType;
 use App\Models\Description;
 use App\Models\DescriptionType;
@@ -57,6 +58,7 @@ function makeListedResource(string $title, ?string $createdAt = null, ?string $u
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
         'publication_year' => 2024,
+        'access_level' => AccessLevel::OPEN,
     ];
     if ($createdAt !== null) {
         $attributes['created_at'] = $createdAt;

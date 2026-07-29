@@ -41,7 +41,10 @@ export interface DataCiteFormData {
     resourceType: string;
     version: string;
     language: string;
+    accessLevel: AccessLevel;
 }
+
+export type AccessLevel = '' | 'open' | 'restricted' | 'embargoed' | 'metadata-only';
 
 export interface TitleEntry {
     id: string;
@@ -220,6 +223,7 @@ export interface DataCiteFormProps {
     initialVersion?: string;
     initialLanguage?: string;
     initialResourceType?: string;
+    initialAccessLevel?: AccessLevel;
     initialTitles?: { title: string; titleType: string; language?: string | null }[];
     initialLicenses?: string[];
     initialRawRights?: RawRightsInput[];

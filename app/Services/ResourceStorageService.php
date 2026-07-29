@@ -96,6 +96,7 @@ class ResourceStorageService
                 'language_id' => $languageId,
                 'publisher_id' => Publisher::getDefault()?->id,
                 'datacenter_id' => $data['datacenter_id'] ?? null,
+                'access_level' => $data['accessLevel'] ?? null,
             ];
 
             $isUpdate = ! empty($data['resourceId']);

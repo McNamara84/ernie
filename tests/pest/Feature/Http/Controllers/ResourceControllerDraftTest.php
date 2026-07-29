@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Http\Controllers\ResourceController;
 use App\Models\Datacenter;
 use App\Models\DescriptionType;
@@ -298,6 +299,7 @@ describe('Draft status in resource list (Issue #548)', function () {
             'doi' => null,
             'publication_year' => 2025,
             'resource_type_id' => $this->resourceType->id,
+            'access_level' => AccessLevel::OPEN,
             'version' => null,
             'language_id' => null,
             'created_by_user_id' => $this->user->id,
@@ -364,6 +366,7 @@ describe('Draft filter in resource list (Issue #548)', function () {
             'doi' => null,
             'publication_year' => 2025,
             'resource_type_id' => $this->resourceType->id,
+            'access_level' => AccessLevel::OPEN,
             'created_by_user_id' => $this->user->id,
             'updated_by_user_id' => $this->user->id,
         ]);

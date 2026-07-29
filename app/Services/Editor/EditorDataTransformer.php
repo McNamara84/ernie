@@ -64,6 +64,7 @@ class EditorDataTransformer
             'version' => $resource->version ?? '',
             'language' => $resource->language->code ?? '',
             'resourceType' => (string) $resource->resource_type_id,
+            'initialAccessLevel' => $resource->access_level?->value ?? '',
             'resourceId' => (string) $resource->id,
             'titles' => $this->transformTitles($resource),
             'initialLicenses' => $this->transformLicenses($resource),

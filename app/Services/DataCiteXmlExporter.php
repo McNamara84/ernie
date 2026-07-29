@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
 use App\Models\ContributorType;
 use App\Models\IgsnMetadata;
 use App\Models\Institution;
@@ -1142,7 +1143,7 @@ class DataCiteXmlExporter
             ->sortBy('id')
             ->values();
 
-        if ($resourceRights->isEmpty()) {
+        if ($resourceRights->isEmpty() && $resource->access_level === null) {
             return;
         }
 
@@ -1203,6 +1204,28 @@ class DataCiteXmlExporter
             }
 
             $rightsList->appendChild($rightsElement);
+        }
+
+        if ($resource->access_level !== null) {
+            $accessUri = $resource->access_level->coarUri();
+            $alreadyPresent = $resourceRights->contains(function ($resourceRight) use ($accessUri): bool {
+                $uri = $resourceRight->right?->uri ?? $resourceRight->rights_uri;
+
+                return is_string($uri)
+                    && strcasecmp(preg_replace('#^https://#i', 'http://', $uri) ?? '', $accessUri) === 0;
+            });
+
+            if (! $alreadyPresent) {
+                $accessElement = $this->dom->createElement(
+                    'rights',
+                    htmlspecialchars($resource->access_level->label()),
+                );
+                $accessElement->setAttribute('rightsURI', $accessUri);
+                $accessElement->setAttribute('rightsIdentifier', $resource->access_level->coarIdentifier());
+                $accessElement->setAttribute('rightsIdentifierScheme', AccessLevel::coarScheme());
+                $accessElement->setAttribute('schemeURI', AccessLevel::coarSchemeUri());
+                $rightsList->appendChild($accessElement);
+            }
         }
 
         if ($rightsList->hasChildNodes()) {

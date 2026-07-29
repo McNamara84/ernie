@@ -56,7 +56,7 @@ final class LandingPageMachineMetadataService
 
         return [
             'jsonLdJson' => json_encode($jsonLd, self::JSON_FLAGS),
-            'dublinCore' => $this->dublinCore($attributes, $jsonLd, $license, $landingPage),
+            'dublinCore' => $this->dublinCore($attributes, $jsonLd, $license, $landingPage, $resource),
             'signpostingLinks' => $signpostingLinks,
             'metadataLinks' => $metadataLinks,
         ];
@@ -67,7 +67,13 @@ final class LandingPageMachineMetadataService
      * @param  array<string, mixed>  $jsonLd
      * @return list<array{name: string, content: string}>
      */
-    private function dublinCore(array $attributes, array $jsonLd, ?string $license, LandingPage $landingPage): array
+    private function dublinCore(
+        array $attributes,
+        array $jsonLd,
+        ?string $license,
+        LandingPage $landingPage,
+        Resource $resource,
+    ): array
     {
         $tags = [];
         $doiUrl = 'https://doi.org/'.$landingPage->doi_prefix;
@@ -85,6 +91,8 @@ final class LandingPageMachineMetadataService
         $this->appendTag($tags, 'DC.publisher', $publisher['name'] ?? null);
         $this->appendTag($tags, 'DC.date', $jsonLd['datePublished'] ?? $attributes['publicationYear'] ?? null);
         $this->appendTag($tags, 'DC.rights', $license);
+        $this->appendTag($tags, 'DC.accessRights', $resource->access_level?->label());
+        $this->appendTag($tags, 'DC.accessRights', $resource->access_level?->coarUri());
 
         $types = is_array($attributes['types'] ?? null) ? $attributes['types'] : [];
         $this->appendTag($tags, 'DC.type', $types['resourceTypeGeneral'] ?? null);

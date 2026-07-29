@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
+
 final class LandingPageLicenseResolverService
 {
     /** @param array<int, mixed> $rightsList */
@@ -38,6 +40,10 @@ final class LandingPageLicenseResolverService
             }
 
             $rightsUri = trim($rights['rightsUri']);
+            if (AccessLevel::fromCoarUri($rightsUri) !== null) {
+                continue;
+            }
+
             if ($this->isSafeAbsoluteHttpUrl($rightsUri)) {
                 return $rightsUri;
             }

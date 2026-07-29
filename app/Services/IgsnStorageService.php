@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -109,6 +110,9 @@ class IgsnStorageService
             'resource_type_id' => $this->physicalObjectTypeId,
             'publisher_id' => $this->defaultPublisherId,
             'created_by_user_id' => $userId,
+            'access_level' => AccessLevel::fromSampleAccess(
+                is_string($data['sampleAccess'] ?? null) ? $data['sampleAccess'] : null,
+            ),
         ]);
 
         // Create main title only (name field is now stored as alternateIdentifier per Issue #465)

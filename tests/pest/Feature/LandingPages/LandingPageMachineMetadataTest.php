@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
@@ -27,6 +28,7 @@ function machineMetadataLandingPage(string $resourceTypeSlug = 'dataset', array 
         'doi' => '10.5880/test.machine.001',
         'resource_type_id' => $resourceType->id,
         'publication_year' => 2026,
+        'access_level' => AccessLevel::OPEN,
     ]);
     Title::factory()->create([
         'resource_id' => $resource->id,
@@ -80,17 +82,25 @@ test('machine metadata contract exposes encoded JSON-LD without caching the sour
         ->toHaveKeys(['jsonLdJson', 'dublinCore', 'signpostingLinks', 'metadataLinks'])
         ->not->toHaveKey('jsonLd')
         ->and(json_decode($metadata['jsonLdJson'], true, 512, JSON_THROW_ON_ERROR))
-        ->toBeArray();
+        ->toBeArray()
+        ->and(collect($metadata['dublinCore'])->where('name', 'DC.accessRights')->pluck('content')->all())
+        ->toBe([
+            AccessLevel::OPEN->label(),
+            AccessLevel::OPEN->coarUri(),
+        ]);
 });
 
 test('raw dataset HTML and GET HEAD responses expose complete machine metadata', function () {
     [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
         'ftp_url' => 'https://downloads.example.org/fallback.zip',
     ]);
-    $resource->formats()->create(['value' => 'application/pdf']);
+    $format = $resource->formats()->create(['value' => 'application/pdf']);
+    $size = $resource->sizes()->create(['numeric_value' => 2.5, 'unit' => 'MB']);
     $landingPage->files()->create([
         'url' => 'https://downloads.example.org/article.pdf',
         'position' => 0,
+        'format_id' => $format->id,
+        'size_id' => $size->id,
     ]);
 
     $right = Right::firstOrCreate(
@@ -111,11 +121,14 @@ test('raw dataset HTML and GET HEAD responses expose complete machine metadata',
     expect($jsonLd['@type'])->toBe('Dataset')
         ->and($jsonLd['@id'])->toBe('https://doi.org/10.5880/test.machine.001')
         ->and($jsonLd['url'])->toBe(url($landingPage->getPublicPath()))
+        ->and($jsonLd['conditionsOfAccess'])->toBe('Open access')
+        ->and($jsonLd['isAccessibleForFree'])->toBeTrue()
         ->and($jsonLd['distribution'])->toBe([
             [
                 '@type' => 'DataDownload',
                 'contentUrl' => 'https://downloads.example.org/article.pdf',
                 'encodingFormat' => 'application/pdf',
+                'contentSize' => '2500000',
             ],
         ])
         ->and($linkHeader)->toContain('<https://doi.org/10.5880/test.machine.001>; rel="cite-as"')
@@ -154,7 +167,12 @@ test('software JSON-LD exposes software types repository and direct downloads', 
     [$resource, $landingPage] = machineMetadataLandingPage('software', [
         'ftp_url' => 'https://downloads.example.org/software.zip',
     ]);
-    $resource->formats()->create(['value' => 'zip']);
+    $format = $resource->formats()->create(['value' => 'zip']);
+    $size = $resource->sizes()->create(['numeric_value' => 4, 'unit' => 'MiB']);
+    $landingPage->update([
+        'ftp_format_id' => $format->id,
+        'ftp_size_id' => $size->id,
+    ]);
     $landingPage->links()->create([
         'url' => 'https://git.example.org/team/software',
         'label' => 'Source code',
@@ -169,6 +187,7 @@ test('software JSON-LD exposes software types repository and direct downloads', 
     expect($jsonLd['@type'])->toBe(['SoftwareSourceCode', 'SoftwareApplication'])
         ->and($jsonLd['codeRepository'])->toBe('https://git.example.org/team/software')
         ->and($jsonLd['downloadUrl'])->toBe('https://downloads.example.org/software.zip')
+        ->and($jsonLd['associatedMedia'][0]['contentSize'])->toBe('4194304')
         ->and($jsonLd)->not->toHaveKey('distribution')
         ->and($linkHeader)->toContain('<https://schema.org/SoftwareSourceCode>; rel="type"')
         ->toContain('<https://downloads.example.org/software.zip>; rel="item"; type="application/zip"');

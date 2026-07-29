@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
 use App\Models\Affiliation;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -284,7 +285,40 @@ class DataCiteToResourceTransformer
             'publisher_id' => $publisherId,
             'created_by_user_id' => $userId,
             'updated_by_user_id' => $userId,
+            'access_level' => $this->resolveAccessLevel($attributes['rightsList'] ?? []),
         ]);
+    }
+
+    /**
+     * @param  array<int, mixed>  $rightsList
+     */
+    private function resolveAccessLevel(array $rightsList): ?AccessLevel
+    {
+        $levels = [];
+
+        foreach ($rightsList as $rights) {
+            if (! is_array($rights)) {
+                continue;
+            }
+
+            $level = AccessLevel::fromCoarUri(
+                is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
+            );
+
+            if ($level !== null) {
+                $levels[$level->value] = $level;
+            }
+        }
+
+        if (count($levels) > 1) {
+            Log::warning('Conflicting COAR access-right statements found during DataCite import.', [
+                'access_levels' => array_keys($levels),
+            ]);
+
+            return null;
+        }
+
+        return array_values($levels)[0] ?? null;
     }
 
     /**
@@ -1659,6 +1693,14 @@ class DataCiteToResourceTransformer
      */
     private function transformRights(array $rightsList, Resource $resource): void
     {
+        $rightsList = array_values(array_filter(
+            $rightsList,
+            static fn (mixed $rights): bool => ! is_array($rights)
+                || AccessLevel::fromCoarUri(
+                    is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
+                ) === null,
+        ));
+
         // Store each incoming DataCite rights node as a resource_rights row. If
         // the local catalog has an exact identifier/name/URI match the row is
         // linked immediately; otherwise the raw statement remains unresolved so
