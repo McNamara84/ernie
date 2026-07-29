@@ -1036,8 +1036,8 @@ describe('DataCiteToResourceTransformer', function (): void {
 
             $resource = $transformer->transform($doiData, $user->id);
 
-            // Test passes - language can be null or have a default
-            expect($resource)->toBeInstanceOf(Resource::class);
+            expect($resource)->toBeInstanceOf(Resource::class)
+                ->and($resource->language_id)->toBeNull();
         });
 
     });

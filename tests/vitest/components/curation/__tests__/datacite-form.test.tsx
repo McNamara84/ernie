@@ -579,6 +579,22 @@ describe('DataCiteForm', () => {
             expect(helpButton.closest('[data-slot="accordion-trigger"]')).toBeNull();
         });
 
+        it('marks Resource Information complete without a language selection', () => {
+            renderDataCiteForm({
+                initialYear: '2024',
+                initialResourceType: '1',
+                initialTitles: [{ title: 'Dataset without language metadata', titleType: 'main-title' }],
+                availableDatacenters,
+                initialDatacenterId: 1,
+            });
+
+            const resourceSection = getResourceInfoSection();
+
+            expect(within(resourceSection).getByLabelText('Section complete')).toBeInTheDocument();
+            expect(within(resourceSection).queryByLabelText('Section incomplete or has errors')).not.toBeInTheDocument();
+            expect(within(resourceSection).getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
+        });
+
         it('keeps counters and status indicators in accordion triggers without duplicate content headings', () => {
             renderDataCiteForm();
 
@@ -860,9 +876,10 @@ describe('DataCiteForm', () => {
         const languageTrigger = screen.getByLabelText('Language of Data', {
             exact: false,
         });
-        expect(languageTrigger).toHaveAttribute('aria-required', 'true');
+        expect(languageTrigger).not.toHaveAttribute('aria-required');
+        expect(languageTrigger).toHaveTextContent('Select language');
         const languageLabel = screen.getByText(/Language of Data/, { selector: 'label' });
-        expect(languageLabel).toHaveTextContent('*');
+        expect(languageLabel).not.toHaveTextContent('*');
         await user.click(languageTrigger);
         for (const option of languages) {
             expect(await screen.findByRole('option', { name: option.name })).toBeInTheDocument();
@@ -2446,7 +2463,38 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('German');
     });
 
-    it('defaults Language to English when initialLanguage is missing', () => {
+    it('allows an imported language selection to be cleared', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                dateTypes={dateTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialLanguage="de"
+                descriptionTypes={descriptionTypes}
+                googleMapsApiKey="test-api-key"
+            />,
+        );
+
+        const languageTrigger = screen.getByLabelText('Language of Data', { exact: false });
+        expect(languageTrigger).toHaveTextContent('German');
+
+        await user.click(languageTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Clear language selection' }));
+
+        expect(languageTrigger).toHaveTextContent('Select language');
+
+        await user.click(languageTrigger);
+        expect(screen.queryByRole('option', { name: 'Clear language selection' })).not.toBeInTheDocument();
+    });
+
+    it('leaves Language empty when initialLanguage is missing', () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -2461,10 +2509,10 @@ describe('DataCiteForm', () => {
                 googleMapsApiKey="test-api-key"
             />,
         );
-        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('English');
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
-    it('defaults Language to English even when English is not the first option', () => {
+    it('does not default Language when English is not the first option', () => {
         const shuffledLanguages: Language[] = [
             { id: 2, code: 'de', name: 'German' },
             { id: 3, code: 'fr', name: 'French' },
@@ -2483,7 +2531,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('English');
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
     it('prefills Language when initialLanguage name is provided', () => {
@@ -2524,7 +2572,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('French');
     });
 
-    it('falls back to the first language with a code when English is unavailable', () => {
+    it('does not fall back to the first language when English is unavailable', () => {
         const limitedLanguages = [
             { id: 4, code: 'de', name: 'German' },
             { id: 5, code: 'fr', name: 'French' },
@@ -2542,10 +2590,10 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('German');
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
-    it('defaults to English when languages include incomplete entries', () => {
+    it('leaves Language empty when languages include incomplete entries', () => {
         const incompleteLanguages = [
             { id: 1, code: ' ', name: ' ' },
             { id: 2, code: 'en', name: 'English' },
@@ -2564,7 +2612,7 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('English');
+        expect(screen.getByLabelText('Language of Data', { exact: false })).toHaveTextContent('Select language');
     });
 
     it('prefills Resource Type when initialResourceType is provided', () => {
@@ -2919,6 +2967,7 @@ describe('DataCiteForm', () => {
         expect(body).toMatchObject({
             year: 2024,
             resourceType: 1,
+            language: '',
             titles: [
                 {
                     title: 'First Title',

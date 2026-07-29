@@ -62,7 +62,7 @@ describe('SumarioPendingResourceImportService', function () {
                 'doi' => '10.5880/pending.one',
                 'year' => '2024',
                 'version' => '1.0',
-                'language' => 'en',
+                'language' => '',
                 'resourceType' => '1',
                 'titles' => [
                     ['title' => 'Legacy Pending Dataset', 'titleType' => 'main-title'],
@@ -96,6 +96,7 @@ describe('SumarioPendingResourceImportService', function () {
             ->andReturnUsing(function (array $payload, int $userId) use ($user, $datacenter): array {
                 expect($userId)->toBe($user->id)
                     ->and($payload['doi'])->toBe('10.5880/pending.one')
+                    ->and($payload['language'])->toBeNull()
                     ->and($payload['authors'][0]['isContact'])->toBeTrue()
                     ->and($payload['authors'][0]['email'])->toBe('jane@example.org')
                     ->and($payload['datacenter_id'])->toBe($datacenter->id);
@@ -221,6 +222,7 @@ describe('SumarioPendingResourceImportService', function () {
             ->andReturnUsing(function (array $payload, int $userId) use ($user, $arbodat): array {
                 expect($userId)->toBe($user->id)
                     ->and($payload['doi'])->toBe('10.5880/ha-arbodat_ak1')
+                    ->and($payload['language'])->toBe('en')
                     ->and($payload['datacenter_id'])->toBe($arbodat->id);
 
                 return [

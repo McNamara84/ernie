@@ -665,19 +665,6 @@ export default function DataCiteForm({
         },
     ];
 
-    // Language validation rules
-    const languageValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                const result = validateRequired(String(value || ''), 'Language');
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
-            },
-        },
-    ];
-
     // Version validation rules (optional, aligned with DataCite/backend limits)
     const versionValidationRules: ValidationRule[] = [
         {
@@ -1390,10 +1377,6 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'resourceType', 'Resource Type is required.');
         }
 
-        if (!form.language) {
-            appendValidationMessage(errors, 'language', 'Language is required.');
-        }
-
         if (!licenseEntries.some(hasLicenseEntryEvidence)) {
             appendValidationMessage(errors, 'licenses', 'At least one License is required.');
         }
@@ -1463,7 +1446,7 @@ export default function DataCiteForm({
         dateValidationIssues.forEach((issue) => appendValidationMessage(errors, 'dates', issue));
 
         return errors;
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, selectedDatacenterId, titles, dateValidationIssues]);
+    }, [authors, descriptions, form.resourceType, form.year, licenseEntries, selectedDatacenterId, titles, dateValidationIssues]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1478,7 +1461,6 @@ export default function DataCiteForm({
         const hasMainTitle = Boolean(mainTitleEntry?.title.trim());
         const hasYear = Boolean(form.year?.trim());
         const hasResourceType = Boolean(form.resourceType);
-        const hasLanguage = Boolean(form.language);
         const hasDatacenter = selectedDatacenterId !== null;
 
         // Check if DOI has validation errors (if present)
@@ -1493,14 +1475,14 @@ export default function DataCiteForm({
         const versionMessages = getFieldState('version').messages;
         const hasVersionError = versionMessages.some((msg) => msg.severity === 'error');
 
-        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasLanguage && hasDatacenter;
+        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasDatacenter;
         const hasErrors = hasDoiError || hasYearError || hasVersionError;
 
         if (!allRequiredPresent || hasErrors) {
             return 'invalid';
         }
         return 'valid';
-    }, [titles, form.year, form.resourceType, form.language, selectedDatacenterId, getFieldState]);
+    }, [titles, form.year, form.resourceType, selectedDatacenterId, getFieldState]);
 
     const licensesStatus = useMemo(() => {
         const hasCompleteLicense = licenseEntries.some(hasLicenseEntryEvidence);
@@ -1672,14 +1654,6 @@ export default function DataCiteForm({
                     fieldId: 'resourceType',
                     value,
                     rules: resourceTypeValidationRules,
-                    formData: form,
-                });
-                break;
-            case 'language':
-                validateField({
-                    fieldId: 'language',
-                    value,
-                    rules: languageValidationRules,
                     formData: form,
                 });
                 break;
@@ -3003,7 +2977,7 @@ export default function DataCiteForm({
                         />
                     </div>
                     <div data-slot="accordion-actions" className="flex shrink-0 items-center gap-1 py-4">
-                        {renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Language, Datacenter')}
+                        {renderSectionActions('Resource Information', 'Required fields: Year, Resource Type, Main Title, Datacenter')}
                     </div>
                 </div>
                 <div className="space-y-6 pb-4">
@@ -3104,8 +3078,10 @@ export default function DataCiteForm({
                                 value: l.code,
                                 label: l.name,
                             }))}
+                            placeholder="Select language"
                             className="min-w-0 md:col-span-4 xl:col-span-2"
-                            required
+                            clearable
+                            clearLabel="Clear language selection"
                             data-testid="language-select"
                         />
                     </div>

@@ -189,13 +189,12 @@ class OldDatasetEditorLoader
      */
     private function mapLanguage(?string $oldLanguage): string
     {
-        if (empty($oldLanguage)) {
-            return 'en'; // Default to English
+        if ($oldLanguage === null) {
+            return '';
         }
 
-        // Old DB uses ISO 639-1 codes (en, de, etc.), new DB too
-        // Just normalize to lowercase
-        return strtolower($oldLanguage);
+        // Old DB uses ISO 639-1 codes (en, de, etc.), new DB too.
+        return strtolower(trim($oldLanguage));
     }
 
     /**

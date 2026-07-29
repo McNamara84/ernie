@@ -257,7 +257,7 @@ class SumarioPendingResourceImportService
             'doi' => $doi,
             'year' => $this->normaliseYear($editorData['year'] ?? $oldDataset->publicationyear),
             'version' => $this->filledString($editorData['version'] ?? null),
-            'language' => $this->filledString($editorData['language'] ?? null) ?? 'en',
+            'language' => $this->filledString($editorData['language'] ?? null),
             'resourceType' => $this->resolveResourceTypeId($editorData['resourceType'] ?? null),
             'titles' => $this->normaliseTitles($editorData['titles'] ?? [], $oldDataset, $doi),
             'licenses' => $this->normaliseStringList($editorData['initialRights'] ?? []),

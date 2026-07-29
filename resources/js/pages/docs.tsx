@@ -973,7 +973,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                                     </li>
                                     <li>
                                         <strong>"Save &amp; Validate"</strong> – Save and validate the complete dataset. All mandatory fields (title,
-                                        year, resource type, datacenter, language, license, authors, abstract) must be filled.
+                                        year, resource type, datacenter, license, authors, abstract) must be filled. Language of Data is optional and
+                                        can be left unset or cleared when the metadata does not specify a language.
                                     </li>
                                 </ul>
                                 <p className="mt-3">

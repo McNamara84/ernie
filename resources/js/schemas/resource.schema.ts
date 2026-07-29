@@ -165,7 +165,7 @@ const resourceBaseSchema = z.object({
     year: yearSchema,
     resourceType: z.string().min(1, 'Resource type is required'),
     version: versionSchema,
-    language: z.string().min(1, 'Language is required'),
+    language: z.string().optional(),
 
     // Titles (at least one required)
     titles: titlesArraySchema,

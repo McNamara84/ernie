@@ -74,6 +74,58 @@ beforeEach(function () {
     $this->datacenter = Datacenter::create(['name' => 'Test Datacenter']);
 });
 
+describe('Resource language persistence', function () {
+    it('stores an explicitly selected resource language', function () {
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), validPayloadWithLanguage());
+
+        $response->assertStatus(201);
+
+        expect(Resource::latest()->first()?->language_id)->toBe($this->language->id);
+    });
+
+    it('stores a null resource language when the field is omitted', function () {
+        $payload = validPayloadWithLanguage();
+        unset($payload['language']);
+
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), $payload);
+
+        $response->assertStatus(201);
+
+        expect(Resource::latest()->first()?->language_id)->toBeNull();
+    });
+
+    it('normalizes an empty resource language to null', function () {
+        $response = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), validPayloadWithLanguage([
+                'language' => '',
+            ]));
+
+        $response->assertStatus(201);
+
+        expect(Resource::latest()->first()?->language_id)->toBeNull();
+    });
+
+    it('clears an existing resource language during update', function () {
+        $createResponse = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), validPayloadWithLanguage());
+
+        $createResponse->assertStatus(201);
+        $resource = Resource::latest()->firstOrFail();
+
+        $updateResponse = $this->actingAs($this->user)
+            ->postJson(route('editor.resources.store'), validPayloadWithLanguage([
+                'resourceId' => $resource->id,
+                'language' => '',
+            ]));
+
+        $updateResponse->assertStatus(200);
+
+        expect($resource->refresh()->language_id)->toBeNull();
+    });
+});
+
 describe('Title and description language preservation', function () {
     it('stores title language through prepareForValidation', function () {
         $payload = validPayloadWithLanguage([

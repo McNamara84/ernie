@@ -322,6 +322,33 @@ describe('SelectField with Validation', () => {
             expect(onValueChange).toHaveBeenCalledWith('option1');
         });
 
+        it('should emit an empty value when an optional selection is cleared', async () => {
+            const user = userEvent.setup();
+            const onValueChange = vi.fn();
+            const onValidationBlur = vi.fn();
+
+            render(
+                <SelectField
+                    id="test-select"
+                    label="Test Label"
+                    value="option1"
+                    onValueChange={onValueChange}
+                    onValidationBlur={onValidationBlur}
+                    options={mockOptions}
+                    clearable
+                    clearLabel="Clear test selection"
+                />,
+            );
+
+            await user.click(screen.getByRole('combobox'));
+            await user.click(await screen.findByRole('option', { name: 'Clear test selection' }));
+
+            expect(onValueChange).toHaveBeenCalledWith('');
+            await vi.waitFor(() => {
+                expect(onValidationBlur).toHaveBeenCalledTimes(1);
+            });
+        });
+
         it('should call onValidationBlur after value changes', async () => {
             const user = userEvent.setup();
             const onValidationBlur = vi.fn();
@@ -421,6 +448,37 @@ describe('SelectField with Validation', () => {
             expect(await screen.findByRole('option', { name: 'Option 1' })).toBeInTheDocument();
             expect(await screen.findByRole('option', { name: 'Option 2' })).toBeInTheDocument();
             expect(await screen.findByRole('option', { name: 'Option 3' })).toBeInTheDocument();
+        });
+
+        it('should hide the clear action when clearing is disabled or the field is empty', async () => {
+            const user = userEvent.setup();
+            const { rerender } = render(
+                <SelectField
+                    id="test-select"
+                    label="Test Label"
+                    value="option1"
+                    onValueChange={vi.fn()}
+                    options={mockOptions}
+                />,
+            );
+
+            await user.click(screen.getByRole('combobox'));
+            expect(screen.queryByRole('option', { name: 'Clear selection' })).not.toBeInTheDocument();
+            await user.keyboard('{Escape}');
+
+            rerender(
+                <SelectField
+                    id="test-select"
+                    label="Test Label"
+                    value=""
+                    onValueChange={vi.fn()}
+                    options={mockOptions}
+                    clearable
+                />,
+            );
+
+            await user.click(screen.getByRole('combobox'));
+            expect(screen.queryByRole('option', { name: 'Clear selection' })).not.toBeInTheDocument();
         });
 
         it('should handle empty options array', () => {

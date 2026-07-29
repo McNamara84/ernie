@@ -384,6 +384,10 @@
         ],
         "fixes": [
             {
+                "title": "Optional Data Language in the Data Editor",
+                "description": "The Data Editor no longer defaults missing resource-language metadata to English or requires curators to select a language. New, uploaded, existing, and legacy resources preserve an explicitly supplied language, while missing values remain unset and existing selections can be cleared without blocking validation."
+            },
+            {
                 "title": "Precision-Aware Date Plausibility Hints",
                 "description": "The Date Type Assistant now treats year-only and year-month values as calendar intervals and compares ISO date-times by their actual instants across timezone offsets. Overlaps with more precise dates no longer produce false 'occurs after' hints, while definitively reversed dates continue to be flagged for review."
             },
