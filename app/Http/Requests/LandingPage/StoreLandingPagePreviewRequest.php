@@ -35,6 +35,7 @@ class StoreLandingPagePreviewRequest extends FormRequest
     {
         /** @var Resource $resource */
         $resource = $this->route('resource');
+        $landingPageId = (int) $resource->landingPage()->value('id');
         $rules = [
             'template' => ['required', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
             'landing_page_template_id' => ['nullable', 'integer'],
@@ -48,7 +49,7 @@ class StoreLandingPagePreviewRequest extends FormRequest
                 'integer',
                 Rule::exists('landing_page_files', 'id')->where(
                     'landing_page_id',
-                    $resource->landingPage?->id ?? 0,
+                    $landingPageId,
                 ),
             ],
             'files.*.format_id' => ['nullable', 'integer', new ResourceMimeType($resource)],

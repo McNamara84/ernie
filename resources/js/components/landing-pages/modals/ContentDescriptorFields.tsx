@@ -48,7 +48,10 @@ export function ContentDescriptorFields({
             </div>
             <div className="space-y-1">
                 <Label className="text-xs">Digital size</Label>
-                <Select value={sizeId === null ? NONE : String(sizeId)} onValueChange={(value) => onSizeChange(value === NONE ? null : Number(value))}>
+                <Select
+                    value={sizeId === null ? NONE : String(sizeId)}
+                    onValueChange={(value) => onSizeChange(value === NONE ? null : Number(value))}
+                >
                     <SelectTrigger size="sm" data-testid={`${testIdPrefix}-size`}>
                         <SelectValue placeholder="Select size" />
                     </SelectTrigger>

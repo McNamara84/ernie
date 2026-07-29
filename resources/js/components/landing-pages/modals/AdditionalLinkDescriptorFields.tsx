@@ -30,7 +30,9 @@ export function AdditionalLinkDescriptorFields({ links, setLinks, formats, sizes
                         formats={formats}
                         sizes={sizes}
                         onFormatChange={(formatId) =>
-                            setLinks((current) => current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, format_id: formatId } : entry)))
+                            setLinks((current) =>
+                                current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, format_id: formatId } : entry)),
+                            )
                         }
                         onSizeChange={(sizeId) =>
                             setLinks((current) => current.map((entry, entryIndex) => (entryIndex === index ? { ...entry, size_id: sizeId } : entry)))

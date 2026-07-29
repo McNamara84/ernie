@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\AccessLevel;
 use App\Models\Format;
+use App\Models\IgsnMetadata;
 use App\Models\LandingPage;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
@@ -16,6 +17,17 @@ use App\Services\SizeFormat\DigitalContentSizeService;
 use App\Services\SizeFormat\SizeFormatFormatNormalizerService;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @phpstan-type ReviewRow array{resource_id: int, category: string, value: string, detail: string}
+ * @phpstan-type BackfillResult array{
+ *     dry_run: bool,
+ *     access_changes: int,
+ *     format_changes: int,
+ *     size_changes: int,
+ *     sample_access_counts: array<string, int>,
+ *     review: list<ReviewRow>
+ * }
+ */
 final class MetadataAccessContentBackfillService
 {
     public function __construct(private readonly DigitalContentSizeService $sizeService) {}
@@ -32,6 +44,7 @@ final class MetadataAccessContentBackfillService
      */
     public function run(bool $apply = false): array
     {
+        /** @var BackfillResult $result */
         $result = [
             'dry_run' => ! $apply,
             'access_changes' => 0,
@@ -64,13 +77,13 @@ final class MetadataAccessContentBackfillService
         return $result;
     }
 
-    /** @param array<string, mixed> $result */
+    /** @param BackfillResult $result */
     private function backfillAccess(Resource $resource, bool $apply, array &$result): void
     {
         $candidate = null;
 
         if ($resource->isIgsn()) {
-            $rawValue = trim((string) $resource->igsnMetadata?->sample_access);
+            $rawValue = trim((string) $this->sampleAccess($resource));
             $key = $rawValue === '' ? '(empty)' : $rawValue;
             $result['sample_access_counts'][$key] = ($result['sample_access_counts'][$key] ?? 0) + 1;
             $candidate = AccessLevel::fromSampleAccess($rawValue === '' ? null : $rawValue);
@@ -94,11 +107,11 @@ final class MetadataAccessContentBackfillService
 
         $effectiveLevel = $resource->access_level ?? $candidate;
         if ($effectiveLevel === AccessLevel::EMBARGOED && ! $this->hasAvailableDate($resource)) {
-            $this->review($result, $resource, 'embargo_missing_available_date', $resource->igsnMetadata?->sample_access ?? '', 'Embargoed access requires an Available date.');
+            $this->review($result, $resource, 'embargo_missing_available_date', $this->sampleAccess($resource) ?? '', 'Embargoed access requires an Available date.');
         }
     }
 
-    /** @param array<string, mixed> $result */
+    /** @param BackfillResult $result */
     private function backfillContent(Resource $resource, bool $apply, array &$result): void
     {
         $landingPage = $resource->landingPage;
@@ -120,10 +133,12 @@ final class MetadataAccessContentBackfillService
             ->values();
 
         if ($formatTargets !== [] && $formats->count() === 1) {
+            /** @var Format $format */
+            $format = $formats->first();
             foreach ($formatTargets as $target) {
                 $result['format_changes']++;
                 if ($apply) {
-                    $this->assignTarget($target['model'], 'format_id', $formats->first()->id);
+                    $this->assignTarget($target['model'], 'format_id', $format->id);
                 }
             }
         } elseif ($formatTargets !== []) {
@@ -153,9 +168,11 @@ final class MetadataAccessContentBackfillService
             ->values();
 
         if (count($targets) === 1 && count($sizeTargets) === 1 && $sizes->count() === 1) {
+            /** @var Size $size */
+            $size = $sizes->first();
             $result['size_changes']++;
             if ($apply) {
-                $this->assignTarget($sizeTargets[0]['model'], 'size_id', $sizes->first()->id);
+                $this->assignTarget($sizeTargets[0]['model'], 'size_id', $size->id);
             }
 
             return;
@@ -220,12 +237,19 @@ final class MetadataAccessContentBackfillService
     private function hasAvailableDate(Resource $resource): bool
     {
         return $resource->dates->contains(
-            static fn (ResourceDate $date): bool => strcasecmp($date->dateType?->slug ?? '', 'available') === 0
+            static fn (ResourceDate $date): bool => strcasecmp($date->dateType->slug, 'available') === 0
                 && trim((string) ($date->start_date ?? $date->date_value)) !== '',
         );
     }
 
-    /** @param array<string, mixed> $result */
+    private function sampleAccess(Resource $resource): ?string
+    {
+        $metadata = $resource->getRelation('igsnMetadata');
+
+        return $metadata instanceof IgsnMetadata ? $metadata->sample_access : null;
+    }
+
+    /** @param BackfillResult $result */
     private function review(array &$result, Resource $resource, string $category, string $value, string $detail): void
     {
         $result['review'][] = [

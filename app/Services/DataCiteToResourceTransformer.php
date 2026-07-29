@@ -1695,10 +1695,9 @@ class DataCiteToResourceTransformer
     {
         $rightsList = array_values(array_filter(
             $rightsList,
-            static fn (mixed $rights): bool => ! is_array($rights)
-                || AccessLevel::fromCoarUri(
-                    is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
-                ) === null,
+            static fn (array $rights): bool => AccessLevel::fromCoarUri(
+                is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
+            ) === null,
         ));
 
         // Store each incoming DataCite rights node as a resource_rights row. If

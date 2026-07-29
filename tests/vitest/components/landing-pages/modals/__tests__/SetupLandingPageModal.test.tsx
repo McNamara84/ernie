@@ -780,6 +780,8 @@ describe('SetupLandingPageModal', () => {
                                 label: 'Download package',
                                 kind: 'download',
                                 position: 0,
+                                format_id: null,
+                                size_id: null,
                             },
                         ],
                     }),

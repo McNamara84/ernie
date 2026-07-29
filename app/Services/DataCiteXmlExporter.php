@@ -1209,7 +1209,7 @@ class DataCiteXmlExporter
         if ($resource->access_level !== null) {
             $accessUri = $resource->access_level->coarUri();
             $alreadyPresent = $resourceRights->contains(function ($resourceRight) use ($accessUri): bool {
-                $uri = $resourceRight->right?->uri ?? $resourceRight->rights_uri;
+                $uri = $resourceRight->right->uri ?? $resourceRight->rights_uri;
 
                 return is_string($uri)
                     && strcasecmp(preg_replace('#^https://#i', 'http://', $uri) ?? '', $accessUri) === 0;

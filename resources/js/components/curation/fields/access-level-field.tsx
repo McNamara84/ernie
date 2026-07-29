@@ -1,6 +1,5 @@
-import { SelectField } from './select-field';
-
 import type { AccessLevel } from '../types/datacite-form-types';
+import { SelectField } from './select-field';
 
 interface AccessLevelFieldProps {
     value: AccessLevel;

@@ -9,10 +9,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { LANDING_PAGE_POPUP_BLOCKED_MESSAGE, openLandingPagePreviewPlaceholder } from '@/components/landing-pages/landing-page-preview-window';
-import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
-import { ContentDescriptorFields } from '@/components/landing-pages/modals/ContentDescriptorFields';
-import { ImportedFileDescriptorFields } from '@/components/landing-pages/modals/ImportedFileDescriptorFields';
 import { AdditionalLinkDescriptorFields } from '@/components/landing-pages/modals/AdditionalLinkDescriptorFields';
+import { ContentDescriptorFields } from '@/components/landing-pages/modals/ContentDescriptorFields';
+import { ExternalLandingPageFields } from '@/components/landing-pages/modals/ExternalLandingPageFields';
+import { ImportedFileDescriptorFields } from '@/components/landing-pages/modals/ImportedFileDescriptorFields';
 import {
     buildLandingPagePreviewPayload,
     buildLandingPageSetupPayload,

@@ -285,13 +285,19 @@ class LandingPage extends Model
     /** @return BelongsTo<Format, static> */
     public function ftpFormat(): BelongsTo
     {
-        return $this->belongsTo(Format::class, 'ftp_format_id');
+        /** @var BelongsTo<Format, static> $relation */
+        $relation = $this->belongsTo(Format::class, 'ftp_format_id');
+
+        return $relation;
     }
 
     /** @return BelongsTo<Size, static> */
     public function ftpSize(): BelongsTo
     {
-        return $this->belongsTo(Size::class, 'ftp_size_id');
+        /** @var BelongsTo<Size, static> $relation */
+        $relation = $this->belongsTo(Size::class, 'ftp_size_id');
+
+        return $relation;
     }
 
     /**

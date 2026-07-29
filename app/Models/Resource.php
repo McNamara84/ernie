@@ -526,7 +526,7 @@ class Resource extends Model
             $this->loadMissing('dates.dateType');
 
             $hasAvailableDate = $this->dates->contains(
-                static fn (ResourceDate $date): bool => strcasecmp($date->dateType?->slug ?? '', 'available') === 0
+                static fn (ResourceDate $date): bool => strcasecmp($date->dateType->slug, 'available') === 0
                     && trim((string) ($date->start_date ?? $date->date_value)) !== '',
             );
 

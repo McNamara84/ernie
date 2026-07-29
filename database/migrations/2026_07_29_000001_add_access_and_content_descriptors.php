@@ -155,11 +155,13 @@ return new class extends Migration
 
                     if ($targets !== [] && count($targets) === 1 && $eligibleSizes->count() === 1) {
                         $target = $targets[0];
+                        /** @var Size $size */
+                        $size = $eligibleSizes->first();
                         $column = $target['table'] === 'landing_pages' ? 'ftp_size_id' : 'size_id';
                         DB::table($target['table'])
                             ->where('id', $target['id'])
                             ->whereNull($column)
-                            ->update([$column => $eligibleSizes->first()->id]);
+                            ->update([$column => $size->id]);
                     }
                 }
             });

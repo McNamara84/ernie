@@ -44,8 +44,8 @@ import {
     validateYear,
 } from '@/utils/validation-rules';
 
-import AuthorField, { type AuthorEntry } from './fields/author';
 import { AccessLevelField } from './fields/access-level-field';
+import AuthorField, { type AuthorEntry } from './fields/author';
 import { CitationsField } from './fields/citations-field';
 import ContributorField, { type ContributorEntry } from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
