@@ -3,12 +3,13 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\ResourceController;
+use App\Models\Datacenter;
+use App\Models\DescriptionType;
+use App\Models\FunderIdentifierType;
 use App\Models\FundingReference;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
-use App\Models\Datacenter;
-use App\Models\DescriptionType;
 use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
@@ -23,6 +24,7 @@ function getValidPayload(array $overrides = []): array
     return array_merge([
         'year' => 2024,
         'resourceType' => (string) test()->resourceType->id,
+        'accessLevel' => 'open',
         'language' => 'en',
         'titles' => [
             ['title' => 'Test Resource', 'titleType' => 'main-title'],
@@ -320,8 +322,8 @@ describe('Funder identifier type persistence', function () {
     it('persists funder_identifier_type_id for ROR and Crossref funders', function () {
         $this->artisan('db:seed', ['--class' => 'FunderIdentifierTypeSeeder']);
 
-        $rorType = \App\Models\FunderIdentifierType::where('name', 'ROR')->first();
-        $crossrefType = \App\Models\FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
+        $rorType = FunderIdentifierType::where('name', 'ROR')->first();
+        $crossrefType = FunderIdentifierType::where('name', 'Crossref Funder ID')->first();
 
         $payload = getValidPayload([
             'fundingReferences' => [

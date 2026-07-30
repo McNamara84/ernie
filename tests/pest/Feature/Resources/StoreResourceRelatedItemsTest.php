@@ -82,6 +82,7 @@ function basePayload(int $resourceTypeId, int $datacenterId): array
         'doi' => null,
         'year' => 2024,
         'resourceType' => $resourceTypeId,
+        'accessLevel' => 'open',
         'version' => null,
         'language' => 'en',
         'titles' => [

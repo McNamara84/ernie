@@ -72,6 +72,7 @@ test('storing a resource with main-title persists with MainTitle TitleType ID an
         'doi' => null,
         'year' => 2024,
         'resourceType' => $resourceType->id,
+        'accessLevel' => 'open',
         'version' => null,
         'language' => 'en',
         'titles' => [

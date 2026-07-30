@@ -22,6 +22,7 @@ function validPayloadWithLanguage(array $overrides = []): array
     return array_merge([
         'year' => 2024,
         'resourceType' => (string) test()->resourceType->id,
+        'accessLevel' => 'open',
         'language' => 'en',
         'titles' => [
             ['title' => 'Test Resource', 'titleType' => 'main-title', 'language' => 'en'],

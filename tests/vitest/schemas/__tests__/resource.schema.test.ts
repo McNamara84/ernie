@@ -124,6 +124,7 @@ describe('Resource Schemas', () => {
         it('accepts minimal valid resource', () => {
             const result = resourceSchema.safeParse({
                 resourceType: 'Dataset',
+                accessLevel: 'open',
                 language: 'en',
                 titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
                 authors: [{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }],
@@ -136,6 +137,7 @@ describe('Resource Schemas', () => {
         it('accepts omitted and empty optional resource languages', () => {
             const resourceWithoutLanguage = {
                 resourceType: 'Dataset',
+                accessLevel: 'open' as const,
                 titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
                 authors: [{ id: '1', type: 'person' as const, firstName: 'Jane', lastName: 'Doe' }],
                 contributors: [],
@@ -149,6 +151,7 @@ describe('Resource Schemas', () => {
         it('requires resource type', () => {
             const result = resourceSchema.safeParse({
                 resourceType: '',
+                accessLevel: 'open',
                 language: 'en',
                 titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
                 authors: [{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }],
@@ -156,6 +159,32 @@ describe('Resource Schemas', () => {
                 licenses: [{ id: '1', license: 'CC-BY-4.0' }],
             });
             expect(result.success).toBe(false);
+        });
+
+        it.each(['open', 'restricted', 'embargoed', 'metadata-only'] as const)('accepts the %s access level', (accessLevel) => {
+            const result = resourceSchema.safeParse({
+                resourceType: 'Dataset',
+                accessLevel,
+                titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
+                authors: [{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }],
+                contributors: [],
+                licenses: [{ id: '1', license: 'CC-BY-4.0' }],
+            });
+
+            expect(result.success).toBe(true);
+        });
+
+        it('requires a supported access level', () => {
+            const resourceWithoutAccessLevel = {
+                resourceType: 'Dataset',
+                titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
+                authors: [{ id: '1', type: 'person' as const, firstName: 'Jane', lastName: 'Doe' }],
+                contributors: [],
+                licenses: [{ id: '1', license: 'CC-BY-4.0' }],
+            };
+
+            expect(resourceSchema.safeParse(resourceWithoutAccessLevel).success).toBe(false);
+            expect(resourceSchema.safeParse({ ...resourceWithoutAccessLevel, accessLevel: 'public' }).success).toBe(false);
         });
     });
 
@@ -208,6 +237,7 @@ describe('custom license schemas', () => {
     it('allows resource rights evidence from custom license payloads', () => {
         const result = resourceSchema.safeParse({
             resourceType: 'Dataset',
+            accessLevel: 'open',
             language: 'en',
             titles: [{ id: '1', title: 'Test', titleType: 'main-title' }],
             authors: [{ id: '1', type: 'person', firstName: 'Jane', lastName: 'Doe' }],

@@ -75,6 +75,7 @@ test('updating a resource syncs licenses (removes old, adds new)', function () {
         'doi' => null,
         'year' => 2024,
         'resourceType' => $resourceType->id,
+        'accessLevel' => 'open',
         'version' => null,
         'language' => 'en',
         'titles' => [
