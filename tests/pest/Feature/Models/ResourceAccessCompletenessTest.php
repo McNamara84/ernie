@@ -49,6 +49,7 @@ test('embargoed access requires a non-empty Available date', function (): void {
 
     expect($resource->isComplete())->toBeFalse();
 
+    // DateType slugs retain the canonical DataCite casing; completeness compares case-insensitively.
     $available = DateType::firstOrCreate(
         ['slug' => 'Available'],
         ['name' => 'Available', 'is_active' => true],
