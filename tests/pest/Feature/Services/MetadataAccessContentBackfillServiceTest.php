@@ -81,6 +81,25 @@ test('reports an embargoed IGSN without an Available date', function (): void {
         ->not->toContain('embargo_missing_available_date');
 });
 
+test('recognizes IGSN metadata without a physical object resource type', function (): void {
+    ResourceType::query()->where('slug', 'physical-object')->delete();
+
+    $resource = Resource::factory()->create(['access_level' => null]);
+    IgsnMetadata::create(['resource_id' => $resource->id, 'sample_access' => 'limited']);
+    $resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MB']);
+    $landingPage = LandingPage::factory()->create([
+        'resource_id' => $resource->id,
+        'ftp_url' => 'https://downloads.example.org/sample.zip',
+    ]);
+
+    $result = app(MetadataAccessContentBackfillService::class)->run(apply: true);
+
+    expect($result['access_changes'])->toBe(1)
+        ->and($result['sample_access_counts'])->toBe(['limited' => 1])
+        ->and($resource->fresh()->access_level)->toBe(AccessLevel::RESTRICTED)
+        ->and($landingPage->fresh()->ftp_size_id)->toBeNull();
+});
+
 test('backfills exact descriptors conservatively and is idempotent', function (): void {
     $resource = Resource::factory()->create(['access_level' => AccessLevel::OPEN]);
     $format = $resource->formats()->create(['value' => '.ZIP']);

@@ -82,7 +82,7 @@ final class MetadataAccessContentBackfillService
     {
         $candidate = null;
 
-        if ($resource->isIgsn()) {
+        if ($this->isIgsn($resource)) {
             $rawValue = trim((string) $this->sampleAccess($resource));
             $key = $rawValue === '' ? '(empty)' : $rawValue;
             $result['sample_access_counts'][$key] = ($result['sample_access_counts'][$key] ?? 0) + 1;
@@ -151,7 +151,7 @@ final class MetadataAccessContentBackfillService
             );
         }
 
-        if ($resource->isIgsn()) {
+        if ($this->isIgsn($resource)) {
             return;
         }
 
@@ -247,6 +247,12 @@ final class MetadataAccessContentBackfillService
         $metadata = $resource->getRelation('igsnMetadata');
 
         return $metadata instanceof IgsnMetadata ? $metadata->sample_access : null;
+    }
+
+    private function isIgsn(Resource $resource): bool
+    {
+        return $resource->getRelation('igsnMetadata') instanceof IgsnMetadata
+            || $resource->isIgsn();
     }
 
     /** @param BackfillResult $result */

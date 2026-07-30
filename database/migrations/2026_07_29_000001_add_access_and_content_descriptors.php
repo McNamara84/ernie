@@ -38,7 +38,8 @@ return new class extends Migration
             ->whereRaw('LOWER(slug) = ?', ['physical-object'])
             ->value('id');
 
-        $nonIgsnResources = DB::table('resources');
+        $nonIgsnResources = DB::table('resources')
+            ->whereNotIn('id', DB::table('igsn_metadata')->select('resource_id'));
         if (is_numeric($physicalObjectTypeId)) {
             $nonIgsnResources->where(function ($query) use ($physicalObjectTypeId): void {
                 $query->whereNull('resource_type_id')
@@ -52,7 +53,9 @@ return new class extends Migration
             ->pluck('resource_id');
 
         if ($metadataOnlyResourceIds->isNotEmpty()) {
-            $query = DB::table('resources')->whereIn('id', $metadataOnlyResourceIds);
+            $query = DB::table('resources')
+                ->whereIn('id', $metadataOnlyResourceIds)
+                ->whereNotIn('id', DB::table('igsn_metadata')->select('resource_id'));
             if (is_numeric($physicalObjectTypeId)) {
                 $query->where(function ($resourceQuery) use ($physicalObjectTypeId): void {
                     $resourceQuery->whereNull('resource_type_id')
@@ -62,26 +65,23 @@ return new class extends Migration
             $query->update(['access_level' => AccessLevel::METADATA_ONLY->value]);
         }
 
-        if (is_numeric($physicalObjectTypeId)) {
-            DB::table('igsn_metadata')
-                ->join('resources', 'resources.id', '=', 'igsn_metadata.resource_id')
-                ->where('resources.resource_type_id', (int) $physicalObjectTypeId)
-                ->select(['resources.id', 'igsn_metadata.sample_access'])
-                ->orderBy('resources.id')
-                ->chunkById(250, function ($rows): void {
-                    foreach ($rows as $row) {
-                        $level = AccessLevel::fromSampleAccess(
-                            is_string($row->sample_access) ? $row->sample_access : null,
-                        );
+        DB::table('igsn_metadata')
+            ->join('resources', 'resources.id', '=', 'igsn_metadata.resource_id')
+            ->select(['resources.id', 'igsn_metadata.sample_access'])
+            ->orderBy('resources.id')
+            ->chunkById(250, function ($rows): void {
+                foreach ($rows as $row) {
+                    $level = AccessLevel::fromSampleAccess(
+                        is_string($row->sample_access) ? $row->sample_access : null,
+                    );
 
-                        if ($level !== null) {
-                            DB::table('resources')
-                                ->where('id', (int) $row->id)
-                                ->update(['access_level' => $level->value]);
-                        }
+                    if ($level !== null) {
+                        DB::table('resources')
+                            ->where('id', (int) $row->id)
+                            ->update(['access_level' => $level->value]);
                     }
-                }, 'resources.id', 'id');
-        }
+                }
+            }, 'resources.id', 'id');
 
         $this->backfillContentDescriptors(
             is_numeric($physicalObjectTypeId) ? (int) $physicalObjectTypeId : null,
@@ -143,7 +143,11 @@ return new class extends Migration
                         ->where('id', (int) $landingPage->resource_id)
                         ->value('resource_type_id');
 
-                    if ($physicalObjectTypeId !== null && (int) $resourceTypeId === $physicalObjectTypeId) {
+                    $hasIgsnMetadata = DB::table('igsn_metadata')
+                        ->where('resource_id', (int) $landingPage->resource_id)
+                        ->exists();
+
+                    if ($hasIgsnMetadata || ($physicalObjectTypeId !== null && (int) $resourceTypeId === $physicalObjectTypeId)) {
                         continue;
                     }
 
