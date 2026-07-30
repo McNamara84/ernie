@@ -28,12 +28,14 @@ export function ContentDescriptorFields({
     return (
         <div className="grid gap-2 sm:grid-cols-2">
             <div className="space-y-1">
-                <Label className="text-xs">MIME type</Label>
+                <Label id={`${testIdPrefix}-format-label`} className="text-xs">
+                    MIME type
+                </Label>
                 <Select
                     value={formatId === null ? NONE : String(formatId)}
                     onValueChange={(value) => onFormatChange(value === NONE ? null : Number(value))}
                 >
-                    <SelectTrigger size="sm" data-testid={`${testIdPrefix}-format`}>
+                    <SelectTrigger size="sm" aria-labelledby={`${testIdPrefix}-format-label`} data-testid={`${testIdPrefix}-format`}>
                         <SelectValue placeholder="Select format" />
                     </SelectTrigger>
                     <SelectContent>
@@ -47,12 +49,14 @@ export function ContentDescriptorFields({
                 </Select>
             </div>
             <div className="space-y-1">
-                <Label className="text-xs">Digital size</Label>
+                <Label id={`${testIdPrefix}-size-label`} className="text-xs">
+                    Digital size
+                </Label>
                 <Select
                     value={sizeId === null ? NONE : String(sizeId)}
                     onValueChange={(value) => onSizeChange(value === NONE ? null : Number(value))}
                 >
-                    <SelectTrigger size="sm" data-testid={`${testIdPrefix}-size`}>
+                    <SelectTrigger size="sm" aria-labelledby={`${testIdPrefix}-size-label`} data-testid={`${testIdPrefix}-size`}>
                         <SelectValue placeholder="Select size" />
                     </SelectTrigger>
                     <SelectContent>
