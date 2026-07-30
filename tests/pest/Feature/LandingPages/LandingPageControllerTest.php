@@ -508,6 +508,10 @@ describe('Landing Page Retrieval', function () {
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
         ]);
+        $landingPage->files()->create([
+            'url' => 'https://datapub.gfz-potsdam.de/download/imported-file.zip',
+            'position' => 0,
+        ]);
 
         $response = $this->getJson("/resources/{$this->resource->id}/landing-page");
 
@@ -529,7 +533,8 @@ describe('Landing Page Retrieval', function () {
                     'template' => 'default_gfz',
                     'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
                 ],
-            ]);
+            ])
+            ->assertJsonPath('landing_page.files.0.url', 'https://datapub.gfz-potsdam.de/download/imported-file.zip');
     });
 
     test('returns 404 when landing page does not exist', function () {
@@ -540,6 +545,25 @@ describe('Landing Page Retrieval', function () {
 });
 
 describe('External Landing Page Creation', function () {
+    test('get endpoint hides stale imported files from external landing pages', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
+        $landingPage = LandingPage::factory()->external()->create([
+            'resource_id' => $this->resource->id,
+            'external_domain_id' => $domain->id,
+            'external_path' => 'doi/network/GE1',
+        ]);
+        $landingPage->files()->create([
+            'url' => 'https://datapub.gfz-potsdam.de/download/stale-file.zip',
+            'position' => 0,
+        ]);
+
+        $this->getJson("/resources/{$this->resource->id}/landing-page")
+            ->assertOk()
+            ->assertJsonPath('landing_page.files', []);
+
+        expect($landingPage->fresh()->files)->toHaveCount(1);
+    });
+
     test('can create external landing page as draft', function () {
         $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
 

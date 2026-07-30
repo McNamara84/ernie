@@ -469,6 +469,10 @@ describe('IGSN Template Restriction on Update', function () {
             'label' => 'Supporting file',
             'position' => 0,
         ]);
+        $landingPage->files()->create([
+            'url' => 'https://datapub.gfz-potsdam.de/download/stale-file.zip',
+            'position' => 0,
+        ]);
 
         $response = $this->actingAs($user)
             ->getJson("/resources/{$resource->id}/landing-page");
@@ -482,6 +486,7 @@ describe('IGSN Template Restriction on Update', function () {
             ->assertJsonPath('landing_page.external_path', null)
             ->assertJsonPath('landing_page.external_domain', null)
             ->assertJsonPath('landing_page.external_url', null)
+            ->assertJsonPath('landing_page.files', [])
             ->assertJsonPath('landing_page.links', []);
     });
 

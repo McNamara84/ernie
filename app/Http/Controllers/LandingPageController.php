@@ -738,6 +738,9 @@ class LandingPageController extends Controller
         $payload['downloads_unavailable'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
             ? $landingPage->downloads_unavailable
             : false;
+        $payload['files'] = self::templateSupportsFtpUrl($effectiveTemplate)
+            ? $landingPage->files->values()->toArray()
+            : [];
         $payload['links'] = self::templateSupportsLinks($effectiveTemplate)
             ? $landingPage->links->values()->toArray()
             : [];

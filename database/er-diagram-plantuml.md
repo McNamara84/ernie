@@ -266,6 +266,7 @@ entity "resources" as resources {
     datacenter_id : BIGINT <<FK>> <<nullable>>
     publication_year : SMALLINT //DataCite #5//
     resource_type_id : BIGINT <<FK>> //nullable//
+    access_level : VARCHAR(32) <<nullable>> //indexed//
     version : VARCHAR(50) //DataCite #15//
     language_id : BIGINT <<FK>>
     created_by_user_id : BIGINT <<FK>>
@@ -669,6 +670,8 @@ entity "landing_pages" as landing_pages {
     * template : VARCHAR(50) = 'default_gfz'
     landing_page_template_id : BIGINT <<FK>>
     ftp_url : VARCHAR(2048)
+    ftp_format_id : BIGINT <<FK>> <<nullable>>
+    ftp_size_id : BIGINT <<FK>> <<nullable>>
     * downloads_unavailable : BOOLEAN = false
     external_domain_id : BIGINT <<FK>>
     external_path : VARCHAR(2048)
@@ -686,6 +689,8 @@ entity "landing_page_files" as landing_page_files {
     --
     * landing_page_id : BIGINT <<FK>>
     * url : VARCHAR(2048)
+    format_id : BIGINT <<FK>> <<nullable>>
+    size_id : BIGINT <<FK>> <<nullable>>
     * position : SMALLINT = 0
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -697,6 +702,8 @@ entity "landing_page_links" as landing_page_links {
     * landing_page_id : BIGINT <<FK>>
     * url : VARCHAR(2048)
     * label : VARCHAR(255)
+    format_id : BIGINT <<FK>> <<nullable>>
+    size_id : BIGINT <<FK>> <<nullable>>
     * position : SMALLINT = 0 <<UK(landing_page_id, position)>>
     created_at : TIMESTAMP
     updated_at : TIMESTAMP
@@ -1188,8 +1195,14 @@ users }o--o| users : "deactivated_by"
 
 ' Landing page relationships
 landing_pages }o--o| landing_page_domains
+landing_pages }o--o| formats : "FTP format"
+landing_pages }o--o| sizes : "FTP size"
 landing_pages ||--o{ landing_page_files
 landing_pages ||--o{ landing_page_links
+landing_page_files }o--o| formats : "content format"
+landing_page_files }o--o| sizes : "content size"
+landing_page_links }o--o| formats : "content format"
+landing_page_links }o--o| sizes : "content size"
 landing_pages ||--o{ landing_page_daily_statistics
 landing_pages }o--o| landing_page_templates
 landing_page_templates }o--o| users
