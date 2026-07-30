@@ -372,6 +372,28 @@ describe('keywords', function () {
 });
 
 describe('license', function () {
+    it('filters malformed and COAR access-right entries before transforming licenses', function () {
+        $filterLicenseRights = new ReflectionMethod(SchemaOrgJsonLdExporter::class, 'filterLicenseRights');
+        $filterLicenseRights->setAccessible(true);
+
+        $license = [
+            'rights' => 'Creative Commons Attribution 4.0 International',
+            'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/',
+        ];
+
+        $result = $filterLicenseRights->invoke($this->exporter, [
+            'unexpected string',
+            null,
+            $license,
+            [
+                'rights' => AccessLevel::OPEN->label(),
+                'rightsUri' => AccessLevel::OPEN->coarUri(),
+            ],
+        ]);
+
+        expect($result)->toBe([$license]);
+    });
+
     it('transforms rights with SPDX scheme to license URI', function () {
         $resource = createSchemaOrgResource();
 

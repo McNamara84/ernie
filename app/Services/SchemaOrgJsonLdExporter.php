@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\AccessLevel;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Support\OrcidNormalizer;
@@ -108,13 +109,7 @@ class SchemaOrgJsonLdExporter
 
         // License
         if (! empty($attributes['rightsList'])) {
-            $licenses = array_values(array_filter(
-                $attributes['rightsList'],
-                static fn (mixed $rights): bool => ! is_array($rights)
-                    || \App\Enums\AccessLevel::fromCoarUri(
-                        is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
-                    ) === null,
-            ));
+            $licenses = $this->filterLicenseRights($attributes['rightsList']);
 
             if ($licenses !== []) {
                 $jsonLd['license'] = $this->transformLicense($licenses);
@@ -469,6 +464,21 @@ class SchemaOrgJsonLdExporter
         }
 
         return $keywords;
+    }
+
+    /**
+     * @param  array<int, mixed>  $rightsList
+     * @return list<array<string, mixed>>
+     */
+    private function filterLicenseRights(array $rightsList): array
+    {
+        return array_values(array_filter(
+            $rightsList,
+            static fn (mixed $rights): bool => is_array($rights)
+                && AccessLevel::fromCoarUri(
+                    is_string($rights['rightsUri'] ?? null) ? $rights['rightsUri'] : null,
+                ) === null,
+        ));
     }
 
     /**

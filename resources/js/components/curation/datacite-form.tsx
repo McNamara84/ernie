@@ -1385,10 +1385,7 @@ export default function DataCiteForm({
             appendValidationMessage(errors, 'accessLevel', 'Access Level is required.');
         }
 
-        if (
-            form.accessLevel === 'embargoed' &&
-            !dates.some((date) => date.dateType === 'available' && Boolean(date.startDate?.trim()))
-        ) {
+        if (form.accessLevel === 'embargoed' && !dates.some((date) => date.dateType === 'available' && Boolean(date.startDate?.trim()))) {
             appendValidationMessage(errors, 'accessLevel', 'Embargoed access requires an Available date.');
         }
 
@@ -1461,7 +1458,18 @@ export default function DataCiteForm({
         dateValidationIssues.forEach((issue) => appendValidationMessage(errors, 'dates', issue));
 
         return errors;
-    }, [authors, dates, descriptions, form.accessLevel, form.resourceType, form.year, licenseEntries, selectedDatacenterId, titles, dateValidationIssues]);
+    }, [
+        authors,
+        dates,
+        descriptions,
+        form.accessLevel,
+        form.resourceType,
+        form.year,
+        licenseEntries,
+        selectedDatacenterId,
+        titles,
+        dateValidationIssues,
+    ]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -2060,7 +2068,7 @@ export default function DataCiteForm({
             doi: string | null;
             year: number | null;
             resourceType: number | null;
-            accessLevel: AccessLevel;
+            accessLevel?: Exclude<AccessLevel, ''>;
             version: string | null;
             language: string;
             titles: { title: string; titleType: string; language?: string | null }[];
@@ -2128,7 +2136,7 @@ export default function DataCiteForm({
             doi: form.doi?.trim() || null,
             year: form.year ? Number(form.year) : null,
             resourceType: form.resourceType ? Number(form.resourceType) : null,
-            accessLevel: form.accessLevel,
+            ...(form.accessLevel !== '' ? { accessLevel: form.accessLevel } : {}),
             version: form.version?.trim() || null,
             language: form.language,
             titles: titles.map((entry) => ({

@@ -85,6 +85,7 @@ type PersistedLandingPageDraftState = {
     externalPath: string;
     landingPageTemplateId: number | null;
     links: LandingPageLink[];
+    files: LandingPageFile[];
 };
 
 type ResourceTemplateOptions = {
@@ -116,6 +117,17 @@ function cloneLandingPageLinks(links: LandingPageLink[] = []): LandingPageLink[]
     }));
 }
 
+function cloneLandingPageFiles(files: LandingPageFile[] = []): LandingPageFile[] {
+    return files.map((file, index) => ({
+        id: file.id,
+        url: file.url,
+        format_id: file.format_id ?? null,
+        size_id: file.size_id ?? null,
+        tracked_url: file.tracked_url ?? null,
+        position: typeof file.position === 'number' ? file.position : index,
+    }));
+}
+
 function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPageDraftState) {
     return {
         template: draftState.template,
@@ -135,6 +147,13 @@ function normalizePersistedLandingPageDraftState(draftState: PersistedLandingPag
             size_id: link.size_id ?? null,
             position: typeof link.position === 'number' ? link.position : index,
         })),
+        files: cloneLandingPageFiles(draftState.files).map((file, index) => ({
+            id: file.id,
+            url: file.url,
+            format_id: file.format_id ?? null,
+            size_id: file.size_id ?? null,
+            position: typeof file.position === 'number' ? file.position : index,
+        })),
     };
 }
 
@@ -142,7 +161,7 @@ function arePersistedLandingPageDraftStatesEqual(left: PersistedLandingPageDraft
     return JSON.stringify(normalizePersistedLandingPageDraftState(left)) === JSON.stringify(normalizePersistedLandingPageDraftState(right));
 }
 
-function parsePersistedLandingPageDraftState(rawValue: string | null): PersistedLandingPageDraftState | null {
+function parsePersistedLandingPageDraftState(rawValue: string | null, fallbackFiles: LandingPageFile[] = []): PersistedLandingPageDraftState | null {
     if (!rawValue) {
         return null;
     }
@@ -179,6 +198,31 @@ function parsePersistedLandingPageDraftState(rawValue: string | null): Persisted
               })
             : [];
 
+        const files: LandingPageFile[] = Array.isArray(parsed.files)
+            ? parsed.files.flatMap((file, index): LandingPageFile[] => {
+                  if (!file || typeof file !== 'object') {
+                      return [];
+                  }
+
+                  const candidate = file as Partial<LandingPageFile>;
+
+                  if (typeof candidate.id !== 'number' || typeof candidate.url !== 'string') {
+                      return [];
+                  }
+
+                  return [
+                      {
+                          id: candidate.id,
+                          url: candidate.url,
+                          format_id: typeof candidate.format_id === 'number' ? candidate.format_id : null,
+                          size_id: typeof candidate.size_id === 'number' ? candidate.size_id : null,
+                          tracked_url: typeof candidate.tracked_url === 'string' ? candidate.tracked_url : null,
+                          position: typeof candidate.position === 'number' ? candidate.position : index,
+                      },
+                  ];
+              })
+            : cloneLandingPageFiles(fallbackFiles);
+
         return {
             template: parsed.template,
             ftpUrl: typeof parsed.ftpUrl === 'string' ? parsed.ftpUrl : '',
@@ -190,6 +234,7 @@ function parsePersistedLandingPageDraftState(rawValue: string | null): Persisted
             externalPath: typeof parsed.externalPath === 'string' ? parsed.externalPath : '',
             landingPageTemplateId: typeof parsed.landingPageTemplateId === 'number' ? parsed.landingPageTemplateId : null,
             links,
+            files,
         };
     } catch {
         return null;
@@ -324,23 +369,27 @@ export default function SetupLandingPageModal({
         hydratedDraftStateKeyRef.current = null;
     }, [currentDraftScope]);
 
-    const readPersistedDraftState = useCallback((): PersistedLandingPageDraftState | null => {
-        if (typeof window === 'undefined' || storageKey === null) {
-            return null;
-        }
+    const readPersistedDraftState = useCallback(
+        (fallbackFiles: LandingPageFile[] = []): PersistedLandingPageDraftState | null => {
+            if (typeof window === 'undefined' || storageKey === null) {
+                return null;
+            }
 
-        const persistedDraft = parsePersistedLandingPageDraftState(readSessionStorageItem(storageKey));
+            const persistedDraft = parsePersistedLandingPageDraftState(readSessionStorageItem(storageKey), fallbackFiles);
 
-        if (!persistedDraft) {
-            return null;
-        }
+            if (!persistedDraft) {
+                return null;
+            }
 
-        return {
-            ...persistedDraft,
-            template: getPreferredTemplateForResource(resource.resourcetypegeneral, persistedDraft.template),
-            links: cloneLandingPageLinks(persistedDraft.links),
-        };
-    }, [resource.resourcetypegeneral, storageKey]);
+            return {
+                ...persistedDraft,
+                template: getPreferredTemplateForResource(resource.resourcetypegeneral, persistedDraft.template),
+                links: cloneLandingPageLinks(persistedDraft.links),
+                files: cloneLandingPageFiles(persistedDraft.files),
+            };
+        },
+        [resource.resourcetypegeneral, storageKey],
+    );
 
     const persistDraftState = useCallback(
         (draftState: PersistedLandingPageDraftState) => {
@@ -353,6 +402,7 @@ export default function SetupLandingPageModal({
                 JSON.stringify({
                     ...draftState,
                     links: cloneLandingPageLinks(draftState.links),
+                    files: cloneLandingPageFiles(draftState.files),
                 }),
             );
         },
@@ -382,6 +432,7 @@ export default function SetupLandingPageModal({
                 externalPath: config?.external_path ?? '',
                 landingPageTemplateId: getHydratedLandingPageTemplateId(preferredTemplate, config),
                 links: cloneLandingPageLinks(config?.links ?? []),
+                files: cloneLandingPageFiles(config?.files ?? []),
             };
         },
         [resource.resourcetypegeneral],
@@ -397,6 +448,7 @@ export default function SetupLandingPageModal({
         setExternalDomainId(draftState.externalDomainId);
         setExternalPath(draftState.externalPath);
         setLinks(cloneLandingPageLinks(draftState.links));
+        setFiles(cloneLandingPageFiles(draftState.files));
         setLandingPageTemplateId(draftState.landingPageTemplateId);
     }, []);
 
@@ -485,19 +537,31 @@ export default function SetupLandingPageModal({
             externalPath,
             landingPageTemplateId,
             links: cloneLandingPageLinks(links),
+            files: cloneLandingPageFiles(files),
         }),
-        [downloadsUnavailable, externalDomainId, externalPath, ftpFormatId, ftpSizeId, ftpUrl, isPublished, landingPageTemplateId, links, template],
+        [
+            downloadsUnavailable,
+            externalDomainId,
+            externalPath,
+            files,
+            ftpFormatId,
+            ftpSizeId,
+            ftpUrl,
+            isPublished,
+            landingPageTemplateId,
+            links,
+            template,
+        ],
     );
     const baselineDraftState = useMemo(() => buildDraftStateFromConfig(currentConfig), [buildDraftStateFromConfig, currentConfig]);
 
     const applyConfigState = useCallback(
         (config: LandingPageConfig | null) => {
             const baseDraftState = buildDraftStateFromConfig(config);
-            const persistedDraftState = readPersistedDraftState();
+            const persistedDraftState = readPersistedDraftState(baseDraftState.files);
 
             hydratedDraftStateKeyRef.current = storageKey;
             setCurrentConfig(config);
-            setFiles(config?.files ?? []);
             setPreviewUrl(config?.preview_url ?? '');
             applyDraftState(persistedDraftState ?? baseDraftState);
             setHasHydratedDraftState(true);
@@ -1036,9 +1100,7 @@ export default function SetupLandingPageModal({
 
                 const updated = { ...link, [field]: value };
 
-                return field === 'kind' && value !== 'download'
-                    ? { ...updated, format_id: null, size_id: null }
-                    : updated;
+                return field === 'kind' && value !== 'download' ? { ...updated, format_id: null, size_id: null } : updated;
             }),
         );
     }, []);
@@ -1431,12 +1493,7 @@ export default function SetupLandingPageModal({
                             )}
 
                             {!isExternal && hasImportedFiles && (
-                                <ImportedFileDescriptorFields
-                                    files={files}
-                                    setFiles={setFiles}
-                                    formats={availableFormats}
-                                    sizes={availableSizes}
-                                />
+                                <ImportedFileDescriptorFields files={files} setFiles={setFiles} formats={availableFormats} sizes={availableSizes} />
                             )}
 
                             {/* Additional Links (only for GFZ templates, not external or IGSN) */}
@@ -1486,12 +1543,7 @@ export default function SetupLandingPageModal({
                             )}
 
                             {supportsLinks && (
-                                <AdditionalLinkDescriptorFields
-                                    links={links}
-                                    setLinks={setLinks}
-                                    formats={availableFormats}
-                                    sizes={availableSizes}
-                                />
+                                <AdditionalLinkDescriptorFields links={links} setLinks={setLinks} formats={availableFormats} sizes={availableSizes} />
                             )}
 
                             {/* Unsaved Changes Warning */}
