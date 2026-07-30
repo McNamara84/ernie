@@ -92,6 +92,34 @@ describe('Draft save (Issue #548)', function () {
             ->and($resource->creators)->toHaveCount(1);
     });
 
+    it('distinguishes an omitted access level from an explicit null on draft updates', function () {
+        $resource = Resource::factory()->create([
+            'access_level' => AccessLevel::RESTRICTED,
+            'created_by_user_id' => $this->user->id,
+        ]);
+        $payload = [
+            'resourceId' => $resource->id,
+            'titles' => [
+                ['title' => 'Draft Access Update', 'titleType' => 'main-title'],
+            ],
+        ];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload)
+            ->assertOk();
+
+        expect($resource->fresh()->access_level)->toBe(AccessLevel::RESTRICTED);
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', [
+                ...$payload,
+                'accessLevel' => null,
+            ])
+            ->assertOk();
+
+        expect($resource->fresh()->access_level)->toBeNull();
+    });
+
     it('saves a draft with one datacenter', function () {
         $payload = [
             'titles' => [

@@ -24,7 +24,9 @@ trait ValidatesLandingPageContentDescriptors
 
             $supportsPrimaryUrl = is_string($template)
                 && LandingPageController::templateSupportsFtpUrl($template);
-            $ftpUrl = trim((string) $this->input('ftp_url', ''));
+            $ftpUrl = array_key_exists('ftp_url', $this->all())
+                ? trim((string) $this->input('ftp_url', ''))
+                : trim((string) ($resource instanceof Resource ? $resource->landingPage?->ftp_url : ''));
 
             foreach (['ftp_format_id', 'ftp_size_id'] as $field) {
                 if (! $this->filled($field)) {

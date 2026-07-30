@@ -92,13 +92,17 @@ class LandingPagePreviewController extends Controller
             }
         }
 
+        $effectiveFtpUrl = array_key_exists('ftp_url', $validated)
+            ? $validated['ftp_url']
+            : $resource->landingPage?->ftp_url;
+
         Session::put($sessionKey, [
             'template' => $validated['template'],
             'landing_page_template_id' => LandingPageController::templateSupportsCustomTemplateId($validated['template'])
                 ? ($validated['landing_page_template_id'] ?? null)
                 : null,
             'ftp_url' => LandingPageController::templateSupportsFtpUrl($validated['template'])
-                ? ($validated['ftp_url'] ?? null)
+                ? $effectiveFtpUrl
                 : null,
             'ftp_format_id' => LandingPageController::templateSupportsFtpUrl($validated['template'])
                 ? ($validated['ftp_format_id'] ?? null)

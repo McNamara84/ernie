@@ -88,6 +88,7 @@ class ResourceStorageService
                 }
             }
 
+            $isUpdate = ! empty($data['resourceId']);
             $attributes = [
                 'doi' => $doi,
                 'publication_year' => $data['year'] ?? null,
@@ -96,10 +97,11 @@ class ResourceStorageService
                 'language_id' => $languageId,
                 'publisher_id' => Publisher::getDefault()?->id,
                 'datacenter_id' => $data['datacenter_id'] ?? null,
-                'access_level' => $data['accessLevel'] ?? null,
             ];
 
-            $isUpdate = ! empty($data['resourceId']);
+            if (! $isUpdate || array_key_exists('accessLevel', $data)) {
+                $attributes['access_level'] = $data['accessLevel'] ?? null;
+            }
 
             if ($isUpdate) {
                 /** @var Resource $resource */

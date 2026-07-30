@@ -353,6 +353,32 @@ describe('Landing Page content descriptors', function () {
             ->assertJsonPath('landing_page.available_sizes.0.content_size', '1572864');
     });
 
+    test('updates primary descriptors against the existing URL without allowing an explicit URL clear', function () {
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/existing.zip',
+        ]);
+        $format = $this->resource->formats()->create(['value' => 'application/zip']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MiB']);
+
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'ftp_format_id' => $format->id,
+            'ftp_size_id' => $size->id,
+        ])->assertOk();
+
+        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/existing.zip')
+            ->and($landingPage->fresh()->ftp_format_id)->toBe($format->id)
+            ->and($landingPage->fresh()->ftp_size_id)->toBe($size->id);
+
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'ftp_url' => null,
+            'ftp_format_id' => $format->id,
+        ])->assertJsonValidationErrors(['ftp_format_id']);
+
+        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/existing.zip');
+    });
+
     test('rejects foreign, invalid, and URL-less primary descriptors', function () {
         $other = Resource::factory()->create();
         $foreignFormat = $other->formats()->create(['value' => 'application/zip']);
