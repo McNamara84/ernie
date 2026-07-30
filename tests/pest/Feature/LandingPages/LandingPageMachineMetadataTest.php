@@ -193,7 +193,7 @@ test('software JSON-LD exposes software types repository and direct downloads', 
         ->toContain('<https://downloads.example.org/software.zip>; rel="item"; type="application/zip"');
 });
 
-test('missing MIME data omits content identifiers instead of inferring them', function () {
+test('missing resource MIME data does not infer from the URL extension', function () {
     [, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
         'ftp_url' => 'https://downloads.example.org/data-with-obvious-extension.zip',
     ]);
@@ -205,6 +205,26 @@ test('missing MIME data omits content identifiers instead of inferring them', fu
     expect($jsonLd)->not->toHaveKey('distribution')
         ->and($linkHeader)->not->toContain('rel="item"')
         ->not->toContain('data-with-obvious-extension.zip');
+});
+
+test('an unassigned MIME descriptor falls back to the only valid resource format', function () {
+    [$resource, $landingPage] = machineMetadataLandingPage(landingPageAttributes: [
+        'ftp_url' => 'https://downloads.example.org/data.zip',
+    ]);
+    $resource->formats()->create(['value' => '.ZIP']);
+
+    $response = $this->get($landingPage->getPublicPath())->assertOk();
+    $jsonLd = decodedEmbeddedSchemaOrg($response->getContent());
+    $linkHeader = $response->headers->get('Link');
+
+    expect($jsonLd['distribution'])->toBe([[
+        '@type' => 'DataDownload',
+        'contentUrl' => 'https://downloads.example.org/data.zip',
+        'encodingFormat' => 'application/zip',
+    ]])
+        ->and($linkHeader)->toContain(
+            '<https://downloads.example.org/data.zip>; rel="item"; type="application/zip"',
+        );
 });
 
 test('downloads unavailable suppresses JSON-LD and Signposting content links', function () {

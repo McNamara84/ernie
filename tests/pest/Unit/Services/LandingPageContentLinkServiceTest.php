@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Services\LandingPageContentLinkService;
 
 covers(LandingPageContentLinkService::class);
@@ -74,6 +75,53 @@ test('uses the original primary URL when no imported file exists', function () {
     ]);
 });
 
+test('falls back to the only valid resource MIME type for the primary URL', function () {
+    [$resource, $landingPage] = landingPageContentFixture();
+    $resource->formats()->create(['value' => 'unknown-format']);
+    $resource->formats()->create(['value' => '.ZIP']);
+    $size = $resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MB']);
+    $landingPage->update(['ftp_size_id' => $size->id]);
+
+    $result = app(LandingPageContentLinkService::class)->resolve($resource, $landingPage);
+
+    expect($result['mimeType'])->toBe('application/zip')
+        ->and($result['contentLinks'])->toBe([[
+            'url' => 'https://downloads.example.org/fallback.zip',
+            'mimeType' => 'application/zip',
+            'contentSize' => '2000000',
+        ]]);
+});
+
+test('uses the unambiguous MIME fallback for imported files and download links', function () {
+    [$resource, $landingPage] = landingPageContentFixture();
+    $resource->formats()->create(['value' => 'application/pdf']);
+    $landingPage->files()->create([
+        'url' => 'https://downloads.example.org/file.pdf',
+        'position' => 0,
+    ]);
+    $landingPage->links()->create([
+        'url' => 'https://downloads.example.org/extra.pdf',
+        'label' => 'Extra',
+        'kind' => LandingPageLink::KIND_DOWNLOAD,
+        'position' => 0,
+    ]);
+
+    expect(app(LandingPageContentLinkService::class)->resolve($resource, $landingPage)['contentLinks'])
+        ->toBe([
+            ['url' => 'https://downloads.example.org/file.pdf', 'mimeType' => 'application/pdf', 'contentSize' => null],
+            ['url' => 'https://downloads.example.org/extra.pdf', 'mimeType' => 'application/pdf', 'contentSize' => null],
+        ]);
+});
+
+test('does not infer a MIME type when multiple valid resource formats exist', function () {
+    [$resource, $landingPage] = landingPageContentFixture();
+    $resource->formats()->create(['value' => 'application/pdf']);
+    $resource->formats()->create(['value' => 'application/zip']);
+
+    expect(app(LandingPageContentLinkService::class)->resolve($resource, $landingPage)['contentLinks'])
+        ->toBe([]);
+});
+
 test('omits content without a valid database MIME type but retains repositories', function () {
     [$resource, $landingPage] = landingPageContentFixture();
     $resource->formats()->create(['value' => 'unknown-format']);
@@ -125,6 +173,7 @@ test('rejects unsafe URLs and deduplicates safe URLs without inference', functio
 
 test('does not use descriptors that belong to a different resource', function () {
     [$resource, $landingPage] = landingPageContentFixture();
+    $resource->formats()->create(['value' => 'text/csv']);
     $other = Resource::factory()->create();
     $foreignFormat = $other->formats()->create(['value' => 'application/zip']);
     $foreignSize = $other->sizes()->create(['numeric_value' => 2, 'unit' => 'MB']);
@@ -139,7 +188,7 @@ test('does not use descriptors that belong to a different resource', function ()
 });
 
 test('never projects an IGSN physical size as digital content size', function () {
-    $physicalObject = \App\Models\ResourceType::firstOrCreate(
+    $physicalObject = ResourceType::firstOrCreate(
         ['slug' => 'physical-object'],
         ['name' => 'Physical Object', 'is_active' => true],
     );

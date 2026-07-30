@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Format;
 use App\Models\LandingPage;
 use App\Models\LandingPageLink;
-use App\Models\Format;
 use App\Models\Resource;
 use App\Models\Size;
 use App\Services\SizeFormat\DigitalContentSizeService;
@@ -23,7 +23,7 @@ final class LandingPageContentLinkService
      */
     public function resolve(Resource $resource, LandingPage $landingPage): array
     {
-        $resource->loadMissing(['resourceType', 'formats', 'sizes']);
+        $resource->loadMissing(['resourceType', 'formats']);
         $landingPage->loadMissing([
             'ftpFormat',
             'ftpSize',
@@ -44,13 +44,14 @@ final class LandingPageContentLinkService
         }
 
         $contentLinks = [];
+        $fallbackMimeType = $this->fallbackMimeType($resource);
         $files = $landingPage->files
             ->sortBy([['position', 'asc'], ['id', 'asc']])
             ->values();
 
         if ($files->isNotEmpty()) {
             foreach ($files as $file) {
-                $this->appendContentLink($contentLinks, $resource, $file->url, $file->format, $file->size);
+                $this->appendContentLink($contentLinks, $resource, $file->url, $file->format, $file->size, $fallbackMimeType);
             }
         } else {
             $this->appendContentLink(
@@ -59,13 +60,14 @@ final class LandingPageContentLinkService
                 $landingPage->ftp_url,
                 $landingPage->ftpFormat,
                 $landingPage->ftpSize,
+                $fallbackMimeType,
             );
         }
 
         foreach ($landingPage->links
             ->where('kind', LandingPageLink::KIND_DOWNLOAD)
             ->sortBy([['position', 'asc'], ['id', 'asc']]) as $link) {
-            $this->appendContentLink($contentLinks, $resource, $link->url, $link->format, $link->size);
+            $this->appendContentLink($contentLinks, $resource, $link->url, $link->format, $link->size, $fallbackMimeType);
         }
 
         $firstContentLink = reset($contentLinks);
@@ -86,20 +88,28 @@ final class LandingPageContentLinkService
         mixed $candidateUrl,
         ?Format $format,
         ?Size $size,
+        ?string $fallbackMimeType,
     ): void {
         if (! is_string($candidateUrl)) {
             return;
         }
 
         $url = trim($candidateUrl);
-        if (! $this->isSafeAbsoluteHttpUrl($url)
-            || $format === null
-            || $format->resource_id !== $resource->id) {
+        if (! $this->isSafeAbsoluteHttpUrl($url)) {
             return;
         }
 
-        $mimeType = SizeFormatFormatNormalizerService::normalize($format->value);
-        if (! $this->isValidMimeType($mimeType)) {
+        if ($format === null) {
+            $mimeType = $fallbackMimeType;
+        } else {
+            if ($format->resource_id !== $resource->id) {
+                return;
+            }
+
+            $mimeType = SizeFormatFormatNormalizerService::normalize($format->value);
+        }
+
+        if ($mimeType === null || ! $this->isValidMimeType($mimeType)) {
             return;
         }
 
@@ -113,6 +123,23 @@ final class LandingPageContentLinkService
             'mimeType' => $mimeType,
             'contentSize' => $contentSize,
         ];
+    }
+
+    private function fallbackMimeType(Resource $resource): ?string
+    {
+        $mimeTypes = $resource->formats
+            ->map(static fn (Format $format): string => SizeFormatFormatNormalizerService::normalize($format->value))
+            ->filter(fn (string $mimeType): bool => $this->isValidMimeType($mimeType))
+            ->unique()
+            ->values();
+
+        if ($mimeTypes->count() !== 1) {
+            return null;
+        }
+
+        $mimeType = $mimeTypes->first();
+
+        return is_string($mimeType) ? $mimeType : null;
     }
 
     /** @return list<string> */
