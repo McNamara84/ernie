@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Enums\UserRole;
 use App\Http\Requests\Resource\DestroyResourcesRequest;
 use App\Models\Description;
@@ -25,6 +26,7 @@ function createCompleteResourceForDeletion(array $attributes = []): Resource
     $resource = Resource::factory()->create(array_merge([
         'doi' => null,
         'publication_year' => 2026,
+        'access_level' => AccessLevel::OPEN,
     ], $attributes));
 
     $titleType = TitleType::firstOrCreate([

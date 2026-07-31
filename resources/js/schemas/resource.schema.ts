@@ -164,6 +164,7 @@ const resourceBaseSchema = z.object({
     doi: doiSchema,
     year: yearSchema,
     resourceType: z.string().min(1, 'Resource type is required'),
+    accessLevel: z.enum(['open', 'restricted', 'embargoed', 'metadata-only']),
     version: versionSchema,
     language: z.string().optional(),
 

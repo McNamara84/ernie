@@ -115,10 +115,13 @@ interface BuildLandingPagePayloadOptions {
     isPublished?: boolean;
     supportsFtpUrl: boolean;
     ftpUrl?: string;
+    ftpFormatId?: number | null;
+    ftpSizeId?: number | null;
     supportsDownloadsUnavailable?: boolean;
     downloadsUnavailable?: boolean;
     supportsLinks: boolean;
     links?: LandingPageLink[];
+    files?: Array<{ id: number; format_id?: number | null; size_id?: number | null }>;
     isExternal: boolean;
     externalDomainId?: string;
     externalPath?: string;
@@ -133,6 +136,8 @@ function getCompleteLandingPageLinks(links: LandingPageLink[] = []) {
             url: link.url,
             label: link.label,
             kind: link.kind ?? 'related',
+            format_id: link.kind === 'download' ? (link.format_id ?? null) : null,
+            size_id: link.kind === 'download' ? (link.size_id ?? null) : null,
             position: index,
         }));
 }
@@ -149,6 +154,8 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
 
     if (options.supportsFtpUrl) {
         payload.ftp_url = options.ftpUrl || null;
+        payload.ftp_format_id = options.ftpUrl ? (options.ftpFormatId ?? null) : null;
+        payload.ftp_size_id = options.ftpUrl ? (options.ftpSizeId ?? null) : null;
     }
 
     if (options.supportsDownloadsUnavailable) {
@@ -166,6 +173,14 @@ function buildLandingPagePayload(options: BuildLandingPagePayloadOptions): Recor
         if (options.includeEmptyLinks || completeLinks.length > 0) {
             payload.links = completeLinks;
         }
+    }
+
+    if (options.files) {
+        payload.files = options.files.map((file) => ({
+            id: file.id,
+            format_id: file.format_id ?? null,
+            size_id: file.size_id ?? null,
+        }));
     }
 
     return payload;

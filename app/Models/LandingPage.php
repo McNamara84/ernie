@@ -25,6 +25,8 @@ use Illuminate\Support\Str;
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
  * @property string|null $ftp_url Direct download URL for the dataset files
+ * @property int|null $ftp_format_id
+ * @property int|null $ftp_size_id
  * @property bool $downloads_unavailable Whether the generated Files section is hidden because no downloads are available
  * @property int|null $external_domain_id FK to landing_page_domains (only for external landing pages)
  * @property string|null $external_path URL path appended to domain (only for external landing pages)
@@ -89,7 +91,7 @@ use Illuminate\Support\Str;
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
  */
-#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'downloads_unavailable', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
+#[Fillable(['resource_id', 'doi_prefix', 'slug', 'template', 'landing_page_template_id', 'ftp_url', 'ftp_format_id', 'ftp_size_id', 'downloads_unavailable', 'external_domain_id', 'external_path', 'is_published', 'preview_token', 'published_at', 'view_count', 'last_viewed_at'])]
 class LandingPage extends Model
 {
     /** @use HasFactory<LandingPageFactory> */
@@ -276,6 +278,24 @@ class LandingPage extends Model
     {
         /** @var BelongsTo<\App\Models\Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<Format, static> */
+    public function ftpFormat(): BelongsTo
+    {
+        /** @var BelongsTo<Format, static> $relation */
+        $relation = $this->belongsTo(Format::class, 'ftp_format_id');
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<Size, static> */
+    public function ftpSize(): BelongsTo
+    {
+        /** @var BelongsTo<Size, static> $relation */
+        $relation = $this->belongsTo(Size::class, 'ftp_size_id');
 
         return $relation;
     }

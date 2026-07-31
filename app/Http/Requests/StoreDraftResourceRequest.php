@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\AccessLevel;
 use App\Http\Requests\Concerns\ValidatesEditorDates;
 use App\Models\RelatedIdentifier;
 use App\Models\TitleType;
@@ -58,6 +59,7 @@ class StoreDraftResourceRequest extends FormRequest
             'year' => ['nullable', 'integer', 'between:1000,9999'],
             // Resource type is optional for drafts
             'resourceType' => ['nullable', 'integer', Rule::exists('resource_types', 'id')],
+            'accessLevel' => ['nullable', Rule::enum(AccessLevel::class)],
             'version' => ['nullable', 'string', 'max:50'],
             'language' => ['nullable', 'string', Rule::exists('languages', 'code')],
             // Title is required (at least one)
@@ -955,6 +957,7 @@ class StoreDraftResourceRequest extends FormRequest
             'year.between' => '[Resource Information] Publication Year must be between :min and :max.',
             'resourceType.integer' => '[Resource Information] Resource Type must be a valid selection.',
             'resourceType.exists' => '[Resource Information] The selected Resource Type is invalid.',
+            'accessLevel.enum' => '[Resource Information] The selected access level is invalid.',
             'version.max' => '[Resource Information] Version exceeds the maximum length of :max characters.',
             'language.exists' => '[Resource Information] The selected Language is invalid.',
             'doi.unique' => '[Resource Information] This DOI is already in use by another resource.',

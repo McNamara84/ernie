@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccessLevel;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
@@ -464,6 +465,35 @@ describe('DataCiteJsonExporter - Resource Types', function () {
 });
 
 describe('DataCiteJsonExporter - Rights/Licenses', function () {
+    test('exports access rights separately with complete COAR scheme metadata', function () {
+        $resource = Resource::factory()->create(['access_level' => AccessLevel::EMBARGOED]);
+
+        $rights = $this->exporter->export($resource)['data']['attributes']['rightsList'];
+
+        expect($rights)->toBe([[
+            'rights' => 'Embargoed access',
+            'rightsUri' => 'http://purl.org/coar/access_right/c_f1cf',
+            'rightsIdentifier' => 'c_f1cf',
+            'rightsIdentifierScheme' => 'COAR Access Rights',
+            'schemeUri' => 'http://purl.org/coar/access_right/',
+        ]]);
+    });
+
+    test('does not duplicate an imported equivalent COAR rights URI', function () {
+        $resource = Resource::factory()->create(['access_level' => AccessLevel::OPEN]);
+        ResourceRight::create([
+            'resource_id' => $resource->id,
+            'rights_text' => 'Open access',
+            'rights_uri' => 'https://purl.org/coar/access_right/c_abf2',
+            'source' => 'datacite-import',
+        ]);
+
+        $rights = $this->exporter->export($resource)['data']['attributes']['rightsList'];
+
+        expect($rights)->toHaveCount(1)
+            ->and($rights[0]['rightsUri'])->toBe('https://purl.org/coar/access_right/c_abf2');
+    });
+
     test('exports license information', function () {
         $resource = Resource::factory()->create();
         $license = Right::firstOrCreate(

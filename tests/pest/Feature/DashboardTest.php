@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccessLevel;
 use App\Enums\CacheKey;
 use App\Models\Affiliation;
 use App\Models\Description;
@@ -44,6 +45,8 @@ function createDashboardResource(array $attributes = [], ?string $title = null):
 
 function completeDashboardResource(Resource $resource): Resource
 {
+    $resource->update(['access_level' => AccessLevel::OPEN]);
+
     if ($resource->titles()->count() === 0) {
         Title::factory()->create(['resource_id' => $resource->id]);
     }

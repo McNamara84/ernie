@@ -12,9 +12,10 @@ use App\Http\Requests\LandingPageTemplate\UploadLandingPageTemplateLogoRequest;
 use App\Http\Requests\RelatedItem\ReorderRelatedItemsRequest;
 use App\Http\Requests\Settings\DeleteProfileRequest;
 use App\Http\Requests\Settings\UpdateThesaurusVersionRequest;
+use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Validator;
 
 uses(RefreshDatabase::class);
@@ -24,13 +25,16 @@ uses(RefreshDatabase::class);
  *
  * @param  array<string, mixed>  $payload
  */
-function validatePhase8dRequest(string $class, array $payload, ?User $user = null, ?Request $base = null): Illuminate\Validation\Validator
+function validatePhase8dRequest(string $class, array $payload, ?User $user = null, ?Resource $resource = null): Illuminate\Validation\Validator
 {
     /** @var StoreDatacenterRequest|StoreLandingPageDomainRequest|StoreLandingPageRequest|UpdateLandingPageRequest|StoreLandingPagePreviewRequest|UploadLandingPageTemplateLogoRequest|ReorderRelatedItemsRequest|DeleteProfileRequest|UpdateThesaurusVersionRequest $request */
     $request = $class::create('/test', 'POST', $payload);
 
-    if ($base !== null) {
-        $request->setRouteResolver(fn () => $base->route());
+    if ($resource !== null) {
+        $route = new Route(['POST'], '/test', []);
+        $route->bind($request);
+        $route->setParameter('resource', $resource);
+        $request->setRouteResolver(fn (): Route => $route);
     }
 
     if ($user !== null) {
@@ -64,25 +68,29 @@ it('requires a domain on StoreLandingPageDomainRequest', function () {
 
 it('requires a valid template on StoreLandingPageRequest', function () {
     $user = User::factory()->create();
-    $v = validatePhase8dRequest(StoreLandingPageRequest::class, ['template' => 'unknown_template'], $user);
+    $resource = Resource::factory()->create();
+    $v = validatePhase8dRequest(StoreLandingPageRequest::class, ['template' => 'unknown_template'], $user, $resource);
     expect($v->fails())->toBeTrue();
 });
 
 it('accepts a valid template on StoreLandingPageRequest', function () {
     $user = User::factory()->create();
-    $v = validatePhase8dRequest(StoreLandingPageRequest::class, ['template' => 'default_gfz'], $user);
+    $resource = Resource::factory()->create();
+    $v = validatePhase8dRequest(StoreLandingPageRequest::class, ['template' => 'default_gfz'], $user, $resource);
     expect($v->fails())->toBeFalse();
 });
 
 it('makes template optional on UpdateLandingPageRequest', function () {
     $user = User::factory()->create();
-    $v = validatePhase8dRequest(UpdateLandingPageRequest::class, [], $user);
+    $resource = Resource::factory()->create();
+    $v = validatePhase8dRequest(UpdateLandingPageRequest::class, [], $user, $resource);
     expect($v->fails())->toBeFalse();
 });
 
 it('accepts external template at the rules layer (controller rejects previews of external pages downstream)', function () {
     $user = User::factory()->create();
-    $v = validatePhase8dRequest(StoreLandingPagePreviewRequest::class, ['template' => 'external'], $user);
+    $resource = Resource::factory()->create();
+    $v = validatePhase8dRequest(StoreLandingPagePreviewRequest::class, ['template' => 'external'], $user, $resource);
     // External is allowed at the rules layer — the controller rejects previews of external pages.
     expect($v->fails())->toBeFalse();
 });

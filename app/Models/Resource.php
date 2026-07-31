@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\AccessLevel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -35,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $legacy_source_id
  * @property string|null $legacy_source_status
  * @property bool $force_review_status
+ * @property AccessLevel|null $access_level
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read ResourceType|null $resourceType
@@ -67,7 +69,7 @@ use Illuminate\Support\Carbon;
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.7/
  */
-#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status'])]
+#[Fillable(['doi', 'publication_year', 'resource_type_id', 'version', 'language_id', 'publisher_id', 'datacenter_id', 'created_by_user_id', 'updated_by_user_id', 'legacy_source', 'legacy_source_id', 'legacy_source_status', 'force_review_status', 'access_level'])]
 class Resource extends Model
 {
     /** @use HasFactory<Factory<static>> */
@@ -77,6 +79,7 @@ class Resource extends Model
         'publication_year' => 'integer',
         'legacy_source_id' => 'integer',
         'force_review_status' => 'boolean',
+        'access_level' => AccessLevel::class,
     ];
 
     /**
@@ -483,7 +486,8 @@ class Resource extends Model
      * Check whether this resource has all mandatory DataCite fields filled (Issue #548).
      *
      * Mandatory fields: Main Title, Publication Year, Resource Type,
-     * at least one Creator, at least one License, and an Abstract description.
+     * at least one Creator, at least one License, an access level, and an Abstract
+     * description. Embargoed resources additionally require an Available date.
      *
      * Expects that titles, creators, rights, and descriptions relations are already
      * eager loaded.
@@ -512,6 +516,23 @@ class Resource extends Model
 
         if ($this->rights->isEmpty()) {
             return false;
+        }
+
+        if ($this->access_level === null) {
+            return false;
+        }
+
+        if ($this->access_level === AccessLevel::EMBARGOED) {
+            $this->loadMissing('dates.dateType');
+
+            $hasAvailableDate = $this->dates->contains(
+                static fn (ResourceDate $date): bool => strcasecmp($date->dateType->slug, 'available') === 0
+                    && trim((string) ($date->start_date ?? $date->date_value)) !== '',
+            );
+
+            if (! $hasAvailableDate) {
+                return false;
+            }
         }
 
         return $this->descriptions->contains(

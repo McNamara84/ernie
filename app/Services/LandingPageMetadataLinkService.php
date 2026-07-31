@@ -56,7 +56,7 @@ class LandingPageMetadataLinkService
 
     /**
      * @param  list<array{format: string, standard: string, label: string, url: string, mediaType: string, profile: string|null}>  $metadataLinks
-     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string}>, repositories: list<string>}  $content
+     * @param  array{mimeType: string|null, contentLinks: list<array{url: string, mimeType: string, contentSize: string|null}>, repositories: list<string>}  $content
      * @return list<array{rel: string, href: string, type: string|null, profile: string|null}>
      */
     public function signpostingFor(

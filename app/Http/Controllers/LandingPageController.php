@@ -13,6 +13,7 @@ use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Services\KeywordSuggestionService;
 use App\Services\LandingPageTemplateResolverService;
+use App\Services\LandingPageContentDescriptorOptionsService;
 use App\Support\Traits\ChecksCacheTagging;
 use App\Support\UrlNormalizer;
 use Illuminate\Database\QueryException;
@@ -57,6 +58,25 @@ class LandingPageController extends Controller
     private static function templateSupportsExternalFields(string $template): bool
     {
         return $template === 'external';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $links
+     * @return array<int, array<string, mixed>>
+     */
+    private static function normalizeContentDescriptorLinks(array $links): array
+    {
+        return array_map(static function (array $link): array {
+            $kind = $link['kind'] ?? \App\Models\LandingPageLink::KIND_RELATED;
+            $link['kind'] = $kind;
+
+            if ($kind !== \App\Models\LandingPageLink::KIND_DOWNLOAD) {
+                $link['format_id'] = null;
+                $link['size_id'] = null;
+            }
+
+            return $link;
+        }, $links);
     }
 
     /**
@@ -193,7 +213,7 @@ class LandingPageController extends Controller
 
         $validated = $request->validated();
 
-        $resource->loadMissing('resourceType');
+        $resource->loadMissing(['resourceType', 'formats', 'sizes']);
 
         if ($templateError = LandingPageTemplate::builtInTemplateScopeError($validated['template'], $resource->resourceType?->slug)) {
             return response()->json([
@@ -270,6 +290,14 @@ class LandingPageController extends Controller
                     'ftp_url' => self::templateSupportsFtpUrl($validated['template'])
                         ? ($validated['ftp_url'] ?? null)
                         : null,
+                    'ftp_format_id' => self::templateSupportsFtpUrl($validated['template'])
+                        && ! empty($validated['ftp_url'])
+                        ? ($validated['ftp_format_id'] ?? null)
+                        : null,
+                    'ftp_size_id' => self::templateSupportsFtpUrl($validated['template'])
+                        && ! empty($validated['ftp_url'])
+                        ? ($validated['ftp_size_id'] ?? null)
+                        : null,
                     'downloads_unavailable' => self::templateSupportsDownloadsUnavailable($validated['template'])
                         ? ($validated['downloads_unavailable'] ?? false)
                         : false,
@@ -282,6 +310,8 @@ class LandingPageController extends Controller
                     $createData['external_domain_id'] = $validated['external_domain_id'];
                     $createData['external_path'] = $validated['external_path'];
                     $createData['ftp_url'] = null; // FTP URL not relevant for external pages
+                    $createData['ftp_format_id'] = null;
+                    $createData['ftp_size_id'] = null;
                     $createData['downloads_unavailable'] = false;
                 }
 
@@ -289,7 +319,7 @@ class LandingPageController extends Controller
 
                 // Create additional links inside the transaction for atomicity
                 if (! empty($validated['links']) && $validated['template'] !== 'external' && ! in_array($validated['template'], self::IGSN_ONLY_TEMPLATES, true)) {
-                    $landingPage->links()->createMany($validated['links']);
+                    $landingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
                 }
 
                 return $landingPage;
@@ -499,6 +529,18 @@ class LandingPageController extends Controller
                 $landingPage->ftp_url = null;
             }
 
+            if (self::templateSupportsFtpUrl($effectiveTemplate) && ! empty($landingPage->ftp_url)) {
+                if (array_key_exists('ftp_format_id', $validated)) {
+                    $landingPage->ftp_format_id = $validated['ftp_format_id'];
+                }
+                if (array_key_exists('ftp_size_id', $validated)) {
+                    $landingPage->ftp_size_id = $validated['ftp_size_id'];
+                }
+            } else {
+                $landingPage->ftp_format_id = null;
+                $landingPage->ftp_size_id = null;
+            }
+
             if (self::templateSupportsDownloadsUnavailable($effectiveTemplate)) {
                 if (array_key_exists('downloads_unavailable', $validated)) {
                     $landingPage->downloads_unavailable = $validated['downloads_unavailable'];
@@ -517,6 +559,8 @@ class LandingPageController extends Controller
                 }
                 // Clear FTP URL for external pages (not relevant)
                 $landingPage->ftp_url = null;
+                $landingPage->ftp_format_id = null;
+                $landingPage->ftp_size_id = null;
                 $landingPage->downloads_unavailable = false;
             } else {
                 // Clear external fields when switching away from external template
@@ -525,6 +569,19 @@ class LandingPageController extends Controller
             }
 
             $landingPage->save();
+
+            if (array_key_exists('files', $validated) && is_array($validated['files'])) {
+                foreach ($validated['files'] as $fileData) {
+                    $file = $landingPage->files()
+                        ->whereKey((int) $fileData['id'])
+                        ->firstOrFail();
+                    $file->fill([
+                        'format_id' => $fileData['format_id'] ?? null,
+                        'size_id' => $fileData['size_id'] ?? null,
+                    ]);
+                    $file->save();
+                }
+            }
 
             // Sync additional links: determine once whether this template supports links
             if (! self::templateSupportsLinks($effectiveTemplate)) {
@@ -535,7 +592,7 @@ class LandingPageController extends Controller
                 $landingPage->links()->delete();
 
                 if (! empty($validated['links'])) {
-                    $landingPage->links()->createMany($validated['links']);
+                    $landingPage->links()->createMany(self::normalizeContentDescriptorLinks($validated['links']));
                 }
             }
         });
@@ -652,7 +709,7 @@ class LandingPageController extends Controller
      */
     public static function serializeLandingPagePayload(Resource $resource, LandingPage $landingPage): array
     {
-        $resource->loadMissing('resourceType');
+        $resource->loadMissing(['resourceType', 'formats', 'sizes']);
 
         $resourceTypeSlug = $resource->resourceType?->slug;
         $effectiveTemplate = LandingPageTemplate::normalizeBuiltInTemplateForResource($landingPage->template, $resourceTypeSlug);
@@ -681,9 +738,16 @@ class LandingPageController extends Controller
         $payload['downloads_unavailable'] = self::templateSupportsDownloadsUnavailable($effectiveTemplate)
             ? $landingPage->downloads_unavailable
             : false;
+        $payload['files'] = self::templateSupportsFtpUrl($effectiveTemplate)
+            ? $landingPage->files->values()->toArray()
+            : [];
         $payload['links'] = self::templateSupportsLinks($effectiveTemplate)
             ? $landingPage->links->values()->toArray()
             : [];
+        $payload = [
+            ...$payload,
+            ...app(LandingPageContentDescriptorOptionsService::class)->for($resource),
+        ];
 
         if (self::templateSupportsExternalFields($effectiveTemplate)) {
             $payload['external_domain_id'] = $landingPage->external_domain_id;

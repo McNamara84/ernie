@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\LandingPagePreviewController;
+use App\Models\LandingPage;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -40,6 +41,28 @@ describe('Session Preview Creation', function () {
             ->toHaveKey('template', 'default_gfz')
             ->toHaveKey('ftp_url', 'https://datapub.gfz-potsdam.de/download/test.zip')
             ->toHaveKey('resource_id', $this->resource->id);
+    });
+
+    test('uses the existing primary URL when preview descriptors are submitted without ftp_url', function () {
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/existing.zip',
+        ]);
+        $format = $this->resource->formats()->create(['value' => 'application/zip']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MiB']);
+
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page/preview', [
+            'template' => 'default_gfz',
+            'ftp_format_id' => $format->id,
+            'ftp_size_id' => $size->id,
+        ])->assertCreated();
+
+        $sessionData = Session::get('landing_page_preview.'.$this->resource->id);
+        expect($sessionData)
+            ->toHaveKey('ftp_url', 'https://downloads.example.org/existing.zip')
+            ->toHaveKey('ftp_format_id', $format->id)
+            ->toHaveKey('ftp_size_id', $size->id);
     });
 
     test('stores downloads unavailable preview data while retaining submitted download values in session', function () {

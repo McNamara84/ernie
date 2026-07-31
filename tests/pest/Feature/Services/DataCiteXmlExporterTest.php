@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccessLevel;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\Description;
@@ -690,6 +691,22 @@ describe('DataCiteXmlExporter - Subjects', function () {
 });
 
 describe('DataCiteXmlExporter - Rights', function () {
+    test('exports access rights separately with complete COAR scheme metadata', function () {
+        $resource = Resource::factory()->create(['access_level' => AccessLevel::RESTRICTED]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('rightsURI=')
+            ->and($xml)->toContain('http://purl.org/coar/access_right/c_16ec')
+            ->and($xml)->toContain('rightsIdentifier=')
+            ->and($xml)->toContain('c_16ec')
+            ->and($xml)->toContain('rightsIdentifierScheme=')
+            ->and($xml)->toContain('COAR Access Rights')
+            ->and($xml)->toContain('schemeURI=')
+            ->and($xml)->toContain('http://purl.org/coar/access_right/')
+            ->and($xml)->toContain('Restricted access</rights>');
+    });
+
     test('exports rights with identifier', function () {
         $resource = Resource::factory()->create();
 

@@ -28,9 +28,11 @@ describe('landing-page-modal-helpers', () => {
             landing_page_template_id: 42,
             status: 'published',
             ftp_url: null,
+            ftp_format_id: null,
+            ftp_size_id: null,
             links: [
-                { url: 'https://example.org/a', label: 'A', kind: 'related', position: 0 },
-                { url: 'https://example.org/b', label: 'B', kind: 'related', position: 1 },
+                { url: 'https://example.org/a', label: 'A', kind: 'related', format_id: null, size_id: null, position: 0 },
+                { url: 'https://example.org/b', label: 'B', kind: 'related', format_id: null, size_id: null, position: 1 },
             ],
         });
     });
@@ -54,8 +56,19 @@ describe('landing-page-modal-helpers', () => {
             landing_page_template_id: null,
             status: 'draft',
             ftp_url: 'https://datapub.example.org/download',
+            ftp_format_id: null,
+            ftp_size_id: null,
             downloads_unavailable: true,
-            links: [{ url: 'https://example.org/repository', label: 'Repository', kind: 'related', position: 0 }],
+            links: [
+                {
+                    url: 'https://example.org/repository',
+                    label: 'Repository',
+                    kind: 'related',
+                    format_id: null,
+                    size_id: null,
+                    position: 0,
+                },
+            ],
         });
     });
 
@@ -68,14 +81,14 @@ describe('landing-page-modal-helpers', () => {
                 supportsFtpUrl: true,
                 supportsLinks: true,
                 links: [
-                    { url: 'https://example.org/data.zip', label: 'Data', kind: 'download', position: 0 },
-                    { url: 'https://git.example.org/source', label: 'Source', kind: 'repository', position: 1 },
+                    { url: 'https://example.org/data.zip', label: 'Data', kind: 'download', format_id: 3, size_id: 4, position: 0 },
+                    { url: 'https://git.example.org/source', label: 'Source', kind: 'repository', format_id: 8, size_id: 9, position: 1 },
                 ],
                 isExternal: false,
             }).links,
         ).toEqual([
-            { url: 'https://example.org/data.zip', label: 'Data', kind: 'download', position: 0 },
-            { url: 'https://git.example.org/source', label: 'Source', kind: 'repository', position: 1 },
+            { url: 'https://example.org/data.zip', label: 'Data', kind: 'download', format_id: 3, size_id: 4, position: 0 },
+            { url: 'https://git.example.org/source', label: 'Source', kind: 'repository', format_id: null, size_id: null, position: 1 },
         ]);
     });
 
@@ -134,6 +147,8 @@ describe('landing-page-modal-helpers', () => {
             template: 'default_gfz',
             landing_page_template_id: null,
             ftp_url: 'https://datapub.example.org/download',
+            ftp_format_id: null,
+            ftp_size_id: null,
         });
     });
 
@@ -154,7 +169,35 @@ describe('landing-page-modal-helpers', () => {
             template: 'default_gfz',
             landing_page_template_id: null,
             ftp_url: 'https://datapub.example.org/download',
+            ftp_format_id: null,
+            ftp_size_id: null,
             downloads_unavailable: true,
+        });
+    });
+
+    it('includes exact primary and imported-file descriptors in setup and preview payloads', () => {
+        const options = {
+            template: 'default_gfz',
+            landingPageTemplateId: null,
+            supportsFtpUrl: true,
+            ftpUrl: 'https://datapub.example.org/data.nc',
+            ftpFormatId: 11,
+            ftpSizeId: 12,
+            supportsLinks: true,
+            links: [],
+            files: [{ id: 21, format_id: 22, size_id: 23 }],
+            isExternal: false,
+        };
+
+        expect(buildLandingPageSetupPayload({ ...options, isPublished: false })).toMatchObject({
+            ftp_format_id: 11,
+            ftp_size_id: 12,
+            files: [{ id: 21, format_id: 22, size_id: 23 }],
+        });
+        expect(buildLandingPagePreviewPayload(options)).toMatchObject({
+            ftp_format_id: 11,
+            ftp_size_id: 12,
+            files: [{ id: 21, format_id: 22, size_id: 23 }],
         });
     });
 

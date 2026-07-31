@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccessLevel;
 use App\Models\Description;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
@@ -33,6 +34,8 @@ beforeEach(function (): void {
  */
 function makeResourceComplete(Resource $resource): void
 {
+    $resource->update(['access_level' => AccessLevel::OPEN]);
+
     // Creator
     $person = Person::create([
         'family_name' => 'Testauthor',

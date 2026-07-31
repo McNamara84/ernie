@@ -274,6 +274,22 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
+        it('hydrates the exact primary download format and digital size selectors', async () => {
+            const descriptorConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                ftp_format_id: 7,
+                ftp_size_id: 8,
+                available_formats: [{ id: 7, value: 'application/zip' }],
+                available_sizes: [{ id: 8, label: '2 MiB', content_size: '2097152' }],
+            };
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: descriptorConfig } });
+
+            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            expect(await screen.findByTestId('primary-download-format')).toHaveTextContent('application/zip');
+            expect(screen.getByTestId('primary-download-size')).toHaveTextContent('2 MiB');
+        });
+
         it('hydrates the downloads unavailable checkbox from existing configuration', async () => {
             mockedAxiosGet.mockResolvedValue({
                 data: {
@@ -764,6 +780,8 @@ describe('SetupLandingPageModal', () => {
                                 label: 'Download package',
                                 kind: 'download',
                                 position: 0,
+                                format_id: null,
+                                size_id: null,
                             },
                         ],
                     }),
@@ -1586,6 +1604,88 @@ describe('SetupLandingPageModal', () => {
             expect(screen.getByDisplayValue('Project Website')).toBeInTheDocument();
             expect(screen.getByDisplayValue('https://example.org/project')).toBeInTheDocument();
             expect(screen.getByRole('combobox', { name: 'Link role' })).toHaveTextContent('Source repository');
+        });
+
+        it('retains unsaved imported file descriptors after closing and reopening', async () => {
+            const descriptorConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                files: [
+                    {
+                        id: 17,
+                        url: 'https://downloads.example.org/imported-file.zip',
+                        format_id: null,
+                        size_id: null,
+                        position: 0,
+                    },
+                ],
+                available_formats: [{ id: 7, value: 'application/zip' }],
+                available_sizes: [{ id: 8, label: '2 MiB', content_size: '2097152' }],
+            };
+            mockModalGetRequests({ landingPage: descriptorConfig });
+
+            const user = userEvent.setup();
+            const { rerender } = render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            await user.click(await screen.findByTestId('imported-file-17-format'));
+            await user.click(await screen.findByRole('option', { name: 'application/zip' }));
+            await user.click(screen.getByTestId('imported-file-17-size'));
+            await user.click(await screen.findByRole('option', { name: '2 MiB (2097152 bytes)' }));
+
+            await waitFor(() => {
+                const persistedDraft = JSON.parse(window.sessionStorage.getItem('setup-landing-page-modal:draft:123') ?? '{}');
+
+                expect(persistedDraft.files).toEqual([
+                    expect.objectContaining({
+                        id: 17,
+                        format_id: 7,
+                        size_id: 8,
+                    }),
+                ]);
+            });
+
+            rerender(<SetupLandingPageModal resource={mockResource} isOpen={false} onClose={mockOnClose} />);
+            rerender(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
+            expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
+        });
+
+        it('keeps server imported files when restoring a legacy persisted draft without files', async () => {
+            const descriptorConfig: LandingPageConfig = {
+                ...mockExistingConfig,
+                files: [
+                    {
+                        id: 17,
+                        url: 'https://downloads.example.org/imported-file.zip',
+                        format_id: 7,
+                        size_id: 8,
+                        position: 0,
+                    },
+                ],
+                available_formats: [{ id: 7, value: 'application/zip' }],
+                available_sizes: [{ id: 8, label: '2 MiB', content_size: '2097152' }],
+            };
+            window.sessionStorage.setItem(
+                'setup-landing-page-modal:draft:123',
+                JSON.stringify({
+                    template: descriptorConfig.template,
+                    ftpUrl: descriptorConfig.ftp_url,
+                    ftpFormatId: null,
+                    ftpSizeId: null,
+                    downloadsUnavailable: false,
+                    isPublished: true,
+                    externalDomainId: '',
+                    externalPath: '',
+                    landingPageTemplateId: null,
+                    links: [],
+                }),
+            );
+            mockModalGetRequests({ landingPage: descriptorConfig });
+
+            render(<SetupLandingPageModal resource={mockResource} isOpen={true} onClose={mockOnClose} />);
+
+            expect(await screen.findByTestId('imported-file-17-format')).toHaveTextContent('application/zip');
+            expect(screen.getByTestId('imported-file-17-size')).toHaveTextContent('2 MiB');
         });
 
         it('clears persisted unsaved values after a successful save', async () => {

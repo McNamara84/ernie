@@ -8,6 +8,7 @@ use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageTemplate;
 use App\Models\Resource;
+use App\Models\ResourceType;
 use App\Models\User;
 use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Facades\Cache;
@@ -333,6 +334,128 @@ describe('Landing Page Updates', function () {
     });
 });
 
+describe('Landing Page content descriptors', function () {
+    test('persists exact primary format and size references and exposes selectable options', function () {
+        $format = $this->resource->formats()->create(['value' => '.ZIP']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 1.5, 'unit' => 'MiB']);
+
+        $response = $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/data.zip',
+            'ftp_format_id' => $format->id,
+            'ftp_size_id' => $size->id,
+            'status' => 'draft',
+        ])->assertCreated();
+
+        $response->assertJsonPath('landing_page.ftp_format_id', $format->id)
+            ->assertJsonPath('landing_page.ftp_size_id', $size->id)
+            ->assertJsonPath('landing_page.available_formats.0.value', 'application/zip')
+            ->assertJsonPath('landing_page.available_sizes.0.content_size', '1572864');
+    });
+
+    test('updates primary descriptors against the existing URL without allowing an explicit URL clear', function () {
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/existing.zip',
+        ]);
+        $format = $this->resource->formats()->create(['value' => 'application/zip']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 2, 'unit' => 'MiB']);
+
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'ftp_format_id' => $format->id,
+            'ftp_size_id' => $size->id,
+        ])->assertOk();
+
+        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/existing.zip')
+            ->and($landingPage->fresh()->ftp_format_id)->toBe($format->id)
+            ->and($landingPage->fresh()->ftp_size_id)->toBe($size->id);
+
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'ftp_url' => null,
+            'ftp_format_id' => $format->id,
+        ])->assertJsonValidationErrors(['ftp_format_id']);
+
+        expect($landingPage->fresh()->ftp_url)->toBe('https://downloads.example.org/existing.zip');
+    });
+
+    test('rejects foreign, invalid, and URL-less primary descriptors', function () {
+        $other = Resource::factory()->create();
+        $foreignFormat = $other->formats()->create(['value' => 'application/zip']);
+        $foreignSize = $other->sizes()->create(['numeric_value' => 2, 'unit' => 'MB']);
+
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/data.zip',
+            'ftp_format_id' => $foreignFormat->id,
+            'ftp_size_id' => $foreignSize->id,
+        ])->assertJsonValidationErrors(['ftp_format_id', 'ftp_size_id']);
+
+        $format = $this->resource->formats()->create(['value' => 'application/zip']);
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'ftp_format_id' => $format->id,
+        ])->assertJsonValidationErrors(['ftp_format_id']);
+    });
+
+    test('rejects descriptors on non-download links', function () {
+        $format = $this->resource->formats()->create(['value' => 'text/csv']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 12, 'unit' => 'kB']);
+
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'links' => [[
+                'url' => 'https://example.org/project',
+                'label' => 'Project',
+                'kind' => 'repository',
+                'position' => 0,
+                'format_id' => $format->id,
+                'size_id' => $size->id,
+            ]],
+        ])->assertJsonValidationErrors(['links.0.format_id', 'links.0.size_id']);
+    });
+
+    test('rejects every digital size reference for IGSNs', function () {
+        $physicalObject = ResourceType::firstOrCreate(
+            ['slug' => 'physical-object'],
+            ['name' => 'Physical Object', 'is_active' => true],
+        );
+        $this->resource->update(['resource_type_id' => $physicalObject->id]);
+        $size = $this->resource->sizes()->create(['numeric_value' => 4, 'unit' => 'MB']);
+
+        $this->postJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'ftp_url' => 'https://downloads.example.org/data.zip',
+            'ftp_size_id' => $size->id,
+        ])->assertJsonValidationErrors(['ftp_size_id']);
+    });
+
+    test('updates descriptors for an imported landing page file', function () {
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+            'template' => 'default_gfz',
+        ]);
+        $file = $landingPage->files()->create([
+            'url' => 'https://downloads.example.org/imported.nc',
+            'position' => 0,
+        ]);
+        $format = $this->resource->formats()->create(['value' => 'application/x-netcdf']);
+        $size = $this->resource->sizes()->create(['numeric_value' => 8, 'unit' => 'MiB']);
+
+        $this->putJson('/resources/'.$this->resource->id.'/landing-page', [
+            'template' => 'default_gfz',
+            'files' => [[
+                'id' => $file->id,
+                'format_id' => $format->id,
+                'size_id' => $size->id,
+            ]],
+        ])->assertOk();
+
+        expect($file->fresh()->format_id)->toBe($format->id)
+            ->and($file->fresh()->size_id)->toBe($size->id);
+    });
+});
+
 describe('Landing Page Deletion', function () {
     test('can delete draft landing page', function () {
         // Create a draft (unpublished) landing page
@@ -385,6 +508,10 @@ describe('Landing Page Retrieval', function () {
             'template' => 'default_gfz',
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
         ]);
+        $landingPage->files()->create([
+            'url' => 'https://datapub.gfz-potsdam.de/download/imported-file.zip',
+            'position' => 0,
+        ]);
 
         $response = $this->getJson("/resources/{$this->resource->id}/landing-page");
 
@@ -406,7 +533,8 @@ describe('Landing Page Retrieval', function () {
                     'template' => 'default_gfz',
                     'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
                 ],
-            ]);
+            ])
+            ->assertJsonPath('landing_page.files.0.url', 'https://datapub.gfz-potsdam.de/download/imported-file.zip');
     });
 
     test('returns 404 when landing page does not exist', function () {
@@ -417,6 +545,25 @@ describe('Landing Page Retrieval', function () {
 });
 
 describe('External Landing Page Creation', function () {
+    test('get endpoint hides stale imported files from external landing pages', function () {
+        $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
+        $landingPage = LandingPage::factory()->external()->create([
+            'resource_id' => $this->resource->id,
+            'external_domain_id' => $domain->id,
+            'external_path' => 'doi/network/GE1',
+        ]);
+        $landingPage->files()->create([
+            'url' => 'https://datapub.gfz-potsdam.de/download/stale-file.zip',
+            'position' => 0,
+        ]);
+
+        $this->getJson("/resources/{$this->resource->id}/landing-page")
+            ->assertOk()
+            ->assertJsonPath('landing_page.files', []);
+
+        expect($landingPage->fresh()->files)->toHaveCount(1);
+    });
+
     test('can create external landing page as draft', function () {
         $domain = LandingPageDomain::factory()->withDomain('https://geofon.gfz.de/')->create();
 

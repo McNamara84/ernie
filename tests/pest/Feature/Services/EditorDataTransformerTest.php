@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Models\Affiliation;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -59,7 +60,7 @@ describe('transformResource', function (): void {
         $result = $this->transformer->transformResource($this->resource);
 
         expect($result)->toHaveKeys([
-            'doi', 'year', 'version', 'language', 'resourceType', 'resourceId',
+            'doi', 'year', 'version', 'language', 'resourceType', 'initialAccessLevel', 'resourceId',
             'titles', 'initialLicenses', 'authors', 'contributors',
             'descriptions', 'dates', 'gcmdKeywords', 'freeKeywords',
             'coverages', 'relatedWorks', 'fundingReferences', 'mslLaboratories',
@@ -110,6 +111,36 @@ describe('transformResource', function (): void {
         $result = $this->transformer->transformResource($resource);
 
         expect($result['version'])->toBe('');
+    });
+
+    it('returns empty string for null access level', function (): void {
+        $resource = Resource::factory()->create(['access_level' => null]);
+        $resource->load([
+            'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+            'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
+            'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
+            'fundingReferences', 'language',
+        ]);
+
+        $result = $this->transformer->transformResource($resource);
+
+        expect($result['initialAccessLevel'])->toBe('');
+    });
+
+    it('returns the persisted access level value', function (): void {
+        $resource = Resource::factory()->create(['access_level' => AccessLevel::RESTRICTED]);
+        $resource->load([
+            'titles.titleType', 'rights', 'creators.creatorable', 'creators.affiliations',
+            'contributors.contributorable', 'contributors.affiliations', 'contributors.contributorTypes',
+            'descriptions.descriptionType', 'dates.dateType', 'subjects', 'geoLocations',
+            'relatedIdentifiers.identifierType', 'relatedIdentifiers.relationType',
+            'fundingReferences', 'language',
+        ]);
+
+        $result = $this->transformer->transformResource($resource);
+
+        expect($result['initialAccessLevel'])->toBe(AccessLevel::RESTRICTED->value);
     });
 });
 

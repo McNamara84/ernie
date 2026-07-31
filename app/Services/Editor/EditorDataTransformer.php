@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Editor;
 
+use App\Enums\AccessLevel;
 use App\Models\Affiliation;
 use App\Models\ContributorType;
 use App\Models\Datacenter;
@@ -57,6 +58,7 @@ class EditorDataTransformer
     {
         // Cache creators transform to avoid duplicate computation
         $creators = $this->transformCreators($resource);
+        $accessLevel = $resource->getAttribute('access_level');
 
         return [
             'doi' => $resource->doi ?? '',
@@ -64,6 +66,7 @@ class EditorDataTransformer
             'version' => $resource->version ?? '',
             'language' => $resource->language->code ?? '',
             'resourceType' => (string) $resource->resource_type_id,
+            'initialAccessLevel' => $accessLevel instanceof AccessLevel ? $accessLevel->value : '',
             'resourceId' => (string) $resource->id,
             'titles' => $this->transformTitles($resource),
             'initialLicenses' => $this->transformLicenses($resource),

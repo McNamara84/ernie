@@ -64,6 +64,7 @@ it('keeps MSL laboratories in their editor group after a real save and reload', 
     $payload = [
         'year' => 2026,
         'resourceType' => $resourceType->id,
+        'accessLevel' => 'open',
         'titles' => [
             ['title' => 'MSL laboratory roundtrip', 'titleType' => 'main-title'],
         ],

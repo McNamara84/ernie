@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Http\Controllers\ResourceController;
 use App\Models\Datacenter;
 use App\Models\DescriptionType;
@@ -89,6 +90,34 @@ describe('Draft save (Issue #548)', function () {
         $resource = Resource::latest()->first();
         expect($resource->publication_year)->toBe(2025)
             ->and($resource->creators)->toHaveCount(1);
+    });
+
+    it('distinguishes an omitted access level from an explicit null on draft updates', function () {
+        $resource = Resource::factory()->create([
+            'access_level' => AccessLevel::RESTRICTED,
+            'created_by_user_id' => $this->user->id,
+        ]);
+        $payload = [
+            'resourceId' => $resource->id,
+            'titles' => [
+                ['title' => 'Draft Access Update', 'titleType' => 'main-title'],
+            ],
+        ];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', $payload)
+            ->assertOk();
+
+        expect($resource->fresh()->access_level)->toBe(AccessLevel::RESTRICTED);
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources/draft', [
+                ...$payload,
+                'accessLevel' => null,
+            ])
+            ->assertOk();
+
+        expect($resource->fresh()->access_level)->toBeNull();
     });
 
     it('saves a draft with one datacenter', function () {
@@ -298,6 +327,7 @@ describe('Draft status in resource list (Issue #548)', function () {
             'doi' => null,
             'publication_year' => 2025,
             'resource_type_id' => $this->resourceType->id,
+            'access_level' => AccessLevel::OPEN,
             'version' => null,
             'language_id' => null,
             'created_by_user_id' => $this->user->id,
@@ -364,6 +394,7 @@ describe('Draft filter in resource list (Issue #548)', function () {
             'doi' => null,
             'publication_year' => 2025,
             'resource_type_id' => $this->resourceType->id,
+            'access_level' => AccessLevel::OPEN,
             'created_by_user_id' => $this->user->id,
             'updated_by_user_id' => $this->user->id,
         ]);

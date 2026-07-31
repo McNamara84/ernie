@@ -27,6 +27,7 @@ function validResourcePayload(int $resourceTypeId, string $licenseIdentifier): a
     return [
         'year' => 2025,
         'resourceType' => $resourceTypeId,
+        'accessLevel' => 'open',
         'titles' => [
             ['title' => 'Test Resource', 'titleType' => 'main-title'],
         ],
@@ -89,7 +90,7 @@ describe('required fields', function () {
             ->postJson('/editor/resources', []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors', 'datacenter_id']);
+            ->assertJsonValidationErrors(['year', 'resourceType', 'accessLevel', 'titles', 'licenses', 'authors', 'datacenter_id']);
     });
 
     it('accepts valid minimal payload', function () {
@@ -99,7 +100,33 @@ describe('required fields', function () {
             ->postJson('/editor/resources', $data);
 
         // Should not fail on validation (may fail on other things like missing publisher)
-        $response->assertJsonMissingValidationErrors(['year', 'resourceType', 'titles', 'licenses', 'authors', 'datacenter_id']);
+        $response->assertJsonMissingValidationErrors(['year', 'resourceType', 'accessLevel', 'titles', 'licenses', 'authors', 'datacenter_id']);
+    });
+
+    it('rejects an unknown access level', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['accessLevel'] = 'closed';
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors(['accessLevel']);
+    });
+
+    it('requires an Available date for embargoed access', function () {
+        $data = validResourcePayload($this->resourceType->id, $this->right->identifier);
+        $data['accessLevel'] = 'embargoed';
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonValidationErrors(['accessLevel']);
+
+        $data['dates'] = [
+            ['dateType' => 'available', 'startDate' => '2027-01-01', 'endDate' => ''],
+        ];
+
+        $this->actingAs($this->user)
+            ->postJson('/editor/resources', $data)
+            ->assertJsonMissingValidationErrors(['accessLevel']);
     });
 
     it('accepts one datacenter through the legacy array', function () {

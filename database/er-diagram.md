@@ -235,6 +235,7 @@ erDiagram
         bigint datacenter_id FK "nullable"
         smallint publication_year "DataCite #5"
         bigint resource_type_id FK "nullable"
+        varchar access_level "32, nullable, indexed"
         varchar version "DataCite #15"
         bigint language_id FK
         bigint created_by_user_id FK
@@ -601,6 +602,8 @@ erDiagram
         varchar template
         bigint landing_page_template_id FK "nullable"
         varchar ftp_url
+        bigint ftp_format_id FK "nullable"
+        bigint ftp_size_id FK "nullable"
         boolean downloads_unavailable
         bigint external_domain_id FK "nullable"
         varchar external_path "2048, nullable"
@@ -617,6 +620,8 @@ erDiagram
         bigint id PK
         bigint landing_page_id FK
         varchar url "2048"
+        bigint format_id FK "nullable"
+        bigint size_id FK "nullable"
         smallint position "default 0"
         timestamp created_at
         timestamp updated_at
@@ -627,6 +632,8 @@ erDiagram
         bigint landing_page_id FK
         varchar url "2048"
         varchar label "255"
+        bigint format_id FK "nullable"
+        bigint size_id FK "nullable"
         smallint position "default 0, UK(landing_page_id, position)"
         timestamp created_at
         timestamp updated_at
@@ -1106,8 +1113,14 @@ erDiagram
 
     %% Landing page relationships
     landing_pages }o--o| landing_page_domains : "external domain"
+    landing_pages }o--o| formats : "FTP format"
+    landing_pages }o--o| sizes : "FTP size"
     landing_pages ||--o{ landing_page_files : "has files"
     landing_pages ||--o{ landing_page_links : "has links"
+    landing_page_files }o--o| formats : "content format"
+    landing_page_files }o--o| sizes : "content size"
+    landing_page_links }o--o| formats : "content format"
+    landing_page_links }o--o| sizes : "content size"
     landing_pages ||--o{ landing_page_daily_statistics : "tracks daily analytics"
     landing_pages }o--o| landing_page_templates : "uses template"
     landing_page_templates }o--o| users : "created by"

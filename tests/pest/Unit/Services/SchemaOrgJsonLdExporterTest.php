@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Models\DateType;
 use App\Models\DescriptionType;
 use App\Models\LandingPage;
@@ -49,13 +50,33 @@ describe('export basics', function () {
         expect($result['@type'])->toBe('Dataset');
     });
 
-    it('includes isAccessibleForFree as true', function () {
+    it('omits access assertions when the access level is unresolved', function () {
         $resource = createSchemaOrgResource();
 
         $result = $this->exporter->export($resource);
 
-        expect($result['isAccessibleForFree'])->toBeTrue();
+        expect($result)->not->toHaveKey('isAccessibleForFree')
+            ->and($result)->not->toHaveKey('conditionsOfAccess');
     });
+
+    it('maps access levels to conditionsOfAccess and isAccessibleForFree', function (
+        AccessLevel $level,
+        string $label,
+        bool $free,
+    ) {
+        $resource = createSchemaOrgResource();
+        $resource->update(['access_level' => $level]);
+
+        $result = $this->exporter->export($resource->fresh());
+
+        expect($result['conditionsOfAccess'])->toBe($label)
+            ->and($result['isAccessibleForFree'])->toBe($free);
+    })->with([
+        [AccessLevel::OPEN, 'Open access', true],
+        [AccessLevel::RESTRICTED, 'Restricted access', false],
+        [AccessLevel::EMBARGOED, 'Embargoed access', false],
+        [AccessLevel::METADATA_ONLY, 'Metadata only access', false],
+    ]);
 
     it('includes @id and url from DOI', function () {
         $resource = createSchemaOrgResource('10.5880/test.2025.001');
@@ -351,6 +372,28 @@ describe('keywords', function () {
 });
 
 describe('license', function () {
+    it('filters malformed and COAR access-right entries before transforming licenses', function () {
+        $filterLicenseRights = new ReflectionMethod(SchemaOrgJsonLdExporter::class, 'filterLicenseRights');
+        $filterLicenseRights->setAccessible(true);
+
+        $license = [
+            'rights' => 'Creative Commons Attribution 4.0 International',
+            'rightsUri' => 'https://creativecommons.org/licenses/by/4.0/',
+        ];
+
+        $result = $filterLicenseRights->invoke($this->exporter, [
+            'unexpected string',
+            null,
+            $license,
+            [
+                'rights' => AccessLevel::OPEN->label(),
+                'rightsUri' => AccessLevel::OPEN->coarUri(),
+            ],
+        ]);
+
+        expect($result)->toBe([$license]);
+    });
+
     it('transforms rights with SPDX scheme to license URI', function () {
         $resource = createSchemaOrgResource();
 
@@ -482,7 +525,7 @@ describe('landing page content', function () {
         $result = $this->exporter->export($resource, $landingPage, [
             'mimeType' => 'application/zip',
             'contentLinks' => [
-                ['url' => 'https://downloads.example.org/data.zip', 'mimeType' => 'application/zip'],
+                ['url' => 'https://downloads.example.org/data.zip', 'mimeType' => 'application/zip', 'contentSize' => '1500000'],
             ],
             'repositories' => [],
         ]);
@@ -493,6 +536,7 @@ describe('landing page content', function () {
                     '@type' => 'DataDownload',
                     'contentUrl' => 'https://downloads.example.org/data.zip',
                     'encodingFormat' => 'application/zip',
+                    'contentSize' => '1500000',
                 ],
             ]);
     });
@@ -513,7 +557,7 @@ describe('landing page content', function () {
         $result = $this->exporter->export($resource->fresh(), $landingPage, [
             'mimeType' => 'application/zip',
             'contentLinks' => [
-                ['url' => 'https://downloads.example.org/source.zip', 'mimeType' => 'application/zip'],
+                ['url' => 'https://downloads.example.org/source.zip', 'mimeType' => 'application/zip', 'contentSize' => '2048'],
             ],
             'repositories' => ['https://git.example.org/source'],
         ]);
@@ -521,6 +565,12 @@ describe('landing page content', function () {
         expect($result['@type'])->toBe(['SoftwareSourceCode', 'SoftwareApplication'])
             ->and($result['codeRepository'])->toBe('https://git.example.org/source')
             ->and($result['downloadUrl'])->toBe('https://downloads.example.org/source.zip')
+            ->and($result['associatedMedia'])->toBe([[
+                '@type' => 'DataDownload',
+                'contentUrl' => 'https://downloads.example.org/source.zip',
+                'encodingFormat' => 'application/zip',
+                'contentSize' => '2048',
+            ]])
             ->and($result)->not->toHaveKey('distribution');
     });
 });

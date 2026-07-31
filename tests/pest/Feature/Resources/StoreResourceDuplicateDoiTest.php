@@ -62,6 +62,7 @@ describe('Store Resource - DOI Uniqueness Validation', function () {
             'doi' => null,
             'year' => 2026,
             'resourceType' => ResourceType::first()->id,
+            'accessLevel' => 'open',
             'version' => null,
             'language' => 'en',
             'titles' => [

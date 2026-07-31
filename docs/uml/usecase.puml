@@ -1,0 +1,63 @@
+@startuml
+left to right direction
+
+actor "Group Leader" as gl
+actor Scientist as sci
+actor Curator as cur
+actor Admin as adm
+cur <|- gl
+gl <|- adm
+
+rectangle "ELMO\n(Enhanced Linked Metadata Organizer)" {
+  usecase "Enter metadata" as UC1
+  usecase "Save metadata\nas DataCite XML" as UC2
+  usecase "Save metadata as\nDataCite JSON-LD" as UC3
+  usecase "Submit metadata\nto Data Curators" as UC4
+}
+
+sci -- UC1
+UC1 ..> UC4 : <<exclude>>
+UC1 ..> UC2 : <<exclude>>
+UC1 ..> UC3 : <<exclude>>
+
+rectangle "ERNIE\n(Earth Research Notary for Information Editing)" {
+  usecase "Search for Resources" as UC10
+  usecase "View landing page" as UC11
+  usecase "Upload Resource\nsent by ELMO" as UC17
+  usecase "Curate Resource" as UC5
+  usecase "Register DOI" as UC6
+  usecase "Import legacy Resource" as UC7
+  usecase "Publish Landing Page" as UC8
+  usecase "Manage vocabs" as UC9
+  usecase "Update vocabs" as UC12
+  usecase "Activate vocabs" as UC13
+  usecase "Deactivate vocabs" as UC14
+  usecase "Manage ELMO settings" as UC15
+  usecase "Edit metadata" as UC16
+  usecase "Manage ERNIE settings" as UC18
+  usecase "Manage users" as UC19
+  usecase "Import single Resource" as UC20
+  usecase "Import Resource\nof a Datacenter" as UC21
+  usecase "Import all Resources" as UC22
+}
+
+sci -- UC10
+UC10 ..> UC11 : <<exclude>>
+cur -- UC5
+cur -- UC6
+gl -- UC7
+UC18 ..> UC9 : <<exclude>>
+UC6 ..> UC8  : <<include>>
+UC9 ..> UC12 : <<exclude>>
+UC9 ..> UC13 : <<exclude>>
+UC9 ..> UC14 : <<exclude>>
+gl -- UC15
+UC5 ..> UC16 : <<include>>
+cur -- UC17
+cur -- UC10
+gl -- UC18   
+adm -- UC19
+UC7 ..> UC20 : <<exclude>>
+UC7 ..> UC21 : <<exclude>>
+UC7 ..> UC22 : <<exclude>>
+@enduml

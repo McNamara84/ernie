@@ -2,18 +2,22 @@
 
 declare(strict_types=1);
 
+use App\Enums\AccessLevel;
 use App\Enums\CacheKey;
 use App\Models\Format;
 use App\Models\LandingPage;
 use App\Models\LandingPageFile;
 use App\Models\LandingPageLink;
 use App\Models\Resource;
+use App\Models\Size;
 use App\Observers\FormatObserver;
 use App\Observers\LandingPageFileObserver;
 use App\Observers\LandingPageLinkObserver;
+use App\Observers\ResourceObserver;
+use App\Observers\SizeObserver;
 use Illuminate\Support\Facades\Cache;
 
-covers(FormatObserver::class, LandingPageFileObserver::class, LandingPageLinkObserver::class);
+covers(FormatObserver::class, SizeObserver::class, ResourceObserver::class, LandingPageFileObserver::class, LandingPageLinkObserver::class);
 
 function putLandingPageRenderCache(LandingPage $landingPage): void
 {
@@ -45,6 +49,33 @@ test('format create update and delete invalidate the landing page render cache',
 
     putLandingPageRenderCache($landingPage);
     $format->delete();
+    expectLandingPageRenderCacheMissing($landingPage);
+});
+
+test('size create update and delete invalidate the landing page render cache', function () {
+    $resource = Resource::factory()->create();
+    $landingPage = LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+
+    putLandingPageRenderCache($landingPage);
+    $size = Size::create(['resource_id' => $resource->id, 'numeric_value' => 2, 'unit' => 'MB']);
+    expectLandingPageRenderCacheMissing($landingPage);
+
+    putLandingPageRenderCache($landingPage);
+    $size->update(['numeric_value' => 3]);
+    expectLandingPageRenderCacheMissing($landingPage);
+
+    putLandingPageRenderCache($landingPage);
+    $size->delete();
+    expectLandingPageRenderCacheMissing($landingPage);
+});
+
+test('access level changes invalidate the landing page render cache', function () {
+    $resource = Resource::factory()->create(['access_level' => AccessLevel::OPEN]);
+    $landingPage = LandingPage::factory()->published()->create(['resource_id' => $resource->id]);
+
+    putLandingPageRenderCache($landingPage);
+    $resource->update(['access_level' => AccessLevel::RESTRICTED]);
+
     expectLandingPageRenderCacheMissing($landingPage);
 });
 
