@@ -14,4 +14,16 @@ class LegacyResourceLookupService
             ->whereRaw('LOWER(identifier) = ?', [strtolower(trim($doi))])
             ->exists();
     }
+
+    /**
+     * @return array<int, array{identifier: string, identifierType: string, relationType: string, position: int}>
+     */
+    public function relatedIdentifiersByDoi(string $doi): array
+    {
+        $resource = OldDataset::query()
+            ->whereRaw('LOWER(identifier) = ?', [strtolower(trim($doi))])
+            ->first();
+
+        return $resource?->getRelatedIdentifiers() ?? [];
+    }
 }

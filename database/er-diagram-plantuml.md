@@ -414,6 +414,7 @@ entity "related_identifiers" as related_identifiers {
     relation_type_information : VARCHAR //DataCite 4.7//
     citation_label : MEDIUMTEXT
     source : VARCHAR(100) <<nullable>>
+    resource_type_general : VARCHAR(100) <<nullable>>
     related_metadata_scheme : VARCHAR
     scheme_uri : VARCHAR(512)
     scheme_type : VARCHAR(100)

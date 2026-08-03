@@ -14,6 +14,7 @@ use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\LegacyMetaworksDatacenterLookupService;
+use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
@@ -35,7 +36,8 @@ beforeEach(function () {
     $this->transformer
         ->shouldReceive('prepareDoiData')
         ->zeroOrMoreTimes()
-        ->andReturnUsing(fn (array $doiRecord): array => $doiRecord);
+        ->andReturnUsing(fn (array $doiRecord, array $_legacyRelatedIdentifiers = []): array => $doiRecord)
+        ->byDefault();
     $this->app->instance(DataCiteToResourceTransformer::class, $this->transformer);
 
     // Mock the metaworks service (returns empty result by default)
@@ -51,6 +53,14 @@ beforeEach(function () {
         ->andReturn(['files' => [], 'allPublic' => false])
         ->byDefault();
     $this->app->instance(MetaworksDownloadUrlService::class, $this->metaworksService);
+
+    $this->legacyResourceLookupService = Mockery::mock(LegacyResourceLookupService::class);
+    $this->legacyResourceLookupService
+        ->shouldReceive('relatedIdentifiersByDoi')
+        ->zeroOrMoreTimes()
+        ->andReturn([])
+        ->byDefault();
+    $this->app->instance(LegacyResourceLookupService::class, $this->legacyResourceLookupService);
 
     $this->pendingImportService = Mockery::mock(SumarioPendingResourceImportService::class);
     $this->pendingImportService
@@ -270,6 +280,7 @@ describe('ImportFromDataCiteJob', function () {
 
         // Transformer should not be called for existing DOIs
         $this->transformer->shouldReceive('transform')->never();
+        $this->legacyResourceLookupService->shouldReceive('relatedIdentifiersByDoi')->never();
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -278,6 +289,91 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['skipped'])->toBe(1);
         expect($status['skipped_dois'])->toContain('10.5880/existing');
+    });
+
+    it('passes legacy related identifiers to preparation for new resources', function () {
+        $doiRecord = [
+            'id' => '10.5880/legacy-relations',
+            'attributes' => [
+                'doi' => '10.5880/legacy-relations',
+                'titles' => [['title' => 'Legacy relations']],
+            ],
+        ];
+        $legacyRelatedIdentifiers = [[
+            'identifier' => '10.5880/legacy-related',
+            'identifierType' => 'DOI',
+            'relationType' => 'Cites',
+            'position' => 0,
+        ]];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($doiRecord) {
+            yield $doiRecord;
+        })());
+        $this->legacyResourceLookupService
+            ->shouldReceive('relatedIdentifiersByDoi')
+            ->once()
+            ->with('10.5880/legacy-relations')
+            ->andReturn($legacyRelatedIdentifiers);
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->with($doiRecord, $legacyRelatedIdentifiers)
+            ->andReturn($doiRecord);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($doiRecord, $this->user->id)
+            ->andReturn(Resource::factory()->make(['doi' => '10.5880/legacy-relations']));
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(1);
+    });
+
+    it('continues without legacy relations and opens the metaworks circuit breaker after lookup failure', function () {
+        $records = [
+            [
+                'id' => '10.5880/metaworks-failure.1',
+                'attributes' => ['doi' => '10.5880/metaworks-failure.1'],
+            ],
+            [
+                'id' => '10.5880/metaworks-failure.2',
+                'attributes' => ['doi' => '10.5880/metaworks-failure.2'],
+            ],
+        ];
+
+        $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(2);
+        $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($records) {
+            yield from $records;
+        })());
+        $this->legacyResourceLookupService
+            ->shouldReceive('relatedIdentifiersByDoi')
+            ->once()
+            ->with('10.5880/metaworks-failure.1')
+            ->andThrow(new RuntimeException('connection refused'));
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->twice()
+            ->with(Mockery::type('array'), [])
+            ->andReturnUsing(fn (array $record): array => $record);
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturnUsing(fn (array $record): Resource => Resource::factory()->make([
+                'doi' => $record['attributes']['doi'],
+            ]));
+        $this->metaworksService->shouldReceive('lookupFileEntries')->never();
+
+        $importId = Str::uuid()->toString();
+        (new ImportFromDataCiteJob($this->user->id, $importId))
+            ->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $status = Cache::get("datacite_import:{$importId}");
+        expect($status['imported'])->toBe(2)
+            ->and($status['failed'])->toBe(0);
     });
 
     it('normalizes incoming DOIs before checking for duplicates', function () {

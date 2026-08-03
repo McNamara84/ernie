@@ -38,6 +38,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\Rights\ResourceRightsStorageService;
+use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
 use App\Services\Xml\Sections\RightsSectionParser;
 use App\Support\DataCiteDateNormalizer;
 use App\Support\OrcidNormalizer;
@@ -64,6 +65,8 @@ class DataCiteToResourceTransformer
         private ?SubjectBreadcrumbPathResolverService $subjectBreadcrumbPathResolver = null,
         private ?RightsSectionParser $xmlRightsParser = null,
         private ?DataCiteJsonImportNormalizerService $jsonImportNormalizer = null,
+        private ?OriginalDataCiteRelatedIdentifierExtractionService $xmlRelatedIdentifierExtractor = null,
+        private ?RelatedIdentifierImportMergeService $relatedIdentifierImportMergeService = null,
     ) {}
 
     /**
@@ -118,22 +121,23 @@ class DataCiteToResourceTransformer
 
     /**
      * @param  array<string, mixed>  $doiData
+     * @param  array<int, mixed>  $legacyRelatedIdentifiers
      * @return array<string, mixed>
      */
-    public function prepareDoiData(array $doiData): array
+    public function prepareDoiData(array $doiData, array $legacyRelatedIdentifiers = []): array
     {
         if (($doiData[self::PREPARED_MARKER] ?? false) === true) {
             return $doiData;
         }
 
         if (is_array($doiData['attributes'] ?? null)) {
-            $doiData['attributes'] = $this->prepareAttributes($doiData['attributes']);
+            $doiData['attributes'] = $this->prepareAttributes($doiData['attributes'], $legacyRelatedIdentifiers);
             $doiData[self::PREPARED_MARKER] = true;
 
             return $doiData;
         }
 
-        $preparedAttributes = $this->prepareAttributes($doiData);
+        $preparedAttributes = $this->prepareAttributes($doiData, $legacyRelatedIdentifiers);
         $preparedAttributes[self::PREPARED_MARKER] = true;
 
         return $preparedAttributes;
@@ -141,26 +145,30 @@ class DataCiteToResourceTransformer
 
     /**
      * @param  array<string, mixed>  $attributes
+     * @param  array<int, mixed>  $legacyRelatedIdentifiers
      * @return array<string, mixed>
      */
-    private function prepareAttributes(array $attributes): array
+    private function prepareAttributes(array $attributes, array $legacyRelatedIdentifiers = []): array
     {
-        $attributes = $this->preferOriginalXmlRights($attributes);
+        $xml = $this->xmlRelatedIdentifierExtractor()->decode($attributes['xml'] ?? null);
+        $xmlRelatedIdentifiers = $xml === null
+            ? []
+            : $this->xmlRelatedIdentifierExtractor()->extract($xml, (string) ($attributes['doi'] ?? ''));
+
+        $attributes = $this->preferOriginalXmlRights($attributes, $xml);
         $attributes = ($this->jsonImportNormalizer ??= new DataCiteJsonImportNormalizerService)->normalize($attributes);
-
-        $relatedIdentifiers = $attributes['relatedIdentifiers'] ?? null;
-
-        if (! is_array($relatedIdentifiers)) {
-            return $attributes;
-        }
+        $jsonRelatedIdentifiers = is_array($attributes['relatedIdentifiers'] ?? null)
+            ? $attributes['relatedIdentifiers']
+            : [];
+        $relatedIdentifiers = $this->relatedIdentifierImportMergeService()->merge(
+            $jsonRelatedIdentifiers,
+            $xmlRelatedIdentifiers,
+            $legacyRelatedIdentifiers,
+        );
 
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
         foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
-            if (! is_array($relatedIdentifier)) {
-                continue;
-            }
-
             $identifier = isset($relatedIdentifier['relatedIdentifier'])
                 ? trim((string) $relatedIdentifier['relatedIdentifier'])
                 : '';
@@ -211,10 +219,8 @@ class DataCiteToResourceTransformer
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    private function preferOriginalXmlRights(array $attributes): array
+    private function preferOriginalXmlRights(array $attributes, ?string $xml): array
     {
-        $xml = $this->decodedOriginalXml($attributes['xml'] ?? null);
-
         if ($xml === null) {
             return $attributes;
         }
@@ -247,17 +253,14 @@ class DataCiteToResourceTransformer
         return $attributes;
     }
 
-    private function decodedOriginalXml(mixed $value): ?string
+    private function xmlRelatedIdentifierExtractor(): OriginalDataCiteRelatedIdentifierExtractionService
     {
-        if (! is_string($value) || trim($value) === '') {
-            return null;
-        }
+        return $this->xmlRelatedIdentifierExtractor ??= app(OriginalDataCiteRelatedIdentifierExtractionService::class);
+    }
 
-        $value = trim($value);
-        $decoded = base64_decode($value, true);
-        $xml = $decoded === false ? $value : $decoded;
-
-        return str_contains($xml, '<') ? $xml : null;
+    private function relatedIdentifierImportMergeService(): RelatedIdentifierImportMergeService
+    {
+        return $this->relatedIdentifierImportMergeService ??= app(RelatedIdentifierImportMergeService::class);
     }
 
     private function citationLabelService(): RelatedIdentifierCitationLabelService
@@ -1437,9 +1440,11 @@ class DataCiteToResourceTransformer
     private function transformRelatedIdentifiers(array $relatedIdentifiers, Resource $resource): void
     {
         foreach ($relatedIdentifiers as $position => $relIdData) {
-            $identifier = $relIdData['relatedIdentifier'] ?? null;
+            $identifier = isset($relIdData['relatedIdentifier'])
+                ? trim((string) $relIdData['relatedIdentifier'])
+                : '';
 
-            if ($identifier === null) {
+            if ($identifier === '') {
                 continue;
             }
 
@@ -1478,6 +1483,7 @@ class DataCiteToResourceTransformer
                 'related_metadata_scheme' => $relIdData['relatedMetadataScheme'] ?? null,
                 'scheme_uri' => $relIdData['schemeUri'] ?? null,
                 'scheme_type' => $relIdData['schemeType'] ?? null,
+                'resource_type_general' => $relIdData['resourceTypeGeneral'] ?? null,
                 'position' => $position + 1,
             ]);
         }
