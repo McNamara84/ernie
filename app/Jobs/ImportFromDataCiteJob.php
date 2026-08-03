@@ -930,6 +930,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                     $metaworksUnavailable = true;
 
                     Log::warning('Metaworks DB unavailable while loading related identifiers; continuing without legacy enrichment.', [
+                        'import_id' => $this->importId,
                         'doi' => $doi,
                         'error' => $exception->getMessage(),
                     ]);
