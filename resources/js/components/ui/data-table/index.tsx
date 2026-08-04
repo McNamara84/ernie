@@ -7,7 +7,7 @@
  * @example Basic usage (client-side)
  * ```tsx
  * import { DataTable } from '@/components/ui/data-table';
- * import { type ColumnDef } from '@tanstack/react-table';
+ * import { type DataTableColumnDef } from '@/components/ui/data-table';
  *
  * interface User {
  *     id: number;
@@ -15,7 +15,7 @@
  *     email: string;
  * }
  *
- * const columns: ColumnDef<User>[] = [
+ * const columns: DataTableColumnDef<User>[] = [
  *     { accessorKey: 'name', header: 'Name' },
  *     { accessorKey: 'email', header: 'Email' },
  * ];
@@ -46,7 +46,7 @@
  * ```tsx
  * import { DataTableColumnHeader } from '@/components/ui/data-table';
  *
- * const columns: ColumnDef<User>[] = [
+ * const columns: DataTableColumnDef<User>[] = [
  *     {
  *         accessorKey: 'name',
  *         header: ({ column }) => (
@@ -59,10 +59,10 @@
 
 export { DataTable } from './data-table';
 export { DataTableColumnHeader, SimpleSortableHeader } from './data-table-column-header';
+export type { DataTableColumnDef, DataTableFeatures, DataTableInstance } from './data-table-features';
+export { dataTableFeatures } from './data-table-features';
 export { DataTablePagination } from './data-table-pagination';
 export { DataTablePageSkeleton, DataTableSkeleton } from './data-table-skeleton';
 export { DataTableToolbar } from './data-table-toolbar';
 export { DataTableViewOptions } from './data-table-view-options';
-
-// Re-export commonly used types from TanStack Table
-export type { ColumnDef, ColumnFiltersState, SortingState, VisibilityState } from '@tanstack/react-table';
+export type { ColumnFiltersState, ColumnVisibilityState, SortingState } from '@tanstack/react-table';

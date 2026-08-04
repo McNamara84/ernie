@@ -1,5 +1,6 @@
 includes:
     - ./vendor/larastan/larastan/extension.neon
+    - ./vendor/pestphp/pest-plugin-phpstan/extension.neon
 
 parameters:
     paths:
@@ -8,6 +9,10 @@ parameters:
         - config
         - database
         - routes
+        # Pest's first-party PHPStan rules are enabled incrementally. This
+        # initial slice is clean at level 8; expand it as legacy test typing is
+        # repaired instead of hiding the existing findings in a baseline.
+        - tests/pest/Unit/Enums
     excludePaths:
         - database/migrations_backup
     level: 8

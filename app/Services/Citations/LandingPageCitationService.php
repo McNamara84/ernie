@@ -78,8 +78,11 @@ final class LandingPageCitationService
         try {
             $styleSheet = StyleSheet::loadStyleSheet($style['path']);
             $processor = new CiteProc($styleSheet, $style['locale']);
-            $css = $processor->renderCssStyles();
+            // render() always initializes citeproc-php's global context. Run it
+            // before the CSS pass so a context left by a previously broken
+            // style can never leak into this style.
             $bibliography = $processor->render([$cslItem], 'bibliography');
+            $css = $processor->renderCssStyles();
         } finally {
             error_reporting($previousErrorReporting);
         }

@@ -1,16 +1,17 @@
 'use client';
 
-import type { Table } from '@tanstack/react-table';
+import type { RowData } from '@tanstack/react-table';
 import { X } from 'lucide-react';
 import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import type { DataTableInstance } from './data-table-features';
 import { DataTableViewOptions } from './data-table-view-options';
 
-interface DataTableToolbarProps<TData> {
-    table: Table<TData>;
+interface DataTableToolbarProps<TData extends RowData> {
+    table: DataTableInstance<TData>;
     /** Column ID to use for global filter */
     filterColumn?: string;
     /** Placeholder for the filter input */
@@ -21,14 +22,14 @@ interface DataTableToolbarProps<TData> {
     children?: React.ReactNode;
 }
 
-export function DataTableToolbar<TData>({
+export function DataTableToolbar<TData extends RowData>({
     table,
     filterColumn,
     filterPlaceholder = 'Filter...',
     showViewOptions = true,
     children,
 }: DataTableToolbarProps<TData>) {
-    const isFiltered = table.getState().columnFilters.length > 0;
+    const isFiltered = table.state.columnFilters.length > 0;
     const column = filterColumn ? table.getColumn(filterColumn) : undefined;
 
     return (

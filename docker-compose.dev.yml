@@ -3,7 +3,7 @@ services:
   # Serves application on https://localhost:3333 (no prefix)
   # On Windows: Docker provider disabled, uses static routes.yml
   traefik:
-    image: traefik:v3.7.5@sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257
+    image: traefik:v3.7.10@sha256:9c3b91d5fb7770853ca5c1124a23c34bf2d9b47ffaebeab2614cbaf410dcb2ac
     container_name: ernie-traefik
     restart: unless-stopped
     command:
@@ -173,7 +173,7 @@ services:
 
   # MySQL Database
   db:
-    image: mysql:9.7.0@sha256:c11782aa2a96624c1efc121768641d96954faa136d6aa82751b032d8c426ffbc
+    image: mysql:9.7.2@sha256:257388edf9c84dbc04c763625446d5f3fa6ed60d1b0873bc552c614ba0a7ab4e
     container_name: ernie-db-dev
     restart: unless-stopped
     environment:
@@ -197,7 +197,7 @@ services:
 
   # Redis for caching and sessions
   redis:
-    image: redis:8.6.4-alpine@sha256:d103b9cd0b54b98b2c38e2b19220ee7adfe4b0fb22c406baa75f321179da2f00
+    image: redis:8.6.5-alpine@sha256:cd218f4b106a332c5c992e38a9480bfb9d7e9f8f7b0ec9a0023bfa36d9a408f9
     container_name: ernie-redis-dev
     restart: unless-stopped
     networks:

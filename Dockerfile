@@ -1,4 +1,4 @@
-FROM php:8.5.7-fpm-trixie@sha256:a16de52d0ebd4b5f49dc811010d1437f6c70c6c142b75175ac2a94f2d5db9b4f AS app-base
+FROM php:8.5.9-fpm-trixie@sha256:f56f4a81de6cd33ddfd6e99352889a53c94c3ffccce89e494563845a1c8ba75a AS app-base
 
 WORKDIR /var/www/html
 
@@ -52,7 +52,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.10.1@sha256:c883af18892268b3b8369c4a39c08f80b393383e79d80b75140a3ea489dbbb78 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.2@sha256:4d71c3c2109c61d5415544264b59ad4087e4c5b7244481723664138fd36d5040 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -103,8 +103,20 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Build frontend assets and remove build-time Node artifacts from the runtime image.
-RUN NODE_ENV=production npm run build \
+# Wayfinder boots Laravel while Vite builds the frontend. Keep that build step
+# independent of runtime services; the copied production environment remains
+# unchanged for the resulting application image.
+RUN APP_ENV=production \
+    DB_CONNECTION=sqlite \
+    DB_DATABASE=:memory: \
+    CACHE_STORE=array \
+    SESSION_DRIVER=array \
+    QUEUE_CONNECTION=sync \
+    QUEUE_FAILED_DRIVER=null \
+    BROADCAST_CONNECTION=log \
+    BROADCAST_DRIVER=log \
+    NODE_ENV=production \
+    npm run build \
     && rm -f public/hot \
     && rm -rf node_modules /root/.npm /root/.cache \
     && rm -f package.json package-lock.json .npmrc
@@ -118,7 +130,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:1.31.1-alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a AS nginx
+FROM nginx:1.31.3-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS nginx
 
 WORKDIR /var/www/html
 

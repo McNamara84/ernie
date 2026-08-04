@@ -1,13 +1,15 @@
 'use client';
 
-import type { Table } from '@tanstack/react-table';
+import type { RowData } from '@tanstack/react-table';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface DataTablePaginationProps<TData> {
-    table: Table<TData>;
+import type { DataTableInstance } from './data-table-features';
+
+interface DataTablePaginationProps<TData extends RowData> {
+    table: DataTableInstance<TData>;
     serverSide?: boolean;
     paginationInfo?: {
         currentPage: number;
@@ -22,7 +24,7 @@ interface DataTablePaginationProps<TData> {
     perPageOptions?: number[];
 }
 
-export function DataTablePagination<TData>({
+export function DataTablePagination<TData extends RowData>({
     table,
     serverSide = false,
     paginationInfo,
@@ -31,9 +33,9 @@ export function DataTablePagination<TData>({
     perPageOptions = [10, 20, 30, 50],
 }: DataTablePaginationProps<TData>) {
     // Server-side pagination values
-    const currentPage = serverSide ? (paginationInfo?.currentPage ?? 1) : table.getState().pagination.pageIndex + 1;
+    const currentPage = serverSide ? (paginationInfo?.currentPage ?? 1) : table.state.pagination.pageIndex + 1;
     const pageCount = serverSide ? (paginationInfo?.lastPage ?? 1) : table.getPageCount();
-    const perPage = serverSide ? (paginationInfo?.perPage ?? 10) : table.getState().pagination.pageSize;
+    const perPage = serverSide ? (paginationInfo?.perPage ?? 10) : table.state.pagination.pageSize;
     const total = serverSide ? (paginationInfo?.total ?? 0) : table.getFilteredRowModel().rows.length;
     const from = serverSide ? (paginationInfo?.from ?? 0) : (currentPage - 1) * perPage + 1;
     const to = serverSide ? (paginationInfo?.to ?? 0) : Math.min(currentPage * perPage, total);

@@ -1,9 +1,9 @@
-import { type ColumnDef } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DataTable } from '@/components/ui/data-table/data-table';
+import type { DataTableColumnDef } from '@/components/ui/data-table/data-table-features';
 
 // Test DataTablePagination through the DataTable component (pagination component is internal)
 
@@ -12,7 +12,7 @@ interface TestRow {
     name: string;
 }
 
-const columns: ColumnDef<TestRow>[] = [
+const columns: DataTableColumnDef<TestRow>[] = [
     { accessorKey: 'id', header: 'ID' },
     { accessorKey: 'name', header: 'Name' },
 ];

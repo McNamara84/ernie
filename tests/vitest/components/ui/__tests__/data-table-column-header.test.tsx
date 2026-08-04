@@ -1,16 +1,17 @@
-import { createColumnHelper, getCoreRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
+import { createColumnHelper, useTable } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { PropsWithChildren } from 'react';
 import { describe, expect, it } from 'vitest';
 
 import { DataTableColumnHeader, SimpleSortableHeader } from '@/components/ui/data-table/data-table-column-header';
+import { dataTableFeatures } from '@/components/ui/data-table/data-table-features';
 
 interface TestRow {
     name: string;
 }
 
-const columnHelper = createColumnHelper<TestRow>();
+const columnHelper = createColumnHelper<typeof dataTableFeatures, TestRow>();
 
 // Wrapper that creates a table context for testing column header components
 function TableWrapper({
@@ -18,20 +19,19 @@ function TableWrapper({
     enableSorting = true,
     enableHiding = true,
 }: PropsWithChildren<{ enableSorting?: boolean; enableHiding?: boolean }>) {
-    const columns = [
+    const columns = columnHelper.columns([
         columnHelper.accessor('name', {
             header: ({ column }) => children ?? <DataTableColumnHeader column={column} title="Name" enableSorting={enableSorting} enableHiding={enableHiding} />,
             enableSorting,
             enableHiding,
         }),
-    ];
+    ]);
 
     const Table = () => {
-        const table = useReactTable({
+        const table = useTable({
+            features: dataTableFeatures,
             data: [{ name: 'Alice' }],
             columns,
-            getCoreRowModel: getCoreRowModel(),
-            getSortedRowModel: getSortedRowModel(),
         });
 
         return (
@@ -99,19 +99,18 @@ describe('DataTableColumnHeader', () => {
 describe('SimpleSortableHeader', () => {
     it('renders title as button', () => {
         // Create a standalone wrapper that uses SimpleSortableHeader
-        const columns = [
+        const columns = columnHelper.columns([
             columnHelper.accessor('name', {
                 header: ({ column }) => <SimpleSortableHeader column={column} title="Status" />,
                 enableSorting: true,
             }),
-        ];
+        ]);
 
         function SimpleTable() {
-            const table = useReactTable({
+            const table = useTable({
+                features: dataTableFeatures,
                 data: [{ name: 'Alice' }],
                 columns,
-                getCoreRowModel: getCoreRowModel(),
-                getSortedRowModel: getSortedRowModel(),
             });
 
             return (

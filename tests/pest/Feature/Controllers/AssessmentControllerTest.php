@@ -721,7 +721,7 @@ describe('checkResources', function () {
             ->post('/assessment/check-resources')
             ->assertOk();
 
-        expect($response->json('jobId'))->toBeString()->toMatch('/^[a-f0-9-]{36}$/');
+        expect($response->json('jobId'))->toBeUuid();
         Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
     });
 
@@ -771,7 +771,7 @@ describe('checkIgsns', function () {
             ->post('/assessment/check-igsns')
             ->assertOk();
 
-        expect($response->json('jobId'))->toBeString()->toMatch('/^[a-f0-9-]{36}$/');
+        expect($response->json('jobId'))->toBeUuid();
         Queue::assertPushed(RunResourceAssessmentsJob::class, 1);
     });
 
