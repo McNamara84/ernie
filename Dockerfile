@@ -103,8 +103,20 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Build frontend assets and remove build-time Node artifacts from the runtime image.
-RUN NODE_ENV=production npm run build \
+# Wayfinder boots Laravel while Vite builds the frontend. Keep that build step
+# independent of runtime services; the copied production environment remains
+# unchanged for the resulting application image.
+RUN APP_ENV=production \
+    DB_CONNECTION=sqlite \
+    DB_DATABASE=:memory: \
+    CACHE_STORE=array \
+    SESSION_DRIVER=array \
+    QUEUE_CONNECTION=sync \
+    QUEUE_FAILED_DRIVER=null \
+    BROADCAST_CONNECTION=log \
+    BROADCAST_DRIVER=log \
+    NODE_ENV=production \
+    npm run build \
     && rm -f public/hot \
     && rm -rf node_modules /root/.npm /root/.cache \
     && rm -f package.json package-lock.json .npmrc
