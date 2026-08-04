@@ -56,7 +56,12 @@ final class LaravelDatabaseServerInfoProvider implements DatabaseServerInfoProvi
             return $this->emptyResult('unavailable');
         }
 
-        stream_set_timeout($socket, 5);
+        if (! stream_set_timeout($socket, 5)) {
+            fclose($socket);
+
+            return $this->emptyResult('unavailable');
+        }
+
         $header = fread($socket, 4);
 
         if ($header === false || strlen($header) !== 4) {

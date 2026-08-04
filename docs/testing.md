@@ -23,8 +23,12 @@ Run `npm install` once after cloning and again whenever frontend dependencies ch
 | Check | Where to run it | Command | Notes |
 | --- | --- | --- | --- |
 | Pest fast path | Host shell via npm wrapper | `npm run test:php` | Starts backend containers if needed |
+| Pest TIA | Host shell via npm wrapper | `npm run test:php:tia` | Local-only affected-test loop; records a baseline on first use |
 | Pest deprecation details | Host shell via npm wrapper | `npm run test:php:deprecations` | Use this instead of forwarding `--display-*` flags through npm |
+| Pest Agent probe | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test |
 | PHPStan | Host shell via npm wrapper | `npm run phpstan:check` | Required before finishing PHP changes |
+| Pest type coverage | Host shell via npm wrapper | `npm run test:php:type-coverage` | Reports missing PHP type declarations |
+| Pest mutation check | Host shell via npm wrapper | `npm run test:php:mutate -- <target>` | Expensive; keep the target focused |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` | Uses isolated `ernie_test` schema |
 | Vitest one-shot | Host shell | `npm run test:run` | Preferred for focused frontend validation |
 | Vitest coverage | Host shell | `npm run test:coverage` | Use only when coverage detail is needed |
@@ -63,10 +67,37 @@ Recommended commands:
 
 ```bash
 npm run test:php
+npm run test:php:tia
 npm run test:php:deprecations -- tests/pest/Unit/Enums/UserRoleTest.php
 npm run phpstan:check
 npm run test:php:mysql-sensitive
 ```
+
+### Pest 5 development tools
+
+Use TIA for the short local feedback loop after the first baseline has been recorded:
+
+```bash
+npm run test:php:tia
+```
+
+The wrapper enables Xdebug coverage inside the app container only for TIA. The normal `test:php` command and CI continue to execute the complete suite. Structural dependency changes invalidate the local TIA graph automatically; use `npm run test:php:tia -- --fresh` if a manual rebuild is needed.
+
+The Agent plugin runs disposable verification snippets with the real Laravel/Pest setup. Keep the outer quotes single so the shell does not expand PHP variables:
+
+```bash
+npm run test:php:agent -- 'expect(\App\Models\User::query()->count())->toBeInt();'
+```
+
+Turn a useful probe into a permanent test whenever it protects behavior that can regress.
+
+PHPStan uses Pest-aware type inference at level 8. The first migration slice covers the enum tests; expand the test paths in `phpstan.neon` as legacy test typing is repaired instead of masking findings with a baseline:
+
+```bash
+npm run phpstan:check
+```
+
+Type coverage and mutation testing remain explicit, slower quality checks. Mutation runs should be restricted to the changed test or class instead of being placed in the default local or CI path. Pest Rector was evaluated in dry-run mode, but its broad style set would rewrite 341 existing test files and was therefore not retained as a dependency.
 
 Why backend validation stays Docker-backed:
 

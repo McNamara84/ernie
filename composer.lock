@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "322cb551c17857045ac5f0b60deceed0",
+    "content-hash": "cb48b6bed8aa9ab4cda70c12cbdb1e51",
     "packages": [
         {
             "name": "brick/math",
@@ -10059,6 +10059,83 @@
             "time": "2026-07-18T17:10:45+00:00"
         },
         {
+            "name": "pestphp/pest-plugin-agent",
+            "version": "v5.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pestphp/pest-plugin-agent.git",
+                "reference": "10eeeb9d96a815c0f41049663a2afe0c48760674"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pestphp/pest-plugin-agent/zipball/10eeeb9d96a815c0f41049663a2afe0c48760674",
+                "reference": "10eeeb9d96a815c0f41049663a2afe0c48760674",
+                "shasum": ""
+            },
+            "require": {
+                "pestphp/pest": "^5.0.0",
+                "pestphp/pest-plugin": "^5.0.0",
+                "php": "^8.4"
+            },
+            "conflict": {
+                "pestphp/pest": "<5.0.0"
+            },
+            "require-dev": {
+                "pestphp/pest-dev-tools": "^5.0.0",
+                "pestphp/pest-plugin-browser": "^5.0.0",
+                "pestphp/pest-plugin-type-coverage": "^5.0.0"
+            },
+            "type": "library",
+            "extra": {
+                "pest": {
+                    "plugins": [
+                        "Pest\\Agent\\Plugin"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/Autoload.php"
+                ],
+                "psr-4": {
+                    "Pest\\Agent\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "AI agent verification plugin for Pest",
+            "keywords": [
+                "Agent",
+                "framework",
+                "pest",
+                "php",
+                "plugin",
+                "test",
+                "testing",
+                "unit"
+            ],
+            "support": {
+                "source": "https://github.com/pestphp/pest-plugin-agent/tree/v5.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=66BYDWAT92N6L",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/nunomaduro",
+                    "type": "github"
+                },
+                {
+                    "url": "https://www.patreon.com/nunomaduro",
+                    "type": "patreon"
+                }
+            ],
+            "time": "2026-07-21T07:48:55+00:00"
+        },
+        {
             "name": "pestphp/pest-plugin-arch",
             "version": "v5.0.0",
             "source": {
@@ -10370,6 +10447,97 @@
                 }
             ],
             "time": "2026-07-21T07:48:56+00:00"
+        },
+        {
+            "name": "pestphp/pest-plugin-phpstan",
+            "version": "v5.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/pestphp/pest-plugin-phpstan.git",
+                "reference": "a1a7f29f9882b74df013298fee455cf0ab0b7dd6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/pestphp/pest-plugin-phpstan/zipball/a1a7f29f9882b74df013298fee455cf0ab0b7dd6",
+                "reference": "a1a7f29f9882b74df013298fee455cf0ab0b7dd6",
+                "shasum": ""
+            },
+            "require": {
+                "pestphp/pest": "^5.0.0",
+                "php": "^8.4",
+                "phpstan/phpstan": "^2.2.5"
+            },
+            "conflict": {
+                "pestphp/pest": "<5.0.0"
+            },
+            "require-dev": {
+                "laravel/pao": "^1.1.2",
+                "laravel/pint": "^1.29.3",
+                "pestphp/pest-plugin-rector": "^5.0",
+                "phpstan/extension-installer": "^1.4.3",
+                "phpstan/phpstan-strict-rules": "^2.0.12",
+                "rector/rector": "^2.5.7"
+            },
+            "type": "phpstan-extension",
+            "extra": {
+                "phpstan": {
+                    "includes": [
+                        "extension.neon"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Pest\\PHPStan\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Punyapal Shah",
+                    "email": "mrpunyapal@gmail.com"
+                },
+                {
+                    "name": "Nuno Maduro",
+                    "email": "enunomaduro@gmail.com"
+                }
+            ],
+            "description": "PHPStan plugin for Pest",
+            "keywords": [
+                "PHPStan",
+                "framework",
+                "pest",
+                "php",
+                "plugin",
+                "test",
+                "testing",
+                "unit"
+            ],
+            "support": {
+                "source": "https://github.com/pestphp/pest-plugin-phpstan/tree/v5.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=66BYDWAT92N6L",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/mrpunyapal",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nunomaduro",
+                    "type": "github"
+                },
+                {
+                    "url": "https://www.patreon.com/nunomaduro",
+                    "type": "patreon"
+                }
+            ],
+            "time": "2026-07-28T14:27:06+00:00"
         },
         {
             "name": "pestphp/pest-plugin-profanity",
@@ -10798,11 +10966,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.5",
+            "version": "2.2.7",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/909c1e5fef7989ac0d0c1c5c42e32a5c4f6198a0",
-                "reference": "909c1e5fef7989ac0d0c1c5c42e32a5c4f6198a0",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/692db47b9dddb0487934e5236e77d48594aef921",
+                "reference": "692db47b9dddb0487934e5236e77d48594aef921",
                 "shasum": ""
             },
             "require": {
@@ -10858,7 +11026,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-05T06:31:06+00:00"
+            "time": "2026-07-29T17:39:32+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

@@ -233,8 +233,8 @@ npm run types
 - Use `npm run test:php:mysql-sensitive` for the explicit MySQL-sensitive migration file slice; this path uses an isolated `ernie_test` schema inside Docker MySQL and resets that schema between files.
 - Keep MySQL-backed verification targeted to driver-sensitive changes.
 
-### Pest Browser Tests (Pest v4 + Playwright)
-- **Preferred for E2E tests** – Uses `pestphp/pest-plugin-browser` (Pest v4)
+### Pest Browser Tests (Pest v5 + Playwright)
+- **Preferred for E2E tests** – Uses `pestphp/pest-plugin-browser` (Pest v5)
 - Located in `tests/pest/Browser/` – PHP-based E2E tests with Playwright under the hood
 - Direct access to Laravel factories, `RefreshDatabase`, and other Laravel features
 - Run with: `./vendor/bin/pest tests/pest/Browser/`
@@ -723,7 +723,7 @@ Documentation sections are role-based (`minRole` property). Ensure new content i
 
 ### Pest Browser Tests (Recommended for E2E)
 
-✅ **Preferred approach for new E2E tests.** Uses `pestphp/pest-plugin-browser` v4.2+.
+✅ **Preferred approach for new E2E tests.** Uses `pestphp/pest-plugin-browser` v5+.
 
 Benefits:
 - Write E2E tests in PHP with full Laravel integration

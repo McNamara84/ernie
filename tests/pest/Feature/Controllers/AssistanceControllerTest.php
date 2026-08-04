@@ -329,7 +329,7 @@ describe('check', function () {
             ->assertOk();
 
         $jobId = $response->json('jobId');
-        expect($jobId)->toBeString()->toMatch('/^[a-f0-9-]{36}$/');
+        expect($jobId)->toBeUuid();
     });
 
     it('returns 404 for unknown assistant', function () {
