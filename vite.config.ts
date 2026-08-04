@@ -76,9 +76,9 @@ export default defineConfig(({ command }) => {
         },
         test: {
             environment: 'jsdom',
-            // Threads avoid the process startup overhead of the default fork pool.
-            // Both coverage shards are about 25-30% faster with this suite.
-            pool: 'threads',
+            // Threads are 25-30% faster locally, while GitHub-hosted runners
+            // perform better with the process-isolated fork pool.
+            pool: process.env.CI ? 'forks' : 'threads',
             clearMocks: true,
             environmentOptions: {
                 jsdom: {
