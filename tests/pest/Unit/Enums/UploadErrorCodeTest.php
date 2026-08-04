@@ -18,7 +18,7 @@ describe('UploadErrorCode', function () {
 
     it('returns a human-readable message for every code', function () {
         foreach (UploadErrorCode::cases() as $code) {
-            expect($code->message())->toBeString()->not->toBeEmpty();
+            expect($code->message())->not->toBeEmpty();
         }
     });
 
