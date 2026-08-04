@@ -199,10 +199,6 @@ The initial boot may still need to:
 
 Subsequent startups are usually much faster because Docker volumes keep `vendor`, `node_modules`, and the MySQL data directory.
 
-### MySQL reports an unsupported server upgrade
-
-Existing MySQL 8.0 data directories cannot be opened directly by MySQL 9.7. Back up the database and follow the required 8.0 → 8.4 LTS → 9.7 sequence in [MySQL 9.7 upgrade](mysql-9-7-upgrade.md). Never solve this error by deleting the Docker volume unless the local data is intentionally disposable.
-
 ## MySQL-Sensitive Pest Slice
 
 The default local Pest loop remains SQLite-backed.

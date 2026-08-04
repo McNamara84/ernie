@@ -120,7 +120,8 @@ it('all cache keys have unique values', function () {
 it('returns all vocabulary keys', function () {
     $vocabularyKeys = CacheKey::vocabularyKeys();
 
-    expect($vocabularyKeys)->toHaveCount(12)
+    expect($vocabularyKeys)->toBeArray()
+        ->toHaveCount(12)
         ->each->toBeInstanceOf(CacheKey::class);
 
     $expectedKeys = [

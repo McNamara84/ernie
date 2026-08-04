@@ -1,5 +1,0 @@
-services:
-  db:
-    # Recovery-only image for taking a backup of an existing MySQL 8.0 data
-    # directory before the irreversible 8.4 LTS upgrade.
-    image: mysql:8.0.44@sha256:9c3380eac945af0736031b200027f581925927c81e010056214a4bd6b6693714

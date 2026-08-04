@@ -1,5 +1,0 @@
-services:
-  db:
-    # Required intermediate LTS release for existing MySQL 8.0 data directories.
-    # Remove this override after the 8.4 upgrade has completed successfully.
-    image: mysql:8.4.11@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb
