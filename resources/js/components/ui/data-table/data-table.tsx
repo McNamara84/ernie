@@ -2,11 +2,11 @@
 
 import {
     type ColumnFiltersState,
+    type ColumnVisibilityState,
     flexRender,
     type RowData,
     type SortingState,
     useTable,
-    type ColumnVisibilityState,
 } from '@tanstack/react-table';
 import * as React from 'react';
 
@@ -14,8 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 
-import { DataTablePagination } from './data-table-pagination';
 import { type DataTableColumnDef, dataTableFeatures } from './data-table-features';
+import { DataTablePagination } from './data-table-pagination';
 
 interface DataTableProps<TData extends RowData> {
     /** Column definitions for the table */

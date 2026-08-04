@@ -1,16 +1,16 @@
 import {
+    type ColumnDef,
     columnFilteringFeature,
     columnVisibilityFeature,
     createFilteredRowModel,
     createPaginatedRowModel,
     createSortedRowModel,
+    type ReactTable,
+    type RowData,
     rowPaginationFeature,
     rowSelectionFeature,
     rowSortingFeature,
     tableFeatures,
-    type ColumnDef,
-    type ReactTable,
-    type RowData,
 } from '@tanstack/react-table';
 
 /**

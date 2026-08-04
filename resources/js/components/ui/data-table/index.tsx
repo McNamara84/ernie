@@ -59,11 +59,10 @@
 
 export { DataTable } from './data-table';
 export { DataTableColumnHeader, SimpleSortableHeader } from './data-table-column-header';
+export type { DataTableColumnDef, DataTableFeatures, DataTableInstance } from './data-table-features';
+export { dataTableFeatures } from './data-table-features';
 export { DataTablePagination } from './data-table-pagination';
 export { DataTablePageSkeleton, DataTableSkeleton } from './data-table-skeleton';
 export { DataTableToolbar } from './data-table-toolbar';
 export { DataTableViewOptions } from './data-table-view-options';
-
-export { dataTableFeatures } from './data-table-features';
-export type { DataTableColumnDef, DataTableFeatures, DataTableInstance } from './data-table-features';
 export type { ColumnFiltersState, ColumnVisibilityState, SortingState } from '@tanstack/react-table';

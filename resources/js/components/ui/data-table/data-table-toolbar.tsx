@@ -7,8 +7,8 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { DataTableViewOptions } from './data-table-view-options';
 import type { DataTableInstance } from './data-table-features';
+import { DataTableViewOptions } from './data-table-view-options';
 
 interface DataTableToolbarProps<TData extends RowData> {
     table: DataTableInstance<TData>;
