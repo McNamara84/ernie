@@ -1,14 +1,16 @@
 'use client';
 
-import type { Column } from '@tanstack/react-table';
+import type { Column, RowData } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown, EyeOff } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-interface DataTableColumnHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
-    column: Column<TData, TValue>;
+import type { DataTableFeatures } from './data-table-features';
+
+interface DataTableColumnHeaderProps<TData extends RowData, TValue> extends React.HTMLAttributes<HTMLDivElement> {
+    column: Column<DataTableFeatures, TData, TValue>;
     title: string;
     /** Enable sorting (default: true if column is sortable) */
     enableSorting?: boolean;
@@ -16,7 +18,7 @@ interface DataTableColumnHeaderProps<TData, TValue> extends React.HTMLAttributes
     enableHiding?: boolean;
 }
 
-export function DataTableColumnHeader<TData, TValue>({
+export function DataTableColumnHeader<TData extends RowData, TValue>({
     column,
     title,
     className,
@@ -70,12 +72,12 @@ export function DataTableColumnHeader<TData, TValue>({
  * Simple sortable header without dropdown menu
  * Use this for a more compact header with click-to-sort behavior
  */
-interface SimpleSortableHeaderProps<TData, TValue> extends React.HTMLAttributes<HTMLButtonElement> {
-    column: Column<TData, TValue>;
+interface SimpleSortableHeaderProps<TData extends RowData, TValue> extends React.HTMLAttributes<HTMLButtonElement> {
+    column: Column<DataTableFeatures, TData, TValue>;
     title: string;
 }
 
-export function SimpleSortableHeader<TData, TValue>({ column, title, className }: SimpleSortableHeaderProps<TData, TValue>) {
+export function SimpleSortableHeader<TData extends RowData, TValue>({ column, title, className }: SimpleSortableHeaderProps<TData, TValue>) {
     if (!column.getCanSort()) {
         return <span className={cn(className)}>{title}</span>;
     }

@@ -1,16 +1,12 @@
 'use client';
 
 import {
-    type ColumnDef,
     type ColumnFiltersState,
     flexRender,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
+    type RowData,
     type SortingState,
-    useReactTable,
-    type VisibilityState,
+    useTable,
+    type ColumnVisibilityState,
 } from '@tanstack/react-table';
 import * as React from 'react';
 
@@ -19,10 +15,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { cn } from '@/lib/utils';
 
 import { DataTablePagination } from './data-table-pagination';
+import { type DataTableColumnDef, dataTableFeatures } from './data-table-features';
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends RowData> {
     /** Column definitions for the table */
-    columns: ColumnDef<TData, TValue>[];
+    columns: DataTableColumnDef<TData>[];
     /** Data to display in the table */
     data: TData[];
     /** Enable pagination (default: true) */
@@ -60,7 +57,7 @@ interface DataTableProps<TData, TValue> {
     perPageOptions?: number[];
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
     columns,
     data,
     pagination = true,
@@ -75,10 +72,10 @@ export function DataTable<TData, TValue>({
     className,
     onRowClick,
     perPageOptions = [10, 20, 30, 50],
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData>) {
     const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-    const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+    const [columnVisibility, setColumnVisibility] = React.useState<ColumnVisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
 
     // Handle sorting changes
@@ -91,10 +88,10 @@ export function DataTable<TData, TValue>({
         [sorting, onSortingChange],
     );
 
-    const table = useReactTable({
+    const table = useTable({
+        features: dataTableFeatures,
         data,
         columns,
-        getCoreRowModel: getCoreRowModel(),
         // Only use client-side pagination/sorting if not server-side
         ...(serverSide
             ? {
@@ -103,10 +100,7 @@ export function DataTable<TData, TValue>({
                   pageCount: paginationInfo?.lastPage ?? -1,
               }
             : {
-                  getPaginationRowModel: getPaginationRowModel(),
-                  getSortedRowModel: getSortedRowModel(),
               }),
-        getFilteredRowModel: getFilteredRowModel(),
         onSortingChange: handleSortingChange,
         onColumnFiltersChange: setColumnFilters,
         onColumnVisibilityChange: setColumnVisibility,
