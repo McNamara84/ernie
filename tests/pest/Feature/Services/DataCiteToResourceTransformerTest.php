@@ -1833,6 +1833,185 @@ describe('DataCiteToResourceTransformer - nameType inference and null family_nam
         expect($creators[2]->creatorable_type)->toBe(Person::class);
     });
 
+    it('classifies unstructured DEKORP project leaders as an institution for issue 1078', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/gfz.dekorp.ktb8401.001',
+                'publicationYear' => 2022,
+                'titles' => [['title' => 'DEKORP Project Leaders Institution Test']],
+                'creators' => [
+                    [
+                        'name' => 'Former DEKORP Project Leaders',
+                        'affiliation' => [],
+                        'nameIdentifiers' => [],
+                    ],
+                    [
+                        'name' => 'Former DEKORP Research Group',
+                        'affiliation' => [],
+                        'nameIdentifiers' => [],
+                    ],
+                    [
+                        'name' => 'Former DEKORP Processing Centre',
+                        'affiliation' => [],
+                        'nameIdentifiers' => [],
+                    ],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(3)
+            ->and($creators[0]->creatorable_type)->toBe(Institution::class)
+            ->and($creators[1]->creatorable_type)->toBe(Institution::class)
+            ->and($creators[2]->creatorable_type)->toBe(Institution::class)
+            ->and(Institution::findOrFail($creators[0]->creatorable_id)->name)
+            ->toBe('Former DEKORP Project Leaders');
+    });
+
+    it('matches the project leaders phrase case-insensitively across whitespace', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/project-leaders-phrase-shape.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Project Leaders Phrase Shape Test']],
+                'creators' => [
+                    ['name' => "Former DEKORP PROJECT \t LEADERS"],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->creators()->sole()->creatorable_type)->toBe(Institution::class);
+    });
+
+    it('does not let the project leaders phrase override an explicit Personal nameType', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/project-leaders-explicit-person.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Explicit Project Leaders Person Test']],
+                'creators' => [
+                    [
+                        'name' => 'Former DEKORP Project Leaders',
+                        'nameType' => 'Personal',
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->creators()->sole()->creatorable_type)->toBe(Person::class);
+    });
+
+    it('does not let the project leaders phrase override structured person fields', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/project-leaders-structured-person.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Structured Project Leaders Person Test']],
+                'creators' => [
+                    [
+                        'name' => 'Project Leaders',
+                        'givenName' => 'Project',
+                        'familyName' => 'Leaders',
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        $creator = $resource->creators()->sole();
+        $person = Person::findOrFail($creator->creatorable_id);
+
+        expect($creator->creatorable_type)->toBe(Person::class)
+            ->and($person->given_name)->toBe('Project')
+            ->and($person->family_name)->toBe('Leaders');
+    });
+
+    it('does not classify similar incomplete phrases as institutions', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/project-leaders-phrase-boundary.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Project Leaders Phrase Boundary Test']],
+                'creators' => [
+                    ['name' => 'Former DEKORP Project Leadership'],
+                    ['name' => 'Former DEKORP Project Leader'],
+                ],
+            ],
+        ], $user->id);
+
+        $creators = $resource->creators()->orderBy('position')->get();
+
+        expect($creators)->toHaveCount(2)
+            ->and($creators[0]->creatorable_type)->toBe(Person::class)
+            ->and($creators[1]->creatorable_type)->toBe(Person::class);
+    });
+
+    it('keeps a valid ORCID as a stronger signal than the project leaders phrase', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/project-leaders-orcid-person.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Project Leaders ORCID Person Test']],
+                'creators' => [
+                    [
+                        'name' => 'Project Leaders',
+                        'nameIdentifiers' => [
+                            [
+                                'nameIdentifier' => 'https://orcid.org/0000-0002-1825-0097',
+                                'nameIdentifierScheme' => 'ORCID',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->creators()->sole()->creatorable_type)->toBe(Person::class);
+    });
+
+    it('applies the project leaders institution rule to contributors', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer;
+
+        $resource = $transformer->transform([
+            'attributes' => [
+                'doi' => '10.5880/project-leaders-contributor.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Project Leaders Contributor Test']],
+                'creators' => [
+                    ['familyName' => 'Creator', 'givenName' => 'Casey', 'nameType' => 'Personal'],
+                ],
+                'contributors' => [
+                    [
+                        'name' => 'Former DEKORP Project Leaders',
+                        'contributorType' => 'Other',
+                    ],
+                ],
+            ],
+        ], $user->id);
+
+        expect($resource->contributors()->sole()->contributorable_type)->toBe(Institution::class);
+    });
+
     it('corrects legacy institutional creators that DataCite marks as Personal', function (): void {
         $user = User::factory()->create();
         $transformer = new DataCiteToResourceTransformer;
