@@ -20,25 +20,25 @@ Run `npm install` once after cloning and again whenever frontend dependencies ch
 
 ## Recommended Commands
 
-| Check | Where to run it | Command | Notes |
-| --- | --- | --- | --- |
-| Pest fast path | Host shell via npm wrapper | `npm run test:php` | Starts backend containers if needed |
-| Pest TIA | Host shell via npm wrapper | `npm run test:php:tia` | Local-only affected-test loop; records a baseline on first use |
-| Pest deprecation details | Host shell via npm wrapper | `npm run test:php:deprecations` | Use this instead of forwarding `--display-*` flags through npm |
-| Pest Agent probe | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test |
-| PHPStan | Host shell via npm wrapper | `npm run phpstan:check` | Required before finishing PHP changes |
-| Pest type coverage | Host shell via npm wrapper | `npm run test:php:type-coverage` | Enforces the measured 92% minimum; expensive on a cold cache |
-| MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` | Uses isolated `ernie_test` schema |
-| Vitest one-shot | Host shell | `npm run test:run` | Preferred for focused frontend validation |
-| Vitest coverage | Host shell | `npm run test:coverage` | Use only when coverage detail is needed |
-| ESLint check | Host shell | `npm run lint:check` | Non-mutating validation |
-| ESLint auto-fix | Host shell | `npm run lint` | Applies ESLint fixes |
-| TypeScript | Host shell | `npm run types` | Runs app and test TS checks |
-| Playwright dev stack | Host shell | `npm run test:e2e:devstack` | Requires the Docker dev stack |
-| Playwright stage | Host shell | `npm run test:e2e:stage` | Use only for stage-specific bug reproduction |
-| Backend umbrella check | Host shell | `npm run check:backend` | Pest plus PHPStan |
-| Frontend umbrella check | Host shell | `npm run check:frontend` | ESLint plus OpenAPI lint plus TypeScript plus one-shot Vitest |
-| Parity umbrella check | Host shell | `npm run check:parity` | Parity profile plus MySQL slice plus Playwright |
+| Check                      | Where to run it            | Command                                     | Notes                                                          |
+| -------------------------- | -------------------------- | ------------------------------------------- | -------------------------------------------------------------- |
+| Pest fast path             | Host shell via npm wrapper | `npm run test:php`                          | Starts backend containers if needed                            |
+| Pest TIA                   | Host shell via npm wrapper | `npm run test:php:tia`                      | Local-only affected-test loop; records a baseline on first use |
+| Pest deprecation details   | Host shell via npm wrapper | `npm run test:php:deprecations`             | Use this instead of forwarding `--display-*` flags through npm |
+| Pest Agent probe           | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test  |
+| PHPStan                    | Host shell via npm wrapper | `npm run phpstan:check`                     | Required before finishing PHP changes                          |
+| Pest type coverage         | Host shell via npm wrapper | `npm run test:php:type-coverage`            | Enforces the measured 92% minimum; expensive on a cold cache   |
+| MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive`          | Uses isolated `ernie_test` schema                              |
+| Vitest one-shot            | Host shell                 | `npm run test:run`                          | Preferred for focused frontend validation                      |
+| Vitest coverage            | Host shell                 | `npm run test:coverage`                     | Use only when coverage detail is needed                        |
+| ESLint check               | Host shell                 | `npm run lint:check`                        | Non-mutating validation                                        |
+| ESLint auto-fix            | Host shell                 | `npm run lint`                              | Applies ESLint fixes                                           |
+| TypeScript                 | Host shell                 | `npm run types`                             | Runs app and test TS checks                                    |
+| Playwright dev stack       | Host shell                 | `npm run test:e2e:devstack`                 | Requires the Docker dev stack                                  |
+| Playwright stage           | Host shell                 | `npm run test:e2e:stage`                    | Use only for stage-specific bug reproduction                   |
+| Backend umbrella check     | Host shell                 | `npm run check:backend`                     | Pest plus PHPStan                                              |
+| Frontend umbrella check    | Host shell                 | `npm run check:frontend`                    | ESLint plus OpenAPI lint plus TypeScript plus one-shot Vitest  |
+| Parity umbrella check      | Host shell                 | `npm run check:parity`                      | Parity profile plus MySQL slice plus Playwright                |
 
 ## PHP Test Database Strategy
 
@@ -140,6 +140,10 @@ npm run test:run -- tests/vitest/path/to/file.test.tsx --fsModuleCache
 npx vitest --clearCache
 ```
 
+The cache is intentionally not enabled by default. A representative DataCite run took 2:24 without it, 2:29 with a cold cache, and 2:44 with a warm cache; this suite is dominated by DOM interactions rather than module transformation.
+
+The large DataCite form suite is registered through six `datacite-form.part-*.test.tsx` entrypoints. They distribute direct tests while keeping nested `describe` groups intact, allowing Vitest to schedule the formerly serial suite across isolated workers. Keep shared tests and setup in `datacite-form.test-suite.tsx`; do not add that support file to the Vitest include pattern.
+
 If your host cannot start Laravel Artisan locally, start the Docker backend stack before Vitest:
 
 ```bash
@@ -195,6 +199,8 @@ npm run test:e2e:stage
 - Run local coverage only when targeted feedback is needed.
 - Keep day-to-day backend runs on `--no-coverage`.
 - Let CI remain the primary source of complete coverage reporting.
+- CI runs the Vitest coverage suite on two machines with `--shard=1/2` and `--shard=2/2`. Each machine uploads a Vitest blob report; the final `vitest` job merges both test and V8 coverage results before uploading the single complete `coverage/lcov.info` to Codecov.
+- Keep the blob upload and merge job together when changing the workflow. Uploading either shard's partial LCOV report would make the Codecov result incomplete.
 
 ## Suggested Validation Sets
 

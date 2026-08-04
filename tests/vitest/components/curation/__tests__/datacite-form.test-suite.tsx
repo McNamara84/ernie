@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe as vitestDescribe, expect, it as vitestIt, type Mock, vi } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -81,6 +81,81 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
         error: null,
     }),
 }));
+
+type TestRegistration = (...args: unknown[]) => unknown;
+
+// This suite takes several minutes when one worker executes all tests serially. The six
+// lightweight *.part-*.test.tsx entrypoints load it with a different shard number so
+// Vitest can schedule the work across workers and CI shards. Direct tests are distributed
+// individually; nested describe blocks stay intact to preserve their hooks and isolation.
+// Importing this module without shard variables retains the original single-file behavior.
+const dataCiteTestShard = Number.parseInt(process.env.VITEST_DATACITE_TEST_SHARD ?? '1', 10);
+const dataCiteTestShardCount = Number.parseInt(process.env.VITEST_DATACITE_TEST_SHARD_COUNT ?? '1', 10);
+let dataCiteTestIndex = 0;
+let suiteDepth = 0;
+let assignedSuiteDepth = 0;
+
+const isAssignedShard = () => {
+    const assignedShard = (dataCiteTestIndex++ % dataCiteTestShardCount) + 1;
+
+    return assignedShard === dataCiteTestShard;
+};
+
+const registerTestInAssignedShard = (register: TestRegistration): TestRegistration =>
+    (...args: unknown[]) => {
+        if (assignedSuiteDepth > 0 || isAssignedShard()) {
+            return register(...args);
+        }
+
+        return undefined;
+    };
+
+const wrapSuiteHandler = (args: unknown[], assigned: boolean): unknown[] => {
+    const wrappedArgs = [...args];
+    const handlerIndex = wrappedArgs.length - 1;
+    const handler = wrappedArgs[handlerIndex] as TestRegistration;
+
+    wrappedArgs[handlerIndex] = (...handlerArgs: unknown[]) => {
+        suiteDepth++;
+        assignedSuiteDepth += assigned ? 1 : 0;
+
+        try {
+            return handler(...handlerArgs);
+        } finally {
+            assignedSuiteDepth -= assigned ? 1 : 0;
+            suiteDepth--;
+        }
+    };
+
+    return wrappedArgs;
+};
+
+const describe = ((...args: unknown[]) => {
+    if (suiteDepth === 0) {
+        return (vitestDescribe as unknown as TestRegistration)(...wrapSuiteHandler(args, false));
+    }
+
+    if (assignedSuiteDepth > 0) {
+        return (vitestDescribe as unknown as TestRegistration)(...wrapSuiteHandler(args, true));
+    }
+
+    if (isAssignedShard()) {
+        return (vitestDescribe as unknown as TestRegistration)(...wrapSuiteHandler(args, true));
+    }
+
+    return undefined;
+}) as typeof vitestDescribe;
+
+const shardedEach = ((...cases: unknown[]) => {
+    const register = Reflect.apply(vitestIt.each as unknown as TestRegistration, vitestIt, cases) as TestRegistration;
+
+    return registerTestInAssignedShard(register);
+}) as typeof vitestIt.each;
+
+const it = Object.assign(registerTestInAssignedShard(vitestIt as unknown as TestRegistration), vitestIt, {
+    each: shardedEach,
+    skip: registerTestInAssignedShard(vitestIt.skip as unknown as TestRegistration),
+}) as typeof vitestIt;
 
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
