@@ -5,6 +5,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig(() => {
     return {
+        // Keep file-generating Laravel/Wayfinder buildStart hooks out of Vitest's browser environments.
         plugins: [
             react(),
             tailwindcss(),
