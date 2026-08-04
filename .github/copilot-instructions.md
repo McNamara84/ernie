@@ -5,7 +5,7 @@ ERNIE is a **metadata curation system** for research datasets at GFZ Helmholtz C
 
 **Version:** 1.0.0
 
-**Stack:** Laravel 13 (PHP 8.5) + Inertia.js + React 19 + shadcn/ui v4 + TailwindCSS 4 + Pest 4 + Playwright + Vitest
+**Stack:** Laravel 13 (PHP 8.5) + Inertia.js + React 19 + shadcn/ui v4 + TailwindCSS 4 + Pest 5 + Playwright + Vitest
 
 ## Language Policy
 

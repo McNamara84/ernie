@@ -1,4 +1,4 @@
-FROM php:8.5.7-fpm-trixie@sha256:a16de52d0ebd4b5f49dc811010d1437f6c70c6c142b75175ac2a94f2d5db9b4f AS app-base
+FROM php:8.5.9-fpm-trixie@sha256:f56f4a81de6cd33ddfd6e99352889a53c94c3ffccce89e494563845a1c8ba75a AS app-base
 
 WORKDIR /var/www/html
 
@@ -52,7 +52,7 @@ RUN set -eux; \
     docker-php-ext-install redis; \
     rm -rf /tmp/phpredis.tar.gz /usr/src/php/ext/redis
 
-COPY --from=composer:2.10.1@sha256:c883af18892268b3b8369c4a39c08f80b393383e79d80b75140a3ea489dbbb78 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.2@sha256:4d71c3c2109c61d5415544264b59ad4087e4c5b7244481723664138fd36d5040 /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -118,7 +118,7 @@ EXPOSE 9000
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
 
-FROM nginx:1.31.1-alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a AS nginx
+FROM nginx:1.31.3-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS nginx
 
 WORKDIR /var/www/html
 
