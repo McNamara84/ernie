@@ -986,8 +986,8 @@ class DataCiteToResourceTransformer
     }
 
     /**
-     * Recognize the narrowly scoped collective phrase used by legacy DEKORP
-     * creators without broadening the general organization keyword list.
+     * Recognize the narrowly scoped collective phrase in legacy DEKORP party
+     * names without broadening the general organization keyword list.
      */
     private function looksLikeCollectiveOrganizationName(string $name): bool
     {
