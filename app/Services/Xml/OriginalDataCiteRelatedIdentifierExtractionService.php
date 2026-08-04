@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Saloon\XmlWrangler\XmlReader;
 
 /**
- * Extracts related identifiers from the original XML embedded in DataCite API responses.
+ * Extracts related identifiers from DataCite XML documents.
  */
 final readonly class OriginalDataCiteRelatedIdentifierExtractionService
 {
@@ -43,7 +43,7 @@ final readonly class OriginalDataCiteRelatedIdentifierExtractionService
         try {
             return $this->extractFromReader(XmlReader::fromString($xml), $context);
         } catch (\Throwable $exception) {
-            Log::warning('Could not parse original DataCite XML related identifiers.', [
+            Log::warning('Could not parse XML related identifiers.', [
                 'context' => $context,
                 'error' => $exception->getMessage(),
             ]);
@@ -62,7 +62,7 @@ final readonly class OriginalDataCiteRelatedIdentifierExtractionService
                 ->xpathElement('//*[local-name()="resource"]/*[local-name()="relatedIdentifiers"]/*[local-name()="relatedIdentifier"]')
                 ->get();
         } catch (\Throwable $exception) {
-            Log::warning('Could not read original DataCite XML related identifiers.', [
+            Log::warning('Could not read XML related identifiers.', [
                 'context' => $context,
                 'error' => $exception->getMessage(),
             ]);
@@ -80,7 +80,7 @@ final readonly class OriginalDataCiteRelatedIdentifierExtractionService
             $relationType = $this->typeResolver->resolveRelationType($relationTypeRaw);
 
             if ($identifier === '' || $identifierType === null || $relationType === null) {
-                Log::warning('Skipping invalid related identifier from original DataCite XML.', [
+                Log::warning('Skipping invalid XML related identifier.', [
                     'context' => $context,
                     'index' => $index,
                     'identifier' => $identifier,

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Services\Xml\OriginalDataCiteRelatedIdentifierExtractionService;
+use Illuminate\Support\Facades\Log;
 
 covers(OriginalDataCiteRelatedIdentifierExtractionService::class);
 
@@ -12,9 +13,11 @@ beforeEach(function (): void {
 
 it('decodes raw and base64 encoded XML and rejects non XML values', function (): void {
     $xml = '<resource xmlns="http://datacite.org/schema/kernel-4" />';
+    $lineWrappedBase64 = chunk_split(base64_encode($xml), 12, "\r\n");
 
     expect($this->service->decode($xml))->toBe($xml)
         ->and($this->service->decode(base64_encode($xml)))->toBe($xml)
+        ->and($this->service->decode($lineWrappedBase64))->toBe($xml)
         ->and($this->service->decode(''))
         ->toBeNull()
         ->and($this->service->decode('not XML or base64 XML'))->toBeNull()
@@ -71,6 +74,8 @@ XML;
 });
 
 it('skips invalid entries and fails open for malformed XML', function (): void {
+    Log::spy();
+
     $xml = <<<'XML'
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <relatedIdentifiers>
@@ -81,9 +86,18 @@ it('skips invalid entries and fails open for malformed XML', function (): void {
 </resource>
 XML;
 
-    expect($this->service->extract($xml))->toBe([[
+    expect($this->service->extract($xml, 'upload.xml'))->toBe([[
         'relatedIdentifier' => 'https://example.org/valid',
         'relatedIdentifierType' => 'URL',
         'relationType' => 'References',
-    ]])->and($this->service->extract('<resource><broken>'))->toBe([]);
+    ]])->and($this->service->extract('<resource><broken>', 'upload.xml'))->toBe([]);
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context): bool => $message === 'Skipping invalid XML related identifier.'
+            && $context['context'] === 'upload.xml')
+        ->twice();
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message, array $context): bool => $message === 'Could not read XML related identifiers.'
+            && $context['context'] === 'upload.xml')
+        ->once();
 });
