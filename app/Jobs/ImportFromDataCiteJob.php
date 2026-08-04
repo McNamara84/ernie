@@ -16,6 +16,7 @@ use App\Services\GfzDataServicesPortalService;
 use App\Services\LegacyLandingPageDecisionService;
 use App\Services\LegacyLandingPageImportService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
+use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
@@ -887,6 +888,8 @@ class ImportFromDataCiteJob implements ShouldQueue
         bool $shouldLookupMetaworks = true,
         ?array $portalDatacenterNames = null,
     ): array {
+        $metaworksUnavailable = false;
+
         if ($this->shouldSkipLegacyDoi($doi)) {
             Log::info('Skipping legacy DOI marked as test/delete', ['doi' => $doi]);
 
@@ -917,7 +920,24 @@ class ImportFromDataCiteJob implements ShouldQueue
                 ];
             }
 
-            $preparedDoiRecord = $transformer->prepareDoiData($doiRecord);
+            $legacyRelatedIdentifiers = [];
+
+            if ($shouldLookupMetaworks) {
+                try {
+                    $legacyRelatedIdentifiers = app(LegacyResourceLookupService::class)
+                        ->relatedIdentifiersByDoi($doi);
+                } catch (\Throwable $exception) {
+                    $metaworksUnavailable = true;
+
+                    Log::warning('Metaworks DB unavailable while loading related identifiers; continuing without legacy enrichment.', [
+                        'import_id' => $this->importId,
+                        'doi' => $doi,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            }
+
+            $preparedDoiRecord = $transformer->prepareDoiData($doiRecord, $legacyRelatedIdentifiers);
 
             // Use database transaction to ensure atomicity of the check-then-insert operation.
             //
@@ -945,13 +965,13 @@ class ImportFromDataCiteJob implements ShouldQueue
                     : $this->emptyDataCiteLandingPageSyncResult();
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
-                if ($existingResource !== null && $shouldLookupMetaworks && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
+                if ($existingResource !== null && $shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
                     $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $metaworksService);
                 }
 
                 return [
                     'status' => 'skipped',
-                    'metaworks_unavailable' => $legacyDownloadSync['metaworks_unavailable'],
+                    'metaworks_unavailable' => $metaworksUnavailable || $legacyDownloadSync['metaworks_unavailable'],
                     'enriched' => $dataCiteLandingPageSync['changed'] || $legacyDownloadSync['changed'],
                 ];
             }
@@ -969,7 +989,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
-            if ($shouldLookupMetaworks && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
+            if ($shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
                 $legacyDownloadSync = $this->syncLegacyDownloadLinks($importedResource, $doi, $metaworksService);
             }
 
@@ -979,7 +999,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
             return [
                 'status' => 'imported',
-                'metaworks_unavailable' => $legacyDownloadSync['metaworks_unavailable'],
+                'metaworks_unavailable' => $metaworksUnavailable || $legacyDownloadSync['metaworks_unavailable'],
                 'enriched' => false,
             ];
         } catch (QueryException $exception) {
@@ -1000,13 +1020,13 @@ class ImportFromDataCiteJob implements ShouldQueue
                     : $this->emptyDataCiteLandingPageSyncResult();
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
-                if ($existingResource !== null && $shouldLookupMetaworks && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
+                if ($existingResource !== null && $shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
                     $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $metaworksService);
                 }
 
                 return [
                     'status' => 'skipped',
-                    'metaworks_unavailable' => $legacyDownloadSync['metaworks_unavailable'],
+                    'metaworks_unavailable' => $metaworksUnavailable || $legacyDownloadSync['metaworks_unavailable'],
                     'enriched' => $dataCiteLandingPageSync['changed'] || $legacyDownloadSync['changed'],
                 ];
             }
