@@ -27,8 +27,7 @@ Run `npm install` once after cloning and again whenever frontend dependencies ch
 | Pest deprecation details | Host shell via npm wrapper | `npm run test:php:deprecations` | Use this instead of forwarding `--display-*` flags through npm |
 | Pest Agent probe | Host shell via npm wrapper | `npm run test:php:agent -- '<PHP snippet>'` | One-off verification; not a replacement for a regression test |
 | PHPStan | Host shell via npm wrapper | `npm run phpstan:check` | Required before finishing PHP changes |
-| Pest type coverage | Host shell via npm wrapper | `npm run test:php:type-coverage` | Reports missing PHP type declarations |
-| Pest mutation check | Host shell via npm wrapper | `npm run test:php:mutate -- <target>` | Expensive; keep the target focused |
+| Pest type coverage | Host shell via npm wrapper | `npm run test:php:type-coverage` | Enforces the measured 92% minimum; expensive on a cold cache |
 | MySQL-sensitive Pest slice | Host shell via npm wrapper | `npm run test:php:mysql-sensitive` | Uses isolated `ernie_test` schema |
 | Vitest one-shot | Host shell | `npm run test:run` | Preferred for focused frontend validation |
 | Vitest coverage | Host shell | `npm run test:coverage` | Use only when coverage detail is needed |
@@ -97,7 +96,7 @@ PHPStan uses Pest-aware type inference at level 8. The first migration slice cov
 npm run phpstan:check
 ```
 
-Type coverage and mutation testing remain explicit, slower quality checks. Mutation runs should be restricted to the changed test or class instead of being placed in the default local or CI path. Pest Rector was evaluated in dry-run mode, but its broad style set would rewrite 341 existing test files and was therefore not retained as a dependency.
+Type coverage remains an explicit, slower quality check. The Pest 5 baseline covers all 743 configured PHP source files at 92.93%, so the reproducible command enforces a conservative 92% floor. Mutation testing was evaluated against a focused, fully covered unit: all 35 tests passed, but the stable Pest 5.0.0 mutation plugin then failed internally because it still expects the pre-PHPUnit-13 code-coverage API. Pest itself currently requires the plugin, but Ernie does not expose a broken mutation command. Pest Rector was evaluated in dry-run mode, but its broad style set would rewrite 341 existing test files and was therefore not retained as a dependency.
 
 Why backend validation stays Docker-backed:
 
