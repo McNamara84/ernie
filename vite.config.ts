@@ -76,6 +76,7 @@ export default defineConfig(({ command }) => {
         },
         test: {
             environment: 'jsdom',
+            clearMocks: true,
             environmentOptions: {
                 jsdom: {
                     url: 'http://localhost/',

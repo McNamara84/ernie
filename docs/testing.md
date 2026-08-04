@@ -121,6 +121,25 @@ npm run types
 npm run test:run
 ```
 
+Vitest 5 can repeat a focused test file to expose flaky behavior without multiplying the complete suite:
+
+```bash
+npm run test:run -- tests/vitest/path/to/file.test.tsx --repeats=5
+```
+
+For slow startup or import-heavy tests, print the import-duration breakdown before changing optimizer settings:
+
+```bash
+npm run test:run -- tests/vitest/path/to/file.test.tsx --experimental.importDurations.print
+```
+
+The persistent filesystem module cache remains an opt-in experiment because Wayfinder and other plugin inputs must be invalidated correctly. It can be compared on focused repeated runs and cleared explicitly:
+
+```bash
+npm run test:run -- tests/vitest/path/to/file.test.tsx --fsModuleCache
+npx vitest --clearCache
+```
+
 If your host cannot start Laravel Artisan locally, start the Docker backend stack before Vitest:
 
 ```bash
@@ -141,6 +160,8 @@ npm run docker:dev:backend:d
 ```bash
 WAYFINDER_COMMAND="php artisan ernie:wayfinder-generate" npm run test:run
 ```
+
+The separate `vitest.browser.config.ts` deliberately contains only browser-test transforms. Laravel HMR and Wayfinder generation stay in the main Vite configuration: Vitest 5 starts multiple browser environments, and generating files from their `buildStart` hooks can repeatedly invalidate the browser test server. Generate Wayfinder sources before introducing or running browser tests that import them.
 
 Why frontend validation stays on the host:
 

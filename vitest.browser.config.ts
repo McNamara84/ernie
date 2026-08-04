@@ -1,21 +1,13 @@
-import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import laravel from 'laravel-vite-plugin';
+import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig(() => {
     return {
         plugins: [
-            laravel({
-                input: ['resources/css/app.css', 'resources/js/app.tsx'],
-                refresh: true,
-            }),
             react(),
             tailwindcss(),
-            wayfinder({
-                formVariants: true,
-            }),
         ],
         resolve: {
             alias: {
@@ -29,7 +21,7 @@ export default defineConfig(() => {
             include: ['tests/vitest-browser/**/*.{test,spec}.{js,ts,jsx,tsx}'],
             browser: {
                 enabled: true,
-                provider: 'playwright',
+                provider: playwright(),
                 instances: [{ browser: 'chromium' }],
             },
             env: {
