@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
-import { afterAll, afterEach, beforeAll, beforeEach, describe as vitestDescribe, expect, it as vitestIt, type Mock, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, vi, describe as vitestDescribe, it as vitestIt, type Mock } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -89,8 +89,33 @@ type TestRegistration = (...args: unknown[]) => unknown;
 // Vitest can schedule the work across workers and CI shards. Direct tests are distributed
 // individually; nested describe blocks stay intact to preserve their hooks and isolation.
 // Importing this module without shard variables retains the original single-file behavior.
-const dataCiteTestShard = Number.parseInt(process.env.VITEST_DATACITE_TEST_SHARD ?? '1', 10);
-const dataCiteTestShardCount = Number.parseInt(process.env.VITEST_DATACITE_TEST_SHARD_COUNT ?? '1', 10);
+const resolveDataCiteTestShard = (): readonly [number, number] => {
+    const shardValue = process.env.VITEST_DATACITE_TEST_SHARD;
+    const shardCountValue = process.env.VITEST_DATACITE_TEST_SHARD_COUNT;
+
+    if (shardValue === undefined && shardCountValue === undefined) {
+        return [1, 1];
+    }
+
+    if (shardValue === undefined || shardCountValue === undefined) {
+        throw new Error('VITEST_DATACITE_TEST_SHARD and VITEST_DATACITE_TEST_SHARD_COUNT must be set together.');
+    }
+
+    const shard = Number(shardValue);
+    const shardCount = Number(shardCountValue);
+
+    if (!Number.isSafeInteger(shard) || shard <= 0 || !Number.isSafeInteger(shardCount) || shardCount <= 0) {
+        throw new Error('DataCite test shard and shard count must be positive integers.');
+    }
+
+    if (shard > shardCount) {
+        throw new Error(`DataCite test shard ${shard} cannot exceed shard count ${shardCount}.`);
+    }
+
+    return [shard, shardCount];
+};
+
+const [dataCiteTestShard, dataCiteTestShardCount] = resolveDataCiteTestShard();
 let dataCiteTestIndex = 0;
 let suiteDepth = 0;
 let assignedSuiteDepth = 0;
@@ -101,7 +126,8 @@ const isAssignedShard = () => {
     return assignedShard === dataCiteTestShard;
 };
 
-const registerTestInAssignedShard = (register: TestRegistration): TestRegistration =>
+const registerTestInAssignedShard =
+    (register: TestRegistration): TestRegistration =>
     (...args: unknown[]) => {
         if (assignedSuiteDepth > 0 || isAssignedShard()) {
             return register(...args);
