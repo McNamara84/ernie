@@ -836,6 +836,13 @@ class DataCiteToResourceTransformer
             return $this->hasStructuredPersonName($data) ? 'Personal' : ($declaredNameType ?? 'Personal');
         }
 
+        if ($declaredNameType === null
+            && ! $this->hasStructuredPersonName($data)
+            && $this->looksLikeCollectiveOrganizationName($name)
+        ) {
+            return 'Organizational';
+        }
+
         if ($this->looksLikeOrganization($name, false)) {
             return 'Organizational';
         }
@@ -976,6 +983,15 @@ class DataCiteToResourceTransformer
             'declared_name_type' => $declaredNameType,
             'resolved_name_type' => $resolvedNameType,
         ]);
+    }
+
+    /**
+     * Recognize the narrowly scoped collective phrase in legacy DEKORP party
+     * names without broadening the general organization keyword list.
+     */
+    private function looksLikeCollectiveOrganizationName(string $name): bool
+    {
+        return preg_match('/\bproject\s+leaders\b/iu', $name) === 1;
     }
 
     /**
