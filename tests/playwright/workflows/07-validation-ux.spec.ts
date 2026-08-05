@@ -124,7 +124,7 @@ test.describe('DataCite Form Validation UX', () => {
             await formPage.expectValidationSuccess(formPage.versionInput);
         });
 
-        test('shows a missing version as None without setting a metadata value', async () => {
+        test('shows None as a placeholder while keeping a missing version input empty', async () => {
             await expect(formPage.versionInput).toHaveValue('');
             await expect(formPage.versionInput).toHaveAttribute('placeholder', 'None');
 
