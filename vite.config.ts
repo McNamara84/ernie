@@ -76,6 +76,10 @@ export default defineConfig(({ command }) => {
         },
         test: {
             environment: 'jsdom',
+            // Threads are 25-30% faster locally, while GitHub-hosted runners
+            // perform better with the process-isolated fork pool.
+            pool: process.env.CI ? 'forks' : 'threads',
+            clearMocks: true,
             environmentOptions: {
                 jsdom: {
                     url: 'http://localhost/',

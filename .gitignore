@@ -2,6 +2,7 @@
 /.tmp/
 /bootstrap/ssr
 /coverage
+/.vitest/
 clover.xml
 coverage-serial.xml
 coverage-parallel.xml
