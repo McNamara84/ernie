@@ -101,6 +101,74 @@ describe('ResourceStorageService', function () {
         expect($description->value)->toBe('Test abstract description.');
     });
 
+    it('stores a missing version as null', function () {
+        $resourceType = ResourceType::firstOrFail();
+
+        [$resource] = $this->service->store([
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                [
+                    'title' => 'Resource without a version',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+        ], $this->user->id);
+
+        expect($resource->version)->toBeNull();
+        $this->assertDatabaseHas('resources', [
+            'id' => $resource->id,
+            'version' => null,
+        ]);
+    });
+
+    it('clears a previously stored version to null', function () {
+        $resourceType = ResourceType::firstOrFail();
+        $data = [
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'version' => '1.0',
+            'titles' => [
+                [
+                    'title' => 'Versioned resource',
+                    'titleType' => 'MainTitle',
+                ],
+            ],
+            'authors' => [
+                [
+                    'type' => 'person',
+                    'firstName' => 'Jane',
+                    'lastName' => 'Doe',
+                    'position' => 0,
+                ],
+            ],
+        ];
+
+        [$resource] = $this->service->store($data, $this->user->id);
+        expect($resource->version)->toBe('1.0');
+
+        [$updatedResource, $isUpdate] = $this->service->store([
+            ...$data,
+            'resourceId' => $resource->id,
+            'version' => null,
+        ], $this->user->id);
+
+        expect($isUpdate)->toBeTrue()
+            ->and($updatedResource->version)->toBeNull();
+        $this->assertDatabaseHas('resources', [
+            'id' => $resource->id,
+            'version' => null,
+        ]);
+    });
+
     it('stores imported raw rights without a selected catalog license', function () {
         $resourceType = ResourceType::first();
 
