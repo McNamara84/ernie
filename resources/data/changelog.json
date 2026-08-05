@@ -384,6 +384,10 @@
         ],
         "fixes": [
             {
+                "title": "Clearer Optional Version Field",
+                "description": "The Data Editor now displays 'None' only as a placeholder when a resource has no version. The underlying field remains empty, missing or cleared versions continue to be stored as null and omitted from DataCite exports, and genuine version values remain unchanged."
+            },
+            {
                 "title": "Optional Data Language in the Data Editor",
                 "description": "The Data Editor no longer defaults missing resource-language metadata to English or requires curators to select a language. New, uploaded, existing, and legacy resources preserve an explicitly supplied language, while missing values remain unset and existing selections can be cleared without blocking validation."
             },

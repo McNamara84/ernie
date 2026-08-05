@@ -137,6 +137,39 @@ test.describe('DataCite Form Validation UX', () => {
             expect(await formPage.versionInput.evaluate((input: HTMLInputElement) => input.matches(':placeholder-shown'))).toBe(false);
         });
 
+        test('submits null for a missing version and the entered version string in draft save requests', async ({ page }) => {
+            const submittedVersions: unknown[] = [];
+            const saveDraftButton = page.getByTestId('save-draft-button');
+
+            await page.route(
+                (url) => url.pathname === '/editor/resources/draft',
+                async (route) => {
+                    const payload = route.request().postDataJSON() as { version?: unknown };
+                    submittedVersions.push(payload.version);
+
+                    await route.fulfill({
+                        status: 422,
+                        contentType: 'application/json',
+                        body: JSON.stringify({ message: 'Request intercepted by the version payload test.' }),
+                    });
+                },
+            );
+
+            await formPage.mainTitleInput.fill('Version payload regression test');
+            await expect(formPage.versionInput).toHaveValue('');
+            await expect(saveDraftButton).toBeEnabled();
+
+            await saveDraftButton.click();
+            await expect.poll(() => submittedVersions.length).toBe(1);
+            expect(submittedVersions[0]).toBeNull();
+
+            await expect(saveDraftButton).toBeEnabled();
+            await formPage.versionInput.fill('2.1');
+            await saveDraftButton.click();
+            await expect.poll(() => submittedVersions.length).toBe(2);
+            expect(submittedVersions[1]).toBe('2.1');
+        });
+
         test('validates main title length', async ({ page }) => {
             // Too short (empty)
             await formPage.mainTitleInput.fill('');
