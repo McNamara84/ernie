@@ -3095,8 +3095,8 @@ export default function DataCiteForm({
                             onValidationBlur={() => markFieldTouched('version')}
                             validationMessages={getFieldState('version').messages}
                             touched={getFieldState('version').touched}
-                            placeholder="1.0"
-                            labelTooltip="Version number (e.g., 1.0, 2.1, 1.0.0)"
+                            placeholder="None"
+                            labelTooltip="Optional version (e.g., 1.0, 2.1, 1.0.0)"
                             maxLength={50}
                             className="min-w-0 md:col-span-2 xl:col-span-1"
                         />

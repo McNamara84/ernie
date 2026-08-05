@@ -124,6 +124,19 @@ test.describe('DataCite Form Validation UX', () => {
             await formPage.expectValidationSuccess(formPage.versionInput);
         });
 
+        test('shows a missing version as None without setting a metadata value', async () => {
+            await expect(formPage.versionInput).toHaveValue('');
+            await expect(formPage.versionInput).toHaveAttribute('placeholder', 'None');
+
+            const placeholderIsShown = await formPage.versionInput.evaluate((input: HTMLInputElement) => input.matches(':placeholder-shown'));
+            expect(placeholderIsShown).toBe(true);
+
+            await formPage.versionInput.fill('2.1');
+
+            await expect(formPage.versionInput).toHaveValue('2.1');
+            expect(await formPage.versionInput.evaluate((input: HTMLInputElement) => input.matches(':placeholder-shown'))).toBe(false);
+        });
+
         test('validates main title length', async ({ page }) => {
             // Too short (empty)
             await formPage.mainTitleInput.fill('');
