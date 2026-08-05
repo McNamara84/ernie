@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import { act, fireEvent, render, screen, waitFor, within } from '@tests/vitest/utils/render';
 import axios from 'axios';
-import { afterAll, afterEach, beforeAll, beforeEach, expect, vi, describe as vitestDescribe, it as vitestIt, type Mock } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe as vitestDescribe, expect, it as vitestIt, type Mock, vi } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle, type DataCiteFormProps } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
