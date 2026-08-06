@@ -321,7 +321,7 @@ describe('getMetadataBatch', function (): void {
             '10.5880/retry.500',
             '10.5880/permanent.404',
             '10.5880/permanent.400',
-        ], concurrency: 4, timeoutSeconds: 1, attempts: 2, retryDelayMs: 0);
+        ], concurrency: 4, timeoutSeconds: 1, attempts: 2, retryDelayMs: 1);
 
         expect($results['10.5880/retry.429']['status'])->toBe('resolved')
             ->and($results['10.5880/retry.500']['status'])->toBe('resolved')
@@ -459,6 +459,18 @@ describe('buildCitationFromMetadata', function (): void {
         $result = $this->service->buildCitationFromMetadata($metadata);
 
         expect($result)->toContain('GFZ German Research Centre for Geosciences');
+    });
+
+    it('ignores malformed authors and handles an empty given name', function (): void {
+        $result = $this->service->buildCitationFromMetadata([
+            'author' => [
+                'not-an-array',
+                ['family' => 'Doe', 'given' => ''],
+            ],
+            'title' => 'Minimal metadata',
+        ]);
+
+        expect($result)->toBe('Doe (n.d.): Minimal metadata. Unknown Publisher');
     });
 
     it('handles family-only author names', function (): void {

@@ -6,7 +6,7 @@ use App\Exceptions\IncompleteCitationLabelResolutionException;
 use App\Services\Citations\RelatedIdentifierCitationLabelService;
 use App\Services\DataCiteApiService;
 
-covers(RelatedIdentifierCitationLabelService::class);
+covers(RelatedIdentifierCitationLabelService::class, IncompleteCitationLabelResolutionException::class);
 
 it('resolves a citation label for DOI identifiers', function () {
     $dataCite = Mockery::mock(DataCiteApiService::class);
@@ -83,6 +83,34 @@ it('skips best-effort resolution when the aggregate budget is exhausted', functi
     $service = new RelatedIdentifierCitationLabelService($dataCite);
 
     expect($service->resolveBestEffort('10.1234/example', 'DOI', microtime(true) - 1))->toBeNull();
+});
+
+it('resolves within the remaining best-effort budget', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldReceive('normalizeDoi')->once()->with('10.1234/budget')->andReturn('10.1234/budget');
+    $dataCite->shouldReceive('getMetadata')
+        ->once()
+        ->with(
+            '10.1234/budget',
+            Mockery::on(fn (float $timeout): bool => $timeout > 0.1 && $timeout <= 0.75),
+            false,
+        )
+        ->andReturn(['title' => 'Budget']);
+    $dataCite->shouldReceive('buildCitationFromMetadata')->once()->andReturn('Budget citation');
+
+    $service = new RelatedIdentifierCitationLabelService($dataCite);
+
+    expect($service->resolveBestEffort('10.1234/budget', 'DOI', microtime(true) + 1))->toBe('Budget citation');
+});
+
+it('skips best-effort resolution when too little aggregate budget remains', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadata');
+
+    $service = new RelatedIdentifierCitationLabelService($dataCite);
+
+    expect($service->resolveBestEffort('10.1234/example', 'DOI', microtime(true) + 0.05))->toBeNull();
 });
 
 it('resolves all 17 citation labels from issue 1086 with the existing ERNIE formatter', function () {
@@ -211,6 +239,30 @@ it('fails required resolution for a malformed explicit DOI without making a batc
         expect($exception->failures)->toBe([
             'not-a-doi' => 'The identifier is not a valid resolvable DOI.',
         ])->and($exception->getMessage())->toContain('The resource was not imported.');
+    }
+});
+
+it('fails required resolution for an empty explicit DOI and tolerates empty unrelated entries', function () {
+    $dataCite = Mockery::mock(DataCiteApiService::class);
+    $dataCite->shouldNotReceive('normalizeDoi');
+    $dataCite->shouldNotReceive('getMetadataBatch');
+
+    $service = new RelatedIdentifierCitationLabelService($dataCite);
+
+    try {
+        $service->resolveRequired([
+            [],
+            [
+                'relatedIdentifier' => '   ',
+                'relatedIdentifierType' => 'DOI',
+            ],
+        ]);
+
+        test()->fail('Expected incomplete citation-label resolution exception.');
+    } catch (IncompleteCitationLabelResolutionException $exception) {
+        expect($exception->failures)->toBe([
+            '[empty DOI at position 1]' => 'The identifier is not a valid resolvable DOI.',
+        ]);
     }
 });
 
