@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Support\Traits\ChecksCacheTagging;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -99,6 +100,201 @@ class DataCiteApiService
         }
 
         return is_array($result) ? $result : null;
+    }
+
+    /**
+     * Fetch CSL metadata for multiple DOIs with bounded concurrency and retries.
+     *
+     * Transient-failure cache sentinels are deliberately retried here: this path
+     * backs strict single-resource imports, where a previous best-effort timeout
+     * must not turn into a guaranteed incomplete result.
+     *
+     * @param  array<int, string>  $dois
+     * @return array<string, array{status: 'resolved', metadata: array<string, mixed>}|array{status: 'not_found'|'failed', reason: string}>
+     */
+    public function getMetadataBatch(
+        array $dois,
+        ?int $concurrency = null,
+        ?float $timeoutSeconds = null,
+        ?int $attempts = null,
+        ?int $retryDelayMs = null,
+    ): array {
+        $concurrency = max(1, $concurrency ?? (int) config('datacite.citation_labels.required_concurrency', 4));
+        $timeoutSeconds = max(0.1, $timeoutSeconds ?? (float) config('datacite.citation_labels.required_timeout_seconds', self::DEFAULT_TIMEOUT_SECONDS));
+        $attempts = max(1, $attempts ?? (int) config('datacite.citation_labels.required_attempts', 3));
+        $retryDelayMs = max(0, $retryDelayMs ?? (int) config('datacite.citation_labels.required_retry_delay_ms', 500));
+
+        /** @var array<string, true> $normalizedDois */
+        $normalizedDois = [];
+
+        foreach ($dois as $doi) {
+            $normalizedDoi = $this->normalizeDoi($doi);
+
+            if ($normalizedDoi !== null) {
+                $normalizedDois[$normalizedDoi] = true;
+            }
+        }
+
+        if ($normalizedDois === []) {
+            return [];
+        }
+
+        $cache = $this->getCacheInstance(CacheKey::DOI_CITATION->tags());
+        $results = [];
+        $pending = [];
+
+        foreach (array_keys($normalizedDois) as $doi) {
+            $cached = $cache->get(CacheKey::DOI_CITATION->key($doi));
+
+            if (is_array($cached)) {
+                $results[$doi] = [
+                    'status' => 'resolved',
+                    'metadata' => $cached,
+                ];
+
+                continue;
+            }
+
+            if ($cached === self::CACHE_NULL_SENTINEL) {
+                $results[$doi] = [
+                    'status' => 'not_found',
+                    'reason' => 'DOI metadata was not found (HTTP 404).',
+                ];
+
+                continue;
+            }
+
+            // A transient sentinel from a best-effort request is not authoritative.
+            $pending[$doi] = 'DOI metadata request has not completed.';
+        }
+
+        for ($attempt = 1; $attempt <= $attempts && $pending !== []; $attempt++) {
+            foreach (array_chunk(array_keys($pending), $concurrency) as $chunk) {
+                $responses = $this->fetchMetadataPool($chunk, $timeoutSeconds);
+
+                foreach ($chunk as $doi) {
+                    $response = $responses[$doi] ?? null;
+
+                    if ($response instanceof \Throwable) {
+                        $pending[$doi] = 'Connection error: '.mb_substr($response->getMessage(), 0, 500);
+
+                        continue;
+                    }
+
+                    if (! $response instanceof Response) {
+                        $pending[$doi] = 'The DOI metadata service returned no response.';
+
+                        continue;
+                    }
+
+                    if ($response->successful()) {
+                        $metadata = $response->json();
+
+                        if (is_array($metadata)) {
+                            $results[$doi] = [
+                                'status' => 'resolved',
+                                'metadata' => $metadata,
+                            ];
+                            $cache->put(
+                                CacheKey::DOI_CITATION->key($doi),
+                                $metadata,
+                                CacheKey::DOI_CITATION->ttl(),
+                            );
+                            unset($pending[$doi]);
+
+                            continue;
+                        }
+
+                        $pending[$doi] = 'The DOI metadata service returned a non-JSON response.';
+
+                        continue;
+                    }
+
+                    if ($response->status() === 404) {
+                        $results[$doi] = [
+                            'status' => 'not_found',
+                            'reason' => 'DOI metadata was not found (HTTP 404).',
+                        ];
+                        $cache->put(
+                            CacheKey::DOI_CITATION->key($doi),
+                            self::CACHE_NULL_SENTINEL,
+                            CacheKey::DOI_CITATION->ttl(),
+                        );
+                        unset($pending[$doi]);
+
+                        continue;
+                    }
+
+                    if ($response->status() === 429 || $response->serverError()) {
+                        $pending[$doi] = "The DOI metadata service returned HTTP {$response->status()}.";
+
+                        continue;
+                    }
+
+                    $results[$doi] = [
+                        'status' => 'failed',
+                        'reason' => "The DOI metadata service returned permanent HTTP {$response->status()}.",
+                    ];
+                    unset($pending[$doi]);
+                }
+            }
+
+            if ($pending !== [] && $attempt < $attempts && $retryDelayMs > 0) {
+                usleep($retryDelayMs * $attempt * 1000);
+            }
+        }
+
+        foreach ($pending as $doi => $reason) {
+            $results[$doi] = [
+                'status' => 'failed',
+                'reason' => $reason,
+            ];
+        }
+
+        $failures = array_filter(
+            $results,
+            static fn (array $result): bool => $result['status'] === 'failed',
+        );
+
+        if ($failures !== []) {
+            Log::warning('DOI citation metadata batch remained incomplete after retries.', [
+                'failures' => array_map(
+                    static fn (array $result): string => $result['reason'],
+                    $failures,
+                ),
+            ]);
+        }
+
+        return $results;
+    }
+
+    /**
+     * @param  list<string>  $dois
+     * @return array<string, Response|\Throwable>
+     */
+    private function fetchMetadataPool(array $dois, float $timeoutSeconds): array
+    {
+        try {
+            /** @var array<string, Response|\Throwable> $responses */
+            $responses = Http::pool(function (Pool $pool) use ($dois, $timeoutSeconds): array {
+                $requests = [];
+
+                foreach ($dois as $doi) {
+                    $requests[] = $pool->as($doi)
+                        ->timeout($timeoutSeconds)
+                        ->withHeaders([
+                            'Accept' => 'application/vnd.citationstyles.csl+json',
+                        ])
+                        ->get("https://doi.org/{$doi}");
+                }
+
+                return $requests;
+            });
+
+            return $responses;
+        } catch (\Throwable $exception) {
+            return array_fill_keys($dois, $exception);
+        }
     }
 
     /**

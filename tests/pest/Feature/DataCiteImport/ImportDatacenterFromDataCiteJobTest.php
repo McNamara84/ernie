@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Enums\UserRole;
 use App\Jobs\ImportFromDataCiteJob;
 use App\Models\Datacenter;
@@ -28,7 +29,11 @@ beforeEach(function () {
     $this->transformer
         ->shouldReceive('prepareDoiData')
         ->zeroOrMoreTimes()
-        ->andReturnUsing(fn (array $doiRecord): array => $doiRecord)
+        ->andReturnUsing(fn (
+            array $doiRecord,
+            array $_legacyRelatedIdentifiers = [],
+            CitationLabelResolutionMode $_mode = CitationLabelResolutionMode::BEST_EFFORT,
+        ): array => $doiRecord)
         ->byDefault();
     $this->app->instance(DataCiteToResourceTransformer::class, $this->transformer);
 
@@ -111,6 +116,16 @@ describe('datacenter-scoped DataCite import job', function () {
                 $streamAdvancedAfterFinalTarget = true;
                 yield datacenterDoiRecord('10.5880/after-final-target');
             })());
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->withArgs(fn (
+                array $record,
+                array $_legacyRelatedIdentifiers,
+                CitationLabelResolutionMode $mode,
+            ): bool => $record['attributes']['doi'] === '10.5880/selected'
+                && $mode === CitationLabelResolutionMode::BEST_EFFORT)
+            ->andReturnUsing(fn (array $record): array => $record);
         $this->transformer
             ->shouldReceive('transform')
             ->once()

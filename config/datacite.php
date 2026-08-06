@@ -27,6 +27,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Required Citation Label Resolution
+    |--------------------------------------------------------------------------
+    |
+    | Single-resource imports require complete DOI citation labels before they
+    | are considered successful. Requests are pooled in bounded chunks and
+    | retried for transient failures without changing bulk-import behavior.
+    |
+    */
+    'citation_labels' => [
+        'required_concurrency' => (int) env('DATACITE_CITATION_REQUIRED_CONCURRENCY', 4),
+        'required_timeout_seconds' => (float) env('DATACITE_CITATION_REQUIRED_TIMEOUT', 10),
+        'required_attempts' => (int) env('DATACITE_CITATION_REQUIRED_ATTEMPTS', 3),
+        'required_retry_delay_ms' => (int) env('DATACITE_CITATION_REQUIRED_RETRY_DELAY_MS', 500),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | DataCite Production API Configuration
     |--------------------------------------------------------------------------
     |
