@@ -261,7 +261,7 @@ it('fails required resolution for an empty explicit DOI and tolerates empty unre
         test()->fail('Expected incomplete citation-label resolution exception.');
     } catch (IncompleteCitationLabelResolutionException $exception) {
         expect($exception->failures)->toBe([
-            '[empty DOI at position 1]' => 'The identifier is not a valid resolvable DOI.',
+            '[empty DOI at position 2]' => 'The identifier is not a valid resolvable DOI.',
         ]);
     }
 });
@@ -314,7 +314,7 @@ it('abbreviates long unresolved DOI lists in the domain exception message', func
     $exception = new IncompleteCitationLabelResolutionException($failures);
 
     expect($exception->getMessage())
-        ->toContain('6 related DOI(s)')
+        ->toContain('6 related identifier(s)')
         ->toContain('10.1234/failure.5, …')
         ->not->toContain('10.1234/failure.6');
 });

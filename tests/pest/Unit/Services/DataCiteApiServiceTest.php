@@ -272,7 +272,7 @@ describe('getMetadataBatch', function (): void {
         Http::assertSent(fn ($request): bool => $request->header('Accept')[0] === 'application/vnd.citationstyles.csl+json');
     });
 
-    it('returns cached successes and confirmed missing DOIs without outbound requests', function (): void {
+    it('returns cached successes and confirmed missing DOIs without additional outbound requests', function (): void {
         Http::fake(function ($request) {
             if (str_contains($request->url(), 'cached.missing')) {
                 return Http::response('Not Found', 404);

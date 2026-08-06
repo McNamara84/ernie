@@ -105,7 +105,8 @@ class RelatedIdentifierCitationLabelService
 
             if ($doi === null) {
                 if ($identifierType === 'DOI') {
-                    $failureKey = $identifier !== '' ? $identifier : "[empty DOI at position {$index}]";
+                    $position = $index + 1;
+                    $failureKey = $identifier !== '' ? $identifier : "[empty DOI at position {$position}]";
                     $failures[$failureKey] = 'The identifier is not a valid resolvable DOI.';
                 }
 
