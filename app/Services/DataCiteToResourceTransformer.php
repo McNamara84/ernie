@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\AccessLevel;
+use App\Enums\CitationLabelResolutionMode;
 use App\Models\Affiliation;
 use App\Models\ContributorType;
 use App\Models\DateType;
@@ -124,21 +125,32 @@ class DataCiteToResourceTransformer
      * @param  array<int, mixed>  $legacyRelatedIdentifiers
      * @return array<string, mixed>
      */
-    public function prepareDoiData(array $doiData, array $legacyRelatedIdentifiers = []): array
-    {
-        if (($doiData[self::PREPARED_MARKER] ?? false) === true) {
+    public function prepareDoiData(
+        array $doiData,
+        array $legacyRelatedIdentifiers = [],
+        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
+    ): array {
+        if ($this->preparedModeSatisfies($doiData[self::PREPARED_MARKER] ?? null, $citationLabelResolutionMode)) {
             return $doiData;
         }
 
         if (is_array($doiData['attributes'] ?? null)) {
-            $doiData['attributes'] = $this->prepareAttributes($doiData['attributes'], $legacyRelatedIdentifiers);
-            $doiData[self::PREPARED_MARKER] = true;
+            $doiData['attributes'] = $this->prepareAttributes(
+                $doiData['attributes'],
+                $legacyRelatedIdentifiers,
+                $citationLabelResolutionMode,
+            );
+            $doiData[self::PREPARED_MARKER] = $citationLabelResolutionMode->value;
 
             return $doiData;
         }
 
-        $preparedAttributes = $this->prepareAttributes($doiData, $legacyRelatedIdentifiers);
-        $preparedAttributes[self::PREPARED_MARKER] = true;
+        $preparedAttributes = $this->prepareAttributes(
+            $doiData,
+            $legacyRelatedIdentifiers,
+            $citationLabelResolutionMode,
+        );
+        $preparedAttributes[self::PREPARED_MARKER] = $citationLabelResolutionMode->value;
 
         return $preparedAttributes;
     }
@@ -148,8 +160,11 @@ class DataCiteToResourceTransformer
      * @param  array<int, mixed>  $legacyRelatedIdentifiers
      * @return array<string, mixed>
      */
-    private function prepareAttributes(array $attributes, array $legacyRelatedIdentifiers = []): array
-    {
+    private function prepareAttributes(
+        array $attributes,
+        array $legacyRelatedIdentifiers,
+        CitationLabelResolutionMode $citationLabelResolutionMode,
+    ): array {
         $xml = $this->xmlRelatedIdentifierExtractor()->decode($attributes['xml'] ?? null);
         $xmlRelatedIdentifiers = $xml === null
             ? []
@@ -165,6 +180,12 @@ class DataCiteToResourceTransformer
             $xmlRelatedIdentifiers,
             $legacyRelatedIdentifiers,
         );
+
+        if ($citationLabelResolutionMode === CitationLabelResolutionMode::REQUIRED) {
+            $attributes['relatedIdentifiers'] = $this->citationLabelService()->resolveRequired($relatedIdentifiers);
+
+            return $attributes;
+        }
 
         $citationResolutionDeadline = microtime(true) + RelatedIdentifierCitationLabelService::DEFAULT_AGGREGATE_TIMEOUT_SECONDS;
 
@@ -205,6 +226,16 @@ class DataCiteToResourceTransformer
         $attributes['relatedIdentifiers'] = $relatedIdentifiers;
 
         return $attributes;
+    }
+
+    private function preparedModeSatisfies(mixed $marker, CitationLabelResolutionMode $requestedMode): bool
+    {
+        // Compatibility for payloads prepared before the marker became mode-aware.
+        $preparedMode = $marker === true
+            ? CitationLabelResolutionMode::BEST_EFFORT
+            : (is_string($marker) ? CitationLabelResolutionMode::tryFrom($marker) : null);
+
+        return $preparedMode?->satisfies($requestedMode) ?? false;
     }
 
     /**

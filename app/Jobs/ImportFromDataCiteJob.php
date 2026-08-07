@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\CitationLabelResolutionMode;
 use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\Resource;
@@ -221,6 +222,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                         transformer: $transformer,
                         metaworksService: $metaworksService,
                         shouldLookupMetaworks: ! $metaworksUnavailable,
+                        citationLabelResolutionMode: CitationLabelResolutionMode::BEST_EFFORT,
                     );
 
                     if ($result['enriched']) {
@@ -686,6 +688,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 portalDatacenterNames: $portalDatacenterNames !== []
                     ? $portalDatacenterNames
                     : null,
+                citationLabelResolutionMode: CitationLabelResolutionMode::BEST_EFFORT,
             );
 
             return [
@@ -756,6 +759,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 doiRecord: $doiRecord,
                 transformer: $transformer,
                 metaworksService: $metaworksService,
+                citationLabelResolutionMode: CitationLabelResolutionMode::REQUIRED,
             );
         } catch (\Exception $exception) {
             Log::warning('Failed to import single DOI from DataCite', [
@@ -887,6 +891,7 @@ class ImportFromDataCiteJob implements ShouldQueue
         MetaworksDownloadUrlService $metaworksService,
         bool $shouldLookupMetaworks = true,
         ?array $portalDatacenterNames = null,
+        CitationLabelResolutionMode $citationLabelResolutionMode = CitationLabelResolutionMode::BEST_EFFORT,
     ): array {
         $metaworksUnavailable = false;
 
@@ -937,7 +942,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 }
             }
 
-            $preparedDoiRecord = $transformer->prepareDoiData($doiRecord, $legacyRelatedIdentifiers);
+            $preparedDoiRecord = $transformer->prepareDoiData(
+                $doiRecord,
+                $legacyRelatedIdentifiers,
+                $citationLabelResolutionMode,
+            );
 
             // Use database transaction to ensure atomicity of the check-then-insert operation.
             //

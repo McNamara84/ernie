@@ -244,6 +244,188 @@ describe('getMetadata', function (): void {
 });
 
 // =========================================================================
+// getMetadataBatch
+// =========================================================================
+
+describe('getMetadataBatch', function (): void {
+    it('normalizes and deduplicates DOIs before fetching them in bounded chunks', function (): void {
+        Http::fake(fn ($request) => Http::response([
+            'DOI' => str_replace('https://doi.org/', '', $request->url()),
+            'title' => 'Batch fixture',
+        ]));
+
+        $results = $this->service->getMetadataBatch([
+            '10.5880/BATCH.ONE',
+            'https://doi.org/10.5880/batch.one',
+            ' 10.5880/batch.two ',
+            '',
+        ], concurrency: 1, timeoutSeconds: 1, attempts: 1, retryDelayMs: 0);
+
+        expect(array_keys($results))->toBe([
+            '10.5880/batch.one',
+            '10.5880/batch.two',
+        ])
+            ->and($results['10.5880/batch.one']['status'])->toBe('resolved')
+            ->and($results['10.5880/batch.two']['status'])->toBe('resolved');
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request): bool => $request->header('Accept')[0] === 'application/vnd.citationstyles.csl+json');
+    });
+
+    it('returns cached successes and confirmed missing DOIs without additional outbound requests', function (): void {
+        Http::fake(function ($request) {
+            if (str_contains($request->url(), 'cached.missing')) {
+                return Http::response('Not Found', 404);
+            }
+
+            return Http::response(['DOI' => '10.5880/cached.success']);
+        });
+
+        $this->service->getMetadata('10.5880/cached.success');
+        $this->service->getMetadata('10.5880/cached.missing');
+
+        $results = $this->service->getMetadataBatch([
+            '10.5880/cached.success',
+            '10.5880/cached.missing',
+        ], attempts: 1, retryDelayMs: 0);
+
+        expect($results['10.5880/cached.success'])->toMatchArray([
+            'status' => 'resolved',
+            'metadata' => ['DOI' => '10.5880/cached.success'],
+        ])->and($results['10.5880/cached.missing']['status'])->toBe('not_found');
+
+        Http::assertSentCount(2);
+    });
+
+    it('retries transient HTTP failures but not permanent responses', function (): void {
+        $calls = [];
+
+        Http::fake(function ($request) use (&$calls) {
+            $doi = str_replace('https://doi.org/', '', $request->url());
+            $calls[$doi] = ($calls[$doi] ?? 0) + 1;
+
+            return match ($doi) {
+                '10.5880/retry.429' => $calls[$doi] === 1
+                    ? Http::response('Rate limited', 429)
+                    : Http::response(['DOI' => $doi]),
+                '10.5880/retry.500' => $calls[$doi] === 1
+                    ? Http::response('Unavailable', 503)
+                    : Http::response(['DOI' => $doi]),
+                '10.5880/permanent.404' => Http::response('Not Found', 404),
+                default => Http::response('Bad request', 400),
+            };
+        });
+
+        $results = $this->service->getMetadataBatch([
+            '10.5880/retry.429',
+            '10.5880/retry.500',
+            '10.5880/permanent.404',
+            '10.5880/permanent.400',
+        ], concurrency: 4, timeoutSeconds: 1, attempts: 2, retryDelayMs: 1);
+
+        expect($results['10.5880/retry.429']['status'])->toBe('resolved')
+            ->and($results['10.5880/retry.500']['status'])->toBe('resolved')
+            ->and($results['10.5880/permanent.404']['status'])->toBe('not_found')
+            ->and($results['10.5880/permanent.400'])->toMatchArray([
+                'status' => 'failed',
+                'reason' => 'The DOI metadata service returned permanent HTTP 400.',
+            ])
+            ->and($calls)->toBe([
+                '10.5880/retry.429' => 2,
+                '10.5880/retry.500' => 2,
+                '10.5880/permanent.404' => 1,
+                '10.5880/permanent.400' => 1,
+            ]);
+    });
+
+    it('retries connection exceptions and successful non-JSON responses', function (): void {
+        $connectionAttempts = 0;
+        $nonJsonAttempts = 0;
+
+        Http::fake(function ($request) use (&$connectionAttempts, &$nonJsonAttempts) {
+            if (str_contains($request->url(), 'connection')) {
+                $connectionAttempts++;
+
+                if ($connectionAttempts === 1) {
+                    throw new Exception('Connection timeout');
+                }
+
+                return Http::response(['DOI' => '10.5880/connection']);
+            }
+
+            $nonJsonAttempts++;
+
+            return $nonJsonAttempts === 1
+                ? Http::response('', 200, ['Content-Type' => 'text/html'])
+                : Http::response(['DOI' => '10.5880/non-json']);
+        });
+
+        $results = $this->service->getMetadataBatch([
+            '10.5880/connection',
+            '10.5880/non-json',
+        ], concurrency: 1, timeoutSeconds: 1, attempts: 2, retryDelayMs: 0);
+
+        expect($results['10.5880/connection']['status'])->toBe('resolved')
+            ->and($results['10.5880/non-json']['status'])->toBe('resolved')
+            ->and($connectionAttempts)->toBe(2)
+            ->and($nonJsonAttempts)->toBe(2);
+    });
+
+    it('ignores a transient best-effort cache sentinel and caches a later batch success', function (): void {
+        Http::fake([
+            'doi.org/*' => Http::sequence()
+                ->push('Unavailable', 503)
+                ->push(['DOI' => '10.5880/transient']),
+        ]);
+        expect($this->service->getMetadata('10.5880/transient'))->toBeNull();
+
+        $firstBatch = $this->service->getMetadataBatch(
+            ['10.5880/transient'],
+            attempts: 1,
+            retryDelayMs: 0,
+        );
+        $secondBatch = $this->service->getMetadataBatch(
+            ['10.5880/transient'],
+            attempts: 1,
+            retryDelayMs: 0,
+        );
+
+        expect($firstBatch['10.5880/transient']['status'])->toBe('resolved')
+            ->and($secondBatch)->toBe($firstBatch);
+
+        Http::assertSentCount(2);
+    });
+
+    it('returns structured failures and emits one aggregate warning after retries are exhausted', function (): void {
+        Log::spy();
+        Http::fake(['doi.org/*' => Http::response('Unavailable', 503)]);
+
+        $results = $this->service->getMetadataBatch([
+            '10.5880/exhausted.one',
+            '10.5880/exhausted.two',
+        ], concurrency: 1, timeoutSeconds: 1, attempts: 2, retryDelayMs: 0);
+
+        expect($results['10.5880/exhausted.one'])->toMatchArray([
+            'status' => 'failed',
+            'reason' => 'The DOI metadata service returned HTTP 503.',
+        ])->and($results['10.5880/exhausted.two']['status'])->toBe('failed');
+
+        Http::assertSentCount(4);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'batch remained incomplete')
+                && count($context['failures']) === 2)
+            ->once();
+    });
+
+    it('returns no outcomes or requests when no DOI can be normalized', function (): void {
+        Http::fake();
+
+        expect($this->service->getMetadataBatch(['', 'https://doi.org/']))->toBe([]);
+        Http::assertNothingSent();
+    });
+});
+
+// =========================================================================
 // buildCitationFromMetadata
 // =========================================================================
 
@@ -277,6 +459,18 @@ describe('buildCitationFromMetadata', function (): void {
         $result = $this->service->buildCitationFromMetadata($metadata);
 
         expect($result)->toContain('GFZ German Research Centre for Geosciences');
+    });
+
+    it('ignores malformed authors and handles an empty given name', function (): void {
+        $result = $this->service->buildCitationFromMetadata([
+            'author' => [
+                'not-an-array',
+                ['family' => 'Doe', 'given' => ''],
+            ],
+            'title' => 'Minimal metadata',
+        ]);
+
+        expect($result)->toBe('Doe (n.d.): Minimal metadata. Unknown Publisher');
     });
 
     it('handles family-only author names', function (): void {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Citations;
 
+use App\Exceptions\IncompleteCitationLabelResolutionException;
 use App\Services\DataCiteApiService;
 
 class RelatedIdentifierCitationLabelService
@@ -54,6 +55,105 @@ class RelatedIdentifierCitationLabelService
         }
 
         return $this->resolve($identifier, $identifierType, $timeoutSeconds);
+    }
+
+    /**
+     * Resolve every missing citation label required by a single-resource import.
+     *
+     * Existing labels are preserved. DOI-like URL identifiers participate in
+     * strict resolution, while unrelated URL and non-DOI identifier types stay
+     * optional because the current citation provider cannot resolve them.
+     *
+     * @param  array<int, array<string, mixed>>  $relatedIdentifiers
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws IncompleteCitationLabelResolutionException
+     */
+    public function resolveRequired(array $relatedIdentifiers): array
+    {
+        /** @var array<string, list<int>> $indexesByDoi */
+        $indexesByDoi = [];
+        /** @var array<string, string> $failures */
+        $failures = [];
+
+        foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+            $identifier = isset($relatedIdentifier['relatedIdentifier'])
+                ? trim((string) $relatedIdentifier['relatedIdentifier'])
+                : '';
+            $identifierType = isset($relatedIdentifier['relatedIdentifierType'])
+                ? trim((string) $relatedIdentifier['relatedIdentifierType'])
+                : '';
+            $citationLabel = isset($relatedIdentifier['citationLabel'])
+                ? trim((string) $relatedIdentifier['citationLabel'])
+                : '';
+
+            if ($identifier !== '') {
+                $relatedIdentifiers[$index]['relatedIdentifier'] = $identifier;
+            }
+
+            if ($citationLabel !== '') {
+                $relatedIdentifiers[$index]['citationLabel'] = $citationLabel;
+
+                continue;
+            }
+
+            if ($identifierType !== 'DOI' && $identifierType !== 'URL') {
+                continue;
+            }
+
+            $doi = $this->extractResolvableDoi($identifier, $identifierType);
+
+            if ($doi === null) {
+                if ($identifierType === 'DOI') {
+                    $position = $index + 1;
+                    $failureKey = $identifier !== '' ? $identifier : "[empty DOI at position {$position}]";
+                    $failures[$failureKey] = 'The identifier is not a valid resolvable DOI.';
+                }
+
+                continue;
+            }
+
+            $indexesByDoi[$doi] ??= [];
+            $indexesByDoi[$doi][] = $index;
+        }
+
+        if ($indexesByDoi !== []) {
+            $outcomes = $this->dataCite->getMetadataBatch(array_keys($indexesByDoi));
+
+            foreach ($indexesByDoi as $doi => $indexes) {
+                $outcome = $outcomes[$doi] ?? null;
+
+                if (! is_array($outcome)) {
+                    $failures[$doi] = 'The DOI metadata service returned no result.';
+
+                    continue;
+                }
+
+                if ($outcome['status'] !== 'resolved') {
+                    $failures[$doi] = $outcome['reason'];
+
+                    continue;
+                }
+
+                $citation = trim($this->dataCite->buildCitationFromMetadata($outcome['metadata']));
+
+                if ($citation === '') {
+                    $failures[$doi] = 'The DOI metadata did not produce a citation label.';
+
+                    continue;
+                }
+
+                foreach ($indexes as $index) {
+                    $relatedIdentifiers[$index]['citationLabel'] = $citation;
+                }
+            }
+        }
+
+        if ($failures !== []) {
+            throw new IncompleteCitationLabelResolutionException($failures);
+        }
+
+        return $relatedIdentifiers;
     }
 
     private function extractResolvableDoi(string $identifier, string $identifierType): ?string
