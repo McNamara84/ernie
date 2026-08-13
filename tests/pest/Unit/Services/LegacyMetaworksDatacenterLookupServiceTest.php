@@ -328,6 +328,41 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             ->toBe(1);
     });
 
+    it('reuses and canonicalises an existing mixed-case GEOFON datacenter', function (
+        string $doi,
+        string $canonicalName,
+        string $mixedCaseName,
+    ): void {
+        Datacenter::query()
+            ->where('name', $canonicalName)
+            ->delete();
+
+        $existingDatacenter = Datacenter::query()->create([
+            'name' => $mixedCaseName,
+        ]);
+
+        $datacenterIds = app(LegacyMetaworksDatacenterLookupService::class)
+            ->resolveDatacenterIds($doi);
+
+        expect($datacenterIds)->toBe([$existingDatacenter->id])
+            ->and($existingDatacenter->refresh()->name)->toBe($canonicalName)
+            ->and(Datacenter::query()
+                ->whereRaw('LOWER(name) = LOWER(?)', [$canonicalName])
+                ->count())
+            ->toBe(1);
+    })->with([
+        'seismic network' => [
+            '10.14470/RV968923',
+            LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+            'Geofon seismic networks',
+        ],
+        'seismic event' => [
+            '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            'Geofon seismic events',
+        ],
+    ]);
+
     it('keeps the DOI-rule datacenter authoritative when another specialised table also matches', function () {
         Datacenter::query()
             ->where('name', LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER)

@@ -224,9 +224,7 @@ class LegacyMetaworksDatacenterLookupService
             return [];
         }
 
-        $datacenter = Datacenter::query()->firstOrCreate([
-            'name' => $candidates[0],
-        ]);
+        $datacenter = $this->resolveCanonicalDatacenter($candidates[0]);
 
         return [(int) $datacenter->id];
     }
@@ -257,6 +255,32 @@ class LegacyMetaworksDatacenterLookupService
             ->table($table)
             ->where('doi', $doi)
             ->exists();
+    }
+
+    private function resolveCanonicalDatacenter(string $canonicalName): Datacenter
+    {
+        $datacenter = Datacenter::query()
+            ->where('name', $canonicalName)
+            ->first();
+
+        if ($datacenter === null) {
+            $datacenter = Datacenter::query()
+                ->whereRaw('LOWER(name) = LOWER(?)', [$canonicalName])
+                ->orderBy('id')
+                ->first();
+        }
+
+        if ($datacenter === null) {
+            return Datacenter::query()->firstOrCreate([
+                'name' => $canonicalName,
+            ]);
+        }
+
+        if ($datacenter->name !== $canonicalName) {
+            $datacenter->forceFill(['name' => $canonicalName])->save();
+        }
+
+        return $datacenter;
     }
 
     /**
