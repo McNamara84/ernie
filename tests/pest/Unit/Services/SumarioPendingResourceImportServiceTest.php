@@ -252,6 +252,129 @@ describe('SumarioPendingResourceImportService', function () {
         expect($result['status'])->toBe('imported');
     });
 
+    it('assigns canonical GEOFON datacenters during pending SUMARIO imports', function (
+        int $legacyResourceId,
+        string $storedDoi,
+        string $requestedDoi,
+        string $expectedDoi,
+        string $expectedDatacenter,
+    ) {
+        Config::set('database.connections.legacy_metaworks', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+        DB::purge('legacy_metaworks');
+
+        Schema::connection('legacy_metaworks')->create('gipp_dataset', function (Blueprint $table): void {
+            $table->id();
+            $table->string('doi')->nullable()->collation('NOCASE');
+        });
+        Schema::connection('legacy_metaworks')->create('sddb_dataset', function (Blueprint $table): void {
+            $table->id();
+            $table->string('doi')->nullable()->collation('NOCASE');
+        });
+
+        DB::connection('metaworks')->table('resource')->insert([
+            'id' => $legacyResourceId,
+            'publicstatus' => 'pending',
+            'identifier' => $storedDoi,
+            'publicationyear' => 2025,
+            'title' => 'Pending GEOFON Resource',
+        ]);
+
+        $user = User::factory()->create();
+        $editorLoader = Mockery::mock(OldDatasetEditorLoader::class);
+        $editorLoader
+            ->shouldReceive('loadForEditor')
+            ->once()
+            ->with($legacyResourceId)
+            ->andReturn([
+                'doi' => $storedDoi,
+                'year' => '2025',
+                'language' => 'en',
+                'titles' => [
+                    ['title' => 'Pending GEOFON Resource', 'titleType' => 'main-title'],
+                ],
+                'initialRights' => [],
+                'authors' => [],
+                'contributors' => [],
+                'descriptions' => [],
+                'dates' => [],
+                'gcmdKeywords' => [],
+                'freeKeywords' => [],
+                'geoLocations' => [],
+                'relatedWorks' => [],
+                'fundingReferences' => [],
+                'mslLaboratories' => [],
+            ]);
+
+        $resourceStorage = Mockery::mock(ResourceStorageService::class);
+        $resourceStorage
+            ->shouldReceive('store')
+            ->once()
+            ->andReturnUsing(function (array $payload, int $userId) use ($user, $expectedDoi, $expectedDatacenter): array {
+                $datacenter = Datacenter::query()
+                    ->whereKey($payload['datacenter_id'])
+                    ->firstOrFail();
+
+                expect($userId)->toBe($user->id)
+                    ->and($payload['doi'])->toBe($expectedDoi)
+                    ->and($datacenter->name)->toBe($expectedDatacenter);
+
+                return [
+                    Resource::factory()->create([
+                        'doi' => $payload['doi'],
+                        'datacenter_id' => $datacenter->id,
+                    ]),
+                    false,
+                ];
+            });
+
+        $downloadUrlService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $downloadUrlService
+            ->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with($expectedDoi)
+            ->andReturn(['files' => [], 'allPublic' => false]);
+
+        $service = new SumarioPendingResourceImportService(
+            editorLoader: $editorLoader,
+            resourceStorage: $resourceStorage,
+            datacenterLookup: app(LegacyMetaworksDatacenterLookupService::class),
+            downloadUrlService: $downloadUrlService,
+            landingPageImport: new LegacyLandingPageImportService,
+            doiSuggestionService: app(DoiSuggestionService::class),
+        );
+
+        $result = $service->importPendingByDoi($requestedDoi, $user->id);
+        $resource = $result['resource'];
+
+        if (! $resource instanceof Resource) {
+            throw new RuntimeException('Expected the pending GEOFON resource to be imported.');
+        }
+
+        expect($result['status'])->toBe('imported')
+            ->and($resource->fresh()->datacenter?->name)->toBe($expectedDatacenter)
+            ->and(Datacenter::query()->where('name', $expectedDatacenter)->count())->toBe(1);
+    })->with([
+        'GEOFON seismic network' => [
+            61,
+            '10.14470/RV968923',
+            'https://doi.org/10.14470/RV968923',
+            '10.14470/rv968923',
+            LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+        ],
+        'GEOFON seismic event' => [
+            62,
+            '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            '10.1594/gfz.geofon.gfz2009gibb',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        ],
+    ]);
+
     it('skips a pending SUMARIO resource when the DOI already exists in ERNIE', function () {
         DB::connection('metaworks')->table('resource')->insert([
             'id' => 56,

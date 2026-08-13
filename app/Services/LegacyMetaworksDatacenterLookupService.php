@@ -23,6 +23,10 @@ class LegacyMetaworksDatacenterLookupService
 
     public const FID_GEO_DATACENTER = 'FID GEO';
 
+    public const GEOFON_EVENTS_DATACENTER = 'GEOFON Seismic Events';
+
+    public const GEOFON_NETWORKS_DATACENTER = 'GEOFON Seismic Networks';
+
     public const DEFAULT_DATACENTER = 'GFZ German Research Centre for Geosciences';
 
     public const GIPP_DATACENTER = 'GIPP Geophysical Instrument Pool Potsdam';
@@ -60,6 +64,23 @@ class LegacyMetaworksDatacenterLookupService
     public function __construct(
         private readonly DoiSuggestionService $doiSuggestionService,
     ) {}
+
+    /**
+     * Complete DOI patterns for namespaces that cannot be identified reliably
+     * from the suffix alone.
+     *
+     * @var list<array{pattern: string, datacenters: list<string>}>
+     */
+    private const DOI_DATACENTER_RULES = [
+        [
+            'pattern' => '/^10\.14470\/.+$/i',
+            'datacenters' => [self::GEOFON_NETWORKS_DATACENTER],
+        ],
+        [
+            'pattern' => '/^10\.1594\/gfz\.geofon\..+$/i',
+            'datacenters' => [self::GEOFON_EVENTS_DATACENTER],
+        ],
+    ];
 
     /**
      * DOI suffix patterns that identify datacenters in legacy SUMARIO records.
@@ -198,17 +219,16 @@ class LegacyMetaworksDatacenterLookupService
         ));
 
         $candidates = $specializedNames !== [] ? $specializedNames : $names;
-        $idsByName = Datacenter::query()
-            ->whereIn('name', $candidates)
-            ->pluck('id', 'name');
 
-        foreach ($candidates as $candidate) {
-            if ($idsByName->has($candidate)) {
-                return [(int) $idsByName->get($candidate)];
-            }
+        if ($candidates === []) {
+            return [];
         }
 
-        return [];
+        $datacenter = Datacenter::query()->firstOrCreate([
+            'name' => $candidates[0],
+        ]);
+
+        return [(int) $datacenter->id];
     }
 
     public function syncDatacenters(Resource $resource, string $doi): void
@@ -244,13 +264,21 @@ class LegacyMetaworksDatacenterLookupService
      */
     private function resolveDatacenterNamesFromDoiPattern(string $doi): array
     {
+        $datacenters = [];
+
+        foreach (self::DOI_DATACENTER_RULES as $rule) {
+            if (preg_match($rule['pattern'], $doi) !== 1) {
+                continue;
+            }
+
+            array_push($datacenters, ...$rule['datacenters']);
+        }
+
         $suffix = $this->doiSuffix($doi);
 
         if ($suffix === null) {
-            return [];
+            return $this->uniqueDatacenters($datacenters);
         }
-
-        $datacenters = [];
 
         foreach (self::DOI_SUFFIX_DATACENTER_RULES as $rule) {
             if (preg_match($rule['pattern'], $suffix) !== 1) {

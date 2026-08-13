@@ -5,6 +5,7 @@ use App\Enums\CitationLabelResolutionMode;
 use App\Enums\UserRole;
 use App\Exceptions\IncompleteCitationLabelResolutionException;
 use App\Jobs\ImportFromDataCiteJob;
+use App\Models\Datacenter;
 use App\Models\LandingPage;
 use App\Models\LandingPageDomain;
 use App\Models\LandingPageFile;
@@ -15,14 +16,18 @@ use App\Services\DataCiteImportService;
 use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
+use App\Services\DoiSuggestionService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
 use App\Services\LegacyResourceLookupService;
 use App\Services\MetaworksDownloadUrlService;
 use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
@@ -779,6 +784,74 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['skipped'])->toBe(0)
             ->and($status['failed'])->toBe(0);
     });
+
+    it('assigns canonical GEOFON datacenters during single DataCite imports', function (string $doi, string $expectedDatacenter): void {
+        Config::set('database.connections.legacy_metaworks', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+        DB::purge('legacy_metaworks');
+
+        Schema::connection('legacy_metaworks')->create('gipp_dataset', function (Blueprint $table): void {
+            $table->id();
+            $table->string('doi')->nullable()->collation('NOCASE');
+        });
+        Schema::connection('legacy_metaworks')->create('sddb_dataset', function (Blueprint $table): void {
+            $table->id();
+            $table->string('doi')->nullable()->collation('NOCASE');
+        });
+
+        $this->app->instance(
+            LegacyMetaworksDatacenterLookupService::class,
+            new LegacyMetaworksDatacenterLookupService(app(DoiSuggestionService::class)),
+        );
+
+        $doiRecord = [
+            'id' => $doi,
+            'attributes' => [
+                'doi' => $doi,
+                'titles' => [['title' => 'GEOFON import regression']],
+                'publicationYear' => 2025,
+                'types' => ['resourceTypeGeneral' => 'Dataset'],
+            ],
+        ];
+
+        $this->importService
+            ->shouldReceive('fetchSingleDoi')
+            ->once()
+            ->with($doi)
+            ->andReturn($doiRecord);
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->with($doiRecord, $this->user->id)
+            ->andReturnUsing(fn (): Resource => Resource::factory()->create(['doi' => $doi]));
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId, $doi);
+        $job->handle($this->importService, $this->transformer, $this->metaworksService);
+
+        $resource = Resource::query()->where('doi', $doi)->firstOrFail();
+        $status = Cache::get("datacite_import:{$importId}");
+
+        expect($status['status'])->toBe('completed')
+            ->and($status['imported'])->toBe(1)
+            ->and($status['failed'])->toBe(0)
+            ->and($resource->fresh()->datacenter?->name)->toBe($expectedDatacenter)
+            ->and(Datacenter::query()->where('name', $expectedDatacenter)->count())->toBe(1);
+    })->with([
+        'GEOFON seismic network' => [
+            '10.14470/rv968923',
+            LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+        ],
+        'GEOFON seismic event' => [
+            '10.1594/gfz.geofon.gfz2009gibb',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        ],
+    ]);
 
     it('fails a single import atomically when a required citation label cannot be resolved', function () {
         $doiRecord = [
