@@ -26,6 +26,8 @@ function legacyImportDatacenterNames(): array
         LegacyMetaworksDatacenterLookupService::DIGIS_DATACENTER,
         LegacyMetaworksDatacenterLookupService::ENMAP_DATACENTER,
         LegacyMetaworksDatacenterLookupService::FID_GEO_DATACENTER,
+        LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
         LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER,
         LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER,
         LegacyMetaworksDatacenterLookupService::ICGEM_DATACENTER,
@@ -135,6 +137,22 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             '10.5880/GIPP-MT.202403.1',
             [LegacyMetaworksDatacenterLookupService::GIPP_DATACENTER],
         ],
+        'GEOFON seismic network issue DOI RV968923' => [
+            '10.14470/RV968923',
+            [LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER],
+        ],
+        'GEOFON seismic network issue DOI RR425351' => [
+            '10.14470/RR425351',
+            [LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER],
+        ],
+        'GEOFON seismic event DOI' => [
+            '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            [LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER],
+        ],
+        'non-GEOFON 10.1594 DOI with a similar suffix' => [
+            '10.1594/GFZ.GEOFONIC.GFZ2009GIBB',
+            [LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER],
+        ],
         'ICGEM DOI inside COST-G namespace' => [
             '10.5880/COST-G.ICGEM_02_L2',
             [LegacyMetaworksDatacenterLookupService::ICGEM_DATACENTER],
@@ -205,15 +223,32 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
         ],
     ]);
 
-    it('normalises DOI URLs and doi scheme before matching datacenter patterns', function (string $doi): void {
+    it('normalises DOI URLs and doi scheme before matching datacenter patterns', function (string $doi, string $expectedDatacenter): void {
         $service = app(LegacyMetaworksDatacenterLookupService::class);
 
         expect($service->resolveDatacenterNames($doi))
-            ->toBe([LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER]);
+            ->toBe([$expectedDatacenter]);
     })->with([
-        'https DOI URL' => ['https://doi.org/10.5880/hA-ArboDat_AK1'],
-        'http dx.doi URL' => ['http://dx.doi.org/10.5880/hA-ArboDat_AK1'],
-        'doi scheme' => ['doi:10.5880/hA-ArboDat_AK1'],
+        'https DOI URL' => [
+            'https://doi.org/10.5880/hA-ArboDat_AK1',
+            LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER,
+        ],
+        'http dx.doi URL' => [
+            'http://dx.doi.org/10.5880/hA-ArboDat_AK1',
+            LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER,
+        ],
+        'doi scheme' => [
+            'doi:10.5880/hA-ArboDat_AK1',
+            LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER,
+        ],
+        'mixed-case GEOFON network DOI URL' => [
+            'https://doi.org/10.14470/RV968923',
+            LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+        ],
+        'GEOFON event doi scheme' => [
+            'doi:10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        ],
     ]);
 
     it('delegates DOI normalization after stripping the doi scheme prefix', function () {
@@ -276,6 +311,73 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
             ->toBe([LegacyMetaworksDatacenterLookupService::DEFAULT_DATACENTER]);
     });
 
+    it('creates a missing canonical GEOFON datacenter instead of falling back to GFZ', function () {
+        Datacenter::query()
+            ->where('name', LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER)
+            ->delete();
+
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
+        $datacenterIds = $service->resolveDatacenterIds('10.14470/RV968923');
+
+        expect($datacenterIds)->toHaveCount(1)
+            ->and(Datacenter::query()->findOrFail($datacenterIds[0])->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER)
+            ->and(Datacenter::query()
+                ->where('name', LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER)
+                ->count())
+            ->toBe(1);
+    });
+
+    it('reuses and canonicalises an existing mixed-case GEOFON datacenter', function (
+        string $doi,
+        string $canonicalName,
+        string $mixedCaseName,
+    ): void {
+        Datacenter::query()
+            ->where('name', $canonicalName)
+            ->delete();
+
+        $existingDatacenter = Datacenter::query()->create([
+            'name' => $mixedCaseName,
+        ]);
+
+        $datacenterIds = app(LegacyMetaworksDatacenterLookupService::class)
+            ->resolveDatacenterIds($doi);
+
+        expect($datacenterIds)->toBe([$existingDatacenter->id])
+            ->and($existingDatacenter->refresh()->name)->toBe($canonicalName)
+            ->and(Datacenter::query()
+                ->whereRaw('LOWER(name) = LOWER(?)', [$canonicalName])
+                ->count())
+            ->toBe(1);
+    })->with([
+        'seismic network' => [
+            '10.14470/RV968923',
+            LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+            'Geofon seismic networks',
+        ],
+        'seismic event' => [
+            '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+            'Geofon seismic events',
+        ],
+    ]);
+
+    it('keeps the DOI-rule datacenter authoritative when another specialised table also matches', function () {
+        Datacenter::query()
+            ->where('name', LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER)
+            ->delete();
+        DB::connection('legacy_metaworks')->table('gipp_dataset')->insert([
+            'doi' => '10.14470/RV968923',
+        ]);
+
+        $service = app(LegacyMetaworksDatacenterLookupService::class);
+        $datacenterIds = $service->resolveDatacenterIds('10.14470/RV968923');
+
+        expect(Datacenter::query()->findOrFail($datacenterIds[0])->name)
+            ->toBe(LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER);
+    });
+
     it('syncs resolved datacenters onto the imported resource', function () {
         DB::connection('legacy_metaworks')->table('gipp_dataset')->insert([
             'doi' => '10.5880/gipp.sync',
@@ -297,4 +399,21 @@ describe('LegacyMetaworksDatacenterLookupService', function () {
         expect($resource->fresh()->datacenter?->name)
             ->toBe(LegacyMetaworksDatacenterLookupService::ARBODAT_DATACENTER);
     });
+
+    it('syncs GEOFON DOI datacenters onto imported resources', function (string $doi, string $expectedDatacenter): void {
+        $resource = Resource::factory()->create(['doi' => $doi]);
+
+        app(LegacyMetaworksDatacenterLookupService::class)->syncDatacenters($resource, $doi);
+
+        expect($resource->fresh()->datacenter?->name)->toBe($expectedDatacenter);
+    })->with([
+        'seismic network' => [
+            '10.14470/RR425351',
+            LegacyMetaworksDatacenterLookupService::GEOFON_NETWORKS_DATACENTER,
+        ],
+        'seismic event' => [
+            '10.1594/GFZ.GEOFON.GFZ2009GIBB',
+            LegacyMetaworksDatacenterLookupService::GEOFON_EVENTS_DATACENTER,
+        ],
+    ]);
 });
