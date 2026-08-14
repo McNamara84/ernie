@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\OldDataset;
-use App\Services\OldDatasetKeywordTransformer;
+use App\Services\LegacyKeywordService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +30,11 @@ class OldDatasetController extends Controller
      * @var list<string>
      */
     private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
+
+    public function __construct(
+        private readonly LegacyKeywordService $legacyKeywordService,
+    ) {
+    }
 
     /**
      * Display a listing of the datasets.
@@ -410,26 +415,8 @@ class OldDatasetController extends Controller
                 ], 404);
             }
 
-            // Get supported GCMD thesauri
-            $supportedThesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
-
-            // Load keywords from old database with JOIN
-            $oldKeywords = DB::connection(self::DATASET_CONNECTION)
-                ->table('thesauruskeyword as tk')
-                ->join('thesaurusvalue as tv', function ($join) {
-                    $join->on('tk.keyword', '=', 'tv.keyword')
-                        ->on('tk.thesaurus', '=', 'tv.thesaurus');
-                })
-                ->where('tk.resource_id', $id)
-                ->whereIn('tk.thesaurus', $supportedThesauri)
-                ->select('tv.keyword', 'tv.thesaurus', 'tv.uri', 'tv.description')
-                ->get();
-
-            // Transform to new format
-            $transformedKeywords = OldDatasetKeywordTransformer::transformMany($oldKeywords->all());
-
             return response()->json([
-                'keywords' => $transformedKeywords,
+                'keywords' => $this->legacyKeywordService->controlledKeywords($dataset),
             ]);
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
@@ -459,26 +446,8 @@ class OldDatasetController extends Controller
                 ], 404);
             }
 
-            // Get keywords from the keywords column
-            $keywordsString = $dataset->keywords;
-
-            // Parse comma-separated keywords
-            $keywords = [];
-            if (! empty($keywordsString)) {
-                $keywords = array_map(
-                    fn ($keyword) => trim($keyword),
-                    explode(',', $keywordsString)
-                );
-
-                // Remove empty strings
-                $keywords = array_filter($keywords, fn ($keyword) => $keyword !== '');
-
-                // Re-index array to ensure sequential numeric keys
-                $keywords = array_values($keywords);
-            }
-
             return response()->json([
-                'keywords' => $keywords,
+                'keywords' => $this->legacyKeywordService->freeKeywords($dataset),
             ]);
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
