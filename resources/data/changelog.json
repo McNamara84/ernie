@@ -384,6 +384,10 @@
         ],
         "fixes": [
             {
+                "title": "Complete Legacy GCMD Keyword Enrichment for DataCite Imports",
+                "description": "New legacy resource imports now enrich DataCite metadata with all controlled GCMD keywords and free keywords from SUMARIOPMD. Existing DataCite subjects keep their original order, equivalent legacy subjects are omitted, and unavailable legacy metadata no longer blocks the import. Existing imported resources remain unchanged."
+            },
+            {
                 "title": "Preserved Imported Contributor Roles",
                 "description": "The Data Editor now keeps imported contributor roles visible and unchanged when they are not normally available for that contributor type. These entry-specific roles remain attached when an existing resource is opened and saved, without making them selectable for newly added contributors."
             },
