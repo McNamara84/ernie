@@ -47,6 +47,29 @@ interface ContributorItemProps {
 }
 
 /**
+ * Keep roles already assigned to this contributor valid for Tagify without
+ * exposing them as global options for other contributors of the same type.
+ */
+export const buildContributorRoleOptions = (allowedRoles: readonly string[], assignedRoles: readonly ContributorRoleTag[]) => {
+    const seen = new Set<string>();
+
+    return [...allowedRoles, ...assignedRoles.map((role) => role.value)]
+        .map((role) => role.trim())
+        .filter((role) => role.length > 0)
+        .filter((role) => {
+            const key = role.toLowerCase();
+
+            if (seen.has(key)) {
+                return false;
+            }
+
+            seen.add(key);
+            return true;
+        })
+        .map((value) => ({ value }));
+};
+
+/**
  * ContributorItem - Single contributor entry component with full field implementation
  */
 export default function ContributorItem({
@@ -127,10 +150,11 @@ export default function ContributorItem({
         await handleOrcidSelect(suggestion.orcid);
     };
 
-    // Role options based on type
+    // Role options based on type, plus this entry's existing roles. The latter
+    // prevents Tagify's enforced whitelist from dropping imported legacy roles.
     const roleOptions = useMemo(
-        () => (isPerson ? personRoleOptions : institutionRoleOptions).map((role) => ({ value: role })),
-        [institutionRoleOptions, isPerson, personRoleOptions],
+        () => buildContributorRoleOptions(isPerson ? personRoleOptions : institutionRoleOptions, contributor.roles),
+        [contributor.roles, institutionRoleOptions, isPerson, personRoleOptions],
     );
 
     // Tagify settings for roles
