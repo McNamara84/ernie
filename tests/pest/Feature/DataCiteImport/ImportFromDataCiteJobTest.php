@@ -67,9 +67,12 @@ beforeEach(function () {
 
     $this->legacyResourceLookupService = Mockery::mock(LegacyResourceLookupService::class);
     $this->legacyResourceLookupService
-        ->shouldReceive('relatedIdentifiersByDoi')
+        ->shouldReceive('importMetadataByDoi')
         ->zeroOrMoreTimes()
-        ->andReturn([])
+        ->andReturn([
+            'relatedIdentifiers' => [],
+            'subjects' => [],
+        ])
         ->byDefault();
     $this->app->instance(LegacyResourceLookupService::class, $this->legacyResourceLookupService);
 
@@ -272,7 +275,15 @@ describe('ImportFromDataCiteJob', function () {
 
     it('skips existing DOIs', function () {
         // Create existing resource
-        Resource::factory()->create(['doi' => '10.5880/existing']);
+        $existingResource = Resource::factory()->create(['doi' => '10.5880/existing']);
+        $existingResource->subjects()->create([
+            'value' => 'Existing keyword',
+            'subject_scheme' => null,
+            'scheme_uri' => null,
+            'value_uri' => null,
+            'classification_code' => null,
+            'language' => null,
+        ]);
 
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -291,7 +302,7 @@ describe('ImportFromDataCiteJob', function () {
 
         // Transformer should not be called for existing DOIs
         $this->transformer->shouldReceive('transform')->never();
-        $this->legacyResourceLookupService->shouldReceive('relatedIdentifiersByDoi')->never();
+        $this->legacyResourceLookupService->shouldReceive('importMetadataByDoi')->never();
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -300,14 +311,18 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['skipped'])->toBe(1);
         expect($status['skipped_dois'])->toContain('10.5880/existing');
+        expect($existingResource->fresh()->subjects()->pluck('value')->all())->toBe(['Existing keyword']);
     });
 
-    it('passes legacy related identifiers to preparation for new resources', function () {
+    it('merges legacy subjects and passes related identifiers to preparation for new resources', function () {
         $doiRecord = [
             'id' => '10.5880/legacy-relations',
             'attributes' => [
                 'doi' => '10.5880/legacy-relations',
                 'titles' => [['title' => 'Legacy relations']],
+                'subjects' => [[
+                    'subject' => 'DataCite keyword',
+                ]],
             ],
         ];
         $legacyRelatedIdentifiers = [[
@@ -316,25 +331,45 @@ describe('ImportFromDataCiteJob', function () {
             'relationType' => 'Cites',
             'position' => 0,
         ]];
+        $legacySubjects = [
+            ['subject' => 'DataCite keyword'],
+            [
+                'subject' => 'EARTH SCIENCE > SOLID EARTH > TECTONICS',
+                'subjectScheme' => 'Science Keywords',
+                'schemeUri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
+                'valueUri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/legacy-tectonics',
+                'lang' => 'en',
+            ],
+            ['subject' => 'Legacy free keyword'],
+        ];
+        $mergedDoiRecord = $doiRecord;
+        $mergedDoiRecord['attributes']['subjects'] = [
+            ['subject' => 'DataCite keyword'],
+            $legacySubjects[1],
+            $legacySubjects[2],
+        ];
 
         $this->importService->shouldReceive('getTotalDoiCount')->once()->andReturn(1);
         $this->importService->shouldReceive('fetchAllDois')->once()->andReturn((function () use ($doiRecord) {
             yield $doiRecord;
         })());
         $this->legacyResourceLookupService
-            ->shouldReceive('relatedIdentifiersByDoi')
+            ->shouldReceive('importMetadataByDoi')
             ->once()
             ->with('10.5880/legacy-relations')
-            ->andReturn($legacyRelatedIdentifiers);
+            ->andReturn([
+                'relatedIdentifiers' => $legacyRelatedIdentifiers,
+                'subjects' => $legacySubjects,
+            ]);
         $this->transformer
             ->shouldReceive('prepareDoiData')
             ->once()
-            ->with($doiRecord, $legacyRelatedIdentifiers, CitationLabelResolutionMode::BEST_EFFORT)
-            ->andReturn($doiRecord);
+            ->with($mergedDoiRecord, $legacyRelatedIdentifiers, CitationLabelResolutionMode::BEST_EFFORT)
+            ->andReturn($mergedDoiRecord);
         $this->transformer
             ->shouldReceive('transform')
             ->once()
-            ->with($doiRecord, $this->user->id)
+            ->with($mergedDoiRecord, $this->user->id)
             ->andReturn(Resource::factory()->make(['doi' => '10.5880/legacy-relations']));
 
         $importId = Str::uuid()->toString();
@@ -344,7 +379,7 @@ describe('ImportFromDataCiteJob', function () {
         expect(Cache::get("datacite_import:{$importId}")['imported'])->toBe(1);
     });
 
-    it('continues without legacy relations and opens the metaworks circuit breaker after lookup failure', function () {
+    it('continues without legacy metadata and opens the metaworks circuit breaker after lookup failure', function () {
         $records = [
             [
                 'id' => '10.5880/metaworks-failure.1',
@@ -361,7 +396,7 @@ describe('ImportFromDataCiteJob', function () {
             yield from $records;
         })());
         $this->legacyResourceLookupService
-            ->shouldReceive('relatedIdentifiersByDoi')
+            ->shouldReceive('importMetadataByDoi')
             ->once()
             ->with('10.5880/metaworks-failure.1')
             ->andThrow(new RuntimeException('connection refused'));

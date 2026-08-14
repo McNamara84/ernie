@@ -10,6 +10,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteLandingPageImportService;
+use App\Services\DataCiteSubjectMergeService;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
@@ -925,16 +926,19 @@ class ImportFromDataCiteJob implements ShouldQueue
                 ];
             }
 
-            $legacyRelatedIdentifiers = [];
+            $legacyMetadata = [
+                'relatedIdentifiers' => [],
+                'subjects' => [],
+            ];
 
             if ($shouldLookupMetaworks) {
                 try {
-                    $legacyRelatedIdentifiers = app(LegacyResourceLookupService::class)
-                        ->relatedIdentifiersByDoi($doi);
+                    $legacyMetadata = app(LegacyResourceLookupService::class)
+                        ->importMetadataByDoi($doi);
                 } catch (\Throwable $exception) {
                     $metaworksUnavailable = true;
 
-                    Log::warning('Metaworks DB unavailable while loading related identifiers; continuing without legacy enrichment.', [
+                    Log::warning('Metaworks DB unavailable while loading legacy metadata; continuing without legacy enrichment.', [
                         'import_id' => $this->importId,
                         'doi' => $doi,
                         'error' => $exception->getMessage(),
@@ -942,9 +946,14 @@ class ImportFromDataCiteJob implements ShouldQueue
                 }
             }
 
+            $doiRecord = app(DataCiteSubjectMergeService::class)->mergeIntoDoiRecord(
+                $doiRecord,
+                $legacyMetadata['subjects'],
+            );
+
             $preparedDoiRecord = $transformer->prepareDoiData(
                 $doiRecord,
-                $legacyRelatedIdentifiers,
+                $legacyMetadata['relatedIdentifiers'],
                 $citationLabelResolutionMode,
             );
 

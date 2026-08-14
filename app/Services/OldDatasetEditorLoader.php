@@ -16,6 +16,10 @@ class OldDatasetEditorLoader
 {
     private const DATASET_CONNECTION = 'metaworks';
 
+    public function __construct(
+        private ?LegacyKeywordService $legacyKeywordService = null,
+    ) {}
+
     /**
      * Normalize a name for comparison (lowercase, trim, replace umlauts).
      *
@@ -795,25 +799,11 @@ class OldDatasetEditorLoader
      */
     private function loadControlledKeywords(int $id): array
     {
-        // Get supported GCMD thesauri
-        $supportedThesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
+        $dataset = OldDataset::find($id);
 
-        // Load keywords from old database
-        $oldKeywords = DB::connection(self::DATASET_CONNECTION)
-            ->table('thesauruskeyword as tk')
-            ->join('thesaurusvalue as tv', function ($join) {
-                $join->on('tk.keyword', '=', 'tv.keyword')
-                    ->on('tk.thesaurus', '=', 'tv.thesaurus');
-            })
-            ->where('tk.resource_id', $id)
-            ->whereIn('tk.thesaurus', $supportedThesauri)
-            ->select('tv.keyword', 'tv.thesaurus', 'tv.uri', 'tv.description')
-            ->get();
-
-        // Transform to new format
-        $keywords = OldDatasetKeywordTransformer::transformMany($oldKeywords->all());
-
-        return array_values($keywords);
+        return $dataset === null
+            ? []
+            : $this->keywordService()->controlledKeywords($dataset);
     }
 
     /**
@@ -823,21 +813,12 @@ class OldDatasetEditorLoader
      */
     private function loadFreeKeywords(OldDataset $dataset): array
     {
-        $keywordsString = $dataset->keywords;
+        return $this->keywordService()->freeKeywords($dataset);
+    }
 
-        if (empty($keywordsString)) {
-            return [];
-        }
-
-        $keywords = array_map(
-            fn ($keyword) => trim($keyword),
-            explode(',', $keywordsString)
-        );
-
-        // Remove empty strings
-        $keywords = array_filter($keywords, fn ($keyword) => $keyword !== '');
-
-        return array_values($keywords);
+    private function keywordService(): LegacyKeywordService
+    {
+        return $this->legacyKeywordService ??= app(LegacyKeywordService::class);
     }
 
     /**

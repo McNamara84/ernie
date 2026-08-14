@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\OldDataset;
-use App\Services\OldDatasetKeywordTransformer;
+use App\Services\LegacyKeywordService;
+use App\Services\MslKeywordTransformer;
+use App\Services\MslVocabularyService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +33,10 @@ class OldDatasetController extends Controller
      * @var list<string>
      */
     private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
+
+    public function __construct(
+        private readonly LegacyKeywordService $legacyKeywordService,
+    ) {}
 
     /**
      * Display a listing of the datasets.
@@ -128,7 +135,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint for loading more datasets (for infinite scrolling).
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function loadMore(Request $request)
     {
@@ -232,7 +239,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get authors for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getAuthors(Request $request, int $id)
     {
@@ -265,7 +272,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get contributors for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getContributors(Request $request, int $id)
     {
@@ -298,7 +305,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get descriptions for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getDescriptions(Request $request, int $id)
     {
@@ -331,7 +338,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get funding references for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getFundingReferences(Request $request, int $id)
     {
@@ -364,7 +371,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get dates for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getDates(Request $request, int $id)
     {
@@ -397,7 +404,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get controlled keywords (GCMD) for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getControlledKeywords(Request $request, int $id)
     {
@@ -410,26 +417,8 @@ class OldDatasetController extends Controller
                 ], 404);
             }
 
-            // Get supported GCMD thesauri
-            $supportedThesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
-
-            // Load keywords from old database with JOIN
-            $oldKeywords = DB::connection(self::DATASET_CONNECTION)
-                ->table('thesauruskeyword as tk')
-                ->join('thesaurusvalue as tv', function ($join) {
-                    $join->on('tk.keyword', '=', 'tv.keyword')
-                        ->on('tk.thesaurus', '=', 'tv.thesaurus');
-                })
-                ->where('tk.resource_id', $id)
-                ->whereIn('tk.thesaurus', $supportedThesauri)
-                ->select('tv.keyword', 'tv.thesaurus', 'tv.uri', 'tv.description')
-                ->get();
-
-            // Transform to new format
-            $transformedKeywords = OldDatasetKeywordTransformer::transformMany($oldKeywords->all());
-
             return response()->json([
-                'keywords' => $transformedKeywords,
+                'keywords' => $this->legacyKeywordService->controlledKeywords($dataset),
             ]);
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
@@ -446,7 +435,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get free keywords for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getFreeKeywords(Request $request, int $id)
     {
@@ -459,26 +448,8 @@ class OldDatasetController extends Controller
                 ], 404);
             }
 
-            // Get keywords from the keywords column
-            $keywordsString = $dataset->keywords;
-
-            // Parse comma-separated keywords
-            $keywords = [];
-            if (! empty($keywordsString)) {
-                $keywords = array_map(
-                    fn ($keyword) => trim($keyword),
-                    explode(',', $keywordsString)
-                );
-
-                // Remove empty strings
-                $keywords = array_filter($keywords, fn ($keyword) => $keyword !== '');
-
-                // Re-index array to ensure sequential numeric keys
-                $keywords = array_values($keywords);
-            }
-
             return response()->json([
-                'keywords' => $keywords,
+                'keywords' => $this->legacyKeywordService->freeKeywords($dataset),
             ]);
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
@@ -495,7 +466,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get spatial and temporal coverage entries for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getCoverages(Request $request, int $id)
     {
@@ -529,7 +500,7 @@ class OldDatasetController extends Controller
      * Get related identifiers for a specific old dataset.
      *
      * @param  int  $id  The dataset ID
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getRelatedIdentifiers(Request $request, int $id)
     {
@@ -562,7 +533,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get MSL keywords for a specific old dataset.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getMslKeywords(Request $request, int $id)
     {
@@ -576,7 +547,7 @@ class OldDatasetController extends Controller
             }
 
             // Get supported MSL thesauri
-            $supportedThesauri = \App\Services\MslKeywordTransformer::getSupportedThesauri();
+            $supportedThesauri = MslKeywordTransformer::getSupportedThesauri();
 
             // Load MSL keywords from old database with JOIN
             $oldKeywords = DB::connection(self::DATASET_CONNECTION)
@@ -591,10 +562,10 @@ class OldDatasetController extends Controller
                 ->get();
 
             // Transform to new format
-            $transformedKeywords = \App\Services\MslKeywordTransformer::transformMany($oldKeywords->all());
+            $transformedKeywords = MslKeywordTransformer::transformMany($oldKeywords->all());
 
             // Load current MSL vocabulary to validate keywords
-            $vocabularyService = new \App\Services\MslVocabularyService;
+            $vocabularyService = new MslVocabularyService;
             $currentVocabulary = $vocabularyService->getVocabulary();
 
             // Separate keywords into validated (exist in current vocab) and legacy (don't exist)
@@ -658,7 +629,7 @@ class OldDatasetController extends Controller
     }
 
     /**
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getMslLaboratories(Request $request, int $id)
     {
@@ -788,7 +759,7 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get available filter options.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function getFilterOptions()
     {
@@ -925,7 +896,7 @@ class OldDatasetController extends Controller
      *
      * @param  array<string, mixed>  $debugInfo
      */
-    private function errorResponse(string $message, array $debugInfo = [], int $statusCode = 500): \Illuminate\Http\JsonResponse
+    private function errorResponse(string $message, array $debugInfo = [], int $statusCode = 500): JsonResponse
     {
         $response = ['error' => $message];
 
