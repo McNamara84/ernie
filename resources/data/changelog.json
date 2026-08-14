@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0",
-        "date": "2026-08-13",
+        "date": "2026-08-14",
         "features": [
             {
                 "title": "Resource Types for Relation Suggestions",
@@ -383,6 +383,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "Preserved Imported Contributor Roles",
+                "description": "The Data Editor now keeps imported contributor roles visible and unchanged when they are not normally available for that contributor type. These entry-specific roles remain attached when an existing resource is opened and saved, without making them selectable for newly added contributors."
+            },
             {
                 "title": "Correct GEOFON Datacenters for Legacy Imports",
                 "description": "New legacy imports now assign GEOFON seismic-network and seismic-event DOIs to their canonical GEOFON datacenters instead of the general GFZ fallback. Existing datacenter records with different letter casing are reused and normalized, preventing duplicate assignments. Existing imported resources remain unchanged."

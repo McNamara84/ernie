@@ -3,11 +3,24 @@
  */
 
 import userEvent from '@testing-library/user-event';
-import { cleanup, render, screen } from '@tests/vitest/utils/render';
+import { cleanup, render, screen, waitFor } from '@tests/vitest/utils/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import ContributorItem from '@/components/curation/fields/contributor/contributor-item';
+import ContributorItem, { buildContributorRoleOptions } from '@/components/curation/fields/contributor/contributor-item';
 import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
+
+interface RoleTagifyInput extends HTMLInputElement {
+    tagify?: {
+        addTags: (tags: Array<{ value: string }>) => void;
+        value: Array<{ value?: string }>;
+        whitelist: Array<string | { value?: string }>;
+    };
+}
+
+const getTagifyValues = (input: RoleTagifyInput) => input.tagify?.value.map((role) => role.value) ?? [];
+
+const getWhitelistValues = (input: RoleTagifyInput) =>
+    input.tagify?.whitelist.map((role) => (typeof role === 'string' ? role : role.value)).filter((role): role is string => Boolean(role)) ?? [];
 
 // Mock ORCID Service
 vi.mock('@/services/orcid', () => ({
@@ -136,6 +149,73 @@ describe('ContributorItem Component', () => {
         
         // Roles are shown in tag input
         expect(screen.getByDisplayValue('DataCollector')).toBeInTheDocument();
+    });
+
+    it.each(['Data Collector', 'Data Manager'])('preserves the existing institution role %s outside the institution category', async (role) => {
+        const legacyInstitution: ContributorEntry = {
+            ...mockInstitutionContributor,
+            roles: [{ value: role }],
+            rolesInput: role,
+        };
+
+        render(
+            <ContributorItem
+                contributor={legacyInstitution}
+                {...mockProps}
+                institutionRoleOptions={['Hosting Institution']}
+            />,
+        );
+
+        const input = screen.getByTestId('contributor-0-roles-input') as RoleTagifyInput;
+
+        await waitFor(() => {
+            expect(input).toHaveValue(role);
+            expect(getTagifyValues(input)).toContain(role);
+            expect(getWhitelistValues(input)).toEqual(['Hosting Institution', role]);
+        });
+    });
+
+    it('keeps only regular institution roles available after a legacy role is removed', async () => {
+        const legacyInstitution: ContributorEntry = {
+            ...mockInstitutionContributor,
+            roles: [{ value: 'Data Collector' }],
+            rolesInput: 'Data Collector',
+        };
+        const { rerender } = render(
+            <ContributorItem
+                contributor={legacyInstitution}
+                {...mockProps}
+                institutionRoleOptions={['Hosting Institution']}
+            />,
+        );
+        const input = screen.getByTestId('contributor-0-roles-input') as RoleTagifyInput;
+
+        await waitFor(() => expect(getWhitelistValues(input)).toEqual(['Hosting Institution', 'Data Collector']));
+
+        rerender(
+            <ContributorItem
+                contributor={{ ...legacyInstitution, roles: [], rolesInput: '' }}
+                {...mockProps}
+                institutionRoleOptions={['Hosting Institution']}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getWhitelistValues(input)).toEqual(['Hosting Institution']);
+            expect(getTagifyValues(input)).toEqual([]);
+        });
+
+        input.tagify?.addTags([{ value: 'Data Collector' }]);
+        expect(getTagifyValues(input)).not.toContain('Data Collector');
+    });
+
+    it('trims and deduplicates regular and entry-specific role options', () => {
+        expect(
+            buildContributorRoleOptions(
+                ['Hosting Institution', ''],
+                [{ value: ' hosting institution ' }, { value: ' Data Collector ' }, { value: 'data collector' }],
+            ),
+        ).toEqual([{ value: 'Hosting Institution' }, { value: 'Data Collector' }]);
     });
 
     it('renders drag handle with correct aria-label', () => {

@@ -6025,6 +6025,57 @@ describe('DataCiteForm', () => {
             expect(data.titles).toEqual([{ title: 'Draft Dataset', titleType: 'main-title', language: null }]);
         });
 
+        it('preserves entry-specific legacy institution roles in the draft payload', { timeout: 60000 }, async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+
+            renderDataCiteForm({
+                initialTitles: [{ title: 'Legacy contributor roles', titleType: 'main-title' }],
+                initialContributors: [
+                    {
+                        type: 'institution',
+                        institutionName: 'Geological Survey of Estonia',
+                        roles: ['Data Collector'],
+                    },
+                    {
+                        type: 'institution',
+                        institutionName: 'GFZ Helmholtz-Zentrum für Geoforschung',
+                        roles: ['Hosting Institution'],
+                    },
+                    {
+                        type: 'institution',
+                        institutionName: 'GEOFON Data Centre',
+                        roles: ['Data Manager'],
+                    },
+                ],
+            });
+
+            await user.click(screen.getByTestId('save-draft-button'));
+
+            await waitFor(() => {
+                expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+            });
+
+            const payload = mockedAxios.post.mock.calls[0][1];
+            expect(payload.contributors).toEqual([
+                expect.objectContaining({
+                    type: 'institution',
+                    institutionName: 'Geological Survey of Estonia',
+                    roles: ['Data Collector'],
+                }),
+                expect.objectContaining({
+                    type: 'institution',
+                    institutionName: 'GFZ Helmholtz-Zentrum für Geoforschung',
+                    roles: ['Hosting Institution'],
+                }),
+                expect.objectContaining({
+                    type: 'institution',
+                    institutionName: 'GEOFON Data Centre',
+                    roles: ['Data Manager'],
+                }),
+            ]);
+        });
+
         it('omits an unresolved access level from the draft payload', { timeout: 60000 }, async () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
