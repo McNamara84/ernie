@@ -148,16 +148,18 @@ export default function CoverageEntry({
     };
 
     return (
-        <Card className="w-full">
+        <Card className="w-full min-w-0">
             <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setIsExpanded(!isExpanded)}>
-                <div className="flex items-center justify-between">
-                    <div className="flex-1">
+                <div className="flex min-w-0 items-center justify-between">
+                    <div className="min-w-0 flex-1">
                         <h3 className="text-lg font-semibold">Coverage Entry #{index + 1}</h3>
                         {!isExpanded && hasData(entry) && (
                             <div className="mt-2 space-y-1">
                                 <p className="text-sm text-muted-foreground">Coordinates: {formatCoordinates(entry)}</p>
                                 <p className="text-sm text-muted-foreground">Dates: {formatDateRange(entry)}</p>
-                                {entry.description && <p className="truncate text-sm text-muted-foreground">{entry.description}</p>}
+                                {entry.description && (
+                                    <p className="line-clamp-1 min-w-0 text-sm [overflow-wrap:anywhere] text-muted-foreground">{entry.description}</p>
+                                )}
                             </div>
                         )}
                     </div>

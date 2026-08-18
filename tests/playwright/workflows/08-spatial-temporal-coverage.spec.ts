@@ -407,6 +407,50 @@ test.describe('Spatial and Temporal Coverage', () => {
                 await expect(descriptionTextarea).toHaveValue('Test coverage description');
             }
         });
+
+        test('should not widen the editor when a long description is collapsed', async ({ page, browserName }) => {
+            test.skip(browserName === 'webkit', 'Skipped on WebKit; Issue #1095 was reported in Firefox and Chromium provides the cross-browser control.');
+
+            await page.setViewportSize({ width: 1600, height: 900 });
+
+            const overflowTolerancePx = 2;
+
+            const descriptionsSection = page.locator('[data-accordion-value="descriptions"]');
+            const descriptionsTrigger = descriptionsSection.locator('[data-slot="accordion-trigger"]');
+            if ((await descriptionsTrigger.getAttribute('data-state')) === 'closed') {
+                await descriptionsTrigger.click();
+            }
+
+            const coverageSection = page.locator('[data-accordion-value="spatial-temporal-coverage"]');
+            const coverageTrigger = coverageSection.locator('[data-slot="accordion-trigger"]');
+            if ((await coverageTrigger.getAttribute('data-state')) === 'closed') {
+                await coverageTrigger.click();
+            }
+
+            const addButton = coverageSection.getByRole('button', { name: /add.*coverage entry/i }).first();
+            await expect(addButton).toBeVisible();
+            await addButton.click();
+
+            const longDescription =
+                'SPG (Saint Petersburg) maintained by the Saint Petersburg branch of the Pushkov Institute of Terrestrial Magnetism, Ionosphere and Radio Wave Propagation of the Russian Academy of Sciences '.repeat(
+                    4,
+                ) + 'https://example.org/locations/this-is-a-single-very-long-unbroken-segment-that-must-not-expand-the-editor';
+            await coverageSection.getByLabel('Description (optional)').fill(longDescription);
+            await coverageSection.getByRole('button', { name: 'Collapse entry' }).click();
+            await expect(coverageSection.getByText(longDescription)).toBeVisible();
+
+            const pageWidth = await page.evaluate(() => ({
+                client: document.documentElement.clientWidth,
+                scroll: document.documentElement.scrollWidth,
+            }));
+            expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
+
+            const otherDescriptionTab = descriptionsSection.getByRole('tab', { name: 'Other' });
+            await expect(otherDescriptionTab).toBeVisible();
+            const otherDescriptionTabBox = await otherDescriptionTab.boundingBox();
+            expect(otherDescriptionTabBox).not.toBeNull();
+            expect(otherDescriptionTabBox!.x + otherDescriptionTabBox!.width).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
+        });
     });
 
     test.describe('Entry Management', () => {

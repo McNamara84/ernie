@@ -1,4 +1,4 @@
-FROM php:8.5.9-fpm-trixie@sha256:f56f4a81de6cd33ddfd6e99352889a53c94c3ffccce89e494563845a1c8ba75a AS app-base
+FROM php:8.5.9-fpm-trixie@sha256:32ef9f35b567a741f24c5d2c3312f803fe6c9e34b7db46212f95fce675e1d13f AS app-base
 
 WORKDIR /var/www/html
 
@@ -8,7 +8,9 @@ ARG PHP_REDIS_VERSION=6.3.0
 # LEGACY_DATABASE_DUMP_SUPPORT:
 # Required for the admin-only /database dump page while legacy MySQL 5.6/5.7 exports exist.
 # Remove this package when legacy database exports are retired.
-RUN apt-get update && apt-get install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y \
     libnghttp2-14 \
     git \
     curl \
@@ -29,16 +31,6 @@ RUN apt-get update && apt-get install -y \
     openssl \
     openssl-provider-legacy \
     gnupg \
-    && apt-get install -y --only-upgrade \
-        libcap2 \
-        libgssapi-krb5-2 \
-        libk5crypto3 \
-        libkrb5-3 \
-        libkrb5support0 \
-        libssh2-1t64 \
-        libsystemd0 \
-        libudev1 \
-        linux-libc-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
