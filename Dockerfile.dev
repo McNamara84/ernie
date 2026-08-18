@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 # Stage: PHP-FPM Application (Development)
 # -----------------------------------------------------------------------------
-FROM php:8.5.9-fpm-trixie@sha256:f56f4a81de6cd33ddfd6e99352889a53c94c3ffccce89e494563845a1c8ba75a AS app
+FROM php:8.5.9-fpm-trixie@sha256:32ef9f35b567a741f24c5d2c3312f803fe6c9e34b7db46212f95fce675e1d13f AS app
 
 WORKDIR /var/www/html
 
@@ -24,7 +24,9 @@ COPY .node-version /tmp/.node-version
 # LEGACY_DATABASE_DUMP_SUPPORT:
 # Required for the admin-only /database dump page while legacy MySQL 5.6/5.7 exports exist.
 # Remove this package when legacy database exports are retired.
-RUN apt-get update && apt-get install -y \
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y \
     git \
     curl \
     libpng-dev \
@@ -143,16 +145,6 @@ RUN apt-get update && apt-get install -y \
     && NODE_VERSION="${NODE_VERSION#v}" \
     && NODE_MAJOR="${NODE_VERSION%%.*}" \
     && case "$NODE_MAJOR" in ''|*[!0-9]*) echo "Expected .node-version to start with a numeric Node.js major version, got: $NODE_VERSION" >&2; exit 1 ;; esac \
-    && apt-get install -y --only-upgrade \
-        libcap2 \
-        libgssapi-krb5-2 \
-        libk5crypto3 \
-        libkrb5-3 \
-        libkrb5support0 \
-        libssh2-1t64 \
-        libsystemd0 \
-        libudev1 \
-        linux-libc-dev \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
