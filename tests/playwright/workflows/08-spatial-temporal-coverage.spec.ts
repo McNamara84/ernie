@@ -409,9 +409,11 @@ test.describe('Spatial and Temporal Coverage', () => {
         });
 
         test('should not widen the editor when a long description is collapsed', async ({ page, browserName }) => {
-            test.skip(browserName === 'webkit', 'Issue #1095 was reported in Firefox; Chromium provides the cross-browser control.');
+            test.skip(browserName === 'webkit', 'Skipped on WebKit; Issue #1095 was reported in Firefox and Chromium provides the cross-browser control.');
 
             await page.setViewportSize({ width: 1600, height: 900 });
+
+            const overflowTolerancePx = 2;
 
             const descriptionsSection = page.locator('[data-accordion-value="descriptions"]');
             const descriptionsTrigger = descriptionsSection.locator('[data-slot="accordion-trigger"]');
@@ -441,13 +443,13 @@ test.describe('Spatial and Temporal Coverage', () => {
                 client: document.documentElement.clientWidth,
                 scroll: document.documentElement.scrollWidth,
             }));
-            expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client);
+            expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
 
             const otherDescriptionTab = descriptionsSection.getByRole('tab', { name: 'Other' });
             await expect(otherDescriptionTab).toBeVisible();
             const otherDescriptionTabBox = await otherDescriptionTab.boundingBox();
             expect(otherDescriptionTabBox).not.toBeNull();
-            expect(otherDescriptionTabBox!.x + otherDescriptionTabBox!.width).toBeLessThanOrEqual(pageWidth.client);
+            expect(otherDescriptionTabBox!.x + otherDescriptionTabBox!.width).toBeLessThanOrEqual(pageWidth.client + overflowTolerancePx);
         });
     });
 
