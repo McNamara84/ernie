@@ -424,6 +424,10 @@
                 "description": "DataCite registration, metadata updates, and JSON/XML exports now preserve logical description line breaks using DataCite's allowed <br> representation. JSON API payloads emit literal <br> markers and XML exports emit real <br/> child elements, while all other landing-page HTML remains excluded. Existing resources require no migration."
             },
             {
+                "title": "Safe Legacy Landing Page Publication and Review Links",
+                "description": "Findable legacy resource imports now publish a download-free landing page only when the legacy resource truly has no file rows. Non-public rows can no longer be mistaken for no files after invalid URLs are filtered, and Review status links now open the landing-page review URL instead of the DOI."
+            },
+            {
                 "title": "Legacy Resource Download Links Import",
                 "description": "Legacy resource imports from /resources now persist SUMARIO download URLs and additional legacy download links from the queue worker. Re-running the single or bulk import for an already imported DOI can backfill missing landing page download links without overwriting curator-provided values, and the import summary now reports when existing resources had legacy links added."
             },

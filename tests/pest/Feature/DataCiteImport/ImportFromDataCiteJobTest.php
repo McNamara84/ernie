@@ -1281,6 +1281,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     'id' => '10.5880/lp.sample.001',
                     'attributes' => [
                         'doi' => '10.5880/lp.sample.001',
+                        'state' => 'findable',
                         'titles' => [['title' => 'Test Dataset Title']],
                         'publicationYear' => 2024,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
@@ -1339,6 +1340,62 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect(Cache::get(CacheKey::LANDING_PAGE_DOWNLOAD_URL_SUGGESTIONS->key()))->toBeNull();
     });
 
+    it('keeps a landing page in review when public files belong to a non-findable DOI', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/lp.registered.001',
+                    'attributes' => [
+                        'doi' => '10.5880/lp.registered.001',
+                        'state' => 'registered',
+                        'titles' => [['title' => 'Registered Dataset']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/lp.registered.001']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileEntries')
+            ->with('10.5880/lp.registered.001')
+            ->once()
+            ->andReturn([
+                'files' => [
+                    [
+                        'url' => 'https://datapub.gfz.de/download/public-file.zip',
+                        'label' => 'Public package',
+                        'visible' => 'public',
+                    ],
+                ],
+                'allPublic' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $landingPage = Resource::where('doi', '10.5880/lp.registered.001')
+            ->firstOrFail()
+            ->fresh(['landingPage'])
+            ->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->is_published)->toBeFalse()
+            ->and($landingPage->published_at)->toBeNull();
+    });
+
     it('creates unpublished landing page when metaworks files are non-public', function () {
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -1353,6 +1410,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     'id' => '10.5880/lp.nonpub.001',
                     'attributes' => [
                         'doi' => '10.5880/lp.nonpub.001',
+                        'state' => 'findable',
                         'titles' => [['title' => 'Non-Public Files Dataset']],
                         'publicationYear' => 2024,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
@@ -1447,12 +1505,28 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     'attributes' => [
                         'doi' => '10.5880/gfz.dekorp.ktb8401.001',
                         'url' => 'https://dataservices.gfz.de/dekorp/showshort.php?id=493dcc02-011c-11ed-9531-ca1f3ed77ce8',
+                        'state' => 'findable',
                         'titles' => [['title' => 'DEKORP No Files Dataset']],
                         'publicationYear' => 2022,
                         'types' => ['resourceTypeGeneral' => 'Dataset'],
                     ],
                 ];
             })());
+
+        // The real transformer strips read-only DataCite fields such as state.
+        // The publication decision must therefore use the original API record.
+        $this->transformer
+            ->shouldReceive('prepareDoiData')
+            ->once()
+            ->andReturn([
+                'id' => '10.5880/gfz.dekorp.ktb8401.001',
+                'attributes' => [
+                    'doi' => '10.5880/gfz.dekorp.ktb8401.001',
+                    'titles' => [['title' => 'DEKORP No Files Dataset']],
+                    'publicationYear' => 2022,
+                    'types' => ['resourceTypeGeneral' => 'Dataset'],
+                ],
+            ]);
 
         $this->transformer
             ->shouldReceive('transform')
@@ -1467,6 +1541,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                 'files' => [],
                 'allPublic' => false,
                 'resourceFound' => true,
+                'hasFileRows' => false,
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1480,8 +1555,61 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($landingPage->template)->toBe('default_gfz')
             ->and($landingPage->ftp_url)->toBeNull()
             ->and($landingPage->downloads_unavailable)->toBeTrue()
-            ->and($landingPage->is_published)->toBeFalse()
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->published_at)->not->toBeNull()
             ->and(LandingPageDomain::count())->toBe(0);
+    });
+
+    it('keeps a findable landing page in review when non-public legacy rows have no valid URLs', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/invalid.private.001',
+                    'attributes' => [
+                        'doi' => '10.5880/invalid.private.001',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'Invalid Private File Dataset']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/invalid.private.001']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/invalid.private.001')
+            ->andReturn([
+                'files' => [],
+                'allPublic' => false,
+                'resourceFound' => true,
+                'hasFileRows' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $resource = Resource::where('doi', '10.5880/invalid.private.001')->firstOrFail();
+        $landingPage = $resource->fresh(['landingPage'])->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->is_published)->toBeFalse()
+            ->and($landingPage->published_at)->toBeNull();
     });
 
     it('ignores old DataCite data services URLs and imports SUMARIO file URLs instead', function () {
@@ -1620,7 +1748,10 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->andReturn((function () {
                 yield [
                     'id' => '10.5880/skip.backfill',
-                    'attributes' => ['doi' => '10.5880/skip.backfill'],
+                    'attributes' => [
+                        'doi' => '10.5880/skip.backfill',
+                        'state' => 'findable',
+                    ],
                 ];
             })());
 

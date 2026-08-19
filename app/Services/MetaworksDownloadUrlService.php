@@ -51,7 +51,7 @@ class MetaworksDownloadUrlService
      * entries are imported as landing page additional links, using the legacy
      * file name first and the description as fallback label.
      *
-     * @return array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound: bool}
+     * @return array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound: bool, hasFileRows: bool}
      */
     public function lookupFileEntries(string $doi): array
     {
@@ -63,7 +63,7 @@ class MetaworksDownloadUrlService
             ->first();
 
         if ($oldResource === null) {
-            return ['files' => [], 'allPublic' => false, 'resourceFound' => false];
+            return ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false];
         }
 
         // Get all file records for that resource (public and non-public)
@@ -74,7 +74,7 @@ class MetaworksDownloadUrlService
             ->get(['url', 'name', 'description', 'visible']);
 
         if ($files->isEmpty()) {
-            return ['files' => [], 'allPublic' => false, 'resourceFound' => true];
+            return ['files' => [], 'allPublic' => false, 'resourceFound' => true, 'hasFileRows' => false];
         }
 
         // Determine if all files are publicly visible
@@ -109,7 +109,7 @@ class MetaworksDownloadUrlService
             ];
         }
 
-        return ['files' => $entries, 'allPublic' => $allPublic, 'resourceFound' => true];
+        return ['files' => $entries, 'allPublic' => $allPublic, 'resourceFound' => true, 'hasFileRows' => true];
     }
 
     private function isValidDownloadUrl(string $doi, string $url): bool

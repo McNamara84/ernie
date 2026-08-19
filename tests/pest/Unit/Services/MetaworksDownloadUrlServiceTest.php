@@ -260,8 +260,63 @@ describe('MetaworksDownloadUrlService', function () {
             ->and($result['allPublic'])->toBeTrue();
     });
 
+    it('distinguishes a legacy resource without file rows from filtered file entries', function () {
+        $resourceQuery = Mockery::mock();
+        $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.no.rows')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 90]);
+
+        $fileQuery = Mockery::mock();
+        $fileQuery->shouldReceive('where')->with('resource_id', 90)->andReturnSelf();
+        $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect());
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
+        $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
+
+        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+
+        $service = new MetaworksDownloadUrlService;
+        $result = $service->lookupFileEntries('10.5880/GFZ.no.rows');
+
+        expect($result['files'])->toBe([])
+            ->and($result['allPublic'])->toBeFalse()
+            ->and($result['resourceFound'])->toBeTrue()
+            ->and($result['hasFileRows'])->toBeFalse();
+    });
+
+    it('preserves file row presence when a non-public URL is filtered out', function () {
+        $resourceQuery = Mockery::mock();
+        $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.invalid.private')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 91]);
+
+        $fileQuery = Mockery::mock();
+        $fileQuery->shouldReceive('where')->with('resource_id', 91)->andReturnSelf();
+        $fileQuery->shouldReceive('orderBy')->with('id')->andReturnSelf();
+        $fileQuery->shouldReceive('get')->with(['url', 'name', 'description', 'visible'])->andReturn(collect([
+            (object) ['url' => 'javascript:alert(1)', 'visible' => 'private'],
+        ]));
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('table')->with('resource')->andReturn($resourceQuery);
+        $connection->shouldReceive('table')->with('file')->andReturn($fileQuery);
+
+        DB::shouldReceive('connection')->with('metaworks')->andReturn($connection);
+        Log::shouldReceive('warning')->once();
+
+        $service = new MetaworksDownloadUrlService;
+        $result = $service->lookupFileEntries('10.5880/GFZ.invalid.private');
+
+        expect($result['files'])->toBe([])
+            ->and($result['allPublic'])->toBeFalse()
+            ->and($result['resourceFound'])->toBeTrue()
+            ->and($result['hasFileRows'])->toBeTrue();
+    });
+
     it('filters out URLs exceeding 2048 characters', function () {
-        $longUrl = 'https://datapub.gfz.de/download/' . str_repeat('a', 2048);
+        $longUrl = 'https://datapub.gfz.de/download/'.str_repeat('a', 2048);
 
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.long.test')->andReturnSelf();
