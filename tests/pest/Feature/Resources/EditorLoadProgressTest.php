@@ -168,6 +168,37 @@ it('validates client slow-load reports and hides tokens from other users', funct
         'stage' => 'client_vocabularies',
         'progress' => 90,
     ])->assertNoContent();
+
+    $this->postJson(route('editor.resource-loads.slow', ['token' => $token]), [
+        'stage' => 'loader',
+        'progress' => 0,
+    ])->assertNoContent();
+
+    $this->postJson(route('editor.resource-loads.slow', ['token' => $token]), [
+        'stage' => 'client_ready',
+        'progress' => 100,
+    ])->assertNoContent();
+
+    $this->postJson(route('editor.resource-loads.slow', ['token' => $token]))
+        ->assertNoContent();
+
+    $this->postJson(route('editor.resource-loads.slow', ['token' => $token]), [
+        'progress' => -1,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['progress']);
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('editor.resource-loads.slow', ['token' => $token]), [
+            'stage' => 'client_ready',
+            'progress' => 100,
+        ])->assertNotFound();
+});
+
+it('requires authentication for client slow-load reports', function (): void {
+    $this->postJson(route('editor.resource-loads.slow', ['token' => fake()->uuid()]), [
+        'stage' => 'client_ready',
+        'progress' => 100,
+    ])->assertUnauthorized();
 });
 
 it('leaves non-resource editor modes on their existing direct path', function (): void {

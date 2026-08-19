@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Editor\ReportSlowEditorLoadRequest;
 use App\Models\User;
 use App\Services\Editor\EditorLoadProgressService;
 use Illuminate\Http\JsonResponse;
@@ -30,25 +31,16 @@ final class EditorLoadProgressController extends Controller
         ])->header('Cache-Control', 'no-store');
     }
 
-    public function slow(Request $request, string $token): Response
+    public function slow(ReportSlowEditorLoadRequest $request, string $token): Response
     {
-        $validated = $request->validate([
-            'stage' => ['nullable', 'string', 'in:'.implode(',', EditorLoadProgressService::CLIENT_STAGES)],
-            'progress' => ['nullable', 'integer', 'between:0,100'],
-        ]);
-
         /** @var User $user */
         $user = $request->user();
         $state = $this->tracker->findForUser($token, $user->id);
 
         abort_if($state === null, Response::HTTP_NOT_FOUND);
 
-        $stage = is_string($validated['stage'] ?? null)
-            ? $validated['stage']
-            : (string) $state['stage'];
-        $progress = is_int($validated['progress'] ?? null)
-            ? $validated['progress']
-            : (int) $state['progress'];
+        $stage = $request->stage() ?? (string) $state['stage'];
+        $progress = $request->progress() ?? (int) $state['progress'];
 
         $this->tracker->logIfSlow(
             $token,
