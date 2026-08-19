@@ -1,27 +1,21 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Editor from '@/pages/editor';
-import type { DateType, Language,License, ResourceType, TitleType } from '@/types';
+import type { DateType, Language, License, ResourceType, TitleType } from '@/types';
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
-const titleTypes: TitleType[] = [
-    { id: 1, name: 'Main Title', slug: 'main-title' },
-];
+const titleTypes: TitleType[] = [{ id: 1, name: 'Main Title', slug: 'main-title' }];
 const dateTypes: DateType[] = [
     { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date the publisher accepted the resource.' },
     { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
 ];
-const licenses: License[] = [
-    { id: 1, identifier: 'MIT', name: 'MIT License' },
-];
+const licenses: License[] = [{ id: 1, identifier: 'MIT', name: 'MIT License' }];
 
-const languages: Language[] = [
-    { id: 1, code: 'en', name: 'English' },
-];
+const languages: Language[] = [{ id: 1, code: 'en', name: 'English' }];
 
 const renderForm = vi.fn();
 
@@ -79,16 +73,12 @@ describe('Editor page', () => {
     it('fetches resource types and passes data to DataCiteForm', async () => {
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }),
-            ),
+            expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages })),
         );
     });
 
     it('shows loading state before types load', () => {
-        vi.mocked(fetch).mockImplementation(
-            () => new Promise(() => {}),
-        );
+        vi.mocked(fetch).mockImplementation(() => new Promise(() => {}));
         render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" />);
         expect(screen.getByTestId('editor-loading-state')).toBeInTheDocument();
         expect(screen.getByRole('status')).toHaveTextContent(
@@ -139,99 +129,111 @@ describe('Editor page', () => {
         await userEvent.click(screen.getByRole('button', { name: /retry loading editor data/i }));
 
         await waitFor(() => {
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }),
-            );
+            expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }));
         });
+    });
+
+    it('keeps the progress modal open for an existing resource until every client vocabulary is ready', async () => {
+        const vocabularyResolvers: Array<(response: Response) => void> = [];
+        vi.mocked(fetch).mockImplementation((url) => {
+            if (url.toString().includes('resource-types')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) } as Response);
+            }
+
+            return new Promise<Response>((resolve) => vocabularyResolvers.push(resolve));
+        });
+
+        render(
+            <Editor
+                maxTitles={99}
+                maxLicenses={99}
+                googleMapsApiKey="test-api-key"
+                resourceId="42"
+                editorLoad={{
+                    token: '33333333-3333-4333-8333-333333333333',
+                    resourceId: 42,
+                    serverProgress: 75,
+                    slowThresholdMs: 12_000,
+                }}
+            />,
+        );
+
+        expect(screen.getByTestId('editor-loading-modal')).toBeInTheDocument();
+        expect(screen.queryByTestId('editor-loading-state')).not.toBeInTheDocument();
+
+        await waitFor(() => expect(vocabularyResolvers).toHaveLength(8));
+        expect(screen.getByTestId('editor-loading-percentage')).toHaveTextContent('78%');
+
+        await act(async () => {
+            vocabularyResolvers[0]({ ok: true, json: () => Promise.resolve([]) } as Response);
+        });
+        await waitFor(() => expect(screen.getByTestId('editor-loading-percentage')).toHaveTextContent('81%'));
+
+        await act(async () => {
+            vocabularyResolvers.slice(1).forEach((resolve) => resolve({ ok: true, json: () => Promise.resolve([]) } as Response));
+        });
+
+        await waitFor(() => expect(screen.getByTestId('datacite-form')).toBeInTheDocument());
+        expect(screen.queryByTestId('editor-loading-modal')).not.toBeInTheDocument();
+    });
+
+    it('uses the modal error state when client initialization fails for an existing resource', async () => {
+        vi.mocked(fetch).mockImplementation((url) => {
+            if (url.toString().includes('resource-types')) {
+                return Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) } as Response);
+            }
+
+            return Promise.reject(new Error('vocabulary unavailable'));
+        });
+
+        render(
+            <Editor
+                maxTitles={99}
+                maxLicenses={99}
+                googleMapsApiKey="test-api-key"
+                resourceId="42"
+                editorLoad={{
+                    token: '44444444-4444-4444-8444-444444444444',
+                    resourceId: 42,
+                    serverProgress: 75,
+                    slowThresholdMs: 12_000,
+                }}
+            />,
+        );
+
+        expect(await screen.findByTestId('editor-loading-error')).toHaveTextContent(/unable to load the editor workspace/i);
+        expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
+        expect(screen.queryByTestId('editor-error-state')).not.toBeInTheDocument();
     });
 
     it('passes limits to DataCiteForm', async () => {
         render(<Editor maxTitles={5} maxLicenses={7} googleMapsApiKey="test-api-key" />);
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ maxTitles: 5, maxLicenses: 7 }),
-            ),
-        );
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ maxTitles: 5, maxLicenses: 7 })));
     });
 
     it('passes doi to DataCiteForm when provided', async () => {
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                doi="10.1234/xyz"
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialDoi: '10.1234/xyz' }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" doi="10.1234/xyz" />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialDoi: '10.1234/xyz' })));
     });
 
     it('passes year to DataCiteForm when provided', async () => {
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                year="2024"
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialYear: '2024' }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" year="2024" />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialYear: '2024' })));
     });
 
     it('passes version to DataCiteForm when provided', async () => {
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                version="2.0"
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialVersion: '2.0' }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" version="2.0" />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialVersion: '2.0' })));
     });
 
     it('passes language to DataCiteForm when provided', async () => {
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                language="de"
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialLanguage: 'de' }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" language="de" />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialLanguage: 'de' })));
     });
 
     it('passes resource type to DataCiteForm when provided', async () => {
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                resourceType="1"
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialResourceType: '1' }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" resourceType="1" />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialResourceType: '1' })));
     });
 
     it('passes titles to DataCiteForm when provided', async () => {
@@ -239,19 +241,8 @@ describe('Editor page', () => {
             { title: 'Main', titleType: 'main-title' },
             { title: 'Alt', titleType: 'alternative-title' },
         ];
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                titles={titles}
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialTitles: titles }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" titles={titles} />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialTitles: titles })));
     });
 
     it('passes landing page summary to DataCiteForm when provided', async () => {
@@ -264,35 +255,13 @@ describe('Editor page', () => {
             external_url: null,
         };
 
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                landingPage={landingPage}
-            />,
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" landingPage={landingPage} />);
 
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialLandingPage: landingPage }),
-            ),
-        );
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialLandingPage: landingPage })));
     });
     it('passes initial licenses to DataCiteForm when provided', async () => {
         const initialLicenses = ['MIT'];
-        render(
-            <Editor
-                maxTitles={99}
-                maxLicenses={99}
-                googleMapsApiKey="test-api-key"
-                initialLicenses={initialLicenses}
-            />,
-        );
-        await waitFor(() =>
-            expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ initialLicenses }),
-            ),
-        );
+        render(<Editor maxTitles={99} maxLicenses={99} googleMapsApiKey="test-api-key" initialLicenses={initialLicenses} />);
+        await waitFor(() => expect(renderForm).toHaveBeenCalledWith(expect.objectContaining({ initialLicenses })));
     });
 });

@@ -13,6 +13,7 @@ use App\Http\Controllers\DataCiteImportController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DoiValidationController;
 use App\Http\Controllers\EditorController;
+use App\Http\Controllers\EditorLoadProgressController;
 use App\Http\Controllers\GuidedTourAssignmentController;
 use App\Http\Controllers\IgsnController;
 use App\Http\Controllers\IgsnImportController;
@@ -686,6 +687,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('docs', [DocsController::class, 'show'])->name('docs');
 
     Route::get('editor', [EditorController::class, 'show'])->name('editor');
+
+    Route::get('editor/resource-loads/{token}/status', [EditorLoadProgressController::class, 'status'])
+        ->whereUuid('token')
+        ->name('editor.resource-loads.status');
+
+    Route::post('editor/resource-loads/{token}/slow', [EditorLoadProgressController::class, 'slow'])
+        ->whereUuid('token')
+        ->name('editor.resource-loads.slow');
 
     Route::post('editor/resources', [ResourceController::class, 'store'])
         ->name('editor.resources.store');

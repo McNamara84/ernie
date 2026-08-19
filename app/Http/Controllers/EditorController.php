@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\EditorLoadStage;
 use App\Models\Resource;
+use App\Models\User;
 use App\Services\Editor\EditorDataTransformer;
+use App\Services\Editor\EditorLoadProgressService;
 use App\Services\OldDatasetEditorLoader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +28,8 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
  */
 class EditorController extends Controller
 {
+    public const RESOURCE_LOAD_TOKEN_HEADER = 'X-Editor-Load-Token';
+
     /**
      * Required array keys in upload session data (XML and JSON uploads).
      *
@@ -48,6 +53,7 @@ class EditorController extends Controller
     public function __construct(
         private readonly EditorDataTransformer $transformer,
         private readonly OldDatasetEditorLoader $oldDatasetLoader,
+        private readonly EditorLoadProgressService $progressTracker,
     ) {}
 
     /**
@@ -79,7 +85,7 @@ class EditorController extends Controller
 
         // Priority 3: Existing resource
         if ($resourceId !== null) {
-            return $this->loadFromResource($resourceId);
+            return $this->loadExistingResource($request, $resourceId);
         }
 
         // Priority 4: Query parameters (import/new mode)
@@ -243,27 +249,71 @@ class EditorController extends Controller
     }
 
     /**
-     * Load editor data from existing Resource.
-     *
-     * @param  mixed  $resourceId  Resource ID (will be validated by findOrFail)
+     * Render the lightweight loader first, then load the resource when the
+     * browser repeats the request with its user-bound progress token.
      */
-    private function loadFromResource(mixed $resourceId): Response
+    private function loadExistingResource(Request $request, mixed $resourceId): Response
     {
-        /** @var Resource $resource */
-        $resource = Resource::query()
-            ->with([
+        if (! is_numeric($resourceId) || (int) $resourceId <= 0) {
+            abort(HttpResponse::HTTP_BAD_REQUEST, 'Invalid resource ID');
+        }
+
+        $normalizedResourceId = (int) $resourceId;
+        /** @var User $user */
+        $user = $request->user();
+        $token = $request->header(self::RESOURCE_LOAD_TOKEN_HEADER);
+
+        if (is_string($token) && trim($token) !== '') {
+            $state = $this->progressTracker->findForUser($token, $user->id, $normalizedResourceId);
+            abort_if($state === null, HttpResponse::HTTP_NOT_FOUND);
+
+            return $this->loadFromResource($normalizedResourceId, $user->id, $token);
+        }
+
+        Resource::query()->select('id')->findOrFail($normalizedResourceId);
+        $state = $this->progressTracker->begin($user->id, $normalizedResourceId);
+
+        return Inertia::render('editor-loading', [
+            'editorLoad' => $this->editorLoadProps(
+                token: (string) $state['token'],
+                resourceId: $normalizedResourceId,
+                serverProgress: (int) $state['progress'],
+            ),
+            'loadError' => null,
+        ]);
+    }
+
+    private function loadFromResource(int $resourceId, int $userId, string $token): Response
+    {
+        try {
+            $commonProps = $this->transformer->getCommonProps();
+            $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::COMMON_PROPS_LOADED);
+
+            /** @var Resource $resource */
+            $resource = Resource::query()->findOrFail($resourceId);
+            $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::RESOURCE_LOADED);
+
+            $resource->load([
                 'resourceType',
                 'language',
                 'titles.titleType',
                 'rights',
                 'resourceRights.right',
+                'descriptions.descriptionType',
+                'dates.dateType',
+            ]);
+            $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::CONTENT_RELATIONS_LOADED);
+
+            $resource->load([
                 'creators.creatorable',
                 'creators.affiliations',
                 'contributors.contributorable',
                 'contributors.affiliations',
                 'contributors.contributorTypes',
-                'descriptions',
-                'dates',
+            ]);
+            $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::PEOPLE_RELATIONS_LOADED);
+
+            $resource->load([
                 'subjects',
                 'geoLocations',
                 'relatedIdentifiers.identifierType',
@@ -272,13 +322,65 @@ class EditorController extends Controller
                 'instruments',
                 'datacenter',
                 'landingPage.externalDomain',
-            ])
-            ->findOrFail($resourceId);
+            ]);
+            $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::SUPPLEMENTAL_RELATIONS_LOADED);
 
-        return Inertia::render('editor', array_merge(
-            $this->transformer->getCommonProps(),
-            $this->transformer->transformResource($resource)
-        ));
+            $editorData = $this->transformer->transformResource(
+                $resource,
+                function (string $phase) use ($token, $userId, $resourceId): void {
+                    $stage = match ($phase) {
+                        'people' => EditorLoadStage::PEOPLE_TRANSFORMED,
+                        'identification' => EditorLoadStage::IDENTIFICATION_TRANSFORMED,
+                        'content' => EditorLoadStage::CONTENT_TRANSFORMED,
+                        'related' => EditorLoadStage::RELATED_METADATA_TRANSFORMED,
+                        default => null,
+                    };
+
+                    if ($stage !== null) {
+                        $this->progressTracker->advance($token, $userId, $resourceId, $stage);
+                    }
+                },
+            );
+            $this->progressTracker->advance($token, $userId, $resourceId, EditorLoadStage::SERVER_READY);
+
+            return Inertia::render('editor', array_merge(
+                $commonProps,
+                $editorData,
+                [
+                    'editorLoad' => $this->editorLoadProps(
+                        token: $token,
+                        resourceId: $resourceId,
+                        serverProgress: EditorLoadStage::SERVER_READY->progress(),
+                    ),
+                ],
+            ));
+        } catch (\Throwable $exception) {
+            $message = 'Unable to load this resource in the Data Editor. Please try again.';
+            $this->progressTracker->fail($token, $userId, $resourceId, $message);
+            report($exception);
+
+            return Inertia::render('editor-loading', [
+                'editorLoad' => $this->editorLoadProps(
+                    token: $token,
+                    resourceId: $resourceId,
+                    serverProgress: (int) ($this->progressTracker->findForUser($token, $userId, $resourceId)['progress'] ?? 0),
+                ),
+                'loadError' => $message,
+            ]);
+        }
+    }
+
+    /**
+     * @return array{token: string, resourceId: int, serverProgress: int, slowThresholdMs: int}
+     */
+    private function editorLoadProps(string $token, int $resourceId, int $serverProgress): array
+    {
+        return [
+            'token' => $token,
+            'resourceId' => $resourceId,
+            'serverProgress' => $serverProgress,
+            'slowThresholdMs' => EditorLoadProgressService::SLOW_THRESHOLD_MS,
+        ];
     }
 
     /**

@@ -109,8 +109,9 @@ it('keeps MSL laboratories in their editor group after a real save and reload', 
 
     expect($resourceId)->toBeInt();
 
-    $this->actingAs($user)
-        ->get(route('editor', ['resourceId' => $resourceId]))
+    $this->actingAs($user);
+
+    loadExistingResourceInEditor($this, $resourceId)
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('editor')
@@ -163,8 +164,9 @@ it('preserves a historical laboratory through draft save reload and update witho
         ->where('mslLaboratories.0.affiliation_ror', 'https://ror.org/03ccccccc')
         ->where('mslLaboratories.0.position', 0);
 
-    $this->actingAs($this->roundtripUser)
-        ->get(route('editor', ['resourceId' => $resourceId]))
+    $this->actingAs($this->roundtripUser);
+
+    loadExistingResourceInEditor($this, $resourceId)
         ->assertOk()
         ->assertInertia($assertHistoricalLaboratory);
 
@@ -174,8 +176,9 @@ it('preserves a historical laboratory through draft save reload and update witho
         ->postJson(route('editor.resources.store-draft'), $payload)
         ->assertOk();
 
-    $this->actingAs($this->roundtripUser)
-        ->get(route('editor', ['resourceId' => $resourceId]))
+    $this->actingAs($this->roundtripUser);
+
+    loadExistingResourceInEditor($this, $resourceId)
         ->assertOk()
         ->assertInertia($assertHistoricalLaboratory);
 });
