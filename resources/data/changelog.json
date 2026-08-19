@@ -186,6 +186,10 @@
         ],
         "improvements": [
             {
+                "title": "Refreshed Interface Components",
+                "description": "Shared interface components now provide more consistent empty states, password fields, cards, tables, charts, checkboxes, sliders, toasts, and loading indicators. The refresh improves accessibility, dark-mode styling, and rendering consistency without changing established workflows."
+            },
+            {
                 "title": "Persistent Mobile Navigation Header",
                 "description": "Authenticated pages now keep the complete header pinned to the top while scrolling on screens narrower than 768px, so the button for opening the main sidebar, breadcrumbs, and font-size control remain available on long pages. The mobile sidebar continues to open above the header, while desktop sidebar and header behavior remain unchanged."
             },

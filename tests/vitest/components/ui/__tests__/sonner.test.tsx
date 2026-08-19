@@ -1,7 +1,14 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { Toaster } from '@/components/ui/sonner';
+
+vi.mock('sonner', () => ({
+    Toaster: ({ icons }: { icons?: Record<string, ReactNode> }) => (
+        <section aria-label="Toast notifications">{icons?.loading}</section>
+    ),
+}));
 
 // Mock the useAppearance hook
 vi.mock('@/hooks/use-appearance', () => ({
@@ -27,6 +34,17 @@ describe('Toaster', () => {
 
     it('accepts expand prop without errors', () => {
         expect(() => render(<Toaster expand />)).not.toThrow();
+    });
+
+    it('uses a decorative shared spinner for loading toasts', () => {
+        render(<Toaster />);
+
+        const toaster = screen.getByRole('region');
+        const loadingIcon = toaster.querySelector('[data-slot="spinner"]');
+        expect(loadingIcon).toHaveClass('h-4', 'w-4', 'animate-spin');
+        expect(loadingIcon).toHaveAttribute('aria-hidden', 'true');
+        expect(loadingIcon).not.toHaveAttribute('role');
+        expect(loadingIcon).not.toHaveAttribute('aria-label');
     });
 });
 

@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
     type ChartConfig,
@@ -115,6 +115,27 @@ describe('ChartTooltip', () => {
 describe('ChartTooltipContent', () => {
     it('is exported and can be used', () => {
         expect(ChartTooltipContent).toBeDefined();
+    });
+
+    it('passes falsy names and the complete payload to the formatter', () => {
+        const formatter = vi.fn(() => <span>Formatted</span>);
+        const payload = [
+            {
+                dataKey: 'value',
+                graphicalItemId: 'value-series',
+                name: 0,
+                value: undefined,
+                payload: { rawValue: null },
+            },
+        ];
+
+        render(
+            <ChartContainer config={{ value: { label: 'Value' } }}>
+                <ChartTooltipContent active payload={payload} formatter={formatter} />
+            </ChartContainer>,
+        );
+
+        expect(formatter).toHaveBeenCalledWith(undefined, 0, payload[0], 0, payload);
     });
 });
 
