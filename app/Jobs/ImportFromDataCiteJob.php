@@ -1091,6 +1091,7 @@ class ImportFromDataCiteJob implements ShouldQueue
     }
 
     /**
+     * @param  array<string, mixed>  $doiRecord
      * @return array{changed: bool, metaworks_unavailable: bool}
      */
     private function syncLegacyDownloadLinks(

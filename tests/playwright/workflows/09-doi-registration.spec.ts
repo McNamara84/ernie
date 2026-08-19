@@ -140,7 +140,7 @@ test.describe('DOI Registration Workflow', () => {
     test('review status opens the tokenized landing-page preview instead of the DOI', async ({ page }) => {
         await page.goto('/resources');
 
-        const reviewRow = page.locator('tbody tr').filter({ hasText: 'Playwright: Review Resource' });
+        const reviewRow = page.locator('tbody tr').filter({ hasText: '10.1234/playwright-qa' });
         await expect(reviewRow).toBeVisible();
 
         const reviewBadge = reviewRow.getByRole('button', { name: /Review - Click to open preview page/i });
