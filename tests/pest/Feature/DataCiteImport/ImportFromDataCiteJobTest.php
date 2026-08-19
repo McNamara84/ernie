@@ -1541,6 +1541,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                 'files' => [],
                 'allPublic' => false,
                 'resourceFound' => true,
+                'hasFileRows' => false,
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1557,6 +1558,58 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($landingPage->is_published)->toBeTrue()
             ->and($landingPage->published_at)->not->toBeNull()
             ->and(LandingPageDomain::count())->toBe(0);
+    });
+
+    it('keeps a findable landing page in review when non-public legacy rows have no valid URLs', function () {
+        $this->importService
+            ->shouldReceive('getTotalDoiCount')
+            ->once()
+            ->andReturn(1);
+
+        $this->importService
+            ->shouldReceive('fetchAllDois')
+            ->once()
+            ->andReturn((function () {
+                yield [
+                    'id' => '10.5880/invalid.private.001',
+                    'attributes' => [
+                        'doi' => '10.5880/invalid.private.001',
+                        'state' => 'findable',
+                        'titles' => [['title' => 'Invalid Private File Dataset']],
+                        'publicationYear' => 2024,
+                        'types' => ['resourceTypeGeneral' => 'Dataset'],
+                    ],
+                ];
+            })());
+
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/invalid.private.001']));
+
+        $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
+        $metaworksService->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/invalid.private.001')
+            ->andReturn([
+                'files' => [],
+                'allPublic' => false,
+                'resourceFound' => true,
+                'hasFileRows' => true,
+            ]);
+
+        $importId = Str::uuid()->toString();
+        $job = new ImportFromDataCiteJob($this->user->id, $importId);
+        $job->handle($this->importService, $this->transformer, $metaworksService);
+
+        $resource = Resource::where('doi', '10.5880/invalid.private.001')->firstOrFail();
+        $landingPage = $resource->fresh(['landingPage'])->landingPage;
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->is_published)->toBeFalse()
+            ->and($landingPage->published_at)->toBeNull();
     });
 
     it('ignores old DataCite data services URLs and imports SUMARIO file URLs instead', function () {

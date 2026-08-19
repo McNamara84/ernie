@@ -1100,8 +1100,8 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $doiRecord,
         MetaworksDownloadUrlService $metaworksService,
     ): array {
-        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool} $fileResult */
-        $fileResult = ['files' => [], 'allPublic' => false, 'resourceFound' => false];
+        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool, hasFileRows?: bool} $fileResult */
+        $fileResult = ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false];
 
         try {
             $fileResult = $metaworksService->lookupFileEntries($doi);
@@ -1117,14 +1117,17 @@ class ImportFromDataCiteJob implements ShouldQueue
             ];
         }
 
-        $fileResult += ['resourceFound' => false];
+        $fileResult += [
+            'resourceFound' => false,
+            'hasFileRows' => $fileResult['files'] !== [],
+        ];
 
         try {
             $syncResult = app(LegacyLandingPageImportService::class)->syncMissingFileEntries(
                 resource: $resource,
                 fileEntries: $fileResult['files'],
                 isPublished: $this->isFindableDoiRecord($doiRecord)
-                    && ($fileResult['files'] === [] || $fileResult['allPublic']),
+                    && (! $fileResult['hasFileRows'] || $fileResult['allPublic']),
                 createWhenEmpty: $fileResult['resourceFound'] === true,
             );
         } catch (\Throwable $exception) {
