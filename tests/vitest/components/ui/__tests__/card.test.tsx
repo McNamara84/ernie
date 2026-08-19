@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { Card, CardContent, CardDescription, CardFooter,CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 describe('Card', () => {
     it('renders card structure with slots', () => {
@@ -12,6 +12,7 @@ describe('Card', () => {
                 <CardHeader>
                     <CardTitle>Title</CardTitle>
                     <CardDescription>Description</CardDescription>
+                    <CardAction>Action</CardAction>
                 </CardHeader>
                 <CardContent>Content</CardContent>
                 <CardFooter>Footer</CardFooter>
@@ -24,6 +25,7 @@ describe('Card', () => {
         expect(cardTitle).toHaveAttribute('data-slot', 'card-title');
         expect(cardTitle.tagName).toBe('H3');
         expect(screen.getByText('Description')).toHaveAttribute('data-slot', 'card-description');
+        expect(screen.getByText('Action')).toHaveAttribute('data-slot', 'card-action');
         expect(screen.getByText('Content')).toHaveAttribute('data-slot', 'card-content');
         expect(screen.getByText('Footer')).toHaveAttribute('data-slot', 'card-footer');
     });
@@ -43,4 +45,3 @@ describe('Card', () => {
         expect(heading).toHaveAttribute('data-slot', 'card-title');
     });
 });
-

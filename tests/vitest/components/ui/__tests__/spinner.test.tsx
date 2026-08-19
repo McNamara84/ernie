@@ -43,16 +43,25 @@ describe('Spinner', () => {
         expect(spinner).toHaveClass('animate-spin');
     });
 
-    it('has aria-hidden attribute for accessibility', () => {
+    it('announces its loading state by default', () => {
         render(<Spinner data-testid="spinner" />);
         const spinner = screen.getByTestId('spinner');
-        expect(spinner).toHaveAttribute('aria-hidden', 'true');
+        expect(spinner).toHaveAttribute('role', 'status');
+        expect(spinner).toHaveAttribute('aria-label', 'Loading');
     });
 
     it('forwards additional props', () => {
         render(<Spinner data-testid="spinner" aria-label="Loading content" />);
         const spinner = screen.getByTestId('spinner');
         expect(spinner).toHaveAttribute('aria-label', 'Loading content');
+    });
+
+    it('can be hidden from assistive technology when it accompanies visible text', () => {
+        render(<Spinner data-testid="spinner" aria-hidden="true" />);
+        const spinner = screen.getByTestId('spinner');
+        expect(spinner).toHaveAttribute('aria-hidden', 'true');
+        expect(spinner).not.toHaveAttribute('role');
+        expect(spinner).not.toHaveAttribute('aria-label');
     });
 
     it('combines size class with custom className', () => {
