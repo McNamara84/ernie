@@ -16,6 +16,20 @@ const editorRouteMock = vi.hoisted(() =>
     })),
 );
 const openDetachedTabMock = vi.hoisted(() => vi.fn());
+const authUserMock = vi.hoisted(() => ({
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.test',
+    font_size_preference: 'regular',
+    email_verified_at: null,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+    role: 'group_leader',
+    can_manage_landing_pages: true,
+    can_register_doi: true,
+    can_register_production_doi: true,
+    can_send_review_links: true,
+}));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -23,19 +37,7 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: {
             auth: {
-                user: {
-                    id: 1,
-                    name: 'Test User',
-                    email: 'test@example.test',
-                    font_size_preference: 'regular',
-                    email_verified_at: null,
-                    created_at: '2024-01-01T00:00:00Z',
-                    updated_at: '2024-01-01T00:00:00Z',
-                    role: 'group_leader',
-                    can_manage_landing_pages: true,
-                    can_register_doi: true,
-                    can_register_production_doi: true,
-                },
+                user: authUserMock,
             },
         },
     }),
@@ -101,6 +103,7 @@ describe('ResourcesPage', () => {
     let clipboardWriteTextMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
+        authUserMock.can_send_review_links = true;
         routerMock.get.mockClear();
         routerMock.delete.mockClear();
         routerMock.reload.mockClear();
@@ -484,6 +487,89 @@ describe('ResourcesPage', () => {
         expect(openMock).toHaveBeenCalledWith('https://doi.org/10.9999/example', '_blank', 'noopener,noreferrer');
         expect(editorRouteMock).not.toHaveBeenCalled();
         expect(openDetachedTabMock).not.toHaveBeenCalled();
+    });
+
+    it('opens and copies the tokenized preview URL from a review badge', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'review',
+            landingPage: {
+                id: 1,
+                is_published: false,
+                public_url: 'https://example.test/resource',
+                preview_url: 'https://example.test/resource?preview=secret-token',
+            },
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /review - click to open preview page and copy url to clipboard/i }));
+
+        expect(clipboardWriteTextMock).toHaveBeenCalledWith('https://example.test/resource?preview=secret-token');
+        expect(openMock).toHaveBeenCalledWith('https://example.test/resource?preview=secret-token', '_blank', 'noopener,noreferrer');
+        expect(clipboardWriteTextMock).not.toHaveBeenCalledWith('https://example.test/resource');
+    });
+
+    it('does not expose review badge interactions without review-link permission', () => {
+        authUserMock.can_send_review_links = false;
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'review',
+            landingPage: {
+                id: 1,
+                is_published: false,
+                public_url: 'https://example.test/resource',
+                preview_url: 'https://example.test/resource?preview=secret-token',
+            },
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        expect(screen.queryByRole('button', { name: /review - click to open preview page/i })).not.toBeInTheDocument();
+
+        const reviewLabel = screen.getByText('Review');
+        expect(reviewLabel.parentElement).not.toHaveAttribute('role', 'button');
+        expect(reviewLabel.parentElement).not.toHaveAttribute('data-resource-row-action');
+        expect(clipboardWriteTextMock).not.toHaveBeenCalled();
+        expect(openMock).not.toHaveBeenCalled();
     });
 
     it('does not activate the row when an interactive status badge text node is clicked', () => {

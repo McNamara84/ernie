@@ -148,6 +148,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by((string) $identifier);
         });
 
+        // Limit external review invitations independently for each user.
+        RateLimiter::for('resource-review-links', function (Request $request) {
+            $user = $request->user();
+            $identifier = $user !== null ? $user->getAuthIdentifier() : $request->ip();
+
+            return Limit::perMinute(10)->by((string) $identifier);
+        });
+
         // Rate limiter for OAI-PMH harvesting endpoint
         // Allows 120 requests per minute per IP (harvester-friendly but prevents abuse)
         RateLimiter::for('oai-pmh', function (Request $request) {
@@ -242,6 +250,15 @@ class AppServiceProvider extends ServiceProvider
         // Register DOIs in production mode (Beginners are restricted to test mode)
         Gate::define('register-production-doi', function (User $user): bool {
             return $user->role !== UserRole::BEGINNER;
+        });
+
+        // Send review links to resource ContactPerson contributors.
+        Gate::define('send-review-links', function (User $user): bool {
+            return in_array($user->role, [
+                UserRole::ADMIN,
+                UserRole::GROUP_LEADER,
+                UserRole::CURATOR,
+            ], true);
         });
 
         // Delete application logs (Admin only)

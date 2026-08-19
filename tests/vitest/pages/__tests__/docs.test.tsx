@@ -591,12 +591,56 @@ describe('Docs page', () => {
         ).toBeInTheDocument();
     });
 
+    it('documents review-link batch requirements, recipients, and partial results for curators', async () => {
+        const { user } = renderDocsPage('curator');
+
+        await openDatasetsTab(user);
+
+        expect(screen.getByText('Send Review Links (Curator and above)')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    element?.tagName === 'P' &&
+                    text.includes('every selected resource has the Review status and a usable preview link') &&
+                    text.includes('rejected before any email is queued')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    element?.tagName === 'P' &&
+                    text.includes('ContactPerson role and a valid email address receives one separate invitation per selected resource') &&
+                    text.includes('included as Cc and Reply-To on every invitation')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => {
+                const text = element?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+                return (
+                    element?.tagName === 'P' &&
+                    text.includes('Missing or invalid ContactPerson addresses are skipped') &&
+                    text.includes('reported as failed while eligible recipients and other resources continue')
+                );
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Limit: up to 100 resources per batch and up to 10 send requests per user per minute.')).toBeInTheDocument();
+    });
+
     it('hides resource delete documentation for beginners', async () => {
         const { user } = renderDocsPage('beginner');
 
         await openDatasetsTab(user);
 
         expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(screen.getByText(/Beginners do not receive that link in the Resources list/i)).toBeInTheDocument();
+        expect(screen.queryByText('Send Review Links (Curator and above)')).not.toBeInTheDocument();
         expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
     });
     it('documents beginner test-only bulk DOI actions', async () => {

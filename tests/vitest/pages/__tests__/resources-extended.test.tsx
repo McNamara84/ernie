@@ -26,6 +26,7 @@ const mockUser = vi.hoisted(() => ({
     can_manage_landing_pages: true,
     can_register_doi: true,
     can_register_production_doi: true,
+    can_send_review_links: true,
     can_delete_published_resources: true,
     can_access_old_datasets: false,
     can_access_statistics: false,
@@ -103,11 +104,16 @@ interface TestResource {
     resourcetypegeneral?: string;
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
-    landingPage?: { id: number; is_published: boolean; public_url: string } | null;
+    landingPage?: { id: number; is_published: boolean; public_url: string; preview_url?: string | null } | null;
     [key: string]: unknown;
 }
 
-const landingPage = { id: 1, is_published: false, public_url: 'https://example.test/preview' };
+const landingPage = {
+    id: 1,
+    is_published: false,
+    public_url: 'https://example.test/preview',
+    preview_url: 'https://example.test/preview?preview=secret-token',
+};
 
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
     return {
@@ -195,6 +201,7 @@ describe('ResourcesPage - extended', () => {
             can_manage_landing_pages: true,
             can_register_doi: true,
             can_register_production_doi: true,
+            can_send_review_links: true,
             can_delete_published_resources: true,
             can_access_old_datasets: false,
             can_access_statistics: false,

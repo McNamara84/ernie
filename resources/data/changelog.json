@@ -4,6 +4,10 @@
         "date": "2026-08-19",
         "features": [
             {
+                "title": "Bulk Resource Review Invitations",
+                "description": "Admins, Group Leaders, and Curators can now send tokenized landing-page review links directly from the Resources bulk Actions menu. The action accepts up to 100 selected resources when every item is in Review and has a preview link. Each ContactPerson contributor with a valid email address receives a separate invitation per resource, with the GFZ Data Services contact address in Cc and Reply-To. Invalid recipients or resources without a valid ContactPerson are reported as partial failures while other eligible invitations continue to be queued."
+            },
+            {
                 "title": "Resource Types for Relation Suggestions",
                 "description": "Relation Suggestions now display the suggested target resource's DataCite resource type as a clear badge. Missing DOI resource types are resolved through the existing citation lookup during discovery, including pending suggestions that can be enriched later."
             },

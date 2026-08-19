@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use Tests\TestCase;
@@ -70,5 +71,41 @@ describe('Resources page bulk actions (smoke)', function (): void {
             ->assertSee('resources selected')
             ->click('[data-testid="resources-actions-menu-trigger"]')
             ->assertVisible('[data-testid="resources-action-export-datacite-json"]');
+    });
+
+    it('shows review-link sending to curators for review resources', function (): void {
+        /** @var TestCase $this */
+        $user = User::factory()->curator()->create();
+        $resource = Resource::factory()->create(['force_review_status' => true]);
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $resource->id,
+            'preview_token' => 'browser-review-token',
+        ]);
+
+        $this->actingAs($user);
+
+        visit('/resources')
+            ->assertNoSmoke()
+            ->click('[data-testid="resources-row-checkbox-'.$resource->id.'"]')
+            ->click('[data-testid="resources-actions-menu-trigger"]')
+            ->assertVisible('[data-testid="resources-action-send-review-link"]');
+    });
+
+    it('hides review-link sending from beginners', function (): void {
+        /** @var TestCase $this */
+        $user = User::factory()->beginner()->create();
+        $resource = Resource::factory()->create(['force_review_status' => true]);
+        LandingPage::factory()->draft()->create([
+            'resource_id' => $resource->id,
+            'preview_token' => 'browser-review-token',
+        ]);
+
+        $this->actingAs($user);
+
+        visit('/resources')
+            ->assertNoSmoke()
+            ->click('[data-testid="resources-row-checkbox-'.$resource->id.'"]')
+            ->click('[data-testid="resources-actions-menu-trigger"]')
+            ->assertNotPresent('[data-testid="resources-action-send-review-link"]');
     });
 });

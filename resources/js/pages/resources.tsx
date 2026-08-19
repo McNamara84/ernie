@@ -178,6 +178,14 @@ interface BlockedEditorTab {
     url: string;
 }
 
+interface ReviewLinkBatchResponse {
+    message: string;
+    queued_messages: number;
+    successful_resources: Array<{ id: number; queued_recipients: number }>;
+    failed_resources: Array<{ id: number; reason: string }>;
+    skipped_recipients_count: number;
+}
+
 const BATCH_EXPORT_FORMAT_BY_ACTION: Record<ResourceExportAction, 'datacite-json' | 'datacite-xml' | 'jsonld'> = {
     'export-datacite-json': 'datacite-json',
     'export-datacite-xml': 'datacite-xml',
@@ -642,6 +650,7 @@ function ResourcesPage({
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
     const canRegisterDoi = auth.user?.can_register_doi ?? false;
+    const canSendReviewLinks = auth.user?.can_send_review_links ?? false;
     const canDeletePublishedResources = auth.user?.can_delete_published_resources ?? false;
     const canDeleteResources = auth.user?.role === 'admin' || auth.user?.role === 'group_leader' || auth.user?.role === 'curator';
     const deletableDeleteStatuses = canDeletePublishedResources ? ALL_DELETE_STATUSES : NON_PUBLISHED_DELETE_STATUSES;
@@ -1037,9 +1046,9 @@ function ResourcesPage({
 
                 // Open in new tab
                 window.open(doiUrl, '_blank', 'noopener,noreferrer');
-            } else if (status === 'review' && resource.landingPage?.public_url) {
+            } else if (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url) {
                 // Review: Open preview landing page and copy URL to clipboard
-                const previewUrl = resource.landingPage.public_url;
+                const previewUrl = resource.landingPage.preview_url;
 
                 copyToClipboard(previewUrl, 'Preview URL copied to clipboard', 'URL with access token copied for sharing with reviewers');
 
@@ -1047,7 +1056,7 @@ function ResourcesPage({
                 window.open(previewUrl, '_blank', 'noopener,noreferrer');
             }
         },
-        [copyToClipboard],
+        [canSendReviewLinks, copyToClipboard],
     );
 
     const [selectedResourceForLandingPage, setSelectedResourceForLandingPage] = useState<Resource | null>(null);
@@ -1059,6 +1068,8 @@ function ResourcesPage({
     const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
     const [citationManagerResourceId, setCitationManagerResourceId] = useState<number | null>(null);
     const [isUpdateMetadataDialogOpen, setIsUpdateMetadataDialogOpen] = useState(false);
+    const [isReviewLinkDialogOpen, setIsReviewLinkDialogOpen] = useState(false);
+    const [isSendingReviewLinks, setIsSendingReviewLinks] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeletingResource, setIsDeletingResource] = useState(false);
     const [selectedDeleteStatuses, setSelectedDeleteStatuses] = useState<Record<ResourceDeleteStatus, boolean>>(createDefaultDeleteStatusSelection);
@@ -1132,6 +1143,73 @@ function ResourcesPage({
             void executeUpdateMetadata();
         },
         [executeUpdateMetadata],
+    );
+
+    const handleReviewLinkDialogOpenChange = useCallback(
+        (open: boolean) => {
+            if (!open && !isSendingReviewLinks) {
+                setIsReviewLinkDialogOpen(false);
+            }
+        },
+        [isSendingReviewLinks],
+    );
+
+    const handleConfirmSendReviewLinks = useCallback(
+        async (event: ReactMouseEvent<HTMLButtonElement>) => {
+            event.preventDefault();
+
+            if (isSendingReviewLinks || selectedResourceIds.length === 0) {
+                return;
+            }
+
+            setIsSendingReviewLinks(true);
+
+            try {
+                const response = await axios.post<ReviewLinkBatchResponse>('/resources/send-review-links', {
+                    ids: selectedResourceIds,
+                });
+                const result = response.data;
+                const queuedMessages = result.queued_messages ?? 0;
+                const successfulResources = result.successful_resources?.length ?? 0;
+                const failedResources = result.failed_resources?.length ?? 0;
+                const skippedRecipients = result.skipped_recipients_count ?? 0;
+
+                if (failedResources > 0 || skippedRecipients > 0) {
+                    toast.warning(
+                        `${queuedMessages} ${queuedMessages === 1 ? 'review email' : 'review emails'} queued for ${successfulResources} ${successfulResources === 1 ? 'resource' : 'resources'}; ${skippedRecipients} ${skippedRecipients === 1 ? 'recipient was' : 'recipients were'} skipped and ${failedResources} ${failedResources === 1 ? 'resource has' : 'resources have'} no queued email.`,
+                    );
+                } else {
+                    toast.success(
+                        `${queuedMessages} ${queuedMessages === 1 ? 'review email' : 'review emails'} queued for ${successfulResources} ${successfulResources === 1 ? 'resource' : 'resources'}.`,
+                    );
+                }
+
+                if (queuedMessages > 0) {
+                    setSelectedIds(new Set());
+                }
+
+                setIsReviewLinkDialogOpen(false);
+            } catch (error) {
+                console.error('Failed to queue review emails:', error);
+
+                let message = 'Failed to send review links.';
+                if (isAxiosError(error) && error.response?.data && typeof error.response.data === 'object') {
+                    const responseData = error.response.data as { message?: unknown; errors?: Record<string, unknown> };
+                    const idsError = normalizeValidationMessage(responseData.errors?.ids);
+
+                    if (idsError) {
+                        message = idsError;
+                    } else if (typeof responseData.message === 'string' && responseData.message.trim() !== '') {
+                        message = responseData.message;
+                    }
+                }
+
+                toast.error(message);
+            } finally {
+                setIsSendingReviewLinks(false);
+            }
+        },
+        [isSendingReviewLinks, selectedResourceIds],
     );
 
     const handleConfirmDelete = useCallback(
@@ -1459,6 +1537,10 @@ function ResourcesPage({
 
     const selectedWithoutLandingPageCount = selectedResources.filter((resource) => !resource.landingPage).length;
     const selectedWithoutDoiCount = selectedResources.filter((resource) => !hasPersistentIdentifier(resource)).length;
+    const selectedOutsideReviewCount = selectedResources.filter((resource) => resource.publicstatus !== 'review').length;
+    const selectedWithoutReviewLinkCount = selectedResources.filter(
+        (resource) => resource.publicstatus === 'review' && !resource.landingPage?.preview_url,
+    ).length;
 
     const noSelectionReason = 'Select one or more resources first.';
     const singleRecordReason = 'This action can only be performed on a single record.';
@@ -1524,6 +1606,19 @@ function ResourcesPage({
                         : undefined,
             loading: isBulkRegistering,
         },
+        'send-review-link': {
+            visible: canSendReviewLinks,
+            available: selectedCount > 0 && selectedOutsideReviewCount === 0 && selectedWithoutReviewLinkCount === 0,
+            reason:
+                selectedCount === 0
+                    ? noSelectionReason
+                    : selectedOutsideReviewCount > 0
+                      ? `Send review link is only available when every selected resource is in review. ${formatSelectionCount(selectedOutsideReviewCount, 'selected resource is', 'selected resources are')} not in review.`
+                      : selectedWithoutReviewLinkCount > 0
+                        ? `${formatSelectionCount(selectedWithoutReviewLinkCount, 'selected review resource has', 'selected review resources have')} no usable review link.`
+                        : undefined,
+            loading: isSendingReviewLinks,
+        },
         delete: {
             visible: canDeleteResources,
             available: selectedCount > 0,
@@ -1564,6 +1659,9 @@ function ResourcesPage({
                     break;
                 case 'update-metadata':
                     setIsUpdateMetadataDialogOpen(true);
+                    break;
+                case 'send-review-link':
+                    setIsReviewLinkDialogOpen(true);
                     break;
                 case 'delete':
                     handleOpenDeleteDialog();
@@ -1743,7 +1841,8 @@ function ResourcesPage({
                 const status = resource.publicstatus ?? 'curation';
 
                 // Determine if badge is clickable
-                const isClickable = (status === 'published' && resource.doi) || (status === 'review' && resource.landingPage?.public_url);
+                const isClickable =
+                    (status === 'published' && resource.doi) || (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url);
 
                 // Determine badge style based on status
                 let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center justify-center';
@@ -2237,6 +2336,29 @@ function ResourcesPage({
                         <AlertDialogCancel disabled={isBulkRegistering}>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleConfirmUpdateMetadata} disabled={isBulkRegistering}>
                             {isBulkRegistering ? 'Updating...' : 'Update metadata'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isReviewLinkDialogOpen} onOpenChange={handleReviewLinkDialogOpenChange}>
+                <AlertDialogContent data-testid="resources-review-link-confirmation-dialog">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Send review links?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will queue external emails for {selectedCount} {selectedCount === 1 ? 'resource' : 'resources'}. Every ContactPerson
+                            contributor with a valid email address receives one separate email per resource. The GFZ Data Services contact address is
+                            included in Cc on every message.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isSendingReviewLinks}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(event) => void handleConfirmSendReviewLinks(event)}
+                            disabled={isSendingReviewLinks}
+                            data-testid="resources-confirm-send-review-links"
+                        >
+                            {isSendingReviewLinks ? 'Queuing...' : 'Send review links'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

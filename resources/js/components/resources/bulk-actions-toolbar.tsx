@@ -1,4 +1,4 @@
-import { Braces, ChevronDown, Eye, PencilLine, Quote, Trash2 } from 'lucide-react';
+import { Braces, ChevronDown, Eye, Mail, PencilLine, Quote, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
@@ -16,6 +16,7 @@ export type ResourcesActionKey =
     | 'export-jsonld'
     | 'register-doi'
     | 'update-metadata'
+    | 'send-review-link'
     | 'delete';
 
 export interface ResourcesActionState {
@@ -79,6 +80,11 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
         key: 'update-metadata',
         label: 'Update metadata',
         icon: <DataCiteIcon aria-hidden="true" className="size-4" />,
+    },
+    {
+        key: 'send-review-link',
+        label: 'Send review link',
+        icon: <Mail aria-hidden="true" className="size-4" />,
     },
     {
         key: 'delete',

@@ -187,6 +187,7 @@ describe('HandleInertiaRequests', function () {
             'can_manage_users',
             'can_register_doi',
             'can_register_production_doi',
+            'can_send_review_links',
             'can_delete_logs',
             'can_access_logs',
             'can_access_old_datasets',
