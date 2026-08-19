@@ -417,6 +417,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('resources.batch-export');
 
     Route::post('resources/send-review-links', [ResourceReviewLinkController::class, 'store'])
+        ->middleware('throttle:resource-review-links')
         ->name('resources.send-review-links');
 
     // DataCite prefix configuration endpoint

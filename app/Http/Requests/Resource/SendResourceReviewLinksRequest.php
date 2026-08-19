@@ -11,6 +11,11 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 final class SendResourceReviewLinksRequest extends FormRequest
 {
+    /**
+     * Maximum number of resources whose review links can be sent at once.
+     */
+    public const MAX_BATCH_SIZE = 100;
+
     public function authorize(): bool
     {
         return $this->user()?->can('send-review-links') === true;
@@ -22,7 +27,7 @@ final class SendResourceReviewLinksRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'ids' => ['required', 'array', 'min:1'],
+            'ids' => ['required', 'array', 'min:1', 'max:'.self::MAX_BATCH_SIZE],
             'ids.*' => ['required', 'integer', 'distinct', 'exists:resources,id'],
         ];
     }

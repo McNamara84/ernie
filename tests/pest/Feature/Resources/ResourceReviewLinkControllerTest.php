@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\AccessLevel;
 use App\Enums\ContributorCategory;
 use App\Enums\UserRole;
+use App\Http\Requests\Resource\SendResourceReviewLinksRequest;
 use App\Mail\ResourceReviewLink;
 use App\Models\ContributorType;
 use App\Models\Description;
@@ -18,13 +19,16 @@ use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Mail::fake();
+    $this->withoutMiddleware(ThrottleRequests::class);
     config(['mail.landing_page_contact_cc' => 'datapub@example.test']);
 
     $this->contactPersonType = ContributorType::create([
@@ -170,6 +174,56 @@ describe('authorization and request validation', function (): void {
         'duplicate IDs' => [['ids' => [1, 1]], 'ids.1'],
         'unknown ID' => [['ids' => [999999]], 'ids.0'],
     ]);
+
+    it('rejects batches larger than the visible resources page limit', function (): void {
+        $ids = range(1, SendResourceReviewLinksRequest::MAX_BATCH_SIZE + 1);
+
+        postReviewMailRequest(User::factory()->curator()->create(), $ids)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('ids')
+            ->assertJsonPath('errors.ids.0', fn (string $message): bool => str_contains(
+                $message,
+                'must not have more than '.SendResourceReviewLinksRequest::MAX_BATCH_SIZE.' items',
+            ));
+
+        Mail::assertNothingQueued();
+    });
+});
+
+describe('request rate limiting', function (): void {
+    it('limits duplicate invitation batches per user without affecting another curator', function (): void {
+        $this->withMiddleware(ThrottleRequests::class);
+        $resource = createReviewMailResource();
+        addReviewMailContributor($resource, 'reviewer@example.test');
+        $firstUser = User::factory()->curator()->create();
+        $secondUser = User::factory()->curator()->create();
+        $clearRateLimit = static function (User $user): void {
+            RateLimiter::clear('resource-review-links:'.$user->getAuthIdentifier());
+        };
+        ThrottleRequests::shouldHashKeys(false);
+        $clearRateLimit($firstUser);
+        $clearRateLimit($secondUser);
+
+        try {
+            for ($attempt = 1; $attempt <= 10; $attempt++) {
+                postReviewMailRequest($firstUser, [$resource->id])
+                    ->assertOk()
+                    ->assertHeader('X-RateLimit-Limit', '10');
+            }
+
+            postReviewMailRequest($firstUser, [$resource->id])
+                ->assertTooManyRequests();
+
+            postReviewMailRequest($secondUser, [$resource->id])
+                ->assertOk();
+
+            Mail::assertQueued(ResourceReviewLink::class, 11);
+        } finally {
+            $clearRateLimit($firstUser);
+            $clearRateLimit($secondUser);
+            ThrottleRequests::shouldHashKeys();
+        }
+    });
 });
 
 describe('atomic review selection preflight', function (): void {
