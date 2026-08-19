@@ -70,6 +70,23 @@ describe('LegacyLandingPageImportService', function () {
             ->and($resource->fresh(['landingPage'])->publicStatus())->toBe('review');
     });
 
+    it('publishes a landing page without downloads when the import marks it as published', function () {
+        $resource = Resource::factory()->create(['doi' => '10.5880/landing.empty.published']);
+
+        $landingPage = (new LegacyLandingPageImportService)->createForResource(
+            resource: $resource,
+            fileEntries: [],
+            isPublished: true,
+            createWhenEmpty: true,
+        );
+
+        expect($landingPage)->not->toBeNull()
+            ->and($landingPage->ftp_url)->toBeNull()
+            ->and($landingPage->downloads_unavailable)->toBeTrue()
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->published_at)->not->toBeNull();
+    });
+
     it('clears downloads unavailable when legacy files are synced later', function () {
         $resource = Resource::factory()->create(['doi' => '10.5880/landing.empty.then.files']);
         $landingPage = LandingPage::factory()->downloadsUnavailable()->draft()->create([

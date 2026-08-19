@@ -916,7 +916,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
                 if ($shouldLookupMetaworks && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
-                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $metaworksService);
+                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $doiRecord, $metaworksService);
                 }
 
                 return [
@@ -984,7 +984,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
                 if ($existingResource !== null && $shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
-                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $metaworksService);
+                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $doiRecord, $metaworksService);
                 }
 
                 return [
@@ -1008,7 +1008,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
             if ($shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $importedResource->id)->exists()) {
-                $legacyDownloadSync = $this->syncLegacyDownloadLinks($importedResource, $doi, $metaworksService);
+                $legacyDownloadSync = $this->syncLegacyDownloadLinks($importedResource, $doi, $doiRecord, $metaworksService);
             }
 
             $this->syncDataCiteMetadataIfAllowed($importedResource);
@@ -1039,7 +1039,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
                 if ($existingResource !== null && $shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
-                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $metaworksService);
+                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $doiRecord, $metaworksService);
                 }
 
                 return [
@@ -1096,6 +1096,7 @@ class ImportFromDataCiteJob implements ShouldQueue
     private function syncLegacyDownloadLinks(
         Resource $resource,
         string $doi,
+        array $doiRecord,
         MetaworksDownloadUrlService $metaworksService,
     ): array {
         /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool} $fileResult */
@@ -1121,7 +1122,8 @@ class ImportFromDataCiteJob implements ShouldQueue
             $syncResult = app(LegacyLandingPageImportService::class)->syncMissingFileEntries(
                 resource: $resource,
                 fileEntries: $fileResult['files'],
-                isPublished: $fileResult['files'] !== [] && $fileResult['allPublic'],
+                isPublished: $this->isFindableDoiRecord($doiRecord)
+                    && ($fileResult['files'] === [] || $fileResult['allPublic']),
                 createWhenEmpty: $fileResult['resourceFound'] === true,
             );
         } catch (\Throwable $exception) {
@@ -1138,6 +1140,18 @@ class ImportFromDataCiteJob implements ShouldQueue
             'changed' => $syncResult['changed'],
             'metaworks_unavailable' => false,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $doiRecord
+     */
+    private function isFindableDoiRecord(array $doiRecord): bool
+    {
+        $attributes = is_array($doiRecord['attributes'] ?? null)
+            ? $doiRecord['attributes']
+            : $doiRecord;
+
+        return strtolower(trim((string) ($attributes['state'] ?? ''))) === 'findable';
     }
 
     /**

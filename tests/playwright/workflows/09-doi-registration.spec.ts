@@ -137,23 +137,27 @@ test.describe('DOI Registration Workflow', () => {
         }
     });
 
-    test('status badge is clickable for review resources', async ({ page }) => {
-        // Navigate to resources
+    test('review status opens the tokenized landing-page preview instead of the DOI', async ({ page }) => {
         await page.goto('/resources');
 
-        // Find review resource
-        const reviewBadge = page.getByText('Review').first();
+        const reviewRow = page.locator('tbody tr').filter({ hasText: 'Playwright: Review Resource' });
+        await expect(reviewRow).toBeVisible();
 
-        if ((await reviewBadge.count()) > 0) {
-            await expect(reviewBadge).toBeVisible();
+        const reviewBadge = reviewRow.getByRole('button', { name: /Review - Click to open preview page/i });
+        await expect(reviewBadge).toHaveCSS('cursor', 'pointer');
 
-            // Badge should have button role or be clickable
-            const badgeElement = reviewBadge.locator('..');
-            await expect(badgeElement).toHaveAttribute('role', 'button');
+        const popupPromise = page.waitForEvent('popup');
+        await reviewBadge.click();
+        const previewPage = await popupPromise;
 
-            // Should have hover effect
-            await expect(badgeElement).toHaveCSS('cursor', 'pointer');
-        }
+        await previewPage.waitForURL((url) => url.searchParams.has('preview'));
+
+        const previewUrl = new URL(previewPage.url());
+        expect(previewUrl.hostname).not.toBe('doi.org');
+        expect(previewUrl.searchParams.get('preview')).toBeTruthy();
+        expect(previewUrl.pathname).toContain('/10.1234/playwright-qa/');
+
+        await previewPage.close();
     });
 
     test('status badge is not clickable for curation resources', async ({ page }) => {

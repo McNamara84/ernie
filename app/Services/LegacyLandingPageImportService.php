@@ -154,7 +154,7 @@ class LegacyLandingPageImportService
         $resource->loadMissing('titles.titleType');
 
         $primaryFile = $fileEntries[0] ?? null;
-        $shouldPublish = $isPublished && $primaryFile !== null;
+        $shouldPublish = $isPublished;
 
         $landingPage = new LandingPage([
             'resource_id' => $resource->id,
