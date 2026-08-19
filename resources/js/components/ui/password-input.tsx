@@ -1,9 +1,7 @@
 import { Eye, EyeOff } from 'lucide-react';
 import * as React from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
 
 interface PasswordInputProps extends React.ComponentProps<'input'> {
     showPasswordLabel?: string;
@@ -24,28 +22,27 @@ function PasswordInput({
     };
 
     return (
-        <div data-slot="password-input" className="relative">
-            <Input
+        <InputGroup data-password-input="">
+            <InputGroupInput
                 type={showPassword ? 'text' : 'password'}
                 autoComplete={showPassword ? 'off' : autoComplete}
-                className={cn('pr-10', className)}
+                className={className}
                 {...props}
             />
-            <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={togglePasswordVisibility}
-                aria-label={showPassword ? hidePasswordLabel : showPasswordLabel}
-            >
-                {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                )}
-            </Button>
-        </div>
+            <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                    size="icon-xs"
+                    onClick={togglePasswordVisibility}
+                    aria-label={showPassword ? hidePasswordLabel : showPasswordLabel}
+                >
+                    {showPassword ? (
+                        <EyeOff className="size-4 text-muted-foreground" aria-hidden="true" />
+                    ) : (
+                        <Eye className="size-4 text-muted-foreground" aria-hidden="true" />
+                    )}
+                </InputGroupButton>
+            </InputGroupAddon>
+        </InputGroup>
     );
 }
 

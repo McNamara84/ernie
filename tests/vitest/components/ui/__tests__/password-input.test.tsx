@@ -12,9 +12,10 @@ describe('PasswordInput', () => {
     };
 
     it('renders as a password input by default', () => {
-        renderPasswordInput({ placeholder: 'Enter password' });
+        const { container } = renderPasswordInput({ placeholder: 'Enter password' });
         const input = screen.getByPlaceholderText('Enter password');
         expect(input).toHaveAttribute('type', 'password');
+        expect(container.querySelector('[data-slot="input-group"]')).toBeInTheDocument();
     });
 
     it('renders a toggle button', () => {
@@ -91,7 +92,7 @@ describe('PasswordInput', () => {
             showPasswordLabel: 'Reveal password',
             hidePasswordLabel: 'Conceal password',
         });
-        
+
         const toggleButton = screen.getByRole('button', { name: 'Reveal password' });
         expect(toggleButton).toBeInTheDocument();
 
@@ -104,9 +105,9 @@ describe('PasswordInput', () => {
             <div>
                 <label htmlFor="pwd">Password</label>
                 <PasswordInput id="pwd" name="password" />
-            </div>
+            </div>,
         );
-        
+
         const input = screen.getByLabelText('Password');
         expect(input).toBeInTheDocument();
         expect(input).toHaveAttribute('type', 'password');

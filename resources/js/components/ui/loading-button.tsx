@@ -34,7 +34,7 @@ function LoadingButton({
             className={cn(className)}
             {...props}
         >
-            {loading && <Spinner size="sm" />}
+            {loading && <Spinner size="sm" aria-hidden="true" />}
             {children}
         </Button>
     );

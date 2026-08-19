@@ -4,6 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 import { Button } from './button';
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './empty';
 
 interface EmptyStateAction {
     label: string;
@@ -71,30 +72,32 @@ export function EmptyState({
     const showBuiltInActions = hasBuiltInActions && !children;
 
     return (
-        <div
+        <Empty
             className={cn(
-                'flex flex-col items-center justify-center text-center',
-                isCompact ? 'py-6' : 'rounded-lg border-2 border-dashed border-border bg-muted/30 py-8 px-4',
+                'flex-none gap-0 p-0 md:p-0',
+                isCompact ? 'border-0 border-solid py-6' : 'border-2 border-dashed border-border bg-muted/30 px-4 py-8',
                 className,
             )}
             data-testid={dataTestId}
             role="status"
             aria-label={title}
         >
-            {/* Icon */}
-            {icon && <div className={cn('text-muted-foreground', isCompact ? 'mb-2' : 'mb-3')}>{icon}</div>}
+            <EmptyHeader className="gap-0">
+                {icon && (
+                    <EmptyMedia className={cn('text-muted-foreground', isCompact ? 'mb-2' : 'mb-3')}>{icon}</EmptyMedia>
+                )}
+                <EmptyTitle className={cn('font-medium tracking-normal text-foreground', isCompact ? 'text-sm' : 'text-base')}>
+                    {title}
+                </EmptyTitle>
+                {description && (
+                    <EmptyDescription className={cn(isCompact ? 'mt-1 text-xs' : 'mt-2 max-w-md text-sm')}>
+                        {description}
+                    </EmptyDescription>
+                )}
+            </EmptyHeader>
 
-            {/* Title */}
-            <p className={cn('font-medium text-foreground', isCompact ? 'text-sm' : 'text-base')}>{title}</p>
-
-            {/* Description */}
-            {description && (
-                <p className={cn('text-muted-foreground', isCompact ? 'mt-1 text-xs' : 'mt-2 max-w-md text-sm')}>{description}</p>
-            )}
-
-            {/* Built-in Actions */}
             {showBuiltInActions && (
-                <div className={cn('flex items-center gap-2', isCompact ? 'mt-3' : 'mt-4')}>
+                <EmptyContent className={cn('flex-row gap-2', isCompact ? 'mt-3' : 'mt-4')}>
                     {action && (
                         <Button type="button" variant="outline" size={isCompact ? 'sm' : 'default'} onClick={action.onClick}>
                             {action.icon ?? <Plus className="mr-2 h-4 w-4" />}
@@ -107,12 +110,13 @@ export function EmptyState({
                             {secondaryAction.label}
                         </Button>
                     )}
-                </div>
+                </EmptyContent>
             )}
 
-            {/* Custom Actions (children) */}
-            {children && <div className={cn('flex items-center gap-2', isCompact ? 'mt-3' : 'mt-4')}>{children}</div>}
-        </div>
+            {children && (
+                <EmptyContent className={cn('flex-row gap-2', isCompact ? 'mt-3' : 'mt-4')}>{children}</EmptyContent>
+            )}
+        </Empty>
     );
 }
 

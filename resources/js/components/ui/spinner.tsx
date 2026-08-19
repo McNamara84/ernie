@@ -1,4 +1,4 @@
-import { Loader2, type LucideProps } from 'lucide-react';
+import { Loader2Icon, type LucideProps } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -17,8 +17,26 @@ const sizeMap: Record<SpinnerSize, string> = {
     xl: 'h-8 w-8',
 };
 
-function Spinner({ className, size = 'md', ...props }: SpinnerProps) {
-    return <Loader2 data-slot="spinner" className={cn('animate-spin', sizeMap[size], className)} aria-hidden="true" {...props} />;
+function Spinner({
+    className,
+    size = 'md',
+    role = 'status',
+    'aria-label': ariaLabel = 'Loading',
+    'aria-hidden': ariaHidden,
+    ...props
+}: SpinnerProps) {
+    const isHidden = ariaHidden === true || ariaHidden === 'true';
+
+    return (
+        <Loader2Icon
+            role={isHidden ? undefined : role}
+            aria-label={isHidden ? undefined : ariaLabel}
+            aria-hidden={ariaHidden}
+            data-slot="spinner"
+            className={cn('animate-spin', sizeMap[size], className)}
+            {...props}
+        />
+    );
 }
 
 export { Spinner, type SpinnerProps, type SpinnerSize };
