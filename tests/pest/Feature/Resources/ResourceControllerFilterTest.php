@@ -612,7 +612,7 @@ describe('Curator Filter', function (): void {
             );
     });
 
-    it('exposes a correct landingPage.public_url on /resources for internal and external pages (Issue: PR #679 review)', function (): void {
+    it('exposes public landing-page URLs but restricts preview URLs to review-link senders', function (): void {
         // ResourceQueryBuilder must eager-load the LandingPage columns and the
         // externalDomain relation that LandingPage::public_url derives from.
         // Otherwise list endpoints return empty / wrong public_url and trigger
@@ -664,18 +664,33 @@ describe('Curator Filter', function (): void {
             'published_at' => now(),
         ]);
 
-        $response = get(route('resources'))->assertOk();
-        $response->assertInertia(function ($page) use ($internalResource, $externalResource) {
+        $beginnerResponse = get(route('resources'))->assertOk();
+        $beginnerResponse->assertInertia(function ($page) use ($internalResource, $externalResource) {
             $resources = collect($page->toArray()['props']['resources'] ?? [])
                 ->keyBy('id');
 
             expect($resources[$internalResource->id]['landingPage']['public_url'])
                 ->toContain('/10.5880/test.internal/internal-slug');
-            expect($resources[$internalResource->id]['landingPage']['preview_url'])
-                ->toContain('/10.5880/test.internal/internal-slug?preview=');
+            expect($resources[$internalResource->id]['landingPage'])
+                ->not->toHaveKey('preview_url');
 
             expect($resources[$externalResource->id]['landingPage']['public_url'])
                 ->toBe('https://example.org/datasets/foo');
+            expect($resources[$externalResource->id]['landingPage'])
+                ->not->toHaveKey('preview_url');
+
+            return $page;
+        });
+
+        actingAs(User::factory()->curator()->create());
+
+        $curatorResponse = get(route('resources'))->assertOk();
+        $curatorResponse->assertInertia(function ($page) use ($internalResource) {
+            $resources = collect($page->toArray()['props']['resources'] ?? [])
+                ->keyBy('id');
+
+            expect($resources[$internalResource->id]['landingPage']['preview_url'])
+                ->toContain('/10.5880/test.internal/internal-slug?preview=');
 
             return $page;
         });

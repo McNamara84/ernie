@@ -29,6 +29,7 @@ final class ResourceListItemResource extends JsonResource
     {
         /** @var Resource $resource */
         $resource = $this->resource;
+        $canSendReviewLinks = $request->user()?->can('send-review-links') === true;
 
         if (app()->environment('local', 'testing')) {
             self::assertRelationsLoaded($resource);
@@ -132,7 +133,10 @@ final class ResourceListItemResource extends JsonResource
                 'id' => $resource->landingPage->id,
                 'is_published' => $resource->landingPage->is_published,
                 'public_url' => $resource->landingPage->public_url,
-                'preview_url' => $resource->landingPage->preview_url,
+                'preview_url' => $this->when(
+                    $canSendReviewLinks,
+                    fn (): ?string => $resource->landingPage->preview_url,
+                ),
             ] : null,
         ];
     }

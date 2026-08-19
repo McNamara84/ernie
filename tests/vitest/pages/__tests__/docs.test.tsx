@@ -639,6 +639,7 @@ describe('Docs page', () => {
         await openDatasetsTab(user);
 
         expect(screen.getByText('Quick Resource Actions')).toBeInTheDocument();
+        expect(screen.getByText(/Beginners do not receive that link in the Resources list/i)).toBeInTheDocument();
         expect(screen.queryByText('Send Review Links (Curator and above)')).not.toBeInTheDocument();
         expect(screen.queryByText('Delete Selected Resources (Curator and above)')).not.toBeInTheDocument();
     });

@@ -1046,7 +1046,7 @@ function ResourcesPage({
 
                 // Open in new tab
                 window.open(doiUrl, '_blank', 'noopener,noreferrer');
-            } else if (status === 'review' && resource.landingPage?.preview_url) {
+            } else if (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url) {
                 // Review: Open preview landing page and copy URL to clipboard
                 const previewUrl = resource.landingPage.preview_url;
 
@@ -1056,7 +1056,7 @@ function ResourcesPage({
                 window.open(previewUrl, '_blank', 'noopener,noreferrer');
             }
         },
-        [copyToClipboard],
+        [canSendReviewLinks, copyToClipboard],
     );
 
     const [selectedResourceForLandingPage, setSelectedResourceForLandingPage] = useState<Resource | null>(null);
@@ -1841,7 +1841,8 @@ function ResourcesPage({
                 const status = resource.publicstatus ?? 'curation';
 
                 // Determine if badge is clickable
-                const isClickable = (status === 'published' && resource.doi) || (status === 'review' && resource.landingPage?.preview_url);
+                const isClickable =
+                    (status === 'published' && resource.doi) || (canSendReviewLinks && status === 'review' && resource.landingPage?.preview_url);
 
                 // Determine badge style based on status
                 let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center justify-center';

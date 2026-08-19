@@ -2040,9 +2040,10 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         </p>
                         <p>
                             Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls
-                            keep their own behavior: the checkbox selects the row, and clickable published or preview status badges still open and
-                            copy the DOI or preview URL. Whenever exactly one resource is being opened and the browser blocks its editor tab, ERNIE
-                            shows a warning so you can allow pop-ups and try again.
+                            keep their own behavior: the checkbox selects the row, and a clickable published status badge opens and copies the DOI.
+                            For Curators, Group Leaders, and Admins, the Review badge additionally opens and copies the tokenized preview URL;
+                            Beginners do not receive that link in the Resources list. Whenever exactly one resource is being opened and the browser
+                            blocks its editor tab, ERNIE shows a warning so you can allow pop-ups and try again.
                         </p>
 
                         <h4>Quick Resource Actions</h4>
