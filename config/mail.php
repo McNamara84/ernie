@@ -115,12 +115,13 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Landing Page Contact Form Cc
+    | Landing Page Contact Address
     |--------------------------------------------------------------------------
     |
     | When set, this email address receives a Cc copy of all contact form
-    | messages sent from resource landing pages. This ensures the data
-    | publication team is informed of all contact requests.
+    | messages sent from resource landing pages. Review-link emails use the
+    | same address as both Cc and Reply-To so the data publication team can
+    | verify the outgoing request and receive replies.
     | Set to empty string to disable.
     |
     | IMPORTANT: Must be a valid email address. Invalid addresses are ignored

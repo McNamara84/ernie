@@ -486,6 +486,46 @@ describe('ResourcesPage', () => {
         expect(openDetachedTabMock).not.toHaveBeenCalled();
     });
 
+    it('opens and copies the tokenized preview URL from a review badge', () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            title: 'Primary title',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Test Curator',
+            publicstatus: 'review',
+            landingPage: {
+                id: 1,
+                is_published: false,
+                public_url: 'https://example.test/resource',
+                preview_url: 'https://example.test/resource?preview=secret-token',
+            },
+        };
+
+        render(
+            <ResourcesPage
+                resources={[resource]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+                sort={{ key: 'id' as const, direction: 'asc' as const }}
+            />,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /review - click to open preview page and copy url to clipboard/i }));
+
+        expect(clipboardWriteTextMock).toHaveBeenCalledWith('https://example.test/resource?preview=secret-token');
+        expect(openMock).toHaveBeenCalledWith('https://example.test/resource?preview=secret-token', '_blank', 'noopener,noreferrer');
+        expect(clipboardWriteTextMock).not.toHaveBeenCalledWith('https://example.test/resource');
+    });
+
     it('does not activate the row when an interactive status badge text node is clicked', () => {
         const resource = {
             id: 1,

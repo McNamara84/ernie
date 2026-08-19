@@ -132,6 +132,7 @@ final class ResourceListItemResource extends JsonResource
                 'id' => $resource->landingPage->id,
                 'is_published' => $resource->landingPage->is_published,
                 'public_url' => $resource->landingPage->public_url,
+                'preview_url' => $resource->landingPage->preview_url,
             ] : null,
         ];
     }

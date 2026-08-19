@@ -671,6 +671,8 @@ describe('Curator Filter', function (): void {
 
             expect($resources[$internalResource->id]['landingPage']['public_url'])
                 ->toContain('/10.5880/test.internal/internal-slug');
+            expect($resources[$internalResource->id]['landingPage']['preview_url'])
+                ->toContain('/10.5880/test.internal/internal-slug?preview=');
 
             expect($resources[$externalResource->id]['landingPage']['public_url'])
                 ->toBe('https://example.org/datasets/foo');

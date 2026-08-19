@@ -36,6 +36,7 @@ use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\ResourceDoiRegistrationController;
 use App\Http\Controllers\ResourceExportController;
 use App\Http\Controllers\ResourceFilterController;
+use App\Http\Controllers\ResourceReviewLinkController;
 use App\Http\Controllers\Settings\PidSettingsController;
 use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\StatisticsController;
@@ -414,6 +415,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('resources/batch-export', [BatchResourceExportController::class, 'export'])
         ->name('resources.batch-export');
+
+    Route::post('resources/send-review-links', [ResourceReviewLinkController::class, 'store'])
+        ->name('resources.send-review-links');
 
     // DataCite prefix configuration endpoint
     Route::get('api/datacite/prefixes', [ResourceDoiRegistrationController::class, 'getDataCitePrefixes'])

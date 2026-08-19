@@ -40,6 +40,7 @@ const mockUser = vi.hoisted(() => ({
     can_register_doi: true,
     can_register_production_doi: true,
     can_delete_published_resources: true,
+    can_send_review_links: true,
 }));
 
 vi.mock('sonner', () => ({ toast: toastMock }));
@@ -119,7 +120,12 @@ vi.mock('axios', () => ({
     isAxiosError: (err: unknown) => Boolean(err && typeof err === 'object' && 'isAxiosError' in err),
 }));
 
-const landingPage = { id: 10, is_published: false, public_url: 'https://example.test/resources/one' };
+const landingPage = {
+    id: 10,
+    is_published: false,
+    public_url: 'https://example.test/resources/one',
+    preview_url: 'https://example.test/resources/one?preview=review-token',
+};
 
 const buildResource = (overrides: Partial<Record<string, unknown>>) => ({
     id: 1,
@@ -191,6 +197,7 @@ describe('ResourcesPage - bulk selection', () => {
     beforeEach(() => {
         mockUser.role = 'group_leader';
         mockUser.can_delete_published_resources = true;
+        mockUser.can_send_review_links = true;
         routerMock.delete.mockClear();
         routerMock.reload.mockClear();
         routerMock.visit.mockClear();
@@ -540,6 +547,161 @@ describe('ResourcesPage - bulk selection', () => {
 
         expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('no DOI'));
         expect(axiosPostMock).not.toHaveBeenCalled();
+    });
+
+    it('requires confirmation before queueing review links for every selected review resource', async () => {
+        const reviewResources = [
+            buildResource({ id: 21, title: 'Review One', publicstatus: 'review', landingPage }),
+            buildResource({ id: 22, title: 'Review Two', publicstatus: 'review', landingPage: { ...landingPage, id: 22 } }),
+        ];
+
+        render(<ResourcesPage {...buildProps(reviewResources)} />);
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        await clickResourceAction('resources-action-send-review-link');
+
+        expect(screen.getByTestId('resources-review-link-confirmation-dialog')).toBeInTheDocument();
+        expect(screen.getByText(/queue external emails for 2 resources/i)).toBeInTheDocument();
+        expect(screen.getByText(/included in cc on every message/i)).toBeInTheDocument();
+        expect(axiosPostMock).not.toHaveBeenCalled();
+
+        await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+
+        expect(screen.queryByTestId('resources-review-link-confirmation-dialog')).not.toBeInTheDocument();
+        expect(axiosPostMock).not.toHaveBeenCalled();
+    });
+
+    it('queues selected review links once and reports complete success', async () => {
+        axiosPostMock.mockResolvedValueOnce({
+            data: {
+                message: 'Review emails queued for delivery.',
+                queued_messages: 3,
+                successful_resources: [
+                    { id: 21, queued_recipients: 1 },
+                    { id: 22, queued_recipients: 2 },
+                ],
+                failed_resources: [],
+                skipped_recipients_count: 0,
+            },
+        });
+
+        render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 21, title: 'Review One', publicstatus: 'review', landingPage }),
+                    buildResource({ id: 22, title: 'Review Two', publicstatus: 'review', landingPage: { ...landingPage, id: 22 } }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        await clickResourceAction('resources-action-send-review-link');
+        await userEvent.click(screen.getByTestId('resources-confirm-send-review-links'));
+
+        await waitFor(() => {
+            expect(axiosPostMock).toHaveBeenCalledTimes(1);
+            expect(axiosPostMock).toHaveBeenCalledWith('/resources/send-review-links', { ids: [21, 22] });
+            expect(toastMock.success).toHaveBeenCalledWith('3 review emails queued for 2 resources.');
+        });
+
+        expect(screen.getByText(/select rows to enable resource actions/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('resources-review-link-confirmation-dialog')).not.toBeInTheDocument();
+    });
+
+    it('reports partial review-link results with skipped recipients and resources', async () => {
+        axiosPostMock.mockResolvedValueOnce({
+            data: {
+                message: 'Review emails were queued with some skipped recipients or resources.',
+                queued_messages: 1,
+                successful_resources: [{ id: 21, queued_recipients: 1 }],
+                failed_resources: [{ id: 22, reason: 'No ContactPerson contributor with a valid email address.' }],
+                skipped_recipients_count: 2,
+            },
+        });
+
+        render(<ResourcesPage {...buildProps([buildResource({ id: 21, publicstatus: 'review', landingPage })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-21'));
+        await clickResourceAction('resources-action-send-review-link');
+        await userEvent.click(screen.getByTestId('resources-confirm-send-review-links'));
+
+        await waitFor(() => {
+            expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('2 recipients were skipped'));
+            expect(toastMock.warning).toHaveBeenCalledWith(expect.stringContaining('1 resource has no queued email'));
+        });
+    });
+
+    it('keeps review-link sending unavailable for mixed selections and missing review links', async () => {
+        const { rerender } = render(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({ id: 21, publicstatus: 'review', landingPage }),
+                    buildResource({ id: 22, publicstatus: 'published', landingPage }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-select-all'));
+        await clickResourceAction('resources-action-send-review-link');
+
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('not in review'));
+        expect(screen.queryByTestId('resources-review-link-confirmation-dialog')).not.toBeInTheDocument();
+
+        rerender(
+            <ResourcesPage
+                {...buildProps([
+                    buildResource({
+                        id: 23,
+                        publicstatus: 'review',
+                        landingPage: { ...landingPage, preview_url: null },
+                    }),
+                ])}
+            />,
+        );
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-23'));
+        await clickResourceAction('resources-action-send-review-link');
+
+        expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('no usable review link'));
+        expect(axiosPostMock).not.toHaveBeenCalled();
+    });
+
+    it('shows server validation details when review-link preflight rejects the selection', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        axiosPostMock.mockRejectedValueOnce({
+            isAxiosError: true,
+            response: {
+                status: 422,
+                data: {
+                    message: 'The given data was invalid.',
+                    errors: { ids: ['Every selected resource must still be in review.'] },
+                },
+            },
+        });
+
+        try {
+            render(<ResourcesPage {...buildProps([buildResource({ id: 21, publicstatus: 'review', landingPage })])} />);
+
+            fireEvent.click(screen.getByTestId('resources-row-checkbox-21'));
+            await clickResourceAction('resources-action-send-review-link');
+            await userEvent.click(screen.getByTestId('resources-confirm-send-review-links'));
+
+            await waitFor(() => {
+                expect(toastMock.error).toHaveBeenCalledWith('Every selected resource must still be in review.');
+            });
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
+    it('hides review-link sending when the permission is missing', async () => {
+        mockUser.can_send_review_links = false;
+        render(<ResourcesPage {...buildProps([buildResource({ id: 21, publicstatus: 'review', landingPage })])} />);
+
+        fireEvent.click(screen.getByTestId('resources-row-checkbox-21'));
+        await openResourceActionsMenu();
+
+        expect(screen.queryByTestId('resources-action-send-review-link')).not.toBeInTheDocument();
     });
 
     it('submits selected draft resources to the batch delete endpoint after confirmation', async () => {

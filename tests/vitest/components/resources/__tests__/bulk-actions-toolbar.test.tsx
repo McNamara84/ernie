@@ -17,6 +17,7 @@ const makeActions = (
     'export-jsonld': { available: false, reason: 'Select one or more resources first.' },
     'register-doi': { available: false, reason: 'Select exactly one resource.' },
     'update-metadata': { available: false, reason: 'Select one or more resources first.' },
+    'send-review-link': { available: false, reason: 'Select one or more resources first.' },
     delete: { available: false, reason: 'Select one or more resources first.' },
     ...overrides,
 });
@@ -77,6 +78,7 @@ describe('ResourcesBulkActionsToolbar', () => {
         expect(screen.getByTestId('resources-action-export-jsonld')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-register-doi')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-update-metadata')).toBeInTheDocument();
+        expect(screen.getByTestId('resources-action-send-review-link')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-delete')).toBeInTheDocument();
         expect(screen.getByTestId('resources-action-setup-landing-page')).toHaveAttribute('data-variant', 'outline');
         expect(screen.getByTestId('resources-action-update-metadata')).toHaveAttribute('data-variant', 'default');
@@ -91,6 +93,7 @@ describe('ResourcesBulkActionsToolbar', () => {
                 actions={makeActions({
                     'register-doi': { visible: false, available: false },
                     'update-metadata': { visible: false, available: false },
+                    'send-review-link': { visible: false, available: false },
                     delete: { visible: false, available: false },
                 })}
             />,
@@ -100,6 +103,7 @@ describe('ResourcesBulkActionsToolbar', () => {
 
         expect(screen.queryByTestId('resources-action-register-doi')).not.toBeInTheDocument();
         expect(screen.queryByTestId('resources-action-update-metadata')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('resources-action-send-review-link')).not.toBeInTheDocument();
         expect(screen.queryByTestId('resources-action-delete')).not.toBeInTheDocument();
     });
 

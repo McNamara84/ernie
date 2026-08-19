@@ -244,6 +244,15 @@ class AppServiceProvider extends ServiceProvider
             return $user->role !== UserRole::BEGINNER;
         });
 
+        // Send review links to resource ContactPerson contributors.
+        Gate::define('send-review-links', function (User $user): bool {
+            return in_array($user->role, [
+                UserRole::ADMIN,
+                UserRole::GROUP_LEADER,
+                UserRole::CURATOR,
+            ], true);
+        });
+
         // Delete application logs (Admin only)
         Gate::define('delete-logs', function (User $user): bool {
             return $user->role === UserRole::ADMIN;

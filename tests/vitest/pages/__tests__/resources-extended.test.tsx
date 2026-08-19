@@ -103,11 +103,16 @@ interface TestResource {
     resourcetypegeneral?: string;
     title?: string;
     first_author?: { givenName?: string | null; familyName?: string | null; name?: string } | null;
-    landingPage?: { id: number; is_published: boolean; public_url: string } | null;
+    landingPage?: { id: number; is_published: boolean; public_url: string; preview_url?: string | null } | null;
     [key: string]: unknown;
 }
 
-const landingPage = { id: 1, is_published: false, public_url: 'https://example.test/preview' };
+const landingPage = {
+    id: 1,
+    is_published: false,
+    public_url: 'https://example.test/preview',
+    preview_url: 'https://example.test/preview?preview=secret-token',
+};
 
 function makeResource(overrides: Partial<TestResource> = {}): TestResource {
     return {

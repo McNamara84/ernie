@@ -454,6 +454,23 @@ it('shares the published-resource deletion permission with the Resources page', 
     'beginner' => [UserRole::BEGINNER, false],
 ]);
 
+it('shares review-link sending permission only with operational curator roles', function (UserRole $role, bool $expected): void {
+    $user = User::factory()->create(['role' => $role]);
+
+    expect($user->can('send-review-links'))->toBe($expected);
+
+    $this->actingAs($user)
+        ->get('/resources')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.user.can_send_review_links', $expected)
+        );
+})->with([
+    'admin' => [UserRole::ADMIN, true],
+    'group leader' => [UserRole::GROUP_LEADER, true],
+    'curator' => [UserRole::CURATOR, true],
+    'beginner' => [UserRole::BEGINNER, false],
+]);
+
 describe('Unauthenticated Access', function () {
     it('redirects to login for logs page', function () {
         $this->get('/logs')

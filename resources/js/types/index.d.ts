@@ -81,6 +81,7 @@ export interface User {
     can_manage_users?: boolean;
     can_register_doi?: boolean;
     can_register_production_doi?: boolean;
+    can_send_review_links?: boolean;
     can_delete_logs?: boolean;
     can_delete_published_resources?: boolean;
     // Granular access permissions (Issue #379)
