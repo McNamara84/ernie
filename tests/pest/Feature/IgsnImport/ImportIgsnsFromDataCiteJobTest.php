@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\IgsnMetadata;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteToIgsnTransformer;
@@ -11,7 +12,9 @@ use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
 use App\Services\LegacyIgsnPortalService;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 
 beforeEach(function () {
@@ -101,6 +104,10 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         expect($status['imported'])->toBe(2);
         expect($status['enriched'])->toBe(2);
         expect($status['failed'])->toBe(0);
+        expect(LandingPage::query()->count())->toBe(2);
+        expect(LandingPage::query()->where('template', 'default_gfz_igsn')->count())->toBe(2);
+        expect(LandingPage::query()->where('is_published', true)->count())->toBe(2);
+        expect($status['sync_skipped_test_mode'])->toBeTrue();
     });
 
     it('skips existing DOIs', function () {
@@ -131,6 +138,43 @@ describe('ImportIgsnsFromDataCiteJob', function () {
         $status = Cache::get("igsn_import:{$importId}");
         expect($status['skipped'])->toBe(1);
         expect($status['skipped_dois'])->toContain('10.60510/existing001');
+        expect(LandingPage::query()->count())->toBe(0);
+    });
+
+    it('queues a full DataCite metadata update for a newly imported IGSN in production', function (): void {
+        Config::set('datacite.test_mode', false);
+        Bus::fake();
+        $this->importService->shouldReceive('getTotalIgsnCount')->once()->andReturn(1);
+        $this->importService->shouldReceive('fetchAllIgsns')->once()->andReturn((function () {
+            yield [
+                'id' => '10.60510/GFPRODSYNC001',
+                'attributes' => [
+                    'doi' => '10.60510/GFPRODSYNC001',
+                    'titles' => [['title' => 'Production IGSN Sync']],
+                ],
+            ];
+        })());
+        $this->transformer->shouldReceive('transform')->once()->andReturnUsing(
+            fn (): Resource => createMockResourceWithIgsn('10.60510/gfprodsync001'),
+        );
+        $this->enrichmentService->shouldReceive('enrich')->once()->andReturn(false);
+
+        $importId = Str::uuid()->toString();
+        (new ImportIgsnsFromDataCiteJob($this->user->id, $importId))->handle(
+            $this->importService,
+            $this->transformer,
+            $this->enrichmentService,
+        );
+
+        expect(Cache::get("igsn_import:{$importId}"))->toMatchArray([
+            'status' => 'running',
+            'phase' => 'syncing',
+            'sync_total' => 1,
+        ]);
+        $landingPage = Resource::where('doi', '10.60510/gfprodsync001')->firstOrFail()->landingPage;
+        expect($landingPage?->template)->toBe('default_gfz_igsn')
+            ->and($landingPage?->is_published)->toBeTrue();
+        Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
     });
 
     it('tracks enrichment counter separately from imported', function () {

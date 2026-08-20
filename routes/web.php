@@ -466,6 +466,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('datacite/import/{importId}/cancel', [DataCiteImportController::class, 'cancel'])
         ->name('datacite.import.cancel');
+    Route::post('datacite/import/{importId}/retry-sync', [DataCiteImportController::class, 'retrySync'])
+        ->name('datacite.import.retry-sync');
 
     // Landing Page Management (Admin)
     Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
@@ -554,6 +556,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('igsns.import.status');
     Route::post('igsns/import/{importId}/cancel', [IgsnImportController::class, 'cancel'])
         ->name('igsns.import.cancel');
+    Route::post('igsns/import/{importId}/retry-sync', [IgsnImportController::class, 'retrySync'])
+        ->name('igsns.import.retry-sync');
     // Batch operations must be defined before routes with {resource} parameter
     Route::delete('igsns/batch', [BatchIgsnController::class, 'destroy'])
         ->name('igsns.batch.destroy');

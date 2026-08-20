@@ -7,10 +7,13 @@ namespace App\Jobs;
 use App\Models\Datacenter;
 use App\Models\IgsnMetadata;
 use App\Models\Resource;
+use App\Services\AutomaticIgsnLandingPageService;
 use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
+use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
 use App\Support\IgsnIdentifier;
 use Illuminate\Bus\Queueable;
@@ -40,6 +43,9 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     public int $timeout = 14400;
 
     public int $tries = 1;
+
+    /** @var list<int> */
+    private array $resourceIdsForDataCiteSync = [];
 
     /**
      * @param  int  $userId  The user who initiated the import
@@ -268,7 +274,8 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $finalStatus = $wasCancelled ? 'cancelled' : 'completed';
 
             $this->updateProgress([
-                'status' => $finalStatus,
+                'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+                'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
                 'total' => $total,
                 'processed' => $processed,
                 'imported' => $imported,
@@ -281,8 +288,12 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                 'unassigned_dois' => $unassignedDois,
                 'warnings' => $warnings,
                 'started_at' => $startTime->toIso8601String(),
-                'completed_at' => now()->toIso8601String(),
+                'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
             ]);
+
+            if ($finalStatus !== 'cancelled') {
+                $this->finishDataCiteSyncPhase();
+            }
 
             Log::info('IGSN import completed', [
                 'import_id' => $this->importId,
@@ -483,8 +494,11 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $this->resolveParentRelationships($handles);
         }
 
+        $finalStatus = $this->determineFinalStatus();
+
         $this->updateProgress([
-            'status' => $this->determineFinalStatus(),
+            'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+            'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
             'total' => $total,
             'processed' => $processed,
             'imported' => $imported,
@@ -498,8 +512,12 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'unassigned_dois' => [],
             'warnings' => [],
             'started_at' => $startedAt,
-            'completed_at' => now()->toIso8601String(),
+            'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
         ]);
+
+        if ($finalStatus !== 'cancelled') {
+            $this->finishDataCiteSyncPhase();
+        }
     }
 
     private function handleSingleImport(
@@ -693,8 +711,11 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             $this->resolveParentRelationships($targetHandles);
         }
 
+        $finalStatus = $this->determineFinalStatus();
+
         $this->updateProgress([
-            'status' => $this->determineFinalStatus(),
+            'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+            'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
             'total' => $total,
             'processed' => $processed,
             'imported' => $imported,
@@ -709,8 +730,12 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
             'unassigned_dois' => $unassignedDois,
             'warnings' => $warnings,
             'started_at' => $startedAt,
-            'completed_at' => now()->toIso8601String(),
+            'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
         ]);
+
+        if ($finalStatus !== 'cancelled') {
+            $this->finishDataCiteSyncPhase();
+        }
 
         Log::info('Single IGSN import completed', [
             'import_id' => $this->importId,
@@ -917,6 +942,13 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        $landingPageResult = app(AutomaticIgsnLandingPageService::class)
+            ->createPublished($importedResource);
+
+        if ($landingPageResult['created']) {
+            $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
         }
 
         return [
@@ -1138,6 +1170,15 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
     private function determineFinalStatus(): string
     {
         return $this->isCancelled() ? 'cancelled' : 'completed';
+    }
+
+    private function finishDataCiteSyncPhase(): void
+    {
+        app(ImportedResourceDataCiteSyncDispatcher::class)->dispatch(
+            ImportProgressService::TYPE_IGSN,
+            $this->importId,
+            $this->resourceIdsForDataCiteSync,
+        );
     }
 
     public function failed(?\Throwable $exception): void

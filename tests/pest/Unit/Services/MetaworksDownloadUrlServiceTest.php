@@ -13,7 +13,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('identifier', '10.5880/unknown.doi')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('select')
-            ->with('id')
+            ->with('id', 'publicstatus')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('first')
             ->andReturnNull();
@@ -40,7 +40,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('identifier', '10.5880/GFZ.1.2.2024.001')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('select')
-            ->with('id')
+            ->with('id', 'publicstatus')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('first')
             ->andReturn((object) ['id' => 42]);
@@ -85,7 +85,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('identifier', '10.5880/GFZ.dup.test')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('select')
-            ->with('id')
+            ->with('id', 'publicstatus')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('first')
             ->andReturn((object) ['id' => 99]);
@@ -131,7 +131,7 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('identifier', '10.5880/GFZ.multi.test')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('select')
-            ->with('id')
+            ->with('id', 'publicstatus')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('first')
             ->andReturn((object) ['id' => 55]);
@@ -177,10 +177,10 @@ describe('MetaworksDownloadUrlService', function () {
             ->with('identifier', '10.5880/GFZ.labels.test')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('select')
-            ->with('id')
+            ->with('id', 'publicstatus')
             ->andReturnSelf();
         $resourceQuery->shouldReceive('first')
-            ->andReturn((object) ['id' => 56]);
+            ->andReturn((object) ['id' => 56, 'publicstatus' => 'published']);
 
         $fileQuery = Mockery::mock();
         $fileQuery->shouldReceive('where')
@@ -224,13 +224,14 @@ describe('MetaworksDownloadUrlService', function () {
         expect($result['files'])->toHaveCount(2)
             ->and($result['files'][0]['label'])->toBe('Name Label')
             ->and($result['files'][1]['label'])->toBe('Description Fallback')
-            ->and($result['allPublic'])->toBeTrue();
+            ->and($result['allPublic'])->toBeTrue()
+            ->and($result['resourcePublicStatus'])->toBe('published');
     });
 
     it('filters out non-HTTP URLs from legacy data', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.xss.test')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 77]);
 
         $fileQuery = Mockery::mock();
@@ -263,7 +264,7 @@ describe('MetaworksDownloadUrlService', function () {
     it('distinguishes a legacy resource without file rows from filtered file entries', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.no.rows')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 90]);
 
         $fileQuery = Mockery::mock();
@@ -289,7 +290,7 @@ describe('MetaworksDownloadUrlService', function () {
     it('preserves file row presence when a non-public URL is filtered out', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.invalid.private')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 91]);
 
         $fileQuery = Mockery::mock();
@@ -320,7 +321,7 @@ describe('MetaworksDownloadUrlService', function () {
 
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.long.test')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 88]);
 
         $fileQuery = Mockery::mock();
@@ -349,7 +350,7 @@ describe('MetaworksDownloadUrlService', function () {
     it('returns allPublic false when any file is non-public', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.mixed.vis')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 33]);
 
         $fileQuery = Mockery::mock();
@@ -376,7 +377,7 @@ describe('MetaworksDownloadUrlService', function () {
     it('returns allPublic false when all files are non-public', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.all.priv')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 44]);
 
         $fileQuery = Mockery::mock();
@@ -403,7 +404,7 @@ describe('MetaworksDownloadUrlService', function () {
     it('filters out URLs without a host component', function () {
         $resourceQuery = Mockery::mock();
         $resourceQuery->shouldReceive('where')->with('identifier', '10.5880/GFZ.nohost.test')->andReturnSelf();
-        $resourceQuery->shouldReceive('select')->with('id')->andReturnSelf();
+        $resourceQuery->shouldReceive('select')->with('id', 'publicstatus')->andReturnSelf();
         $resourceQuery->shouldReceive('first')->andReturn((object) ['id' => 66]);
 
         $fileQuery = Mockery::mock();

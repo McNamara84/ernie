@@ -13,7 +13,6 @@ use App\Models\LandingPageLink;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\DataCiteImportService;
-use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
@@ -25,6 +24,7 @@ use App\Services\SumarioPendingResourceImportService;
 use App\Services\SumarioPmdContactEnrichmentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -1242,9 +1242,9 @@ describe('ImportFromDataCiteJob', function () {
             ->and($status['skipped_dois'])->toBe(['10.5880/pending.skip']);
     });
 
-    it('syncs imported DataCite resources after enrichment when production sync after import is enabled', function () {
+    it('syncs newly imported published DataCite resources after enrichment in production', function () {
         Config::set('datacite.test_mode', false);
-        Config::set('datacite.sync_after_import', true);
+        Bus::fake();
 
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -1259,6 +1259,7 @@ describe('ImportFromDataCiteJob', function () {
                     'id' => '10.5880/sync.production',
                     'attributes' => [
                         'doi' => '10.5880/sync.production',
+                        'state' => 'findable',
                         'titles' => [['title' => 'Production Sync Dataset']],
                     ],
                 ];
@@ -1282,35 +1283,25 @@ describe('ImportFromDataCiteJob', function () {
                     ],
                 ],
                 'allPublic' => true,
+                'resourceFound' => true,
+                'resourcePublicStatus' => 'published',
             ]);
-
-        $syncService = Mockery::mock(DataCiteSyncService::class);
-        $syncService
-            ->shouldReceive('syncIfRegistered')
-            ->once()
-            ->withArgs(function (Resource $resource): bool {
-                $resource->loadMissing('landingPage');
-
-                return $resource->doi === '10.5880/sync.production'
-                    && $resource->landingPage !== null
-                    && $resource->landingPage->ftp_url === 'https://datapub.gfz.de/download/10.5880/sync.production/data.zip';
-            })
-            ->andReturn(DataCiteSyncResult::succeeded('10.5880/sync.production'));
-        $this->app->instance(DataCiteSyncService::class, $syncService);
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
         $job->handle($this->importService, $this->transformer, $this->metaworksService);
 
         $status = Cache::get("datacite_import:{$importId}");
-        expect($status['status'])->toBe('completed')
+        expect($status['status'])->toBe('running')
+            ->and($status['phase'])->toBe('syncing')
             ->and($status['imported'])->toBe(1)
-            ->and($status['failed'])->toBe(0);
+            ->and($status['failed'])->toBe(0)
+            ->and($status['sync_total'])->toBe(1);
+        Bus::assertBatched(fn ($batch): bool => $batch->jobs->count() === 1);
     });
 
-    it('does not sync imported DataCite resources when production sync after import is disabled', function () {
-        Config::set('datacite.test_mode', false);
-        Config::set('datacite.sync_after_import', false);
+    it('does not call DataCite when test mode is enabled', function () {
+        Config::set('datacite.test_mode', true);
 
         $this->importService
             ->shouldReceive('getTotalDoiCount')
@@ -1325,6 +1316,7 @@ describe('ImportFromDataCiteJob', function () {
                     'id' => '10.5880/sync.disabled',
                     'attributes' => [
                         'doi' => '10.5880/sync.disabled',
+                        'state' => 'findable',
                         'titles' => [['title' => 'Sync Disabled Dataset']],
                     ],
                 ];
@@ -1334,6 +1326,18 @@ describe('ImportFromDataCiteJob', function () {
             ->shouldReceive('transform')
             ->once()
             ->andReturnUsing(fn () => Resource::factory()->create(['doi' => '10.5880/sync.disabled']));
+
+        $this->metaworksService
+            ->shouldReceive('lookupFileEntries')
+            ->once()
+            ->with('10.5880/sync.disabled')
+            ->andReturn([
+                'files' => [],
+                'allPublic' => false,
+                'resourceFound' => true,
+                'hasFileRows' => false,
+                'resourcePublicStatus' => 'published',
+            ]);
 
         $syncService = Mockery::mock(DataCiteSyncService::class);
         $syncService
@@ -1348,7 +1352,9 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['status'])->toBe('completed')
             ->and($status['imported'])->toBe(1)
-            ->and($status['failed'])->toBe(0);
+            ->and($status['failed'])->toBe(0)
+            ->and($status['sync_skipped_test_mode'])->toBeTrue()
+            ->and($status['sync_total'])->toBe(1);
     });
 
     it('marks single import as failed when the DOI transform throws an exception', function () {
@@ -1500,6 +1506,8 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     ],
                 ],
                 'allPublic' => true,
+                'resourceFound' => true,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1566,6 +1574,8 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     ],
                 ],
                 'allPublic' => true,
+                'resourceFound' => true,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1582,7 +1592,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and($landingPage->published_at)->toBeNull();
     });
 
-    it('creates unpublished landing page when metaworks files are non-public', function () {
+    it('publishes a landing page regardless of legacy file visibility', function () {
         $this->importService
             ->shouldReceive('getTotalDoiCount')
             ->once()
@@ -1623,18 +1633,20 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     ],
                 ],
                 'allPublic' => false,
+                'resourceFound' => true,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
         $job->handle($this->importService, $this->transformer, $metaworksService);
 
-        // Verify landing page was created but NOT published
+        // File visibility is not a publication criterion.
         $resource = Resource::where('doi', '10.5880/lp.nonpub.001')->first();
         $landingPage = LandingPage::where('resource_id', $resource->id)->first();
         expect($landingPage)->not->toBeNull()
-            ->and($landingPage->is_published)->toBeFalse()
-            ->and($landingPage->published_at)->toBeNull();
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->published_at)->not->toBeNull();
 
         expect($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/internal-file.zip')
             ->and(LandingPageLink::where('landing_page_id', $landingPage->id)->count())->toBe(0)
@@ -1728,6 +1740,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                 'allPublic' => false,
                 'resourceFound' => true,
                 'hasFileRows' => false,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1746,7 +1759,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
             ->and(LandingPageDomain::count())->toBe(0);
     });
 
-    it('keeps a findable landing page in review when non-public legacy rows have no valid URLs', function () {
+    it('publishes a findable landing page even when non-public legacy rows have no valid URLs', function () {
         $this->importService
             ->shouldReceive('getTotalDoiCount')
             ->once()
@@ -1782,6 +1795,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                 'allPublic' => false,
                 'resourceFound' => true,
                 'hasFileRows' => true,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1794,8 +1808,8 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($landingPage)->not->toBeNull()
             ->and($landingPage->ftp_url)->toBeNull()
             ->and($landingPage->downloads_unavailable)->toBeTrue()
-            ->and($landingPage->is_published)->toBeFalse()
-            ->and($landingPage->published_at)->toBeNull();
+            ->and($landingPage->is_published)->toBeTrue()
+            ->and($landingPage->published_at)->not->toBeNull();
     });
 
     it('ignores old DataCite data services URLs and imports SUMARIO file URLs instead', function () {
@@ -1840,6 +1854,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                 ],
                 'allPublic' => true,
                 'resourceFound' => true,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();
@@ -1920,7 +1935,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect(LandingPage::count())->toBe(0);
     });
 
-    it('backfills legacy download links for skipped existing resources', function () {
+    it('does not backfill or synchronize skipped existing resources', function () {
         $resource = Resource::factory()->create(['doi' => '10.5880/skip.backfill']);
 
         $this->importService
@@ -1944,19 +1959,7 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         $this->transformer->shouldReceive('transform')->never();
 
         $metaworksService = Mockery::mock(MetaworksDownloadUrlService::class);
-        $metaworksService->shouldReceive('lookupFileEntries')
-            ->once()
-            ->with('10.5880/skip.backfill')
-            ->andReturn([
-                'files' => [
-                    [
-                        'url' => 'https://datapub.gfz.de/download/10.5880.skip.backfill',
-                        'label' => 'Download data',
-                        'visible' => 'public',
-                    ],
-                ],
-                'allPublic' => true,
-            ]);
+        $metaworksService->shouldNotReceive('lookupFileEntries');
 
         $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
@@ -1966,14 +1969,12 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
         expect($status['status'])->toBe('completed')
             ->and($status['imported'])->toBe(0)
             ->and($status['skipped'])->toBe(1)
-            ->and($status['enriched'])->toBe(1)
+            ->and($status['enriched'])->toBe(0)
             ->and($status['skipped_dois'])->toBe(['10.5880/skip.backfill'])
-            ->and($status['enriched_dois'])->toBe(['10.5880/skip.backfill']);
+            ->and($status['enriched_dois'])->toBe([]);
 
         $landingPage = $resource->fresh(['landingPage'])->landingPage;
-        expect($landingPage)->not->toBeNull()
-            ->and($landingPage->ftp_url)->toBe('https://datapub.gfz.de/download/10.5880.skip.backfill')
-            ->and($landingPage->is_published)->toBeTrue();
+        expect($landingPage)->toBeNull();
     });
 
     it('creates an external landing page from DataCite url before metaworks lookup', function () {
@@ -2248,6 +2249,8 @@ describe('ImportFromDataCiteJob download URL enrichment', function () {
                     ],
                 ],
                 'allPublic' => true,
+                'resourceFound' => true,
+                'resourcePublicStatus' => 'published',
             ]);
 
         $importId = Str::uuid()->toString();

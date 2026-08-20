@@ -22,9 +22,9 @@ class MetaworksDownloadUrlService
     /**
      * Look up file download URLs for a given DOI from the old metaworks database.
      *
-     * Returns all file URLs (public and non-public) along with a flag indicating
-     * whether all files have public visibility. The caller uses this to determine
-     * whether the resulting landing page should be published immediately.
+     * Returns all file URLs (public and non-public) along with a compatibility
+     * flag indicating whether every file is public. Landing-page publication is
+     * deliberately decided from the legacy resource status, not file visibility.
      *
      * DOI format in metaworks uses "/" (e.g. "10.5880/GFZ.5.4.2013.001"),
      * same format as DataCite.
@@ -51,7 +51,7 @@ class MetaworksDownloadUrlService
      * entries are imported as landing page additional links, using the legacy
      * file name first and the description as fallback label.
      *
-     * @return array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound: bool, hasFileRows: bool}
+     * @return array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound: bool, hasFileRows: bool, resourcePublicStatus: string|null}
      */
     public function lookupFileEntries(string $doi): array
     {
@@ -59,12 +59,16 @@ class MetaworksDownloadUrlService
         $oldResource = DB::connection(self::CONNECTION)
             ->table('resource')
             ->where('identifier', $doi)
-            ->select('id')
+            ->select('id', 'publicstatus')
             ->first();
 
         if ($oldResource === null) {
-            return ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false];
+            return ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false, 'resourcePublicStatus' => null];
         }
+
+        $resourcePublicStatus = isset($oldResource->publicstatus)
+            ? trim((string) $oldResource->publicstatus)
+            : null;
 
         // Get all file records for that resource (public and non-public)
         $files = DB::connection(self::CONNECTION)
@@ -74,7 +78,7 @@ class MetaworksDownloadUrlService
             ->get(['url', 'name', 'description', 'visible']);
 
         if ($files->isEmpty()) {
-            return ['files' => [], 'allPublic' => false, 'resourceFound' => true, 'hasFileRows' => false];
+            return ['files' => [], 'allPublic' => false, 'resourceFound' => true, 'hasFileRows' => false, 'resourcePublicStatus' => $resourcePublicStatus];
         }
 
         // Determine if all files are publicly visible
@@ -109,7 +113,7 @@ class MetaworksDownloadUrlService
             ];
         }
 
-        return ['files' => $entries, 'allPublic' => $allPublic, 'resourceFound' => true, 'hasFileRows' => true];
+        return ['files' => $entries, 'allPublic' => $allPublic, 'resourceFound' => true, 'hasFileRows' => true, 'resourcePublicStatus' => $resourcePublicStatus];
     }
 
     private function isValidDownloadUrl(string $doi, string $url): bool

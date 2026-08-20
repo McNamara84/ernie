@@ -11,10 +11,11 @@ use App\Models\Resource;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteLandingPageImportService;
 use App\Services\DataCiteSubjectMergeService;
-use App\Services\DataCiteSyncService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
 use App\Services\GfzDataServicesPortalService;
+use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportProgressService;
 use App\Services\LegacyLandingPageDecisionService;
 use App\Services\LegacyLandingPageImportService;
 use App\Services\LegacyMetaworksDatacenterLookupService;
@@ -58,6 +59,9 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /** @var array<string, int> */
     private array $portalDatacenterIds = [];
+
+    /** @var list<int> */
+    private array $resourceIdsForDataCiteSync = [];
 
     /**
      * Create a new job instance.
@@ -309,7 +313,8 @@ class ImportFromDataCiteJob implements ShouldQueue
             $finalStatus = $this->determineFinalStatus();
 
             $this->updateProgress([
-                'status' => $finalStatus,
+                'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+                'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
                 'total' => $total,
                 'processed' => $processed,
                 'imported' => $imported,
@@ -320,9 +325,13 @@ class ImportFromDataCiteJob implements ShouldQueue
                 'enriched_dois' => $enrichedDois,
                 'failed_dois' => $failedDois,
                 'started_at' => $startTime->toIso8601String(),
-                'completed_at' => now()->toIso8601String(),
+                'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
                 'current_prefix' => null,
             ]);
+
+            if ($finalStatus !== 'cancelled') {
+                $this->finishDataCiteSyncPhase();
+            }
 
             Log::info('DataCite import completed', [
                 'import_id' => $this->importId,
@@ -632,7 +641,8 @@ class ImportFromDataCiteJob implements ShouldQueue
         $finalStatus = $this->determineFinalStatus();
 
         $this->updateProgress([
-            'status' => $finalStatus,
+            'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+            'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
             'total' => $total,
             'processed' => $processed,
             'imported' => $imported,
@@ -645,9 +655,13 @@ class ImportFromDataCiteJob implements ShouldQueue
             'warnings' => $warnings,
             'datacenter' => $datacenter,
             'started_at' => $startedAt,
-            'completed_at' => now()->toIso8601String(),
+            'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
             'current_prefix' => null,
         ]);
+
+        if ($finalStatus !== 'cancelled') {
+            $this->finishDataCiteSyncPhase();
+        }
 
         Log::info('Datacenter DataCite import completed', [
             'import_id' => $this->importId,
@@ -778,8 +792,11 @@ class ImportFromDataCiteJob implements ShouldQueue
         $wasSkipped = $result['status'] === 'skipped';
         $wasEnriched = $result['enriched'];
 
+        $finalStatus = $this->determineFinalStatus();
+
         $this->updateProgress([
-            'status' => $this->determineFinalStatus(),
+            'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+            'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
             'total' => 1,
             'processed' => 1,
             'imported' => $wasSkipped ? 0 : 1,
@@ -790,9 +807,13 @@ class ImportFromDataCiteJob implements ShouldQueue
             'enriched_dois' => $wasEnriched ? [$doi] : [],
             'failed_dois' => [],
             'started_at' => $startedAt,
-            'completed_at' => now()->toIso8601String(),
+            'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
             'current_prefix' => null,
         ]);
+
+        if ($this->determineFinalStatus() !== 'cancelled') {
+            $this->finishDataCiteSyncPhase();
+        }
     }
 
     /**
@@ -856,9 +877,12 @@ class ImportFromDataCiteJob implements ShouldQueue
             return;
         }
 
+        $finalStatus = $this->determineFinalStatus();
+
         if ($result['status'] === 'imported') {
             $this->updateProgress([
-                'status' => $this->determineFinalStatus(),
+                'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+                'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
                 'total' => 1,
                 'processed' => 1,
                 'imported' => 1,
@@ -869,16 +893,21 @@ class ImportFromDataCiteJob implements ShouldQueue
                 'enriched_dois' => [],
                 'failed_dois' => [],
                 'started_at' => $startedAt,
-                'completed_at' => now()->toIso8601String(),
+                'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
                 'current_prefix' => null,
             ]);
+
+            if ($finalStatus !== 'cancelled') {
+                $this->finishDataCiteSyncPhase();
+            }
 
             return;
         }
 
         if ($result['status'] === 'skipped') {
             $this->updateProgress([
-                'status' => $this->determineFinalStatus(),
+                'status' => $finalStatus === 'cancelled' ? 'cancelled' : 'running',
+                'phase' => $finalStatus === 'cancelled' ? 'completed' : 'syncing',
                 'total' => 1,
                 'processed' => 1,
                 'imported' => 0,
@@ -889,9 +918,13 @@ class ImportFromDataCiteJob implements ShouldQueue
                 'enriched_dois' => [],
                 'failed_dois' => [],
                 'started_at' => $startedAt,
-                'completed_at' => now()->toIso8601String(),
+                'completed_at' => $finalStatus === 'cancelled' ? now()->toIso8601String() : null,
                 'current_prefix' => null,
             ]);
+
+            if ($finalStatus !== 'cancelled') {
+                $this->finishDataCiteSyncPhase();
+            }
 
             return;
         }
@@ -935,16 +968,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 Log::debug('Skipping existing DOI', ['doi' => $doi]);
 
                 $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $doiRecord);
-                $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
-
-                if ($shouldLookupMetaworks && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
-                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $doiRecord, $metaworksService);
-                }
 
                 return [
                     'status' => 'skipped',
-                    'metaworks_unavailable' => $legacyDownloadSync['metaworks_unavailable'],
-                    'enriched' => $dataCiteLandingPageSync['changed'] || $legacyDownloadSync['changed'],
+                    'metaworks_unavailable' => false,
+                    'enriched' => $dataCiteLandingPageSync['changed'],
                 ];
             }
 
@@ -1003,16 +1031,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $dataCiteLandingPageSync = $existingResource !== null
                     ? $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $preparedDoiRecord)
                     : $this->emptyDataCiteLandingPageSyncResult();
-                $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
-
-                if ($existingResource !== null && $shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
-                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $doiRecord, $metaworksService);
-                }
 
                 return [
                     'status' => 'skipped',
-                    'metaworks_unavailable' => $metaworksUnavailable || $legacyDownloadSync['metaworks_unavailable'],
-                    'enriched' => $dataCiteLandingPageSync['changed'] || $legacyDownloadSync['changed'],
+                    'metaworks_unavailable' => $metaworksUnavailable,
+                    'enriched' => $dataCiteLandingPageSync['changed'],
                 ];
             }
 
@@ -1025,7 +1048,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $portalDatacenterNames,
             );
 
-            $this->syncDataCiteLandingPageIfAllowed($importedResource, $doi, $preparedDoiRecord);
+            $dataCiteLandingPageSync = $this->syncDataCiteLandingPageIfAllowed($importedResource, $doi, $preparedDoiRecord);
 
             $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
 
@@ -1033,7 +1056,9 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $legacyDownloadSync = $this->syncLegacyDownloadLinks($importedResource, $doi, $doiRecord, $metaworksService);
             }
 
-            $this->syncDataCiteMetadataIfAllowed($importedResource);
+            if ($dataCiteLandingPageSync['sync_eligible'] || $legacyDownloadSync['sync_eligible']) {
+                $this->resourceIdsForDataCiteSync[] = (int) $importedResource->id;
+            }
 
             Log::debug('Imported DOI', ['doi' => $doi]);
 
@@ -1058,16 +1083,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $dataCiteLandingPageSync = $existingResource !== null
                     ? $this->syncDataCiteLandingPageIfAllowed($existingResource, $doi, $doiRecord)
                     : $this->emptyDataCiteLandingPageSyncResult();
-                $legacyDownloadSync = $this->emptyLegacyDownloadSyncResult();
-
-                if ($existingResource !== null && $shouldLookupMetaworks && ! $metaworksUnavailable && ! LandingPage::where('resource_id', $existingResource->id)->exists()) {
-                    $legacyDownloadSync = $this->syncLegacyDownloadLinks($existingResource, $doi, $doiRecord, $metaworksService);
-                }
 
                 return [
                     'status' => 'skipped',
-                    'metaworks_unavailable' => $metaworksUnavailable || $legacyDownloadSync['metaworks_unavailable'],
-                    'enriched' => $dataCiteLandingPageSync['changed'] || $legacyDownloadSync['changed'],
+                    'metaworks_unavailable' => $metaworksUnavailable,
+                    'enriched' => $dataCiteLandingPageSync['changed'],
                 ];
             }
 
@@ -1077,7 +1097,7 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $doiRecord
-     * @return array{changed: bool}
+     * @return array{changed: bool, sync_eligible: bool}
      */
     private function syncDataCiteLandingPageIfAllowed(Resource $resource, string $doi, array $doiRecord): array
     {
@@ -1092,7 +1112,11 @@ class ImportFromDataCiteJob implements ShouldQueue
         try {
             $result = app(DataCiteLandingPageImportService::class)->createExternalForResource($resource, $attributes);
 
-            return ['changed' => $result['changed']];
+            return [
+                'changed' => $result['changed'],
+                'sync_eligible' => $result['created']
+                    && $result['landing_page']?->is_published === true,
+            ];
         } catch (\Throwable $exception) {
             Log::warning('Failed to import external DataCite landing page URL', [
                 'doi' => $resource->doi,
@@ -1105,16 +1129,16 @@ class ImportFromDataCiteJob implements ShouldQueue
     }
 
     /**
-     * @return array{changed: bool}
+     * @return array{changed: bool, sync_eligible: bool}
      */
     private function emptyDataCiteLandingPageSyncResult(): array
     {
-        return ['changed' => false];
+        return ['changed' => false, 'sync_eligible' => false];
     }
 
     /**
      * @param  array<string, mixed>  $doiRecord
-     * @return array{changed: bool, metaworks_unavailable: bool}
+     * @return array{changed: bool, metaworks_unavailable: bool, sync_eligible: bool}
      */
     private function syncLegacyDownloadLinks(
         Resource $resource,
@@ -1122,8 +1146,8 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $doiRecord,
         MetaworksDownloadUrlService $metaworksService,
     ): array {
-        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool, hasFileRows?: bool} $fileResult */
-        $fileResult = ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false];
+        /** @var array{files: list<array{url: string, label: string|null, visible: string|null}>, allPublic: bool, resourceFound?: bool, hasFileRows?: bool, resourcePublicStatus?: string|null} $fileResult */
+        $fileResult = ['files' => [], 'allPublic' => false, 'resourceFound' => false, 'hasFileRows' => false, 'resourcePublicStatus' => null];
 
         try {
             $fileResult = $metaworksService->lookupFileEntries($doi);
@@ -1136,21 +1160,34 @@ class ImportFromDataCiteJob implements ShouldQueue
             return [
                 'changed' => false,
                 'metaworks_unavailable' => true,
+                'sync_eligible' => false,
             ];
         }
 
         $fileResult += [
             'resourceFound' => false,
             'hasFileRows' => $fileResult['files'] !== [],
+            'resourcePublicStatus' => null,
         ];
+
+        $attributes = is_array($doiRecord['attributes'] ?? null)
+            ? $doiRecord['attributes']
+            : $doiRecord;
+        $decision = app(LegacyLandingPageDecisionService::class)->internalLandingPageDecision(
+            $fileResult['resourcePublicStatus'],
+            isset($attributes['state']) ? (string) $attributes['state'] : null,
+        );
+
+        if (! $decision['should_create']) {
+            return $this->emptyLegacyDownloadSyncResult();
+        }
 
         try {
             $syncResult = app(LegacyLandingPageImportService::class)->syncMissingFileEntries(
                 resource: $resource,
                 fileEntries: $fileResult['files'],
-                isPublished: $this->isFindableDoiRecord($doiRecord)
-                    && (! $fileResult['hasFileRows'] || $fileResult['allPublic']),
-                createWhenEmpty: $fileResult['resourceFound'] === true,
+                isPublished: $decision['should_publish'],
+                createWhenEmpty: true,
             );
         } catch (\Throwable $exception) {
             Log::warning('Failed to sync landing page with download links', [
@@ -1165,29 +1202,17 @@ class ImportFromDataCiteJob implements ShouldQueue
         return [
             'changed' => $syncResult['changed'],
             'metaworks_unavailable' => false,
+            'sync_eligible' => $syncResult['created'] && $decision['should_sync'],
         ];
     }
 
-    /**
-     * @param  array<string, mixed>  $doiRecord
-     */
-    private function isFindableDoiRecord(array $doiRecord): bool
-    {
-        $attributes = is_array($doiRecord['attributes'] ?? null)
-            ? $doiRecord['attributes']
-            : $doiRecord;
-
-        return strtolower(trim((string) ($attributes['state'] ?? ''))) === 'findable';
-    }
-
-    /**
-     * @return array{changed: bool, metaworks_unavailable: bool}
-     */
+    /** @return array{changed: bool, metaworks_unavailable: bool, sync_eligible: bool} */
     private function emptyLegacyDownloadSyncResult(): array
     {
         return [
             'changed' => false,
             'metaworks_unavailable' => false,
+            'sync_eligible' => false,
         ];
     }
 
@@ -1277,17 +1302,17 @@ class ImportFromDataCiteJob implements ShouldQueue
         )));
     }
 
-    private function syncDataCiteMetadataIfAllowed(Resource $resource): void
+    private function finishDataCiteSyncPhase(): void
     {
-        if (
-            config('datacite.test_mode') !== false
-            || ! (bool) config('datacite.sync_after_import', false)
-            || ! $resource->exists
-        ) {
+        if ($this->determineFinalStatus() === 'cancelled') {
             return;
         }
 
-        app(DataCiteSyncService::class)->syncIfRegistered($resource->fresh() ?? $resource);
+        app(ImportedResourceDataCiteSyncDispatcher::class)->dispatch(
+            ImportProgressService::TYPE_RESOURCE,
+            $this->importId,
+            $this->resourceIdsForDataCiteSync,
+        );
     }
 
     /**

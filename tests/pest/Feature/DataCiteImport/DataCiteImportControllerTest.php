@@ -3,12 +3,49 @@
 use App\Enums\UserRole;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportProgressService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     $this->adminUser = User::factory()->create(['role' => UserRole::ADMIN]);
     $this->groupLeader = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
     $this->curator = User::factory()->create(['role' => UserRole::CURATOR]);
     $this->beginner = User::factory()->create(['role' => UserRole::BEGINNER]);
+});
+
+it('retries failed resource DataCite synchronizations in production', function (): void {
+    Config::set('datacite.test_mode', false);
+    $importId = Str::uuid()->toString();
+    Cache::put("datacite_import:{$importId}", [
+        'status' => 'completed',
+        'sync_failed' => 1,
+        'sync_retry_available' => true,
+    ]);
+
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcher::class);
+    $dispatcher->shouldReceive('retryFailures')
+        ->once()
+        ->with(ImportProgressService::TYPE_RESOURCE, $importId)
+        ->andReturnTrue();
+    $this->app->instance(ImportedResourceDataCiteSyncDispatcher::class, $dispatcher);
+
+    $this->actingAs($this->adminUser)
+        ->postJson("/datacite/import/{$importId}/retry-sync")
+        ->assertAccepted();
+});
+
+it('rejects resource DataCite retries in test mode', function (): void {
+    Config::set('datacite.test_mode', true);
+    $importId = Str::uuid()->toString();
+    Cache::put("datacite_import:{$importId}", ['status' => 'completed']);
+
+    $this->actingAs($this->adminUser)
+        ->postJson("/datacite/import/{$importId}/retry-sync")
+        ->assertBadRequest()
+        ->assertJsonPath('error', 'DataCite synchronization is disabled in test mode.');
 });
 
 describe('DataCiteImportController', function () {
@@ -161,7 +198,7 @@ describe('ResourceController canImportFromDataCite', function () {
 
 describe('ResourceController destroy authorization', function () {
     it('allows admin to delete draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create([
+        $resource = App\Models\Resource::factory()->create([
             'doi' => null,
         ]);
 
@@ -169,11 +206,11 @@ describe('ResourceController destroy authorization', function () {
             ->delete("/resources/{$resource->id}");
 
         $response->assertRedirect('/resources');
-        expect(\App\Models\Resource::find($resource->id))->toBeNull();
+        expect(App\Models\Resource::find($resource->id))->toBeNull();
     });
 
     it('allows group leader to delete draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create([
+        $resource = App\Models\Resource::factory()->create([
             'doi' => null,
         ]);
 
@@ -181,11 +218,11 @@ describe('ResourceController destroy authorization', function () {
             ->delete("/resources/{$resource->id}");
 
         $response->assertRedirect('/resources');
-        expect(\App\Models\Resource::find($resource->id))->toBeNull();
+        expect(App\Models\Resource::find($resource->id))->toBeNull();
     });
 
     it('allows curator to delete draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create([
+        $resource = App\Models\Resource::factory()->create([
             'doi' => null,
         ]);
 
@@ -193,11 +230,11 @@ describe('ResourceController destroy authorization', function () {
             ->delete("/resources/{$resource->id}");
 
         $response->assertRedirect('/resources');
-        expect(\App\Models\Resource::find($resource->id))->toBeNull();
+        expect(App\Models\Resource::find($resource->id))->toBeNull();
     });
 
     it('denies beginner from deleting draft resources', function () {
-        $resource = \App\Models\Resource::factory()->create([
+        $resource = App\Models\Resource::factory()->create([
             'doi' => null,
         ]);
 
@@ -206,6 +243,6 @@ describe('ResourceController destroy authorization', function () {
 
         $response->assertForbidden();
         // Resource should still exist
-        expect(\App\Models\Resource::find($resource->id))->not->toBeNull();
+        expect(App\Models\Resource::find($resource->id))->not->toBeNull();
     });
 });
