@@ -29,6 +29,10 @@ class ImportedResourceDataCiteSyncDispatcherService
     {
         $resourceIds = array_values(array_unique(array_map('intval', $resourceIds)));
 
+        if (($this->progressService->get($type, $importId)['status'] ?? null) === 'cancelled') {
+            return;
+        }
+
         if ($resourceIds !== [] && ! $retry) {
             app(PortalKeywordCacheInvalidationService::class)->scheduleAfterCommit();
             CacheKey::PORTAL_RESOURCE_TYPE_FACETS->forget();

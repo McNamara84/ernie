@@ -38,6 +38,7 @@ describe('ImportDataCiteSyncStatus', () => {
     });
 
     it('starts a retry for failed updates without discarding local data', async () => {
+        const user = userEvent.setup();
         const onRetryStarted = vi.fn();
         (axios.post as Mock).mockResolvedValue({ data: { message: 'started' } });
 
@@ -56,7 +57,7 @@ describe('ImportDataCiteSyncStatus', () => {
         );
 
         expect(screen.getByText(/published landing pages were kept/i)).toBeInTheDocument();
-        await userEvent.click(screen.getByRole('button', { name: /retry failed updates/i }));
+        await user.click(screen.getByRole('button', { name: /retry failed updates/i }));
 
         await waitFor(() => {
             expect(axios.post).toHaveBeenCalledWith('/igsns/import/import-id/retry-sync', {}, { headers: { 'X-CSRF-TOKEN': 'test-token' } });

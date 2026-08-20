@@ -9,9 +9,12 @@ use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
 use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
+use Illuminate\Contracts\Cache\Lock as LockContract;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 beforeEach(function (): void {
@@ -133,3 +136,112 @@ it('turns unprocessed batch items into retryable failures during finalization', 
     ])->and($progress->failedResourceIds(ImportProgressService::TYPE_RESOURCE, $this->importId))
         ->toBe([41, 42]);
 });
+
+it('does not expose synchronization retries when test mode becomes active before completion', function (): void {
+    Config::set('datacite.test_mode', false);
+    $progress = app(ImportProgressService::class);
+    $progress->beginSync(ImportProgressService::TYPE_RESOURCE, $this->importId, [41]);
+
+    Config::set('datacite.test_mode', true);
+    $progress->recordSyncFailure(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        41,
+        '10.5880/test-mode-failure',
+        'DataCite unavailable',
+    );
+
+    expect($progress->get(ImportProgressService::TYPE_RESOURCE, $this->importId))->toMatchArray([
+        'status' => 'completed',
+        'sync_failed' => 1,
+        'sync_retry_available' => false,
+    ]);
+});
+
+it('retries a timed-out progress lock before applying the update', function (): void {
+    $timedOutLock = Mockery::mock(LockContract::class);
+    $acquiredLock = Mockery::mock(LockContract::class);
+    $progressKey = "datacite_import:{$this->importId}";
+
+    $timedOutLock->shouldReceive('block')
+        ->once()
+        ->with(5, Mockery::type(Closure::class))
+        ->andThrow(new LockTimeoutException);
+    $acquiredLock->shouldReceive('block')
+        ->once()
+        ->with(5, Mockery::type(Closure::class))
+        ->andReturnUsing(static fn (int $seconds, Closure $callback): mixed => $callback());
+
+    Cache::shouldReceive('lock')
+        ->twice()
+        ->with("{$progressKey}:lock", 15)
+        ->andReturn($timedOutLock, $acquiredLock);
+    Cache::shouldReceive('get')
+        ->once()
+        ->with($progressKey, [])
+        ->andReturn(['status' => 'running']);
+    Cache::shouldReceive('put')
+        ->once()
+        ->withArgs(fn (string $key, array $progress, mixed $ttl): bool => $key === $progressKey
+            && $progress['processed'] === 1
+            && $ttl instanceof DateTimeInterface)
+        ->andReturnTrue();
+
+    app(ImportProgressService::class)->update(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        ['processed' => 1],
+    );
+});
+
+it('logs and continues when a progress lock repeatedly times out', function (): void {
+    $lock = Mockery::mock(LockContract::class);
+    $progressKey = "datacite_import:{$this->importId}";
+
+    $lock->shouldReceive('block')
+        ->times(3)
+        ->with(5, Mockery::type(Closure::class))
+        ->andThrow(new LockTimeoutException);
+    Cache::shouldReceive('lock')
+        ->times(3)
+        ->with("{$progressKey}:lock", 15)
+        ->andReturn($lock);
+    Log::shouldReceive('warning')
+        ->once()
+        ->withArgs(fn (string $message, array $context): bool => $message === 'Import progress update skipped after repeated lock timeouts'
+            && $context['import_type'] === ImportProgressService::TYPE_RESOURCE
+            && $context['import_id'] === $this->importId
+            && $context['operation'] === 'update'
+            && $context['lock_key'] === "{$progressKey}:lock"
+            && $context['attempts'] === 3);
+
+    expect(fn () => app(ImportProgressService::class)->update(
+        ImportProgressService::TYPE_RESOURCE,
+        $this->importId,
+        ['processed' => 1],
+    ))->not->toThrow(LockTimeoutException::class);
+});
+
+it('does not dispatch synchronization for a cancelled import', function (string $type, string $progressKey): void {
+    Config::set('datacite.test_mode', false);
+    Bus::fake();
+    Cache::put("{$progressKey}:{$this->importId}", [
+        'status' => 'cancelled',
+        'phase' => 'completed',
+    ]);
+
+    app(ImportedResourceDataCiteSyncDispatcherService::class)->dispatch(
+        $type,
+        $this->importId,
+        [123],
+    );
+
+    Bus::assertNothingBatched();
+    expect(Cache::get("{$progressKey}:{$this->importId}"))->toBe([
+        'status' => 'cancelled',
+        'phase' => 'completed',
+    ]);
+})->with([
+    'resource import' => [ImportProgressService::TYPE_RESOURCE, 'datacite_import'],
+    'IGSN import' => [ImportProgressService::TYPE_IGSN, 'igsn_import'],
+]);

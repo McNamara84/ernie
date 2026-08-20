@@ -4,10 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Closure;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ImportProgressService
 {
+    private const LOCK_TTL_SECONDS = 15;
+
+    private const LOCK_WAIT_SECONDS = 5;
+
+    /** @var list<int> */
+    private const LOCK_RETRY_BACKOFF_MILLISECONDS = [100, 250];
+
     public const TYPE_RESOURCE = 'resource';
 
     public const TYPE_IGSN = 'igsn';
@@ -25,7 +36,7 @@ class ImportProgressService
     {
         $key = $this->progressKey($type, $importId);
 
-        Cache::lock($key.':lock', 10)->block(5, function () use ($key, $values): void {
+        $this->withProgressLock($type, $importId, 'update', function () use ($key, $values): void {
             $progress = Cache::get($key, []);
 
             foreach ($values as $name => $value) {
@@ -116,7 +127,7 @@ class ImportProgressService
     {
         $key = $this->progressKey($type, $importId);
 
-        Cache::lock($key.':lock', 10)->block(5, function () use ($key, $type, $importId): void {
+        $this->withProgressLock($type, $importId, 'finalize_sync', function () use ($key, $type, $importId): void {
             $progress = Cache::get($key);
 
             if (! is_array($progress) || ($progress['status'] ?? null) === 'cancelled') {
@@ -207,7 +218,7 @@ class ImportProgressService
     ): void {
         $key = $this->progressKey($type, $importId);
 
-        Cache::lock($key.':lock', 10)->block(5, function () use ($key, $type, $importId, $resourceId, $doi, $error): void {
+        $this->withProgressLock($type, $importId, 'record_sync_result', function () use ($key, $type, $importId, $resourceId, $doi, $error): void {
             $progress = Cache::get($key, []);
 
             if (($progress['status'] ?? null) === 'cancelled') {
@@ -251,11 +262,38 @@ class ImportProgressService
             if ((int) $progress['sync_processed'] >= (int) ($progress['sync_total'] ?? 0)) {
                 $progress['status'] = 'completed';
                 $progress['phase'] = 'completed';
-                $progress['sync_retry_available'] = (int) ($progress['sync_failed'] ?? 0) > 0;
+                $progress['sync_retry_available'] = (int) ($progress['sync_failed'] ?? 0) > 0
+                    && config('datacite.test_mode') === false;
                 $progress['completed_at'] = now()->toIso8601String();
             }
 
             Cache::put($key, $progress, now()->addHours(24));
         });
+    }
+
+    private function withProgressLock(
+        string $type,
+        string $importId,
+        string $operation,
+        Closure $callback,
+    ): void {
+        $lockKey = $this->progressKey($type, $importId).':lock';
+
+        try {
+            retry(
+                self::LOCK_RETRY_BACKOFF_MILLISECONDS,
+                static fn (): mixed => Cache::lock($lockKey, self::LOCK_TTL_SECONDS)
+                    ->block(self::LOCK_WAIT_SECONDS, $callback),
+                when: static fn (Throwable $exception): bool => $exception instanceof LockTimeoutException,
+            );
+        } catch (LockTimeoutException $exception) {
+            Log::warning('Import progress update skipped after repeated lock timeouts', [
+                'import_type' => $type,
+                'import_id' => $importId,
+                'operation' => $operation,
+                'lock_key' => $lockKey,
+                'attempts' => count(self::LOCK_RETRY_BACKOFF_MILLISECONDS) + 1,
+            ]);
+        }
     }
 }

@@ -1174,6 +1174,10 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
     private function finishDataCiteSyncPhase(): void
     {
+        if ($this->isCancelled()) {
+            return;
+        }
+
         app(ImportedResourceDataCiteSyncDispatcherService::class)->dispatch(
             ImportProgressService::TYPE_IGSN,
             $this->importId,
