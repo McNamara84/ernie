@@ -1029,6 +1029,7 @@ describe('Landing Page with Custom Template', function () {
                     'related_work',
                     'general',
                     'acquisition',
+                    'repositories',
                     'dates',
                     'citation',
                 ])
