@@ -22,6 +22,7 @@ use App\Models\ResourceDate;
 use App\Models\Size;
 use App\Services\Igsn\IgsnDifMetadataExtractor;
 use App\Services\Igsn\IgsnGeometryNormalizer;
+use App\Services\Igsn\IgsnVocabularyNormalizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,15 +39,34 @@ class IgsnDifXmlParser
     public function __construct(
         private readonly IgsnDifMetadataExtractor $extractor = new IgsnDifMetadataExtractor,
         private readonly IgsnGeometryNormalizer $geometryNormalizer = new IgsnGeometryNormalizer,
+        private readonly IgsnVocabularyNormalizer $vocabularyNormalizer = new IgsnVocabularyNormalizer,
     ) {}
 
     public function enrichFromDifXml(string $difXml, Resource $resource, IgsnMetadata $igsnMetadata): bool
     {
-        $metadata = $this->extractor->extract($difXml);
+        try {
+            $metadata = $this->extractor->extract($difXml);
+        } catch (\InvalidArgumentException $exception) {
+            Log::warning('Failed to normalize DIF XML metadata', [
+                'resource_id' => $resource->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return false;
+        }
+
         if ($metadata === null) {
             Log::warning('Failed to extract DIF XML metadata', ['resource_id' => $resource->id]);
 
             return false;
+        }
+
+        foreach ($metadata['rejected_classifications'] as $classification) {
+            Log::warning('Skipped unsupported DIF classification', [
+                'resource_id' => $resource->id,
+                'material' => $metadata['scalars']['material'],
+                'classification' => $classification,
+            ]);
         }
 
         try {
@@ -87,9 +107,8 @@ class IgsnDifXmlParser
         if ($metadata['parent_igsn'] !== null) {
             $description['parent_igsn_handle'] = strtoupper($metadata['parent_igsn']);
         }
-        if ($metadata['comments'] !== []) {
-            $description['comments'] = $this->mergeUnique($description['comments'] ?? [], $metadata['comments']);
-        }
+        $this->replaceDescriptionValues($description, 'material_descriptions', $metadata['material_descriptions']);
+        $this->replaceDescriptionValues($description, 'comments', $metadata['comments']);
         $igsnMetadata->description_json = $description !== [] ? $description : null;
 
         if ($metadata['sample_access'] !== null) {
@@ -371,9 +390,37 @@ class IgsnDifXmlParser
     /** @param array<string, mixed> $metadata */
     private function persistValueRelations(array $metadata, Resource $resource): void
     {
-        $this->persistPositionedValues(IgsnClassification::class, $metadata['classifications'], $resource);
+        $this->persistClassifications(
+            $metadata['classifications'],
+            is_string($metadata['scalars']['material'] ?? null) ? $metadata['scalars']['material'] : null,
+            $resource,
+        );
         $this->persistPositionedValues(IgsnGeologicalAge::class, $metadata['geological_ages'], $resource);
         $this->persistPositionedValues(IgsnGeologicalUnit::class, $metadata['geological_units'], $resource);
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function persistClassifications(array $values, ?string $material, Resource $resource): void
+    {
+        $type = $this->vocabularyNormalizer->classificationType($material);
+        $maximum = IgsnClassification::query()->where('resource_id', $resource->id)->max('position');
+        $nextPosition = $maximum === null ? 0 : ((int) $maximum) + 1;
+
+        foreach ($values as $value) {
+            $classification = IgsnClassification::firstOrCreate(
+                ['resource_id' => $resource->id, 'value' => $value],
+                ['classification_type' => $type, 'position' => $nextPosition],
+            );
+
+            if ($classification->wasRecentlyCreated) {
+                $nextPosition++;
+            } elseif ($type !== null && $classification->classification_type !== $type) {
+                $classification->classification_type = $type;
+                $classification->save();
+            }
+        }
     }
 
     /**
@@ -420,6 +467,21 @@ class IgsnDifXmlParser
         }
 
         return array_values($result);
+    }
+
+    /**
+     * @param  array<mixed>  $description
+     * @param  list<string>  $values
+     */
+    private function replaceDescriptionValues(array &$description, string $key, array $values): void
+    {
+        if ($values === []) {
+            unset($description[$key]);
+
+            return;
+        }
+
+        $description[$key] = $this->mergeUnique([], $values);
     }
 
     private function normalizeText(string $value): string

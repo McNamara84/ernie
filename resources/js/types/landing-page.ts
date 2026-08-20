@@ -692,6 +692,7 @@ export interface LandingPageIgsnMetadata {
     depth_scale: string | null;
     coordinate_system: string | null;
     sample_access: string | null;
+    material_descriptions?: string[];
     comments: string[];
     current_archive: string | null;
     current_archive_contact: string | null;
@@ -715,11 +716,12 @@ export interface LandingPageIgsnMetadata {
 }
 
 /**
- * IGSN rock classification entry.
+ * Material-specific IGSN classification entry.
  */
 export interface LandingPageIgsnClassification {
     id: number;
     value: string;
+    classification_type?: 'rock' | 'mineral' | 'biology' | null;
 }
 
 /**
@@ -750,7 +752,7 @@ export interface LandingPageResource {
     contact_persons?: LandingPageContactPerson[];
     /** IGSN-specific metadata (only present for PhysicalObject resources) */
     igsn_metadata?: LandingPageIgsnMetadata | null;
-    /** IGSN rock classifications (ordered) */
+    /** Material-specific IGSN classifications (ordered) */
     igsn_classifications?: LandingPageIgsnClassification[];
 }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Services\Igsn\IgsnVocabularyNormalizer;
 use App\Support\FunderIdentifierTypeDetector;
 use Illuminate\Support\Str;
 
@@ -16,6 +17,10 @@ use Illuminate\Support\Str;
  */
 class IgsnCsvParserService
 {
+    public function __construct(
+        private readonly IgsnVocabularyNormalizer $vocabularyNormalizer = new IgsnVocabularyNormalizer,
+    ) {}
+
     /**
      * CSV delimiter character.
      */
@@ -188,6 +193,16 @@ class IgsnCsvParserService
 
         // Parse multi-value fields
         $parsedData = $this->parseMultiValueFields($data);
+
+        try {
+            $parsedData = $this->vocabularyNormalizer->normalizeImportData($parsedData);
+        } catch (\InvalidArgumentException $exception) {
+            return [
+                'data' => [],
+                'warnings' => $warnings,
+                'errors' => [['row' => $rowNumber, 'message' => $exception->getMessage()]],
+            ];
+        }
 
         // Parse structured data
         $parsedData['_contributors'] = $this->parseContributors($data);

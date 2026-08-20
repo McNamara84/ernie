@@ -1,0 +1,128 @@
+{
+    "source_issue": "https://github.com/McNamara84/ernie/issues/1112",
+    "source_comment_id": 5355974482,
+    "classification_type": "biology",
+    "values": [
+        {
+            "value": "Plant",
+            "definition": "A plant material without further definition",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001481"
+        },
+        {
+            "value": "whole plant",
+            "definition": "A whole plant",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001461"
+        },
+        {
+            "value": "branch",
+            "definition": "A part of plant (--> branch)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001300"
+        },
+        {
+            "value": "cone",
+            "definition": "A part of plant (--> cone)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000280"
+        },
+        {
+            "value": "flower",
+            "definition": "A part of plant(--> flower)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000469"
+        },
+        {
+            "value": "fruit",
+            "definition": "A part of plant (--> fruit)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000486"
+        },
+        {
+            "value": "leaf",
+            "definition": "A part of plant (--> leaf)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000713"
+        },
+        {
+            "value": "pollen",
+            "definition": "A part of plant (--> pollen)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001097"
+        },
+        {
+            "value": "root",
+            "definition": "A part of plant (--> root)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001188"
+        },
+        {
+            "value": "seed",
+            "definition": "A part of plant (--> seed)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001226"
+        },
+        {
+            "value": "stem",
+            "definition": "A part of plant (--> stem)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001300"
+        },
+        {
+            "value": "twig",
+            "definition": "A part of plant (--> twig)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001411"
+        },
+        {
+            "value": "Animal",
+            "definition": "Animal material without further definition",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000042"
+        },
+        {
+            "value": "whole body",
+            "definition": "A whole animal body",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001489"
+        },
+        {
+            "value": "bone",
+            "definition": "A part of an animal (--> bone)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000140"
+        },
+        {
+            "value": "cranium",
+            "definition": "A part of an animal (--> cranium)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001295"
+        },
+        {
+            "value": "feces",
+            "definition": "A part of an animal (--> feces)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000440"
+        },
+        {
+            "value": "hair",
+            "definition": "A part of an animal (--> hair)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001501"
+        },
+        {
+            "value": "secretion",
+            "definition": "A part of an animal (--> secretion)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0002979"
+        },
+        {
+            "value": "shell",
+            "definition": "A part of an animal (--> shell)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0004659"
+        },
+        {
+            "value": "tooth",
+            "definition": "A part of an animal (--> tooth)",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000397"
+        },
+        {
+            "value": "Fungus",
+            "definition": "Fungus material without further definition",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0001494"
+        },
+        {
+            "value": "Organism form",
+            "definition": "Material of an organism form (e.g. biofilm, planktonic cells…) without further definition",
+            "value_uri": "http://purl.obolibrary.org/obo/BTO_0000284"
+        },
+        {
+            "value": "Other",
+            "definition": null,
+            "value_uri": null
+        }
+    ]
+}
+

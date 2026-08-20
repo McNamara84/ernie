@@ -23,6 +23,7 @@ const baseIgsn = (overrides: Partial<LandingPageIgsnMetadata> = {}): LandingPage
     collection_method: null,
     collection_method_description: null,
     collection_date_precision: null,
+    material_descriptions: [],
     depth_min: null,
     depth_max: null,
     depth_scale: null,
@@ -86,7 +87,7 @@ describe('AcquisitionSection', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('renders Material and joins classifications with comma', () => {
+    it('renders material-specific classification and description labels', () => {
         const igsn = baseIgsn({ material: 'Granite' });
         const classifications: LandingPageIgsnClassification[] = [
             { id: 1, value: 'Igneous' },
@@ -106,8 +107,29 @@ describe('AcquisitionSection', () => {
         );
 
         expect(screen.getByText('Granite')).toBeInTheDocument();
+        expect(screen.getByText('Granite Classification')).toBeInTheDocument();
+        expect(screen.getByText('Granite Description')).toBeInTheDocument();
         expect(screen.getByText('Igneous, Plutonic')).toBeInTheDocument();
     });
+
+    it.each(['Rock', 'Mineral', 'Biology', 'Sediment'])(
+        'derives the classification and description labels for %s',
+        (material) => {
+            render(
+                <AcquisitionSection
+                    igsn={baseIgsn({ material })}
+                    classifications={[]}
+                    descriptions={[]}
+                    contributors={[]}
+                    fundingReferences={[]}
+                    dates={[]}
+                />,
+            );
+
+            expect(screen.getByText(`${material} Classification`)).toBeInTheDocument();
+            expect(screen.getByText(`${material} Description`)).toBeInTheDocument();
+        },
+    );
 
     it('renders Collection Method without description as plain text', () => {
         const igsn = baseIgsn({ collection_method: 'Drilling', collection_method_description: null });
@@ -117,7 +139,7 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('Drilling')).toBeInTheDocument();
     });
 
-    it('renders Collection Method with description as composite block', () => {
+    it('renders Collection Method and Collection Method Description as independent standard rows', () => {
         const igsn = baseIgsn({
             collection_method: 'Drilling',
             collection_method_description: '5m core barrel',
@@ -127,23 +149,28 @@ describe('AcquisitionSection', () => {
 
         expect(screen.getByText('Drilling')).toBeInTheDocument();
         expect(screen.getByText('5m core barrel')).toBeInTheDocument();
+
+        const methodLabel = screen.getByText('Collection Method');
+        const descriptionLabel = screen.getByText('Collection Method Description');
+        expect(methodLabel.nextElementSibling).toHaveTextContent('Drilling');
+        expect(descriptionLabel.nextElementSibling).toHaveTextContent('5m core barrel');
+        expect(descriptionLabel.nextElementSibling?.className).toBe(methodLabel.nextElementSibling?.className);
+        expect(descriptionLabel.nextElementSibling).not.toHaveClass('text-xs');
     });
 
-    it('hides Collection Method when value is whitespace-only', () => {
+    it('shows an independently populated Collection Method Description when the method is empty', () => {
         const igsn = baseIgsn({
             collection_method: '   ',
             collection_method_description: 'irrelevant because method is empty',
         });
 
-        const { container } = render(
-            <AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />,
-        );
+        render(<AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />);
 
-        // Card should not render since the only field (collection method) is whitespace
-        expect(container.firstChild).toBeNull();
+        expect(screen.getByText('Collection Method').nextElementSibling).toHaveTextContent('N/A');
+        expect(screen.getByText('Collection Method Description').nextElementSibling).toHaveTextContent('irrelevant because method is empty');
     });
 
-    it('renders Collection Method as plain text when description is whitespace-only', () => {
+    it('shows N/A for a whitespace-only Collection Method Description', () => {
         const igsn = baseIgsn({
             collection_method: 'Drilling',
             collection_method_description: '   ',
@@ -151,9 +178,8 @@ describe('AcquisitionSection', () => {
 
         render(<AcquisitionSection igsn={igsn} classifications={[]} descriptions={[]} contributors={[]} fundingReferences={[]} dates={[]} />);
 
-        // Drilling renders, but no extra description block
         expect(screen.getByText('Drilling')).toBeInTheDocument();
-        expect(screen.queryByText('   ')).not.toBeInTheDocument();
+        expect(screen.getByText('Collection Method Description').nextElementSibling).toHaveTextContent('N/A');
     });
 
     it('hides Comments when description value is whitespace-only', () => {
@@ -193,21 +219,20 @@ describe('AcquisitionSection', () => {
         expect(screen.getByText('DFG, NSF')).toBeInTheDocument();
     });
 
-    it('only uses descriptions of type "Other" for Comments', () => {
+    it('does not treat DataCite Other descriptions as IGSN comments', () => {
         const descriptions: LandingPageDescription[] = [
             { id: 1, value: 'Abstract here', description_type: 'Abstract' },
             { id: 2, value: 'Field notes', description_type: 'Other' },
         ];
 
-        render(
+        const { container } = render(
             <AcquisitionSection igsn={null} classifications={[]} descriptions={descriptions} contributors={[]} fundingReferences={[]} dates={[]} />,
         );
 
-        expect(screen.getByText('Field notes')).toBeInTheDocument();
-        expect(screen.queryByText('Abstract here')).not.toBeInTheDocument();
+        expect(container.firstChild).toBeNull();
     });
 
-    it('merges and deduplicates legacy comments with all DataCite Other descriptions', () => {
+    it('deduplicates explicit IGSN comments without merging DataCite descriptions', () => {
         const descriptions: LandingPageDescription[] = [
             { id: 1, value: 'DataCite note', description_type: 'Other' },
             { id: 2, value: ' legacy note ', description_type: 'other' },
@@ -225,8 +250,59 @@ describe('AcquisitionSection', () => {
             />,
         );
 
-        expect(screen.getByText('Legacy note; DataCite note')).toBeInTheDocument();
+        expect(screen.getByText('Legacy note')).toBeInTheDocument();
+        expect(screen.queryByText('DataCite note')).not.toBeInTheDocument();
         expect(screen.queryByText('Unrelated abstract')).not.toBeInTheDocument();
+    });
+
+    it('renders every empty IGSN acquisition field as N/A', () => {
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn()}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        [
+            'Material',
+            'Material Classification',
+            'Material Description',
+            'Geological Unit',
+            'Comments',
+            'Minimum Depth',
+            'Maximum Depth',
+            'Depth Scale',
+            'Sizes',
+            'Collection Method',
+            'Collection Method Description',
+            'Funding Agency',
+            'Chief Scientist',
+            'Start Date',
+            'End Date',
+        ].forEach((label) => {
+            expect(screen.getByText(label).nextElementSibling).toHaveTextContent('N/A');
+        });
+    });
+
+    it('renders the NotApplicable storage value with its public label', () => {
+        render(
+            <AcquisitionSection
+                igsn={baseIgsn({ material: 'NotApplicable' })}
+                classifications={[]}
+                descriptions={[]}
+                contributors={[]}
+                fundingReferences={[]}
+                dates={[]}
+            />,
+        );
+
+        expect(screen.getByText('Not applicable')).toBeInTheDocument();
+        expect(screen.getByText('Not applicable Classification')).toBeInTheDocument();
+        expect(screen.getByText('Not applicable Description')).toBeInTheDocument();
     });
 
     it('matches Chief Scientist by Data Collector and DataCollector (case-insensitive)', () => {
@@ -300,7 +376,8 @@ describe('AcquisitionSection', () => {
     it('renders the approved GFLMU acquisition details', () => {
         const igsn = baseIgsn({
             material: 'Rock',
-            comments: ['Granodiorite'],
+            material_descriptions: ['Granodiorite'],
+            comments: [],
             collection_method: 'Coring',
             geological_units: [{ id: 1, value: 'Weschnitz Pluton' }],
             sizes: [
@@ -322,6 +399,8 @@ describe('AcquisitionSection', () => {
 
         expect(screen.getByText('Weschnitz Pluton')).toBeInTheDocument();
         expect(screen.getByText('Granodiorite')).toBeInTheDocument();
+        expect(screen.getByText('Rock Description').nextElementSibling).toHaveTextContent('Granodiorite');
+        expect(screen.getByText('Comments').nextElementSibling).toHaveTextContent('N/A');
         expect(screen.getByText('Diameter: 50 mm; Length: 100 mm')).toBeInTheDocument();
         expect(screen.getByText('Guido Blöcher')).toBeInTheDocument();
     });

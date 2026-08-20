@@ -539,6 +539,10 @@ final class LandingPageResourceTransformer
                 'collection_date_precision' => $meta->collection_date_precision,
                 'coordinate_system' => $meta->coordinate_system,
                 'sample_access' => $meta->sample_access,
+                'material_descriptions' => array_values(array_filter(
+                    is_array($descriptionJson['material_descriptions'] ?? null) ? $descriptionJson['material_descriptions'] : [],
+                    static fn (mixed $description): bool => is_string($description) && trim($description) !== '',
+                )),
                 'comments' => array_values(array_filter(
                     is_array($descriptionJson['comments'] ?? null) ? $descriptionJson['comments'] : [],
                     static fn (mixed $comment): bool => is_string($comment) && trim($comment) !== '',
@@ -575,6 +579,7 @@ final class LandingPageResourceTransformer
                 ->map(static fn (IgsnClassification $classification): array => [
                     'id' => $classification->id,
                     'value' => $classification->value,
+                    'classification_type' => $classification->classification_type?->value,
                 ])
                 ->all();
         } else {

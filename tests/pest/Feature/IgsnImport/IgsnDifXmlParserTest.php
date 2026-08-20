@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AccessLevel;
+use App\Enums\Igsn\IgsnClassificationType;
 use App\Models\Affiliation;
 use App\Models\AlternateIdentifier;
 use App\Models\ContributorType;
@@ -18,6 +19,7 @@ use App\Models\ResourceDate;
 use App\Models\Size;
 use App\Services\IgsnDifXmlParser;
 use App\Services\LandingPageResourceTransformer;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
@@ -40,7 +42,7 @@ describe('IgsnDifXmlParser', function () {
                 <record>
                     <sample xmlns="http://pmd.gfz-potsdam.de/igsn/schemas/description-ext/1.3">
                         <sample_type>Rock</sample_type>
-                        <material>Basalt</material>
+                        <material>Rock</material>
                         <user_code>ICDP5068</user_code>
                         <current_archive>GFZ Potsdam</current_archive>
                         <collection_method>Core drilling</collection_method>
@@ -57,7 +59,7 @@ describe('IgsnDifXmlParser', function () {
         expect($result)->toBeTrue();
         $this->igsnMetadata->refresh();
         expect($this->igsnMetadata->sample_type)->toBe('Rock');
-        expect($this->igsnMetadata->material)->toBe('Basalt');
+        expect($this->igsnMetadata->material)->toBe('Rock');
         expect($this->igsnMetadata->user_code)->toBe('ICDP5068');
         expect($this->igsnMetadata->current_archive)->toBe('GFZ Potsdam');
         expect($this->igsnMetadata->collection_method)->toBe('Core drilling');
@@ -73,7 +75,7 @@ describe('IgsnDifXmlParser', function () {
                 <record>
                     <sample>
                         <sample_type>Sediment</sample_type>
-                        <material>Clay</material>
+                        <material>Sediment</material>
                     </sample>
                 </record>
             </supplementalMetadata>
@@ -85,7 +87,105 @@ describe('IgsnDifXmlParser', function () {
         expect($result)->toBeTrue();
         $this->igsnMetadata->refresh();
         expect($this->igsnMetadata->sample_type)->toBe('Sediment');
-        expect($this->igsnMetadata->material)->toBe('Clay');
+        expect($this->igsnMetadata->material)->toBe('Sediment');
+    });
+
+    it('persists material descriptions and explicit comments separately', function () {
+        $this->igsnMetadata->update([
+            'description_json' => ['comments' => ['Old incorrectly mapped description']],
+        ]);
+
+        $xml = <<<'XML'
+        <resource>
+            <description>Smell: None, sediment type: sandy</description>
+            <sample>
+                <material>Sediment</material>
+                <descriptions>
+                    <description>Smell: None, sediment type: sandy</description>
+                </descriptions>
+                <sample_comment>Stored frozen after collection</sample_comment>
+            </sample>
+        </resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $descriptionJson = $this->igsnMetadata->fresh()->description_json;
+        expect($descriptionJson['material_descriptions'])->toBe(['Smell: None, sediment type: sandy'])
+            ->and($descriptionJson['comments'])->toBe(['Stored frozen after collection']);
+    });
+
+    it('removes obsolete imported comments when a reimport has no explicit comment', function () {
+        $this->igsnMetadata->update([
+            'description_json' => [
+                'parent_igsn_handle' => 'GFHER7EC99',
+                'comments' => ['porewater,'],
+            ],
+        ]);
+
+        $xml = <<<'XML'
+        <resource>
+            <description>porewater,</description>
+            <sample>
+                <material>Liquid&gt;aqueous</material>
+                <descriptions><description>porewater,</description></descriptions>
+            </sample>
+        </resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $descriptionJson = $this->igsnMetadata->fresh()->description_json;
+        expect($descriptionJson['parent_igsn_handle'])->toBe('GFHER7EC99')
+            ->and($descriptionJson['material_descriptions'])->toBe(['porewater,'])
+            ->and($descriptionJson)->not->toHaveKey('comments');
+    });
+
+    it('keeps collection method and its description in separate columns', function () {
+        $xml = <<<'XML'
+        <resource><sample>
+            <material>Sediment</material>
+            <collection_method>unconsolidated sediment corers</collection_method>
+            <collection_method_descr>Box corer</collection_method_descr>
+        </sample></resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue();
+
+        $metadata = $this->igsnMetadata->fresh();
+        expect($metadata->collection_method)->toBe('unconsolidated sediment corers')
+            ->and($metadata->collection_method_description)->toBe('Box corer');
+    });
+
+    it('rejects unsupported controlled material values without persisting partial enrichment', function () {
+        $xml = '<resource><sample><material>Granite</material></sample></resource>';
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeFalse()
+            ->and($this->igsnMetadata->fresh()->material)->toBeNull();
+    });
+
+    it('logs and skips unsupported legacy classifications without losing valid DIF metadata', function () {
+        Log::spy();
+
+        $xml = <<<'XML'
+        <resource><sample>
+            <material>Rock</material>
+            <classification>Igneous; legacy rock term</classification>
+            <collection_method>Core drilling</collection_method>
+        </sample></resource>
+        XML;
+
+        expect($this->parser->enrichFromDifXml($xml, $this->resource, $this->igsnMetadata))->toBeTrue()
+            ->and($this->igsnMetadata->fresh()->collection_method)->toBe('Core drilling')
+            ->and(IgsnClassification::where('resource_id', $this->resource->id)->pluck('value')->all())->toBe(['Igneous']);
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('Skipped unsupported DIF classification', \Mockery::on(
+                fn (array $context): bool => $context['resource_id'] === $this->resource->id
+                    && $context['material'] === 'Rock'
+                    && $context['classification'] === 'legacy rock term',
+            ));
     });
 
     it('maps geo location from coordinates', function () {
@@ -447,6 +547,7 @@ describe('IgsnDifXmlParser', function () {
                 <record>
                     <sample>
                         <sample_type>Rock</sample_type>
+                        <material>Rock</material>
                         <classification>Igneous</classification>
                     </sample>
                 </record>
@@ -459,6 +560,7 @@ describe('IgsnDifXmlParser', function () {
         $classification = IgsnClassification::where('resource_id', $this->resource->id)->first();
         expect($classification)->not->toBeNull();
         expect($classification->value)->toBe('Igneous');
+        expect($classification->classification_type)->toBe(IgsnClassificationType::ROCK);
     });
 
     it('skips classification when N/A', function () {
@@ -469,6 +571,7 @@ describe('IgsnDifXmlParser', function () {
                 <record>
                     <sample>
                         <sample_type>Rock</sample_type>
+                        <material>Rock</material>
                         <classification>N/A</classification>
                     </sample>
                 </record>
@@ -494,6 +597,7 @@ describe('IgsnDifXmlParser', function () {
                 <record>
                     <sample>
                         <sample_type>Rock</sample_type>
+                        <material>Rock</material>
                         <classification>Igneous</classification>
                     </sample>
                 </record>
@@ -785,7 +889,8 @@ describe('IgsnDifXmlParser', function () {
             ->and($meta->original_archive_contact)->toBe('Guido Blöcher')
             ->and($meta->sample_access)->toBe('Private')
             ->and($meta->description_json['parent_igsn_handle'])->toBe('GFLMU0002')
-            ->and($meta->description_json['comments'])->toBe(['Granodiorite'])
+            ->and($meta->description_json['material_descriptions'])->toBe(['Granodiorite'])
+            ->and($meta->description_json)->not->toHaveKey('comments')
             ->and($this->resource->fresh()->access_level)->toBe(AccessLevel::RESTRICTED);
 
         $geo = GeoLocation::whereBelongsTo($this->resource)->sole();
@@ -831,7 +936,8 @@ describe('IgsnDifXmlParser', function () {
             'sample_type' => 'Core',
             'material' => 'Rock',
             'sample_access' => 'Private',
-            'comments' => ['Granodiorite'],
+            'material_descriptions' => ['Granodiorite'],
+            'comments' => [],
             'original_archive_contact' => 'Guido Blöcher',
         ])->and($landingData['igsn_metadata']['parent'])->toMatchArray([
             'igsn' => 'GFLMU0002',

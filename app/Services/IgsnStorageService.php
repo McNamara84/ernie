@@ -30,6 +30,7 @@ use App\Models\Title;
 use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\PersonService;
+use App\Services\Igsn\IgsnVocabularyNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -53,6 +54,7 @@ class IgsnStorageService
         protected IgsnCsvParserService $parser,
         protected PersonService $personService,
         protected AffiliationService $affiliationService,
+        protected IgsnVocabularyNormalizer $vocabularyNormalizer,
     ) {}
 
     /**
@@ -103,6 +105,8 @@ class IgsnStorageService
      */
     private function createIgsnResource(array $data, string $filename, ?int $userId): Resource
     {
+        $data = $this->vocabularyNormalizer->normalizeImportData($data);
+
         // Create the base Resource
         $resource = Resource::create([
             'doi' => $data['igsn'],
@@ -622,12 +626,16 @@ class IgsnStorageService
     {
         // Classifications
         $classifications = $data['classification'] ?? [];
+        $classificationType = $this->vocabularyNormalizer->classificationType(
+            is_string($data['material'] ?? null) ? $data['material'] : null,
+        );
         if (is_array($classifications)) {
             foreach ($classifications as $index => $value) {
                 if (! empty($value)) {
                     IgsnClassification::create([
                         'resource_id' => $resource->id,
                         'value' => $value,
+                        'classification_type' => $classificationType,
                         'position' => $index,
                     ]);
                 }

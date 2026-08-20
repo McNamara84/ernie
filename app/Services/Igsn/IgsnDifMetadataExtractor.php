@@ -9,6 +9,10 @@ namespace App\Services\Igsn;
  */
 class IgsnDifMetadataExtractor
 {
+    public function __construct(
+        private readonly IgsnVocabularyNormalizer $vocabularyNormalizer = new IgsnVocabularyNormalizer,
+    ) {}
+
     /**
      * @return array<string, mixed>|null
      */
@@ -40,11 +44,23 @@ class IgsnDifMetadataExtractor
             $this->directValues($sample, 'description'),
             $this->descendantValues($sample, 'descriptions', 'description'),
         );
+        $comments = array_merge(
+            $this->directValues($root, 'sample_comment'),
+            $this->directValues($root, 'comment'),
+            $this->directValues($sample, 'sample_comment'),
+            $this->directValues($sample, 'comment'),
+            $this->descendantValues($sample, 'comments', 'comment'),
+        );
+        $material = $this->vocabularyNormalizer->normalizeMaterial($this->first($sample, ['material']));
+        $classifications = $this->vocabularyNormalizer->partitionClassifications(
+            $material,
+            $this->splitValues($this->directValues($sample, 'classification')),
+        );
 
         return [
             'scalars' => [
                 'sample_type' => $this->first($sample, ['sample_type']),
-                'material' => $this->first($sample, ['material']),
+                'material' => $material,
                 'user_code' => $this->first($sample, ['user_code']),
                 'cruise_field_program' => $this->first($sample, ['cruise_field_prgrm', 'cruise_field_program']),
                 'depth_min' => $this->first($sample, ['depth_min']),
@@ -71,7 +87,8 @@ class IgsnDifMetadataExtractor
             )),
             'parent_igsn' => $this->first($sample, ['parent_igsn']),
             'sample_access' => $this->first($root, ['sampleAccess']) ?? $this->first($sample, ['sample_access']),
-            'comments' => $this->uniqueValues(array_merge($rootDescriptions, $sampleDescriptions)),
+            'material_descriptions' => $this->uniqueValues(array_merge($rootDescriptions, $sampleDescriptions)),
+            'comments' => $this->uniqueValues($comments),
             'location' => [
                 'pairs' => $pairs,
                 'place' => $this->first($sample, ['primary_location_name', 'locality']),
@@ -90,7 +107,8 @@ class IgsnDifMetadataExtractor
                 'collector' => $this->first($sample, ['collector']) ?? $this->nestedName($root, 'collector'),
                 'collector_detail' => $this->first($sample, ['collector_detail']) ?? $this->nestedName($root, 'collector', 'affiliation'),
             ],
-            'classifications' => $this->splitValues($this->directValues($sample, 'classification')),
+            'classifications' => $classifications['values'],
+            'rejected_classifications' => $classifications['rejected'],
             'geological_ages' => $this->splitValues($this->directValues($sample, 'geological_age')),
             'geological_units' => $this->splitValues($this->directValues($sample, 'geological_unit')),
             'sizes' => $this->sizes(
