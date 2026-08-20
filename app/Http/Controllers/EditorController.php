@@ -359,14 +359,25 @@ class EditorController extends Controller
             ));
         } catch (\Throwable $exception) {
             $message = 'Unable to load this resource in the Data Editor. Please try again.';
-            $this->progressTracker->fail($token, $userId, $resourceId, $message);
             report($exception);
+            $serverProgress = 0;
+
+            try {
+                $this->progressTracker->fail($token, $userId, $resourceId, $message);
+                $progressState = $this->progressTracker->findForUser($token, $userId, $resourceId);
+
+                if ($progressState !== null) {
+                    $serverProgress = (int) ($progressState['progress'] ?? 0);
+                }
+            } catch (\Throwable $trackingException) {
+                report($trackingException);
+            }
 
             return Inertia::render('editor-loading', [
                 'editorLoad' => $this->editorLoadProps(
                     token: $token,
                     resourceId: $resourceId,
-                    serverProgress: (int) ($this->progressTracker->findForUser($token, $userId, $resourceId)['progress'] ?? 0),
+                    serverProgress: $serverProgress,
                 ),
                 'loadError' => $message,
             ]);

@@ -8,15 +8,16 @@ use App\Models\DateType;
 use App\Models\Description;
 use App\Models\Resource;
 use App\Models\User;
+use App\Services\Editor\EditorDataTransformer;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\Repository;
 use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
+use Mockery\MockInterface;
 
 use function Pest\Laravel\withoutVite;
-
-uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     withoutVite();
@@ -89,6 +90,85 @@ it('loads the resource on the authenticated token request and reaches server rea
             'progress' => 75,
             'error' => null,
         ]);
+});
+
+it('renders the loader error page when progress expires while handling a load failure', function (): void {
+    $user = User::factory()->create();
+    $resource = Resource::factory()->create();
+
+    $this->mock(EditorDataTransformer::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('getCommonProps')
+            ->once()
+            ->andReturnUsing(function (): array {
+                Cache::flush();
+
+                throw new RuntimeException('Resource transformation failed.');
+            });
+    });
+
+    $this->actingAs($user);
+    $loader = $this->get(route('editor', ['resourceId' => $resource->id]))->assertOk();
+    $token = $loader->inertiaProps('editorLoad.token');
+
+    expect($token)->toBeString();
+
+    $this->withHeader(EditorController::RESOURCE_LOAD_TOKEN_HEADER, $token)
+        ->get(route('editor', ['resourceId' => $resource->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('editor-loading')
+            ->where('editorLoad.resourceId', $resource->id)
+            ->where('editorLoad.serverProgress', 0)
+            ->where('loadError', 'Unable to load this resource in the Data Editor. Please try again.'));
+});
+
+it('renders the loader error page when progress tracking also fails', function (): void {
+    $user = User::factory()->create();
+    $resource = Resource::factory()->create();
+    $cacheStore = new class extends ArrayStore
+    {
+        public ?int $editorLoadGetsBeforeFailure = null;
+
+        public function get($key): mixed
+        {
+            if ($this->editorLoadGetsBeforeFailure !== null && str_starts_with((string) $key, 'editor_load:')) {
+                if ($this->editorLoadGetsBeforeFailure === 0) {
+                    throw new RuntimeException('Cache unavailable.');
+                }
+
+                $this->editorLoadGetsBeforeFailure--;
+            }
+
+            return parent::get($key);
+        }
+    };
+
+    Cache::extend('failing-test', fn (): Repository => new Repository($cacheStore));
+    config()->set('cache.stores.failing-test', ['driver' => 'failing-test']);
+    config()->set('cache.default', 'failing-test');
+
+    $this->mock(EditorDataTransformer::class, function (MockInterface $mock): void {
+        $mock->shouldReceive('getCommonProps')
+            ->once()
+            ->andThrow(new RuntimeException('Resource transformation failed.'));
+    });
+
+    $this->actingAs($user);
+    $loader = $this->get(route('editor', ['resourceId' => $resource->id]))->assertOk();
+    $token = $loader->inertiaProps('editorLoad.token');
+
+    expect($token)->toBeString();
+
+    $cacheStore->editorLoadGetsBeforeFailure = 1;
+
+    $this->withHeader(EditorController::RESOURCE_LOAD_TOKEN_HEADER, $token)
+        ->get(route('editor', ['resourceId' => $resource->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('editor-loading')
+            ->where('editorLoad.resourceId', $resource->id)
+            ->where('editorLoad.serverProgress', 0)
+            ->where('loadError', 'Unable to load this resource in the Data Editor. Please try again.'));
 });
 
 it('eager loads nested description and date types without per-row queries', function (): void {
