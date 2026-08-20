@@ -3,7 +3,7 @@
 use App\Enums\UserRole;
 use App\Models\Resource;
 use App\Models\User;
-use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -25,12 +25,12 @@ it('retries failed resource DataCite synchronizations in production', function (
         'sync_retry_available' => true,
     ]);
 
-    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcher::class);
+    $dispatcher = Mockery::mock(ImportedResourceDataCiteSyncDispatcherService::class);
     $dispatcher->shouldReceive('retryFailures')
         ->once()
         ->with(ImportProgressService::TYPE_RESOURCE, $importId)
         ->andReturnTrue();
-    $this->app->instance(ImportedResourceDataCiteSyncDispatcher::class, $dispatcher);
+    $this->app->instance(ImportedResourceDataCiteSyncDispatcherService::class, $dispatcher);
 
     $this->actingAs($this->adminUser)
         ->postJson("/datacite/import/{$importId}/retry-sync")

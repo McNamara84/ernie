@@ -10,7 +10,7 @@ use App\Jobs\ImportIgsnsFromDataCiteJob;
 use App\Models\Resource;
 use App\Models\User;
 use App\Services\IgsnImportService;
-use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -220,7 +220,7 @@ class IgsnImportController extends Controller
     public function retrySync(
         Request $request,
         string $importId,
-        ImportedResourceDataCiteSyncDispatcher $dispatcher,
+        ImportedResourceDataCiteSyncDispatcherService $dispatcher,
     ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 

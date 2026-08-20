@@ -12,7 +12,7 @@ use App\Services\DataCiteToIgsnTransformer;
 use App\Services\IgsnChildDiscoveryService;
 use App\Services\IgsnEnrichmentService;
 use App\Services\IgsnImportService;
-use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyIgsnPortalService;
 use App\Support\IgsnIdentifier;
@@ -1174,7 +1174,7 @@ class ImportIgsnsFromDataCiteJob implements ShouldQueue
 
     private function finishDataCiteSyncPhase(): void
     {
-        app(ImportedResourceDataCiteSyncDispatcher::class)->dispatch(
+        app(ImportedResourceDataCiteSyncDispatcherService::class)->dispatch(
             ImportProgressService::TYPE_IGSN,
             $this->importId,
             $this->resourceIdsForDataCiteSync,

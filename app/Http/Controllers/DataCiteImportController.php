@@ -11,7 +11,7 @@ use App\Models\Resource;
 use App\Models\User;
 use App\Services\DoiImportEligibilityService;
 use App\Services\GfzDataServicesPortalService;
-use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -246,7 +246,7 @@ class DataCiteImportController extends Controller
     public function retrySync(
         Request $request,
         string $importId,
-        ImportedResourceDataCiteSyncDispatcher $dispatcher,
+        ImportedResourceDataCiteSyncDispatcherService $dispatcher,
     ): JsonResponse {
         $this->authorize('importFromDataCite', Resource::class);
 

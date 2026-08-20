@@ -7,7 +7,7 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\DataCiteSyncResult;
 use App\Services\DataCiteSyncService;
-use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
@@ -102,7 +102,7 @@ it('finishes locally without dispatching DataCite jobs in test mode', function (
     Config::set('datacite.test_mode', true);
     Bus::fake();
 
-    app(ImportedResourceDataCiteSyncDispatcher::class)->dispatch(
+    app(ImportedResourceDataCiteSyncDispatcherService::class)->dispatch(
         ImportProgressService::TYPE_RESOURCE,
         $this->importId,
         [123],

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class ImportedResourceDataCiteSyncDispatcher
+class ImportedResourceDataCiteSyncDispatcherService
 {
     private const CHUNK_SIZE = 25;
 

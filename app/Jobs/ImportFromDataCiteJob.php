@@ -14,7 +14,7 @@ use App\Services\DataCiteSubjectMergeService;
 use App\Services\DataCiteToResourceTransformer;
 use App\Services\DoiSuggestionService;
 use App\Services\GfzDataServicesPortalService;
-use App\Services\ImportedResourceDataCiteSyncDispatcher;
+use App\Services\ImportedResourceDataCiteSyncDispatcherService;
 use App\Services\ImportProgressService;
 use App\Services\LegacyLandingPageDecisionService;
 use App\Services\LegacyLandingPageImportService;
@@ -1308,7 +1308,7 @@ class ImportFromDataCiteJob implements ShouldQueue
             return;
         }
 
-        app(ImportedResourceDataCiteSyncDispatcher::class)->dispatch(
+        app(ImportedResourceDataCiteSyncDispatcherService::class)->dispatch(
             ImportProgressService::TYPE_RESOURCE,
             $this->importId,
             $this->resourceIdsForDataCiteSync,
