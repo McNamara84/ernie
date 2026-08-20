@@ -163,6 +163,12 @@ final readonly class ResourceQueryBuilder
             });
         }
 
+        if (! empty($filters['without_datacenter'])) {
+            $query->whereNull('datacenter_id');
+        } elseif (isset($filters['datacenter_id'])) {
+            $query->where('datacenter_id', $filters['datacenter_id']);
+        }
+
         // Status filter - keep semantics in sync with Resource::publicStatus():
         // - draft: missing mandatory fields (type, year, creators, rights, main title or abstract)
         // - curation: complete + no DOI OR (has DOI but no landing page)

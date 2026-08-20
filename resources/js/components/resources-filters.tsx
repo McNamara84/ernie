@@ -64,6 +64,9 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
 
     // Local states for Select components to ensure proper synchronization
     const [resourceTypeValue, setResourceTypeValue] = useState(filters.resource_type?.[0] || 'all');
+    const [datacenterValue, setDatacenterValue] = useState(
+        filters.without_datacenter ? 'without' : filters.datacenter_id ? String(filters.datacenter_id) : 'all',
+    );
     const [statusValue, setStatusValue] = useState(filters.status?.[0] || 'all');
     const [curatorValue, setCuratorValue] = useState(filters.curator?.[0] || 'all');
     const {
@@ -86,9 +89,10 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
     // Sync Select values when filters change externally
     useEffect(() => {
         setResourceTypeValue(filters.resource_type?.[0] || 'all');
+        setDatacenterValue(filters.without_datacenter ? 'without' : filters.datacenter_id ? String(filters.datacenter_id) : 'all');
         setStatusValue(filters.status?.[0] || 'all');
         setCuratorValue(filters.curator?.[0] || 'all');
-    }, [filters.resource_type, filters.status, filters.curator]);
+    }, [filters.resource_type, filters.datacenter_id, filters.without_datacenter, filters.status, filters.curator]);
 
     // Debounced search handler
     const handleSearchChange = useCallback(
@@ -177,6 +181,23 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
         [filters, onFilterChange],
     );
 
+    const handleDatacenterChange = useCallback(
+        (value: string) => {
+            const newFilters = { ...filters };
+            delete newFilters.datacenter_id;
+            delete newFilters.without_datacenter;
+
+            if (value === 'without') {
+                newFilters.without_datacenter = true;
+            } else if (value && value !== 'all') {
+                newFilters.datacenter_id = Number(value);
+            }
+
+            onFilterChange(newFilters);
+        },
+        [filters, onFilterChange],
+    );
+
     const handleCuratorChange = useCallback(
         (value: string) => {
             const newFilters = { ...filters };
@@ -248,6 +269,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                 resource_type: 'Type',
                 status: 'Status',
                 curator: 'Curator',
+                datacenter_id: 'Datacenter',
                 search: 'Search',
                 year_from: 'Year from',
                 year_to: 'Year to',
@@ -269,6 +291,15 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                     return `${label}: ${names.join(', ')}`;
                 }
                 return `${label}: ${value.join(', ')}`;
+            }
+
+            if (key === 'datacenter_id' && filterOptions?.datacenters) {
+                const datacenter = filterOptions.datacenters.find((option) => option.id === value);
+                return `${label}: ${datacenter?.name || String(value)}`;
+            }
+
+            if (key === 'without_datacenter') {
+                return 'Datacenter: Without Datacenter';
             }
 
             return `${label}: ${String(value)}`;
@@ -305,6 +336,22 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                         {filterOptions?.resource_types?.map((type) => (
                             <SelectItem key={type.slug} value={type.slug}>
                                 {type.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {/* Datacenter Select */}
+                <Select value={datacenterValue} onValueChange={handleDatacenterChange} disabled={isLoading || !filterOptions}>
+                    <SelectTrigger size="sm" className="w-full sm:w-[180px]" aria-label="Filter by datacenter">
+                        <SelectValue placeholder="Datacenter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Datacenters</SelectItem>
+                        <SelectItem value="without">Without Datacenter</SelectItem>
+                        {filterOptions?.datacenters?.map((datacenter) => (
+                            <SelectItem key={datacenter.id} value={String(datacenter.id)}>
+                                {datacenter.name}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -413,13 +460,7 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                     Apply
                                 </Button>
                                 {hasYearRangeInput && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={clearYearRange}
-                                        disabled={isLoading}
-                                    >
+                                    <Button type="button" variant="ghost" size="sm" onClick={clearYearRange} disabled={isLoading}>
                                         <X className="mr-1 h-3 w-3" />
                                         Clear
                                     </Button>

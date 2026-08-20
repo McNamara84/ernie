@@ -50,6 +50,27 @@ describe('parseResourceFiltersFromUrl', () => {
         });
     });
 
+    it('should parse a datacenter id', () => {
+        const result = parseResourceFiltersFromUrl('?datacenter_id=12');
+        expect(result).toEqual({
+            datacenter_id: 12,
+        });
+    });
+
+    it('should parse the without datacenter option', () => {
+        const result = parseResourceFiltersFromUrl('?without_datacenter=1');
+        expect(result).toEqual({
+            without_datacenter: true,
+        });
+    });
+
+    it('should prefer the without datacenter option over a datacenter id', () => {
+        const result = parseResourceFiltersFromUrl('?datacenter_id=12&without_datacenter=1');
+        expect(result).toEqual({
+            without_datacenter: true,
+        });
+    });
+
     it('should parse year_from as number', () => {
         const result = parseResourceFiltersFromUrl('?year_from=2020');
         expect(result).toEqual({

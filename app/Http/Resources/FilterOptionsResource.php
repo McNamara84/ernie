@@ -12,6 +12,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * Wraps a plain associative array with keys:
  *  - resource_types: list<array{name: string, slug: string}>
+ *  - datacenters: list<array{id: int, name: string}>
  *  - curators: list<string>
  *  - year_range: array{min: int, max: int}
  *  - statuses: list<string>
@@ -43,6 +44,7 @@ final class FilterOptionsResource extends JsonResource
 
         return [
             'resource_types' => $payload['resource_types'] ?? [],
+            'datacenters' => $payload['datacenters'] ?? [],
             'curators' => $payload['curators'] ?? [],
             'year_range' => $payload['year_range'] ?? ['min' => $currentYear, 'max' => $currentYear],
             'statuses' => $payload['statuses'] ?? [],

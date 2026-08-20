@@ -2045,6 +2045,16 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                             individually with the checkbox in the leftmost column, or use the header checkbox to select all currently visible
                             resources. The bulk actions toolbar sits directly below the filter row and shows how many resources are selected.
                         </p>
+
+                        <h4>Filtering by Datacenter</h4>
+                        <p>
+                            Use the <strong>Datacenter</strong> dropdown to show resources assigned to one datacenter. The dropdown lists only
+                            datacenters assigned to at least one regular resource; datacenters used exclusively by physical-sample IGSNs and unused
+                            datacenters are omitted. Choose <strong>Without Datacenter</strong> to find resources that still need a datacenter
+                            assignment, or <strong>All Datacenters</strong> to remove the filter. The selected value appears with the other active
+                            filter badges and remains applied when you change the sorting or load more results.
+                        </p>
+
                         <p>
                             Click anywhere else on a resource row to open that resource in the Data Editor in a new browser tab. Existing row controls
                             keep their own behavior: the checkbox selects the row, and a clickable published status badge opens and copies the DOI.
